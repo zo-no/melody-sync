@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1e1e1e" media="(prefers-color-scheme: dark)">
+<meta name="remotelab-build" content="{{BUILD_TITLE}}">
+{{PAGE_HEAD_TAGS}}
+<link rel="manifest" href="/manifest.json?v={{ASSET_VERSION}}">
+<link rel="icon" href="/favicon.ico?v={{ASSET_VERSION}}" sizes="any">
+<link rel="icon" href="/icon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v={{ASSET_VERSION}}">
+<title>{{PAGE_TITLE}}</title>
+<link rel="stylesheet" href="/chat/chat.css?v={{ASSET_VERSION}}">
+</head>
+<body class="{{BODY_CLASS}}">
+<div class="app-shell">
+
+<!-- Header -->
+<div class="header">
+  <button class="header-btn" id="menuBtn" title="Sessions" aria-label="Sessions" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
+  <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync Chat</h1>
+  <button class="header-share-btn" id="forkSessionBtn" title="Create an isolated copy of this session" style="display:none" data-i18n="action.fork">Fork</button>
+  <button class="header-share-btn" id="shareSnapshotBtn" title="Create a read-only snapshot link" style="display:none" data-i18n="action.share">Share</button>
+  <div class="header-timer" id="headerTimer">
+    <button class="header-timer-toggle" id="timerToggleBtn" type="button" title="Focus timer" aria-label="Focus timer" aria-expanded="false">
+      <span class="header-timer-prefix">Timer</span>
+      <span class="header-timer-label" id="timerToggleLabel">25m</span>
+    </button>
+    <div class="header-timer-panel" id="timerPanel" hidden>
+      <div class="header-timer-panel-header">
+        <div class="header-timer-title">Focus Timer</div>
+        <div class="header-timer-readout" id="timerReadout">25:00</div>
+      </div>
+      <div class="header-timer-presets">
+        <button class="header-timer-preset active" type="button" data-timer-preset="25">25m</button>
+        <button class="header-timer-preset" type="button" data-timer-preset="50">50m</button>
+        <button class="header-timer-preset" type="button" data-timer-preset="90">90m</button>
+      </div>
+      <div class="header-timer-custom">
+        <div class="header-timer-custom-label">Custom duration</div>
+        <label class="header-timer-custom-input-wrap" for="timerMinutesInput">
+          <input class="header-timer-custom-input" id="timerMinutesInput" type="number" min="1" max="240" step="1" inputmode="numeric" value="25">
+          <span class="header-timer-custom-unit">min</span>
+        </label>
+      </div>
+      <div class="header-timer-actions">
+        <button class="header-timer-action primary" id="timerStartBtn" type="button">Start</button>
+        <button class="header-timer-action" id="timerPauseBtn" type="button" disabled>Pause</button>
+        <button class="header-timer-action" id="timerResetBtn" type="button">Reset</button>
+      </div>
+      <div class="header-timer-hint" id="timerHint">Runs locally in this browser and survives refreshes.</div>
+    </div>
+  </div>
+  <div class="header-schedule" id="headerSchedule">
+    <button class="header-schedule-toggle" id="scheduleToggleBtn" type="button" title="Scheduled trigger" aria-label="Scheduled trigger" aria-expanded="false">
+      <span class="header-schedule-label" id="scheduleChipLabel">Schedule</span>
+      <span class="header-schedule-meta" id="scheduleChipMeta">Not set</span>
+    </button>
+    <div class="header-schedule-panel" id="schedulePanel" hidden>
+      <div class="header-schedule-panel-header">
+        <div class="header-schedule-title">Scheduled Trigger</div>
+        <div class="header-schedule-state" id="schedulePanelState">No schedule</div>
+      </div>
+      <div class="header-schedule-status" id="scheduleStatusText">Set what should run in this session and when it should fire.</div>
+      <div class="header-schedule-tabs">
+        <button class="header-schedule-tab active" id="scheduleCurrentTabBtn" type="button">This session</button>
+        <button class="header-schedule-tab" id="scheduleAllTasksTabBtn" type="button">All tasks</button>
+      </div>
+      <div class="header-schedule-view" id="scheduleCurrentView">
+      <div class="header-schedule-toolbar">
+        <div class="header-schedule-toolbar-meta" id="scheduleListSummary">No tasks yet</div>
+        <button class="header-schedule-action" id="addScheduleBtn" type="button">Add</button>
+      </div>
+      <div class="header-schedule-list" id="scheduleList" role="listbox" aria-label="Scheduled triggers" hidden></div>
+      <div class="header-schedule-empty" id="scheduleEmptyState">No scheduled tasks yet. Add one to wake this session automatically.</div>
+      <div class="header-schedule-result" id="scheduleResultCard" hidden>
+        <div class="header-schedule-result-row">
+          <div class="header-schedule-result-badge draft" id="scheduleResultBadge">Draft</div>
+          <div class="header-schedule-result-meta" id="scheduleResultMeta">Save a task to start tracking scheduled runs.</div>
+        </div>
+        <div class="header-schedule-result-detail" id="scheduleResultDetail">MelodySync will show the latest execution result here.</div>
+        <div class="header-schedule-result-error" id="scheduleResultError" hidden></div>
+      </div>
+        <label class="header-schedule-field" for="scheduleLabelInput">
+          <span class="header-schedule-field-label">Name</span>
+          <input class="header-schedule-input" id="scheduleLabelInput" type="text" maxlength="120" placeholder="For example: Daily report">
+        </label>
+        <div class="header-schedule-toggle-row">
+          <label class="header-schedule-checkbox" for="scheduleEnabledInput">
+            <input id="scheduleEnabledInput" type="checkbox">
+            <span>Enabled</span>
+          </label>
+        </div>
+        <label class="header-schedule-field" for="scheduleRecurrenceSelect">
+          <span class="header-schedule-field-label">Repeat</span>
+          <select class="header-schedule-input" id="scheduleRecurrenceSelect">
+            <option value="daily">Daily at fixed time</option>
+            <option value="interval">Every N minutes</option>
+          </select>
+        </label>
+        <label class="header-schedule-field" for="scheduleTimeInput">
+          <span class="header-schedule-field-label">Daily time</span>
+          <input class="header-schedule-input" id="scheduleTimeInput" type="time" value="09:00">
+        </label>
+        <label class="header-schedule-field" for="scheduleIntervalInput" id="scheduleIntervalField" hidden>
+          <span class="header-schedule-field-label">Every how many minutes</span>
+          <input class="header-schedule-input" id="scheduleIntervalInput" type="number" min="1" max="10080" step="1" inputmode="numeric" value="60">
+        </label>
+        <label class="header-schedule-field" for="scheduleContentInput">
+          <span class="header-schedule-field-label">Content to send</span>
+          <textarea class="header-schedule-textarea" id="scheduleContentInput" placeholder="Tell MelodySync what to do when this task fires."></textarea>
+        </label>
+        <details class="header-schedule-advanced" id="scheduleAdvanced">
+          <summary>Advanced</summary>
+          <div class="header-schedule-advanced-body">
+            <label class="header-schedule-field" for="schedulePresetSelect">
+              <span class="header-schedule-field-label">Template</span>
+              <select class="header-schedule-input" id="schedulePresetSelect">
+                <option value="custom">Custom</option>
+                <option value="daily_report">Daily report</option>
+                <option value="morning_plan">Morning plan</option>
+              </select>
+            </label>
+            <div class="header-schedule-preset-note" id="schedulePresetNote">Templates are optional.</div>
+            <label class="header-schedule-field" for="scheduleModelSelect">
+              <span class="header-schedule-field-label">Model</span>
+              <select class="header-schedule-input" id="scheduleModelSelect">
+                <option value="">Session default</option>
+              </select>
+            </label>
+          </div>
+        </details>
+        <div class="header-schedule-actions">
+          <button class="header-schedule-action primary" id="saveScheduleBtn" type="button">Save</button>
+          <button class="header-schedule-action" id="runScheduleBtn" type="button">Run now</button>
+          <button class="header-schedule-action" id="clearScheduleBtn" type="button">Clear</button>
+        </div>
+        <div class="header-schedule-note" id="scheduleTimezoneNote">Runs in this browser timezone.</div>
+      </div>
+      <div class="header-schedule-view" id="scheduleAllTasksView" hidden>
+        <p class="tasks-modal-summary" id="allSchedulesSummary">See every scheduled task in one place.</p>
+        <div class="tasks-modal-empty" id="allSchedulesEmpty" hidden>No scheduled tasks yet.</div>
+        <div class="tasks-modal-list" id="allSchedulesList" hidden></div>
+      </div>
+    </div>
+  </div>
+  <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
+  <span class="status-dot" id="statusDot"></span>
+  <span id="statusText" data-i18n="status.disconnected">disconnected</span>
+</div>
+
+<div class="app-container">
+  <!-- Sidebar overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>MelodySync</h2>
+        <button class="header-btn" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
+      </div>
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" id="tabSessions" data-i18n="nav.sessions">Sessions</button>
+        <button class="sidebar-tab" id="tabSettings" data-i18n="nav.settings">Settings</button>
+      </div>
+      <div class="sidebar-list" id="sessionList"></div>
+      <div class="sidebar-filters" id="sidebarFilters">
+        <select class="sidebar-filter-select" id="sourceFilterSelect" aria-label="Filter sessions by origin" data-i18n-aria-label="sidebar.filter.origin"></select>
+        <select class="sidebar-filter-select" id="sessionAppFilterSelect" aria-label="Filter sessions by app" data-i18n-aria-label="sidebar.filter.app"></select>
+        <select class="sidebar-filter-select" id="userFilterSelect" aria-label="Filter sessions by user" data-i18n-aria-label="sidebar.filter.user"></select>
+      </div>
+      <div class="settings-panel" id="settingsPanel">
+        <div class="settings-section">
+          <div class="settings-section-title" data-i18n="settings.language.title">Language</div>
+          <div class="settings-section-note" data-i18n="settings.language.note">Auto follows the current browser language. You can override it here for debugging, and dedicated visitor links can keep their own language preference.</div>
+          <div class="settings-inline-form">
+            <select class="settings-inline-select" id="uiLanguageSelect" aria-label="Choose interface language" data-i18n-aria-label="settings.language.ownerAriaLabel"></select>
+            <div class="settings-app-empty inline-status" id="uiLanguageStatus" data-i18n="settings.language.ownerStatusAuto">Auto is active. This browser follows its current language unless a dedicated visitor link sets its own preference.</div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title" data-i18n="settings.users.title">Users</div>
+          <div class="settings-section-note" data-i18n="settings.users.note">Create extra identities, choose which apps they can use, pick their language, and seed a first session when they are empty.</div>
+          <div class="settings-inline-form" id="newUserForm">
+            <input class="settings-inline-input" id="newUserNameInput" type="text" placeholder="User name, e.g. Video Editor" data-i18n-placeholder="settings.users.namePlaceholder">
+            <div class="settings-app-picker" id="newUserAppsPicker"></div>
+            <div class="settings-inline-row">
+              <select class="settings-inline-select" id="newUserDefaultAppSelect" aria-label="Choose default app for user" data-i18n-aria-label="settings.users.defaultAppAriaLabel"></select>
+              <select class="settings-inline-select" id="newUserLanguageSelect" aria-label="Choose preferred language for user" data-i18n-aria-label="settings.users.languageAriaLabel"></select>
+              <button class="settings-app-btn settings-inline-primary" id="createUserBtn" type="button" data-i18n="settings.users.create">Create User</button>
+            </div>
+            <div class="settings-app-empty inline-status" id="userFormStatus" data-i18n="settings.users.defaultStatus">Admin stays the default view. New users get a starter session automatically.</div>
+          </div>
+          <div class="settings-apps-list" id="settingsUsersList">
+            <div class="settings-app-empty" data-i18n="settings.users.loading">Loading users…</div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title" data-i18n="settings.apps.title">Apps</div>
+          <div class="settings-section-note" data-i18n="settings.apps.note">Define the reusable app layer. Chat stays lightweight; other apps can attach a first assistant message and system prompt.</div>
+          <div class="settings-inline-form" id="newAppForm">
+            <input class="settings-inline-input" id="newAppNameInput" type="text" placeholder="App name, e.g. VideoCut" data-i18n-placeholder="settings.apps.namePlaceholder">
+            <select class="settings-inline-select" id="newAppToolSelect" aria-label="Choose tool for app" data-i18n-aria-label="settings.apps.toolAriaLabel"></select>
+            <textarea class="settings-inline-textarea" id="newAppWelcomeInput" placeholder="Optional first assistant message shown when a new session starts" data-i18n-placeholder="settings.apps.welcomePlaceholder"></textarea>
+            <textarea class="settings-inline-textarea" id="newAppSystemPromptInput" placeholder="Optional system prompt for this app" data-i18n-placeholder="settings.apps.systemPromptPlaceholder"></textarea>
+            <button class="settings-app-btn settings-inline-primary" id="createAppConfigBtn" type="button" data-i18n="settings.apps.create">Create App</button>
+            <div class="settings-app-empty inline-status" id="appFormStatus" data-i18n="settings.apps.defaultStatus">Create a reusable app here, then start sessions under it from the sidebar filter.</div>
+          </div>
+          <div class="settings-apps-list" id="settingsAppsList">
+            <div class="settings-app-empty" data-i18n="settings.apps.loading">Loading apps…</div>
+          </div>
+        </div>
+      </div>
+      <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
+      <button class="new-session-btn secondary" id="sortSessionListBtn" data-i18n="sidebar.sortList">Sort List</button>
+      <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">+ New Session</button>
+    </aside>
+  </div>
+
+  <!-- Chat area -->
+  <main class="chat-area">
+    <div class="messages" id="messages">
+      <div class="messages-inner" id="messagesInner">
+        <div class="empty-state" id="emptyState">
+          <h2 data-i18n="emptyState.title">MelodySync Chat</h2>
+          <p data-i18n="emptyState.body">Select or create a session from the sidebar, then start chatting with your AI coding tool.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="queued-panel" id="queuedPanel"></div>
+
+    <!-- Input area -->
+    <div class="input-area" id="inputArea">
+      <div class="input-resize-handle" id="inputResizeHandle">
+        <div class="input-resize-pill"></div>
+      </div>
+      <div class="input-wrapper">
+        <!-- Attachment preview inside wrapper -->
+        <div class="img-preview-strip" id="imgPreviewStrip"></div>
+        <div class="input-config-row">
+          <div class="input-config-group left">
+            <select class="tool-select" id="inlineToolSelect" disabled></select>
+            <select class="model-select" id="inlineModelSelect" disabled></select>
+            <button class="thinking-toggle" id="thinkingToggle" disabled data-i18n="tooling.thinking">Thinking</button>
+            <select class="effort-select" id="effortSelect" disabled style="display:none"></select>
+            <button class="img-btn" id="imgBtn" disabled title="Attach files" aria-label="Attach files" data-i18n-title="action.attachFiles" data-i18n-aria-label="action.attachFiles" data-icon="attach">&#128247;</button>
+            <button class="thinking-toggle" id="voiceCleanupToggle" type="button" aria-pressed="true" title="On: clean voice transcripts with the current session before sending" data-i18n-title="compose.voiceCleanup.on" disabled data-i18n="compose.voiceCleanup">Voice cleanup</button>
+          </div>
+          <div class="input-config-group right">
+            <span id="contextTokens" style="display:none"></span>
+            <button class="compact-btn" id="compactBtn" style="display:none" title="Ask model to summarize conversation, then reset context" data-i18n="action.compact">Compact</button>
+            <button class="compact-btn" id="dropToolsBtn" style="display:none" title="Remove past tool results from context (no model call)" data-i18n="action.dropTools">Drop tools</button>
+          </div>
+        </div>
+        <div class="input-row">
+          <input type="file" id="imgFileInput" accept="*/*" multiple hidden>
+          <textarea id="msgInput" placeholder="Message..." data-i18n-placeholder="input.placeholder.message" disabled></textarea>
+          <button class="send-btn" id="sendBtn" disabled title="Send" aria-label="Send" data-i18n-title="action.send" data-i18n-aria-label="action.send" data-icon="send">&#9654;</button>
+          <button class="cancel-btn" id="cancelBtn" title="Stop" aria-label="Stop" data-i18n-title="action.stop" data-i18n-aria-label="action.stop" data-icon="debug-stop" style="display:none">&#9632;</button>
+        </div>
+        <div class="composer-pending-state" id="composerPendingState" aria-live="polite"></div>
+      </div>
+      <div class="input-footer">
+        <a href="https://github.com/YOUR_GITHUB_USERNAME/melody-sync" target="_blank" rel="noreferrer noopener" data-i18n="footer.openSource">Open source on GitHub ↗</a>
+        <span class="input-footer-tagline" data-i18n="footer.tagline">Built with AI &amp; ❤️</span>
+      </div>
+    </div>
+  </main>
+</div>
+</div>
+
+<div class="gesture-pill" id="gesturePill" aria-hidden="true"></div>
+
+<div class="modal-backdrop" id="addToolModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addToolModalTitle">
+    <div class="modal-header">
+      <div class="modal-title" id="addToolModalTitle" data-i18n="modal.addAgentsTitle">Add more agents</div>
+      <button class="modal-close" id="closeAddToolModal" type="button" aria-label="Close" data-i18n-aria-label="action.close" data-icon="close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-lead" data-i18n="modal.addAgentsLead">
+        MelodySync is not limited to the builtin agents. For simple tools, save a lightweight config here and the picker refreshes immediately.
+        If you need custom parsing or runtime behavior, use the advanced path below.
+      </p>
+
+        <div class="provider-helper-card">
+          <div class="provider-helper-card-header">
+            <div class="provider-helper-card-title" data-i18n="modal.quickAddTitle">Quick add</div>
+            <button class="modal-btn primary" id="saveToolConfigBtn" type="button" data-i18n="modal.saveRefresh">Save &amp; refresh</button>
+          </div>
+        <p data-i18n="modal.quickAddBody">
+          Use this for wrappers or simple command-based agents that speak an existing runtime family and accept that family's core prompt/model/thinking flags. We save the config for you and refresh the picker without restarting the service.
+        </p>
+        <div class="provider-helper-grid">
+          <div class="provider-helper-field">
+            <label for="addToolNameInput" data-i18n="modal.name">Name</label>
+            <input id="addToolNameInput" type="text" value="My Agent" autocomplete="off">
+          </div>
+          <div class="provider-helper-field">
+            <label for="addToolCommandInput" data-i18n="modal.command">Command</label>
+            <input id="addToolCommandInput" type="text" value="my-agent" autocomplete="off">
+          </div>
+          <div class="provider-helper-field">
+            <label for="addToolRuntimeFamilySelect" data-i18n="modal.runtimeFamily">Runtime family</label>
+            <select id="addToolRuntimeFamilySelect">
+              <option value="claude-stream-json" data-i18n="modal.runtimeFamily.claude">Claude-style stream JSON</option>
+              <option value="codex-json" data-i18n="modal.runtimeFamily.codex">Codex JSON</option>
+            </select>
+          </div>
+        </div>
+        <div class="provider-helper-field">
+          <label for="addToolModelsInput" data-i18n="modal.models">Models</label>
+          <textarea id="addToolModelsInput" placeholder="One model per line. Use `model-id | Label` or just `model-id`.&#10;Example:&#10;gpt-5-codex | GPT-5 Codex&#10;gpt-5-mini" data-i18n-placeholder="modal.modelsPlaceholder"></textarea>
+        </div>
+        <div class="provider-helper-grid">
+          <div class="provider-helper-field">
+            <label for="addToolReasoningKindSelect" data-i18n="modal.thinkingMode">Thinking mode</label>
+            <select id="addToolReasoningKindSelect">
+              <option value="toggle" data-i18n="modal.thinking.toggle">Toggle</option>
+              <option value="enum" data-i18n="modal.thinking.levels">Levels</option>
+              <option value="none" data-i18n="modal.thinking.none">None</option>
+            </select>
+          </div>
+          <div class="provider-helper-field">
+            <label for="addToolReasoningLevelsInput" data-i18n="modal.thinkingLevels">Thinking levels</label>
+            <input id="addToolReasoningLevelsInput" type="text" value="low, medium, high, xhigh" autocomplete="off">
+          </div>
+          <div class="provider-helper-field">
+            <label data-i18n="modal.internalIdentity">Internal identity</label>
+            <div class="provider-helper-note" data-i18n="modal.internalIdentityNote">Derived automatically from the command. No separate ID field in simple mode.</div>
+          </div>
+        </div>
+        <div class="provider-helper-note" data-i18n="modal.thinkingModeNote">Use `none` if the tool has no model-side thinking control. For Claude-family tools, use `toggle`; for Codex-family tools, use `levels`. If the command needs different CLI flags, use the advanced path below.</div>
+        <div class="provider-helper-status" id="addToolStatus"></div>
+      </div>
+
+      <div class="provider-helper-card">
+        <div class="provider-helper-card-header">
+          <div class="provider-helper-card-title" data-i18n="modal.advancedTitle">Advanced provider code</div>
+          <button class="modal-btn primary" id="copyProviderPromptBtn" type="button" data-i18n="modal.copyBasePrompt">Copy base prompt</button>
+        </div>
+        <p data-i18n="modal.advancedBody">
+          If you need models, thinking controls, or custom runtime behavior, open a new session in the MelodySync repo and paste this prompt.
+        </p>
+        <ul>
+          <li data-i18n="modal.advancedBullet1">It asks the agent to decide whether simple config is enough or whether full provider code is needed.</li>
+          <li data-i18n="modal.advancedBullet2">It points the agent at the provider architecture notes and keeps the changes minimal.</li>
+        </ul>
+        <div class="provider-helper-code"><code id="providerPromptCode"></code></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn" id="closeAddToolModalFooter" type="button" data-i18n="modal.close">Close</button>
+    </div>
+  </div>
+</div>
+
+{{BOOTSTRAP_SCRIPT_TAGS}}
+{{EXTRA_BOOTSTRAP_SCRIPTS}}
+<script src="/marked.min.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/i18n.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/session-state-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/icons.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/bootstrap.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/bootstrap-session-catalog.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/session-http-helpers.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/session-http-list-state.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/session-http.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/layout-tooling.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/tooling.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/realtime.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/realtime-render.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+  <script src="/chat/session-surface-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+  <script src="/chat/session-list-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+  <script src="/chat/settings-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+  <script src="/chat/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+  <script src="/chat/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+  <script src="/chat/timer.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+  <script src="/chat/schedule.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+  <script src="/chat/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+  <script src="/chat/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="color-scheme" content="light dark">
+<meta name="remotelab-build" content="{{BUILD_TITLE}}">
+<title>Skill 流程图可视化</title>
+<style nonce="{{NONCE}}">
+:root {
+  --bg: #f7f8fb;
+  --surface: #ffffff;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --border: #e2e8f0;
+  --line: #dbeafe;
+  --accent: #1d4ed8;
+  --accent-2: #2563eb;
+  --ok: #16a34a;
+  --warn: #ca8a04;
+  --error: #dc2626;
+  --shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 90%);
+}
+
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 14px 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topbar a {
+  color: #334155;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.topbar h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+
+.toolbar {
+  display: grid;
+  gap: 10px;
+}
+
+.toolbar label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.toolbar input[type="file"] {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  background: #fff;
+}
+
+.toolbar textarea {
+  width: 100%;
+  min-height: 210px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  resize: vertical;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: "SFMono-Regular", Consolas, Monaco, monospace;
+}
+
+.toolbar button {
+  justify-self: end;
+  border: 1px solid var(--border);
+  background: #eef2ff;
+  color: #1d4ed8;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.toolbar button:hover { background: #dbeafe; }
+
+.status {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  min-height: 18px;
+}
+
+.status.ok { color: var(--ok); }
+.status.warn { color: var(--warn); }
+.status.error { color: var(--error); }
+
+.meta { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+.meta b { color: var(--text); }
+
+.graph-shell {
+  overflow: auto;
+  min-height: 340px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(0deg, #ffffff 0%, #f8fafc 100%);
+  position: relative;
+}
+
+.graph-area {
+  position: relative;
+  min-height: 280px;
+  min-width: 320px;
+}
+
+.graph-nodes {
+  position: relative;
+  z-index: 2;
+  min-height: 280px;
+}
+
+.edge-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.node {
+  position: absolute;
+  width: 260px;
+  min-height: 72px;
+  border-radius: 14px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node h3 {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.node p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.node .id {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.node.section { border-left: 4px solid #0ea5e9; }
+.node.action { border-left: 4px solid var(--accent-2); }
+.node.decision { border-left: 4px solid #f59e0b; background: #fffbeb; }
+.node.start { background: #dbeafe; border-color: #93c5fd; border-left-color: #1d4ed8; }
+
+.node-details pre {
+  margin: 0;
+  font-size: 11px;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+pre {
+  margin: 0;
+}
+
+.edge-label {
+  fill: #1e293b;
+  font-size: 11px;
+  background: #fff;
+}
+
+.raw-output {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+  font-size: 12px;
+  font-family: "SFMono-Regular", Consolas, Monaco, monospace;
+  color: #0f172a;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+</style>
+</head>
+<body>
+  <main class="page">
+    <section class="topbar">
+      <h1>Skill 可视化平台</h1>
+      <a href="/">返回控制台</a>
+    </section>
+
+    <section class="panel toolbar">
+      <label>导入 Skill（支持 .md / .txt / .json；可直接粘贴）</label>
+      <input id="fileInput" type="file" accept=".md,.txt,.json,text/markdown" multiple />
+      <div class="row">
+        <button id="parseBtn" type="button">解析并重绘流程图</button>
+        <button id="clearBtn" type="button">清空</button>
+        <button id="exportBtn" type="button">导出当前流程结构(JSON)</button>
+      </div>
+      <textarea id="skillText" placeholder="将 SKILL.md 内容粘贴到这里"></textarea>
+      <div id="status" class="status"></div>
+      <div id="meta" class="meta"></div>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin: 0 0 10px; font-size: 15px;">流程图</h2>
+      <div class="graph-shell">
+        <div id="graphArea" class="graph-area">
+          <svg id="edgeCanvas" class="edge-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div id="nodesLayer" class="graph-nodes"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin: 0 0 10px; font-size: 15px;">解析结果（JSON）</h2>
+      <pre id="rawOutput" class="raw-output"></pre>
+    </section>
+  </main>
+  <script src="/skill-visualizer.js?v={{ASSET_VERSION}}"></script>
+</body>
+</html>
