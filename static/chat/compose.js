@@ -38,6 +38,7 @@ function writeComposerVoiceCleanupEnabled(enabled) {
 }
 
 function isComposerVoiceCleanupEnabled() {
+  if (!voiceCleanupToggle || voiceCleanupToggle.hidden === true) return false;
   return readComposerVoiceCleanupEnabled();
 }
 
@@ -448,12 +449,12 @@ function sendMessage(existingRequestId) {
 
 cancelBtn.addEventListener("click", () => dispatchAction({ action: "cancel" }));
 
-compactBtn.addEventListener("click", () => {
+compactBtn?.addEventListener("click", () => {
   if (!currentSessionId) return;
   dispatchAction({ action: "compact" });
 });
 
-dropToolsBtn.addEventListener("click", () => {
+dropToolsBtn?.addEventListener("click", () => {
   if (!currentSessionId) return;
   dispatchAction({ action: "drop_tools" });
 });

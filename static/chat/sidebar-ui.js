@@ -61,6 +61,8 @@ createAppConfigBtn?.addEventListener("click", () => {
 });
 
 // ---- Attachment handling ----
+const attachmentsEnabled = !!imgBtn && !!imgFileInput && !!imgPreviewStrip && imgPreviewStrip.hidden !== true;
+
 function buildPendingAttachment(file) {
   return {
     file,
@@ -71,6 +73,7 @@ function buildPendingAttachment(file) {
 }
 
 async function addAttachmentFiles(files) {
+  if (!attachmentsEnabled) return;
   if (typeof hasPendingComposerSend === "function" && hasPendingComposerSend()) {
     return;
   }
@@ -82,6 +85,7 @@ async function addAttachmentFiles(files) {
 }
 
 function renderImagePreviews() {
+  if (!attachmentsEnabled || !imgPreviewStrip) return;
   imgPreviewStrip.innerHTML = "";
   if (pendingImages.length === 0) {
     imgPreviewStrip.classList.remove("has-images");
@@ -124,27 +128,29 @@ function renderImagePreviews() {
   }
 }
 
-imgBtn.addEventListener("click", () => {
-  if (typeof hasPendingComposerSend === "function" && hasPendingComposerSend()) {
-    return;
-  }
-  imgFileInput.click();
-});
-imgFileInput.addEventListener("change", () => {
-  if (imgFileInput.files.length > 0) addAttachmentFiles(imgFileInput.files);
-  imgFileInput.value = "";
-});
+if (attachmentsEnabled) {
+  imgBtn.addEventListener("click", () => {
+    if (typeof hasPendingComposerSend === "function" && hasPendingComposerSend()) {
+      return;
+    }
+    imgFileInput.click();
+  });
+  imgFileInput.addEventListener("change", () => {
+    if (imgFileInput.files.length > 0) addAttachmentFiles(imgFileInput.files);
+    imgFileInput.value = "";
+  });
 
-msgInput.addEventListener("paste", (e) => {
-  const items = e.clipboardData?.items;
-  if (!items) return;
-  const attachmentFiles = [];
-  for (const item of items) {
-    const file = typeof item.getAsFile === "function" ? item.getAsFile() : null;
-    if (file) attachmentFiles.push(file);
-  }
-  if (attachmentFiles.length > 0) {
-    e.preventDefault();
-    addAttachmentFiles(attachmentFiles);
-  }
-});
+  msgInput.addEventListener("paste", (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const attachmentFiles = [];
+    for (const item of items) {
+      const file = typeof item.getAsFile === "function" ? item.getAsFile() : null;
+      if (file) attachmentFiles.push(file);
+    }
+    if (attachmentFiles.length > 0) {
+      e.preventDefault();
+      addAttachmentFiles(attachmentFiles);
+    }
+  });
+}

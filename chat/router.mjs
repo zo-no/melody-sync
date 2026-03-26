@@ -1213,34 +1213,7 @@ export async function handleRequest(req, res) {
   }
 
   if (pathname === '/api/assets/upload-intents' && req.method === 'POST') {
-    let payload = {};
-    try {
-      const body = await readBody(req, 32768);
-      payload = body ? JSON.parse(body) : {};
-    } catch {
-      writeJson(res, 400, { error: 'Invalid request body' });
-      return;
-    }
-
-    const sessionId = typeof payload?.sessionId === 'string' ? payload.sessionId.trim() : '';
-    if (!sessionId) {
-      writeJson(res, 400, { error: 'sessionId is required' });
-      return;
-    }
-    if (!requireSessionAccess(res, authSession, sessionId)) return;
-
-    try {
-      const intent = await createFileAssetUploadIntent({
-        sessionId,
-        originalName: typeof payload?.originalName === 'string' ? payload.originalName : '',
-        mimeType: typeof payload?.mimeType === 'string' ? payload.mimeType : '',
-        sizeBytes: payload?.sizeBytes,
-        createdBy: authSession?.role === 'visitor' ? 'visitor' : 'owner',
-      });
-      writeJson(res, 200, intent);
-    } catch (error) {
-      writeJson(res, error?.statusCode || 400, { error: error.message || 'Failed to create upload intent' });
-    }
+    writeJson(res, 410, { error: 'Attachments have been removed from MelodySync' });
     return;
   }
 
@@ -1712,49 +1685,7 @@ export async function handleRequest(req, res) {
     }
 
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'voice-transcriptions' && req.method === 'POST') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      let payload;
-      try {
-        payload = await readVoiceCleanupPayload(req);
-      } catch (error) {
-        writeJson(
-          res,
-          error.code === 'BODY_TOO_LARGE' ? 413 : (error?.statusCode || 400),
-          { error: error.code === 'BODY_TOO_LARGE' ? 'Request body too large' : (error?.message || 'Bad request') },
-        );
-        return;
-      }
-
-      const providedTranscript = typeof payload?.providedTranscript === 'string'
-        ? payload.providedTranscript.trim()
-        : '';
-      if (!providedTranscript) {
-        writeJson(res, 400, { error: 'providedTranscript is required' });
-        return;
-      }
-
-      try {
-        let transcript = providedTranscript;
-        let rewriteApplied = false;
-        if (payload.rewriteWithContext && transcript) {
-          try {
-            const rewritten = await rewriteVoiceTranscriptForSession(sessionId, transcript);
-            if (typeof rewritten?.transcript === 'string' && rewritten.transcript.trim()) {
-              rewriteApplied = rewritten.changed === true;
-              transcript = rewritten.transcript.trim();
-            }
-          } catch (error) {
-            console.warn(`[voice-cleanup] transcript rewrite failed for ${sessionId.slice(0, 8)}: ${error?.message || error}`);
-          }
-        }
-        writeJson(res, 200, {
-          transcript,
-          ...(rewriteApplied ? { rawTranscript: providedTranscript } : {}),
-          rewriteApplied,
-        });
-      } catch (error) {
-        writeJson(res, error?.statusCode || 400, { error: error?.message || 'Voice cleanup failed' });
-      }
+      writeJson(res, 410, { error: 'Voice cleanup has been removed from MelodySync' });
       return;
     }
 
@@ -1779,11 +1710,7 @@ export async function handleRequest(req, res) {
         writeJson(res, 403, { error: 'Owner access required' });
         return;
       }
-      if (!await compactSession(sessionId)) {
-        writeJson(res, 409, { error: 'Unable to compact session' });
-        return;
-      }
-      writeJson(res, 200, { ok: true, session: await getSessionForClient(sessionId) });
+      writeJson(res, 410, { error: 'Context compaction has been removed from MelodySync' });
       return;
     }
 
@@ -1792,11 +1719,7 @@ export async function handleRequest(req, res) {
         writeJson(res, 403, { error: 'Owner access required' });
         return;
       }
-      if (!await dropToolUse(sessionId)) {
-        writeJson(res, 409, { error: 'Unable to drop tool results' });
-        return;
-      }
-      writeJson(res, 200, { ok: true, session: await getSessionForClient(sessionId) });
+      writeJson(res, 410, { error: 'Tool-result dropping has been removed from MelodySync' });
       return;
     }
 
