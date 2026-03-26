@@ -612,3 +612,134 @@
     background: rgba(28, 35, 41, 0.72);
   }
 }
+
+/* ---- MelodySync restrained monochrome refinement ---- */
+.sidebar {
+  border-color: rgba(255, 255, 255, 0.72);
+  background: rgba(248, 250, 252, 0.84);
+  box-shadow: 0 26px 54px rgba(192, 200, 210, 0.16);
+}
+
+.sidebar-header {
+  padding-bottom: 10px;
+}
+
+.sidebar-header h2 {
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+
+.sidebar-tabs {
+  padding: 0 18px 6px;
+}
+
+.sidebar-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sidebar-tab.active {
+  color: var(--text);
+  background: rgba(17, 24, 39, 0.04);
+}
+
+.pinned-section,
+.folder-group,
+.archived-section {
+  margin-bottom: 10px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.folder-group-items,
+.pinned-items,
+.archived-items {
+  gap: 2px;
+}
+
+.pinned-section-header,
+.folder-group-header,
+.archived-section-header {
+  padding: 6px 8px;
+  border-radius: 12px;
+}
+
+.folder-group-header:hover,
+.archived-section-header:hover {
+  background: rgba(17, 24, 39, 0.04);
+}
+
+.folder-group-header .folder-count,
+.archived-section-header .folder-count {
+  background: rgba(17, 24, 39, 0.04);
+  box-shadow: none;
+}
+
+.session-item {
+  padding: 11px 10px 11px 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.session-item:hover {
+  background: rgba(17, 24, 39, 0.04);
+}
+
+.session-item.active {
+  background: rgba(17, 24, 39, 0.06);
+  border-color: rgba(17, 24, 39, 0.08);
+}
+
+.session-action-btn {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+.session-action-btn:hover {
+  background: rgba(17, 24, 39, 0.06);
+}
+
+.new-session-btn {
+  background: #12161c;
+  box-shadow: 0 16px 30px rgba(18, 22, 28, 0.14);
+}
+
+.session-filter-empty,
+.archived-empty {
+  background: rgba(17, 24, 39, 0.03);
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar {
+    border-color: rgba(255, 255, 255, 0.06);
+    background: rgba(35, 42, 50, 0.82);
+  }
+
+  .sidebar-tab.active,
+  .session-item:hover,
+  .folder-group-header:hover,
+  .archived-section-header:hover,
+  .session-filter-empty,
+  .archived-empty {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .session-item.active {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .new-session-btn {
+    background: #f3f5f8;
+    color: #131820;
+    box-shadow: none;
+  }
+}
