@@ -8,6 +8,7 @@
   const translations = {
     en: {
       "app.chatTitle": "MelodySync Chat",
+      "app.heroSubtitle": "Session-based AI workspace · quiet, focused, iterative",
       "nav.sessions": "Sessions",
       "nav.settings": "Settings",
       "action.fork": "Fork",
@@ -46,6 +47,7 @@
       "input.placeholder.archived": "Archived session — restore to continue",
       "input.placeholder.queueFollowUp": "Queue follow-up...",
       "input.placeholder.readOnlySnapshot": "Read-only snapshot",
+      "emptyState.eyebrow": "Session-based AI workspace",
       "emptyState.title": "MelodySync Chat",
       "emptyState.body": "Select or create a session from the sidebar, then start chatting with your AI coding tool.",
       "footer.openSource": "Open source on GitHub ↗",
@@ -270,6 +272,7 @@
     },
     "zh-CN": {
       "app.chatTitle": "MelodySync 对话",
+      "app.heroSubtitle": "会话式 AI 工作台 · 安静、聚焦、持续迭代",
       "nav.sessions": "会话",
       "nav.settings": "设置",
       "action.fork": "分叉",
@@ -308,6 +311,7 @@
       "input.placeholder.archived": "当前会话已归档，恢复后才能继续",
       "input.placeholder.queueFollowUp": "排队一条后续消息...",
       "input.placeholder.readOnlySnapshot": "只读快照",
+      "emptyState.eyebrow": "会话式 AI 工作台",
       "emptyState.title": "MelodySync 对话",
       "emptyState.body": "先从侧边栏选择或创建一个会话，然后开始和你的 AI 工具协作。",
       "footer.openSource": "GitHub 开源项目 ↗",

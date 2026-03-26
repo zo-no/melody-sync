@@ -796,3 +796,164 @@
     background: rgba(255, 255, 255, 0.03);
   }
 }
+
+/* ---- MelodySync reference-driven hero alignment ---- */
+.sidebar-overlay {
+  background: rgba(238, 242, 247, 0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.sidebar {
+  border-radius: var(--panel-radius);
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+}
+
+.sidebar-header {
+  padding: 22px 22px 14px;
+  border-bottom: none;
+}
+
+.sidebar-header h2 {
+  font-family: "Manrope", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+.sidebar-tabs {
+  display: none;
+}
+
+.sidebar-list {
+  padding: 2px 18px 18px;
+}
+
+.pinned-section,
+.folder-group,
+.archived-section {
+  margin-bottom: 14px;
+}
+
+.pinned-section-header,
+.folder-group-header,
+.archived-section-header {
+  padding: 8px 2px;
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.folder-group-header .folder-count,
+.archived-section-header .folder-count {
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.session-item {
+  position: relative;
+  padding: 14px 8px 14px 14px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.session-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.session-item:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.session-item.active {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.46);
+  box-shadow: 0 10px 24px rgba(214, 220, 228, 0.16);
+}
+
+.session-item.active::before {
+  background: rgba(34, 41, 56, 0.18);
+}
+
+.session-item-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.session-item-meta {
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.session-action-btn {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+.session-action-btn:hover {
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.new-session-btn {
+  margin: 12px 18px 18px;
+  padding: 15px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  background: rgba(247, 249, 252, 0.74);
+  color: var(--text);
+  box-shadow: var(--tile-shadow);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.new-session-btn:hover {
+  background: rgba(251, 252, 254, 0.88);
+}
+
+.session-filter-empty,
+.archived-empty {
+  background: rgba(255, 255, 255, 0.34);
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar-overlay {
+    background: rgba(8, 11, 16, 0.52);
+  }
+
+  .session-item:hover,
+  .session-action-btn:hover,
+  .session-filter-empty,
+  .archived-empty,
+  .folder-group-header .folder-count,
+  .archived-section-header .folder-count {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .session-item.active {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: none;
+  }
+
+  .session-item.active::before {
+    background: rgba(255, 255, 255, 0.24);
+  }
+}
