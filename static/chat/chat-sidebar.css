@@ -700,3 +700,111 @@
     background: rgba(40, 48, 63, 0.78);
   }
 }
+
+/* ---- MelodySync usable baseline ---- */
+.sidebar {
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.sidebar-header {
+  padding: 18px 18px 10px 20px;
+}
+
+.sidebar-header h2 {
+  font-family: "Manrope", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-list {
+  padding: 2px 12px 12px;
+}
+
+.folder-group-header .folder-count,
+.archived-section-header .folder-count {
+  background: rgba(29, 39, 51, 0.05);
+  color: var(--text-secondary);
+}
+
+.session-item {
+  padding: 11px 12px 11px 14px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.session-item:hover {
+  background: var(--surface-hover);
+}
+
+.session-item.active {
+  background: #ffffff;
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-tight);
+}
+
+.session-item-name {
+  font-weight: 600;
+}
+
+.session-item-meta {
+  margin-top: 3px;
+  line-height: 1.45;
+}
+
+.session-action-btn:hover {
+  background: rgba(29, 39, 51, 0.06);
+}
+
+.new-session-btn {
+  margin: 0 12px 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--text);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.new-session-btn:active {
+  transform: none;
+}
+
+.session-filter-empty,
+.archived-empty {
+  border-radius: 12px;
+  background: rgba(29, 39, 51, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .sidebar {
+    background: var(--bg-secondary);
+  }
+
+  .folder-group-header .folder-count,
+  .archived-section-header .folder-count,
+  .session-filter-empty,
+  .archived-empty {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .session-item.active {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .session-action-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .new-session-btn {
+    background: #eef4fa;
+    color: #17212c;
+  }
+}

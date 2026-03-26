@@ -167,3 +167,44 @@ body.share-snapshot-mode .input-row textarea:disabled {
     border-radius: 0;
   }
 }
+
+/* ---- MelodySync usable baseline ---- */
+@media (min-width: 768px) {
+  :root {
+    --chat-column-width: min(900px, calc(100% - 48px));
+  }
+
+  .messages {
+    padding: 24px 0 12px;
+  }
+
+  .input-area {
+    padding: 0 0 14px;
+    padding-bottom: calc(14px + var(--safe-bottom));
+  }
+}
+
+@media (max-width: 767px) {
+  .header {
+    gap: 8px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .header-share-btn {
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  #statusText {
+    display: none;
+  }
+
+  .messages {
+    padding-top: 12px;
+  }
+
+  .empty-state {
+    padding: 28px 18px 18px;
+  }
+}

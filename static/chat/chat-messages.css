@@ -643,3 +643,74 @@
     background: linear-gradient(145deg, rgba(43, 52, 73, 0.96), rgba(36, 45, 63, 0.9));
   }
 }
+
+/* ---- MelodySync usable baseline ---- */
+.messages {
+  padding: 20px var(--chat-gutter) 12px;
+}
+
+.messages-inner {
+  gap: 18px;
+}
+
+.empty-state {
+  max-width: 560px;
+  padding: 48px 20px 26px;
+}
+
+.empty-state h2 {
+  font-family: "Manrope", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: clamp(1.6rem, 2.8vw, 2.2rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.empty-state p {
+  max-width: 420px;
+  color: var(--text-secondary);
+}
+
+.msg-user-bubble {
+  padding: 12px 16px;
+  border-radius: 18px 18px 6px 18px;
+  border: 1px solid rgba(102, 119, 191, 0.1);
+  background: var(--user-bubble);
+  box-shadow: none;
+}
+
+.msg-assistant {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.md-content code {
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+}
+
+.md-content pre,
+.tool-card,
+.file-card,
+.turn-collapse-drawer,
+.context-barrier {
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.tool-body pre {
+  background: var(--bg-tertiary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .md-content pre,
+  .tool-card,
+  .file-card,
+  .turn-collapse-drawer,
+  .context-barrier {
+    background: var(--tool-bg);
+  }
+}

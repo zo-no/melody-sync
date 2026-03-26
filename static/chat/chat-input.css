@@ -721,3 +721,79 @@
     border-top-color: rgba(255, 255, 255, 0.06);
   }
 }
+
+/* ---- MelodySync usable baseline ---- */
+.input-area {
+  padding-top: 0;
+  padding-bottom: calc(12px + var(--safe-bottom));
+}
+
+.input-resize-handle {
+  height: 14px;
+  margin-bottom: 6px;
+}
+
+.input-resize-pill {
+  width: 36px;
+  height: 4px;
+  background: rgba(140, 151, 165, 0.34);
+}
+
+.input-row {
+  gap: 10px;
+  padding: 14px 0 12px;
+  border-top: 1px solid var(--border);
+}
+
+.input-row textarea {
+  padding-top: 2px;
+  font-size: 15px;
+}
+
+.composer-pending-state {
+  padding: 0 0 10px;
+}
+
+.send-btn,
+.cancel-btn {
+  width: 40px;
+  height: 40px;
+  box-shadow: none;
+}
+
+.send-btn {
+  background: var(--text);
+}
+
+.send-btn:active:not(:disabled),
+.cancel-btn:active:not(:disabled) {
+  transform: none;
+}
+
+.queued-panel {
+  margin: 0 0 8px;
+  padding: 0 0 8px;
+}
+
+.queued-panel-header {
+  margin-bottom: 6px;
+}
+
+.queued-item {
+  padding: 8px 0;
+}
+
+.input-footer {
+  padding: 8px 0 0;
+  font-size: 10.5px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .input-resize-pill {
+    background: rgba(127, 139, 151, 0.46);
+  }
+
+  .input-row {
+    border-top-color: var(--border);
+  }
+}
