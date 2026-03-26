@@ -491,3 +491,118 @@
 }
 .provider-helper-status.success { color: var(--success); }
 .provider-helper-status.error { color: var(--error); }
+
+/* ---- MelodySync soft-card refresh ---- */
+.input-area {
+  padding: 0 var(--chat-gutter) 10px;
+  padding-bottom: calc(10px + var(--safe-bottom));
+  background: transparent;
+  border-top: none;
+}
+
+.input-resize-handle {
+  margin-bottom: 10px;
+}
+
+.input-resize-pill {
+  width: 58px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgba(245, 248, 250, 0.9), rgba(214, 223, 229, 0.88));
+  box-shadow: var(--shadow-tight);
+}
+
+.input-wrapper {
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: 30px;
+  background: rgba(239, 244, 247, 0.9);
+  box-shadow: var(--shadow-card);
+}
+
+.input-wrapper:focus-within {
+  border-color: rgba(47, 124, 116, 0.2);
+  box-shadow: var(--shadow-card), 0 0 0 4px rgba(47, 124, 116, 0.08);
+}
+
+.input-row {
+  gap: 12px;
+  padding: 14px 16px 14px 20px;
+}
+
+.input-row textarea {
+  padding-top: 6px;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.composer-pending-state {
+  padding: 0 20px 14px;
+  font-size: 12px;
+}
+
+.send-btn,
+.cancel-btn {
+  width: 46px;
+  height: 46px;
+  font-size: 16px;
+  box-shadow: 12px 12px 22px rgba(170, 183, 192, 0.34), -8px -8px 16px rgba(255, 255, 255, 0.76);
+}
+
+.send-btn {
+  background: linear-gradient(145deg, #3a8d83, #2a655f);
+  color: #f7fbfb;
+}
+
+.send-btn:active:not(:disabled),
+.cancel-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.cancel-btn {
+  background: linear-gradient(145deg, #c07266, #a85649);
+  color: #fff8f7;
+}
+
+.queued-panel {
+  margin: 0 var(--chat-gutter) 12px;
+  padding: 12px 14px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  background: rgba(239, 244, 247, 0.82);
+  box-shadow: var(--shadow-tight);
+}
+
+.queued-item {
+  border-radius: 16px;
+  border-color: rgba(255, 255, 255, 0.46);
+  background: rgba(245, 248, 250, 0.84);
+}
+
+.input-footer {
+  padding: 10px 8px 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.input-footer-tagline {
+  font-family: "Fraunces", "STSong", serif;
+  font-style: italic;
+  letter-spacing: 0.06em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .input-wrapper,
+  .queued-panel,
+  .queued-item {
+    border-color: rgba(255, 255, 255, 0.05);
+    background: rgba(34, 43, 50, 0.86);
+  }
+
+  .input-resize-pill {
+    background: linear-gradient(145deg, rgba(43, 54, 62, 0.96), rgba(27, 35, 41, 0.92));
+  }
+
+  .send-btn {
+    box-shadow: 10px 10px 18px rgba(7, 11, 14, 0.32), -6px -6px 14px rgba(68, 83, 92, 0.1);
+  }
+}

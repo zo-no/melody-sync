@@ -90,3 +90,57 @@ body.share-snapshot-mode .input-row textarea:disabled {
 @media (min-width: 768px) {
   .gesture-pill { display: none !important; }
 }
+
+/* ---- MelodySync soft-card refresh ---- */
+@media (min-width: 768px) {
+  :root {
+    --chat-column-width: min(860px, calc(100% - 32px));
+  }
+
+  .sidebar-overlay {
+    border-right: none;
+  }
+
+  .messages {
+    padding: 24px 0 16px;
+  }
+
+  .queued-panel {
+    margin-bottom: 12px;
+  }
+
+  .input-area {
+    padding: 0 0 16px;
+    padding-bottom: calc(16px + var(--safe-bottom));
+  }
+
+  .input-resize-handle {
+    margin: 0 0 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-shell {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .header {
+    padding-left: 14px;
+    padding-right: 14px;
+    border-radius: 24px;
+  }
+
+  .chat-area {
+    border-radius: 28px;
+  }
+
+  .messages {
+    padding-top: 14px;
+  }
+
+  .empty-state {
+    padding: 38px 22px;
+    border-radius: 28px;
+  }
+}
