@@ -703,6 +703,9 @@ function applyAttachedSessionState(id, session) {
   syncBrowserState();
   syncForkButton();
   syncShareButton();
+  document.dispatchEvent(new CustomEvent("melodysync:session-change", {
+    detail: { session: session || null },
+  }));
 }
 
 async function fetchSessionState(sessionId) {

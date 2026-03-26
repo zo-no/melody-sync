@@ -106,6 +106,16 @@ import {
   getFileAssetBootstrapConfig,
   getFileAssetForClient,
 } from './file-assets.mjs';
+import {
+  createBranchFromNode,
+  createCaptureItem,
+  createNode as createWorkbenchNode,
+  createProject as createWorkbenchProject,
+  createProjectSummary,
+  getWorkbenchSnapshot,
+  promoteCaptureItem,
+  writeProjectToObsidian,
+} from './workbench-store.mjs';
 
 // Paths are resolved from the active runtime root on each request.
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -1077,6 +1087,8 @@ function serializeJsonForScript(value) {
 }
 
 function isOwnerOnlyRoute(pathname, method) {
+  if (pathname === '/api/workbench' && method === 'GET') return true;
+  if (pathname.startsWith('/api/workbench/')) return true;
   if (pathname === '/api/sessions' && (method === 'GET' || method === 'POST')) return true;
   if (pathname === '/api/triggers' && (method === 'GET' || method === 'POST')) return true;
   if (pathname.startsWith('/api/triggers/') && ['GET', 'PATCH', 'DELETE'].includes(method)) return true;
@@ -1409,6 +1421,100 @@ export async function handleRequest(req, res) {
       cacheControl: IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL,
       vary: '',
     });
+    return;
+  }
+
+  if (pathname === '/api/workbench' && req.method === 'GET') {
+    const snapshot = await getWorkbenchSnapshot();
+    writeJson(res, 200, snapshot);
+    return;
+  }
+
+  if (pathname.startsWith('/api/workbench/') && req.method === 'POST') {
+    const parts = pathname.split('/').filter(Boolean);
+    let payload = {};
+    try {
+      const raw = await readBody(req, 65536);
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      writeJson(res, 400, { error: 'Invalid request body' });
+      return;
+    }
+
+    try {
+      if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'captures') {
+        const captureItem = await createCaptureItem(payload);
+        writeJson(res, 201, {
+          captureItem,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects') {
+        const project = await createWorkbenchProject(payload);
+        writeJson(res, 201, {
+          project,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'nodes') {
+        const node = await createWorkbenchNode(payload);
+        writeJson(res, 201, {
+          node,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'captures' && parts[4] === 'promote') {
+        const captureId = parts[3];
+        const outcome = await promoteCaptureItem(captureId, payload);
+        writeJson(res, 201, {
+          ...outcome,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'nodes' && parts[4] === 'branch') {
+        const nodeId = parts[3];
+        const outcome = await createBranchFromNode(nodeId, payload);
+        writeJson(res, 201, {
+          session: createClientSessionDetail(outcome.session),
+          branchContext: outcome.branchContext,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects' && parts[4] === 'summaries') {
+        const projectId = parts[3];
+        const summary = await createProjectSummary(projectId);
+        writeJson(res, 201, {
+          summary,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects' && parts[4] === 'writeback') {
+        const projectId = parts[3];
+        const outcome = await writeProjectToObsidian(projectId, payload);
+        writeJson(res, 200, {
+          ...outcome,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+    } catch (error) {
+      writeJson(res, 400, { error: error.message || 'Workbench request failed' });
+      return;
+    }
+
+    writeJson(res, 404, { error: 'Workbench route not found' });
     return;
   }
 

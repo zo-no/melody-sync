@@ -192,6 +192,39 @@ function createComposerAttachmentPreviewNode(attachment) {
   return createAttachmentFileNode(attachment, { compact: true });
 }
 
+function appendWorkbenchCaptureAction(container, evt) {
+  if (!container || !evt || evt.type !== "message") return;
+  const captureText = typeof evt.content === "string" && evt.content.trim()
+    ? evt.content.trim()
+    : (typeof evt.bodyPreview === "string" && evt.bodyPreview.trim() ? evt.bodyPreview.trim() : "");
+  if (!captureText) return;
+  if (!window.MelodySyncWorkbench || typeof window.MelodySyncWorkbench.captureEvent !== "function") return;
+
+  const actions = document.createElement("div");
+  actions.className = "msg-inline-actions";
+
+  const captureBtn = document.createElement("button");
+  captureBtn.type = "button";
+  captureBtn.className = "msg-capture-btn";
+  captureBtn.textContent = "Capture";
+  captureBtn.addEventListener("click", async () => {
+    captureBtn.disabled = true;
+    try {
+      await window.MelodySyncWorkbench.captureEvent({
+        sourceSessionId: currentSessionId,
+        seq: Number.isInteger(evt.seq) ? evt.seq : null,
+        text: captureText,
+        role: evt.role || "assistant",
+      });
+    } finally {
+      captureBtn.disabled = false;
+    }
+  });
+
+  actions.appendChild(captureBtn);
+  container.appendChild(actions);
+}
+
 // ---- Render functions ----
 function renderMessageInto(container, evt, { finalizeActiveThinkingBlock = false } = {}) {
   if (!container) return null;
@@ -232,6 +265,7 @@ function renderMessageInto(container, evt, { finalizeActiveThinkingBlock = false
     }
     appendMessageTimestamp(bubble, evt.timestamp, "msg-user-time");
     wrap.appendChild(bubble);
+    appendWorkbenchCaptureAction(wrap, evt);
     container.appendChild(wrap);
     return wrap;
   } else {
@@ -289,6 +323,7 @@ function renderMessageInto(container, evt, { finalizeActiveThinkingBlock = false
       return null;
     }
     appendMessageTimestamp(div, evt.timestamp, "msg-assistant-time");
+    appendWorkbenchCaptureAction(div, evt);
     container.appendChild(div);
     return div;
   }

@@ -29,6 +29,9 @@ function showEmpty() {
   }
   syncForkButton();
   syncShareButton();
+  document.dispatchEvent(new CustomEvent("melodysync:session-change", {
+    detail: { session: null },
+  }));
 }
 
 function scrollToBottom() {

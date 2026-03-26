@@ -100,6 +100,102 @@
       </div>
     </div>
   </main>
+
+  <aside class="workbench-panel" id="workbenchPanel">
+    <div class="workbench-header">
+      <div>
+        <h2>Workbench</h2>
+        <p id="workbenchSessionHint">Capture chat context into Inbox, then file it into a project tree.</p>
+      </div>
+    </div>
+
+    <div class="workbench-tabs">
+      <button class="workbench-tab active" id="workbenchTabInbox" type="button">Inbox</button>
+      <button class="workbench-tab" id="workbenchTabTree" type="button">Tree</button>
+    </div>
+
+    <div class="workbench-body">
+      <section class="workbench-view" id="workbenchViewInbox">
+        <form class="workbench-form" id="workbenchProjectForm">
+          <div class="workbench-form-header">
+            <h3>New Project</h3>
+            <span>Set the project container before filing captures.</span>
+          </div>
+          <input class="workbench-input" id="workbenchProjectTitle" type="text" placeholder="Project title">
+          <textarea class="workbench-input workbench-textarea" id="workbenchProjectBrief" placeholder="Brief"></textarea>
+          <input class="workbench-input" id="workbenchProjectPath" type="text" placeholder="Obsidian path (optional)">
+          <button class="workbench-primary-btn" id="workbenchCreateProjectBtn" type="submit">Create Project</button>
+        </form>
+
+        <div class="workbench-section">
+          <div class="workbench-section-header">
+            <h3>Inbox</h3>
+            <span id="workbenchInboxCount">0 items</span>
+          </div>
+          <div class="workbench-empty" id="workbenchInboxEmpty" hidden>No captures yet. Use the Capture button on a message.</div>
+          <div class="workbench-list" id="workbenchInboxList"></div>
+        </div>
+      </section>
+
+      <section class="workbench-view" id="workbenchViewTree" hidden>
+        <div class="workbench-section">
+          <div class="workbench-section-header">
+            <h3>Project</h3>
+            <span id="workbenchProjectMeta">No project selected</span>
+          </div>
+          <select class="workbench-input" id="workbenchProjectSelect"></select>
+        </div>
+
+        <form class="workbench-form" id="workbenchNodeForm">
+          <div class="workbench-form-header">
+            <h3>New Node</h3>
+            <span>Add structure directly into the current tree.</span>
+          </div>
+          <input class="workbench-input" id="workbenchNodeTitle" type="text" placeholder="Node title">
+          <div class="workbench-inline-grid">
+            <select class="workbench-input" id="workbenchNodeType">
+              <option value="question">Question</option>
+              <option value="insight">Insight</option>
+              <option value="solution">Solution</option>
+              <option value="task">Task</option>
+              <option value="risk">Risk</option>
+              <option value="conclusion">Conclusion</option>
+              <option value="knowledge">Knowledge</option>
+            </select>
+            <select class="workbench-input" id="workbenchNodeParent">
+              <option value="">Top level</option>
+            </select>
+          </div>
+          <textarea class="workbench-input workbench-textarea" id="workbenchNodeSummary" placeholder="Summary"></textarea>
+          <input class="workbench-input" id="workbenchNodeNextAction" type="text" placeholder="Next action">
+          <button class="workbench-primary-btn" id="workbenchCreateNodeBtn" type="submit">Add Node</button>
+        </form>
+
+        <div class="workbench-section">
+          <div class="workbench-section-header">
+            <h3>Tree</h3>
+            <span id="workbenchTreeCount">0 nodes</span>
+          </div>
+          <div class="workbench-empty" id="workbenchTreeEmpty" hidden>No nodes yet.</div>
+          <div class="workbench-tree" id="workbenchTreeList"></div>
+        </div>
+
+        <div class="workbench-section">
+          <div class="workbench-section-header">
+            <h3>Summary</h3>
+            <span id="workbenchSummaryMeta">Not generated yet</span>
+          </div>
+          <div class="workbench-actions-row">
+            <button class="workbench-secondary-btn" id="workbenchGenerateSummaryBtn" type="button">Generate Summary</button>
+            <button class="workbench-secondary-btn" id="workbenchWritebackBtn" type="button">Write to Obsidian</button>
+          </div>
+          <pre class="workbench-summary-preview" id="workbenchSummaryPreview">No summary yet.</pre>
+        </div>
+      </section>
+    </div>
+
+    <div class="workbench-status" id="workbenchStatus"></div>
+  </aside>
 </div>
 </div>
 
@@ -122,10 +218,11 @@
 <script src="/chat/realtime-render.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/session-surface-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-  <script src="/chat/session-list-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-  <script src="/chat/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-  <script src="/chat/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-  <script src="/chat/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-  <script src="/chat/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/session-list-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/workbench-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 </body>
 </html>
