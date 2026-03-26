@@ -1156,3 +1156,56 @@ body::before {
     box-shadow: none;
   }
 }
+
+/* ---- MelodySync card hierarchy reset ---- */
+body {
+  background:
+    radial-gradient(circle at 16% 12%, rgba(220, 226, 238, 0.48), transparent 22%),
+    radial-gradient(circle at 82% 78%, rgba(232, 228, 242, 0.32), transparent 24%),
+    linear-gradient(180deg, #f6f8fb 0%, #eef1f6 100%);
+}
+
+.app-shell {
+  padding: 0 14px 14px;
+  gap: 10px;
+}
+
+.header {
+  min-height: calc(56px + var(--safe-top));
+  padding: calc(var(--safe-top) + 12px) 6px 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.header-btn,
+.header-refresh-btn {
+  background: rgba(255, 255, 255, 0.36);
+  box-shadow: none;
+}
+
+.chat-area {
+  border-radius: 30px;
+  background: rgba(249, 250, 252, 0.8);
+  box-shadow: 0 24px 54px rgba(190, 199, 209, 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background:
+      radial-gradient(circle at 16% 12%, rgba(72, 80, 92, 0.24), transparent 22%),
+      radial-gradient(circle at 82% 78%, rgba(84, 76, 98, 0.18), transparent 24%),
+      linear-gradient(180deg, #20252c 0%, #1a1f26 100%);
+  }
+
+  .header {
+    background: transparent;
+  }
+
+  .chat-area {
+    background: rgba(35, 42, 50, 0.82);
+  }
+}

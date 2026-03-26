@@ -159,3 +159,16 @@ body.share-snapshot-mode .input-row textarea:disabled {
     border-radius: 28px;
   }
 }
+
+/* ---- MelodySync card hierarchy reset ---- */
+@media (max-width: 767px) {
+  .app-shell {
+    padding: 0 10px 10px;
+  }
+
+  .header {
+    padding-left: 2px;
+    padding-right: 2px;
+    border-radius: 0;
+  }
+}

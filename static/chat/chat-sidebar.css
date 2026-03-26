@@ -743,3 +743,56 @@
     box-shadow: none;
   }
 }
+
+/* ---- MelodySync card hierarchy reset ---- */
+.sidebar {
+  border-radius: 30px;
+}
+
+.sidebar-list {
+  padding: 8px 14px 14px;
+}
+
+.pinned-section,
+.folder-group,
+.archived-section {
+  margin-bottom: 12px;
+}
+
+.pinned-section-header,
+.folder-group-header,
+.archived-section-header {
+  padding: 8px 4px;
+  background: transparent;
+}
+
+.session-item {
+  padding: 10px 4px 10px 8px;
+  border: none;
+  border-radius: 12px;
+}
+
+.session-item.active {
+  border: none;
+  background: rgba(17, 24, 39, 0.05);
+}
+
+.session-item:hover {
+  background: rgba(17, 24, 39, 0.03);
+}
+
+.new-session-btn {
+  margin: 10px 14px 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .session-item.active {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .session-item:hover,
+  .folder-group-header:hover,
+  .archived-section-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}

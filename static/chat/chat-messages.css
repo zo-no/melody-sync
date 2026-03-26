@@ -685,3 +685,41 @@
     box-shadow: none;
   }
 }
+
+/* ---- MelodySync card hierarchy reset ---- */
+.empty-state {
+  width: 100%;
+  max-width: none;
+  padding: 64px 24px 28px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.empty-state h2 {
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+}
+
+.empty-state p {
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.msg-user-bubble {
+  box-shadow: none;
+}
+
+.context-barrier,
+.turn-collapse-drawer,
+.tool-card,
+.file-card {
+  background: transparent;
+  box-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .empty-state {
+    background: transparent;
+  }
+}
