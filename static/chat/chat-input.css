@@ -635,3 +635,89 @@
     background: linear-gradient(145deg, #8392c4, #6c7eb2);
   }
 }
+
+/* ---- MelodySync two-card layout ---- */
+.input-area {
+  padding-top: 2px;
+}
+
+.input-resize-pill {
+  width: 44px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(150, 163, 184, 0.38);
+  box-shadow: none;
+}
+
+.input-wrapper {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.input-wrapper:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.input-row {
+  gap: 10px;
+  padding: 14px 0 10px;
+  border-top: 1px solid rgba(116, 132, 160, 0.16);
+}
+
+.input-row textarea {
+  padding-top: 2px;
+}
+
+.composer-pending-state {
+  padding: 0 0 10px;
+}
+
+.queued-panel {
+  margin: 0 0 8px;
+  padding: 0 0 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.queued-panel-header {
+  margin-bottom: 6px;
+}
+
+.queued-list {
+  gap: 6px;
+}
+
+.queued-item {
+  padding: 8px 0;
+  border: none;
+  border-top: 1px solid rgba(116, 132, 160, 0.12);
+  border-radius: 0;
+  background: transparent;
+}
+
+.queued-item:first-child {
+  border-top: 0;
+}
+
+.input-footer {
+  padding: 8px 0 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .input-resize-pill {
+    background: rgba(144, 162, 235, 0.28);
+  }
+
+  .input-row {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .queued-item {
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
+}
