@@ -159,3 +159,11 @@ body.share-snapshot-mode .input-row textarea:disabled {
     border-radius: 28px;
   }
 }
+
+/* ---- MelodySync restrained soft-card refinement ---- */
+@media (max-width: 767px) {
+  .empty-state {
+    padding: 28px 18px 14px;
+    border-radius: 0;
+  }
+}

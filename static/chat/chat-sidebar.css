@@ -612,3 +612,91 @@
     background: rgba(28, 35, 41, 0.72);
   }
 }
+
+/* ---- MelodySync restrained soft-card refinement ---- */
+.sidebar-tabs {
+  display: none;
+}
+
+.sidebar-list {
+  padding-top: 0;
+}
+
+.pinned-section,
+.folder-group,
+.archived-section {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pinned-section-header,
+.folder-group-header,
+.archived-section-header {
+  padding: 8px 8px 6px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.folder-group-header:hover,
+.archived-section-header:hover {
+  background: transparent;
+}
+
+.folder-group-header .folder-count,
+.archived-section-header .folder-count {
+  background: rgba(241, 245, 251, 0.66);
+  box-shadow: none;
+}
+
+.session-item {
+  border-radius: 18px;
+  border-color: transparent;
+  background: rgba(245, 248, 252, 0.58);
+  box-shadow: none;
+}
+
+.session-item:hover {
+  background: rgba(241, 245, 250, 0.88);
+}
+
+.session-item.active {
+  background: linear-gradient(145deg, rgba(233, 239, 250, 0.98), rgba(225, 232, 247, 0.9));
+  border-color: rgba(102, 119, 191, 0.14);
+}
+
+.session-action-btn {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.session-action-btn:hover {
+  background: rgba(240, 244, 250, 0.9);
+}
+
+.new-session-btn {
+  background: linear-gradient(145deg, #7b89b2, #68779c);
+  box-shadow: 12px 12px 22px rgba(166, 176, 198, 0.24), -8px -8px 18px rgba(255, 255, 255, 0.18);
+}
+
+.session-filter-empty,
+.archived-empty {
+  background: rgba(245, 248, 252, 0.58);
+}
+
+@media (prefers-color-scheme: dark) {
+  .session-item.active {
+    border-color: rgba(144, 162, 235, 0.16);
+    background: linear-gradient(145deg, rgba(45, 54, 75, 0.94), rgba(39, 48, 67, 0.88));
+  }
+
+  .session-item:hover,
+  .session-action-btn:hover,
+  .folder-group-header .folder-count,
+  .archived-section-header .folder-count,
+  .session-filter-empty,
+  .archived-empty {
+    background: rgba(40, 48, 63, 0.78);
+  }
+}

@@ -600,3 +600,46 @@
     background: rgba(24, 31, 37, 0.88);
   }
 }
+
+/* ---- MelodySync restrained soft-card refinement ---- */
+.empty-state {
+  max-width: 760px;
+  padding: 34px 18px 20px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.empty-state h2 {
+  margin-bottom: 10px;
+}
+
+.empty-state p {
+  max-width: 460px;
+}
+
+.msg-user-bubble {
+  border-color: rgba(102, 119, 191, 0.14);
+  background: linear-gradient(145deg, rgba(234, 239, 249, 0.96), rgba(223, 230, 245, 0.9));
+}
+
+.msg-assistant {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(243, 247, 251, 0.72);
+  box-shadow: 14px 14px 24px rgba(214, 220, 231, 0.32), -8px -8px 16px rgba(255, 255, 255, 0.72);
+}
+
+.context-barrier,
+.turn-collapse-drawer,
+.tool-card,
+.file-card {
+  background: rgba(243, 247, 251, 0.72);
+}
+
+@media (prefers-color-scheme: dark) {
+  .msg-user-bubble {
+    border-color: rgba(144, 162, 235, 0.16);
+    background: linear-gradient(145deg, rgba(43, 52, 73, 0.96), rgba(36, 45, 63, 0.9));
+  }
+}

@@ -997,3 +997,78 @@ body::before {
     background: linear-gradient(145deg, rgba(43, 54, 62, 0.96), rgba(28, 35, 41, 0.94));
   }
 }
+
+/* ---- MelodySync restrained soft-card refinement ---- */
+:root {
+  --bg: #edf1f8;
+  --bg-secondary: #f3f6fb;
+  --bg-tertiary: #e6ebf4;
+  --border: rgba(116, 132, 160, 0.14);
+  --border-strong: rgba(108, 124, 152, 0.24);
+  --text: #28303f;
+  --text-secondary: #738095;
+  --text-muted: #a2acbb;
+  --accent: #6677bf;
+  --accent-dim: #e6ebfb;
+  --surface-hover: #eef2f9;
+  --user-bubble: #e9eef8;
+  --tool-bg: #f4f7fc;
+  --success: #7282c8;
+  --success-bg: #e7ecfb;
+  --notice: #7282c8;
+  --queue: #7282c8;
+  --copy-btn-success-border: rgba(102, 119, 191, 0.18);
+  --focus-border: rgba(102, 119, 191, 0.38);
+  --shadow-card: 18px 18px 34px rgba(214, 220, 231, 0.46), -14px -14px 26px rgba(255, 255, 255, 0.88);
+  --shadow-pill: 10px 10px 20px rgba(214, 220, 231, 0.4), -8px -8px 16px rgba(255, 255, 255, 0.84);
+  --shadow-soft-inset: inset 6px 6px 12px rgba(211, 218, 228, 0.24), inset -6px -6px 12px rgba(255, 255, 255, 0.8);
+  --shadow-tight: 8px 8px 16px rgba(212, 219, 229, 0.34), -6px -6px 14px rgba(255, 255, 255, 0.82);
+}
+
+body {
+  background:
+    radial-gradient(circle at 14% 18%, rgba(218, 226, 244, 0.62), transparent 28%),
+    radial-gradient(circle at 74% 12%, rgba(255, 255, 255, 0.74), transparent 16%),
+    linear-gradient(180deg, #f2f5fb 0%, #ebf0f7 58%, #e7edf5 100%);
+}
+
+body::before {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 26% 32%, rgba(255, 255, 255, 0.34), transparent 14%),
+    radial-gradient(circle at 78% 20%, rgba(255, 255, 255, 0.18), transparent 14%);
+}
+
+.header,
+.chat-area {
+  background: rgba(243, 246, 251, 0.84);
+}
+
+.header-share-btn {
+  border-color: rgba(102, 119, 191, 0.18);
+  background: linear-gradient(145deg, #7b89b2, #68779c);
+  box-shadow: 12px 12px 22px rgba(166, 176, 198, 0.24), -8px -8px 18px rgba(255, 255, 255, 0.18);
+}
+
+.header-share-btn:hover {
+  background: linear-gradient(145deg, #8491b8, #6f7ea5);
+  border-color: rgba(102, 119, 191, 0.24);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #90a2eb;
+    --success: #90a2eb;
+    --success-bg: #26304a;
+    --notice: #90a2eb;
+    --queue: #90a2eb;
+    --focus-border: rgba(144, 162, 235, 0.42);
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 14% 14%, rgba(98, 113, 152, 0.16), transparent 24%),
+      radial-gradient(circle at 74% 16%, rgba(78, 89, 118, 0.12), transparent 18%),
+      linear-gradient(180deg, #212833 0%, #1b212a 100%);
+  }
+}
