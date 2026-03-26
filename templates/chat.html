@@ -25,25 +25,12 @@
 
 <!-- Header -->
 <div class="header">
-  <div class="header-side header-side-left">
-    <button class="header-btn" id="menuBtn" title="Sessions" aria-label="Sessions" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
-  </div>
-  <div class="header-hero">
-    <div class="header-hero-mark" aria-hidden="true"></div>
-    <div class="header-hero-copy">
-      <h1 class="header-hero-title">MelodySync</h1>
-      <p class="header-session-title" id="headerTitle" data-i18n="app.chatTitle">MelodySync Chat</p>
-      <p class="header-hero-subtitle" data-i18n="app.heroSubtitle">Session-based AI workspace · quiet, focused, iterative</p>
-    </div>
-  </div>
-  <div class="header-side header-side-right">
-    <button class="header-share-btn" id="forkSessionBtn" type="button" title="Fork" aria-label="Fork" data-i18n-title="action.fork" data-i18n-aria-label="action.fork" data-i18n="action.fork" hidden>Fork</button>
-    <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
-    <div class="header-status">
-      <span class="status-dot" id="statusDot"></span>
-      <span id="statusText" data-i18n="status.disconnected">disconnected</span>
-    </div>
-  </div>
+  <button class="header-btn" id="menuBtn" title="Sessions" aria-label="Sessions" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
+  <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync Chat</h1>
+  <button class="header-share-btn" id="forkSessionBtn" type="button" title="Fork" aria-label="Fork" data-i18n-title="action.fork" data-i18n-aria-label="action.fork" data-i18n="action.fork" hidden>Fork</button>
+  <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
+  <span class="status-dot" id="statusDot"></span>
+  <span id="statusText" data-i18n="status.disconnected">disconnected</span>
 </div>
 
 <div class="app-container">
@@ -68,8 +55,6 @@
     <div class="messages" id="messages">
       <div class="messages-inner" id="messagesInner">
         <div class="empty-state" id="emptyState">
-          <div class="empty-state-mark" aria-hidden="true"></div>
-          <p class="empty-state-eyebrow" data-i18n="emptyState.eyebrow">Session-based AI workspace</p>
           <h2 data-i18n="emptyState.title">MelodySync Chat</h2>
           <p data-i18n="emptyState.body">Select or create a session from the sidebar, then start chatting with your AI coding tool.</p>
         </div>
