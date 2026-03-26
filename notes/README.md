@@ -40,6 +40,7 @@ Current examples:
 - `directional/ai-driven-interaction.md`
 - `directional/autonomous-execution.md`
 - `directional/single-source-transcript-architecture.md`
+- `directional/melodysync/README.md` — MelodySync product direction, roadmap, MVP plan, and executable PRD bundle
 
 ### `archive/`
 
