@@ -114,6 +114,7 @@ import {
   createProjectSummary,
   getWorkbenchSnapshot,
   promoteCaptureItem,
+  setSessionReminderSnooze,
   writeProjectToObsidian,
 } from './workbench-store.mjs';
 
@@ -1485,6 +1486,16 @@ export async function handleRequest(req, res) {
         writeJson(res, 201, {
           session: createClientSessionDetail(outcome.session),
           branchContext: outcome.branchContext,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'reminder') {
+        const sessionId = parts[3];
+        const reminder = await setSessionReminderSnooze(sessionId, payload);
+        writeJson(res, 200, {
+          reminder,
           snapshot: await getWorkbenchSnapshot(),
         });
         return;

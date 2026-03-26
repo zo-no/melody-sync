@@ -1086,8 +1086,7 @@ function shouldExposeSession(meta) {
 
 function isTaskCardEnabledForSession(meta) {
   if (!meta || isInternalSession(meta)) return false;
-  if (normalizeSessionTaskCard(meta.taskCard)) return true;
-  return resolveEffectiveAppId(meta.appId) === WELCOME_APP_ID;
+  return true;
 }
 
 function ensureLiveSession(sessionId) {
@@ -2730,7 +2729,16 @@ async function maybeApplyAssistantTaskCard(sessionId, runId, session = null) {
   const taskCard = parseTaskCardFromAssistantContent(assistantEvent?.content || '');
   if (!taskCard) return null;
 
-  return updateSessionTaskCard(sessionId, taskCard);
+  const updatedSession = await updateSessionTaskCard(sessionId, taskCard);
+  if (updatedSession) {
+    try {
+      const { syncSessionContinuityFromSession } = await import('./workbench-store.mjs');
+      await syncSessionContinuityFromSession(updatedSession, { taskCard });
+    } catch (error) {
+      console.error('Failed to sync session continuity:', error?.message || error);
+    }
+  }
+  return updatedSession;
 }
 
 async function findResultAssetMessageForRun(sessionId, runId) {

@@ -16,7 +16,6 @@
   const laterBtn = document.getElementById("workbenchLaterBtn");
 
   const STORAGE_PROJECT_KEY = "melodysyncReminderProjectId";
-  const STORAGE_SNOOZE_KEY = "melodysyncReminderSnoozeUntil";
   const SNOOZE_MS = 30 * 60 * 1000;
 
   let snapshot = {
@@ -62,6 +61,13 @@
     return (Array.isArray(snapshot.branchContexts) ? snapshot.branchContexts : []).filter((entry) => nodeIds.has(entry.nodeId));
   }
 
+  function getActiveSessionContext(sessionId) {
+    return (Array.isArray(snapshot.branchContexts) ? snapshot.branchContexts : []).find((entry) => (
+      entry?.sessionId === sessionId
+      && String(entry?.status || "active").toLowerCase() === "active"
+    )) || null;
+  }
+
   function getProjectById(projectId) {
     return getProjects().find((entry) => entry.id === projectId) || null;
   }
@@ -76,23 +82,12 @@
     }
   }
 
-  function getSnoozeState() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_SNOOZE_KEY) || "{}");
-    } catch {
-      return {};
-    }
-  }
-
-  function setSnoozeState(nextState) {
-    localStorage.setItem(STORAGE_SNOOZE_KEY, JSON.stringify(nextState || {}));
-  }
-
   function isSnoozed(sessionId) {
     if (!sessionId) return false;
-    const state = getSnoozeState();
-    const until = Number(state?.[sessionId]) || 0;
-    return until > Date.now();
+    const activeContext = getActiveSessionContext(sessionId);
+    if (!activeContext?.snoozedUntil) return false;
+    const until = Date.parse(activeContext.snoozedUntil);
+    return Number.isFinite(until) && until > Date.now();
   }
 
   function focusComposer() {
@@ -106,34 +101,30 @@
     }
   }
 
-  function snoozeCurrentSession() {
+  async function snoozeCurrentSession() {
     const session = getCurrentSessionSafe();
     if (!session?.id) return;
-    const state = getSnoozeState();
-    state[session.id] = Date.now() + SNOOZE_MS;
-    setSnoozeState(state);
-    renderReminder();
-  }
-
-  function clearCurrentSessionSnooze() {
-    const session = getCurrentSessionSafe();
-    if (!session?.id) return;
-    const state = getSnoozeState();
-    if (state[session.id]) {
-      delete state[session.id];
-      setSnoozeState(state);
+    const until = new Date(Date.now() + SNOOZE_MS).toISOString();
+    try {
+      const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(session.id)}/reminder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ until }),
+      });
+      snapshot = response?.snapshot || snapshot;
+    } catch {
+      return;
     }
+    renderReminder();
   }
 
   function pickProject(session) {
     const projects = getProjects();
     if (projects.length === 0) return null;
 
-    const sessionBranch = (Array.isArray(snapshot.branchContexts) ? snapshot.branchContexts : []).find(
-      (entry) => entry.sessionId === session?.id,
-    );
-    if (sessionBranch) {
-      const node = (Array.isArray(snapshot.nodes) ? snapshot.nodes : []).find((entry) => entry.id === sessionBranch.nodeId);
+    const sessionContext = getActiveSessionContext(session?.id);
+    if (sessionContext) {
+      const node = (Array.isArray(snapshot.nodes) ? snapshot.nodes : []).find((entry) => entry.id === sessionContext.nodeId);
       if (node) {
         const project = getProjectById(node.projectId);
         if (project) {
@@ -176,30 +167,34 @@
     const nodes = project ? getNodes(project.id) : [];
     const nodesById = new Map(nodes.map((entry) => [entry.id, entry]));
     const branchContexts = project ? getBranchContexts(project.id) : [];
-    const activeBranch = branchContexts.find((entry) => entry.sessionId === session.id) || null;
-    const rootNode = project?.rootNodeId ? nodesById.get(project.rootNodeId) || null : (nodes.find((entry) => !entry.parentId) || null);
-    const activeNode = activeBranch ? nodesById.get(activeBranch.nodeId) || null : null;
-    const returnNode = activeBranch ? nodesById.get(activeBranch.returnToNodeId) || null : null;
+    const activeContext = getActiveSessionContext(session.id);
+    const rootNode = activeContext?.mainNodeId
+      ? nodesById.get(activeContext.mainNodeId) || null
+      : (project?.rootNodeId ? nodesById.get(project.rootNodeId) || null : (nodes.find((entry) => !entry.parentId) || null));
+    const activeNode = activeContext ? nodesById.get(activeContext.nodeId) || null : null;
+    const returnNode = activeContext?.returnToNodeId ? nodesById.get(activeContext.returnToNodeId) || null : null;
 
     const cardSummary = clipText(taskCard?.summary || "", 160);
     const cardGoal = clipText(taskCard?.goal || "", 100);
     const nextSteps = getTaskCardList(taskCard, "nextSteps");
     const memory = getTaskCardList(taskCard, "memory");
     const focusTitle = cardGoal || clipText(session.name || session.id, 100);
-    const focusSummary = cardSummary || clipText((taskCard?.knownConclusions || []).join(" · "), 160) || "保持当前对话在同一目标上持续推进。";
+    const focusSummary = cardSummary || clipText((taskCard?.knownConclusions || []).join(" · "), 160) || "Keep the conversation moving on one clear line until the next checkpoint is stable.";
     const nextStep = clipText(
       nextSteps[0]
       || activeNode?.nextAction
       || returnNode?.nextAction
       || rootNode?.nextAction
-      || "继续把当前问题收成更清楚的一句话。",
+      || "Make the current question one notch clearer before opening another branch.",
       140,
     );
 
-    const mainlineLabel = clipText(rootNode?.title || project?.title || focusTitle, 80);
-    const currentBranchLabel = clipText(activeBranch?.goal || activeNode?.title || "", 80);
+    const mainlineLabel = clipText(activeContext?.mainGoal || rootNode?.title || taskCard?.mainGoal || project?.title || focusTitle, 80);
+    const currentBranchLabel = String(activeContext?.lineRole || "").toLowerCase() === "branch"
+      ? clipText(activeContext?.goal || activeNode?.title || cardGoal || "", 80)
+      : "";
     const rememberedBranches = branchContexts
-      .filter((entry) => entry.sessionId !== session.id)
+      .filter((entry) => entry.sessionId !== session.id && String(entry?.status || "active").toLowerCase() === "active" && String(entry?.lineRole || "").toLowerCase() === "branch")
       .slice(0, 3)
       .map((entry) => clipText(entry.goal || nodesById.get(entry.nodeId)?.title || entry.sessionId, 72));
     const memoryItems = rememberedBranches.length > 0
@@ -207,16 +202,17 @@
       : memory.slice(0, 3);
 
     const memoryHint = rememberedBranches.length > 0
-      ? `已替你记住 ${rememberedBranches.length} 个相关旁支。`
+      ? `${rememberedBranches.length} related side branches are already remembered for you.`
       : (memory.length > 0
-        ? `已带上 ${memory.length} 条可复用上下文。`
-        : "旁支暂时不展开，系统会先替你记住。");
+        ? `${memory.length} durable context items are being carried forward.`
+        : "Side branches stay offstage until they matter.");
 
     const returnHint = clipText(
       (returnNode && (returnNode.nextAction || returnNode.summary || returnNode.title))
-      || activeBranch?.checkpointSummary
+      || activeContext?.resumeHint
+      || activeContext?.checkpointSummary
       || rootNode?.nextAction
-      || "当前主线还没有明确回收点。",
+      || "A return point for the main line has not stabilized yet.",
       120,
     );
 
@@ -234,6 +230,7 @@
       memoryHint,
       rememberedBranches,
       memoryItems,
+      activeContext,
       showBranchMap: Boolean(project || currentBranchLabel),
     };
   }
@@ -324,7 +321,6 @@
       return;
     }
 
-    clearCurrentSessionSnooze();
     panel.hidden = false;
     emptyStateEl.hidden = true;
     continueBtn.disabled = false;
@@ -358,13 +354,17 @@
   }
 
   continueBtn?.addEventListener("click", () => {
-    clearCurrentSessionSnooze();
     renderReminder();
     focusComposer();
   });
 
-  laterBtn?.addEventListener("click", () => {
-    snoozeCurrentSession();
+  laterBtn?.addEventListener("click", async () => {
+    laterBtn.disabled = true;
+    try {
+      await snoozeCurrentSession();
+    } finally {
+      laterBtn.disabled = false;
+    }
   });
 
   document.addEventListener("melodysync:session-change", () => {

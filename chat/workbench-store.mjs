@@ -15,6 +15,7 @@ import {
   getSession,
   submitHttpMessage,
 } from './session-manager.mjs';
+import { normalizeSessionTaskCard } from './session-task-card.mjs';
 import {
   createSerialTaskQueue,
   ensureDir,
@@ -95,6 +96,18 @@ function normalizeNodeState(value) {
   const state = trimText(value).toLowerCase();
   if (['open', 'active', 'done', 'parked'].includes(state)) return state;
   return 'open';
+}
+
+function normalizeLineRole(value) {
+  const role = trimText(value).toLowerCase();
+  if (role === 'branch') return 'branch';
+  return 'main';
+}
+
+function normalizeBranchContextStatus(value) {
+  const status = trimText(value).toLowerCase();
+  if (['active', 'resolved'].includes(status)) return status;
+  return 'active';
 }
 
 function sortByCreatedAsc(items) {
@@ -202,6 +215,154 @@ function getProjectSkills(state, projectId) {
   }));
 }
 
+function getProjectByScopeKey(state, scopeKey) {
+  const normalized = normalizeNullableText(scopeKey);
+  if (!normalized) return null;
+  return (state.projects || []).find((entry) => normalizeNullableText(entry.scopeKey) === normalized) || null;
+}
+
+function getActiveSessionContext(state, sessionId) {
+  const normalized = normalizeNullableText(sessionId);
+  if (!normalized) return null;
+  return (state.branchContexts || []).find((entry) => (
+    normalizeNullableText(entry.sessionId) === normalized
+    && normalizeBranchContextStatus(entry.status) === 'active'
+  )) || null;
+}
+
+function pickProjectTitle(session, taskCard) {
+  return normalizeNullableText(
+    taskCard?.mainGoal
+    || taskCard?.goal
+    || session?.group
+    || session?.name
+    || 'Continuity Workspace'
+  );
+}
+
+function pickMainGoal(session, taskCard) {
+  const goal = normalizeNullableText(taskCard?.goal || session?.name || '');
+  const lineRole = normalizeLineRole(taskCard?.lineRole);
+  const branchFrom = normalizeNullableText(taskCard?.branchFrom);
+  return normalizeNullableText(
+    taskCard?.mainGoal
+    || (lineRole === 'branch' ? branchFrom : '')
+    || goal
+  );
+}
+
+function pickCheckpoint(taskCard, fallback = '') {
+  return normalizeNullableText(
+    taskCard?.checkpoint
+    || taskCard?.summary
+    || (Array.isArray(taskCard?.knownConclusions) ? taskCard.knownConclusions[0] : '')
+    || (Array.isArray(taskCard?.nextSteps) ? taskCard.nextSteps[0] : '')
+    || fallback
+  );
+}
+
+function upsertProject(state, session, taskCard, now) {
+  const scopeKey = normalizeNullableText(session?.rootSessionId || session?.id);
+  let project = getProjectByScopeKey(state, scopeKey);
+  const title = pickProjectTitle(session, taskCard);
+  const brief = normalizeNullableText(taskCard?.summary || session?.description || '');
+  if (!project) {
+    project = {
+      id: createId('proj'),
+      scopeKey,
+      title,
+      brief,
+      obsidianPath: '',
+      status: 'active',
+      rootNodeId: '',
+      createdAt: now,
+      updatedAt: now,
+    };
+    state.projects.push(project);
+    return project;
+  }
+
+  const nextProject = {
+    ...project,
+    title: title || project.title,
+    brief: brief || project.brief || '',
+    updatedAt: now,
+  };
+  const projectIndex = state.projects.findIndex((entry) => entry.id === project.id);
+  if (projectIndex !== -1) {
+    state.projects[projectIndex] = nextProject;
+  }
+  return nextProject;
+}
+
+function upsertNode(state, payload = {}) {
+  const now = normalizeNullableText(payload.now) || nowIso();
+  const nodeId = normalizeNullableText(payload.id);
+  const existingIndex = nodeId
+    ? state.nodes.findIndex((entry) => entry.id === nodeId)
+    : -1;
+  const nextNode = {
+    id: nodeId || createId('node'),
+    projectId: normalizeNullableText(payload.projectId),
+    parentId: normalizeNullableText(payload.parentId),
+    title: normalizeNullableText(payload.title) || 'Untitled task',
+    type: normalizeNodeType(payload.type || 'task'),
+    summary: normalizeNullableText(payload.summary),
+    sourceCaptureIds: Array.isArray(payload.sourceCaptureIds)
+      ? payload.sourceCaptureIds.filter((entry) => typeof entry === 'string' && entry.trim())
+      : [],
+    state: normalizeNodeState(payload.state || 'active'),
+    nextAction: normalizeNullableText(payload.nextAction),
+    createdAt: existingIndex !== -1 ? state.nodes[existingIndex].createdAt || now : now,
+    updatedAt: now,
+  };
+  if (existingIndex !== -1) {
+    state.nodes[existingIndex] = nextNode;
+  } else {
+    state.nodes.push(nextNode);
+  }
+  return nextNode;
+}
+
+function upsertSessionContext(state, payload = {}) {
+  const sessionId = normalizeNullableText(payload.sessionId);
+  if (!sessionId) {
+    throw new Error('sessionId is required');
+  }
+  const now = normalizeNullableText(payload.now) || nowIso();
+  const existingIndex = state.branchContexts.findIndex((entry) => (
+    normalizeNullableText(entry.sessionId) === sessionId
+    && normalizeBranchContextStatus(entry.status) === 'active'
+  ));
+  const existing = existingIndex !== -1 ? state.branchContexts[existingIndex] : null;
+  const nextContext = {
+    id: existing?.id || createId('branch'),
+    projectId: normalizeNullableText(payload.projectId),
+    nodeId: normalizeNullableText(payload.nodeId),
+    mainNodeId: normalizeNullableText(payload.mainNodeId),
+    sessionId,
+    lineRole: normalizeLineRole(payload.lineRole),
+    status: normalizeBranchContextStatus(payload.status),
+    goal: normalizeNullableText(payload.goal),
+    mainGoal: normalizeNullableText(payload.mainGoal),
+    branchFrom: normalizeNullableText(payload.branchFrom),
+    branchReason: normalizeNullableText(payload.branchReason),
+    returnToNodeId: normalizeNullableText(payload.returnToNodeId),
+    checkpointSummary: normalizeNullableText(payload.checkpointSummary),
+    resumeHint: normalizeNullableText(payload.resumeHint),
+    nextStep: normalizeNullableText(payload.nextStep),
+    snoozedUntil: normalizeNullableText(payload.snoozedUntil),
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+  };
+  if (existingIndex !== -1) {
+    state.branchContexts[existingIndex] = nextContext;
+  } else {
+    state.branchContexts.push(nextContext);
+  }
+  return nextContext;
+}
+
 function buildTreeLines(nodes, branchContexts) {
   const childrenByParent = new Map();
   const branchesByNode = new Map();
@@ -211,6 +372,7 @@ function buildTreeLines(nodes, branchContexts) {
     childrenByParent.get(key).push(node);
   }
   for (const context of branchContexts) {
+    if (normalizeLineRole(context.lineRole) !== 'branch') continue;
     const list = branchesByNode.get(context.nodeId) || [];
     list.push(context);
     branchesByNode.set(context.nodeId, list);
@@ -253,7 +415,9 @@ function buildProjectSummaryMarkdown(project, nodes, branchContexts) {
     .map((entry) => trimText(entry.nextAction))
     .filter(Boolean)
     .slice(0, 6);
-  const recentBranches = branchContexts.slice(0, 6);
+  const recentBranches = branchContexts
+    .filter((entry) => normalizeLineRole(entry.lineRole) === 'branch')
+    .slice(0, 6);
 
   const lines = [
     `# ${project.title}｜阶段总结`,
@@ -378,6 +542,165 @@ function buildBranchSeedPrompt({ project, node, goal }) {
 export async function getWorkbenchSnapshot() {
   const state = await loadState();
   return buildSnapshot(state);
+}
+
+function syncSessionContinuityState(state, session, taskCardInput, now = nowIso()) {
+  const taskCard = normalizeSessionTaskCard(taskCardInput || session.taskCard || {});
+  const project = upsertProject(state, session, taskCard, now);
+
+  const mainGoal = pickMainGoal(session, taskCard) || project.title;
+  const lineRole = normalizeLineRole(taskCard?.lineRole || (normalizeNullableText(session?.sourceContext?.kind) ? 'branch' : 'main'));
+  const currentGoal = normalizeNullableText(taskCard?.goal || session.name || mainGoal);
+  const nextStep = normalizeNullableText((taskCard?.nextSteps || [])[0]);
+  const checkpoint = pickCheckpoint(taskCard, currentGoal || mainGoal);
+  const sourceNodeId = normalizeNullableText(session?.sourceContext?.nodeId);
+  const sourceNode = sourceNodeId ? getNodeById(state, sourceNodeId) : null;
+
+  let rootNode = project.rootNodeId ? getNodeById(state, project.rootNodeId) : null;
+  rootNode = upsertNode(state, {
+    id: rootNode?.id,
+    projectId: project.id,
+    parentId: '',
+    title: mainGoal,
+    type: 'task',
+    summary: lineRole === 'main'
+      ? normalizeNullableText(taskCard?.summary || checkpoint)
+      : normalizeNullableText(rootNode?.summary || mainGoal),
+    nextAction: lineRole === 'main'
+      ? nextStep
+      : normalizeNullableText(rootNode?.nextAction || nextStep),
+    state: lineRole === 'main' ? 'active' : (rootNode?.state || 'active'),
+    now,
+  });
+
+  const projectIndex = state.projects.findIndex((entry) => entry.id === project.id);
+  if (projectIndex !== -1) {
+    state.projects[projectIndex] = {
+      ...state.projects[projectIndex],
+      title: mainGoal || state.projects[projectIndex].title,
+      rootNodeId: rootNode.id,
+      updatedAt: now,
+    };
+  }
+
+  const existingContext = getActiveSessionContext(state, session.id);
+  if (existingContext && normalizeLineRole(existingContext.lineRole) !== lineRole) {
+    const contextIndex = state.branchContexts.findIndex((entry) => entry.id === existingContext.id);
+    if (contextIndex !== -1) {
+      state.branchContexts[contextIndex] = {
+        ...state.branchContexts[contextIndex],
+        status: 'resolved',
+        updatedAt: now,
+      };
+    }
+  }
+
+  let currentNode = rootNode;
+  let branchFrom = '';
+  let branchReason = '';
+  let returnToNodeId = '';
+
+  if (lineRole === 'branch') {
+    branchFrom = normalizeNullableText(taskCard?.branchFrom || sourceNode?.title || mainGoal);
+    branchReason = normalizeNullableText(taskCard?.branchReason);
+    const latestActiveContext = getActiveSessionContext(state, session.id);
+    const latestBranchNode = latestActiveContext && normalizeLineRole(latestActiveContext.lineRole) === 'branch'
+      ? getNodeById(state, latestActiveContext.nodeId)
+      : null;
+    const branchParentId = sourceNode?.id || rootNode.id;
+    currentNode = upsertNode(state, {
+      id: latestBranchNode?.id,
+      projectId: project.id,
+      parentId: branchParentId,
+      title: currentGoal,
+      type: 'task',
+      summary: normalizeNullableText(taskCard?.summary || checkpoint),
+      nextAction: nextStep,
+      state: 'active',
+      now,
+    });
+    returnToNodeId = sourceNode?.id || rootNode.id;
+  }
+
+  const context = upsertSessionContext(state, {
+    projectId: project.id,
+    nodeId: currentNode.id,
+    mainNodeId: rootNode.id,
+    sessionId: session.id,
+    lineRole,
+    status: 'active',
+    goal: currentGoal,
+    mainGoal,
+    branchFrom,
+    branchReason,
+    returnToNodeId,
+    checkpointSummary: checkpoint,
+    resumeHint: normalizeNullableText(taskCard?.checkpoint || nextStep || checkpoint),
+    nextStep,
+    snoozedUntil: existingContext?.snoozedUntil || '',
+    now,
+  });
+
+  return {
+    project: getProjectById(state, project.id),
+    rootNode: getNodeById(state, rootNode.id),
+    currentNode: getNodeById(state, currentNode.id),
+    context,
+  };
+}
+
+export async function syncSessionContinuityFromSession(sessionLike, options = {}) {
+  return WORKBENCH_QUEUE(async () => {
+    const session = sessionLike && typeof sessionLike === 'object'
+      ? sessionLike
+      : await getSession(normalizeNullableText(sessionLike));
+    if (!session?.id) {
+      throw new Error('Session not found');
+    }
+
+    const now = nowIso();
+    const state = await loadState();
+    const result = syncSessionContinuityState(state, session, options.taskCard, now);
+    await saveState(state);
+    return result;
+  });
+}
+
+export async function setSessionReminderSnooze(sessionId, payload = {}) {
+  return WORKBENCH_QUEUE(async () => {
+    const normalizedSessionId = normalizeNullableText(sessionId);
+    if (!normalizedSessionId) {
+      throw new Error('sessionId is required');
+    }
+
+    const session = await getSession(normalizedSessionId);
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    const state = await loadState();
+    const now = nowIso();
+    syncSessionContinuityState(state, session, session.taskCard, now);
+    const context = getActiveSessionContext(state, normalizedSessionId);
+    if (!context) {
+      throw new Error('Session continuity context not found');
+    }
+
+    const untilValue = payload && Object.prototype.hasOwnProperty.call(payload, 'until')
+      ? normalizeNullableText(payload.until)
+      : normalizeNullableText(payload?.snoozedUntil);
+    const contextIndex = state.branchContexts.findIndex((entry) => entry.id === context.id);
+    if (contextIndex === -1) {
+      throw new Error('Session continuity context not found');
+    }
+    state.branchContexts[contextIndex] = {
+      ...state.branchContexts[contextIndex],
+      snoozedUntil: untilValue,
+      updatedAt: now,
+    };
+    await saveState(state);
+    return state.branchContexts[contextIndex];
+  });
 }
 
 export async function createCaptureItem(payload = {}) {
@@ -594,11 +917,21 @@ export async function createBranchFromNode(nodeId, payload = {}) {
     const now = nowIso();
     const branchContext = {
       id: createId('branch'),
+      projectId: project.id,
       nodeId: node.id,
+      mainNodeId: project.rootNodeId || node.id,
       sessionId: branchSession.id,
+      lineRole: 'branch',
+      status: 'active',
       goal,
+      mainGoal: normalizeNullableText(project.title || node.title),
+      branchFrom: normalizeNullableText(node.title),
+      branchReason: '',
       returnToNodeId: normalizeNullableText(payload.returnToNodeId) || node.id,
       checkpointSummary: normalizeNullableText(payload.checkpointSummary) || node.summary || '',
+      resumeHint: normalizeNullableText(payload.checkpointSummary) || node.nextAction || node.summary || '',
+      nextStep: normalizeNullableText(node.nextAction),
+      snoozedUntil: '',
       createdAt: now,
       updatedAt: now,
     };
