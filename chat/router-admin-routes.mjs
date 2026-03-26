@@ -52,21 +52,8 @@ if (pathname === '/api/apps' && req.method === 'POST') {
     res.end(JSON.stringify({ error: 'Owner access required' }));
     return true;
   }
-  let body;
-  try { body = await readBody(req, 10240); } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Bad request' }));
-    return true;
-  }
-  try {
-    const { name, systemPrompt, welcomeMessage, skills, tool } = JSON.parse(body);
-    const app = await createApp({ name, systemPrompt, welcomeMessage, skills, tool });
-    res.writeHead(201, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ app }));
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Invalid request body' }));
-  }
+  res.writeHead(410, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'App creation has been removed from MelodySync' }));
   return true;
 }
 
@@ -77,32 +64,8 @@ if (pathname.startsWith('/api/apps/') && req.method === 'PATCH') {
     res.end(JSON.stringify({ error: 'Owner access required' }));
     return true;
   }
-  const id = pathname.split('/').pop();
-  if (isBuiltinAppId(id)) {
-    res.writeHead(403, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Built-in apps cannot be modified' }));
-    return true;
-  }
-  let body;
-  try { body = await readBody(req, 10240); } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Bad request' }));
-    return true;
-  }
-  try {
-    const updates = JSON.parse(body);
-    const updated = await updateApp(id, updates);
-    if (updated) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ app: updated }));
-    } else {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'App not found' }));
-    }
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Invalid request body' }));
-  }
+  res.writeHead(410, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'App editing has been removed from MelodySync' }));
   return true;
 }
 
@@ -113,20 +76,8 @@ if (pathname.startsWith('/api/apps/') && req.method === 'DELETE') {
     res.end(JSON.stringify({ error: 'Owner access required' }));
     return true;
   }
-  const id = pathname.split('/').pop();
-  if (isBuiltinAppId(id)) {
-    res.writeHead(403, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Built-in apps cannot be deleted' }));
-    return true;
-  }
-  const ok = await deleteApp(id);
-  if (ok) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-  } else {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'App not found' }));
-  }
+  res.writeHead(410, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'App deletion has been removed from MelodySync' }));
   return true;
 }
 

@@ -1951,57 +1951,13 @@ export async function handleRequest(req, res) {
         return;
       }
       if (!requireSessionAccess(res, authSession, sessionId)) return;
-      let body = '';
-      try { body = await readBody(req, 10240); } catch {
-        writeJson(res, 400, { error: 'Bad request' });
-        return;
-      }
-      let payload = {};
-      if (body) {
-        try { payload = JSON.parse(body); } catch {
-          writeJson(res, 400, { error: 'Invalid request body' });
-          return;
-        }
-      }
-      const session = await getSessionForClient(sessionId);
-      if (!session) {
-        writeJson(res, 404, { error: 'Session not found' });
-        return;
-      }
-      if (session.activity?.run?.state === 'running') {
-        writeJson(res, 409, { error: 'Session is running' });
-        return;
-      }
-      const app = await saveSessionAsTemplate(sessionId, typeof payload?.name === 'string' ? payload.name.trim() : '');
-      if (!app) {
-        writeJson(res, 409, { error: 'Unable to save template' });
-        return;
-      }
-      writeJson(res, 201, { app });
+      writeJson(res, 410, { error: 'App template creation has been removed from MelodySync' });
       return;
     }
 
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'fork') {
       if (!requireSessionAccess(res, authSession, sessionId)) return;
-      const source = await getSessionForClient(sessionId);
-      if (!source) {
-        writeJson(res, 404, { error: 'Session not found' });
-        return;
-      }
-      if (source.visitorId) {
-        writeJson(res, 409, { error: 'Visitor sessions cannot be forked' });
-        return;
-      }
-      if (source.activity?.run?.state === 'running') {
-        writeJson(res, 409, { error: 'Session is running' });
-        return;
-      }
-      const session = await forkSession(sessionId);
-      if (!session) {
-        writeJson(res, 409, { error: 'Unable to fork session' });
-        return;
-      }
-      writeJson(res, 201, { session: createClientSessionDetail(session) });
+      writeJson(res, 410, { error: 'Session forking has been removed from MelodySync' });
       return;
     }
 
@@ -2069,21 +2025,7 @@ export async function handleRequest(req, res) {
       writeJson(res, 400, { error: 'Invalid session share path' });
       return;
     }
-
-    const session = await getSessionForClient(id);
-    if (!session) {
-      writeJson(res, 404, { error: 'Session not found' });
-      return;
-    }
-
-    const snapshot = await createShareSnapshot(session, await getHistory(id));
-    writeJson(res, 201, {
-      share: {
-        id: snapshot.id,
-        createdAt: snapshot.createdAt,
-        url: `/share/${snapshot.id}`,
-      },
-    });
+    writeJson(res, 410, { error: 'Session sharing has been removed from MelodySync' });
     return;
   }
 
