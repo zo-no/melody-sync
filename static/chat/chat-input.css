@@ -635,3 +635,87 @@
     background: linear-gradient(145deg, #8392c4, #6c7eb2);
   }
 }
+
+/* ---- MelodySync liquid glass experiment ---- */
+.input-area {
+  background: transparent;
+  border-top: none;
+}
+
+.input-resize-pill {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.input-wrapper {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.22);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(26px) saturate(130%);
+  -webkit-backdrop-filter: blur(26px) saturate(130%);
+}
+
+.input-wrapper:focus-within {
+  border-color: rgba(255, 255, 255, 0.36);
+  box-shadow: var(--shadow-card), 0 0 0 4px rgba(255, 255, 255, 0.12);
+}
+
+.composer-pending-state::before {
+  background: rgba(23, 33, 42, 0.68);
+}
+
+.send-btn,
+.cancel-btn {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: var(--shadow-tight);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.send-btn {
+  background: rgba(23, 33, 42, 0.82);
+}
+
+.cancel-btn {
+  background: rgba(173, 79, 78, 0.82);
+}
+
+.queued-panel {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: var(--shadow-tight);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.queued-item {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.input-footer {
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-color-scheme: dark) {
+  .input-resize-pill,
+  .input-wrapper,
+  .queued-panel,
+  .queued-item {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .input-wrapper:focus-within {
+    box-shadow: var(--shadow-card), 0 0 0 4px rgba(255, 255, 255, 0.08);
+  }
+
+  .composer-pending-state::before {
+    background: rgba(237, 243, 247, 0.72);
+  }
+
+  .send-btn {
+    background: rgba(233, 241, 248, 0.22);
+    color: var(--text);
+  }
+}
