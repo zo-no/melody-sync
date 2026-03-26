@@ -126,9 +126,24 @@ body.share-snapshot-mode .input-row textarea:disabled {
   }
 
   .header {
+    gap: 8px;
     padding-left: 14px;
     padding-right: 14px;
     border-radius: 24px;
+  }
+
+  .header h1 {
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+  }
+
+  .header-share-btn {
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  #statusText {
+    display: none;
   }
 
   .chat-area {
