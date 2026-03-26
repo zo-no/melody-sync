@@ -666,10 +666,3 @@
     box-shadow: none;
   }
 }
-
-/* ---- MelodySync card hierarchy reset ---- */
-.queued-panel,
-.queued-item {
-  background: transparent;
-  box-shadow: none;
-}
