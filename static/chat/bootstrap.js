@@ -322,7 +322,7 @@ if (!sessionStateModel) {
 }
 
 function normalizeSidebarTab(tab) {
-  if (tab === "settings") return "settings";
+  if (tab === "settings" && tabSettings && settingsPanel) return "settings";
   return "sessions";
 }
 

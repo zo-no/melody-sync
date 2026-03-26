@@ -35,7 +35,6 @@ Usage:
   melodysync guest-instance           Create isolated guest instances on this machine
   melodysync chat                     Run chat server in foreground
   melodysync api                      Call the local MelodySync HTTP API with owner auth
-  melodysync trigger                  Manage durable session triggers
   melodysync usage-summary            Summarize local Codex token usage
   melodysync session-spawn            Spawn a focused parallel session from a source session
   melodysync generate-token           Generate a new access token
@@ -107,13 +106,8 @@ switch (command) {
 
   case 'trigger':
   case 'triggers': {
-    const { runTriggerCommand } = await import(scriptPath('lib/trigger-command.mjs'));
-    try {
-      process.exitCode = await runTriggerCommand(args);
-    } catch (error) {
-      console.error(error.message || String(error));
-      process.exit(1);
-    }
+    console.error('Time-based triggers have been removed from MelodySync');
+    process.exit(1);
     break;
   }
 

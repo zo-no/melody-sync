@@ -29,16 +29,14 @@ if (shouldUseActiveRelease()) {
 
 if (!delegatedToRelease) {
   const http = await import('http');
-  const [{ CHAT_PORT, CHAT_BIND_HOST, SECURE_COOKIES, MEMORY_DIR }, { handleRequest }, apiRequestLog, ws, sessionManager, triggers, { ensureDir }] = await Promise.all([
+  const [{ CHAT_PORT, CHAT_BIND_HOST, SECURE_COOKIES, MEMORY_DIR }, { handleRequest }, apiRequestLog, ws, sessionManager, { ensureDir }] = await Promise.all([
     import('./lib/config.mjs'),
     import('./chat/router.mjs'),
     import('./chat/api-request-log.mjs'),
     import('./chat/ws.mjs'),
     import('./chat/session-manager.mjs'),
-    import('./chat/triggers.mjs'),
     import('./chat/fs-utils.mjs'),
   ]);
-  const scheduledTriggers = await import('./chat/scheduled-triggers.mjs');
 
   for (const dir of [MEMORY_DIR, join(MEMORY_DIR, 'tasks')]) {
     await ensureDir(dir);
@@ -64,18 +62,10 @@ if (!delegatedToRelease) {
   } catch (error) {
     console.error('Failed to rehydrate detached runs on startup:', error);
   }
-  triggers.startTriggerScheduler();
-  try {
-    await scheduledTriggers.startScheduledTriggerRunner();
-  } catch (error) {
-    console.error('Failed to start scheduled trigger runner:', error);
-  }
 
   async function shutdown() {
     console.log('Shutting down chat server...');
     await apiRequestLog.closeApiRequestLog();
-    triggers.stopTriggerScheduler();
-    scheduledTriggers.stopScheduledTriggerRunner();
     sessionManager.killAll();
     process.exit(0);
   }

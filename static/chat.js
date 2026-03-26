@@ -22,8 +22,6 @@
     "/chat/settings-ui.js",
     "/chat/sidebar-ui.js",
     "/chat/compose.js",
-    "/chat/timer.js",
-    "/chat/schedule.js",
     "/chat/gestures.js",
     "/chat/init.js",
   ];

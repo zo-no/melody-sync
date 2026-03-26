@@ -1188,87 +1188,27 @@ export async function handleRequest(req, res) {
   const fileAssetRoute = parseFileAssetRoute(pathname);
 
   if (pathname === '/api/triggers' && req.method === 'GET') {
-    const sessionId = typeof parsedUrl?.query?.sessionId === 'string'
-      ? parsedUrl.query.sessionId
-      : '';
-    const triggers = await listTriggers({ sessionId });
-    writeJson(res, 200, { triggers });
+    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
   if (pathname === '/api/triggers' && req.method === 'POST') {
-    let payload = {};
-    try {
-      const body = await readBody(req, 32768);
-      payload = body ? JSON.parse(body) : {};
-    } catch {
-      writeJson(res, 400, { error: 'Invalid request body' });
-      return;
-    }
-    try {
-      if (Object.prototype.hasOwnProperty.call(payload, 'thinking') && typeof payload.thinking !== 'boolean') {
-        writeJson(res, 400, { error: 'thinking must be a boolean' });
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'enabled') && typeof payload.enabled !== 'boolean') {
-        writeJson(res, 400, { error: 'enabled must be a boolean' });
-        return;
-      }
-      const trigger = await createTrigger(payload || {});
-      writeJson(res, 201, { trigger });
-    } catch (error) {
-      writeJson(res, 400, { error: error.message || 'Failed to create trigger' });
-    }
+    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
   if (triggerId && req.method === 'GET') {
-    const trigger = await getTrigger(triggerId);
-    if (!trigger) {
-      writeJson(res, 404, { error: 'Trigger not found' });
-      return;
-    }
-    writeJson(res, 200, { trigger });
+    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
   if (triggerId && req.method === 'PATCH') {
-    let payload = {};
-    try {
-      const body = await readBody(req, 32768);
-      payload = body ? JSON.parse(body) : {};
-    } catch {
-      writeJson(res, 400, { error: 'Invalid request body' });
-      return;
-    }
-    try {
-      if (Object.prototype.hasOwnProperty.call(payload, 'thinking') && typeof payload.thinking !== 'boolean') {
-        writeJson(res, 400, { error: 'thinking must be a boolean' });
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'enabled') && typeof payload.enabled !== 'boolean') {
-        writeJson(res, 400, { error: 'enabled must be a boolean' });
-        return;
-      }
-      const trigger = await updateTrigger(triggerId, payload || {});
-      if (!trigger) {
-        writeJson(res, 404, { error: 'Trigger not found' });
-        return;
-      }
-      writeJson(res, 200, { trigger });
-    } catch (error) {
-      writeJson(res, 400, { error: error.message || 'Failed to update trigger' });
-    }
+    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
   if (triggerId && req.method === 'DELETE') {
-    const trigger = await deleteTrigger(triggerId);
-    if (!trigger) {
-      writeJson(res, 404, { error: 'Trigger not found' });
-      return;
-    }
-    writeJson(res, 200, { ok: true, trigger });
+    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
@@ -1658,17 +1598,8 @@ export async function handleRequest(req, res) {
       session = await updateSessionLastReviewedAt(sessionId, patch.lastReviewedAt || '') || session;
     }
     if (hasScheduledTriggersPatch || hasScheduledTriggerPatch) {
-      try {
-        session = await updateSessionScheduledTriggers(sessionId, {
-          ...(hasScheduledTriggersPatch ? { scheduledTriggers: patch.scheduledTriggers } : {}),
-          ...(hasScheduledTriggerPatch ? { scheduledTrigger: patch.scheduledTrigger } : {}),
-        }) || session;
-      } catch (error) {
-        writeJson(res, error?.code === 'INVALID_SCHEDULED_TRIGGER' ? 400 : 500, {
-          error: error?.message || 'Failed to update scheduled triggers',
-        });
-        return;
-      }
+      writeJson(res, 410, { error: 'Scheduled session triggers have been removed from MelodySync' });
+      return;
     }
     if (!session) {
       session = await getSessionForClient(sessionId);
@@ -1687,40 +1618,7 @@ export async function handleRequest(req, res) {
     const action = parts[3] || null;
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'run-scheduled-trigger') {
       if (!requireSessionAccess(res, authSession, sessionId)) return;
-      let payload = {};
-      try {
-        const body = await readBody(req, 4096);
-        payload = body ? JSON.parse(body) : {};
-      } catch {
-        writeJson(res, 400, { error: 'Invalid request body' });
-        return;
-      }
-      if (payload && typeof payload !== 'object') {
-        writeJson(res, 400, { error: 'Invalid request body' });
-        return;
-      }
-      const triggerId = typeof payload?.triggerId === 'string' ? payload.triggerId.trim() : '';
-      try {
-        const outcome = await triggerScheduledSessionNow(sessionId, triggerId);
-        if (outcome?.skipped && outcome?.reason === 'already_running') {
-          writeJson(res, 409, { error: 'Scheduled trigger is already running' });
-          return;
-        }
-        const session = await getSessionForClient(sessionId);
-        if (!session) {
-          writeJson(res, 404, { error: 'Session not found' });
-          return;
-        }
-        writeJson(res, outcome?.queued ? 202 : 200, {
-          queued: outcome?.queued === true,
-          session: createClientSessionDetail(session),
-        });
-      } catch (error) {
-        const statusCode = error?.code === 'SCHEDULED_TRIGGER_MISSING'
-          ? 404
-          : 400;
-        writeJson(res, statusCode, { error: error?.message || 'Failed to run scheduled trigger' });
-      }
+      writeJson(res, 410, { error: 'Scheduled session triggers have been removed from MelodySync' });
       return;
     }
 

@@ -24,129 +24,6 @@
 <div class="header">
   <button class="header-btn" id="menuBtn" title="Sessions" aria-label="Sessions" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
   <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync Chat</h1>
-  <div class="header-timer" id="headerTimer">
-    <button class="header-timer-toggle" id="timerToggleBtn" type="button" title="Focus timer" aria-label="Focus timer" aria-expanded="false">
-      <span class="header-timer-prefix">Timer</span>
-      <span class="header-timer-label" id="timerToggleLabel">25m</span>
-    </button>
-    <div class="header-timer-panel" id="timerPanel" hidden>
-      <div class="header-timer-panel-header">
-        <div class="header-timer-title">Focus Timer</div>
-        <div class="header-timer-readout" id="timerReadout">25:00</div>
-      </div>
-      <div class="header-timer-presets">
-        <button class="header-timer-preset active" type="button" data-timer-preset="25">25m</button>
-        <button class="header-timer-preset" type="button" data-timer-preset="50">50m</button>
-        <button class="header-timer-preset" type="button" data-timer-preset="90">90m</button>
-      </div>
-      <div class="header-timer-custom">
-        <div class="header-timer-custom-label">Custom duration</div>
-        <label class="header-timer-custom-input-wrap" for="timerMinutesInput">
-          <input class="header-timer-custom-input" id="timerMinutesInput" type="number" min="1" max="240" step="1" inputmode="numeric" value="25">
-          <span class="header-timer-custom-unit">min</span>
-        </label>
-      </div>
-      <div class="header-timer-actions">
-        <button class="header-timer-action primary" id="timerStartBtn" type="button">Start</button>
-        <button class="header-timer-action" id="timerPauseBtn" type="button" disabled>Pause</button>
-        <button class="header-timer-action" id="timerResetBtn" type="button">Reset</button>
-      </div>
-      <div class="header-timer-hint" id="timerHint">Runs locally in this browser and survives refreshes.</div>
-    </div>
-  </div>
-  <div class="header-schedule" id="headerSchedule">
-    <button class="header-schedule-toggle" id="scheduleToggleBtn" type="button" title="Scheduled trigger" aria-label="Scheduled trigger" aria-expanded="false">
-      <span class="header-schedule-label" id="scheduleChipLabel">Schedule</span>
-      <span class="header-schedule-meta" id="scheduleChipMeta">Not set</span>
-    </button>
-    <div class="header-schedule-panel" id="schedulePanel" hidden>
-      <div class="header-schedule-panel-header">
-        <div class="header-schedule-title">Scheduled Trigger</div>
-        <div class="header-schedule-state" id="schedulePanelState">No schedule</div>
-      </div>
-      <div class="header-schedule-status" id="scheduleStatusText">Set what should run in this session and when it should fire.</div>
-      <div class="header-schedule-tabs">
-        <button class="header-schedule-tab active" id="scheduleCurrentTabBtn" type="button">This session</button>
-        <button class="header-schedule-tab" id="scheduleAllTasksTabBtn" type="button">All tasks</button>
-      </div>
-      <div class="header-schedule-view" id="scheduleCurrentView">
-      <div class="header-schedule-toolbar">
-        <div class="header-schedule-toolbar-meta" id="scheduleListSummary">No tasks yet</div>
-        <button class="header-schedule-action" id="addScheduleBtn" type="button">Add</button>
-      </div>
-      <div class="header-schedule-list" id="scheduleList" role="listbox" aria-label="Scheduled triggers" hidden></div>
-      <div class="header-schedule-empty" id="scheduleEmptyState">No scheduled tasks yet. Add one to wake this session automatically.</div>
-      <div class="header-schedule-result" id="scheduleResultCard" hidden>
-        <div class="header-schedule-result-row">
-          <div class="header-schedule-result-badge draft" id="scheduleResultBadge">Draft</div>
-          <div class="header-schedule-result-meta" id="scheduleResultMeta">Save a task to start tracking scheduled runs.</div>
-        </div>
-        <div class="header-schedule-result-detail" id="scheduleResultDetail">MelodySync will show the latest execution result here.</div>
-        <div class="header-schedule-result-error" id="scheduleResultError" hidden></div>
-      </div>
-        <label class="header-schedule-field" for="scheduleLabelInput">
-          <span class="header-schedule-field-label">Name</span>
-          <input class="header-schedule-input" id="scheduleLabelInput" type="text" maxlength="120" placeholder="For example: Daily report">
-        </label>
-        <div class="header-schedule-toggle-row">
-          <label class="header-schedule-checkbox" for="scheduleEnabledInput">
-            <input id="scheduleEnabledInput" type="checkbox">
-            <span>Enabled</span>
-          </label>
-        </div>
-        <label class="header-schedule-field" for="scheduleRecurrenceSelect">
-          <span class="header-schedule-field-label">Repeat</span>
-          <select class="header-schedule-input" id="scheduleRecurrenceSelect">
-            <option value="daily">Daily at fixed time</option>
-            <option value="interval">Every N minutes</option>
-          </select>
-        </label>
-        <label class="header-schedule-field" for="scheduleTimeInput">
-          <span class="header-schedule-field-label">Daily time</span>
-          <input class="header-schedule-input" id="scheduleTimeInput" type="time" value="09:00">
-        </label>
-        <label class="header-schedule-field" for="scheduleIntervalInput" id="scheduleIntervalField" hidden>
-          <span class="header-schedule-field-label">Every how many minutes</span>
-          <input class="header-schedule-input" id="scheduleIntervalInput" type="number" min="1" max="10080" step="1" inputmode="numeric" value="60">
-        </label>
-        <label class="header-schedule-field" for="scheduleContentInput">
-          <span class="header-schedule-field-label">Content to send</span>
-          <textarea class="header-schedule-textarea" id="scheduleContentInput" placeholder="Tell MelodySync what to do when this task fires."></textarea>
-        </label>
-        <details class="header-schedule-advanced" id="scheduleAdvanced">
-          <summary>Advanced</summary>
-          <div class="header-schedule-advanced-body">
-            <label class="header-schedule-field" for="schedulePresetSelect">
-              <span class="header-schedule-field-label">Template</span>
-              <select class="header-schedule-input" id="schedulePresetSelect">
-                <option value="custom">Custom</option>
-                <option value="daily_report">Daily report</option>
-                <option value="morning_plan">Morning plan</option>
-              </select>
-            </label>
-            <div class="header-schedule-preset-note" id="schedulePresetNote">Templates are optional.</div>
-            <label class="header-schedule-field" for="scheduleModelSelect">
-              <span class="header-schedule-field-label">Model</span>
-              <select class="header-schedule-input" id="scheduleModelSelect">
-                <option value="">Session default</option>
-              </select>
-            </label>
-          </div>
-        </details>
-        <div class="header-schedule-actions">
-          <button class="header-schedule-action primary" id="saveScheduleBtn" type="button">Save</button>
-          <button class="header-schedule-action" id="runScheduleBtn" type="button">Run now</button>
-          <button class="header-schedule-action" id="clearScheduleBtn" type="button">Clear</button>
-        </div>
-        <div class="header-schedule-note" id="scheduleTimezoneNote">Runs in this browser timezone.</div>
-      </div>
-      <div class="header-schedule-view" id="scheduleAllTasksView" hidden>
-        <p class="tasks-modal-summary" id="allSchedulesSummary">See every scheduled task in one place.</p>
-        <div class="tasks-modal-empty" id="allSchedulesEmpty" hidden>No scheduled tasks yet.</div>
-        <div class="tasks-modal-list" id="allSchedulesList" hidden></div>
-      </div>
-    </div>
-  </div>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
@@ -162,40 +39,12 @@
       </div>
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" id="tabSessions" data-i18n="nav.sessions">Sessions</button>
-        <button class="sidebar-tab" id="tabSettings" data-i18n="nav.settings">Settings</button>
       </div>
       <div class="sidebar-list" id="sessionList"></div>
       <div class="sidebar-filters" id="sidebarFilters">
         <select class="sidebar-filter-select" id="sourceFilterSelect" aria-label="Filter sessions by origin" data-i18n-aria-label="sidebar.filter.origin"></select>
         <select class="sidebar-filter-select" id="sessionAppFilterSelect" aria-label="Filter sessions by app" data-i18n-aria-label="sidebar.filter.app"></select>
         <select class="sidebar-filter-select" id="userFilterSelect" aria-label="Filter sessions by user" data-i18n-aria-label="sidebar.filter.user"></select>
-      </div>
-      <div class="settings-panel" id="settingsPanel">
-        <div class="settings-section">
-          <div class="settings-section-title" data-i18n="settings.language.title">Language</div>
-          <div class="settings-section-note" data-i18n="settings.language.note">Auto follows the current browser language. You can override it here for debugging, and dedicated visitor links can keep their own language preference.</div>
-          <div class="settings-inline-form">
-            <select class="settings-inline-select" id="uiLanguageSelect" aria-label="Choose interface language" data-i18n-aria-label="settings.language.ownerAriaLabel"></select>
-            <div class="settings-app-empty inline-status" id="uiLanguageStatus" data-i18n="settings.language.ownerStatusAuto">Auto is active. This browser follows its current language unless a dedicated visitor link sets its own preference.</div>
-          </div>
-        </div>
-        <div class="settings-section">
-          <div class="settings-section-title" data-i18n="settings.users.title">Users</div>
-          <div class="settings-section-note" data-i18n="settings.users.note">Create extra identities, choose which apps they can use, pick their language, and seed a first session when they are empty.</div>
-          <div class="settings-inline-form" id="newUserForm">
-            <input class="settings-inline-input" id="newUserNameInput" type="text" placeholder="User name, e.g. Video Editor" data-i18n-placeholder="settings.users.namePlaceholder">
-            <div class="settings-app-picker" id="newUserAppsPicker"></div>
-            <div class="settings-inline-row">
-              <select class="settings-inline-select" id="newUserDefaultAppSelect" aria-label="Choose default app for user" data-i18n-aria-label="settings.users.defaultAppAriaLabel"></select>
-              <select class="settings-inline-select" id="newUserLanguageSelect" aria-label="Choose preferred language for user" data-i18n-aria-label="settings.users.languageAriaLabel"></select>
-              <button class="settings-app-btn settings-inline-primary" id="createUserBtn" type="button" data-i18n="settings.users.create">Create User</button>
-            </div>
-            <div class="settings-app-empty inline-status" id="userFormStatus" data-i18n="settings.users.defaultStatus">Admin stays the default view. New users get a starter session automatically.</div>
-          </div>
-          <div class="settings-apps-list" id="settingsUsersList">
-            <div class="settings-app-empty" data-i18n="settings.users.loading">Loading users…</div>
-          </div>
-        </div>
       </div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
       <button class="new-session-btn secondary" id="sortSessionListBtn" data-i18n="sidebar.sortList">Sort List</button>
@@ -363,8 +212,6 @@
   <script src="/chat/settings-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-  <script src="/chat/timer.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-  <script src="/chat/schedule.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 </body>

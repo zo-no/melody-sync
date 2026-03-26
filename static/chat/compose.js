@@ -712,18 +712,18 @@ let activeTab = normalizeSidebarTab(
 function switchTab(tab, { syncState = true } = {}) {
   activeTab = normalizeSidebarTab(tab);
   const showingSessions = activeTab === "sessions";
-  tabSessions.classList.toggle("active", activeTab === "sessions");
-  tabSettings.classList.toggle("active", activeTab === "settings");
+  tabSessions?.classList.toggle("active", activeTab === "sessions");
+  tabSettings?.classList.toggle("active", activeTab === "settings");
   if (typeof syncSidebarFiltersVisibility === "function") {
     syncSidebarFiltersVisibility(showingSessions);
   } else if (sidebarFilters) {
     sidebarFilters.classList.toggle("hidden", !showingSessions);
   }
-  sessionList.style.display = showingSessions ? "" : "none";
-  settingsPanel.classList.toggle("visible", activeTab === "settings");
-  sessionListFooter.classList.toggle("hidden", activeTab === "settings");
-  sortSessionListBtn.classList.toggle("hidden", activeTab === "settings");
-  newSessionBtn.classList.toggle("hidden", activeTab === "settings");
+  if (sessionList) sessionList.style.display = showingSessions ? "" : "none";
+  settingsPanel?.classList.toggle("visible", activeTab === "settings");
+  sessionListFooter?.classList.toggle("hidden", activeTab === "settings");
+  sortSessionListBtn?.classList.toggle("hidden", activeTab === "settings");
+  newSessionBtn?.classList.toggle("hidden", activeTab === "settings");
   if (activeTab === "settings" && !visitorMode && typeof fetchAppsList === "function") {
     void fetchAppsList().catch((error) => {
       console.warn("[apps] Failed to refresh apps for settings:", error.message);
@@ -739,7 +739,7 @@ function switchTab(tab, { syncState = true } = {}) {
   }
 }
 
-tabSessions.addEventListener("click", () => switchTab("sessions"));
-tabSettings.addEventListener("click", () => switchTab("settings"));
+tabSessions?.addEventListener("click", () => switchTab("sessions"));
+tabSettings?.addEventListener("click", () => switchTab("settings"));
 
 switchTab(activeTab, { syncState: false });
