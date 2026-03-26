@@ -450,11 +450,6 @@ function renderInlineToolOptions(selectedValue, emptyMessage = "No agents found"
     }
   }
 
-  const addMoreOpt = document.createElement("option");
-  addMoreOpt.value = ADD_MORE_TOOL_VALUE;
-  addMoreOpt.textContent = t("settings.apps.addToolMore");
-  inlineToolSelect.appendChild(addMoreOpt);
-
   if (selectedValue && toolsList.some((tool) => tool.id === selectedValue)) {
     inlineToolSelect.value = selectedValue;
   } else if (toolsList[0]) {
@@ -566,12 +561,6 @@ async function loadInlineTools({ skipModelLoad = false } = {}) {
 
 inlineToolSelect.addEventListener("change", async () => {
   const nextTool = inlineToolSelect.value;
-  if (nextTool === ADD_MORE_TOOL_VALUE) {
-    renderInlineToolOptions(resolvePreferredToolId(toolsList, [selectedTool, preferredTool]));
-    openAddToolModal();
-    return;
-  }
-
   selectedTool = nextTool;
   preferredTool = selectedTool;
   localStorage.setItem("preferredTool", preferredTool);
@@ -726,39 +715,39 @@ inlineModelSelect.addEventListener("change", () => {
   persistCurrentSessionToolPreferences();
 });
 
-addToolNameInput.addEventListener("input", () => {
+addToolNameInput?.addEventListener("input", () => {
   syncAddToolModal();
 });
 
-addToolCommandInput.addEventListener("input", () => {
+addToolCommandInput?.addEventListener("input", () => {
   syncAddToolModal();
 });
 
-addToolRuntimeFamilySelect.addEventListener("change", () => {
+addToolRuntimeFamilySelect?.addEventListener("change", () => {
   syncAddToolModal();
 });
 
-addToolModelsInput.addEventListener("input", () => {
+addToolModelsInput?.addEventListener("input", () => {
   syncAddToolModal();
 });
 
-addToolReasoningKindSelect.addEventListener("change", () => {
+addToolReasoningKindSelect?.addEventListener("change", () => {
   syncAddToolModal();
 });
 
-addToolReasoningLevelsInput.addEventListener("input", () => {
+addToolReasoningLevelsInput?.addEventListener("input", () => {
   syncAddToolModal();
 });
 
-closeAddToolModalBtn.addEventListener("click", closeAddToolModal);
-closeAddToolModalFooterBtn.addEventListener("click", closeAddToolModal);
-addToolModal.addEventListener("click", (e) => {
+closeAddToolModalBtn?.addEventListener("click", closeAddToolModal);
+closeAddToolModalFooterBtn?.addEventListener("click", closeAddToolModal);
+addToolModal?.addEventListener("click", (e) => {
   if (e.target === addToolModal) closeAddToolModal();
 });
 
-saveToolConfigBtn.addEventListener("click", saveSimpleToolConfig);
+saveToolConfigBtn?.addEventListener("click", saveSimpleToolConfig);
 
-copyProviderPromptBtn.addEventListener("click", async () => {
+copyProviderPromptBtn?.addEventListener("click", async () => {
   try {
     await copyText(buildProviderBasePrompt());
     updateCopyButtonLabel(copyProviderPromptBtn, t("action.copied"));

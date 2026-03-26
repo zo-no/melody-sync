@@ -1855,7 +1855,12 @@ export async function handleRequest(req, res) {
 
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'fork') {
       if (!requireSessionAccess(res, authSession, sessionId)) return;
-      writeJson(res, 410, { error: 'Session forking has been removed from MelodySync' });
+      const forked = await forkSession(sessionId);
+      if (!forked) {
+        writeJson(res, 409, { error: 'Unable to fork session' });
+        return;
+      }
+      writeJson(res, 201, { session: createClientSessionDetail(forked) });
       return;
     }
 
@@ -2133,23 +2138,8 @@ export async function handleRequest(req, res) {
       res.end(JSON.stringify({ error: 'Owner access required' }));
       return;
     }
-
-    let body;
-    try { body = await readBody(req, 65536); } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Bad request' }));
-      return;
-    }
-
-    try {
-      const { name, command, runtimeFamily, models, reasoning } = JSON.parse(body);
-      const tool = await saveSimpleToolAsync({ name, command, runtimeFamily, models, reasoning });
-      res.writeHead(201, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ tool }));
-    } catch (err) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: err.message || 'Invalid request body' }));
-    }
+    res.writeHead(410, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Tool creation has been removed from MelodySync' }));
     return;
   }
 

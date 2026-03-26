@@ -32,6 +32,30 @@ export async function handleAdminRoutes({
   resolveTemplateApps,
   ensureUserSeedSession,
 }) {
+if (
+  ((pathname === '/api/apps' || pathname.startsWith('/api/apps/'))
+    || (pathname === '/api/users' || pathname.startsWith('/api/users/'))
+    || (pathname === '/api/visitors' || pathname.startsWith('/api/visitors/')))
+  && ['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method)
+) {
+  const authSession = getAuthSession(req);
+  if (authSession?.role !== 'owner') {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Owner access required' }));
+    return true;
+  }
+  const error = pathname.startsWith('/api/apps/')
+    || pathname === '/api/apps'
+    ? 'App management has been removed from MelodySync'
+    : pathname.startsWith('/api/users/')
+      || pathname === '/api/users'
+      ? 'User management has been removed from MelodySync'
+      : 'Visitor management has been removed from MelodySync';
+  res.writeHead(410, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error }));
+  return true;
+}
+
 // ---- App CRUD APIs (owner only) ----
 
 if (pathname === '/api/apps' && req.method === 'GET') {

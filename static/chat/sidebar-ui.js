@@ -19,15 +19,20 @@ function openSessionsSidebar() {
 }
 
 function createNewSessionShortcut({ closeSidebar = true } = {}) {
-  const principal = resolveSelectedSessionPrincipal();
-  const appId = resolveAppIdForPrincipal(principal, activeSessionAppFilter);
-  const app = getAppRecordById(appId);
-  if (!app) return false;
-  return createSessionForApp(app, { closeSidebar, principal });
-}
-
-function createSortSessionListShortcut() {
-  return organizeSessionListWithAgent({ closeSidebar: false });
+  const tool = preferredTool || selectedTool || toolsList[0]?.id;
+  if (!tool) return false;
+  if (closeSidebar && !isDesktop) closeSidebarFn();
+  if (typeof switchTab === "function") {
+    switchTab("sessions");
+  }
+  return dispatchAction({
+    action: "create",
+    folder: "~",
+    tool,
+    sourceId: DEFAULT_APP_ID,
+    sourceName: DEFAULT_APP_NAME,
+    appId: BASIC_CHAT_TEMPLATE_APP_ID,
+  });
 }
 
 menuBtn.addEventListener("click", openSidebar);
@@ -37,11 +42,7 @@ sidebarOverlay.addEventListener("click", (e) => {
 });
 
 // ---- Session list actions ----
-sortSessionListBtn.addEventListener("click", () => {
-  void createSortSessionListShortcut();
-});
-
-newSessionBtn.addEventListener("click", () => {
+newSessionBtn?.addEventListener("click", () => {
   createNewSessionShortcut();
 });
 

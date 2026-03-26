@@ -24,6 +24,7 @@
 <div class="header">
   <button class="header-btn" id="menuBtn" title="Sessions" aria-label="Sessions" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
   <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync Chat</h1>
+  <button class="header-share-btn" id="forkSessionBtn" type="button" title="Fork" aria-label="Fork" data-i18n-title="action.fork" data-i18n-aria-label="action.fork" data-i18n="action.fork" hidden>Fork</button>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
@@ -41,13 +42,7 @@
         <button class="sidebar-tab active" id="tabSessions" data-i18n="nav.sessions">Sessions</button>
       </div>
       <div class="sidebar-list" id="sessionList"></div>
-      <div class="sidebar-filters" id="sidebarFilters">
-        <select class="sidebar-filter-select" id="sourceFilterSelect" aria-label="Filter sessions by origin" data-i18n-aria-label="sidebar.filter.origin"></select>
-        <select class="sidebar-filter-select" id="sessionAppFilterSelect" aria-label="Filter sessions by app" data-i18n-aria-label="sidebar.filter.app"></select>
-        <select class="sidebar-filter-select" id="userFilterSelect" aria-label="Filter sessions by user" data-i18n-aria-label="sidebar.filter.user"></select>
-      </div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
-      <button class="new-session-btn secondary" id="sortSessionListBtn" data-i18n="sidebar.sortList">Sort List</button>
       <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">+ New Session</button>
     </aside>
   </div>
@@ -107,90 +102,6 @@
 
 <div class="gesture-pill" id="gesturePill" aria-hidden="true"></div>
 
-<div class="modal-backdrop" id="addToolModal" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addToolModalTitle">
-    <div class="modal-header">
-      <div class="modal-title" id="addToolModalTitle" data-i18n="modal.addAgentsTitle">Add more agents</div>
-      <button class="modal-close" id="closeAddToolModal" type="button" aria-label="Close" data-i18n-aria-label="action.close" data-icon="close">&times;</button>
-    </div>
-    <div class="modal-body">
-      <p class="modal-lead" data-i18n="modal.addAgentsLead">
-        MelodySync is not limited to the builtin agents. For simple tools, save a lightweight config here and the picker refreshes immediately.
-        If you need custom parsing or runtime behavior, use the advanced path below.
-      </p>
-
-        <div class="provider-helper-card">
-          <div class="provider-helper-card-header">
-            <div class="provider-helper-card-title" data-i18n="modal.quickAddTitle">Quick add</div>
-            <button class="modal-btn primary" id="saveToolConfigBtn" type="button" data-i18n="modal.saveRefresh">Save &amp; refresh</button>
-          </div>
-        <p data-i18n="modal.quickAddBody">
-          Use this for wrappers or simple command-based agents that speak an existing runtime family and accept that family's core prompt/model/thinking flags. We save the config for you and refresh the picker without restarting the service.
-        </p>
-        <div class="provider-helper-grid">
-          <div class="provider-helper-field">
-            <label for="addToolNameInput" data-i18n="modal.name">Name</label>
-            <input id="addToolNameInput" type="text" value="My Agent" autocomplete="off">
-          </div>
-          <div class="provider-helper-field">
-            <label for="addToolCommandInput" data-i18n="modal.command">Command</label>
-            <input id="addToolCommandInput" type="text" value="my-agent" autocomplete="off">
-          </div>
-          <div class="provider-helper-field">
-            <label for="addToolRuntimeFamilySelect" data-i18n="modal.runtimeFamily">Runtime family</label>
-            <select id="addToolRuntimeFamilySelect">
-              <option value="claude-stream-json" data-i18n="modal.runtimeFamily.claude">Claude-style stream JSON</option>
-              <option value="codex-json" data-i18n="modal.runtimeFamily.codex">Codex JSON</option>
-            </select>
-          </div>
-        </div>
-        <div class="provider-helper-field">
-          <label for="addToolModelsInput" data-i18n="modal.models">Models</label>
-          <textarea id="addToolModelsInput" placeholder="One model per line. Use `model-id | Label` or just `model-id`.&#10;Example:&#10;gpt-5-codex | GPT-5 Codex&#10;gpt-5-mini" data-i18n-placeholder="modal.modelsPlaceholder"></textarea>
-        </div>
-        <div class="provider-helper-grid">
-          <div class="provider-helper-field">
-            <label for="addToolReasoningKindSelect" data-i18n="modal.thinkingMode">Thinking mode</label>
-            <select id="addToolReasoningKindSelect">
-              <option value="toggle" data-i18n="modal.thinking.toggle">Toggle</option>
-              <option value="enum" data-i18n="modal.thinking.levels">Levels</option>
-              <option value="none" data-i18n="modal.thinking.none">None</option>
-            </select>
-          </div>
-          <div class="provider-helper-field">
-            <label for="addToolReasoningLevelsInput" data-i18n="modal.thinkingLevels">Thinking levels</label>
-            <input id="addToolReasoningLevelsInput" type="text" value="low, medium, high, xhigh" autocomplete="off">
-          </div>
-          <div class="provider-helper-field">
-            <label data-i18n="modal.internalIdentity">Internal identity</label>
-            <div class="provider-helper-note" data-i18n="modal.internalIdentityNote">Derived automatically from the command. No separate ID field in simple mode.</div>
-          </div>
-        </div>
-        <div class="provider-helper-note" data-i18n="modal.thinkingModeNote">Use `none` if the tool has no model-side thinking control. For Claude-family tools, use `toggle`; for Codex-family tools, use `levels`. If the command needs different CLI flags, use the advanced path below.</div>
-        <div class="provider-helper-status" id="addToolStatus"></div>
-      </div>
-
-      <div class="provider-helper-card">
-        <div class="provider-helper-card-header">
-          <div class="provider-helper-card-title" data-i18n="modal.advancedTitle">Advanced provider code</div>
-          <button class="modal-btn primary" id="copyProviderPromptBtn" type="button" data-i18n="modal.copyBasePrompt">Copy base prompt</button>
-        </div>
-        <p data-i18n="modal.advancedBody">
-          If you need models, thinking controls, or custom runtime behavior, open a new session in the MelodySync repo and paste this prompt.
-        </p>
-        <ul>
-          <li data-i18n="modal.advancedBullet1">It asks the agent to decide whether simple config is enough or whether full provider code is needed.</li>
-          <li data-i18n="modal.advancedBullet2">It points the agent at the provider architecture notes and keeps the changes minimal.</li>
-        </ul>
-        <div class="provider-helper-code"><code id="providerPromptCode"></code></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="modal-btn" id="closeAddToolModalFooter" type="button" data-i18n="modal.close">Close</button>
-    </div>
-  </div>
-</div>
-
 {{BOOTSTRAP_SCRIPT_TAGS}}
 {{EXTRA_BOOTSTRAP_SCRIPTS}}
 <script src="/marked.min.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
@@ -209,7 +120,6 @@
 <script src="/chat/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/session-surface-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/session-list-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-  <script src="/chat/settings-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
   <script src="/chat/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
