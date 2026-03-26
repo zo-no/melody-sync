@@ -104,97 +104,64 @@
   <aside class="workbench-panel" id="workbenchPanel">
     <div class="workbench-header">
       <div>
-        <h2>Workbench</h2>
-        <p id="workbenchSessionHint">Capture chat context into Inbox, then file it into a project tree.</p>
+        <h2>Continue</h2>
+        <p id="workbenchSessionHint">A low-noise continuity view for the line you are currently pushing forward.</p>
       </div>
     </div>
 
-    <div class="workbench-tabs">
-      <button class="workbench-tab active" id="workbenchTabInbox" type="button">Inbox</button>
-      <button class="workbench-tab" id="workbenchTabTree" type="button">Tree</button>
-    </div>
-
     <div class="workbench-body">
-      <section class="workbench-view" id="workbenchViewInbox">
-        <form class="workbench-form" id="workbenchProjectForm">
-          <div class="workbench-form-header">
-            <h3>New Project</h3>
-            <span>Set the project container before filing captures.</span>
-          </div>
-          <input class="workbench-input" id="workbenchProjectTitle" type="text" placeholder="Project title">
-          <textarea class="workbench-input workbench-textarea" id="workbenchProjectBrief" placeholder="Brief"></textarea>
-          <input class="workbench-input" id="workbenchProjectPath" type="text" placeholder="Obsidian path (optional)">
-          <button class="workbench-primary-btn" id="workbenchCreateProjectBtn" type="submit">Create Project</button>
-        </form>
-
-        <div class="workbench-section">
-          <div class="workbench-section-header">
-            <h3>Inbox</h3>
-            <span id="workbenchInboxCount">0 items</span>
-          </div>
-          <div class="workbench-empty" id="workbenchInboxEmpty" hidden>No captures yet. Use the Capture button on a message.</div>
-          <div class="workbench-list" id="workbenchInboxList"></div>
-        </div>
+      <section class="workbench-empty" id="workbenchEmptyState" hidden>
+        The continuity view stays quiet until you open a session.
       </section>
 
-      <section class="workbench-view" id="workbenchViewTree" hidden>
-        <div class="workbench-section">
-          <div class="workbench-section-header">
-            <h3>Project</h3>
-            <span id="workbenchProjectMeta">No project selected</span>
-          </div>
-          <select class="workbench-input" id="workbenchProjectSelect"></select>
+      <section class="workbench-card">
+        <div class="workbench-card-header">
+          <h3>Current focus</h3>
+          <span>What this conversation is trying to complete</span>
         </div>
+        <div class="workbench-focus-title" id="workbenchFocusTitle">Open a session to begin.</div>
+        <div class="workbench-focus-summary" id="workbenchFocusSummary">The side panel stays passive and only surfaces the minimum context needed to keep momentum.</div>
+      </section>
 
-        <form class="workbench-form" id="workbenchNodeForm">
-          <div class="workbench-form-header">
-            <h3>New Node</h3>
-            <span>Add structure directly into the current tree.</span>
-          </div>
-          <input class="workbench-input" id="workbenchNodeTitle" type="text" placeholder="Node title">
-          <div class="workbench-inline-grid">
-            <select class="workbench-input" id="workbenchNodeType">
-              <option value="question">Question</option>
-              <option value="insight">Insight</option>
-              <option value="solution">Solution</option>
-              <option value="task">Task</option>
-              <option value="risk">Risk</option>
-              <option value="conclusion">Conclusion</option>
-              <option value="knowledge">Knowledge</option>
-            </select>
-            <select class="workbench-input" id="workbenchNodeParent">
-              <option value="">Top level</option>
-            </select>
-          </div>
-          <textarea class="workbench-input workbench-textarea" id="workbenchNodeSummary" placeholder="Summary"></textarea>
-          <input class="workbench-input" id="workbenchNodeNextAction" type="text" placeholder="Next action">
-          <button class="workbench-primary-btn" id="workbenchCreateNodeBtn" type="submit">Add Node</button>
-        </form>
-
-        <div class="workbench-section">
-          <div class="workbench-section-header">
-            <h3>Tree</h3>
-            <span id="workbenchTreeCount">0 nodes</span>
-          </div>
-          <div class="workbench-empty" id="workbenchTreeEmpty" hidden>No nodes yet.</div>
-          <div class="workbench-tree" id="workbenchTreeList"></div>
+      <section class="workbench-card">
+        <div class="workbench-card-header">
+          <h3>Branch path</h3>
+          <span>Where the current thread drifted from the main line</span>
         </div>
+        <div class="workbench-branch-map" id="workbenchBranchMap"></div>
+        <div class="workbench-branch-empty" id="workbenchBranchEmpty">No visible branch yet.</div>
+      </section>
 
-        <div class="workbench-section">
-          <div class="workbench-section-header">
-            <h3>Summary</h3>
-            <span id="workbenchSummaryMeta">Not generated yet</span>
-          </div>
-          <div class="workbench-actions-row">
-            <button class="workbench-secondary-btn" id="workbenchGenerateSummaryBtn" type="button">Generate Summary</button>
-            <button class="workbench-secondary-btn" id="workbenchWritebackBtn" type="button">Write to Obsidian</button>
-          </div>
-          <pre class="workbench-summary-preview" id="workbenchSummaryPreview">No summary yet.</pre>
+      <section class="workbench-card">
+        <div class="workbench-card-header">
+          <h3>Continue from here</h3>
+          <span>The smallest useful next step</span>
         </div>
+        <div class="workbench-next-step" id="workbenchNextStep">Select or create a session, then start chatting.</div>
+        <div class="workbench-focus-summary workbench-return-hint" id="workbenchReturnHint">Return hints appear once the system has enough continuity context.</div>
+      </section>
+
+      <section class="workbench-card">
+        <div class="workbench-card-header">
+          <h3>Remembered for you</h3>
+          <span>Background branches and durable context kept off the main stage</span>
+        </div>
+        <div class="workbench-memory-hint" id="workbenchMemoryHint">Side branches are remembered quietly until they matter.</div>
+        <ul class="workbench-memory-list" id="workbenchMemoryList" hidden></ul>
+      </section>
+
+      <section class="workbench-card">
+        <div class="workbench-card-header">
+          <h3>Actions</h3>
+          <span>Keep this lightweight</span>
+        </div>
+        <div class="workbench-actions">
+          <button class="workbench-primary-btn" id="workbenchContinueBtn" type="button">Continue</button>
+          <button class="workbench-secondary-btn" id="workbenchLaterBtn" type="button">Later</button>
+        </div>
+        <div class="workbench-action-note">Continue focuses the composer. Later hides this reminder for the current session for 30 minutes.</div>
       </section>
     </div>
-
-    <div class="workbench-status" id="workbenchStatus"></div>
   </aside>
 </div>
 </div>

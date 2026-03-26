@@ -2,34 +2,22 @@
   const panel = document.getElementById("workbenchPanel");
   if (!panel) return;
 
-  const tabInbox = document.getElementById("workbenchTabInbox");
-  const tabTree = document.getElementById("workbenchTabTree");
-  const viewInbox = document.getElementById("workbenchViewInbox");
-  const viewTree = document.getElementById("workbenchViewTree");
-  const sessionHint = document.getElementById("workbenchSessionHint");
-  const statusEl = document.getElementById("workbenchStatus");
-  const projectForm = document.getElementById("workbenchProjectForm");
-  const projectTitleInput = document.getElementById("workbenchProjectTitle");
-  const projectBriefInput = document.getElementById("workbenchProjectBrief");
-  const projectPathInput = document.getElementById("workbenchProjectPath");
-  const inboxCountEl = document.getElementById("workbenchInboxCount");
-  const inboxEmptyEl = document.getElementById("workbenchInboxEmpty");
-  const inboxListEl = document.getElementById("workbenchInboxList");
-  const projectSelect = document.getElementById("workbenchProjectSelect");
-  const projectMetaEl = document.getElementById("workbenchProjectMeta");
-  const nodeForm = document.getElementById("workbenchNodeForm");
-  const nodeTitleInput = document.getElementById("workbenchNodeTitle");
-  const nodeTypeSelect = document.getElementById("workbenchNodeType");
-  const nodeParentSelect = document.getElementById("workbenchNodeParent");
-  const nodeSummaryInput = document.getElementById("workbenchNodeSummary");
-  const nodeNextActionInput = document.getElementById("workbenchNodeNextAction");
-  const treeCountEl = document.getElementById("workbenchTreeCount");
-  const treeEmptyEl = document.getElementById("workbenchTreeEmpty");
-  const treeListEl = document.getElementById("workbenchTreeList");
-  const summaryMetaEl = document.getElementById("workbenchSummaryMeta");
-  const summaryPreviewEl = document.getElementById("workbenchSummaryPreview");
-  const generateSummaryBtn = document.getElementById("workbenchGenerateSummaryBtn");
-  const writebackBtn = document.getElementById("workbenchWritebackBtn");
+  const hintEl = document.getElementById("workbenchSessionHint");
+  const focusTitleEl = document.getElementById("workbenchFocusTitle");
+  const focusSummaryEl = document.getElementById("workbenchFocusSummary");
+  const nextStepEl = document.getElementById("workbenchNextStep");
+  const branchMapEl = document.getElementById("workbenchBranchMap");
+  const branchEmptyEl = document.getElementById("workbenchBranchEmpty");
+  const returnHintEl = document.getElementById("workbenchReturnHint");
+  const memoryHintEl = document.getElementById("workbenchMemoryHint");
+  const memoryListEl = document.getElementById("workbenchMemoryList");
+  const emptyStateEl = document.getElementById("workbenchEmptyState");
+  const continueBtn = document.getElementById("workbenchContinueBtn");
+  const laterBtn = document.getElementById("workbenchLaterBtn");
+
+  const STORAGE_PROJECT_KEY = "melodysyncReminderProjectId";
+  const STORAGE_SNOOZE_KEY = "melodysyncReminderSnoozeUntil";
+  const SNOOZE_MS = 30 * 60 * 1000;
 
   let snapshot = {
     captureItems: [],
@@ -39,551 +27,360 @@
     skills: [],
     summaries: [],
   };
-  let activeTab = localStorage.getItem("melodysyncWorkbenchTab") === "tree" ? "tree" : "inbox";
-  let selectedProjectId = localStorage.getItem("melodysyncWorkbenchProjectId") || "";
-  let bootstrapped = false;
 
-  function isWorkbenchDisabledMode() {
-    const authInfo = typeof getBootstrapAuthInfo === "function"
-      ? getBootstrapAuthInfo()
-      : null;
-    if (authInfo?.role === "visitor") return true;
-    if (typeof getBootstrapShareSnapshot === "function" && getBootstrapShareSnapshot()) return true;
-    return false;
-  }
-
-  function setStatus(message, tone = "") {
-    if (!statusEl) return;
-    statusEl.textContent = message || "";
-    statusEl.classList.remove("success", "error");
-    if (tone) statusEl.classList.add(tone);
-  }
-
-  function clipText(value, max = 240) {
-    const text = String(value || "").trim();
+  function clipText(value, max = 160) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
     if (!text) return "";
     return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+  }
+
+  function getCurrentSessionSafe() {
+    if (typeof getCurrentSession === "function") return getCurrentSession();
+    return null;
+  }
+
+  function getTaskCard(session) {
+    if (!session?.taskCard || typeof session.taskCard !== "object") return null;
+    return session.taskCard;
+  }
+
+  function getTaskCardList(taskCard, key) {
+    const value = taskCard?.[key];
+    return Array.isArray(value) ? value.filter((entry) => typeof entry === "string" && entry.trim()) : [];
   }
 
   function getProjects() {
     return Array.isArray(snapshot.projects) ? snapshot.projects : [];
   }
 
-  function getProject(projectId = selectedProjectId) {
-    return getProjects().find((entry) => entry.id === projectId) || null;
-  }
-
-  function getNodes(projectId = selectedProjectId) {
+  function getNodes(projectId) {
     return (Array.isArray(snapshot.nodes) ? snapshot.nodes : []).filter((entry) => entry.projectId === projectId);
   }
 
-  function getBranchContexts(projectId = selectedProjectId) {
+  function getBranchContexts(projectId) {
     const nodeIds = new Set(getNodes(projectId).map((entry) => entry.id));
     return (Array.isArray(snapshot.branchContexts) ? snapshot.branchContexts : []).filter((entry) => nodeIds.has(entry.nodeId));
   }
 
-  function getLatestSummary(projectId = selectedProjectId) {
-    return (Array.isArray(snapshot.summaries) ? snapshot.summaries : []).find((entry) => entry.projectId === projectId) || null;
+  function getProjectById(projectId) {
+    return getProjects().find((entry) => entry.id === projectId) || null;
   }
 
-  function ensureProjectSelection() {
+  function getRememberedProjectId() {
+    return localStorage.getItem(STORAGE_PROJECT_KEY) || "";
+  }
+
+  function rememberProjectId(projectId) {
+    if (projectId) {
+      localStorage.setItem(STORAGE_PROJECT_KEY, projectId);
+    }
+  }
+
+  function getSnoozeState() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_SNOOZE_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function setSnoozeState(nextState) {
+    localStorage.setItem(STORAGE_SNOOZE_KEY, JSON.stringify(nextState || {}));
+  }
+
+  function isSnoozed(sessionId) {
+    if (!sessionId) return false;
+    const state = getSnoozeState();
+    const until = Number(state?.[sessionId]) || 0;
+    return until > Date.now();
+  }
+
+  function focusComposer() {
+    if (typeof msgInput !== "undefined" && msgInput) {
+      msgInput.focus();
+      const value = msgInput.value || "";
+      const end = value.length;
+      if (typeof msgInput.setSelectionRange === "function") {
+        msgInput.setSelectionRange(end, end);
+      }
+    }
+  }
+
+  function snoozeCurrentSession() {
+    const session = getCurrentSessionSafe();
+    if (!session?.id) return;
+    const state = getSnoozeState();
+    state[session.id] = Date.now() + SNOOZE_MS;
+    setSnoozeState(state);
+    renderReminder();
+  }
+
+  function clearCurrentSessionSnooze() {
+    const session = getCurrentSessionSafe();
+    if (!session?.id) return;
+    const state = getSnoozeState();
+    if (state[session.id]) {
+      delete state[session.id];
+      setSnoozeState(state);
+    }
+  }
+
+  function pickProject(session) {
     const projects = getProjects();
-    if (projects.length === 0) {
-      selectedProjectId = "";
-      return;
-    }
-    if (!projects.some((entry) => entry.id === selectedProjectId)) {
-      selectedProjectId = projects[0].id;
-      localStorage.setItem("melodysyncWorkbenchProjectId", selectedProjectId);
-    }
-  }
+    if (projects.length === 0) return null;
 
-  function renderProjectOptions(selectEl, { includeEmpty = false, emptyLabel = "Select project" } = {}) {
-    if (!selectEl) return;
-    const currentValue = selectEl.value;
-    selectEl.innerHTML = "";
-    if (includeEmpty) {
-      const blank = document.createElement("option");
-      blank.value = "";
-      blank.textContent = emptyLabel;
-      selectEl.appendChild(blank);
-    }
-    for (const project of getProjects()) {
-      const option = document.createElement("option");
-      option.value = project.id;
-      option.textContent = project.title;
-      selectEl.appendChild(option);
-    }
-    if (currentValue && [...selectEl.options].some((option) => option.value === currentValue)) {
-      selectEl.value = currentValue;
-      return;
-    }
-    if (selectEl === projectSelect && selectedProjectId) {
-      selectEl.value = selectedProjectId;
-      return;
-    }
-    if (!includeEmpty && selectEl.options.length > 0) {
-      selectEl.value = selectEl.options[0].value;
-    }
-  }
-
-  function renderParentOptions() {
-    if (!nodeParentSelect) return;
-    const currentValue = nodeParentSelect.value;
-    nodeParentSelect.innerHTML = "";
-    const topOption = document.createElement("option");
-    topOption.value = "";
-    topOption.textContent = "Top level";
-    nodeParentSelect.appendChild(topOption);
-    for (const node of getNodes()) {
-      const option = document.createElement("option");
-      option.value = node.id;
-      option.textContent = `${node.title} · ${node.type}`;
-      nodeParentSelect.appendChild(option);
-    }
-    if (currentValue && [...nodeParentSelect.options].some((option) => option.value === currentValue)) {
-      nodeParentSelect.value = currentValue;
-    }
-  }
-
-  function switchWorkbenchTab(nextTab) {
-    activeTab = nextTab === "tree" ? "tree" : "inbox";
-    localStorage.setItem("melodysyncWorkbenchTab", activeTab);
-    tabInbox?.classList.toggle("active", activeTab === "inbox");
-    tabTree?.classList.toggle("active", activeTab === "tree");
-    if (viewInbox) viewInbox.hidden = activeTab !== "inbox";
-    if (viewTree) viewTree.hidden = activeTab !== "tree";
-  }
-
-  function updateSessionHint() {
-    if (!sessionHint) return;
-    if (typeof getCurrentSession === "function") {
-      const session = getCurrentSession();
-      if (session?.id) {
-        const label = typeof getSessionDisplayName === "function"
-          ? getSessionDisplayName(session)
-          : (session.name || session.id);
-        sessionHint.textContent = `Current session: ${label}`;
-        return;
+    const sessionBranch = (Array.isArray(snapshot.branchContexts) ? snapshot.branchContexts : []).find(
+      (entry) => entry.sessionId === session?.id,
+    );
+    if (sessionBranch) {
+      const node = (Array.isArray(snapshot.nodes) ? snapshot.nodes : []).find((entry) => entry.id === sessionBranch.nodeId);
+      if (node) {
+        const project = getProjectById(node.projectId);
+        if (project) {
+          rememberProjectId(project.id);
+          return project;
+        }
       }
     }
-    sessionHint.textContent = "Capture chat context into Inbox, then file it into a project tree.";
-  }
 
-  function createProjectSelect(projectId) {
-    const select = document.createElement("select");
-    select.className = "workbench-input";
-    renderProjectOptions(select, { includeEmpty: true, emptyLabel: "Select project" });
-    if (projectId) select.value = projectId;
-    return select;
-  }
-
-  function createNodeTypeSelect(defaultValue = "insight") {
-    const select = document.createElement("select");
-    select.className = "workbench-input";
-    const options = [
-      ["question", "Question"],
-      ["insight", "Insight"],
-      ["solution", "Solution"],
-      ["task", "Task"],
-      ["risk", "Risk"],
-      ["conclusion", "Conclusion"],
-      ["knowledge", "Knowledge"],
-    ];
-    for (const [value, label] of options) {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = label;
-      select.appendChild(option);
-    }
-    select.value = defaultValue;
-    return select;
-  }
-
-  function renderInbox() {
-    if (!inboxListEl) return;
-    const items = (Array.isArray(snapshot.captureItems) ? snapshot.captureItems : []).filter((entry) => entry.status === "inbox");
-    inboxCountEl.textContent = `${items.length} item${items.length === 1 ? "" : "s"}`;
-    inboxEmptyEl.hidden = items.length > 0;
-    inboxListEl.innerHTML = "";
-
-    for (const item of items) {
-      const card = document.createElement("div");
-      card.className = "workbench-capture-item";
-
-      const title = document.createElement("div");
-      title.className = "workbench-capture-title";
-      title.textContent = item.title || clipText(item.text, 72);
-
-      const meta = document.createElement("div");
-      meta.className = "workbench-capture-meta";
-      meta.textContent = item.sourceSessionId
-        ? `session ${item.sourceSessionId}${item.sourceMessageSeq ? ` · seq ${item.sourceMessageSeq}` : ""}`
-        : "manual capture";
-
-      const text = document.createElement("div");
-      text.className = "workbench-capture-text";
-      text.textContent = clipText(item.text, 480);
-
-      const controls = document.createElement("div");
-      controls.className = "workbench-capture-controls";
-      const projectPick = createProjectSelect(selectedProjectId);
-      const typePick = createNodeTypeSelect(item.kind || "insight");
-      const promoteBtn = document.createElement("button");
-      promoteBtn.type = "button";
-      promoteBtn.className = "workbench-primary-btn";
-      promoteBtn.textContent = "File to Tree";
-      promoteBtn.disabled = getProjects().length === 0;
-      promoteBtn.addEventListener("click", async () => {
-        const targetProjectId = projectPick.value;
-        if (!targetProjectId) {
-          setStatus("Create a project first.", "error");
-          return;
-        }
-        promoteBtn.disabled = true;
-        try {
-          const response = await fetchJsonOrRedirect(`/api/workbench/captures/${encodeURIComponent(item.id)}/promote`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              projectId: targetProjectId,
-              type: typePick.value,
-            }),
-          });
-          snapshot = response.snapshot || snapshot;
-          selectedProjectId = targetProjectId;
-          localStorage.setItem("melodysyncWorkbenchProjectId", selectedProjectId);
-          switchWorkbenchTab("tree");
-          renderWorkbench();
-          setStatus("Capture filed into the tree.", "success");
-        } catch (error) {
-          setStatus(error.message || "Failed to file capture.", "error");
-        } finally {
-          promoteBtn.disabled = false;
-        }
-      });
-
-      controls.append(projectPick, typePick, promoteBtn);
-      card.append(title, meta, text, controls);
-      inboxListEl.appendChild(card);
-    }
-  }
-
-  function renderTree() {
-    const project = getProject();
-    renderProjectOptions(projectSelect, { includeEmpty: true, emptyLabel: "Select project" });
-    renderParentOptions();
-    treeListEl.innerHTML = "";
-
-    if (!project) {
-      projectMetaEl.textContent = "No project selected";
-      treeCountEl.textContent = "0 nodes";
-      treeEmptyEl.hidden = false;
-      summaryMetaEl.textContent = "Not generated yet";
-      summaryPreviewEl.textContent = "No summary yet.";
-      generateSummaryBtn.disabled = true;
-      writebackBtn.disabled = true;
-      return;
+    const remembered = getRememberedProjectId();
+    if (remembered) {
+      const project = getProjectById(remembered);
+      if (project) return project;
     }
 
-    projectSelect.value = project.id;
-    projectMetaEl.textContent = clipText(project.obsidianPath || "No Obsidian path", 120);
-
-    const nodes = getNodes(project.id);
-    treeCountEl.textContent = `${nodes.length} node${nodes.length === 1 ? "" : "s"}`;
-    treeEmptyEl.hidden = nodes.length > 0;
-    generateSummaryBtn.disabled = false;
-    writebackBtn.disabled = false;
-
-    const branchContexts = getBranchContexts(project.id);
-    const childrenByParent = new Map();
-    const branchesByNode = new Map();
-    for (const node of nodes) {
-      const key = node.parentId || "__root__";
-      if (!childrenByParent.has(key)) childrenByParent.set(key, []);
-      childrenByParent.get(key).push(node);
-    }
-    for (const branch of branchContexts) {
-      const list = branchesByNode.get(branch.nodeId) || [];
-      list.push(branch);
-      branchesByNode.set(branch.nodeId, list);
-    }
-
-    const renderLevel = (parentId, depth) => {
-      const entries = childrenByParent.get(parentId || "__root__") || [];
-      for (const node of entries) {
-        const card = document.createElement("div");
-        card.className = "workbench-node-card";
-        card.dataset.depth = String(Math.min(depth, 4));
-
-        const title = document.createElement("div");
-        title.className = "workbench-node-title";
-        title.textContent = node.title;
-
-        const meta = document.createElement("div");
-        meta.className = "workbench-node-meta";
-        meta.textContent = `${node.type} · ${node.state || "open"}`;
-
-        const summary = document.createElement("div");
-        summary.className = "workbench-node-summary";
-        summary.textContent = clipText(node.summary || "No summary yet.", 320);
-
-        const actions = document.createElement("div");
-        actions.className = "workbench-node-actions";
-        const branchBtn = document.createElement("button");
-        branchBtn.type = "button";
-        branchBtn.className = "workbench-secondary-btn";
-        branchBtn.textContent = "Branch Chat";
-        branchBtn.disabled = !currentSessionId;
-        branchBtn.addEventListener("click", async () => {
-          if (!currentSessionId) {
-            setStatus("Open a session first, then branch from the node.", "error");
-            return;
-          }
-          branchBtn.disabled = true;
-          try {
-            const response = await fetchJsonOrRedirect(`/api/workbench/nodes/${encodeURIComponent(node.id)}/branch`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                sourceSessionId: currentSessionId,
-                goal: node.nextAction || `Continue node: ${node.title}`,
-              }),
-            });
-            snapshot = response.snapshot || snapshot;
-            if (response.session) {
-              const session = typeof upsertSession === "function"
-                ? (upsertSession(response.session) || response.session)
-                : response.session;
-              if (typeof renderSessionList === "function") renderSessionList();
-              if (typeof attachSession === "function") attachSession(session.id, session);
-            }
-            renderWorkbench();
-            setStatus("Branch session created.", "success");
-          } catch (error) {
-            setStatus(error.message || "Failed to branch from node.", "error");
-          } finally {
-            branchBtn.disabled = false;
-          }
-        });
-        const nextActionBtn = document.createElement("button");
-        nextActionBtn.type = "button";
-        nextActionBtn.className = "workbench-ghost-btn";
-        nextActionBtn.textContent = node.nextAction ? clipText(node.nextAction, 42) : "No next action";
-        nextActionBtn.disabled = true;
-        actions.append(branchBtn, nextActionBtn);
-
-        card.append(title, meta, summary);
-        const branchItems = branchesByNode.get(node.id) || [];
-        if (branchItems.length > 0) {
-          const branchMeta = document.createElement("div");
-          branchMeta.className = "workbench-node-meta";
-          branchMeta.textContent = `Branches: ${branchItems.map((entry) => clipText(entry.goal || entry.sessionId, 42)).join(" · ")}`;
-          card.appendChild(branchMeta);
-        }
-        card.appendChild(actions);
-        treeListEl.appendChild(card);
-        renderLevel(node.id, depth + 1);
+    const groupName = String(session?.group || "").trim().toLowerCase();
+    if (groupName) {
+      const matched = projects.find((entry) => String(entry.title || "").trim().toLowerCase() === groupName);
+      if (matched) {
+        rememberProjectId(matched.id);
+        return matched;
       }
+    }
+
+    const fallback = projects[0] || null;
+    if (fallback) rememberProjectId(fallback.id);
+    return fallback;
+  }
+
+  function deriveReminder() {
+    const session = getCurrentSessionSafe();
+    if (!session?.id) {
+      return {
+        hasSession: false,
+      };
+    }
+
+    const taskCard = getTaskCard(session);
+    const project = pickProject(session);
+    const nodes = project ? getNodes(project.id) : [];
+    const nodesById = new Map(nodes.map((entry) => [entry.id, entry]));
+    const branchContexts = project ? getBranchContexts(project.id) : [];
+    const activeBranch = branchContexts.find((entry) => entry.sessionId === session.id) || null;
+    const rootNode = project?.rootNodeId ? nodesById.get(project.rootNodeId) || null : (nodes.find((entry) => !entry.parentId) || null);
+    const activeNode = activeBranch ? nodesById.get(activeBranch.nodeId) || null : null;
+    const returnNode = activeBranch ? nodesById.get(activeBranch.returnToNodeId) || null : null;
+
+    const cardSummary = clipText(taskCard?.summary || "", 160);
+    const cardGoal = clipText(taskCard?.goal || "", 100);
+    const nextSteps = getTaskCardList(taskCard, "nextSteps");
+    const memory = getTaskCardList(taskCard, "memory");
+    const focusTitle = cardGoal || clipText(session.name || session.id, 100);
+    const focusSummary = cardSummary || clipText((taskCard?.knownConclusions || []).join(" · "), 160) || "保持当前对话在同一目标上持续推进。";
+    const nextStep = clipText(
+      nextSteps[0]
+      || activeNode?.nextAction
+      || returnNode?.nextAction
+      || rootNode?.nextAction
+      || "继续把当前问题收成更清楚的一句话。",
+      140,
+    );
+
+    const mainlineLabel = clipText(rootNode?.title || project?.title || focusTitle, 80);
+    const currentBranchLabel = clipText(activeBranch?.goal || activeNode?.title || "", 80);
+    const rememberedBranches = branchContexts
+      .filter((entry) => entry.sessionId !== session.id)
+      .slice(0, 3)
+      .map((entry) => clipText(entry.goal || nodesById.get(entry.nodeId)?.title || entry.sessionId, 72));
+    const memoryItems = rememberedBranches.length > 0
+      ? rememberedBranches
+      : memory.slice(0, 3);
+
+    const memoryHint = rememberedBranches.length > 0
+      ? `已替你记住 ${rememberedBranches.length} 个相关旁支。`
+      : (memory.length > 0
+        ? `已带上 ${memory.length} 条可复用上下文。`
+        : "旁支暂时不展开，系统会先替你记住。");
+
+    const returnHint = clipText(
+      (returnNode && (returnNode.nextAction || returnNode.summary || returnNode.title))
+      || activeBranch?.checkpointSummary
+      || rootNode?.nextAction
+      || "当前主线还没有明确回收点。",
+      120,
+    );
+
+    return {
+      hasSession: true,
+      session,
+      taskCard,
+      project,
+      focusTitle,
+      focusSummary,
+      nextStep,
+      mainlineLabel,
+      currentBranchLabel,
+      returnHint,
+      memoryHint,
+      rememberedBranches,
+      memoryItems,
+      showBranchMap: Boolean(project || currentBranchLabel),
     };
-
-    renderLevel("", 0);
-
-    const latestSummary = getLatestSummary(project.id);
-    summaryMetaEl.textContent = latestSummary?.updatedAt
-      ? `Updated ${new Date(latestSummary.updatedAt).toLocaleString()}`
-      : "Not generated yet";
-    summaryPreviewEl.textContent = latestSummary?.markdown || "No summary yet.";
   }
 
-  function renderWorkbench() {
-    ensureProjectSelection();
-    switchWorkbenchTab(activeTab);
-    updateSessionHint();
-    renderInbox();
-    renderTree();
+  function createBranchRow({ label, tone = "main", indented = false }) {
+    const row = document.createElement("div");
+    row.className = `workbench-branch-row${indented ? " is-indented" : ""}`;
+
+    const marker = document.createElement("div");
+    marker.className = `workbench-branch-marker is-${tone}`;
+    row.appendChild(marker);
+
+    const text = document.createElement("div");
+    text.className = "workbench-branch-text";
+    text.textContent = label;
+    row.appendChild(text);
+
+    return row;
   }
 
-  async function refreshWorkbench() {
-    if (visitorMode || shareSnapshotMode || isWorkbenchDisabledMode()) {
+  function renderBranchMap(reminder) {
+    if (!branchMapEl || !branchEmptyEl) return;
+    branchMapEl.innerHTML = "";
+
+    if (!reminder?.showBranchMap) {
+      branchEmptyEl.hidden = false;
+      branchEmptyEl.textContent = "No explicit branch needs to be shown yet. If the conversation drifts, the system will remember it quietly.";
+      return;
+    }
+
+    branchEmptyEl.hidden = true;
+    branchMapEl.appendChild(createBranchRow({ label: `Main line: ${reminder.mainlineLabel}` }));
+    if (reminder.currentBranchLabel) {
+      const connector = document.createElement("div");
+      connector.className = "workbench-branch-line";
+      branchMapEl.appendChild(connector);
+      branchMapEl.appendChild(createBranchRow({
+        label: `Current branch: ${reminder.currentBranchLabel}`,
+        tone: "active",
+        indented: true,
+      }));
+    }
+  }
+
+  function renderMemory(reminder) {
+    if (!memoryHintEl || !memoryListEl) return;
+    memoryHintEl.textContent = reminder.memoryHint;
+    memoryListEl.innerHTML = "";
+    for (const item of reminder.memoryItems || []) {
+      const li = document.createElement("li");
+      li.textContent = item;
+      memoryListEl.appendChild(li);
+    }
+    memoryListEl.hidden = (reminder.memoryItems || []).length === 0;
+  }
+
+  function renderReminder() {
+    const reminder = deriveReminder();
+    const sessionId = reminder.session?.id || "";
+    const disabledMode = typeof getBootstrapAuthInfo === "function"
+      && getBootstrapAuthInfo()?.role === "visitor";
+    const shareMode = typeof getBootstrapShareSnapshot === "function" && Boolean(getBootstrapShareSnapshot());
+    if (disabledMode || shareMode) {
       panel.hidden = true;
       return;
     }
+
+    if (!reminder.hasSession) {
+      panel.hidden = false;
+      emptyStateEl.hidden = false;
+      hintEl.textContent = "This view only wakes up when there is an active conversation to continue.";
+      focusTitleEl.textContent = "Open a session";
+      focusSummaryEl.textContent = "This panel stays passive. It only surfaces the minimum context needed to keep momentum.";
+      nextStepEl.textContent = "Create or choose a session, then continue through chat.";
+      returnHintEl.textContent = "Resume hints will appear once the conversation has a stable direction.";
+      memoryHintEl.textContent = "Branch drift, checkpoints, and reusable context will accumulate quietly in the background.";
+      memoryListEl.hidden = true;
+      branchMapEl.innerHTML = "";
+      branchEmptyEl.hidden = false;
+      branchEmptyEl.textContent = "No session yet, so there is no branch path to show.";
+      continueBtn.disabled = true;
+      laterBtn.disabled = true;
+      return;
+    }
+
+    if (isSnoozed(sessionId)) {
+      panel.hidden = true;
+      return;
+    }
+
+    clearCurrentSessionSnooze();
     panel.hidden = false;
-    const data = await fetchJsonOrRedirect("/api/workbench");
-    snapshot = data || snapshot;
-    renderWorkbench();
-    return snapshot;
+    emptyStateEl.hidden = true;
+    continueBtn.disabled = false;
+    laterBtn.disabled = false;
+
+    hintEl.textContent = reminder.project
+      ? `Project context: ${reminder.project.title}`
+      : "No explicit project is attached. The panel is using the carried goal and next step from the conversation itself.";
+    focusTitleEl.textContent = reminder.focusTitle;
+    focusSummaryEl.textContent = reminder.focusSummary;
+    nextStepEl.textContent = reminder.nextStep;
+    returnHintEl.textContent = reminder.returnHint;
+    renderBranchMap(reminder);
+    renderMemory(reminder);
   }
 
-  async function captureEvent(eventPayload = {}) {
-    const text = String(eventPayload.content || eventPayload.bodyPreview || eventPayload.text || "").trim();
-    if (!text) {
-      setStatus("Nothing to capture from this message.", "error");
-      return null;
-    }
+  async function refreshSnapshot() {
     try {
-      const response = await fetchJsonOrRedirect("/api/workbench/captures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceSessionId: eventPayload.sourceSessionId || currentSessionId || "",
-          sourceMessageSeq: Number.isInteger(eventPayload.seq) ? eventPayload.seq : null,
-          text,
-          title: clipText(text, 72),
-          kind: eventPayload.role === "user" ? "question" : "insight",
-        }),
-      });
-      snapshot = response.snapshot || snapshot;
-      switchWorkbenchTab("inbox");
-      renderWorkbench();
-      setStatus("Capture added to Inbox.", "success");
-      return response.captureItem || null;
-    } catch (error) {
-      setStatus(error.message || "Failed to capture message.", "error");
-      return null;
+      snapshot = await fetchJsonOrRedirect("/api/workbench");
+    } catch {
+      snapshot = {
+        captureItems: [],
+        projects: [],
+        nodes: [],
+        branchContexts: [],
+        skills: [],
+        summaries: [],
+      };
     }
+    renderReminder();
   }
 
-  async function handleCreateProject(event) {
-    event.preventDefault();
-    const title = projectTitleInput.value.trim();
-    if (!title) {
-      setStatus("Project title is required.", "error");
-      return;
-    }
-    try {
-      const response = await fetchJsonOrRedirect("/api/workbench/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          brief: projectBriefInput.value.trim(),
-          obsidianPath: projectPathInput.value.trim(),
-        }),
-      });
-      snapshot = response.snapshot || snapshot;
-      selectedProjectId = response.project?.id || selectedProjectId;
-      if (selectedProjectId) {
-        localStorage.setItem("melodysyncWorkbenchProjectId", selectedProjectId);
-      }
-      projectForm.reset();
-      renderWorkbench();
-      setStatus("Project created.", "success");
-    } catch (error) {
-      setStatus(error.message || "Failed to create project.", "error");
-    }
-  }
-
-  async function handleCreateNode(event) {
-    event.preventDefault();
-    if (!selectedProjectId) {
-      setStatus("Create or select a project first.", "error");
-      return;
-    }
-    const title = nodeTitleInput.value.trim();
-    if (!title) {
-      setStatus("Node title is required.", "error");
-      return;
-    }
-    try {
-      const response = await fetchJsonOrRedirect("/api/workbench/nodes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: selectedProjectId,
-          title,
-          type: nodeTypeSelect.value,
-          parentId: nodeParentSelect.value,
-          summary: nodeSummaryInput.value.trim(),
-          nextAction: nodeNextActionInput.value.trim(),
-        }),
-      });
-      snapshot = response.snapshot || snapshot;
-      nodeForm.reset();
-      nodeTypeSelect.value = "question";
-      renderWorkbench();
-      setStatus("Node added to tree.", "success");
-    } catch (error) {
-      setStatus(error.message || "Failed to add node.", "error");
-    }
-  }
-
-  async function handleGenerateSummary() {
-    if (!selectedProjectId) {
-      setStatus("Select a project first.", "error");
-      return;
-    }
-    generateSummaryBtn.disabled = true;
-    try {
-      const response = await fetchJsonOrRedirect(`/api/workbench/projects/${encodeURIComponent(selectedProjectId)}/summaries`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      snapshot = response.snapshot || snapshot;
-      renderWorkbench();
-      setStatus("Summary generated.", "success");
-    } catch (error) {
-      setStatus(error.message || "Failed to generate summary.", "error");
-    } finally {
-      generateSummaryBtn.disabled = false;
-    }
-  }
-
-  async function handleWriteback() {
-    if (!selectedProjectId) {
-      setStatus("Select a project first.", "error");
-      return;
-    }
-    writebackBtn.disabled = true;
-    try {
-      const response = await fetchJsonOrRedirect(`/api/workbench/projects/${encodeURIComponent(selectedProjectId)}/writeback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      snapshot = response.snapshot || snapshot;
-      renderWorkbench();
-      setStatus(`Written to ${response.targetPath || "Obsidian"}.`, "success");
-    } catch (error) {
-      setStatus(error.message || "Failed to write back to Obsidian.", "error");
-    } finally {
-      writebackBtn.disabled = false;
-    }
-  }
-
-  tabInbox?.addEventListener("click", () => switchWorkbenchTab("inbox"));
-  tabTree?.addEventListener("click", () => switchWorkbenchTab("tree"));
-  projectForm?.addEventListener("submit", handleCreateProject);
-  nodeForm?.addEventListener("submit", handleCreateNode);
-  projectSelect?.addEventListener("change", () => {
-    selectedProjectId = projectSelect.value || "";
-    localStorage.setItem("melodysyncWorkbenchProjectId", selectedProjectId);
-    renderWorkbench();
+  continueBtn?.addEventListener("click", () => {
+    clearCurrentSessionSnooze();
+    renderReminder();
+    focusComposer();
   });
-  generateSummaryBtn?.addEventListener("click", handleGenerateSummary);
-  writebackBtn?.addEventListener("click", handleWriteback);
+
+  laterBtn?.addEventListener("click", () => {
+    snoozeCurrentSession();
+  });
+
   document.addEventListener("melodysync:session-change", () => {
-    updateSessionHint();
-    renderTree();
+    void refreshSnapshot();
+  });
+
+  window.addEventListener("focus", () => {
+    void refreshSnapshot();
   });
 
   window.MelodySyncWorkbench = {
-    refresh: refreshWorkbench,
-    captureEvent,
-    onSessionChange: updateSessionHint,
+    surfaceMode: "reminder",
+    refresh: refreshSnapshot,
+    focusInput: focusComposer,
+    snoozeCurrentSession,
   };
 
-  queueMicrotask(async () => {
-    try {
-      await refreshWorkbench();
-      bootstrapped = true;
-      setStatus("", "");
-    } catch (error) {
-      if (!bootstrapped) {
-        setStatus(error.message || "Failed to load workbench.", "error");
-      }
-    }
-  });
+  void refreshSnapshot();
 })();
