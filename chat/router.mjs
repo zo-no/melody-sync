@@ -107,13 +107,17 @@ import {
   getFileAssetForClient,
 } from './file-assets.mjs';
 import {
+  createBranchFromSession,
   createBranchFromNode,
   createCaptureItem,
   createNode as createWorkbenchNode,
   createProject as createWorkbenchProject,
   createProjectSummary,
   getWorkbenchSnapshot,
+  mergeBranchSessionBackToMain,
   promoteCaptureItem,
+  setBranchCandidateSuppressed,
+  setBranchSessionStatus,
   setSessionReminderSnooze,
   writeProjectToObsidian,
 } from './workbench-store.mjs';
@@ -1491,11 +1495,59 @@ export async function handleRequest(req, res) {
         return;
       }
 
+      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'branches') {
+        const sessionId = parts[3];
+        const outcome = await createBranchFromSession(sessionId, payload);
+        writeJson(res, 201, {
+          session: createClientSessionDetail(outcome.session),
+          branchContext: outcome.branchContext,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'candidate-suppression') {
+        const sessionId = parts[3];
+        const branchTitle = typeof payload?.branchTitle === 'string' ? payload.branchTitle.trim() : '';
+        if (!branchTitle) {
+          writeJson(res, 400, { error: 'branchTitle is required' });
+          return;
+        }
+        const outcome = await setBranchCandidateSuppressed(sessionId, branchTitle, payload?.suppressed !== false);
+        writeJson(res, 200, {
+          session: createClientSessionDetail(outcome.session),
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'branch-status') {
+        const sessionId = parts[3];
+        const outcome = await setBranchSessionStatus(sessionId, payload);
+        writeJson(res, 200, {
+          session: createClientSessionDetail(outcome.session),
+          branchContext: outcome.branchContext,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
       if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'reminder') {
         const sessionId = parts[3];
         const reminder = await setSessionReminderSnooze(sessionId, payload);
         writeJson(res, 200, {
           reminder,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+        return;
+      }
+
+      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'merge-return') {
+        const sessionId = parts[3];
+        const outcome = await mergeBranchSessionBackToMain(sessionId, payload);
+        writeJson(res, 200, {
+          session: createClientSessionDetail(outcome.parentSession),
+          mergeNote: outcome.mergeNote,
           snapshot: await getWorkbenchSnapshot(),
         });
         return;

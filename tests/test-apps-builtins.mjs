@@ -32,7 +32,7 @@ try {
   const initial = await listApps();
   assert.deepEqual(
     initial.map((app) => app.id),
-    ['chat', 'email', 'app_welcome', 'app_basic_chat', 'app_create_app'],
+    ['chat', 'email', 'app_welcome', 'app_basic_chat'],
     'built-in apps should include connector scopes plus shipped starter apps',
   );
   assert.equal(DEFAULT_APP_ID, 'chat');
@@ -44,7 +44,7 @@ try {
   assert.equal(isBuiltinAppId('Email'), true);
   assert.equal(isBuiltinAppId('app_welcome'), true);
   assert.equal(isBuiltinAppId('app_basic_chat'), true);
-  assert.equal(isBuiltinAppId('app_create_app'), true);
+  assert.equal(isBuiltinAppId('app_create_app'), false);
   assert.equal(isBuiltinAppId('app_video_cut'), false);
   assert.equal(isBuiltinAppId('github'), false);
   assert.equal(isBuiltinAppId('custom-app'), false);
@@ -84,22 +84,7 @@ try {
   assert.equal(basicChatApp?.shareToken, undefined);
 
   const createAppStarter = await getApp(CREATE_APP_APP_ID);
-  assert.equal(createAppStarter?.id, CREATE_APP_APP_ID);
-  assert.equal(createAppStarter?.builtin, true);
-  assert.equal(createAppStarter?.templateSelectable, true);
-  assert.equal(createAppStarter?.tool, 'codex');
-  assert.equal(createAppStarter?.shareEnabled, false);
-  assert.equal(createAppStarter?.shareToken, undefined);
-  assert.match(createAppStarter?.systemPrompt || '', /POST \/api\/apps|PATCH \/api\/apps/i);
-  assert.match(createAppStarter?.systemPrompt || '', /share link|\/app\/\{shareToken\}|other people/i);
-  assert.match(createAppStarter?.systemPrompt || '', /http:\/\/127\.0\.0\.1:7692/);
-  assert.match(
-    createAppStarter?.systemPrompt || '',
-    new RegExp(`${join(tempHome, 'instance-config', 'auth.json').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
-  );
-  assert.match(createAppStarter?.welcomeMessage || '', /SOP|工作流|RemoteLab App/i);
-  assert.match(createAppStarter?.welcomeMessage || '', /SOP|工作流/i);
-  assert.match(createAppStarter?.welcomeMessage || '', /分享给别人的链接|分享方式|share/i);
+  assert.equal(createAppStarter, null, 'Create App should no longer ship as a built-in app');
 
   assert.equal(await getApp('feishu'), null);
   assert.equal(await getApp('app_video_cut'), null, 'Video Cut should no longer ship as a built-in app');

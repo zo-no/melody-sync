@@ -516,16 +516,16 @@
 
   function buildAllTasksSummary(entries) {
     if (!entries.length) {
-      return "No scheduled tasks yet. Create one from any session, then manage everything here.";
+      return "No scheduled tasks yet. Create one from any task, then manage everything here.";
     }
     const enabledCount = entries.filter((entry) => entry.trigger?.enabled !== false).length;
     const nextEntry = entries.find((entry) => entry.trigger?.enabled !== false && entry.trigger?.nextRunAt)
       || entries.find((entry) => entry.trigger?.nextRunAt)
       || null;
     const nextText = nextEntry?.trigger?.nextRunAt
-      ? `Next ${formatRelative(nextEntry.trigger.nextRunAt)} in ${nextEntry.session?.name || "session"}`
+      ? `Next ${formatRelative(nextEntry.trigger.nextRunAt)} in ${nextEntry.session?.name || "task"}`
       : "No next run yet";
-    return `${entries.length} task${entries.length === 1 ? "" : "s"} across ${new Set(entries.map((entry) => entry.session?.id)).size} session${new Set(entries.map((entry) => entry.session?.id)).size === 1 ? "" : "s"} · ${enabledCount} enabled · ${nextText}`;
+    return `${entries.length} task${entries.length === 1 ? "" : "s"} across ${new Set(entries.map((entry) => entry.session?.id)).size} task${new Set(entries.map((entry) => entry.session?.id)).size === 1 ? "" : "s"} · ${enabledCount} enabled · ${nextText}`;
   }
 
   function getSelectedTrigger(triggers) {
@@ -563,9 +563,9 @@
     const toolId = session?.tool || "";
     const modelText = trigger?.model || modelSelect.value
       ? `Uses model ${trigger?.model || modelSelect.value}.`
-      : (session?.model ? `Uses the session default model (${session.model}).` : "Uses the session default model.");
+      : (session?.model ? `Uses the task default model (${session.model}).` : "Uses the task default model.");
     if (!session) {
-      timezoneNote.textContent = "Choose a session first.";
+      timezoneNote.textContent = "Choose a task first.";
       return;
     }
     if ((trigger?.recurrenceType || recurrenceSelect.value) === "interval") {
@@ -602,8 +602,8 @@
     const models = Array.isArray(modelResult?.models) ? modelResult.models : [];
     const preferredModel = trigger?.model || "";
     const defaultLabel = session?.model
-      ? `Session default (${session.model})`
-      : "Session default";
+      ? `Task default (${session.model})`
+      : "Task default";
     modelSelect.innerHTML = "";
     const defaultOption = document.createElement("option");
     defaultOption.value = "";
@@ -656,7 +656,7 @@
       modelSelect.innerHTML = "";
       const fallbackOption = document.createElement("option");
       fallbackOption.value = trigger?.model || "";
-      fallbackOption.textContent = trigger?.model || "Session default";
+      fallbackOption.textContent = trigger?.model || "Task default";
       modelSelect.append(fallbackOption);
       modelSelect.value = trigger?.model || "";
       modelSelect.disabled = false;
@@ -795,7 +795,7 @@
 
       const sessionLine = document.createElement("div");
       sessionLine.className = "tasks-modal-item-session";
-      sessionLine.textContent = entry.session?.name || "Unnamed session";
+      sessionLine.textContent = entry.session?.name || "Unnamed task";
 
       const badge = document.createElement("div");
       badge.className = `header-schedule-item-badge ${entry.trigger?.enabled === false ? "paused" : "enabled"}`;
@@ -828,7 +828,7 @@
       const openBtn = document.createElement("button");
       openBtn.type = "button";
       openBtn.className = "modal-btn";
-      openBtn.textContent = "Open session";
+      openBtn.textContent = "Open task";
       openBtn.dataset.sessionId = entry.session?.id || "";
       openBtn.dataset.triggerId = entry.trigger?.id || "";
 
@@ -880,7 +880,7 @@
         ? "Schedule"
         : `${triggers.length} task${triggers.length === 1 ? "" : "s"}`);
     chipMeta.textContent = !session
-      ? "No session"
+      ? "No task"
       : (primaryTrigger?.nextRunAt
         ? `Next ${formatRelative(primaryTrigger.nextRunAt)}`
         : (triggers.length ? `${enabledCount} enabled` : "Not set"));
@@ -894,9 +894,9 @@
       listEl.innerHTML = "";
       listEl.hidden = true;
       emptyState.hidden = false;
-      listSummary.textContent = "No session";
-      panelState.textContent = "No session";
-      statusText.textContent = "Choose a session first.";
+      listSummary.textContent = "No task";
+      panelState.textContent = "No task";
+      statusText.textContent = "Choose a task first.";
       syncResultCard(null);
       syncEditor(null, null);
     }

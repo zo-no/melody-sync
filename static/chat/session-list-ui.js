@@ -7,6 +7,12 @@ function renderSessionList() {
   sessionList.innerHTML = "";
   const pinnedSessions = getVisiblePinnedSessions();
   const visibleSessions = getVisibleActiveSessions();
+  const allVisibleSessions = [...pinnedSessions, ...visibleSessions];
+  const allTaskClusters = typeof getSidebarTaskClusters === "function"
+    ? getSidebarTaskClusters(allVisibleSessions)
+    : allVisibleSessions.map((session) => ({ root: session, branches: [] }));
+  const pinnedClusters = allTaskClusters.filter((cluster) => cluster?.root?.pinned === true);
+  const unpinnedClusters = allTaskClusters.filter((cluster) => cluster?.root?.pinned !== true);
 
   if (pinnedSessions.length > 0) {
     const section = document.createElement("div");
@@ -14,12 +20,14 @@ function renderSessionList() {
 
     const header = document.createElement("div");
     header.className = "pinned-section-header";
-    header.innerHTML = `<span class="pinned-label">${esc(t("sidebar.pinned"))}</span><span class="folder-count">${pinnedSessions.length}</span>`;
+    header.innerHTML = `<span class="pinned-label">${esc(t("sidebar.pinned"))}</span><span class="folder-count">${pinnedClusters.length}</span>`;
 
     const items = document.createElement("div");
     items.className = "pinned-items";
-    for (const session of pinnedSessions) {
-      items.appendChild(createActiveSessionItem(session));
+    for (const cluster of pinnedClusters) {
+      items.appendChild(createTaskClusterItem(cluster.root, cluster.branches, {
+        currentBranchSessionId: cluster.currentBranchSessionId,
+      }));
     }
 
     section.appendChild(header);
@@ -28,52 +36,53 @@ function renderSessionList() {
   }
 
   const groups = new Map();
-  for (const s of visibleSessions) {
-    const groupInfo = getSessionGroupInfo(s);
+  for (const cluster of unpinnedClusters) {
+    const rootSession = cluster?.root;
+    if (!rootSession) continue;
+    const groupInfo = getSessionGroupInfo(rootSession);
     if (!groups.has(groupInfo.key)) {
-      groups.set(groupInfo.key, { ...groupInfo, sessions: [] });
+      groups.set(groupInfo.key, { ...groupInfo, clusters: [] });
     }
-    groups.get(groupInfo.key).sessions.push(s);
+    groups.get(groupInfo.key).clusters.push(cluster);
   }
 
-  for (const [groupKey, groupEntry] of groups) {
-    const folderSessions = groupEntry.sessions;
-    const group = document.createElement("div");
-    group.className = "folder-group";
+  const showGroupHeaders = groups.size > 1 || pinnedClusters.length > 0;
 
-    const header = document.createElement("div");
-    header.className =
-      "folder-group-header" +
-      (collapsedFolders[groupKey] ? " collapsed" : "");
-    header.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
-      <span class="folder-name" title="${esc(groupEntry.title)}">${esc(groupEntry.label)}</span>
-      <span class="folder-count">${folderSessions.length}</span>`;
-    header.addEventListener("click", (e) => {
-      header.classList.toggle("collapsed");
-      collapsedFolders[groupKey] = header.classList.contains("collapsed");
-      localStorage.setItem(
-        COLLAPSED_GROUPS_STORAGE_KEY,
-        JSON.stringify(collapsedFolders),
-      );
-    });
+  for (const [groupKey, groupEntry] of groups) {
+    const taskClusters = groupEntry.clusters;
+    const group = document.createElement("div");
+    group.className = "folder-group" + (showGroupHeaders ? "" : " is-ungrouped");
+
+    if (showGroupHeaders) {
+      const header = document.createElement("div");
+      header.className =
+        "folder-group-header" +
+        (collapsedFolders[groupKey] ? " collapsed" : "");
+      header.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
+        <span class="folder-name" title="${esc(groupEntry.title)}">${esc(groupEntry.label)}</span>
+        <span class="folder-count">${taskClusters.length}</span>`;
+      header.addEventListener("click", () => {
+        header.classList.toggle("collapsed");
+        collapsedFolders[groupKey] = header.classList.contains("collapsed");
+        localStorage.setItem(
+          COLLAPSED_GROUPS_STORAGE_KEY,
+          JSON.stringify(collapsedFolders),
+        );
+      });
+      group.appendChild(header);
+    }
 
     const items = document.createElement("div");
     items.className = "folder-group-items";
 
-    for (const s of folderSessions) {
-      items.appendChild(createActiveSessionItem(s));
+    for (const cluster of taskClusters) {
+      items.appendChild(createTaskClusterItem(cluster.root, cluster.branches, {
+        currentBranchSessionId: cluster.currentBranchSessionId,
+      }));
     }
 
-    group.appendChild(header);
     group.appendChild(items);
     sessionList.appendChild(group);
-  }
-
-  if (pinnedSessions.length === 0 && visibleSessions.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "session-filter-empty";
-    empty.textContent = getFilteredSessionEmptyText();
-    sessionList.appendChild(empty);
   }
 
   renderArchivedSection();

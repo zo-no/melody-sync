@@ -35,6 +35,14 @@ function createNewSessionShortcut({ closeSidebar = true } = {}) {
   });
 }
 
+function createSortSessionListShortcut() {
+  if (typeof organizeSessionListWithAgent !== "function") return false;
+  return organizeSessionListWithAgent({ closeSidebar: false });
+}
+
+globalThis.createNewSessionShortcut = createNewSessionShortcut;
+globalThis.createSortSessionListShortcut = createSortSessionListShortcut;
+
 menuBtn.addEventListener("click", openSidebar);
 closeSidebar.addEventListener("click", closeSidebarFn);
 sidebarOverlay.addEventListener("click", (e) => {
@@ -61,7 +69,7 @@ createAppConfigBtn?.addEventListener("click", () => {
 });
 
 // ---- Attachment handling ----
-const attachmentsEnabled = !!imgBtn && !!imgFileInput && !!imgPreviewStrip && imgPreviewStrip.hidden !== true;
+const attachmentsEnabled = !!imgBtn && !!imgFileInput && !!imgPreviewStrip;
 
 function buildPendingAttachment(file) {
   return {
@@ -88,6 +96,7 @@ function renderImagePreviews() {
   if (!attachmentsEnabled || !imgPreviewStrip) return;
   imgPreviewStrip.innerHTML = "";
   if (pendingImages.length === 0) {
+    imgPreviewStrip.hidden = true;
     imgPreviewStrip.classList.remove("has-images");
     if (typeof requestLayoutPass === "function") {
       requestLayoutPass("composer-images");
@@ -96,6 +105,7 @@ function renderImagePreviews() {
     }
     return;
   }
+  imgPreviewStrip.hidden = false;
   imgPreviewStrip.classList.add("has-images");
   const attachmentsLocked = typeof hasPendingComposerSend === "function" && hasPendingComposerSend();
   pendingImages.forEach((img, i) => {

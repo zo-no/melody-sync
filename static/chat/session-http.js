@@ -677,7 +677,7 @@ function applyAttachedSessionState(id, session) {
   if (typeof renderQueuedMessagePanel === "function") {
     renderQueuedMessagePanel(session);
   }
-  if (window.RemoteLabScheduleUi?.sync) {
+  if (typeof window !== "undefined" && window.RemoteLabScheduleUi?.sync) {
     window.RemoteLabScheduleUi.sync(session);
   }
 
@@ -703,9 +703,16 @@ function applyAttachedSessionState(id, session) {
   syncBrowserState();
   syncForkButton();
   syncShareButton();
-  document.dispatchEvent(new CustomEvent("melodysync:session-change", {
-    detail: { session: session || null },
-  }));
+  if (typeof document !== "undefined" && typeof CustomEvent !== "undefined") {
+    document.dispatchEvent(new CustomEvent("melodysync:session-change", {
+      detail: { session: session || null },
+    }));
+  }
+  if (typeof window !== "undefined" && window.MelodySyncWorkbench?.refresh) {
+    window.setTimeout(() => {
+      void window.MelodySyncWorkbench.refresh();
+    }, 0);
+  }
 }
 
 async function fetchSessionState(sessionId) {

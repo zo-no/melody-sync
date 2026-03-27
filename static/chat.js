@@ -20,6 +20,7 @@
     "/chat/session-surface-ui.js",
     "/chat/session-list-ui.js",
     "/chat/sidebar-ui.js",
+    "/chat/workbench-ui.js",
     "/chat/compose.js",
     "/chat/gestures.js",
     "/chat/init.js",

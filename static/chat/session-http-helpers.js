@@ -266,7 +266,7 @@ function buildShareSnapshotSessionRecord(snapshot = getActiveShareSnapshotPayloa
     ? snapshot.session.name.trim()
     : (typeof snapshot?.session?.tool === "string" && snapshot.session.tool.trim()
       ? snapshot.session.tool.trim()
-      : "Shared session snapshot");
+      : "Shared task snapshot");
   const lastEventAt = getShareSnapshotLastEventAt(snapshot);
   return {
     id: buildShareSnapshotSessionId(snapshot),

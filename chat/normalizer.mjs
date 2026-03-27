@@ -36,8 +36,8 @@ export function managerContextEvent(content, extra = {}) {
   return createEvent('manager_context', { role: 'system', content, ...extra });
 }
 
-export function statusEvent(content) {
-  return createEvent('status', { role: 'system', content });
+export function statusEvent(content, extra = {}) {
+  return createEvent('status', { role: 'system', content, ...extra });
 }
 
 export function usageEvent({

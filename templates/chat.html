@@ -25,9 +25,8 @@
 
 <!-- Header -->
 <div class="header">
-  <button class="header-btn" id="menuBtn" title="Sessions" aria-label="Sessions" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
+  <button class="header-btn" id="menuBtn" title="Tasks" aria-label="Tasks" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
   <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync Chat</h1>
-  <button class="header-share-btn" id="forkSessionBtn" type="button" title="Fork" aria-label="Fork" data-i18n-title="action.fork" data-i18n-aria-label="action.fork" data-i18n="action.fork" hidden>Fork</button>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
@@ -42,21 +41,36 @@
         <button class="header-btn" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
       </div>
       <div class="sidebar-tabs">
-        <button class="sidebar-tab active" id="tabSessions" data-i18n="nav.sessions">Sessions</button>
+        <button class="sidebar-tab active" id="tabSessions" data-i18n="nav.sessions">Tasks</button>
       </div>
       <div class="sidebar-list" id="sessionList"></div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
-      <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">+ New Session</button>
+      <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">开启任务</button>
     </aside>
   </div>
 
   <!-- Chat area -->
   <main class="chat-area">
+    <section class="quest-tracker" id="questTracker" hidden>
+      <div class="quest-tracker-main">
+        <div class="quest-tracker-label" id="questTrackerLabel">主线任务</div>
+        <div class="quest-tracker-title" id="questTrackerTitle">开始和agent对话吧</div>
+        <div class="quest-tracker-branch" id="questTrackerBranch" hidden>
+          <div class="quest-tracker-branch-label" id="questTrackerBranchLabel">来自主线</div>
+          <div class="quest-tracker-branch-title" id="questTrackerBranchTitle"></div>
+        </div>
+        <div class="quest-tracker-next" id="questTrackerNext" hidden>这里会压缩成一句最该继续的话。</div>
+      </div>
+      <div class="quest-tracker-actions">
+        <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerAltBtn" type="button" hidden>完成但不回主线</button>
+        <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerBackBtn" type="button" hidden>完成当前任务</button>
+      </div>
+    </section>
+
     <div class="messages" id="messages">
       <div class="messages-inner" id="messagesInner">
         <div class="empty-state" id="emptyState">
-          <h2 data-i18n="emptyState.title">MelodySync Chat</h2>
-          <p data-i18n="emptyState.body">Select or create a session from the sidebar, then start chatting with your AI coding tool.</p>
+          <h2 data-i18n="emptyState.title"></h2>
         </div>
       </div>
     </div>
@@ -78,7 +92,7 @@
             <button class="thinking-toggle" id="thinkingToggle" disabled data-i18n="tooling.thinking">Thinking</button>
             <select class="effort-select" id="effortSelect" disabled style="display:none"></select>
             <button class="img-btn" id="imgBtn" disabled title="Attach files" aria-label="Attach files" data-i18n-title="action.attachFiles" data-i18n-aria-label="action.attachFiles" data-icon="attach">&#128247;</button>
-            <button class="thinking-toggle" id="voiceCleanupToggle" type="button" aria-pressed="true" title="On: clean voice transcripts with the current session before sending" data-i18n-title="compose.voiceCleanup.on" disabled data-i18n="compose.voiceCleanup">Voice cleanup</button>
+            <button class="thinking-toggle" id="voiceCleanupToggle" type="button" aria-pressed="true" title="On: clean voice transcripts with the current task before sending" data-i18n-title="compose.voiceCleanup.on" disabled data-i18n="compose.voiceCleanup">Voice cleanup</button>
           </div>
           <div class="input-config-group right">
             <span id="contextTokens" style="display:none"></span>
@@ -101,55 +115,6 @@
     </div>
   </main>
 
-  <aside class="workbench-panel" id="workbenchPanel">
-    <div class="workbench-header">
-      <div>
-        <h2>任务追踪</h2>
-        <p id="workbenchSessionHint">只保留你此刻最该继续的一步。</p>
-      </div>
-    </div>
-
-    <div class="workbench-body">
-      <section class="workbench-empty" id="workbenchEmptyState" hidden>
-        进入一个会话后，这里只显示当前任务、支线和恢复点。
-      </section>
-
-      <section class="quest-block quest-focus">
-        <div class="quest-label">当前任务</div>
-        <div class="workbench-focus-title" id="workbenchFocusTitle">先进入一个会话</div>
-        <div class="workbench-focus-summary" id="workbenchFocusSummary">这里不会让你管理结构，只会压缩成当前最该继续的一步。</div>
-        <div class="quest-objective">
-          <div class="quest-label quest-label-sub">下一步</div>
-          <div class="workbench-next-step" id="workbenchNextStep">创建或选择一个会话后开始继续。</div>
-        </div>
-      </section>
-
-      <section class="quest-block quest-path">
-        <div class="quest-label">任务路径</div>
-        <div class="workbench-branch-map" id="workbenchBranchMap"></div>
-        <div class="workbench-branch-empty" id="workbenchBranchEmpty">当前还没有偏离主线。</div>
-      </section>
-
-      <section class="quest-block quest-return">
-        <div class="quest-label">回到主线</div>
-        <div class="workbench-return-hint" id="workbenchReturnHint">恢复点会在对话逐渐稳定后自动出现。</div>
-      </section>
-
-      <section class="quest-block quest-memory">
-        <div class="quest-label">已记录支线</div>
-        <div class="workbench-memory-hint" id="workbenchMemoryHint">其他支线会先在后台记住，不会打断你。</div>
-        <ul class="workbench-memory-list" id="workbenchMemoryList" hidden></ul>
-      </section>
-
-      <div class="workbench-actions">
-        <button class="workbench-primary-btn" id="workbenchContinueBtn" type="button">继续</button>
-        <button class="workbench-secondary-btn" id="workbenchLaterBtn" type="button">稍后</button>
-      </div>
-      <div class="quest-actions-note">
-        稍后会把这条提醒静音 30 分钟，但恢复点会继续写入后台。
-      </div>
-    </div>
-  </aside>
 </div>
 </div>
 

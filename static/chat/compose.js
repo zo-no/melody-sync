@@ -1,6 +1,6 @@
 // ---- Send message ----
 const fallbackStrings = {
-  "compose.voiceCleanup.on": "On: clean voice transcripts with the current session before sending",
+  "compose.voiceCleanup.on": "On: clean voice transcripts with the current task before sending",
   "compose.voiceCleanup.off": "Off: send immediately without the hidden transcript cleanup step",
   "compose.pending.cleaningWithText": "Cleaning transcript\u2026",
   "compose.pending.uploading": "Uploading attachment\u2026",
@@ -739,6 +739,8 @@ function switchTab(tab, { syncState = true } = {}) {
     syncBrowserState();
   }
 }
+
+globalThis.switchTab = switchTab;
 
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
 tabSettings?.addEventListener("click", () => switchTab("settings"));

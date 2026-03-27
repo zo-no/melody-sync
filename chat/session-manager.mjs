@@ -206,6 +206,24 @@ function normalizeSessionSidebarOrder(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function normalizeSuppressedBranchTitles(value) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : (typeof value === 'string' && value.trim() ? value.split(/\n+/) : []);
+  const next = [];
+  const seen = new Set();
+  for (const raw of rawItems) {
+    const normalized = String(raw || '').replace(/\s+/g, ' ').trim();
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    next.push(normalized.slice(0, 120));
+    if (next.length >= 12) break;
+  }
+  return next;
+}
+
 function getConfiguredAutoCompactContextTokens() {
   return parsePositiveIntOrInfinity(process.env.REMOTELAB_LIVE_CONTEXT_COMPACT_TOKENS);
 }
@@ -2719,6 +2737,17 @@ async function findLatestAssistantMessageForRun(sessionId, runId) {
   return null;
 }
 
+async function findLatestUserMessage(sessionId) {
+  const events = await loadHistory(sessionId, { includeBodies: false });
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event?.type === 'message' && event.role === 'user') {
+      return event;
+    }
+  }
+  return null;
+}
+
 async function maybeApplyAssistantTaskCard(sessionId, runId, session = null) {
   const currentSession = session || await getSession(sessionId);
   if (!currentSession || !isTaskCardEnabledForSession(currentSession)) {
@@ -2726,11 +2755,24 @@ async function maybeApplyAssistantTaskCard(sessionId, runId, session = null) {
   }
 
   const assistantEvent = await findLatestAssistantMessageForRun(sessionId, runId);
+  const latestUserEvent = await findLatestUserMessage(sessionId);
+  const previousTaskCard = normalizeSessionTaskCard(currentSession.taskCard || {});
   const taskCard = parseTaskCardFromAssistantContent(assistantEvent?.content || '');
   if (!taskCard) return null;
 
   const updatedSession = await updateSessionTaskCard(sessionId, taskCard);
   if (updatedSession) {
+    const previousCandidates = new Set((previousTaskCard?.candidateBranches || []).map((entry) => String(entry || '').trim().toLowerCase()));
+    for (const branchTitle of taskCard.candidateBranches || []) {
+      const normalizedTitle = String(branchTitle || '').trim().toLowerCase();
+      if (!normalizedTitle || previousCandidates.has(normalizedTitle)) continue;
+      await appendEvent(sessionId, statusEvent(`已记住支线：${branchTitle}`, {
+        statusKind: 'branch_candidate',
+        branchTitle,
+        branchReason: taskCard.branchReason || '',
+        sourceSeq: Number.isInteger(latestUserEvent?.seq) ? latestUserEvent.seq : undefined,
+      }));
+    }
     try {
       const { syncSessionContinuityFromSession } = await import('./workbench-store.mjs');
       await syncSessionContinuityFromSession(updatedSession, { taskCard });
@@ -3896,7 +3938,7 @@ export async function updateSessionGrouping(id, patch = {}) {
   return enrichSessionMeta(result.meta);
 }
 
-async function updateSessionTaskCard(id, taskCard) {
+export async function updateSessionTaskCard(id, taskCard) {
   const nextTaskCard = normalizeSessionTaskCard(taskCard);
   const result = await mutateSessionMeta(id, (session) => {
     const currentTaskCard = normalizeSessionTaskCard(session.taskCard);
@@ -3908,6 +3950,42 @@ async function updateSessionTaskCard(id, taskCard) {
       session.taskCard = nextTaskCard;
     } else if (session.taskCard) {
       delete session.taskCard;
+    }
+
+    session.updatedAt = nowIso();
+    return true;
+  });
+
+  if (!result.meta) return null;
+  if (result.changed) {
+    broadcastSessionInvalidation(id);
+  }
+  return enrichSessionMeta(result.meta);
+}
+
+export async function setSessionBranchCandidateSuppressed(id, branchTitle, suppressed = true) {
+  const normalizedTitle = String(branchTitle || '').replace(/\s+/g, ' ').trim();
+  if (!normalizedTitle) return getSession(id);
+
+  const result = await mutateSessionMeta(id, (session) => {
+    const current = normalizeSuppressedBranchTitles(session.suppressedBranchTitles || []);
+    const currentSet = new Set(current.map((entry) => entry.toLowerCase()));
+    const key = normalizedTitle.toLowerCase();
+    let next = current;
+
+    if (suppressed) {
+      if (currentSet.has(key)) return false;
+      next = normalizeSuppressedBranchTitles([...current, normalizedTitle]);
+    } else if (currentSet.has(key)) {
+      next = current.filter((entry) => entry.toLowerCase() !== key);
+    } else {
+      return false;
+    }
+
+    if (next.length > 0) {
+      session.suppressedBranchTitles = next;
+    } else if (session.suppressedBranchTitles) {
+      delete session.suppressedBranchTitles;
     }
 
     session.updatedAt = nowIso();

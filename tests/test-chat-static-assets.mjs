@@ -179,8 +179,8 @@ async function main() {
     const page = await request(port, 'GET', '/');
     assert.equal(page.status, 200, 'chat page should render for owner session');
     assert.match(page.text, /<meta name="color-scheme" content="light dark">/);
-    assert.match(page.text, /<meta name="theme-color" content="#ffffff" media="\(prefers-color-scheme: light\)">/);
-    assert.match(page.text, /<meta name="theme-color" content="#1e1e1e" media="\(prefers-color-scheme: dark\)">/);
+    assert.match(page.text, /<meta name="theme-color" content="#e7edf0" media="\(prefers-color-scheme: light\)">/);
+    assert.match(page.text, /<meta name="theme-color" content="#1c2329" media="\(prefers-color-scheme: dark\)">/);
     const bootstrapMatch = page.text.match(/window\.__REMOTELAB_BOOTSTRAP__ = ([^;]+);/);
     assert.ok(bootstrapMatch, 'chat page should inline bootstrap payload');
     const bootstrap = JSON.parse(bootstrapMatch[1]);
@@ -197,9 +197,10 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/session-surface-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/session-list-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/settings-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/sidebar-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/compose\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/gestures\.js(?:\?v=[^"]*)?"/);
     assert.doesNotMatch(page.text, /<script src="\/chat\/voice-input\.js(?:\?v=[^"]*)?"/);
 
     const visitorPage = await request(port, 'GET', '/?visitor=1', null, { Cookie: visitorCookie });
@@ -220,27 +221,27 @@ async function main() {
     );
     assert.match(page.text, /<script src="\/chat\/init\.js(?:\?v=[^"]*)?"/);
     assert.doesNotMatch(page.text, /id="appFilterSelect"/);
-    assert.match(page.text, /id="sourceFilterSelect"/);
-    assert.match(page.text, /id="sessionAppFilterSelect"/);
-    assert.match(page.text, /id="userFilterSelect"/);
-    assert.match(page.text, /id="sortSessionListBtn"/);
-    assert.match(page.text, /id="settingsAppsList"/);
+    assert.doesNotMatch(page.text, /id="sourceFilterSelect"/);
+    assert.doesNotMatch(page.text, /id="sessionAppFilterSelect"/);
+    assert.doesNotMatch(page.text, /id="userFilterSelect"/);
+    assert.doesNotMatch(page.text, /id="sortSessionListBtn"/);
+    assert.doesNotMatch(page.text, /id="settingsAppsList"/);
     assert.doesNotMatch(page.text, /id="tabBoard"/);
     assert.doesNotMatch(page.text, /id="boardPanel"/);
-    assert.match(page.text, /id="settingsUsersList"/);
-    assert.match(page.text, /id="newUserNameInput"/);
-    assert.match(page.text, /id="createUserBtn"/);
-    assert.match(page.text, /id="newAppNameInput"/);
-    assert.match(page.text, /id="newAppToolSelect"/);
-    assert.match(page.text, /id="newAppWelcomeInput"/);
-    assert.match(page.text, /id="newAppSystemPromptInput"/);
-    assert.match(page.text, /id="createAppConfigBtn"/);
+    assert.doesNotMatch(page.text, /id="settingsUsersList"/);
+    assert.doesNotMatch(page.text, /id="newUserNameInput"/);
+    assert.doesNotMatch(page.text, /id="createUserBtn"/);
+    assert.doesNotMatch(page.text, /id="newAppNameInput"/);
+    assert.doesNotMatch(page.text, /id="newAppToolSelect"/);
+    assert.doesNotMatch(page.text, /id="newAppWelcomeInput"/);
+    assert.doesNotMatch(page.text, /id="newAppSystemPromptInput"/);
+    assert.doesNotMatch(page.text, /id="createAppConfigBtn"/);
     assert.doesNotMatch(page.text, /id="voiceSettingsMount"/);
     assert.doesNotMatch(page.text, /id="voiceInputBtn"/);
     assert.doesNotMatch(page.text, /id="voiceFileInput"/);
     assert.match(page.text, /id="msgInput"[\s\S]*id="sendBtn"/, 'send button should render immediately after the composer textarea');
     assert.doesNotMatch(page.text, /id="voiceInputStatus"/);
-    assert.match(page.text, /id="tabSettings"/);
+    assert.doesNotMatch(page.text, /id="tabSettings"/);
     assert.doesNotMatch(page.text, /id="collapseBtn"/, 'desktop sidebar should no longer expose a collapse control');
     assert.doesNotMatch(page.text, /id="tabProgress"/);
     assert.doesNotMatch(page.text, /id="saveTemplateBtn"/);
@@ -288,7 +289,7 @@ async function main() {
     assert.match(combinedChatStyles, /--sidebar-width-expanded:\s*min\(80vw, calc\(100vw - 240px\)\);/);
     assert.match(combinedChatStyles, /\.app-shell\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\);/, 'app shell should reserve a fixed header row and a flexible body row');
     assert.match(combinedChatStyles, /\.app-container\s*\{[\s\S]*?min-height:\s*0;/);
-    assert.match(combinedChatStyles, /\.chat-area\s*\{[\s\S]*?grid-template-rows:\s*minmax\(0, 1fr\) auto auto;[\s\S]*?min-height:\s*0;/, 'chat area should model content, queued panel, and composer as explicit rows');
+    assert.match(combinedChatStyles, /\.chat-area\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\) auto auto;[\s\S]*?min-height:\s*0;/, 'chat area should model tracker, content, queued panel, and composer as explicit rows');
     assert.match(combinedChatStyles, /\.chat-area > \*\s*\{[\s\S]*?min-width:\s*0;/, 'chat-area grid children should be allowed to shrink horizontally instead of expanding the column');
     assert.match(combinedChatStyles, /\.messages\s*\{[\s\S]*?min-height:\s*0;/);
     assert.match(combinedChatStyles, /\.messages-inner\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/, 'message column should stay bound to the available chat width');
@@ -318,16 +319,8 @@ async function main() {
     assert.match(loginPage.text, /@media \(prefers-color-scheme: dark\)/);
 
     const apps = await request(port, 'GET', '/api/apps');
-    assert.equal(apps.status, 200, 'owner apps endpoint should be available');
-    assert.match(apps.text, /"id":"chat"/);
-    assert.match(apps.text, /"id":"email"/);
-    assert.match(apps.text, /"id":"app_welcome"/);
-    assert.match(apps.text, /"id":"app_basic_chat"/);
-    assert.match(apps.text, /"id":"app_create_app"/);
-    assert.doesNotMatch(apps.text, /"id":"app_video_cut"/);
-    assert.doesNotMatch(apps.text, /"id":"feishu"/);
-    assert.doesNotMatch(apps.text, /"id":"github"/);
-    assert.doesNotMatch(apps.text, /"id":"automation"/);
+    assert.equal(apps.status, 410, 'owner apps endpoint should report the removed endpoint status');
+    assert.match(apps.text, /"error":"App management has been removed from MelodySync"/);
 
     const createdChat = await request(port, 'POST', '/api/sessions', {
       folder: home,

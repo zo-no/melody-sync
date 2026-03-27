@@ -358,6 +358,8 @@ function readNavigationStateFromLocation() {
   });
 }
 
+globalThis.readNavigationStateFromLocation = readNavigationStateFromLocation;
+
 let pendingNavigationState = readNavigationStateFromLocation();
 let currentSessionId =
   pendingNavigationState.sessionId ||

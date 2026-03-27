@@ -13,8 +13,14 @@ import {
 import {
   createSession,
   getSession,
+  listSessions,
+  setSessionBranchCandidateSuppressed,
   submitHttpMessage,
+  updateSessionTaskCard,
 } from './session-manager.mjs';
+import { appendEvent } from './history.mjs';
+import { messageEvent, statusEvent } from './normalizer.mjs';
+import { createSessionListItem } from './session-api-shapes.mjs';
 import { normalizeSessionTaskCard } from './session-task-card.mjs';
 import {
   createSerialTaskQueue,
@@ -106,8 +112,22 @@ function normalizeLineRole(value) {
 
 function normalizeBranchContextStatus(value) {
   const status = trimText(value).toLowerCase();
-  if (['active', 'resolved'].includes(status)) return status;
+  if (['active', 'resolved', 'parked', 'merged', 'suppressed'].includes(status)) return status;
   return 'active';
+}
+
+function dedupeTexts(items) {
+  const results = [];
+  const seen = new Set();
+  for (const item of Array.isArray(items) ? items : []) {
+    const normalized = normalizeNullableText(item);
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push(normalized);
+  }
+  return results;
 }
 
 function sortByCreatedAsc(items) {
@@ -161,15 +181,127 @@ async function saveState(state) {
   ]);
 }
 
-function buildSnapshot(state) {
+function getLatestSessionContext(state, sessionId) {
+  const normalized = normalizeNullableText(sessionId);
+  if (!normalized) return null;
+  return sortByUpdatedDesc((state.branchContexts || []).filter((entry) => (
+    normalizeNullableText(entry.sessionId) === normalized
+  )))[0] || null;
+}
+
+function getSessionClusterGoal(session, context = null) {
+  return normalizeNullableText(
+    context?.mainGoal
+    || session?.taskCard?.mainGoal
+    || session?.taskCard?.goal
+    || session?.name
+  );
+}
+
+function getSessionClusterLineRole(session, context = null) {
+  return normalizeLineRole(
+    context?.lineRole
+    || session?.taskCard?.lineRole
+    || (normalizeNullableText(session?.sourceContext?.parentSessionId) ? 'branch' : 'main'),
+  );
+}
+
+function buildTaskClusters(state, sessions = []) {
+  const allSessions = (Array.isArray(sessions) ? sessions : []).filter((session) => session?.id);
+  const sessionMap = new Map(allSessions.map((session) => [session.id, session]));
+  const visibleRootSessions = allSessions.filter((session) => !session?.archived);
+  const mainSessionsByGoal = new Map();
+
+  for (const session of visibleRootSessions) {
+    const context = getLatestSessionContext(state, session.id);
+    const lineRole = getSessionClusterLineRole(session, context);
+    if (lineRole !== 'main') continue;
+    const goalKey = getSessionClusterGoal(session, context).toLowerCase();
+    if (goalKey && !mainSessionsByGoal.has(goalKey)) {
+      mainSessionsByGoal.set(goalKey, session);
+    }
+  }
+
+  const branchChildren = new Map();
+  const roots = [];
+  for (const session of allSessions) {
+    const context = getLatestSessionContext(state, session.id);
+    const lineRole = getSessionClusterLineRole(session, context);
+    const explicitParentId = normalizeNullableText(context?.parentSessionId || session?.sourceContext?.parentSessionId);
+    const explicitParent = explicitParentId && sessionMap.has(explicitParentId)
+      ? sessionMap.get(explicitParentId)
+      : null;
+    const goalParent = !explicitParent && lineRole === 'branch'
+      ? mainSessionsByGoal.get(getSessionClusterGoal(session, context).toLowerCase()) || null
+      : null;
+    const parent = explicitParent || goalParent;
+    if (lineRole === 'branch' && parent?.id) {
+      if (!branchChildren.has(parent.id)) branchChildren.set(parent.id, []);
+      branchChildren.get(parent.id).push({ session, context });
+      continue;
+    }
+    if (!session?.archived) {
+      roots.push(session);
+    }
+  }
+
+  function collectBranchEntries(parentSessionId, depth = 1, visited = new Set()) {
+    const directChildren = sortByUpdatedDesc((branchChildren.get(parentSessionId) || []).map((entry) => ({
+      id: entry.session.id,
+      updatedAt: entry.context?.updatedAt || entry.session.updatedAt || entry.session.lastEventAt || entry.session.created || '',
+      status: normalizeBranchContextStatus(entry.context?.status),
+      session: entry.session,
+      context: entry.context,
+      depth,
+      parentSessionId,
+    })));
+    const results = [];
+    for (const entry of directChildren) {
+      if (!entry?.session?.id || visited.has(entry.session.id)) continue;
+      visited.add(entry.session.id);
+      results.push(entry);
+      results.push(...collectBranchEntries(entry.session.id, depth + 1, visited));
+    }
+    return results;
+  }
+
+  return roots.map((root) => {
+    const branchEntries = collectBranchEntries(root.id);
+    const activeBranch = sortByUpdatedDesc(branchEntries).find((entry) => entry.status === 'active') || null;
+    const recentBranchEntries = sortByUpdatedDesc(branchEntries).slice(0, 3);
+    return {
+      id: `cluster:${root.id}`,
+      mainSessionId: root.id,
+      mainSession: createSessionListItem(root),
+      mainGoal: getSessionClusterGoal(root, getLatestSessionContext(state, root.id)),
+      currentBranchSessionId: activeBranch?.session?.id || '',
+      branchCount: branchEntries.length,
+      branchSessionIds: branchEntries.map((entry) => entry.session.id),
+      recentBranchSessionIds: recentBranchEntries.map((entry) => entry.session.id),
+      branchSessions: branchEntries.map((entry) => ({
+        ...createSessionListItem(entry.session),
+        _branchDepth: entry.depth,
+        _branchParentSessionId: entry.parentSessionId,
+        _branchStatus: entry.status,
+      })),
+    };
+  });
+}
+
+function buildSnapshot(state, sessions = []) {
   return {
     captureItems: sortByUpdatedDesc(state.captureItems || []),
     projects: sortByUpdatedDesc(state.projects || []),
     nodes: sortByCreatedAsc(state.nodes || []),
     branchContexts: sortByUpdatedDesc(state.branchContexts || []),
+    taskClusters: buildTaskClusters(state, sessions),
     skills: sortByUpdatedDesc(state.skills || []),
     summaries: sortByUpdatedDesc(state.summaries || []),
   };
+}
+
+function getLatestBranchContextEntry(state, sessionId) {
+  return getLatestSessionContext(state, sessionId);
 }
 
 async function resolveDefaultObsidianBaseDir() {
@@ -261,6 +393,87 @@ function pickCheckpoint(taskCard, fallback = '') {
   );
 }
 
+function buildBranchCarryoverLine(branchTitle, broughtBack) {
+  const title = normalizeNullableText(branchTitle) || '支线';
+  const summary = normalizeNullableText(broughtBack);
+  if (!summary) return '';
+  return `来自支线「${title}」：${summary}`;
+}
+
+function buildSeedBranchTaskCard({
+  goal = '',
+  mainGoal = '',
+  branchFrom = '',
+  branchReason = '',
+  checkpointSummary = '',
+  nextStep = '',
+} = {}) {
+  return normalizeSessionTaskCard({
+    mode: 'continue',
+    summary: '',
+    goal: normalizeNullableText(goal),
+    mainGoal: normalizeNullableText(mainGoal || goal),
+    lineRole: 'branch',
+    branchFrom: normalizeNullableText(branchFrom),
+    branchReason: normalizeNullableText(branchReason),
+    checkpoint: normalizeNullableText(checkpointSummary),
+    candidateBranches: [],
+    background: [],
+    rawMaterials: [],
+    assumptions: [],
+    knownConclusions: [],
+    nextSteps: normalizeNullableText(nextStep) ? [normalizeNullableText(nextStep)] : [],
+    memory: [],
+    needsFromUser: [],
+  });
+}
+
+async function appendBranchEnteredStatus(sessionId, { branchTitle = '', branchFrom = '' } = {}) {
+  const title = normalizeNullableText(branchTitle) || '支线';
+  const from = normalizeNullableText(branchFrom);
+  await appendEvent(sessionId, statusEvent(`已进入支线：${title}`, {
+    statusKind: 'branch_entered',
+    branchTitle: title,
+    branchFrom: from,
+  }));
+}
+
+function buildMergedParentTaskCard(parentSession, {
+  branchTitle,
+  mergeType,
+  broughtBack,
+  nextStep,
+} = {}) {
+  const current = normalizeSessionTaskCard(parentSession?.taskCard || {}) || {};
+  const carryoverLine = buildBranchCarryoverLine(branchTitle, broughtBack);
+  const carriedBackground = mergeType === 'conclusion'
+    ? (current.background || [])
+    : dedupeTexts([carryoverLine, ...(current.background || [])]);
+  const carriedConclusions = mergeType === 'conclusion'
+    ? dedupeTexts([carryoverLine, ...(current.knownConclusions || [])])
+    : (current.knownConclusions || []);
+  const carriedNextSteps = nextStep
+    ? dedupeTexts([nextStep, ...(current.nextSteps || [])])
+    : (current.nextSteps || []);
+  const remainingCandidates = (current.candidateBranches || []).filter((entry) => (
+    normalizeNullableText(entry).toLowerCase() !== normalizeNullableText(branchTitle).toLowerCase()
+  ));
+
+  return normalizeSessionTaskCard({
+    ...current,
+    goal: current.goal || normalizeNullableText(parentSession?.name),
+    mainGoal: current.mainGoal || current.goal || normalizeNullableText(parentSession?.name),
+    lineRole: 'main',
+    branchFrom: '',
+    branchReason: '',
+    checkpoint: nextStep || carryoverLine || current.checkpoint || '',
+    candidateBranches: remainingCandidates,
+    background: carriedBackground,
+    knownConclusions: carriedConclusions,
+    nextSteps: carriedNextSteps,
+  });
+}
+
 function upsertProject(state, session, taskCard, now) {
   const scopeKey = normalizeNullableText(session?.rootSessionId || session?.id);
   let project = getProjectByScopeKey(state, scopeKey);
@@ -341,6 +554,7 @@ function upsertSessionContext(state, payload = {}) {
     nodeId: normalizeNullableText(payload.nodeId),
     mainNodeId: normalizeNullableText(payload.mainNodeId),
     sessionId,
+    parentSessionId: normalizeNullableText(payload.parentSessionId),
     lineRole: normalizeLineRole(payload.lineRole),
     status: normalizeBranchContextStatus(payload.status),
     goal: normalizeNullableText(payload.goal),
@@ -541,7 +755,8 @@ function buildBranchSeedPrompt({ project, node, goal }) {
 
 export async function getWorkbenchSnapshot() {
   const state = await loadState();
-  return buildSnapshot(state);
+  const sessions = await listSessions({ includeArchived: true });
+  return buildSnapshot(state, sessions);
 }
 
 function syncSessionContinuityState(state, session, taskCardInput, now = nowIso()) {
@@ -555,6 +770,7 @@ function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(
   const checkpoint = pickCheckpoint(taskCard, currentGoal || mainGoal);
   const sourceNodeId = normalizeNullableText(session?.sourceContext?.nodeId);
   const sourceNode = sourceNodeId ? getNodeById(state, sourceNodeId) : null;
+  const parentSessionId = normalizeNullableText(session?.sourceContext?.parentSessionId);
 
   let rootNode = project.rootNodeId ? getNodeById(state, project.rootNodeId) : null;
   rootNode = upsertNode(state, {
@@ -627,6 +843,7 @@ function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(
     nodeId: currentNode.id,
     mainNodeId: rootNode.id,
     sessionId: session.id,
+    parentSessionId,
     lineRole,
     status: 'active',
     goal: currentGoal,
@@ -921,6 +1138,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
       nodeId: node.id,
       mainNodeId: project.rootNodeId || node.id,
       sessionId: branchSession.id,
+      parentSessionId: sourceSession.id,
       lineRole: 'branch',
       status: 'active',
       goal,
@@ -937,6 +1155,18 @@ export async function createBranchFromNode(nodeId, payload = {}) {
     };
     state.branchContexts.push(branchContext);
     await saveState(state);
+    await updateSessionTaskCard(branchSession.id, buildSeedBranchTaskCard({
+      goal,
+      mainGoal: branchContext.mainGoal,
+      branchFrom: node.title,
+      branchReason: branchContext.branchReason,
+      checkpointSummary: branchContext.checkpointSummary,
+      nextStep: branchContext.nextStep || branchContext.resumeHint,
+    }));
+    await appendBranchEnteredStatus(branchSession.id, {
+      branchTitle: goal,
+      branchFrom: node.title,
+    });
 
     if (payload.seedMessage !== false) {
       await submitHttpMessage(branchSession.id, buildBranchSeedPrompt({ project, node, goal }), [], {
@@ -952,6 +1182,241 @@ export async function createBranchFromNode(nodeId, payload = {}) {
       branchContext,
     };
   });
+}
+
+export async function createBranchFromSession(sessionId, payload = {}) {
+  return WORKBENCH_QUEUE(async () => {
+    const sourceSession = await getSession(sessionId);
+    if (!sourceSession) {
+      throw new Error('Source session not found');
+    }
+
+    const state = await loadState();
+    const now = nowIso();
+    syncSessionContinuityState(state, sourceSession, sourceSession.taskCard, now);
+    const activeContext = getActiveSessionContext(state, sessionId);
+    if (!activeContext) {
+      throw new Error('Active continuity context not found');
+    }
+
+    const project = getProjectById(state, activeContext.projectId);
+    if (!project) {
+      throw new Error('Project not found');
+    }
+
+    const parentNode = getNodeById(state, activeContext.nodeId) || getNodeById(state, activeContext.mainNodeId);
+    if (!parentNode) {
+      throw new Error('Parent node not found');
+    }
+
+    const goal = normalizeNullableText(payload.goal) || `Continue branch: ${parentNode.title}`;
+    const branchSession = await createSession(
+      sourceSession.folder,
+      sourceSession.tool,
+      `Branch · ${goal}`,
+      {
+        group: project.title,
+        description: `Branch from ${project.title} / ${parentNode.title}`,
+        appId: sourceSession.appId || '',
+        appName: sourceSession.appName || '',
+        userId: sourceSession.userId || '',
+        userName: sourceSession.userName || '',
+        model: sourceSession.model || '',
+        effort: sourceSession.effort || '',
+        thinking: sourceSession.thinking === true,
+        activeAgreements: sourceSession.activeAgreements || [],
+        sourceContext: {
+          kind: 'workbench_node_branch',
+          projectId: project.id,
+          projectTitle: project.title,
+          nodeId: parentNode.id,
+          nodeTitle: parentNode.title,
+          nodeType: parentNode.type,
+          parentSessionId: sourceSession.id,
+        },
+      },
+    );
+    if (!branchSession) {
+      throw new Error('Unable to create branch session');
+    }
+
+    const branchContext = {
+      id: createId('branch'),
+      projectId: project.id,
+      nodeId: parentNode.id,
+      mainNodeId: activeContext.mainNodeId || project.rootNodeId || parentNode.id,
+      sessionId: branchSession.id,
+      parentSessionId: sourceSession.id,
+      lineRole: 'branch',
+      status: 'active',
+      goal,
+      mainGoal: normalizeNullableText(activeContext.mainGoal || project.title || parentNode.title),
+      branchFrom: normalizeNullableText(parentNode.title),
+      branchReason: normalizeNullableText(payload.branchReason),
+      returnToNodeId: parentNode.id,
+      checkpointSummary: normalizeNullableText(payload.checkpointSummary) || activeContext.resumeHint || activeContext.checkpointSummary || '',
+      resumeHint: normalizeNullableText(payload.checkpointSummary) || activeContext.nextStep || activeContext.resumeHint || '',
+      nextStep: normalizeNullableText(payload.nextStep),
+      snoozedUntil: '',
+      createdAt: now,
+      updatedAt: now,
+    };
+    state.branchContexts.push(branchContext);
+    await saveState(state);
+    await updateSessionTaskCard(branchSession.id, buildSeedBranchTaskCard({
+      goal,
+      mainGoal: branchContext.mainGoal,
+      branchFrom: parentNode.title,
+      branchReason: branchContext.branchReason,
+      checkpointSummary: branchContext.checkpointSummary,
+      nextStep: branchContext.nextStep || branchContext.resumeHint,
+    }));
+    await appendBranchEnteredStatus(branchSession.id, {
+      branchTitle: goal,
+      branchFrom: parentNode.title,
+    });
+
+    return {
+      session: await getSession(branchSession.id) || branchSession,
+      branchContext,
+    };
+  });
+}
+
+export async function mergeBranchSessionBackToMain(sessionId, payload = {}) {
+  return WORKBENCH_QUEUE(async () => {
+    const branchSession = await getSession(sessionId);
+    if (!branchSession) {
+      throw new Error('Branch session not found');
+    }
+
+    const state = await loadState();
+    const now = nowIso();
+    const branchContext = getActiveSessionContext(state, sessionId)
+      || (state.branchContexts || []).find((entry) => normalizeNullableText(entry.sessionId) === sessionId)
+      || null;
+    const parentSessionId = normalizeNullableText(payload.parentSessionId)
+      || normalizeNullableText(branchContext?.parentSessionId)
+      || normalizeNullableText(branchSession?.sourceContext?.parentSessionId);
+    if (!parentSessionId) {
+      throw new Error('Parent session not found');
+    }
+
+    const parentSession = await getSession(parentSessionId);
+    if (!parentSession) {
+      throw new Error('Parent session not found');
+    }
+
+    const branchTaskCard = normalizeSessionTaskCard(branchSession.taskCard || {});
+    const branchTitle = normalizeNullableText(payload.branchTitle)
+      || normalizeNullableText(branchTaskCard?.goal)
+      || normalizeNullableText(branchContext?.goal)
+      || normalizeNullableText(branchSession.name)
+      || '支线';
+    const mergeType = normalizeNullableText(payload.mergeType) === 'conclusion'
+      ? 'conclusion'
+      : ((branchTaskCard?.knownConclusions || []).length > 0 ? 'conclusion' : 'clue');
+    const broughtBack = normalizeNullableText(payload.broughtBack)
+      || normalizeNullableText((branchTaskCard?.knownConclusions || [])[0])
+      || normalizeNullableText(branchTaskCard?.summary)
+      || normalizeNullableText(branchContext?.checkpointSummary)
+      || normalizeNullableText(branchTaskCard?.checkpoint)
+      || '支线已收束，可带回主线继续。';
+    const nextStep = normalizeNullableText(payload.nextStep)
+      || normalizeNullableText((branchTaskCard?.nextSteps || [])[0])
+      || normalizeNullableText(branchContext?.resumeHint)
+      || normalizeNullableText((normalizeSessionTaskCard(parentSession.taskCard || {})?.nextSteps || [])[0]);
+
+    const mergeContent = [
+      `已从支线带回：${branchTitle}`,
+      broughtBack,
+      nextStep ? `下一步：${nextStep}` : '',
+    ].filter(Boolean).join('\n');
+
+    const mergedParentTaskCard = buildMergedParentTaskCard(parentSession, {
+      branchTitle,
+      mergeType,
+      broughtBack,
+      nextStep,
+    });
+    const updatedParentSession = await updateSessionTaskCard(parentSessionId, mergedParentTaskCard) || parentSession;
+
+    await appendEvent(parentSessionId, messageEvent('assistant', mergeContent, undefined, {
+      messageKind: 'merge_note',
+      mergeType,
+      branchTitle,
+      broughtBack,
+      nextStep,
+      sourceBranchSessionId: sessionId,
+    }));
+
+    const branchIndex = state.branchContexts.findIndex((entry) => normalizeNullableText(entry.sessionId) === sessionId);
+    if (branchIndex !== -1) {
+      state.branchContexts[branchIndex] = {
+        ...state.branchContexts[branchIndex],
+        status: 'merged',
+        updatedAt: now,
+      };
+    }
+
+    syncSessionContinuityState(state, updatedParentSession, updatedParentSession.taskCard, now);
+
+    await saveState(state);
+
+    return {
+      parentSession: await getSession(parentSessionId) || updatedParentSession,
+      mergeNote: {
+        mergeType,
+        branchTitle,
+        broughtBack,
+        nextStep,
+      },
+    };
+  });
+}
+
+export async function setBranchSessionStatus(sessionId, payload = {}) {
+  return WORKBENCH_QUEUE(async () => {
+    const branchSession = await getSession(sessionId);
+    if (!branchSession) {
+      throw new Error('Branch session not found');
+    }
+
+    const state = await loadState();
+    const now = nowIso();
+    const latestContext = getLatestBranchContextEntry(state, sessionId);
+    if (!latestContext) {
+      throw new Error('Branch context not found');
+    }
+
+    const requestedStatus = normalizeBranchContextStatus(payload?.status);
+    if (!['active', 'resolved', 'parked'].includes(requestedStatus)) {
+      throw new Error('Unsupported branch status');
+    }
+
+    const branchIndex = state.branchContexts.findIndex((entry) => entry.id === latestContext.id);
+    if (branchIndex === -1) {
+      throw new Error('Branch context not found');
+    }
+
+    state.branchContexts[branchIndex] = {
+      ...state.branchContexts[branchIndex],
+      status: requestedStatus,
+      updatedAt: now,
+    };
+
+    await saveState(state);
+
+    return {
+      session: await getSession(sessionId) || branchSession,
+      branchContext: state.branchContexts[branchIndex],
+    };
+  });
+}
+
+export async function setBranchCandidateSuppressed(sessionId, branchTitle, suppressed = true) {
+  const session = await setSessionBranchCandidateSuppressed(sessionId, branchTitle, suppressed);
+  return { session };
 }
 
 export async function createProjectSummary(projectId) {

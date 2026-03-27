@@ -328,6 +328,116 @@
 .session-item-meta .status-done { color: var(--success); }
 .session-item-meta .status-parked { color: var(--text-muted); }
 .session-item-meta .status-archived { color: var(--text-muted); }
+.task-cluster {
+  display: grid;
+  gap: 4px;
+}
+.task-cluster.is-expanded {
+  gap: 8px;
+}
+.task-cluster-main.session-item {
+  padding: 10px 10px 8px 10px;
+  border-radius: 12px;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.task-cluster-main.session-item:hover {
+  background: rgba(29, 39, 51, 0.04);
+}
+.task-cluster-main.session-item.active {
+  background: rgba(29, 39, 51, 0.05);
+  border-color: transparent;
+  box-shadow: none;
+}
+.task-cluster-branches {
+  display: grid;
+  gap: 1px;
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+.task-cluster-link {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.task-cluster-link:hover {
+  color: var(--text);
+}
+.task-cluster-current-branch {
+  font-weight: 500;
+}
+.task-cluster-toggle {
+  color: var(--text-muted);
+}
+.task-branch-item {
+  position: relative;
+  padding: 4px 6px 4px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  margin-left: calc((var(--task-branch-depth, 1) - 1) * 14px);
+}
+.task-branch-item::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 60%, transparent);
+  transform: translateY(-50%);
+}
+.task-branch-item .session-item-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.task-branch-item .session-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.task-branch-item.active {
+  background: rgba(29, 39, 51, 0.04);
+  border-color: transparent;
+}
+.task-branch-item.is-current-branch {
+  background: rgba(29, 39, 51, 0.06);
+  border-color: transparent;
+}
+.task-branch-item.active .session-item-name {
+  color: var(--text);
+}
+.task-branch-item.is-current-branch .session-item-name {
+  color: var(--text);
+}
+.task-branch-item.is-current-branch::before {
+  background: var(--text);
+}
+.task-branch-status {
+  color: var(--text-muted);
+}
+.task-branch-reopen {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.task-cluster-more {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 0 2px;
+}
 .session-item-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
 .session-action-btn {
   background: none; border: none; color: var(--text-muted); cursor: pointer;
@@ -508,6 +618,12 @@
   gap: 8px;
   padding-top: 6px;
 }
+.folder-group.is-ungrouped {
+  margin-bottom: 0;
+}
+.folder-group.is-ungrouped .folder-group-items {
+  padding-top: 0;
+}
 
 .session-item {
   margin-bottom: 0;
@@ -603,6 +719,10 @@
 
   .session-item.active {
     background: linear-gradient(145deg, rgba(39, 64, 59, 0.96), rgba(30, 50, 46, 0.92));
+  }
+
+  .task-branch-item {
+    background: rgba(255, 255, 255, 0.03);
   }
 
   .session-action-btn,
@@ -727,6 +847,10 @@
   padding: 2px 12px 12px;
 }
 
+.folder-group.is-ungrouped .session-item {
+  padding-left: 10px;
+}
+
 .folder-group-header .folder-count,
 .archived-section-header .folder-count {
   background: rgba(29, 39, 51, 0.05);
@@ -757,6 +881,9 @@
 .session-item-meta {
   margin-top: 3px;
   line-height: 1.45;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .session-action-btn:hover {
@@ -787,6 +914,13 @@
     background: var(--bg-secondary);
   }
 
+  .task-cluster-main.session-item:hover,
+  .task-cluster-main.session-item.active,
+  .task-branch-item.active,
+  .task-branch-item.is-current-branch {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
   .folder-group-header .folder-count,
   .archived-section-header .folder-count,
   .session-filter-empty,
@@ -806,5 +940,38 @@
   .new-session-btn {
     background: #eef4fa;
     color: #17212c;
+  }
+}
+
+.new-session-btn {
+  margin: 2px 12px 12px;
+  padding: 4px 2px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0;
+  opacity: 0.56;
+}
+
+.new-session-btn:hover {
+  background: transparent;
+  color: var(--text);
+  opacity: 0.82;
+}
+
+@media (prefers-color-scheme: dark) {
+  .new-session-btn {
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .new-session-btn:hover {
+    background: transparent;
+    color: var(--text);
   }
 }
