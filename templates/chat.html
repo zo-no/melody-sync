@@ -104,63 +104,50 @@
   <aside class="workbench-panel" id="workbenchPanel">
     <div class="workbench-header">
       <div>
-        <h2>Continue</h2>
-        <p id="workbenchSessionHint">A low-noise continuity view for the line you are currently pushing forward.</p>
+        <h2>任务追踪</h2>
+        <p id="workbenchSessionHint">只保留你此刻最该继续的一步。</p>
       </div>
     </div>
 
     <div class="workbench-body">
       <section class="workbench-empty" id="workbenchEmptyState" hidden>
-        The continuity view stays quiet until you open a session.
+        进入一个会话后，这里只显示当前任务、支线和恢复点。
       </section>
 
-      <section class="workbench-card">
-        <div class="workbench-card-header">
-          <h3>Current focus</h3>
-          <span>What this conversation is trying to complete</span>
+      <section class="quest-block quest-focus">
+        <div class="quest-label">当前任务</div>
+        <div class="workbench-focus-title" id="workbenchFocusTitle">先进入一个会话</div>
+        <div class="workbench-focus-summary" id="workbenchFocusSummary">这里不会让你管理结构，只会压缩成当前最该继续的一步。</div>
+        <div class="quest-objective">
+          <div class="quest-label quest-label-sub">下一步</div>
+          <div class="workbench-next-step" id="workbenchNextStep">创建或选择一个会话后开始继续。</div>
         </div>
-        <div class="workbench-focus-title" id="workbenchFocusTitle">Open a session to begin.</div>
-        <div class="workbench-focus-summary" id="workbenchFocusSummary">The side panel stays passive and only surfaces the minimum context needed to keep momentum.</div>
       </section>
 
-      <section class="workbench-card">
-        <div class="workbench-card-header">
-          <h3>Branch path</h3>
-          <span>Where the current thread drifted from the main line</span>
-        </div>
+      <section class="quest-block quest-path">
+        <div class="quest-label">任务路径</div>
         <div class="workbench-branch-map" id="workbenchBranchMap"></div>
-        <div class="workbench-branch-empty" id="workbenchBranchEmpty">No visible branch yet.</div>
+        <div class="workbench-branch-empty" id="workbenchBranchEmpty">当前还没有偏离主线。</div>
       </section>
 
-      <section class="workbench-card">
-        <div class="workbench-card-header">
-          <h3>Continue from here</h3>
-          <span>The smallest useful next step</span>
-        </div>
-        <div class="workbench-next-step" id="workbenchNextStep">Select or create a session, then start chatting.</div>
-        <div class="workbench-focus-summary workbench-return-hint" id="workbenchReturnHint">Return hints appear once the system has enough continuity context.</div>
+      <section class="quest-block quest-return">
+        <div class="quest-label">回到主线</div>
+        <div class="workbench-return-hint" id="workbenchReturnHint">恢复点会在对话逐渐稳定后自动出现。</div>
       </section>
 
-      <section class="workbench-card">
-        <div class="workbench-card-header">
-          <h3>Remembered for you</h3>
-          <span>Background branches and durable context kept off the main stage</span>
-        </div>
-        <div class="workbench-memory-hint" id="workbenchMemoryHint">Side branches are remembered quietly until they matter.</div>
+      <section class="quest-block quest-memory">
+        <div class="quest-label">已记录支线</div>
+        <div class="workbench-memory-hint" id="workbenchMemoryHint">其他支线会先在后台记住，不会打断你。</div>
         <ul class="workbench-memory-list" id="workbenchMemoryList" hidden></ul>
       </section>
 
-      <section class="workbench-card">
-        <div class="workbench-card-header">
-          <h3>Actions</h3>
-          <span>Keep this lightweight</span>
-        </div>
-        <div class="workbench-actions">
-          <button class="workbench-primary-btn" id="workbenchContinueBtn" type="button">Continue</button>
-          <button class="workbench-secondary-btn" id="workbenchLaterBtn" type="button">Later</button>
-        </div>
-        <div class="workbench-action-note">Continue focuses the composer. Later hides this reminder for the current session for 30 minutes.</div>
-      </section>
+      <div class="workbench-actions">
+        <button class="workbench-primary-btn" id="workbenchContinueBtn" type="button">继续</button>
+        <button class="workbench-secondary-btn" id="workbenchLaterBtn" type="button">稍后</button>
+      </div>
+      <div class="quest-actions-note">
+        稍后会把这条提醒静音 30 分钟，但恢复点会继续写入后台。
+      </div>
     </div>
   </aside>
 </div>

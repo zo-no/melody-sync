@@ -202,17 +202,17 @@
       : memory.slice(0, 3);
 
     const memoryHint = rememberedBranches.length > 0
-      ? `${rememberedBranches.length} related side branches are already remembered for you.`
+      ? `已替你记住 ${rememberedBranches.length} 条支线。`
       : (memory.length > 0
-        ? `${memory.length} durable context items are being carried forward.`
-        : "Side branches stay offstage until they matter.");
+        ? `已带上 ${memory.length} 条可复用上下文。`
+        : "其他支线先收在后台，不打断当前任务。");
 
     const returnHint = clipText(
       (returnNode && (returnNode.nextAction || returnNode.summary || returnNode.title))
       || activeContext?.resumeHint
       || activeContext?.checkpointSummary
       || rootNode?.nextAction
-      || "A return point for the main line has not stabilized yet.",
+      || "主线恢复点还在形成中。",
       120,
     );
 
@@ -257,18 +257,18 @@
 
     if (!reminder?.showBranchMap) {
       branchEmptyEl.hidden = false;
-      branchEmptyEl.textContent = "No explicit branch needs to be shown yet. If the conversation drifts, the system will remember it quietly.";
+      branchEmptyEl.textContent = "当前还没有偏离主线。";
       return;
     }
 
     branchEmptyEl.hidden = true;
-    branchMapEl.appendChild(createBranchRow({ label: `Main line: ${reminder.mainlineLabel}` }));
+    branchMapEl.appendChild(createBranchRow({ label: `主线：${reminder.mainlineLabel}` }));
     if (reminder.currentBranchLabel) {
       const connector = document.createElement("div");
       connector.className = "workbench-branch-line";
       branchMapEl.appendChild(connector);
       branchMapEl.appendChild(createBranchRow({
-        label: `Current branch: ${reminder.currentBranchLabel}`,
+        label: `支线：${reminder.currentBranchLabel}`,
         tone: "active",
         indented: true,
       }));
@@ -301,16 +301,16 @@
     if (!reminder.hasSession) {
       panel.hidden = false;
       emptyStateEl.hidden = false;
-      hintEl.textContent = "This view only wakes up when there is an active conversation to continue.";
-      focusTitleEl.textContent = "Open a session";
-      focusSummaryEl.textContent = "This panel stays passive. It only surfaces the minimum context needed to keep momentum.";
-      nextStepEl.textContent = "Create or choose a session, then continue through chat.";
-      returnHintEl.textContent = "Resume hints will appear once the conversation has a stable direction.";
-      memoryHintEl.textContent = "Branch drift, checkpoints, and reusable context will accumulate quietly in the background.";
+      hintEl.textContent = "这里只追踪你当前最该继续的一步。";
+      focusTitleEl.textContent = "先进入一个会话";
+      focusSummaryEl.textContent = "任务追踪会自动出现，不要求你手动管理任务树。";
+      nextStepEl.textContent = "创建或选择一个会话后开始继续。";
+      returnHintEl.textContent = "恢复点会在对话逐渐稳定后自动出现。";
+      memoryHintEl.textContent = "支线、恢复点和可复用上下文会在后台逐渐沉淀。";
       memoryListEl.hidden = true;
       branchMapEl.innerHTML = "";
       branchEmptyEl.hidden = false;
-      branchEmptyEl.textContent = "No session yet, so there is no branch path to show.";
+      branchEmptyEl.textContent = "当前还没有任务路径。";
       continueBtn.disabled = true;
       laterBtn.disabled = true;
       return;
@@ -327,8 +327,8 @@
     laterBtn.disabled = false;
 
     hintEl.textContent = reminder.project
-      ? `Project context: ${reminder.project.title}`
-      : "No explicit project is attached. The panel is using the carried goal and next step from the conversation itself.";
+      ? `当前任务域：${reminder.project.title}`
+      : "当前还没有显式任务域，先用对话里的目标和下一步保持连续性。";
     focusTitleEl.textContent = reminder.focusTitle;
     focusSummaryEl.textContent = reminder.focusSummary;
     nextStepEl.textContent = reminder.nextStep;
