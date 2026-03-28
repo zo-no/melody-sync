@@ -5,13 +5,13 @@
   "type": "module",
   "license": "MIT",
   "author": "Kual",
-  "homepage": "https://github.com/YOUR_GITHUB_USERNAME/melody-sync#readme",
+  "homepage": "https://github.com/zo-no/melody-sync#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YOUR_GITHUB_USERNAME/melody-sync.git"
+    "url": "git+https://github.com/zo-no/melody-sync.git"
   },
   "bugs": {
-    "url": "https://github.com/YOUR_GITHUB_USERNAME/melody-sync/issues"
+    "url": "https://github.com/zo-no/melody-sync/issues"
   },
   "keywords": [
     "claude",

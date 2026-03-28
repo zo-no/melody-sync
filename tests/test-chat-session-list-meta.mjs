@@ -43,12 +43,30 @@ function extractFunctionSource(source, functionName) {
   throw new Error(`Unable to extract ${functionName}`);
 }
 
+const getShortFolderSource = extractFunctionSource(sessionSurfaceUiSource, 'getShortFolder');
+const getFolderLabelSource = extractFunctionSource(sessionSurfaceUiSource, 'getFolderLabel');
+const clipTaskLabelSource = extractFunctionSource(sessionSurfaceUiSource, 'clipTaskLabel');
+const toSingleGoalLabelSource = extractFunctionSource(sessionSurfaceUiSource, 'toSingleGoalLabel');
+const getPreferredSessionDisplayNameSource = extractFunctionSource(sessionSurfaceUiSource, 'getPreferredSessionDisplayName');
+const getSessionDisplayNameSource = extractFunctionSource(sessionSurfaceUiSource, 'getSessionDisplayName');
 const renderSessionMessageCountSource = extractFunctionSource(sessionSurfaceUiSource, 'renderSessionMessageCount');
 const buildSessionMetaPartsSource = extractFunctionSource(sessionSurfaceUiSource, 'buildSessionMetaParts');
 
 const state = { scopeCalls: 0, statusCalls: 0 };
 const context = {
   console,
+  esc(value) {
+    return String(value || '');
+  },
+  t(key) {
+    if (key === 'session.defaultName') return 'Untitled';
+    if (key === 'session.messagesTitle') return 'Messages in this session';
+    if (key === 'session.messages') {
+      const vars = arguments[1] || {};
+      return `${vars.count || 0} msg${vars.suffix || ''}`;
+    }
+    return key;
+  },
   renderSessionScopeContext() {
     state.scopeCalls += 1;
     return ['<span>scope</span>'];
@@ -67,9 +85,18 @@ const context = {
 };
 context.globalThis = context;
 vm.runInNewContext(
-  `${renderSessionMessageCountSource}\n${buildSessionMetaPartsSource}\nglobalThis.renderSessionMessageCount = renderSessionMessageCount;\nglobalThis.buildSessionMetaParts = buildSessionMetaParts;`,
+  `${getShortFolderSource}\n${getFolderLabelSource}\n${clipTaskLabelSource}\n${toSingleGoalLabelSource}\n${getPreferredSessionDisplayNameSource}\n${getSessionDisplayNameSource}\n${renderSessionMessageCountSource}\n${buildSessionMetaPartsSource}\nglobalThis.getSessionDisplayName = getSessionDisplayName;\nglobalThis.renderSessionMessageCount = renderSessionMessageCount;\nglobalThis.buildSessionMetaParts = buildSessionMetaParts;`,
   context,
   { filename: 'static/chat/session-surface-ui.js' },
+);
+
+assert.equal(
+  context.getSessionDisplayName({
+    name: '这是一个特别长的任务标题，需要先把目标压缩清楚并且不要把太多背景描述直接塞进侧栏里。后面这些细节不该直接出现在侧栏里',
+    taskCard: {},
+  }),
+  '这是一个特别长的任务标题，需要先把目标压缩清楚并且不要把太多背景描述直接塞…',
+  'session list should compress long task names to one explicit goal',
 );
 
 assert.equal(

@@ -6,6 +6,8 @@ function t(key, vars) {
 const SWIPE_GESTURE_LOCK_DISTANCE_PX = 18;
 const SWIPE_GESTURE_TRIGGER_DISTANCE_PX = 64;
 const SWIPE_GESTURE_DIRECTION_RATIO = 1.1;
+const SWIPE_GESTURE_EDGE_MAX_PX = 56;
+const SWIPE_GESTURE_EDGE_RATIO = 0.16;
 
 let swipeGestureState = null;
 let swipeGestureActionInFlight = false;
@@ -43,6 +45,23 @@ function getSwipeGestureDistance(deltaX, direction) {
   if (direction === "right") return deltaX;
   if (direction === "left") return -deltaX;
   return 0;
+}
+
+function getGestureViewportWidth() {
+  const viewport = Number(document?.documentElement?.clientWidth || window?.innerWidth || 0);
+  return Number.isFinite(viewport) && viewport > 0 ? viewport : 390;
+}
+
+function getSwipeGestureEdgeAllowance() {
+  return Math.min(SWIPE_GESTURE_EDGE_MAX_PX, Math.round(getGestureViewportWidth() * SWIPE_GESTURE_EDGE_RATIO));
+}
+
+function canStartSwipeGestureFromEdge(startX, direction) {
+  const edgeAllowance = getSwipeGestureEdgeAllowance();
+  const viewportWidth = getGestureViewportWidth();
+  if (direction === "right") return startX <= edgeAllowance;
+  if (direction === "left") return startX >= viewportWidth - edgeAllowance;
+  return false;
 }
 
 function getSwipeGestureAction(direction) {
@@ -133,8 +152,13 @@ function handleSwipeGestureMove(event) {
     if (!shouldLockSwipeGesture(deltaX, deltaY)) {
       return;
     }
+    const direction = getSwipeGestureDirection(deltaX);
+    if (!canStartSwipeGestureFromEdge(swipeGestureState.startX, direction)) {
+      cancelSwipeGesture();
+      return;
+    }
     swipeGestureState.locked = true;
-    swipeGestureState.direction = getSwipeGestureDirection(deltaX);
+    swipeGestureState.direction = direction;
   }
 
   if (!swipeGestureState.direction) {
@@ -166,8 +190,11 @@ function handleSwipeGestureEnd(event) {
     const deltaX = finalTouch.clientX - swipeGestureState.startX;
     const deltaY = finalTouch.clientY - swipeGestureState.startY;
     if (!swipeGestureState.locked && shouldLockSwipeGesture(deltaX, deltaY)) {
-      swipeGestureState.locked = true;
-      swipeGestureState.direction = getSwipeGestureDirection(deltaX);
+      const direction = getSwipeGestureDirection(deltaX);
+      if (canStartSwipeGestureFromEdge(swipeGestureState.startX, direction)) {
+        swipeGestureState.locked = true;
+        swipeGestureState.direction = direction;
+      }
     }
     swipeGestureState.distance = getSwipeGestureDistance(deltaX, swipeGestureState.direction);
   }

@@ -30,8 +30,8 @@ Subdomain I want to use: [SUBDOMAIN]
 # For Tailscale mode:
 (No extra config needed — the host machine and the client devices I want to use are on the same tailnet.)
 
-Use the setup contract at `https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/melody-sync/main/docs/setup.md` as the source of truth.
-Do not assume the repo is already cloned. If `~/code/melody-sync` does not exist yet, fetch that contract, clone `https://github.com/YOUR_GITHUB_USERNAME/melody-sync.git` yourself, and continue.
+Use the setup contract at `https://raw.githubusercontent.com/zo-no/melody-sync/main/docs/setup.md` as the source of truth.
+Do not assume the repo is already cloned. If `~/code/melody-sync` does not exist yet, fetch that contract, clone `https://github.com/zo-no/melody-sync.git` yourself, and continue.
 Keep the workflow inside this chat.
 Before you start work, collect every missing piece of context in one message so I can answer once.
 Do every step you can automatically.
@@ -160,8 +160,8 @@ Subdomain I want to use: [SUBDOMAIN]
 # For Tailscale mode:
 (No extra config needed — the host machine and the client devices I want to use are on the same tailnet.)
 
-Use the setup contract at `https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/melody-sync/main/docs/setup.md` as the source of truth.
-Do not assume the repo is already cloned. If `~/code/melody-sync` does not exist yet, fetch that contract, clone `https://github.com/YOUR_GITHUB_USERNAME/melody-sync.git` yourself, and continue.
+Use the setup contract at `https://raw.githubusercontent.com/zo-no/melody-sync/main/docs/setup.md` as the source of truth.
+Do not assume the repo is already cloned. If `~/code/melody-sync` does not exist yet, fetch that contract, clone `https://github.com/zo-no/melody-sync.git` yourself, and continue.
 Keep the workflow inside this chat.
 Before you start work, collect every missing piece of context in one message so I can answer once.
 Do every step you can automatically.

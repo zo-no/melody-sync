@@ -65,7 +65,7 @@ function normalizeTaskCardList(value, options = {}) {
 function extractTaggedBlock(content, tagName) {
   const text = typeof content === 'string' ? content : '';
   if (!text || !tagName) return '';
-  const match = text.match(new RegExp(`<${tagName}>([\\s\\S]*?)<\/${tagName}>`, 'i'));
+  const match = text.match(new RegExp(`<${tagName}>([\\s\\S]*?)<(?:\\\\/|/)${tagName}>`, 'i'));
   return (match ? match[1] : '').trim();
 }
 
@@ -148,7 +148,7 @@ export function normalizeSessionTaskCard(value) {
     mainGoal: mainGoal || goal,
     lineRole,
     branchFrom: lineRole === 'branch' ? (branchFrom || mainGoal || goal) : '',
-    branchReason: lineRole === 'branch' ? branchReason : '',
+    branchReason,
     checkpoint,
     candidateBranches,
     background,
@@ -166,6 +166,71 @@ export function normalizeSessionTaskCard(value) {
 function formatTaskCardList(label, items) {
   if (!Array.isArray(items) || items.length === 0) return '';
   return `${label}:\n${items.map((item) => `- ${item}`).join('\n')}`;
+}
+
+function normalizeIntentText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\r\n/g, '\n')
+    .replace(/[^\p{Letter}\p{Number}\n\s\u4e00-\u9fff]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function textLooksEquivalent(left, right) {
+  const leftText = normalizeIntentText(left);
+  const rightText = normalizeIntentText(right);
+  if (!leftText || !rightText) return false;
+  return leftText === rightText || leftText.includes(rightText) || rightText.includes(leftText);
+}
+
+const INTENT_SHIFT_REASON_PATTERN = /(?:另外|另一|单独|独立|并行|专题|另开|拆出|拆开|分支|支线|切换|转到|转而|换成|不再|脱离|偏离|不同对象|不同目标|不同交付|separate|independent|parallel|split|branch|switch)/i;
+const SAME_GOAL_REASON_PATTERN = /(?:继续|补充|细化|展开|延伸|说明|约束|调整|修改|优化|完善|补画|重画|再画|再来|追问|示意|草图|变体|同一目标|同一任务)/i;
+const NON_INDEPENDENT_TITLE_PATTERN = /^(?:继续|补充|细化|完善|优化|调整|补画|重画|再画|再来)/i;
+
+export function taskCardIndicatesIntentShift(taskCard, branchTitle) {
+  const normalized = normalizeSessionTaskCard(taskCard);
+  const title = normalizeIntentText(branchTitle);
+  if (!normalized || !title) return false;
+
+  if (
+    textLooksEquivalent(title, normalized.goal)
+    || textLooksEquivalent(title, normalized.mainGoal)
+    || normalized.nextSteps.some((entry) => textLooksEquivalent(title, entry))
+    || textLooksEquivalent(title, normalized.checkpoint)
+  ) {
+    return false;
+  }
+
+  const reason = normalizeIntentText(normalized.branchReason);
+  if (!reason) return false;
+  if (SAME_GOAL_REASON_PATTERN.test(reason) && !INTENT_SHIFT_REASON_PATTERN.test(reason)) {
+    return false;
+  }
+  return INTENT_SHIFT_REASON_PATTERN.test(reason);
+}
+
+export function taskCardHasIndependentBranchGoal(taskCard, branchTitle) {
+  const normalized = normalizeSessionTaskCard(taskCard);
+  const title = normalizeIntentText(branchTitle);
+  if (!normalized || !title) return false;
+  if (NON_INDEPENDENT_TITLE_PATTERN.test(title)) return false;
+
+  if (
+    textLooksEquivalent(title, normalized.goal)
+    || textLooksEquivalent(title, normalized.mainGoal)
+    || normalized.nextSteps.some((entry) => textLooksEquivalent(title, entry))
+    || textLooksEquivalent(title, normalized.checkpoint)
+  ) {
+    return false;
+  }
+
+  return title.length >= 2;
+}
+
+export function shouldSurfaceTaskCardBranchCandidate(taskCard, branchTitle) {
+  return taskCardIndicatesIntentShift(taskCard, branchTitle)
+    && taskCardHasIndependentBranchGoal(taskCard, branchTitle);
 }
 
 export function buildTaskCardPromptBlock(taskCard) {
@@ -195,11 +260,17 @@ export function buildTaskCardPromptBlock(taskCard) {
   return [
     currentCardBlock,
     'After every user-facing reply, append a hidden <private> block that contains exactly one <task_card> JSON object and nothing else inside that hidden block.',
+    'Use literal closing tags exactly as </task_card></private>. Do not escape the slash as <\\/task_card> or <\\/private>.',
     'The <task_card> JSON must use these keys: mode, summary, goal, mainGoal, lineRole, branchFrom, branchReason, checkpoint, candidateBranches, background, rawMaterials, assumptions, knownConclusions, nextSteps, memory, needsFromUser.',
+    'For a newly started main task, use summary as a task-bar title rather than a full sentence description.',
+    'Keep summary to no more than 10 Chinese characters when possible; prefer 6-8.',
+    'Treat summary as a short directional title, not a sentence. Prefer a compact verb + object form.',
+    'Do not use summary for background, reasoning, process notes, uncertainty, or implementation detail.',
+    'Only rewrite summary when the task direction materially changes.',
     'Set lineRole to "main" when the conversation is still pushing the current main line. Set it to "branch" only when the user has clearly drifted into a side line that should be remembered separately.',
     'Set mainGoal to the main line that should remain visible even when the conversation is currently on a branch. If there is no branch, set mainGoal equal to goal.',
     'Set branchFrom to the main line or parent line the current branch diverged from. Leave branchFrom empty when lineRole is "main".',
-    'Set branchReason only when the branch exists for a clear reason, such as following a related book, concept, dependency, or prerequisite.',
+    'Set branchReason only when there is a clear reason a branch already exists or should split out, such as following a related book, concept, dependency, independent deliverable, or parallel topic.',
     'Set checkpoint to one short resume hint that would let the user or the system continue later without rereading the full history.',
     'Use candidateBranches only for likely side lines that would be worth splitting into their own branch later. Keep each item short and actionable. Do not list every sub-question.',
     normalized?.mode === 'project'

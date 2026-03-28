@@ -72,6 +72,9 @@ try {
   assert.match(welcomeApp?.systemPrompt || '', /project mechanics|project structure|folders, notes/i);
   assert.match(welcomeApp?.systemPrompt || '', /durable knowledge|repeat themselves/i);
   assert.match(welcomeApp?.systemPrompt || '', /task_card|hidden <private>|mode, summary, goal/i);
+  assert.match(welcomeApp?.systemPrompt || '', /Do not escape the slash as <\\\/task_card> or <\\\/private>/i);
+  assert.match(welcomeApp?.systemPrompt || '', /task-bar title rather than a full sentence description/i);
+  assert.match(welcomeApp?.systemPrompt || '', /no more than 10 Chinese characters/i);
   assert.match(welcomeApp?.systemPrompt || '', /needsFromUser|rawMaterials|knownConclusions/i);
   assert.match(welcomeApp?.welcomeMessage || '', /原始材料|Excel|PPT|项目方式/u);
   assert.match(welcomeApp?.welcomeMessage || '', /记下关键背景|偏好|下一步/u);

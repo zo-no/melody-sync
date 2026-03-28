@@ -224,7 +224,8 @@ async function main() {
     assert.doesNotMatch(page.text, /id="sourceFilterSelect"/);
     assert.doesNotMatch(page.text, /id="sessionAppFilterSelect"/);
     assert.doesNotMatch(page.text, /id="userFilterSelect"/);
-    assert.doesNotMatch(page.text, /id="sortSessionListBtn"/);
+    assert.match(page.text, /id="sortSessionListBtn"/, 'chat page should keep the dedicated task-list organizing entry');
+    assert.match(page.text, /https:\/\/github\.com\/zo-no\/melody-sync/, 'chat page footer should point at the real open-source repository');
     assert.doesNotMatch(page.text, /id="settingsAppsList"/);
     assert.doesNotMatch(page.text, /id="tabBoard"/);
     assert.doesNotMatch(page.text, /id="boardPanel"/);
@@ -246,6 +247,7 @@ async function main() {
     assert.doesNotMatch(page.text, /id="tabProgress"/);
     assert.doesNotMatch(page.text, /id="saveTemplateBtn"/);
     assert.doesNotMatch(page.text, /id="sessionTemplateSelect"/);
+    assert.match(page.text, /id="questTaskList"/, 'chat page should ship the compressed task-list mount for the session header');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');

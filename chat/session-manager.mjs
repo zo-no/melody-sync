@@ -106,6 +106,9 @@ import {
   buildTaskCardPromptBlock,
   normalizeSessionTaskCard,
   parseTaskCardFromAssistantContent,
+  shouldSurfaceTaskCardBranchCandidate,
+  taskCardHasIndependentBranchGoal,
+  taskCardIndicatesIntentShift,
 } from './session-task-card.mjs';
 import {
   getPrimaryScheduledTrigger,
@@ -2767,10 +2770,18 @@ async function maybeApplyAssistantTaskCard(sessionId, runId, session = null) {
     for (const branchTitle of taskCard.candidateBranches || []) {
       const normalizedTitle = String(branchTitle || '').trim().toLowerCase();
       if (!normalizedTitle || previousCandidates.has(normalizedTitle)) continue;
+      const intentShift = taskCardIndicatesIntentShift(taskCard, branchTitle);
+      const independentGoal = taskCardHasIndependentBranchGoal(taskCard, branchTitle);
+      if (!shouldSurfaceTaskCardBranchCandidate(taskCard, branchTitle)) {
+        continue;
+      }
       await appendEvent(sessionId, statusEvent(`已记住支线：${branchTitle}`, {
         statusKind: 'branch_candidate',
         branchTitle,
         branchReason: taskCard.branchReason || '',
+        autoSuggested: true,
+        intentShift,
+        independentGoal,
         sourceSeq: Number.isInteger(latestUserEvent?.seq) ? latestUserEvent.seq : undefined,
       }));
     }

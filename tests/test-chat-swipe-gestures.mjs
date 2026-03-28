@@ -156,9 +156,19 @@ const centerRightResult = await runSwipe(centerRightHarness, {
   moveX: 258,
   endX: 286,
 });
-assert.equal(centerRightResult.prevented, true, 'deliberate center-right swipe should lock the gesture');
-assert.equal(centerRightHarness.context.openSessionsSidebarCalls, 1, 'swiping right from the middle should open the session list');
-assert.equal(centerRightHarness.context.createNewSessionShortcutCalls, 0, 'right swipe should not create a new session');
+assert.equal(centerRightResult.prevented, false, 'center-right swipe should no longer steal scrolling');
+assert.equal(centerRightHarness.context.openSessionsSidebarCalls, 0, 'swiping right from the middle should not open the session list');
+assert.equal(centerRightHarness.context.createNewSessionShortcutCalls, 0, 'center-right swipe should not create a new session');
+
+const edgeRightHarness = createHarness();
+const edgeRightResult = await runSwipe(edgeRightHarness, {
+  startX: 20,
+  moveX: 92,
+  endX: 118,
+});
+assert.equal(edgeRightResult.prevented, true, 'right-edge swipe should lock the gesture');
+assert.equal(edgeRightHarness.context.openSessionsSidebarCalls, 1, 'swiping right from the left edge should open the session list');
+assert.equal(edgeRightHarness.context.createNewSessionShortcutCalls, 0, 'right-edge swipe should not create a new session');
 
 const centerLeftHarness = createHarness();
 const centerLeftResult = await runSwipe(centerLeftHarness, {
@@ -166,9 +176,19 @@ const centerLeftResult = await runSwipe(centerLeftHarness, {
   moveX: 132,
   endX: 104,
 });
-assert.equal(centerLeftResult.prevented, true, 'deliberate center-left swipe should lock the gesture');
-assert.equal(centerLeftHarness.context.openSessionsSidebarCalls, 0, 'left swipe should not open the session list');
-assert.equal(centerLeftHarness.context.createNewSessionShortcutCalls, 1, 'swiping left from the middle should create a new session');
+assert.equal(centerLeftResult.prevented, false, 'center-left swipe should no longer steal scrolling');
+assert.equal(centerLeftHarness.context.openSessionsSidebarCalls, 0, 'left swipe from the middle should not open the session list');
+assert.equal(centerLeftHarness.context.createNewSessionShortcutCalls, 0, 'left swipe from the middle should not create a new session');
+
+const edgeLeftHarness = createHarness();
+const edgeLeftResult = await runSwipe(edgeLeftHarness, {
+  startX: 370,
+  moveX: 304,
+  endX: 280,
+});
+assert.equal(edgeLeftResult.prevented, true, 'left-edge swipe should lock the gesture');
+assert.equal(edgeLeftHarness.context.openSessionsSidebarCalls, 0, 'left-edge swipe should not open the session list');
+assert.equal(edgeLeftHarness.context.createNewSessionShortcutCalls, 1, 'swiping left from the right edge should create a new session');
 
 const verticalHarness = createHarness();
 const verticalResult = await runSwipe(verticalHarness, {

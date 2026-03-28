@@ -89,6 +89,7 @@ function createHarness({
   userCounts = {},
   appCatalog = [],
   availableUsers = [],
+  hasLoadedUsers = true,
   activeSourceFilter = '__all__',
   activeSessionAppFilter = '__all__',
   activeUserFilter = 'user_admin',
@@ -113,6 +114,7 @@ function createHarness({
     visitorMode: false,
     activeTab: 'sessions',
     hasLoadedSessions: true,
+    hasLoadedUsers,
     activeSourceFilter,
     activeSessionAppFilter,
     activeUserFilter,
@@ -254,6 +256,22 @@ function createHarness({
     ['__all__', 'app_alpha', 'app_beta'],
     'app filter should omit apps that currently have no matching sessions',
   );
+}
+
+{
+  const { context, state } = createHarness({
+    userCounts: {
+      __all_users__: 2,
+      user_admin: 0,
+      user_alpha: 2,
+    },
+    availableUsers: [],
+    hasLoadedUsers: false,
+    activeUserFilter: 'user_alpha',
+  });
+  context.renderUserFilterOptions();
+  assert.equal(context.activeUserFilter, 'user_alpha', 'user filter should not reset before the user catalog has loaded');
+  assert.deepEqual(state.persistedUser, [], 'user filter should not persist a fallback while the user catalog is still unavailable');
 }
 
 {

@@ -4,12 +4,12 @@ This folder keeps the current MelodySync product-planning documents inside the r
 
 These files are the repo-internal copies of the working docs that also live in the Obsidian project folder:
 
-- `product-description.md` — unified product description for the current iteration cycle
+- `product-description.md` — unified product description for the current iteration cycle, including the current `v0.1.0` interaction baseline
 - `product-idea.md` — copy of `产品思路.md`
 - `project-plan.md` — copy of `项目规划.md`
 - `mvp-implementation-plan.md` — copy of `MVP实现方案.md`
 - `prd-work-continuity-mvp.md` — copy of `MelodySync PRD｜工作连续性 MVP.md`
-- `task-list-design.md` — product/UI design for replacing the old session list with a task list
+- `task-list-design.md` — product/UI design for the left task list and top task bar split
 - `task-branch-lifecycle.md` — current shipped implementation note for mainline/branch lifecycle, task bar behavior, task clusters, and minimal verification flow
 
 Use these docs by role:

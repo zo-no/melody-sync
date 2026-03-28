@@ -51,8 +51,8 @@ let activeUserFilter = normalizeUserFilter(
 
 function registerHiddenMarkdownExtensions() {
   const hiddenTagStart = /<(private|hide)\b/i;
-  const hiddenBlockPattern = /^(?: {0,3})<(private|hide)\b[^>]*>[\s\S]*?<\/\1>(?:\n+|$)/i;
-  const hiddenInlinePattern = /^<(private|hide)\b[^>]*>[\s\S]*?<\/\1>/i;
+  const hiddenBlockPattern = /^(?: {0,3})<(private|hide)\b[^>]*>[\s\S]*?<(?:\\\/|\/)\1>(?:\n+|$)/i;
+  const hiddenInlinePattern = /^<(private|hide)\b[^>]*>[\s\S]*?<(?:\\\/|\/)\1>/i;
   marked.use({
     extensions: [
       {
@@ -592,9 +592,11 @@ function renderUserFilterOptions() {
     return;
   }
 
+  const usersCatalogReady = hasLoadedUsers === true || availableUsers.length > 0;
   const availableUserIds = new Set(availableUsers.map((user) => user.id));
   if (
-    activeUserFilter !== USER_FILTER_ALL_VALUE
+    usersCatalogReady
+    && activeUserFilter !== USER_FILTER_ALL_VALUE
     && activeUserFilter !== ADMIN_USER_FILTER_VALUE
     && !availableUserIds.has(activeUserFilter)
   ) {
@@ -604,7 +606,8 @@ function renderUserFilterOptions() {
 
   const catalog = getVisibleUserFilterCatalog();
   if (
-    catalog.length > 0
+    usersCatalogReady
+    && catalog.length > 0
     && activeUserFilter !== USER_FILTER_ALL_VALUE
     && !catalog.some((entry) => entry.value === activeUserFilter)
   ) {

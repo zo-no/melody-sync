@@ -193,24 +193,7 @@ function createComposerAttachmentPreviewNode(attachment) {
 }
 
 function appendWorkbenchBranchAction(container, evt) {
-  if (!container || !evt || evt.type !== "message") return;
-  const branchText = typeof evt.content === "string" && evt.content.trim()
-    ? evt.content.trim()
-    : (typeof evt.bodyPreview === "string" && evt.bodyPreview.trim() ? evt.bodyPreview.trim() : "");
-  if (!branchText) return;
-  if (!window.MelodySyncWorkbench || typeof window.MelodySyncWorkbench.openManualBranchFromText !== "function") return;
-  if (typeof window.MelodySyncWorkbench.canOpenManualBranch === "function" && !window.MelodySyncWorkbench.canOpenManualBranch()) {
-    return;
-  }
-
-  const actions = document.createElement("div");
-  actions.className = "msg-inline-actions";
-  if (Number.isInteger(evt.seq) && evt.seq > 0) {
-    actions.dataset.sourceSeq = String(evt.seq);
-  }
-  actions.dataset.branchText = branchText;
-  container.appendChild(actions);
-  ensureBranchSuggestionGroup(actions);
+  return;
 }
 
 function createManualBranchSuggestionItem(branchText) {
@@ -226,7 +209,7 @@ function createManualBranchSuggestionItem(branchText) {
 
   const title = document.createElement("div");
   title.className = "quest-branch-suggestion-title";
-  title.textContent = "按这段内容开启支线任务";
+  title.textContent = "如需单独展开";
   main.appendChild(title);
 
   const actions = document.createElement("div");
@@ -235,12 +218,12 @@ function createManualBranchSuggestionItem(branchText) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "quest-branch-btn quest-branch-btn-primary";
-  button.textContent = "开启支线任务";
+  button.textContent = "单独展开";
   button.addEventListener("click", async () => {
     button.disabled = true;
     try {
       await window.MelodySyncWorkbench.openManualBranchFromText(branchText, {
-        checkpointSummary: "从当前消息继续展开这条支线",
+        checkpointSummary: "从这条回复继续",
       });
     } finally {
       button.disabled = false;
@@ -267,7 +250,7 @@ function ensureBranchSuggestionGroup(host) {
 
   const label = document.createElement("div");
   label.className = "quest-branch-suggestion-group-label";
-  label.textContent = "支线任务建议";
+  label.textContent = "新目标";
   group.appendChild(label);
 
   const list = document.createElement("div");
@@ -878,9 +861,9 @@ function renderReasoning(evt) {
 function renderStatusInto(container, evt) {
   if (!container) return null;
   if (evt?.statusKind === "branch_candidate" && window.MelodySyncWorkbench?.createBranchSuggestionItem) {
-    const item = window.MelodySyncWorkbench.createBranchSuggestionItem(evt);
-    if (item) {
-      const host = findBranchSuggestionHost(Number.isInteger(evt?.sourceSeq) ? evt.sourceSeq : 0) || container;
+      const item = window.MelodySyncWorkbench.createBranchSuggestionItem(evt);
+      if (item) {
+      const host = container;
       let group = host.classList?.contains("msg-inline-actions")
         ? ensureBranchSuggestionGroup(host)
         : host.lastElementChild;
@@ -890,7 +873,7 @@ function renderStatusInto(container, evt) {
 
         const label = document.createElement("div");
         label.className = "quest-branch-suggestion-group-label";
-        label.textContent = "支线任务建议";
+        label.textContent = "新目标";
         group.appendChild(label);
 
         const list = document.createElement("div");

@@ -389,6 +389,9 @@ function applyOptimisticSessionArchiveState(sessionId, archived) {
     archivedSessionCount = Math.max(0, archivedSessionCount - 1);
   }
   sessions[index] = next;
+  if (typeof assignSessionListOrderHints === "function") {
+    assignSessionListOrderHints(sessions, new Map([[sessionId, previous]]));
+  }
   sortSessionsInPlace();
   refreshAppCatalog();
   if (currentSessionId === sessionId) {
@@ -426,6 +429,9 @@ function restoreOptimisticSessionSnapshot(session) {
     sessions.push(session);
   } else {
     sessions[index] = session;
+  }
+  if (typeof assignSessionListOrderHints === "function") {
+    assignSessionListOrderHints(sessions, current ? new Map([[session.id, current]]) : null);
   }
   sortSessionsInPlace();
   refreshAppCatalog();

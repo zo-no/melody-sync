@@ -190,6 +190,13 @@
     return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
   }
 
+  function normalizeSessionLocalListOrder(value) {
+    const parsed = typeof value === "number"
+      ? value
+      : Number.parseInt(String(value || "").trim(), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+  }
+
   function normalizeSessionActivity(session) {
     const raw = session?.activity || {};
     const rawRunState = raw?.run?.state;
@@ -359,8 +366,24 @@
   function compareSessionListSessions(a, b) {
     const sidebarOrderA = normalizeSessionSidebarOrder(a?.sidebarOrder);
     const sidebarOrderB = normalizeSessionSidebarOrder(b?.sidebarOrder);
-    if (sidebarOrderA && sidebarOrderB && sidebarOrderA !== sidebarOrderB) {
+    const hasSidebarOrderA = sidebarOrderA > 0;
+    const hasSidebarOrderB = sidebarOrderB > 0;
+    if (hasSidebarOrderA && hasSidebarOrderB && sidebarOrderA !== sidebarOrderB) {
       return sidebarOrderA - sidebarOrderB;
+    }
+    if (hasSidebarOrderA !== hasSidebarOrderB) {
+      return hasSidebarOrderA ? -1 : 1;
+    }
+
+    const localOrderA = normalizeSessionLocalListOrder(a?._sessionListOrder);
+    const localOrderB = normalizeSessionLocalListOrder(b?._sessionListOrder);
+    const hasLocalOrderA = localOrderA > 0;
+    const hasLocalOrderB = localOrderB > 0;
+    if (hasLocalOrderA && hasLocalOrderB && localOrderA !== localOrderB) {
+      return localOrderA - localOrderB;
+    }
+    if (hasLocalOrderA !== hasLocalOrderB) {
+      return hasLocalOrderA ? -1 : 1;
     }
 
     const attentionBandDiff = getSessionAttentionBand(a) - getSessionAttentionBand(b);

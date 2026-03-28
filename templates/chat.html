@@ -26,7 +26,7 @@
 <!-- Header -->
 <div class="header">
   <button class="header-btn" id="menuBtn" title="Tasks" aria-label="Tasks" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
-  <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync Chat</h1>
+  <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync</h1>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
@@ -56,15 +56,17 @@
   <main class="chat-area">
     <section class="quest-tracker" id="questTracker" hidden>
       <div class="quest-tracker-main">
-        <div class="quest-tracker-label" id="questTrackerLabel">主线任务</div>
-        <div class="quest-tracker-title" id="questTrackerTitle">开始和agent对话吧</div>
+        <div class="quest-tracker-label" id="questTrackerLabel">任务列表</div>
+        <div class="quest-tracker-title" id="questTrackerTitle" hidden></div>
         <div class="quest-tracker-branch" id="questTrackerBranch" hidden>
           <div class="quest-tracker-branch-label" id="questTrackerBranchLabel">来自主线</div>
           <div class="quest-tracker-branch-title" id="questTrackerBranchTitle"></div>
         </div>
         <div class="quest-tracker-next" id="questTrackerNext" hidden></div>
+        <div class="quest-task-list" id="questTaskList" hidden></div>
       </div>
-      <div class="quest-tracker-actions">
+      <div class="quest-tracker-actions" id="questTrackerActions">
+        <button class="quest-tracker-toggle" id="questTrackerToggleBtn" type="button" hidden>子任务</button>
         <button class="quest-tracker-btn" id="questTrackerCloseBtn" type="button" hidden>结束子任务</button>
         <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerAltBtn" type="button" hidden>完成但不回主线</button>
         <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerBackBtn" type="button" hidden>完成当前任务</button>
@@ -130,7 +132,7 @@
         <div class="composer-pending-state" id="composerPendingState" aria-live="polite"></div>
       </div>
       <div class="input-footer">
-        <a href="https://github.com/YOUR_GITHUB_USERNAME/melody-sync" target="_blank" rel="noreferrer noopener" data-i18n="footer.openSource">Open source on GitHub ↗</a>
+        <a href="https://github.com/zo-no/melody-sync" target="_blank" rel="noreferrer noopener" data-i18n="footer.openSource">Open source on GitHub ↗</a>
         <span class="input-footer-tagline" data-i18n="footer.tagline">Built with AI &amp; ❤️</span>
       </div>
     </div>

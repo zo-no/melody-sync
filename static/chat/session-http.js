@@ -381,6 +381,49 @@ function markSessionReviewed(session, { sync = false, render = true } = {}) {
   return syncSessionReviewedToServer(session);
 }
 
+function normalizeSessionLocalListOrder(value) {
+  const parsed = typeof value === "number"
+    ? value
+    : Number.parseInt(String(value || "").trim(), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function normalizeSessionSidebarOrderValue(value) {
+  const parsed = typeof value === "number"
+    ? value
+    : Number.parseInt(String(value || "").trim(), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function assignSessionListOrderHints(entries = [], previousMap = null) {
+  const previousOrders = previousMap instanceof Map
+    ? [...previousMap.values()].map((session) => normalizeSessionLocalListOrder(session?._sessionListOrder))
+    : [];
+  let nextOrder = Math.max(
+    0,
+    ...entries.map((session) => normalizeSessionLocalListOrder(session?._sessionListOrder)),
+    ...previousOrders,
+  ) + 1;
+
+  for (const session of Array.isArray(entries) ? entries : []) {
+    if (!session?.id || session.archived === true) continue;
+    if (normalizeSessionSidebarOrderValue(session?.sidebarOrder)) {
+      delete session._sessionListOrder;
+      continue;
+    }
+    const currentOrder = normalizeSessionLocalListOrder(session?._sessionListOrder);
+    if (currentOrder) continue;
+    const previousOrder = previousMap instanceof Map
+      ? normalizeSessionLocalListOrder(previousMap.get(session.id)?._sessionListOrder)
+      : 0;
+    session._sessionListOrder = previousOrder || nextOrder;
+    if (!previousOrder) {
+      nextOrder += 1;
+    }
+  }
+  return entries;
+}
+
 function normalizeSessionRecord(session, previous = null) {
   const queueCount = Number.isInteger(session?.activity?.queue?.count)
     ? session.activity.queue.count
@@ -437,6 +480,14 @@ function normalizeSessionRecord(session, previous = null) {
   } else {
     delete normalized.reviewBaselineAt;
   }
+  if (!normalizeSessionSidebarOrderValue(normalized.sidebarOrder)) {
+    const previousOrder = normalizeSessionLocalListOrder(previous?._sessionListOrder);
+    if (previousOrder) {
+      normalized._sessionListOrder = previousOrder;
+    }
+  } else {
+    delete normalized._sessionListOrder;
+  }
   return normalized;
 }
 
@@ -450,6 +501,7 @@ function upsertSession(session) {
   } else {
     sessions[index] = normalized;
   }
+  assignSessionListOrderHints(sessions, previous ? new Map([[session.id, previous]]) : null);
   sortSessionsInPlace();
   refreshAppCatalog();
   return normalized;
@@ -562,6 +614,7 @@ async function fetchUsersList() {
   if (visitorMode) return [];
   const data = await fetchJsonOrRedirect("/api/users");
   availableUsers = Array.isArray(data.users) ? data.users : [];
+  hasLoadedUsers = true;
   refreshAppCatalog();
   if (typeof renderSettingsUsersPanel === "function") {
     renderSettingsUsersPanel();
@@ -666,7 +719,6 @@ function applyAttachedSessionState(id, session) {
   dropToolsBtn.style.display = "none";
 
   const displayName = getSessionDisplayName(session);
-  headerTitle.textContent = displayName;
   if (typeof shareSnapshotMode !== "undefined" && shareSnapshotMode) {
     const titleSuffix = getShareSnapshotViewValue("titleSuffix", "Shared Snapshot");
     document.title = `${displayName} · ${titleSuffix}`;

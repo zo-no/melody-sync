@@ -34,8 +34,8 @@ const text = isWorkflowPrompt
       '  "nextSteps": ["检查 Excel 结构", "整理第一版摘要"],',
       '  "memory": ["用户不想先写长说明。"],',
       '  "needsFromUser": ["若字段含义不清，再补一个目标样例。"]',
-      '}</task_card>',
-      '</private>',
+      '}<\\/task_card>',
+      '<\\/private>',
     ].join(String.fromCharCode(10));
 
 console.log(JSON.stringify({ type: 'thread.started', thread_id: isWorkflowPrompt ? 'workflow-thread' : 'run-thread' }));

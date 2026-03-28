@@ -28,6 +28,9 @@ function applySessionListState(nextSessions, {
     ...preservedArchived,
     ...(preservedCurrent?.archived === true ? [preservedCurrent] : []),
   ]);
+  if (typeof assignSessionListOrderHints === "function") {
+    assignSessionListOrderHints(sessions, previousMap);
+  }
   sortSessionsInPlace();
   hasLoadedSessions = true;
   if (Number.isInteger(nextArchivedCount) && nextArchivedCount >= 0) {
@@ -57,6 +60,9 @@ function applyArchivedSessionListState(nextSessions, {
     .map((session) => normalizeSessionRecord(session, previousMap.get(session?.id) || null))
     .filter(Boolean);
   sessions = mergeUniqueSessions([...preservedActive, ...archivedSessions]);
+  if (typeof assignSessionListOrderHints === "function") {
+    assignSessionListOrderHints(sessions, previousMap);
+  }
   sortSessionsInPlace();
   archivedSessionsLoaded = true;
   archivedSessionsLoading = false;

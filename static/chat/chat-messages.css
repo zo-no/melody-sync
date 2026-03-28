@@ -503,11 +503,16 @@
   align-items: flex-start;
   justify-content: flex-start;
   text-align: left;
-  padding: 10px 4px 0;
+  padding: 4px 4px 0;
   border-radius: 0;
   border: none;
   background: transparent;
   box-shadow: none;
+}
+
+.empty-state.quest-empty-state h2[hidden],
+.empty-state.quest-empty-state p[hidden] {
+  display: none !important;
 }
 
 .empty-state.quest-empty-state h2 {
@@ -519,6 +524,10 @@
 
 .empty-state.quest-empty-state p {
   max-width: min(100%, 560px);
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
 }
 
 .msg-user {

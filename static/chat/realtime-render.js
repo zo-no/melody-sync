@@ -369,8 +369,8 @@ function cleanBase64TextForDisplay(text) {
 
 function stripHiddenDisplayBlocks(text) {
   return String(text || "")
-    .replace(/<private>[\s\S]*?<\/private>/gi, "")
-    .replace(/<hide>[\s\S]*?<\/hide>/gi, "")
+    .replace(/<private>[\s\S]*?<(?:\\\/|\/)private>/gi, "")
+    .replace(/<hide>[\s\S]*?<(?:\\\/|\/)hide>/gi, "")
     .trim();
 }
 

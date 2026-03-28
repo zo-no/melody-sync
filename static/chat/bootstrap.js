@@ -152,7 +152,7 @@ async function clearFrontendCaches() {
 function updateFrontendRefreshUi() {
   if (!refreshFrontendBtn) return;
   const hasUpdate = !!newerBuildInfo?.assetVersion;
-  refreshFrontendBtn.hidden = !hasUpdate;
+  refreshFrontendBtn.hidden = false;
   refreshFrontendBtn.classList.toggle("ready", hasUpdate);
   const updateTitle = hasUpdate
     ? bootstrapT("status.frontendUpdateReady")
@@ -291,6 +291,7 @@ const copyProviderPromptBtn = document.getElementById("copyProviderPromptBtn");
 refreshFrontendBtn?.addEventListener("click", () => {
   void reloadForFreshBuild(newerBuildInfo);
 });
+updateFrontendRefreshUi();
 
 let ws = null;
 let pendingImages = [];
@@ -372,6 +373,7 @@ let sessions = [];
 let sessionAppCatalog = [];
 let availableApps = [];
 let availableUsers = [];
+let hasLoadedUsers = false;
 let hasLoadedSessions = false;
 let archivedSessionCount = 0;
 let archivedSessionsLoaded = false;

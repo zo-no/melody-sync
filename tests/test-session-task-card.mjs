@@ -5,6 +5,7 @@ import {
   buildTaskCardPromptBlock,
   normalizeSessionTaskCard,
   parseTaskCardFromAssistantContent,
+  shouldSurfaceTaskCardBranchCandidate,
 } from '../chat/session-task-card.mjs';
 
 const normalized = normalizeSessionTaskCard({
@@ -40,12 +41,31 @@ assert.equal(parsed?.mode, 'task');
 assert.equal(parsed?.summary, '先做一版轻量整理，再决定是否进入项目态。');
 assert.deepEqual(parsed?.nextSteps, ['检查字段', '给出样例输出']);
 
+const parsedEscaped = parseTaskCardFromAssistantContent([
+  '继续推进。',
+  '<private>',
+  '<task_card>{',
+  '  "mode": "task",',
+  '  "goal": "修复隐藏块兼容性。",',
+  '  "lineRole": "main",',
+  '  "nextSteps": ["兼容 <\\\\/task_card>"]',
+  '}<\\/task_card>',
+  '<\\/private>',
+].join('\n'));
+
+assert.equal(parsedEscaped?.goal, '修复隐藏块兼容性。');
+assert.deepEqual(parsedEscaped?.nextSteps, ['兼容 <\\/task_card>']);
+
 const promptBlock = buildTaskCardPromptBlock(parsed);
 assert.match(promptBlock, /Current carried task card/);
 assert.match(promptBlock, /Execution mode: task/);
 assert.match(promptBlock, /Raw materials:/);
 assert.match(promptBlock, /weekly\.xlsx/);
 assert.match(promptBlock, /Durable user memory:/);
+assert.match(promptBlock, /Do not escape the slash as <\\\/task_card> or <\\\/private>/);
+assert.match(promptBlock, /task-bar title rather than a full sentence description/);
+assert.match(promptBlock, /no more than 10 Chinese characters/i);
+assert.match(promptBlock, /Prefer a compact verb \+ object form/);
 
 const inferredProject = normalizeSessionTaskCard({
   summary: '材料较多，需要拆步骤推进。',
@@ -54,5 +74,49 @@ const inferredProject = normalizeSessionTaskCard({
 });
 
 assert.equal(inferredProject?.mode, 'project');
+
+assert.equal(
+  shouldSurfaceTaskCardBranchCandidate({
+    goal: '完成首页插画',
+    mainGoal: '完成首页插画',
+    branchReason: '继续把首页插画细化一下',
+    nextSteps: ['把首页插画细化一版'],
+  }, '首页插画'),
+  false,
+  'same-goal follow-ups should stay in next-step instead of surfacing a branch suggestion',
+);
+
+assert.equal(
+  shouldSurfaceTaskCardBranchCandidate({
+    goal: '完成首页插画',
+    mainGoal: '完成首页插画',
+    branchReason: '补充一下光影和色彩说明',
+    nextSteps: ['补充光影和色彩说明'],
+  }, '光影补充'),
+  false,
+  'related supplements should stay in the current goal instead of surfacing a branch suggestion',
+);
+
+assert.equal(
+  shouldSurfaceTaskCardBranchCandidate({
+    goal: '完成首页插画',
+    mainGoal: '完成首页插画',
+    branchReason: '这条线已经偏离当前首页插画目标，需要单独展开成角色设定专题',
+    nextSteps: ['先把首页插画完成'],
+  }, '角色设定专题'),
+  true,
+  'explicit goal shifts with an independent topic should surface a branch suggestion',
+);
+
+assert.equal(
+  shouldSurfaceTaskCardBranchCandidate({
+    goal: '完成首页插画',
+    mainGoal: '完成首页插画',
+    branchReason: '把构图、光影、配色一起再优化一轮',
+    nextSteps: ['优化构图、光影和配色'],
+  }, '构图优化'),
+  false,
+  'multiple related refinements inside the same goal should not surface a branch suggestion',
+);
 
 console.log('test-session-task-card: ok');

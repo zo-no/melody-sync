@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const realtimeSource = readFileSync(join(repoRoot, 'static', 'chat', 'realtime.js'), 'utf8');
+const realtimeSource = readFileSync(join(repoRoot, 'static', 'chat', 'realtime-render.js'), 'utf8');
 const uiSource = readFileSync(join(repoRoot, 'static', 'chat', 'ui.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
@@ -84,6 +84,12 @@ assert.equal(
   context.formatDecodedDisplayText('Visible text\n<private>internal only</private>\nTail'),
   'Visible text\n\nTail',
   'display formatting should strip hidden UI blocks before rendering visible text',
+);
+
+assert.equal(
+  context.formatDecodedDisplayText('Visible text\n<private>internal only<\\/private>\nTail'),
+  'Visible text\n\nTail',
+  'display formatting should also strip hidden UI blocks when the closing tag slash is escaped',
 );
 
 const node = { innerHTML: '', textContent: '' };

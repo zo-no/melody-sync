@@ -7,7 +7,7 @@
 
   const translations = {
     en: {
-      "app.chatTitle": "MelodySync Chat",
+      "app.chatTitle": "MelodySync",
       "nav.sessions": "Tasks",
       "nav.settings": "Settings",
       "action.fork": "Fork",
@@ -278,7 +278,7 @@
       "workflow.status.unreadTitle": "Updated since you last reviewed this task",
     },
     "zh-CN": {
-      "app.chatTitle": "MelodySync 对话",
+      "app.chatTitle": "MelodySync",
       "nav.sessions": "任务",
       "nav.settings": "设置",
       "action.fork": "分叉",
