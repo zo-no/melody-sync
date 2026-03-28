@@ -47,8 +47,14 @@ function renderSessionList() {
   }
 
   const showGroupHeaders = groups.size > 1 || pinnedClusters.length > 0;
+  const orderedGroups = [...groups.entries()].sort(([, left], [, right]) => {
+    const leftOrder = Number.isInteger(left?.order) ? left.order : 999;
+    const rightOrder = Number.isInteger(right?.order) ? right.order : 999;
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+    return String(left?.label || "").localeCompare(String(right?.label || ""));
+  });
 
-  for (const [groupKey, groupEntry] of groups) {
+  for (const [groupKey, groupEntry] of orderedGroups) {
     const taskClusters = groupEntry.clusters;
     const group = document.createElement("div");
     group.className = "folder-group" + (showGroupHeaders ? "" : " is-ungrouped");
@@ -85,87 +91,11 @@ function renderSessionList() {
     sessionList.appendChild(group);
   }
 
-  renderArchivedSection();
 }
 
 function renderArchivedSection() {
-  const archivedSessions = getVisibleArchivedSessions();
   const existing = document.getElementById("archivedSection");
   if (existing) existing.remove();
-
-  const section = document.createElement("div");
-  section.id = "archivedSection";
-  section.className = "archived-section";
-
-  const header = document.createElement("div");
-  header.className = "archived-section-header";
-  const isCollapsed = localStorage.getItem("archivedCollapsed") !== "false";
-  if (isCollapsed) header.classList.add("collapsed");
-  const archivedCount = archivedSessionsLoaded ? archivedSessions.length : archivedSessionCount;
-  header.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span><span class="archived-label">${esc(t("sidebar.archive"))}</span><span class="folder-count">${archivedCount}</span>`;
-  header.addEventListener("click", () => {
-    header.classList.toggle("collapsed");
-    localStorage.setItem("archivedCollapsed", header.classList.contains("collapsed") ? "true" : "false");
-    if (!header.classList.contains("collapsed") && !archivedSessionsLoaded && !archivedSessionsLoading && archivedSessionCount > 0) {
-      Promise.resolve(fetchArchivedSessions()).catch((error) => {
-        console.warn("[sessions] Failed to load archived sessions:", error.message);
-      });
-    }
-  });
-
-  const items = document.createElement("div");
-  items.className = "archived-items";
-
-  if (!isCollapsed && !archivedSessionsLoaded && archivedSessionCount > 0) {
-    if (!archivedSessionsLoading) {
-      Promise.resolve(fetchArchivedSessions()).catch((error) => {
-        console.warn("[sessions] Failed to load archived sessions:", error.message);
-      });
-    }
-    const loading = document.createElement("div");
-    loading.className = "archived-empty";
-    loading.textContent = archivedSessionsLoading
-      ? t("sidebar.loadingArchived")
-      : t("sidebar.loadArchived");
-    items.appendChild(loading);
-  } else if (archivedSessions.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "archived-empty";
-    empty.textContent = getFilteredSessionEmptyText({ archived: true });
-    items.appendChild(empty);
-  } else {
-    for (const s of archivedSessions) {
-      const div = document.createElement("div");
-      div.className =
-        "session-item archived-item" + (s.id === currentSessionId ? " active" : "");
-      const displayName = getSessionDisplayName(s);
-      const groupInfo = getSessionGroupInfo(s);
-      const shortFolder = getShortFolder(s.folder || "");
-      const date = s.archivedAt ? new Date(s.archivedAt).toLocaleDateString() : "";
-      div.innerHTML = `
-        <div class="session-item-info">
-          <div class="session-item-name">${esc(displayName)}</div>
-          <div class="session-item-meta"><span title="${esc(shortFolder || groupInfo.title)}">${esc(groupInfo.label)}</span>${date ? ` · ${date}` : ""}</div>
-        </div>
-        <div class="session-item-actions">
-          <button class="session-action-btn restore" type="button" title="${esc(t("action.restore"))}" aria-label="${esc(t("action.restore"))}" data-id="${s.id}">${renderUiIcon("unarchive")}</button>
-        </div>`;
-      div.addEventListener("click", (e) => {
-        if (e.target.closest(".session-action-btn")) return;
-        attachSession(s.id, s);
-        if (!isDesktop) closeSidebarFn();
-      });
-      div.querySelector(".restore").addEventListener("click", (e) => {
-        e.stopPropagation();
-        dispatchAction({ action: "unarchive", sessionId: s.id });
-      });
-      items.appendChild(div);
-    }
-  }
-
-  section.appendChild(header);
-  section.appendChild(items);
-  sessionList.appendChild(section);
 }
 
 function startRename(itemEl, session) {

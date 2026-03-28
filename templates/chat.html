@@ -45,7 +45,10 @@
       </div>
       <div class="sidebar-list" id="sessionList"></div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
-      <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">开启任务</button>
+      <div class="session-list-actions">
+        <button class="new-session-btn secondary" id="sortSessionListBtn" type="button" data-i18n="sidebar.sortList">整理任务</button>
+        <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">开始任务</button>
+      </div>
     </aside>
   </div>
 
@@ -59,11 +62,29 @@
           <div class="quest-tracker-branch-label" id="questTrackerBranchLabel">来自主线</div>
           <div class="quest-tracker-branch-title" id="questTrackerBranchTitle"></div>
         </div>
-        <div class="quest-tracker-next" id="questTrackerNext" hidden>这里会压缩成一句最该继续的话。</div>
+        <div class="quest-tracker-next" id="questTrackerNext" hidden></div>
       </div>
       <div class="quest-tracker-actions">
+        <button class="quest-tracker-btn" id="questTrackerCloseBtn" type="button" hidden>结束子任务</button>
         <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerAltBtn" type="button" hidden>完成但不回主线</button>
         <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerBackBtn" type="button" hidden>完成当前任务</button>
+      </div>
+      <div class="quest-finish-panel" id="questFinishPanel" hidden>
+        <div class="quest-finish-panel-title">结束当前子任务</div>
+        <div class="quest-finish-panel-list">
+          <button class="quest-finish-option" id="questFinishResolveBtn" type="button">
+            <span class="quest-finish-option-title">直接关闭</span>
+            <span class="quest-finish-option-summary">这条子任务直接收口，回到主线，不带回结论。</span>
+          </button>
+          <button class="quest-finish-option" id="questFinishParkBtn" type="button">
+            <span class="quest-finish-option-title">挂起并回主线</span>
+            <span class="quest-finish-option-summary">先停住这条子任务，稍后可以继续处理。</span>
+          </button>
+          <button class="quest-finish-option" id="questFinishMergeBtn" type="button">
+            <span class="quest-finish-option-title">收尾并回主线</span>
+            <span class="quest-finish-option-summary">把当前结果带回主线，继续推进主任务。</span>
+          </button>
+        </div>
       </div>
     </section>
 

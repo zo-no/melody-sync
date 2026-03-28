@@ -21,6 +21,7 @@ import {
   compactSession,
   createSession,
   delegateSession,
+  deleteSessionPermanently,
   dropToolUse,
   forkSession,
   getHistory,
@@ -114,6 +115,7 @@ import {
   createProject as createWorkbenchProject,
   createProjectSummary,
   getWorkbenchSnapshot,
+  getWorkbenchTrackerSnapshot,
   mergeBranchSessionBackToMain,
   promoteCaptureItem,
   setBranchCandidateSuppressed,
@@ -1435,6 +1437,17 @@ export async function handleRequest(req, res) {
     return;
   }
 
+  if (pathname.startsWith('/api/workbench/') && req.method === 'GET') {
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'tracker') {
+      const sessionId = parts[3];
+      if (!requireSessionAccess(res, authSession, sessionId)) return;
+      const trackerSnapshot = await getWorkbenchTrackerSnapshot(sessionId);
+      writeJson(res, 200, trackerSnapshot);
+      return;
+    }
+  }
+
   if (pathname.startsWith('/api/workbench/') && req.method === 'POST') {
     const parts = pathname.split('/').filter(Boolean);
     let payload = {};
@@ -1751,6 +1764,27 @@ export async function handleRequest(req, res) {
       return;
     }
     writeJson(res, 200, { session: createClientSessionDetail(session) });
+    return;
+  }
+
+  if (pathname.startsWith('/api/sessions/') && req.method === 'DELETE') {
+    const parts = pathname.split('/').filter(Boolean);
+    const sessionId = parts[2];
+    if (parts.length !== 3 || parts[0] !== 'api' || parts[1] !== 'sessions' || !sessionId) {
+      writeJson(res, 400, { error: 'Invalid session path' });
+      return;
+    }
+    if (!requireSessionAccess(res, authSession, sessionId)) return;
+    const outcome = await deleteSessionPermanently(sessionId);
+    for (const deletedSessionId of Array.isArray(outcome?.deletedSessionIds) ? outcome.deletedSessionIds : []) {
+      const triggers = await listTriggers({ sessionId: deletedSessionId });
+      for (const trigger of triggers) {
+        if (trigger?.id) {
+          await deleteTrigger(trigger.id);
+        }
+      }
+    }
+    writeJson(res, 200, { deletedSessionIds: outcome?.deletedSessionIds || [] });
     return;
   }
 

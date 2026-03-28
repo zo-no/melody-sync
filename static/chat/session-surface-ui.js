@@ -36,10 +36,59 @@ function getTaskBranchDisplayName(session) {
 function getBranchStatusLabel(session) {
   const status = String(session?._branchStatus || "").toLowerCase();
   const name = getTaskBranchDisplayName(session);
-  if (status === "resolved") return `已完成：${name}`;
+  if (status === "resolved") return `已关闭：${name}`;
   if (status === "merged") return `已带回主线：${name}`;
-  if (status === "parked") return `已暂停：${name}`;
+  if (status === "parked") return `已挂起：${name}`;
   return t("sidebar.currentBranch", { name });
+}
+
+function getBranchLineageNames(rootSession, branchSession, branchSessions = []) {
+  const rootName = getSessionDisplayName(rootSession);
+  const branchMap = new Map((Array.isArray(branchSessions) ? branchSessions : [])
+    .filter((session) => session?.id)
+    .map((session) => [session.id, session]));
+  const lineage = [];
+  const visited = new Set();
+  let current = branchSession || null;
+
+  while (current?.id && !visited.has(current.id)) {
+    visited.add(current.id);
+    lineage.unshift(getTaskBranchDisplayName(current));
+    const parentId = typeof current?._branchParentSessionId === "string" ? current._branchParentSessionId.trim() : "";
+    if (!parentId || parentId === rootSession?.id) break;
+    current = branchMap.get(parentId) || null;
+  }
+
+  return [rootName, ...lineage].filter(Boolean);
+}
+
+function getBranchStatusValue(session) {
+  return String(session?._branchStatus || "active").toLowerCase();
+}
+
+function buildBranchStatusCounts(branches = []) {
+  const counts = {
+    active: 0,
+    parked: 0,
+    resolved: 0,
+    merged: 0,
+  };
+  for (const session of Array.isArray(branches) ? branches : []) {
+    const status = getBranchStatusValue(session);
+    if (Object.prototype.hasOwnProperty.call(counts, status)) {
+      counts[status] += 1;
+    }
+  }
+  return counts;
+}
+
+function buildBranchStatusSummary(counts) {
+  const parts = [];
+  if (counts.active > 0) parts.push(`进行中 ${counts.active}`);
+  if (counts.parked > 0) parts.push(`已挂起 ${counts.parked}`);
+  if (counts.resolved > 0) parts.push(`已关闭 ${counts.resolved}`);
+  if (counts.merged > 0) parts.push(`已带回主线 ${counts.merged}`);
+  return parts.join(" · ");
 }
 
 const TASK_CLUSTER_EXPANDED_STORAGE_KEY = "melodysyncTaskClusterExpanded";
@@ -391,22 +440,26 @@ function getFilteredSessionEmptyText({ archived = false } = {}) {
   return t("sidebar.noSessions");
 }
 
-function getSessionGroupInfo(session) {
-  const group = typeof session?.group === "string" ? session.group.trim() : "";
-  if (group) {
-    return {
-      key: `group:${group}`,
-      label: group,
-      title: group,
-    };
-  }
+const TASK_LIST_GROUPS = [
+  { id: "inbox", key: "group:inbox", label: () => t("sidebar.group.inbox"), aliases: ["收件箱", "inbox"] },
+  { id: "long_term", key: "group:long-term", label: () => t("sidebar.group.longTerm"), aliases: ["长期任务", "long-term", "long term"] },
+  { id: "short_term", key: "group:short-term", label: () => t("sidebar.group.shortTerm"), aliases: ["短期任务", "short-term", "short term"] },
+  { id: "knowledge_base", key: "group:knowledge-base", label: () => t("sidebar.group.knowledgeBase"), aliases: ["知识库内容", "knowledge-base", "knowledge base"] },
+  { id: "waiting", key: "group:waiting", label: () => t("sidebar.group.waiting"), aliases: ["等待任务", "waiting"] },
+];
 
-  const folder = session?.folder || "?";
-  const shortFolder = getShortFolder(folder);
+function resolveTaskListGroup(groupValue = "") {
+  const normalized = String(groupValue || "").replace(/\s+/g, " ").trim().toLowerCase();
+  return TASK_LIST_GROUPS.find((entry) => entry.aliases.includes(normalized)) || TASK_LIST_GROUPS[0];
+}
+
+function getSessionGroupInfo(session) {
+  const group = resolveTaskListGroup(typeof session?.group === "string" ? session.group.trim() : "");
   return {
-    key: `folder:${folder}`,
-    label: getFolderLabel(folder),
-    title: shortFolder,
+    key: group.key,
+    label: group.label(),
+    title: group.label(),
+    order: TASK_LIST_GROUPS.findIndex((entry) => entry.key === group.key),
   };
 }
 
@@ -438,7 +491,6 @@ function createActiveSessionItem(session, options = {}) {
   const metaHtml = typeof options.metaOverrideHtml === "string"
     ? options.metaOverrideHtml
     : buildSessionMetaParts(session).join(" · ");
-  const pinTitle = session.pinned ? t("action.unpin") : t("action.pin");
   const hideActions = options.hideActions === true;
 
   div.innerHTML = `
@@ -447,9 +499,7 @@ function createActiveSessionItem(session, options = {}) {
       ${metaHtml ? `<div class="session-item-meta">${metaHtml}</div>` : ""}
     </div>
     ${hideActions ? "" : `<div class="session-item-actions">
-      <button class="session-action-btn pin${session.pinned ? " pinned" : ""}" type="button" title="${pinTitle}" aria-label="${pinTitle}" data-id="${session.id}">${renderUiIcon(session.pinned ? "pinned" : "pin")}</button>
-      <button class="session-action-btn rename" type="button" title="${esc(t("action.rename"))}" aria-label="${esc(t("action.rename"))}" data-id="${session.id}">${renderUiIcon("edit")}</button>
-      <button class="session-action-btn archive" type="button" title="${esc(t("action.archive"))}" aria-label="${esc(t("action.archive"))}" data-id="${session.id}">${renderUiIcon("archive")}</button>
+      <button class="session-action-btn delete" type="button" title="${esc(t("action.delete"))}" aria-label="${esc(t("action.delete"))}" data-id="${session.id}">${renderUiIcon("trash")}</button>
     </div>`}`;
 
   div.addEventListener("click", (e) => {
@@ -470,19 +520,9 @@ function createActiveSessionItem(session, options = {}) {
   }
 
   if (!hideActions) {
-    div.querySelector(".pin").addEventListener("click", (e) => {
+    div.querySelector(".delete").addEventListener("click", (e) => {
       e.stopPropagation();
-      dispatchAction({ action: session.pinned ? "unpin" : "pin", sessionId: session.id });
-    });
-
-    div.querySelector(".rename").addEventListener("click", (e) => {
-      e.stopPropagation();
-      startRename(div, session);
-    });
-
-    div.querySelector(".archive").addEventListener("click", (e) => {
-      e.stopPropagation();
-      dispatchAction({ action: "archive", sessionId: session.id });
+      dispatchAction({ action: "delete", sessionId: session.id });
     });
   }
 
@@ -494,6 +534,13 @@ function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
   wrapper.className = "task-cluster";
 
   const normalizedBranches = dedupeBranchSessions(branchSessions);
+  const branchSections = [
+    { key: "active", label: "进行中的子任务" },
+    { key: "parked", label: "已挂起" },
+    { key: "resolved", label: "已关闭" },
+    { key: "merged", label: "已带回主线" },
+  ];
+  const branchStatusCounts = buildBranchStatusCounts(normalizedBranches);
   const currentBranch = normalizedBranches.find((session) => session.id === currentSessionId)
     || normalizedBranches.find((session) => session.id === options.currentBranchSessionId)
     || null;
@@ -507,16 +554,27 @@ function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
   let metaOverrideHtml = buildSessionMetaParts(rootSession).join(" · ");
   if (hasBranches) {
     const summaryParts = [];
-    if (!expanded && summaryBranch) {
+    if (summaryBranch && (!expanded || currentBranch)) {
+      const summaryChain = currentBranch
+        ? getBranchLineageNames(rootSession, currentBranch, normalizedBranches).slice(1).join(" / ")
+        : "";
       summaryParts.push(
-        `<button type="button" class="task-cluster-link task-cluster-current-branch" data-cluster-action="open-current-branch">${esc(getBranchStatusLabel(summaryBranch))}</button>`,
+        `<button type="button" class="task-cluster-link task-cluster-current-branch" data-cluster-action="open-current-branch">${esc(
+          currentBranch && summaryChain
+            ? `当前子任务链：${summaryChain}`
+            : getBranchStatusLabel(summaryBranch)
+        )}</button>`,
       );
     }
-    const visibleBranchCount = normalizedBranches.length;
-    const remainingBranchCount = !expanded && summaryBranch ? Math.max(visibleBranchCount - 1, 0) : visibleBranchCount;
-    if (expanded || remainingBranchCount > 0 || !summaryBranch) {
+    const statusSummary = buildBranchStatusSummary(branchStatusCounts);
+    if (statusSummary) {
+      summaryParts.push(`<span class="task-cluster-status-summary">${esc(statusSummary)}</span>`);
+    }
+    if (hasBranches) {
       summaryParts.push(
-        `<button type="button" class="task-cluster-link task-cluster-toggle" data-cluster-action="toggle-branches">${esc(expanded ? t("sidebar.branchCount", { count: visibleBranchCount }) : t("sidebar.moreBranches", { count: remainingBranchCount || visibleBranchCount }))}</button>`,
+        `<button type="button" class="task-cluster-link task-cluster-toggle" data-cluster-action="toggle-branches">${esc(
+          expanded ? "收起子任务" : `展开 ${normalizedBranches.length} 个子任务`
+        )}</button>`,
       );
     }
     metaOverrideHtml = summaryParts.join(' · ');
@@ -545,62 +603,109 @@ function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
   });
   wrapper.appendChild(mainItem);
 
+  if (!expanded && hasBranches) {
+    const overview = document.createElement("div");
+    overview.className = "task-cluster-overview";
+    for (const section of branchSections) {
+      const sectionBranches = normalizedBranches.filter((session) => getBranchStatusValue(session) === section.key);
+      if (!sectionBranches.length) continue;
+      const topBranch = currentBranch && section.key === "active"
+        ? currentBranch
+        : sectionBranches[0];
+      const lineage = getBranchLineageNames(rootSession, topBranch, normalizedBranches).slice(1).join(" / ");
+      const extraCount = Math.max(0, sectionBranches.length - 1);
+
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "task-cluster-overview-row";
+      row.dataset.branchStatus = section.key;
+      row.innerHTML = `
+        <span class="task-cluster-overview-label">${esc(section.label)}</span>
+        <span class="task-cluster-overview-title">${esc(lineage || getTaskBranchDisplayName(topBranch))}</span>
+        <span class="task-cluster-overview-meta">${extraCount > 0 ? esc(`另有 ${extraCount} 条`) : esc('查看')}</span>
+      `;
+      row.addEventListener("click", (event) => {
+        event.stopPropagation();
+        attachSession(topBranch.id, topBranch);
+        if (!isDesktop) closeSidebarFn();
+      });
+      overview.appendChild(row);
+    }
+
+    if (overview.children.length > 0) {
+      wrapper.appendChild(overview);
+    }
+  }
+
   if (expanded && hasBranches) {
     const branchesWrap = document.createElement("div");
     branchesWrap.className = "task-cluster-branches";
 
-    for (const branchSession of normalizedBranches) {
-      const branchDepth = Number.isFinite(branchSession?._branchDepth)
-        ? Math.max(1, Number(branchSession._branchDepth))
-        : 1;
-      const branchItem = createActiveSessionItem(branchSession, {
-        hideActions: true,
-        extraClassName: "task-branch-item",
-        metaOverrideHtml: branchSession?._branchStatus && branchSession._branchStatus !== "active"
-          ? `<span class="task-branch-status">${esc(
-              branchSession._branchStatus === "resolved"
-                ? "已完成"
-                : branchSession._branchStatus === "merged"
-                  ? "已带回主线"
-                  : branchSession._branchStatus === "parked"
-                    ? "已暂停"
-                    : branchSession._branchStatus,
-            )}</span><button type="button" class="task-cluster-link task-branch-reopen" data-branch-action="reopen">继续处理</button>`
-          : "",
-        onMetaReady(metaNode) {
-          const reopenBtn = metaNode.querySelector('[data-branch-action="reopen"]');
-          if (reopenBtn && window.MelodySyncWorkbench?.setCurrentBranchStatus) {
-            reopenBtn.addEventListener("click", async (event) => {
-              event.stopPropagation();
-              reopenBtn.disabled = true;
-              try {
-                await window.MelodySyncWorkbench.setCurrentBranchStatus.call(null, "active", branchSession.id);
-                attachSession(branchSession.id, branchSession);
-              } finally {
-                reopenBtn.disabled = false;
-              }
-            });
-          }
-        },
-      });
-      branchItem.dataset.branchDepth = String(branchDepth);
-      branchItem.style.setProperty("--task-branch-depth", String(branchDepth));
-      if (currentBranch && branchSession.id === currentBranch.id) {
-        branchItem.classList.add("is-current-branch");
-      }
-      const nameNode = branchItem.querySelector(".session-item-name");
-      if (nameNode) {
-        if (currentBranch && branchSession.id === currentBranch.id) {
-          nameNode.textContent = branchDepth > 1
-            ? `当前子任务：${getTaskBranchDisplayName(branchSession)}`
-            : getBranchStatusLabel(branchSession);
-        } else {
-          nameNode.textContent = branchDepth > 1
-            ? `子任务：${getTaskBranchDisplayName(branchSession)}`
-            : t("sidebar.branch", { name: getTaskBranchDisplayName(branchSession) });
+    for (const section of branchSections) {
+      const sectionBranches = normalizedBranches.filter((session) => getBranchStatusValue(session) === section.key);
+      if (!sectionBranches.length) continue;
+
+      const sectionNode = document.createElement("div");
+      sectionNode.className = "task-cluster-section";
+
+      const sectionTitle = document.createElement("div");
+      sectionTitle.className = "task-cluster-section-title";
+      sectionTitle.textContent = `${section.label} · ${sectionBranches.length}`;
+      sectionNode.appendChild(sectionTitle);
+
+      const sectionItems = document.createElement("div");
+      sectionItems.className = "task-cluster-section-items";
+
+      for (const branchSession of sectionBranches) {
+        const branchDepth = Number.isFinite(branchSession?._branchDepth)
+          ? Math.max(1, Number(branchSession._branchDepth))
+          : 1;
+        const branchChain = getBranchLineageNames(rootSession, branchSession, normalizedBranches).join(" / ");
+        const isActiveBranch = currentBranch && branchSession.id === currentBranch.id;
+        const metaParts = [];
+        if (branchChain) {
+          metaParts.push(`<span class="task-branch-path">${esc(branchChain)}</span>`);
         }
+        if (section.key !== "active") {
+          metaParts.push(`<button type="button" class="task-cluster-link task-branch-reopen" data-branch-action="reopen">继续处理</button>`);
+        } else if (isActiveBranch) {
+          metaParts.push('<span class="task-branch-status">当前进行中</span>');
+        }
+
+        const branchItem = createActiveSessionItem(branchSession, {
+          hideActions: true,
+          extraClassName: "task-branch-item",
+          metaOverrideHtml: metaParts.join(" · "),
+          onMetaReady(metaNode) {
+            const reopenBtn = metaNode.querySelector('[data-branch-action="reopen"]');
+            if (reopenBtn && window.MelodySyncWorkbench?.setCurrentBranchStatus) {
+              reopenBtn.addEventListener("click", async (event) => {
+                event.stopPropagation();
+                reopenBtn.disabled = true;
+                try {
+                  await window.MelodySyncWorkbench.setCurrentBranchStatus.call(null, "active", branchSession.id);
+                  attachSession(branchSession.id, branchSession);
+                } finally {
+                  reopenBtn.disabled = false;
+                }
+              });
+            }
+          },
+        });
+        branchItem.dataset.branchDepth = String(branchDepth);
+        branchItem.style.setProperty("--task-branch-depth", String(branchDepth));
+        if (isActiveBranch) {
+          branchItem.classList.add("is-current-branch");
+        }
+        const nameNode = branchItem.querySelector(".session-item-name");
+        if (nameNode) {
+          nameNode.textContent = getTaskBranchDisplayName(branchSession);
+        }
+        sectionItems.appendChild(branchItem);
       }
-      branchesWrap.appendChild(branchItem);
+
+      sectionNode.appendChild(sectionItems);
+      branchesWrap.appendChild(sectionNode);
     }
 
     wrapper.appendChild(branchesWrap);

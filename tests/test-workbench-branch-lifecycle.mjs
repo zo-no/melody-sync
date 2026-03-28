@@ -30,6 +30,7 @@ async function main() {
   const {
     createBranchFromSession,
     getWorkbenchSnapshot,
+    getWorkbenchTrackerSnapshot,
     mergeBranchSessionBackToMain,
     setBranchSessionStatus,
     syncSessionContinuityFromSession,
@@ -59,10 +60,23 @@ async function main() {
   assert.equal(branchSession.taskCard?.mainGoal, '学习电影史', 'branch session should retain main goal');
   assert.equal(branchSession.taskCard?.lineRole, 'branch', 'branch session should be marked as branch');
 
-  await setBranchSessionStatus(branchSession.id, { status: 'resolved' });
+  const trackerSnapshot = await getWorkbenchTrackerSnapshot(branchSession.id);
+  assert.equal(Array.isArray(trackerSnapshot?.taskClusters), true, 'tracker snapshot should include task clusters');
+  assert.equal(trackerSnapshot.taskClusters.length, 1, 'tracker snapshot should stay scoped to the current task cluster');
+  assert.equal(trackerSnapshot.taskClusters[0]?.mainSessionId, mainSession.id, 'tracker snapshot should point back to the current main session');
+  assert.equal(trackerSnapshot.taskClusters[0]?.branchSessionIds?.includes(branchSession.id), true, 'tracker snapshot should include the current branch session');
+
+  await setBranchSessionStatus(branchSession.id, { status: 'parked' });
   let snapshot = await getWorkbenchSnapshot();
   let cluster = (snapshot.taskClusters || []).find((entry) => entry.mainSessionId === mainSession.id);
   let branchEntry = (cluster?.branchSessions || []).find((entry) => entry.id === branchSession.id);
+  assert.equal(branchEntry?._branchStatus, 'parked', 'branch should become parked');
+  assert.equal(cluster?.currentBranchSessionId || '', '', 'parked branch should no longer be current branch');
+
+  await setBranchSessionStatus(branchSession.id, { status: 'resolved' });
+  snapshot = await getWorkbenchSnapshot();
+  cluster = (snapshot.taskClusters || []).find((entry) => entry.mainSessionId === mainSession.id);
+  branchEntry = (cluster?.branchSessions || []).find((entry) => entry.id === branchSession.id);
   assert.equal(branchEntry?._branchStatus, 'resolved', 'branch should become resolved');
   assert.equal(cluster?.currentBranchSessionId || '', '', 'resolved branch should no longer be current branch');
 

@@ -55,14 +55,14 @@ function notifyCompletion(session) {
 const SESSION_LIST_ORGANIZER_POLL_INTERVAL_MS = 1200;
 const SESSION_LIST_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 const SESSION_LIST_ORGANIZER_INTERNAL_ROLE = "session_list_organizer";
-const DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL = "Sort List";
+const DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL = "整理任务";
 let sessionListOrganizerInFlight = null;
 let sessionListOrganizerLabelResetTimer = null;
 
 const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   "You are RemoteLab's hidden session-list organizer.",
-  "Your job is to improve the owner's non-archived session sidebar structure using the provided metadata snapshot.",
-  "Do not rename sessions, archive or unarchive them, change pin state, edit prompts, or ask the user follow-up questions.",
+  "Your job is to organize the owner's non-archived MelodySync tasks into a simple GTD-style task list.",
+  "Do not rename sessions, delete them, change pin state, edit prompts, or ask the user follow-up questions.",
   "Only update existing sessions by calling the owner-authenticated RemoteLab API from this machine.",
   "Use `remotelab api GET /api/sessions` if you need to double-check current state.",
   "Use `remotelab api PATCH /api/sessions/<sessionId> --body ...` to update `group` and `sidebarOrder`.",
@@ -72,7 +72,8 @@ const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   "If `remotelab` is unavailable in PATH, use `node \"$REMOTELAB_PROJECT_ROOT/cli.js\" api ...` instead.",
   "`sidebarOrder` must be a positive integer; smaller numbers sort first.",
   "Assign unique contiguous `sidebarOrder` values across the current non-archived sessions you organize.",
-  "Prefer a small number of clear, stable groups; avoid one giant catch-all group when the list is dense.",
+  "Use only these exact groups: 收件箱, 长期任务, 短期任务, 知识库内容, 等待任务.",
+  "Default unclear or newly created work to 收件箱; only move work out when the intent is obvious from the metadata snapshot.",
   "Return only a brief plain-text summary of the grouping strategy you applied.",
 ].join("\n");
 
@@ -151,8 +152,8 @@ function buildSessionListOrganizerTask(sessions) {
     sessions: Array.isArray(sessions) ? sessions : [],
   };
   return [
-    "Organize the current non-archived RemoteLab session list using the provided metadata snapshot.",
-    "Choose clearer groups and a better sidebar ordering based on the current session density.",
+    "Organize the current non-archived MelodySync task list using the provided metadata snapshot.",
+    "Classify tasks into 收件箱, 长期任务, 短期任务, 知识库内容, 等待任务, and improve sidebar ordering inside those groups.",
     "Apply changes by calling the RemoteLab API from this machine; do not merely suggest them.",
     "Snapshot fields like `title`, `brief`, `existingGroup`, and `existingSidebarOrder` are read-only context.",
     "When patching a session, send only `group` and `sidebarOrder` in the API body.",
@@ -613,7 +614,7 @@ async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
 
   const payload = buildSessionListOrganizerPayload();
   if (!Array.isArray(payload.sessions) || payload.sessions.length === 0) {
-    setSortSessionListButtonState("Nothing to sort", { busy: false });
+    setSortSessionListButtonState("没有可整理的任务", { busy: false });
     scheduleSortSessionListButtonReset();
     return false;
   }
@@ -622,7 +623,7 @@ async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
     window.clearTimeout(sessionListOrganizerLabelResetTimer);
     sessionListOrganizerLabelResetTimer = null;
   }
-  setSortSessionListButtonState("Sorting…", { busy: true });
+  setSortSessionListButtonState("整理中…", { busy: true });
 
   const request = (async () => {
     try {
@@ -640,11 +641,11 @@ async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
       if (closeSidebar && !isDesktop) {
         closeSidebarFn();
       }
-      setSortSessionListButtonState("Sorted", { busy: false });
+      setSortSessionListButtonState("已整理", { busy: false });
       return true;
     } catch (error) {
       console.warn("[sessions] Failed to organize the session list:", error.message);
-      setSortSessionListButtonState("Sort failed", { busy: false });
+      setSortSessionListButtonState("整理失败", { busy: false });
       return false;
     } finally {
       sessionListOrganizerInFlight = null;

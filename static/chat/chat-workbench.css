@@ -4,10 +4,12 @@
   gap: 12px;
   align-items: start;
   margin-bottom: 10px;
-  padding: 12px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
+  padding: 13px 14px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 22%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 72%, transparent), transparent 58%),
+    var(--bg-secondary);
   box-shadow: var(--shadow-card);
 }
 
@@ -19,10 +21,10 @@
 
 .quest-tracker-branch {
   display: grid;
-  gap: 2px;
-  margin-top: 1px;
-  padding: 7px 0 0 12px;
-  border-left: 2px solid color-mix(in srgb, var(--border-strong) 48%, transparent);
+  gap: 3px;
+  margin-top: 2px;
+  padding: 8px 0 0 12px;
+  border-left: 2px solid color-mix(in srgb, var(--border-strong) 32%, transparent);
 }
 
 .quest-tracker-label,
@@ -40,8 +42,8 @@
 .quest-tracker-branch-title,
 .quest-branch-suggestion-title,
 .quest-merge-note-title {
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.5;
   font-weight: 800;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -53,7 +55,7 @@
 .quest-merge-note-summary,
 .quest-merge-note-next {
   font-size: 11px;
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--text-secondary);
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -63,6 +65,58 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quest-finish-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 24%, transparent);
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+}
+
+.quest-finish-panel-title {
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.quest-finish-panel-list {
+  display: grid;
+  gap: 8px;
+}
+
+.quest-finish-option {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  padding: 10px 11px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.quest-finish-option-title {
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.quest-finish-option-summary {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
 }
 
 .quest-tracker-btn,
@@ -73,12 +127,16 @@
 .quest-tracker-btn {
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
   color: var(--text);
   padding: 8px 12px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.quest-tracker-btn-secondary {
+  color: var(--text-secondary);
 }
 
 .quest-merge-note {

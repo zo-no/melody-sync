@@ -12,6 +12,7 @@ import { createToolInvocation, resolveCommand, resolveCwd } from './process-runn
 import {
   appendEvent,
   appendEvents,
+  clearSessionHistory,
   clearContextHead,
   clearForkContext,
   getContextHead,
@@ -100,7 +101,7 @@ import {
   resolveEffectiveAppId,
 } from './apps.mjs';
 import { publishLocalFileAssetFromPath } from './file-assets.mjs';
-import { ensureDir, pathExists, statOrNull } from './fs-utils.mjs';
+import { ensureDir, pathExists, removePath, statOrNull } from './fs-utils.mjs';
 import {
   buildTaskCardPromptBlock,
   normalizeSessionTaskCard,
@@ -3839,6 +3840,80 @@ export async function setSessionArchived(id, archived = true) {
   }
   broadcastSessionInvalidation(id);
   return enrichSessionMeta(result.meta);
+}
+
+function collectSessionTreeIds(rootSessionId, metas = []) {
+  const queue = [rootSessionId];
+  const collected = [];
+  const seen = new Set();
+
+  while (queue.length > 0) {
+    const sessionId = queue.shift();
+    if (!sessionId || seen.has(sessionId)) continue;
+    seen.add(sessionId);
+    collected.push(sessionId);
+    for (const meta of Array.isArray(metas) ? metas : []) {
+      const parentSessionId = typeof meta?.sourceContext?.parentSessionId === 'string'
+        ? meta.sourceContext.parentSessionId.trim()
+        : '';
+      if (parentSessionId && parentSessionId === sessionId && meta?.id && !seen.has(meta.id)) {
+        queue.push(meta.id);
+      }
+    }
+  }
+
+  return collected;
+}
+
+async function deleteSessionRuns(sessionIds = []) {
+  const targets = new Set((Array.isArray(sessionIds) ? sessionIds : []).filter(Boolean));
+  if (!targets.size) return;
+  const runIds = await listRunIds();
+  for (const runId of runIds) {
+    const run = await getRun(runId);
+    if (!run?.sessionId || !targets.has(run.sessionId)) continue;
+    runSyncPromises.delete(runId);
+    observedRuns.delete(runId);
+    await removePath(runDir(runId));
+  }
+}
+
+export async function deleteSessionPermanently(id) {
+  const current = await findSessionMeta(id);
+  if (!current) return { deletedSessionIds: [] };
+
+  const deletedSessionIds = await withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
+    const treeIds = collectSessionTreeIds(id, metas);
+    if (!treeIds.length) return [];
+    const targetIds = new Set(treeIds);
+    const nextMetas = metas.filter((meta) => !targetIds.has(meta?.id));
+    metas.splice(0, metas.length, ...nextMetas);
+    await saveSessionsMeta(metas);
+    return treeIds;
+  });
+
+  if (!deletedSessionIds.length) {
+    return { deletedSessionIds: [] };
+  }
+
+  for (const sessionId of deletedSessionIds) {
+    liveSessions.delete(sessionId);
+    clearRenameState(sessionId);
+    await clearSessionHistory(sessionId);
+    await clearContextHead(sessionId).catch(() => {});
+    await clearForkContext(sessionId).catch(() => {});
+  }
+
+  await deleteSessionRuns(deletedSessionIds);
+
+  if (shouldExposeSession(current)) {
+    broadcastSessionsInvalidation();
+  }
+  for (const sessionId of deletedSessionIds) {
+    broadcastSessionInvalidation(sessionId);
+  }
+
+  return { deletedSessionIds };
 }
 
 export async function setSessionPinned(id, pinned = true) {

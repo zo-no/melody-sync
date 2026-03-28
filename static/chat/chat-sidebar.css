@@ -254,6 +254,49 @@
   font-size: 11px;
 }
 
+.task-cluster-overview {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 10px;
+  padding-left: 12px;
+}
+
+.task-cluster-overview-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.task-cluster-overview-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.task-cluster-overview-title {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.task-cluster-overview-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 .pinned-section { margin-bottom: 8px; }
 .pinned-section-header {
   display: flex; align-items: center; gap: 6px;
@@ -374,6 +417,9 @@
 .task-cluster-current-branch {
   font-weight: 500;
 }
+.task-cluster-status-summary {
+  color: var(--text-muted);
+}
 .task-cluster-toggle {
   color: var(--text-muted);
 }
@@ -429,9 +475,29 @@
 .task-branch-status {
   color: var(--text-muted);
 }
+.task-branch-path {
+  color: var(--text-muted);
+}
 .task-branch-reopen {
   color: var(--text-secondary);
   font-weight: 500;
+}
+.task-cluster-section {
+  display: grid;
+  gap: 6px;
+}
+.task-cluster-section-title {
+  padding: 2px 0;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.task-cluster-section-items {
+  display: grid;
+  gap: 2px;
 }
 .task-cluster-more {
   font-size: 11px;
@@ -507,6 +573,13 @@
 }
 .new-session-btn:active { opacity: 0.85; }
 .new-session-btn.hidden { display: none; }
+
+.session-list-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 10px 10px;
+}
 
 /* ---- Autocomplete suggestions ---- */
 .ac-suggestions button {
@@ -944,7 +1017,7 @@
 }
 
 .new-session-btn {
-  margin: 2px 12px 12px;
+  margin: 0;
   padding: 4px 2px;
   border: none;
   border-radius: 0;
@@ -962,6 +1035,14 @@
   background: transparent;
   color: var(--text);
   opacity: 0.82;
+}
+
+.new-session-btn.secondary {
+  opacity: 0.46;
+}
+
+.new-session-btn.secondary:hover {
+  opacity: 0.74;
 }
 
 @media (prefers-color-scheme: dark) {

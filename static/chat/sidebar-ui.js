@@ -29,6 +29,7 @@ function createNewSessionShortcut({ closeSidebar = true } = {}) {
     action: "create",
     folder: "~",
     tool,
+    group: t("sidebar.group.inbox"),
     sourceId: DEFAULT_APP_ID,
     sourceName: DEFAULT_APP_NAME,
     appId: BASIC_CHAT_TEMPLATE_APP_ID,
@@ -52,6 +53,10 @@ sidebarOverlay.addEventListener("click", (e) => {
 // ---- Session list actions ----
 newSessionBtn?.addEventListener("click", () => {
   createNewSessionShortcut();
+});
+
+sortSessionListBtn?.addEventListener("click", () => {
+  createSortSessionListShortcut();
 });
 
 createUserBtn?.addEventListener("click", () => {

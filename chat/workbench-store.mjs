@@ -759,6 +759,32 @@ export async function getWorkbenchSnapshot() {
   return buildSnapshot(state, sessions);
 }
 
+export async function getWorkbenchTrackerSnapshot(sessionId) {
+  const normalizedSessionId = normalizeNullableText(sessionId);
+  if (!normalizedSessionId) {
+    throw new Error('sessionId is required');
+  }
+  const state = await loadState();
+  const sessions = await listSessions({ includeArchived: true });
+  const taskClusters = buildTaskClusters(state, sessions);
+  const cluster = taskClusters.find((entry) => (
+    entry?.mainSessionId === normalizedSessionId
+    || entry?.currentBranchSessionId === normalizedSessionId
+    || (Array.isArray(entry?.branchSessionIds) && entry.branchSessionIds.includes(normalizedSessionId))
+  )) || null;
+  const relevantSessionIds = new Set([normalizedSessionId]);
+  if (cluster?.mainSessionId) relevantSessionIds.add(cluster.mainSessionId);
+  for (const branchSessionId of Array.isArray(cluster?.branchSessionIds) ? cluster.branchSessionIds : []) {
+    if (normalizeNullableText(branchSessionId)) relevantSessionIds.add(normalizeNullableText(branchSessionId));
+  }
+  return {
+    branchContexts: sortByUpdatedDesc((state.branchContexts || []).filter((entry) => (
+      relevantSessionIds.has(normalizeNullableText(entry?.sessionId))
+    ))),
+    taskClusters: cluster ? [cluster] : [],
+  };
+}
+
 function syncSessionContinuityState(state, session, taskCardInput, now = nowIso()) {
   const taskCard = normalizeSessionTaskCard(taskCardInput || session.taskCard || {});
   const project = upsertProject(state, session, taskCard, now);

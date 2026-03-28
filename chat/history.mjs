@@ -396,6 +396,10 @@ async function clearHistoryUnlocked(sessionId) {
   clearSessionCaches(sessionId);
 }
 
+export async function clearSessionHistory(sessionId) {
+  return runSessionMutation(sessionId, async () => clearHistoryUnlocked(sessionId));
+}
+
 export async function loadHistory(sessionId, options = {}) {
   const meta = await loadMeta(sessionId);
   const includeBodies = options.includeBodies !== false;

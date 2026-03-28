@@ -91,14 +91,15 @@ async function dispatchAction(msg) {
         const data = await fetchJsonOrRedirect("/api/sessions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            folder: msg.folder || "~",
-            tool: msg.tool,
-            name: msg.name || "",
-            appId: msg.appId || "",
-            sourceId: msg.sourceId || "",
-            sourceName: msg.sourceName || "",
-          }),
+              body: JSON.stringify({
+                folder: msg.folder || "~",
+                tool: msg.tool,
+                name: msg.name || "",
+                group: msg.group || "",
+                appId: msg.appId || "",
+                sourceId: msg.sourceId || "",
+                sourceName: msg.sourceName || "",
+              }),
         });
         if (data.session) {
           const session = upsertSession(data.session) || data.session;
@@ -173,6 +174,26 @@ async function dispatchAction(msg) {
           } else {
             await fetchSessionsList();
           }
+        } catch (error) {
+          if (previousSession) {
+            restoreOptimisticSessionSnapshot(previousSession);
+          }
+          throw error;
+        }
+        return true;
+      }
+      case "delete": {
+        const previousSession = applyOptimisticSessionDelete(msg.sessionId);
+        try {
+          await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
+            method: "DELETE",
+          });
+          if (currentSessionId === msg.sessionId) {
+            currentSessionId = null;
+            hasAttachedSession = false;
+            showEmpty();
+          }
+          await fetchSessionsList();
         } catch (error) {
           if (previousSession) {
             restoreOptimisticSessionSnapshot(previousSession);
@@ -375,6 +396,20 @@ function applyOptimisticSessionArchiveState(sessionId, archived) {
   } else {
     renderSessionList();
   }
+  return previous;
+}
+
+function applyOptimisticSessionDelete(sessionId) {
+  const index = sessions.findIndex((session) => session.id === sessionId);
+  if (index === -1) return null;
+  const previous = sessions[index];
+  sessions.splice(index, 1);
+  if (previous?.archived === true) {
+    archivedSessionCount = Math.max(0, archivedSessionCount - 1);
+  }
+  sortSessionsInPlace();
+  refreshAppCatalog();
+  renderSessionList();
   return previous;
 }
 
