@@ -1,6 +1,4 @@
 function restoreOwnerSessionSelection() {
-  if (visitorMode) return;
-
   const requestedTab = pendingNavigationState?.tab || activeTab;
   if (requestedTab !== activeTab) {
     switchTab(requestedTab, { syncState: false });
@@ -72,8 +70,8 @@ const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   "If `remotelab` is unavailable in PATH, use `node \"$REMOTELAB_PROJECT_ROOT/cli.js\" api ...` instead.",
   "`sidebarOrder` must be a positive integer; smaller numbers sort first.",
   "Assign unique contiguous `sidebarOrder` values across the current non-archived sessions you organize.",
-  "Use only these exact groups: 收件箱, 长期任务, 短期任务, 知识库内容, 等待任务.",
-  "Default unclear or newly created work to 收件箱; only move work out when the intent is obvious from the metadata snapshot.",
+  "Use only these exact groups: 收集箱, 长期任务, 短期任务, 知识库内容, 等待任务.",
+  "Default unclear or newly created work to 收集箱; only move work out when the intent is obvious from the metadata snapshot.",
   "Return only a brief plain-text summary of the grouping strategy you applied.",
 ].join("\n");
 
@@ -153,7 +151,7 @@ function buildSessionListOrganizerTask(sessions) {
   };
   return [
     "Organize the current non-archived MelodySync task list using the provided metadata snapshot.",
-    "Classify tasks into 收件箱, 长期任务, 短期任务, 知识库内容, 等待任务, and improve sidebar ordering inside those groups.",
+    "Classify tasks into 收集箱, 长期任务, 短期任务, 知识库内容, 等待任务, and improve sidebar ordering inside those groups.",
     "Apply changes by calling the RemoteLab API from this machine; do not merely suggest them.",
     "Snapshot fields like `title`, `brief`, `existingGroup`, and `existingSidebarOrder` are read-only context.",
     "When patching a session, send only `group` and `sidebarOrder` in the API body.",
@@ -348,7 +346,7 @@ function rememberSessionReviewedLocally(session, { render = false } = {}) {
 }
 
 async function syncSessionReviewedToServer(session) {
-  if (!session?.id || visitorMode) return session;
+  if (!session?.id) return session;
   const stamp = getSessionReviewStamp(session);
   if (!stamp) return session;
   if (getSessionReviewStampTime(stamp) <= getSessionReviewStampTime(normalizeSessionReviewStamp(session?.lastReviewedAt))) {
@@ -515,7 +513,6 @@ async function fetchSessionSidebar(sessionId) {
 }
 
 async function fetchArchivedSessions() {
-  if (visitorMode) return [];
   if (archivedSessionsRefreshPromise) {
     return archivedSessionsRefreshPromise;
   }
@@ -548,112 +545,7 @@ async function fetchArchivedSessions() {
   return request;
 }
 
-async function fetchAppsList() {
-  if (visitorMode) return [];
-  const data = await fetchJsonOrRedirect("/api/apps");
-  availableApps = Array.isArray(data.apps) ? data.apps : [];
-  refreshAppCatalog();
-  if (typeof renderSettingsAppsPanel === "function") {
-    renderSettingsAppsPanel();
-  }
-  if (typeof renderUserAppOptions === "function") {
-    renderUserAppOptions();
-  }
-  if (typeof renderSettingsUsersPanel === "function") {
-    renderSettingsUsersPanel();
-  }
-  return availableApps;
-}
-
-async function createAppRecord(payload = {}) {
-  const data = await fetchJsonOrRedirect("/api/apps", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  await fetchAppsList();
-  return data.app || null;
-}
-
-async function updateAppRecord(appId, payload = {}) {
-  const data = await fetchJsonOrRedirect(`/api/apps/${encodeURIComponent(appId)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  await fetchAppsList();
-  return data.app || null;
-}
-
-async function deleteAppRecord(appId) {
-  await fetchJsonOrRedirect(`/api/apps/${encodeURIComponent(appId)}`, {
-    method: "DELETE",
-  });
-  await fetchAppsList();
-}
-
-async function createVisitorRecord(payload = {}) {
-  const data = await fetchJsonOrRedirect("/api/visitors", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return data.visitor || null;
-}
-
-async function updateVisitorRecord(visitorId, payload = {}) {
-  const data = await fetchJsonOrRedirect(`/api/visitors/${encodeURIComponent(visitorId)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  return data.visitor || null;
-}
-
-async function fetchUsersList() {
-  if (visitorMode) return [];
-  const data = await fetchJsonOrRedirect("/api/users");
-  availableUsers = Array.isArray(data.users) ? data.users : [];
-  hasLoadedUsers = true;
-  refreshAppCatalog();
-  if (typeof renderSettingsUsersPanel === "function") {
-    renderSettingsUsersPanel();
-  }
-  return availableUsers;
-}
-
-async function createUserRecord(payload = {}) {
-  const data = await fetchJsonOrRedirect("/api/users", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  await fetchUsersList();
-  if (data.session) {
-    upsertSession(data.session);
-  }
-  return { user: data.user || null, session: data.session || null };
-}
-
-async function updateUserRecord(userId, payload = {}) {
-  const data = await fetchJsonOrRedirect(`/api/users/${encodeURIComponent(userId)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  await fetchUsersList();
-  return data.user || null;
-}
-
-async function deleteUserRecord(userId) {
-  await fetchJsonOrRedirect(`/api/users/${encodeURIComponent(userId)}`, {
-    method: "DELETE",
-  });
-  await fetchUsersList();
-}
-
 async function fetchSessionsList() {
-  if (visitorMode) return [];
   const data = await fetchJsonOrRedirect(SESSION_LIST_URL);
   applySessionListState(data.sessions || [], {
     archivedCount: Number.isInteger(data.archivedCount) ? data.archivedCount : 0,
@@ -662,7 +554,6 @@ async function fetchSessionsList() {
 }
 
 async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
-  if (visitorMode) return false;
   if (sessionListOrganizerInFlight) return sessionListOrganizerInFlight;
 
   const payload = buildSessionListOrganizerPayload();
@@ -719,9 +610,8 @@ function applyAttachedSessionState(id, session) {
   dropToolsBtn.style.display = "none";
 
   const displayName = getSessionDisplayName(session);
-  if (typeof shareSnapshotMode !== "undefined" && shareSnapshotMode) {
-    const titleSuffix = getShareSnapshotViewValue("titleSuffix", "Shared Snapshot");
-    document.title = `${displayName} · ${titleSuffix}`;
+  if (typeof document !== "undefined") {
+    document.title = `${displayName} · MelodySync Chat`;
   }
   if (typeof reconcileComposerPendingSendWithSession === "function") {
     reconcileComposerPendingSendWithSession(session);
@@ -730,10 +620,6 @@ function applyAttachedSessionState(id, session) {
   if (typeof renderQueuedMessagePanel === "function") {
     renderQueuedMessagePanel(session);
   }
-  if (typeof window !== "undefined" && window.RemoteLabScheduleUi?.sync) {
-    window.RemoteLabScheduleUi.sync(session);
-  }
-
   if (session?.tool) {
     const availableTools = typeof allToolsList !== "undefined" && Array.isArray(allToolsList)
       ? allToolsList
@@ -755,7 +641,9 @@ function applyAttachedSessionState(id, session) {
   renderSessionList();
   syncBrowserState();
   syncForkButton();
-  syncShareButton();
+  if (typeof window !== "undefined" && typeof window.MelodySyncWorkbench?.setFocusedSessionId === "function") {
+    window.MelodySyncWorkbench.setFocusedSessionId(id, { render: false });
+  }
   if (typeof document !== "undefined" && typeof CustomEvent !== "undefined") {
     document.dispatchEvent(new CustomEvent("melodysync:session-change", {
       detail: { session: session || null },
@@ -769,17 +657,6 @@ function applyAttachedSessionState(id, session) {
 }
 
 async function fetchSessionState(sessionId) {
-  if (isShareSnapshotReadOnlyMode()) {
-    const snapshotSession = buildShareSnapshotSessionRecord();
-    if (!snapshotSession || snapshotSession.id !== sessionId) {
-      throw new Error("Session not found");
-    }
-    const normalized = upsertSession(snapshotSession);
-    if (normalized && currentSessionId === sessionId) {
-      applyAttachedSessionState(sessionId, normalized);
-    }
-    return normalized;
-  }
   const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(sessionId)}`);
   const normalized = upsertSession(data.session);
   if (normalized && currentSessionId === sessionId) {
@@ -796,11 +673,9 @@ async function fetchSessionEvents(sessionId, { runState = "idle", viewportIntent
   const shouldStickToBottom =
     !hadRenderedMessages ||
     messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 120;
-  const data = isShareSnapshotReadOnlyMode()
-    ? { events: getShareSnapshotDisplayEvents() }
-    : await fetchJsonOrRedirect(
-      `/api/sessions/${encodeURIComponent(sessionId)}/events?filter=visible`,
-    );
+  const data = await fetchJsonOrRedirect(
+    `/api/sessions/${encodeURIComponent(sessionId)}/events?filter=visible`,
+  );
   const events = data.events || [];
   if (currentSessionId !== sessionId) return events;
   const renderPlan = getEventRenderPlan(sessionId, events);
@@ -920,7 +795,7 @@ async function refreshCurrentSession(
 }
 
 async function refreshSidebarSession(sessionId) {
-  if (!sessionId || visitorMode) return null;
+  if (!sessionId) return null;
   if (sessionId === currentSessionId) {
     return refreshCurrentSession();
   }
@@ -958,13 +833,6 @@ async function refreshSidebarSession(sessionId) {
 }
 
 async function refreshRealtimeViews({ viewportIntent = "preserve" } = {}) {
-  if (visitorMode) {
-    if (currentSessionId) {
-      await refreshCurrentSession({ viewportIntent }).catch(() => {});
-    }
-    return;
-  }
-
   await fetchSessionsList().catch(() => {});
   if (archivedSessionsLoaded) {
     await fetchArchivedSessions().catch(() => {});
@@ -975,7 +843,7 @@ async function refreshRealtimeViews({ viewportIntent = "preserve" } = {}) {
 }
 
 function startParallelCurrentSessionBootstrap() {
-  if (visitorMode || !currentSessionId) return;
+  if (!currentSessionId) return;
   refreshCurrentSession({ viewportIntent: "session_entry" }).catch((error) => {
     if (error?.message === "Session not found") return;
     console.warn(
@@ -986,12 +854,6 @@ function startParallelCurrentSessionBootstrap() {
 }
 
 async function bootstrapViaHttp({ deferOwnerRestore = false } = {}) {
-  if (visitorMode && visitorSessionId) {
-    currentSessionId = visitorSessionId;
-    attachSession(visitorSessionId, { id: visitorSessionId, name: "Session", status: "idle" });
-    await refreshCurrentSession();
-    return;
-  }
   if (deferOwnerRestore) {
     startParallelCurrentSessionBootstrap();
   }
@@ -1001,24 +863,7 @@ async function bootstrapViaHttp({ deferOwnerRestore = false } = {}) {
   }
 }
 
-async function bootstrapShareSnapshotView() {
-  const session = buildShareSnapshotSessionRecord();
-  if (!session) {
-    showEmpty();
-    return null;
-  }
-  sessions = [normalizeSessionRecord(session, sessions.find((entry) => entry.id === session.id) || null)];
-  hasLoadedSessions = true;
-  archivedSessionCount = 0;
-  archivedSessionsLoaded = false;
-  visitorSessionId = session.id;
-  currentSessionId = session.id;
-  attachSession(session.id, sessions[0]);
-  return sessions[0];
-}
-
 async function setupPushNotifications() {
-  if (visitorMode) return;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
   try {
     const persistSubscription = async (subscription) => {

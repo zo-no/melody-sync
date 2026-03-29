@@ -805,14 +805,6 @@ async function authenticateOwner(baseUrl, authFile) {
   return sessionCookie;
 }
 
-async function loadAutomationApp(baseUrl, appId, cookie) {
-  const result = await requestJson(baseUrl, '/api/apps', { cookie });
-  if (!result.response.ok || !Array.isArray(result.json?.apps)) {
-    throw new Error(result.json?.error || result.text || `Failed to load apps (${result.response.status})`);
-  }
-  return result.json.apps.find((app) => app?.id === appId) || null;
-}
-
 function buildSessionDigestMessage({
   runAt,
   firstRun,
@@ -907,42 +899,32 @@ async function waitForRunCompletion(baseUrl, runId, cookie) {
 async function submitDigestToRemoteLab(config, { runAt, firstRun, pendingInteresting, allInteresting, sourceResults, reportPaths, dryRun }) {
   const remoteConfig = config?.remotelab || {};
   const sessionConfig = remoteConfig?.session || {};
-  const appId = trimString(sessionConfig.appId);
-  if (!appId) {
-    return {
-      success: false,
-      skipped: true,
-      reason: 'no_app_configured',
-    };
-  }
+  const sourceId = trimString(sessionConfig.sourceId) || 'automation';
+  const sourceName = trimString(sessionConfig.sourceName) || 'Automation';
 
   if (dryRun) {
     return {
       success: false,
       skipped: true,
       reason: 'dry_run',
-      appId,
+      sourceId,
     };
   }
 
   const baseUrl = normalizeBaseUrl(trimString(remoteConfig.baseUrl) || DEFAULT_REMOTELAB_BASE_URL);
   const authFile = trimString(remoteConfig.authFile) || DEFAULT_REMOTELAB_AUTH_FILE;
   const cookie = await authenticateOwner(baseUrl, authFile);
-  const app = await loadAutomationApp(baseUrl, appId, cookie);
-  if (!app) {
-    throw new Error(`App not found for remote capability monitor: ${appId}`);
-  }
 
   const sessionPayload = {
     folder: expandHome(trimString(sessionConfig.folder) || trimString(remoteConfig.sessionFolder) || DEFAULT_REMOTELAB_SESSION_FOLDER),
-    tool: trimString(sessionConfig.tool) || trimString(app.tool) || trimString(remoteConfig.tool) || 'codex',
-    name: trimString(sessionConfig.name) || trimString(app.name) || 'Agent Radar',
-    appId,
-    appName: trimString(app.name),
+    tool: trimString(sessionConfig.tool) || trimString(remoteConfig.tool) || 'codex',
+    name: trimString(sessionConfig.name) || 'Agent Radar',
+    sourceId,
+    sourceName,
     group: trimString(sessionConfig.group) || 'Automation',
     description: trimString(sessionConfig.description) || 'Scheduled scout for remote-control coding-agent capabilities and competitor changes.',
-    systemPrompt: trimString(app.systemPrompt) || trimString(sessionConfig.systemPrompt),
-    externalTriggerId: trimString(sessionConfig.externalTriggerId) || `automation:${appId}:remote-capability-monitor`,
+    systemPrompt: trimString(sessionConfig.systemPrompt),
+    externalTriggerId: trimString(sessionConfig.externalTriggerId) || `automation:${sourceId}:remote-capability-monitor`,
   };
 
   const createResult = await requestJson(baseUrl, '/api/sessions', {
@@ -986,8 +968,8 @@ async function submitDigestToRemoteLab(config, { runAt, firstRun, pendingInteres
 
   return {
     success: run.state === 'completed',
-    appId,
-    appName: trimString(app.name),
+    sourceId,
+    sourceName,
     sessionId: session.id,
     runId: submitResult.json.run.id,
     requestId,

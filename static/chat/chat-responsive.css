@@ -46,6 +46,10 @@
     padding-bottom: 12px;
   }
 
+  .task-manager-body {
+    gap: 10px;
+  }
+
   body.keyboard-open .input-area {
     padding-bottom: calc(6px + var(--safe-bottom));
   }
@@ -64,19 +68,6 @@
     padding-top: 6px;
     padding-bottom: 6px;
   }
-}
-
-/* ---- Visitor mode: chat-only, no sidebar ---- */
-body.visitor-mode .sidebar-overlay { display: none !important; }
-body.visitor-mode .header #menuBtn { display: none !important; }
-body.visitor-mode .gesture-pill { display: none !important; }
-body.share-snapshot-mode .input-area {
-  opacity: 0.72;
-}
-body.share-snapshot-mode .input-row textarea:disabled {
-  color: var(--text-muted);
-  -webkit-text-fill-color: var(--text-muted);
-  cursor: not-allowed;
 }
 
 @media (max-width: 640px) {
@@ -137,17 +128,22 @@ body.share-snapshot-mode .input-row textarea:disabled {
     letter-spacing: 0.04em;
   }
 
-  .header-share-btn {
-    padding: 0 10px;
-    font-size: 11px;
-  }
-
   #statusText {
     display: none;
   }
 
   .chat-area {
     border-radius: 28px;
+  }
+
+  .task-map-rail {
+    margin: 0;
+    padding: 12px;
+    max-height: min(60vh, 560px);
+  }
+
+  .task-map-rail-note {
+    display: none;
   }
 
   .messages {
@@ -174,6 +170,14 @@ body.share-snapshot-mode .input-row textarea:disabled {
     --chat-column-width: min(900px, calc(100% - 48px));
   }
 
+  .chat-area {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
   .messages {
     padding: 24px 0 12px;
   }
@@ -184,16 +188,65 @@ body.share-snapshot-mode .input-row textarea:disabled {
   }
 }
 
+@media (min-width: 1040px) {
+  .task-manager-body {
+    grid-template-columns: clamp(420px, 34vw, 560px) minmax(0, 1fr);
+    grid-template-areas: "rail main";
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .task-map-rail {
+    margin: 0;
+    padding: 12px 14px;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  .task-manager-main-column {
+    border-radius: 24px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+
+  .quest-tracker {
+    margin: 0;
+    padding: 16px 18px 12px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .task-manager-main-column .messages {
+    padding-top: 12px;
+  }
+
+  .task-manager-main-column .queued-panel,
+  .task-manager-main-column .input-area {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .task-manager-main-column .input-area {
+    padding-bottom: calc(14px + var(--safe-bottom));
+  }
+}
+
+@media (min-width: 1480px) {
+  .task-manager-body {
+    grid-template-columns: clamp(460px, 34vw, 620px) minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 767px) {
   .header {
     gap: 8px;
     padding-left: 2px;
     padding-right: 2px;
-  }
-
-  .header-share-btn {
-    padding: 0 10px;
-    font-size: 11px;
   }
 
   #statusText {
@@ -206,5 +259,623 @@ body.share-snapshot-mode .input-row textarea:disabled {
 
   .empty-state {
     padding: 28px 18px 18px;
+  }
+}
+
+/* ---- MelodySync final responsive workspace baseline ---- */
+@media (min-width: 768px) and (max-width: 1279px) {
+  :root {
+    --sidebar-width: 276px;
+    --chat-column-width: 100%;
+  }
+
+  .app-shell {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .app-container {
+    gap: 10px;
+  }
+
+  .task-manager-body {
+    grid-template-columns: minmax(312px, 36%) minmax(0, 1fr);
+    grid-template-areas: "rail main";
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .task-map-rail {
+    padding: 8px 10px 10px;
+    max-height: 100%;
+    overflow: auto;
+  }
+
+  .task-manager-main-column {
+    border-radius: 20px;
+  }
+
+  .task-manager-main-column .quest-tracker,
+  .task-manager-main-column .messages,
+  .task-manager-main-column .queued-panel,
+  .task-manager-main-column .input-area,
+  .task-manager-main-column .messages-inner,
+  .task-manager-main-column .input-wrapper,
+  .task-manager-main-column .input-footer {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .task-manager-main-column .quest-tracker {
+    padding: 12px 14px 10px;
+  }
+
+  .task-manager-main-column .messages {
+    padding: 10px 14px 8px;
+  }
+
+  .task-manager-main-column .queued-panel {
+    margin: 0 14px 10px;
+  }
+
+  .task-manager-main-column .input-area {
+    padding: 0 14px calc(12px + var(--safe-bottom));
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --sidebar-width: 288px;
+  }
+
+  .task-manager-body {
+    grid-template-columns: clamp(360px, 30vw, 440px) minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .task-manager-main-column .quest-tracker,
+  .task-manager-main-column .messages,
+  .task-manager-main-column .queued-panel,
+  .task-manager-main-column .input-area,
+  .task-manager-main-column .messages-inner,
+  .task-manager-main-column .input-wrapper,
+  .task-manager-main-column .input-footer {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --chat-gutter: 8px;
+  }
+
+  .app-shell {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .app-container {
+    gap: 8px;
+  }
+
+  .sidebar {
+    width: calc(100vw - 16px);
+    border-radius: 20px;
+  }
+
+  .sidebar-overlay.open .sidebar {
+    left: 8px;
+  }
+
+  .task-manager-body {
+    gap: 0;
+  }
+
+  .task-map-rail {
+    padding: 8px 8px 6px;
+    max-height: min(34svh, 300px);
+    overflow: auto;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+  }
+
+  .task-manager-main-column {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+  }
+
+  .task-manager-main-column .quest-tracker,
+  .task-manager-main-column .messages,
+  .task-manager-main-column .queued-panel,
+  .task-manager-main-column .input-area,
+  .task-manager-main-column .messages-inner,
+  .task-manager-main-column .input-wrapper,
+  .task-manager-main-column .input-footer {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .task-manager-main-column .quest-tracker {
+    padding: 10px 10px 8px;
+    margin: 0;
+  }
+
+  .task-manager-main-column .messages {
+    padding: 10px 10px 8px;
+  }
+
+  .task-manager-main-column .queued-panel {
+    margin: 0 10px 8px;
+  }
+
+  .task-manager-main-column .input-area {
+    padding: 0 10px calc(10px + var(--safe-bottom));
+  }
+
+  .input-footer-tagline,
+  .session-list-footer {
+    display: none;
+  }
+}
+
+/* ---- MelodySync mobile task-map drawer ---- */
+.header-task-map-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.header-task-map-btn[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  #statusDot,
+  #statusText {
+    display: none !important;
+  }
+
+  .task-map-rail {
+    display: none;
+  }
+
+  .task-map-rail.is-mobile-drawer {
+    display: block;
+  }
+
+  .header-task-map-btn:not([hidden]) {
+    display: inline-flex;
+  }
+
+  body.task-map-drawer-open {
+    overflow: hidden;
+  }
+
+  .task-manager-main-column {
+    position: relative;
+  }
+
+  .task-manager-main-column .quest-tracker {
+    position: sticky;
+    top: 0;
+    z-index: 24;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .task-map-rail.is-mobile-drawer {
+    position: fixed;
+    top: calc(var(--safe-top) + 52px);
+    right: 8px;
+    bottom: 8px;
+    width: min(86vw, 352px);
+    max-height: none;
+    padding: 12px 10px 10px;
+    border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--bg-secondary) 94%, rgba(9, 14, 20, 0.92));
+    box-shadow: 0 22px 44px rgba(0, 0, 0, 0.3);
+    transform: translateX(calc(100% + 18px));
+    transition: transform 0.22s ease, opacity 0.22s ease;
+    opacity: 0;
+    overflow: hidden;
+    z-index: 80;
+    pointer-events: none;
+  }
+
+  .task-map-rail.is-mobile-drawer.is-mobile-open {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .task-map-rail.is-mobile-drawer .quest-task-list {
+    height: 100%;
+    max-height: 100%;
+    overflow: auto;
+    padding-right: 2px;
+  }
+
+  .task-map-rail.is-mobile-drawer .quest-task-mindmap-scroll {
+    overscroll-behavior: contain;
+  }
+}
+
+/* ---- MelodySync desktop flat workspace ---- */
+@media (min-width: 768px) {
+  .app-container {
+    gap: 18px;
+    padding: 0 12px 12px;
+  }
+
+  .sidebar-overlay {
+    width: clamp(264px, 21vw, 320px);
+    border-right: 0;
+    background: transparent;
+  }
+
+  .sidebar {
+    height: calc(100% - 12px);
+    border-radius: 28px;
+    border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
+    background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .chat-area {
+    min-width: 0;
+  }
+
+  .task-manager-body {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 28vw, 420px);
+    grid-template-areas: "main rail";
+    gap: 18px;
+    align-items: stretch;
+  }
+
+  .task-map-rail {
+    margin: 0;
+    padding: 0;
+    max-height: 100%;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
+    border-radius: 28px;
+    background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+    box-shadow: none;
+  }
+
+  .task-manager-main-column {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .task-manager-main-column .quest-tracker,
+  .task-manager-main-column .messages,
+  .task-manager-main-column .queued-panel,
+  .task-manager-main-column .input-area,
+  .task-manager-main-column .messages-inner,
+  .task-manager-main-column .input-wrapper,
+  .task-manager-main-column .input-footer {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .task-manager-main-column .quest-tracker {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    padding: 6px 0 10px;
+    margin: 0 0 4px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
+    background: color-mix(in srgb, var(--bg) 84%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .task-manager-main-column .messages {
+    padding: 12px 0 10px;
+  }
+
+  .task-manager-main-column .queued-panel {
+    margin: 0 0 10px;
+  }
+
+  .task-manager-main-column .input-area {
+    padding: 0 0 calc(12px + var(--safe-bottom));
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1120px) {
+  .task-manager-body {
+    grid-template-columns: minmax(0, 1fr) clamp(288px, 32vw, 360px);
+    gap: 14px;
+  }
+}
+
+/* ---- MelodySync final tracker/map layout overrides ---- */
+@media (min-width: 768px) {
+  .task-map-rail {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .task-manager-main-column .quest-tracker {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    margin: 0 0 12px;
+    padding: 14px 16px 13px;
+    border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--bg-secondary) 90%, rgba(10, 16, 24, 0.92));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .task-manager-main-column .messages {
+    padding-top: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .task-manager-main-column .quest-tracker {
+    position: sticky;
+    top: 0;
+    z-index: 24;
+    margin: 0 0 10px;
+    padding: 12px 12px 11px;
+    border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--bg-secondary) 92%, rgba(10, 16, 24, 0.92));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .task-manager-main-column .messages {
+    padding-top: 0;
+  }
+
+  .task-map-rail.is-mobile-drawer {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .task-map-rail.is-mobile-drawer .quest-task-list {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+/* ---- MelodySync final task-map layout ---- */
+@media (min-width: 768px) {
+  .task-manager-body {
+    grid-template-columns: minmax(0, 1fr) clamp(360px, 30vw, 460px);
+    grid-template-areas: "main rail";
+    gap: 18px;
+    align-items: stretch;
+  }
+
+  .task-map-rail {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
+    border-radius: 28px;
+    background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+    box-shadow: none;
+  }
+
+  .task-manager-main-column {
+    overflow: hidden;
+  }
+
+  .task-manager-main-column .quest-tracker {
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    margin: 0 0 12px;
+    padding: 14px 16px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--bg-secondary) 92%, rgba(10, 16, 24, 0.9));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .task-manager-main-column .messages {
+    padding-top: 0;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1140px) {
+  .task-manager-body {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 31vw, 380px);
+    gap: 14px;
+  }
+}
+
+@media (max-width: 767px) {
+  .task-manager-main-column {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+  }
+
+  .task-manager-main-column .quest-tracker {
+    position: sticky;
+    top: 0;
+    z-index: 24;
+    margin: 0 0 10px;
+    background: color-mix(in srgb, var(--bg-secondary) 94%, rgba(10, 16, 24, 0.92));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .task-map-rail {
+    display: none;
+  }
+
+  .task-map-rail.is-mobile-drawer {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    position: fixed;
+    top: calc(var(--safe-top) + 52px);
+    right: 8px;
+    bottom: 8px;
+    width: min(88vw, 360px);
+    max-height: none;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--bg-secondary) 96%, rgba(9, 14, 20, 0.94));
+    box-shadow: 0 22px 44px rgba(0, 0, 0, 0.3);
+    transform: translateX(calc(100% + 18px));
+    transition: transform 0.22s ease, opacity 0.22s ease;
+    opacity: 0;
+    overflow: hidden;
+    z-index: 80;
+    pointer-events: none;
+  }
+
+  .task-map-rail.is-mobile-drawer.is-mobile-open {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .task-map-rail.is-mobile-drawer .quest-task-list {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+/* ---- MelodySync authoritative workspace layout ---- */
+#statusDot,
+#statusText {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .chat-area {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .task-manager-body {
+    grid-template-columns: minmax(0, 1fr) clamp(380px, 30vw, 500px);
+    grid-template-areas: "main rail";
+    gap: 18px;
+    align-items: stretch;
+  }
+
+  .task-manager-main-column {
+    grid-area: main;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .task-map-rail {
+    grid-area: rail;
+    padding: 0;
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+  }
+
+  .task-manager-main-column .quest-tracker,
+  .task-manager-main-column .messages,
+  .task-manager-main-column .queued-panel,
+  .task-manager-main-column .input-area,
+  .task-manager-main-column .messages-inner,
+  .task-manager-main-column .input-wrapper,
+  .task-manager-main-column .input-footer {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .task-manager-main-column .quest-tracker {
+    z-index: 18;
+    margin: 0 0 8px;
+    background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  }
+
+  .task-manager-main-column .messages {
+    padding: 8px 0 10px;
+  }
+
+  .task-manager-main-column .queued-panel {
+    margin: 0 0 10px;
+  }
+
+  .task-manager-main-column .input-area {
+    padding: 0 0 calc(14px + var(--safe-bottom));
+  }
+}
+
+@media (min-width: 1280px) {
+  .task-manager-body {
+    grid-template-columns: minmax(0, 1fr) clamp(420px, 31vw, 560px);
+  }
+}
+
+@media (max-width: 767px) {
+  .task-manager-body {
+    gap: 0;
+  }
+
+  .task-manager-main-column .quest-tracker {
+    position: sticky;
+    top: 0;
+    z-index: 24;
+    margin: 0;
+  }
+
+  .task-map-rail.is-mobile-drawer {
+    width: min(90vw, 380px);
+    padding: 0;
+    border-radius: 22px;
+    z-index: 160;
+  }
+
+  .task-map-rail.is-mobile-drawer .quest-task-list {
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    padding: 0;
   }
 }

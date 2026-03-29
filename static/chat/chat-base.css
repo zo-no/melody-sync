@@ -137,15 +137,6 @@ body {
   width: 32px; height: 32px;
 }
 .header-btn:hover { background: var(--bg-tertiary); color: var(--text); }
-.header-share-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  height: 32px; padding: 0 12px; border-radius: 999px;
-  border: 1px solid var(--border); background: var(--bg-tertiary);
-  color: var(--text-secondary); font-size: 12px; font-weight: 600;
-  cursor: pointer; flex-shrink: 0;
-}
-.header-share-btn:hover { background: var(--bg-secondary); color: var(--text); border-color: var(--border-strong); }
-.header-share-btn:disabled { opacity: 0.7; cursor: wait; }
 .header-refresh-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; padding: 0; border-radius: 999px;
@@ -922,21 +913,6 @@ body::before {
   border-color: rgba(255, 255, 255, 0.62);
 }
 
-.header-share-btn {
-  border: 1px solid rgba(38, 95, 88, 0.26);
-  background: linear-gradient(145deg, #3a8d83, #2a655f);
-  color: #f6fbfb;
-  box-shadow: 12px 12px 22px rgba(46, 109, 101, 0.22), -8px -8px 18px rgba(255, 255, 255, 0.18);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.header-share-btn:hover {
-  background: linear-gradient(145deg, #41998e, #2d6d67);
-  color: #ffffff;
-  border-color: rgba(38, 95, 88, 0.32);
-}
-
 .status-dot {
   width: 10px;
   height: 10px;
@@ -1042,17 +1018,6 @@ body::before {
 .header,
 .chat-area {
   background: rgba(243, 246, 251, 0.84);
-}
-
-.header-share-btn {
-  border-color: rgba(102, 119, 191, 0.18);
-  background: linear-gradient(145deg, #7b89b2, #68779c);
-  box-shadow: 12px 12px 22px rgba(166, 176, 198, 0.24), -8px -8px 18px rgba(255, 255, 255, 0.18);
-}
-
-.header-share-btn:hover {
-  background: linear-gradient(145deg, #8491b8, #6f7ea5);
-  border-color: rgba(102, 119, 191, 0.24);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1174,20 +1139,6 @@ body::before {
   border: 1px solid var(--border);
   background: transparent;
   box-shadow: none;
-}
-
-.header-share-btn {
-  border: 1px solid rgba(29, 39, 51, 0.12);
-  background: var(--text);
-  color: #ffffff;
-  box-shadow: none;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-
-.header-share-btn:hover {
-  background: #283443;
-  border-color: rgba(29, 39, 51, 0.18);
 }
 
 .app-container {

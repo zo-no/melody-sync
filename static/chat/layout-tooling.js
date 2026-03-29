@@ -159,7 +159,7 @@ function syncViewportHeight() {
 
 function focusComposer({ force = false, preventScroll = false } = {}) {
   if (!msgInput?.focus) return false;
-  if ((typeof shareSnapshotMode !== "undefined" && shareSnapshotMode) || msgInput.disabled) return false;
+  if (msgInput.disabled) return false;
   if (!force && !getLayoutState().isDesktop) return false;
   try {
     if (preventScroll) {

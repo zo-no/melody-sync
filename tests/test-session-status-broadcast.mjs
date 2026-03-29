@@ -100,8 +100,8 @@ async function waitFor(predicate, description, timeoutMs = 8000) {
 }
 
 const ownerWs = makeWs({ role: 'owner' });
-const visitorWs = makeWs({ role: 'visitor', sessionId: 'placeholder' });
-setWss({ clients: new Set([ownerWs, visitorWs]) });
+const peerOwnerWs = makeWs({ role: 'owner' });
+setWss({ clients: new Set([ownerWs, peerOwnerWs]) });
 
 const ownerSessionA = await createSession(tempHome, 'fake-codex', 'Owner A', {
   group: 'Tests',
@@ -165,45 +165,43 @@ assert.equal(
   'drop tool use should not invalidate the whole owner session list',
 );
 
-const visitorSession = await createSession(tempHome, 'fake-codex', 'Visitor A', {
-  visitorId: 'visitor-1',
+const peerSession = await createSession(tempHome, 'fake-codex', 'Peer Owner A', {
   group: 'Tests',
-  description: 'Visitor invalidation test',
+  description: 'Peer owner invalidation test',
 });
-visitorWs._authSession.sessionId = visitorSession.id;
 ownerWs.messages = [];
-visitorWs.messages = [];
+peerOwnerWs.messages = [];
 
-const visitorOutcome = await submitHttpMessage(visitorSession.id, 'Visitor run', [], {
-  requestId: 'visitor-run',
+const peerOutcome = await submitHttpMessage(peerSession.id, 'Peer owner run', [], {
+  requestId: 'peer-owner-run',
   tool: 'fake-codex',
   model: 'fake-model',
   effort: 'low',
 });
 
 await waitFor(
-  () => visitorWs.messages.some(
-    (msg) => msg.type === 'session_invalidated' && msg.sessionId === visitorSession.id,
+  () => peerOwnerWs.messages.some(
+    (msg) => msg.type === 'session_invalidated' && msg.sessionId === peerSession.id,
   ),
-  'visitor should receive invalidation for its own session',
+  'peer owner should receive invalidation for its own session',
 );
 
 await waitFor(() => {
-  return getRunState(visitorOutcome.run.id).then((run) => run && ['completed', 'failed', 'cancelled'].includes(run.state));
-}, 'visitor run should complete');
+  return getRunState(peerOutcome.run.id).then((run) => run && ['completed', 'failed', 'cancelled'].includes(run.state));
+}, 'peer owner run should complete');
 
 assert.equal(
   ownerWs.messages.some(
-    (msg) => msg.type === 'session_invalidated' && msg.sessionId === visitorSession.id,
+    (msg) => msg.type === 'session_invalidated' && msg.sessionId === peerSession.id,
   ),
   true,
-  'owner clients should receive visitor session invalidations for unified session views',
+  'all owner clients should receive session invalidations for unified session views',
 );
 
 assert.equal(
-  visitorWs.messages.some((msg) => ['session', 'event', 'history'].includes(msg.type)),
+  peerOwnerWs.messages.some((msg) => ['session', 'event', 'history'].includes(msg.type)),
   false,
-  'visitor websocket should stay invalidation-only',
+  'owner websocket should stay invalidation-only',
 );
 
 killAll();

@@ -32,7 +32,6 @@ function createNewSessionShortcut({ closeSidebar = true } = {}) {
     group: t("sidebar.group.inbox"),
     sourceId: DEFAULT_APP_ID,
     sourceName: DEFAULT_APP_NAME,
-    appId: BASIC_CHAT_TEMPLATE_APP_ID,
   });
 }
 
@@ -57,20 +56,6 @@ newSessionBtn?.addEventListener("click", () => {
 
 sortSessionListBtn?.addEventListener("click", () => {
   createSortSessionListShortcut();
-});
-
-createUserBtn?.addEventListener("click", () => {
-  void handleCreateUser();
-});
-
-newUserNameInput?.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter") return;
-  event.preventDefault();
-  void handleCreateUser();
-});
-
-createAppConfigBtn?.addEventListener("click", () => {
-  void handleCreateApp();
 });
 
 // ---- Attachment handling ----

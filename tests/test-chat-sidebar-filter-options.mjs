@@ -46,11 +46,9 @@ function extractFunctionSource(source, functionName) {
 const functionSources = [
   'isSidebarFilterControlVisible',
   'getVisibleSourceFilterOptions',
-  'getVisibleSessionAppFilterCatalog',
   'getVisibleUserFilterCatalog',
   'syncSidebarFiltersVisibility',
   'renderSourceFilterOptions',
-  'renderSessionAppFilterOptions',
   'renderUserFilterOptions',
 ].map((name) => extractFunctionSource(bootstrapSource, name)).join('\n\n');
 
@@ -85,19 +83,15 @@ function getOptionValues(select) {
 
 function createHarness({
   sourceCounts = {},
-  appCounts = {},
   userCounts = {},
-  appCatalog = [],
   availableUsers = [],
   hasLoadedUsers = true,
   activeSourceFilter = '__all__',
-  activeSessionAppFilter = '__all__',
   activeUserFilter = 'user_admin',
 } = {}) {
   const state = {
     toggles: [],
     persistedSource: [],
-    persistedApp: [],
     persistedUser: [],
   };
   const context = {
@@ -111,16 +105,13 @@ function createHarness({
     SOURCE_FILTER_AUTOMATION_VALUE: 'automation',
     ADMIN_USER_FILTER_VALUE: 'user_admin',
     USER_FILTER_ALL_VALUE: '__all_users__',
-    visitorMode: false,
     activeTab: 'sessions',
     hasLoadedSessions: true,
     hasLoadedUsers,
     activeSourceFilter,
-    activeSessionAppFilter,
     activeUserFilter,
     availableUsers,
     sourceFilterSelect: createSelect(''),
-    sessionAppFilterSelect: createSelect(''),
     userFilterSelect: createSelect(''),
     sidebarFilters: {
       classList: {
@@ -143,20 +134,11 @@ function createHarness({
     getSessionCountForSourceFilter(value) {
       return sourceCounts[value] ?? 0;
     },
-    getSessionCountForTemplateApp(value) {
-      return appCounts[value] ?? 0;
-    },
     getSessionCountForUser(value) {
       return userCounts[value] ?? 0;
     },
-    getSessionAppFilterCatalog() {
-      return appCatalog;
-    },
     normalizeSourceFilter(value) {
       return ['chat_ui', 'bot', 'automation'].includes(value) ? value : '__all__';
-    },
-    normalizeSessionAppFilter(value) {
-      return /^app[_-]/i.test(String(value || '').trim()) ? String(value).trim() : '__all__';
     },
     normalizeUserFilter(value) {
       const normalized = typeof value === 'string' ? value.trim() : '';
@@ -166,16 +148,13 @@ function createHarness({
     persistActiveSourceFilter(value) {
       state.persistedSource.push(value);
     },
-    persistActiveSessionAppFilter(value) {
-      state.persistedApp.push(value);
-    },
     persistActiveUserFilter(value) {
       state.persistedUser.push(value);
     },
   };
   context.globalThis = context;
   vm.runInNewContext(
-    `${functionSources}\nObject.assign(globalThis, { renderSourceFilterOptions, renderSessionAppFilterOptions, renderUserFilterOptions });`,
+    `${functionSources}\nObject.assign(globalThis, { renderSourceFilterOptions, renderUserFilterOptions });`,
     context,
     { filename: 'static/chat/bootstrap-session-catalog.js' },
   );
@@ -213,48 +192,6 @@ function createHarness({
     getOptionValues(context.sourceFilterSelect),
     ['__all__', 'chat_ui', 'bot'],
     'source filter should only include origins that currently have matching sessions',
-  );
-}
-
-{
-  const { context, state } = createHarness({
-    appCounts: {
-      __all__: 2,
-      app_alpha: 2,
-      app_beta: 0,
-    },
-    appCatalog: [
-      { id: 'app_alpha', name: 'Alpha' },
-      { id: 'app_beta', name: 'Beta' },
-    ],
-    activeSessionAppFilter: 'app_beta',
-  });
-  context.renderSessionAppFilterOptions();
-  assert.equal(context.sessionAppFilterSelect.style.display, 'none', 'app filter should hide when only one app has matching sessions');
-  assert.equal(context.activeSessionAppFilter, '__all__', 'app filter should reset stale hidden selections back to all');
-  assert.deepEqual(state.persistedApp, ['__all__'], 'app filter should persist the reset when the previous app is no longer available');
-}
-
-{
-  const { context } = createHarness({
-    appCounts: {
-      __all__: 5,
-      app_alpha: 3,
-      app_beta: 2,
-      app_gamma: 0,
-    },
-    appCatalog: [
-      { id: 'app_alpha', name: 'Alpha' },
-      { id: 'app_beta', name: 'Beta' },
-      { id: 'app_gamma', name: 'Gamma' },
-    ],
-  });
-  context.renderSessionAppFilterOptions();
-  assert.equal(context.sessionAppFilterSelect.style.display, '', 'app filter should stay visible when multiple apps have sessions');
-  assert.deepEqual(
-    getOptionValues(context.sessionAppFilterSelect),
-    ['__all__', 'app_alpha', 'app_beta'],
-    'app filter should omit apps that currently have no matching sessions',
   );
 }
 

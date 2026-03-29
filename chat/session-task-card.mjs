@@ -36,6 +36,85 @@ function normalizeTaskCardLineRole(value) {
   return 'main';
 }
 
+function normalizeIntentText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\r\n/g, '\n')
+    .replace(/[^\p{Letter}\p{Number}\n\s\u4e00-\u9fff]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function textLooksEquivalent(left, right) {
+  const leftText = normalizeIntentText(left);
+  const rightText = normalizeIntentText(right);
+  if (!leftText || !rightText) return false;
+  return leftText === rightText || leftText.includes(rightText) || rightText.includes(leftText);
+}
+
+const INTENT_SHIFT_REASON_PATTERN = /(?:另外|另一|单独|独立|并行|专题|另开|拆出|拆开|分支|支线|切换|转到|转而|换成|不再|脱离|偏离|不同对象|不同目标|不同交付|上下文污染|污染主线|避免污染|separate|independent|parallel|split|branch|switch|drift)/i;
+const SAME_GOAL_REASON_PATTERN = /(?:继续|补充|细化|展开|延伸|说明|约束|调整|修改|优化|完善|补画|重画|再画|再来|追问|示意|草图|变体|同一目标|同一任务|同一条线)/i;
+const NON_INDEPENDENT_TITLE_PATTERN = /^(?:继续|补充|细化|完善|优化|调整|补画|重画|再画|再来|解释|说明|举例|排序|润色)/i;
+const AUTO_BRANCH_STRONG_REASON_PATTERN = /(?:偏离(?:了)?当前|偏离主线|已经偏离|单独展开|单独处理|独立处理|独立专题|另开一条线|拆成独立|不同目标|不同交付|避免(?:主线|上下文).{0,4}污染|context pollution|separate thread|independent thread|split out|branch out)/i;
+
+function taskCardIndicatesIntentShiftNormalized(normalized, branchTitle) {
+  const title = normalizeIntentText(branchTitle);
+  if (!normalized || !title) return false;
+
+  if (
+    textLooksEquivalent(title, normalized.goal)
+    || textLooksEquivalent(title, normalized.mainGoal)
+    || normalized.nextSteps.some((entry) => textLooksEquivalent(title, entry))
+    || textLooksEquivalent(title, normalized.checkpoint)
+  ) {
+    return false;
+  }
+
+  const reason = normalizeIntentText(normalized.branchReason);
+  if (!reason) return false;
+  if (SAME_GOAL_REASON_PATTERN.test(reason) && !INTENT_SHIFT_REASON_PATTERN.test(reason)) {
+    return false;
+  }
+  return INTENT_SHIFT_REASON_PATTERN.test(reason);
+}
+
+function taskCardHasIndependentBranchGoalNormalized(normalized, branchTitle) {
+  const title = normalizeIntentText(branchTitle);
+  if (!normalized || !title) return false;
+  if (NON_INDEPENDENT_TITLE_PATTERN.test(title)) return false;
+
+  if (
+    textLooksEquivalent(title, normalized.goal)
+    || textLooksEquivalent(title, normalized.mainGoal)
+    || normalized.nextSteps.some((entry) => textLooksEquivalent(title, entry))
+    || textLooksEquivalent(title, normalized.checkpoint)
+  ) {
+    return false;
+  }
+
+  return title.length >= 2;
+}
+
+function taskCardSupportsAutoBranchNormalized(normalized, branchTitle) {
+  if (!normalized) return false;
+  if (!taskCardIndicatesIntentShiftNormalized(normalized, branchTitle)) return false;
+  if (!taskCardHasIndependentBranchGoalNormalized(normalized, branchTitle)) return false;
+  const reason = normalizeIntentText(normalized.branchReason);
+  if (!reason || reason.length < 6) return false;
+  return AUTO_BRANCH_STRONG_REASON_PATTERN.test(reason);
+}
+
+function filterCandidateBranches(normalized, candidates = []) {
+  if (!normalized || !Array.isArray(candidates) || candidates.length === 0) return [];
+  const accepted = [];
+  for (const branchTitle of candidates) {
+    if (!taskCardSupportsAutoBranchNormalized(normalized, branchTitle)) continue;
+    accepted.push(branchTitle);
+    break;
+  }
+  return accepted;
+}
+
 function normalizeTaskCardList(value, options = {}) {
   const maxItems = Number.isInteger(options.maxItems) && options.maxItems > 0
     ? options.maxItems
@@ -160,6 +239,8 @@ export function normalizeSessionTaskCard(value) {
     needsFromUser,
   };
 
+  normalized.candidateBranches = filterCandidateBranches(normalized, normalized.candidateBranches);
+
   return hasMeaningfulTaskCard(normalized) ? normalized : null;
 }
 
@@ -168,69 +249,16 @@ function formatTaskCardList(label, items) {
   return `${label}:\n${items.map((item) => `- ${item}`).join('\n')}`;
 }
 
-function normalizeIntentText(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/\r\n/g, '\n')
-    .replace(/[^\p{Letter}\p{Number}\n\s\u4e00-\u9fff]+/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function textLooksEquivalent(left, right) {
-  const leftText = normalizeIntentText(left);
-  const rightText = normalizeIntentText(right);
-  if (!leftText || !rightText) return false;
-  return leftText === rightText || leftText.includes(rightText) || rightText.includes(leftText);
-}
-
-const INTENT_SHIFT_REASON_PATTERN = /(?:另外|另一|单独|独立|并行|专题|另开|拆出|拆开|分支|支线|切换|转到|转而|换成|不再|脱离|偏离|不同对象|不同目标|不同交付|separate|independent|parallel|split|branch|switch)/i;
-const SAME_GOAL_REASON_PATTERN = /(?:继续|补充|细化|展开|延伸|说明|约束|调整|修改|优化|完善|补画|重画|再画|再来|追问|示意|草图|变体|同一目标|同一任务)/i;
-const NON_INDEPENDENT_TITLE_PATTERN = /^(?:继续|补充|细化|完善|优化|调整|补画|重画|再画|再来)/i;
-
 export function taskCardIndicatesIntentShift(taskCard, branchTitle) {
-  const normalized = normalizeSessionTaskCard(taskCard);
-  const title = normalizeIntentText(branchTitle);
-  if (!normalized || !title) return false;
-
-  if (
-    textLooksEquivalent(title, normalized.goal)
-    || textLooksEquivalent(title, normalized.mainGoal)
-    || normalized.nextSteps.some((entry) => textLooksEquivalent(title, entry))
-    || textLooksEquivalent(title, normalized.checkpoint)
-  ) {
-    return false;
-  }
-
-  const reason = normalizeIntentText(normalized.branchReason);
-  if (!reason) return false;
-  if (SAME_GOAL_REASON_PATTERN.test(reason) && !INTENT_SHIFT_REASON_PATTERN.test(reason)) {
-    return false;
-  }
-  return INTENT_SHIFT_REASON_PATTERN.test(reason);
+  return taskCardIndicatesIntentShiftNormalized(normalizeSessionTaskCard(taskCard), branchTitle);
 }
 
 export function taskCardHasIndependentBranchGoal(taskCard, branchTitle) {
-  const normalized = normalizeSessionTaskCard(taskCard);
-  const title = normalizeIntentText(branchTitle);
-  if (!normalized || !title) return false;
-  if (NON_INDEPENDENT_TITLE_PATTERN.test(title)) return false;
-
-  if (
-    textLooksEquivalent(title, normalized.goal)
-    || textLooksEquivalent(title, normalized.mainGoal)
-    || normalized.nextSteps.some((entry) => textLooksEquivalent(title, entry))
-    || textLooksEquivalent(title, normalized.checkpoint)
-  ) {
-    return false;
-  }
-
-  return title.length >= 2;
+  return taskCardHasIndependentBranchGoalNormalized(normalizeSessionTaskCard(taskCard), branchTitle);
 }
 
 export function shouldSurfaceTaskCardBranchCandidate(taskCard, branchTitle) {
-  return taskCardIndicatesIntentShift(taskCard, branchTitle)
-    && taskCardHasIndependentBranchGoal(taskCard, branchTitle);
+  return taskCardSupportsAutoBranchNormalized(normalizeSessionTaskCard(taskCard), branchTitle);
 }
 
 export function buildTaskCardPromptBlock(taskCard) {
@@ -270,9 +298,13 @@ export function buildTaskCardPromptBlock(taskCard) {
     'Set lineRole to "main" when the conversation is still pushing the current main line. Set it to "branch" only when the user has clearly drifted into a side line that should be remembered separately.',
     'Set mainGoal to the main line that should remain visible even when the conversation is currently on a branch. If there is no branch, set mainGoal equal to goal.',
     'Set branchFrom to the main line or parent line the current branch diverged from. Leave branchFrom empty when lineRole is "main".',
-    'Set branchReason only when there is a clear reason a branch already exists or should split out, such as following a related book, concept, dependency, independent deliverable, or parallel topic.',
+    'Set branchReason only when there is a clear reason a branch already exists or should split out, such as a distinct deliverable, a different research track, or a line that would pollute the current context if kept in the same thread.',
     'Set checkpoint to one short resume hint that would let the user or the system continue later without rereading the full history.',
-    'Use candidateBranches only for likely side lines that would be worth splitting into their own branch later. Keep each item short and actionable. Do not list every sub-question.',
+    'Default candidateBranches to an empty list.',
+    'Only add candidateBranches when the user has already started drifting into a different goal that should become its own branch if continued.',
+    'Do not proactively suggest a branch for normal follow-up questions, refinements, examples, reordering, polishing, style tweaks, or deeper explanation inside the same deliverable.',
+    'Only keep one proactive candidate branch at most. If there is any doubt, leave candidateBranches empty.',
+    'Use candidateBranches only for likely side lines that would be worth splitting into their own branch later because they are independent and would otherwise pollute the current context. Keep each item short and actionable. Do not list every sub-question.',
     normalized?.mode === 'project'
       ? 'This session is already in project mode. Own the workspace, notes, artifacts, and intermediate outputs without asking the user to organize them.'
       : 'This session is still in lightweight task mode. Keep the summary, next step, and checkpoint current without making the user manage project structure.',

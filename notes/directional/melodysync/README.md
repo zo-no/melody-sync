@@ -11,16 +11,18 @@ These files are the repo-internal copies of the working docs that also live in t
 - `prd-work-continuity-mvp.md` — copy of `MelodySync PRD｜工作连续性 MVP.md`
 - `task-list-design.md` — product/UI design for the left task list and top task bar split
 - `task-branch-lifecycle.md` — current shipped implementation note for mainline/branch lifecycle, task bar behavior, task clusters, and minimal verification flow
+- `task-map-interaction-model.md` — next interaction model for left main-quest list, middle task map, right current-node workspace, and candidate-branch flow
 
 Use these docs by role:
 
 1. `product-description.md` is the product summary. Use it to re-orient quickly on what MelodySync currently is and what the next iteration is trying to achieve.
 2. `prd-work-continuity-mvp.md` is the execution anchor. Use it when deciding what the shipped MVP should actually do.
 3. `task-list-design.md` is the interaction design doc. Use it when deciding how the left-side main view should express tasks, branches, and recovery.
-4. `task-branch-lifecycle.md` is the implementation alignment doc. Use it when checking what the current code already does, how branch status flows work, and which gaps are still real.
-5. `mvp-implementation-plan.md` is the scope-cut companion. Use it when checking what the first version must include or explicitly defer.
-6. `project-plan.md` is the longer-horizon product roadmap for MelodySync as a sustained project.
-7. `product-idea.md` preserves the broader origin thesis and long-range direction.
+4. `task-map-interaction-model.md` is the next-step interaction contract. Use it when deciding how the product should stop exposing session structure directly and move to a main-quest + task-map model.
+5. `task-branch-lifecycle.md` is the implementation alignment doc. Use it when checking what the current code already does, how branch status flows work, and which gaps are still real.
+6. `mvp-implementation-plan.md` is the scope-cut companion. Use it when checking what the first version must include or explicitly defer.
+7. `project-plan.md` is the longer-horizon product roadmap for MelodySync as a sustained project.
+8. `product-idea.md` preserves the broader origin thesis and long-range direction.
 
 Sync rule:
 

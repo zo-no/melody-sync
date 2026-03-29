@@ -15,10 +15,19 @@ import {
   getRun,
   getRunManifest,
   updateRun,
-  writeRunResult,
 } from './runs.mjs';
 import { buildToolProcessEnv } from '../lib/user-shell-env.mjs';
 import { applyManagedRuntimeEnv } from './runtime-policy.mjs';
+import {
+  finalizeSidecarRunError,
+  finalizeSidecarRunExit,
+} from './runner-sidecar-finalize.mjs';
+import {
+  createCodexTransportMonitor,
+  createTerminationController,
+  getProviderTerminationGraceMs,
+  getProviderTransportFailureGraceMs,
+} from './provider-runtime-monitor.mjs';
 
 const runId = process.argv[2];
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -89,6 +98,7 @@ async function appendCodexContextMetrics(runId) {
   return metrics;
 }
 
+
 async function main() {
   if (!runId) {
     process.exit(1);
@@ -138,29 +148,63 @@ async function main() {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: await cleanEnv(manifest.tool, manifest, { runtimeFamily }),
   });
+  const providerTransportFailureGraceMs = getProviderTransportFailureGraceMs(process.env);
+  const providerTerminationGraceMs = getProviderTerminationGraceMs(process.env);
 
   await updateRun(runId, (current) => ({
     ...current,
     toolProcessId: proc.pid,
   }));
 
+  let finalized = false;
   let cancelSent = false;
+  let forcedFailureReason = '';
+  let transportAbortRequested = false;
+  const terminationController = createTerminationController(proc, {
+    terminationGraceMs: providerTerminationGraceMs,
+  });
+  const transportMonitor = createCodexTransportMonitor({
+    runtimeFamily,
+    graceMs: providerTransportFailureGraceMs,
+  });
+
   const cancelTimer = setInterval(() => {
     void (async () => {
       const current = await getRun(runId);
       if (!current?.cancelRequested || cancelSent) return;
       cancelSent = true;
-      try {
-        proc.kill('SIGTERM');
-      } catch {}
+      terminationController.requestTermination();
     })();
   }, 250);
+  const transportWatchdog = setInterval(() => {
+    void (async () => {
+      if (finalized || transportAbortRequested) return;
+      const pendingFailure = transportMonitor.getPendingFailure();
+      if (!pendingFailure) return;
+      transportAbortRequested = true;
+      forcedFailureReason = forcedFailureReason || pendingFailure.reason;
+      await appendRunSpoolRecord(runId, {
+        ts: nowIso(),
+        stream: 'error',
+        line: forcedFailureReason,
+      });
+      await updateRun(runId, (current) => ({
+        ...current,
+        failureReason: forcedFailureReason,
+      }));
+      terminationController.requestTermination();
+    })();
+  }, 500);
+  if (typeof transportWatchdog.unref === 'function') {
+    transportWatchdog.unref();
+  }
 
   const recordStdoutLine = async (line) => {
     let parsed = null;
     try {
       parsed = JSON.parse(line);
     } catch {}
+    transportMonitor.observeStdoutJson(parsed);
     await appendRunSpoolRecord(runId, {
       ts: nowIso(),
       stream: 'stdout',
@@ -182,6 +226,7 @@ async function main() {
     for (const line of trimmed.split(/\r?\n/)) {
       const clean = line.trim();
       if (!clean) continue;
+      transportMonitor.observeStderrLine(clean);
       await appendRunSpoolRecord(runId, {
         ts: nowIso(),
         stream: 'stderr',
@@ -199,71 +244,43 @@ async function main() {
 
   proc.on('error', (error) => {
     void (async () => {
+      finalized = true;
       clearInterval(cancelTimer);
-      await appendRunSpoolRecord(runId, {
-        ts: nowIso(),
-        stream: 'error',
-        line: error.message,
+      clearInterval(transportWatchdog);
+      terminationController.clearTerminateTimer();
+      await finalizeSidecarRunError(runId, {
+        nowIso,
+        error,
+        forcedFailureReason,
       });
-      const result = {
-        completedAt: nowIso(),
-        exitCode: 1,
-        signal: null,
-        error: error.message,
-      };
-      await writeRunResult(runId, result);
-      await updateRun(runId, (current) => ({
-        ...current,
-        state: current.cancelRequested ? 'cancelled' : 'failed',
-        completedAt: result.completedAt,
-        result,
-        failureReason: error.message,
-      }));
       process.exit(1);
     })();
   });
 
   proc.on('exit', (code, signal) => {
     void (async () => {
+      finalized = true;
       clearInterval(cancelTimer);
-      const current = await getRun(runId) || run;
-      const completedAt = nowIso();
-      await appendCodexContextMetrics(runId);
-      const result = {
-        completedAt,
-        exitCode: code ?? 1,
-        signal: signal || null,
-        cancelled: current.cancelRequested === true,
-      };
-      await writeRunResult(runId, result);
-      await updateRun(runId, (draft) => ({
-        ...draft,
-        state: draft.cancelRequested
-          ? 'cancelled'
-          : (code ?? 1) === 0
-            ? 'completed'
-            : 'failed',
-        completedAt,
-        result,
-      }));
-      process.exit(code ?? 1);
+      clearInterval(transportWatchdog);
+      terminationController.clearTerminateTimer();
+      const exitCode = await finalizeSidecarRunExit(runId, run, {
+        nowIso,
+        appendCodexContextMetrics,
+        code,
+        signal,
+        forcedFailureReason,
+      });
+      process.exit(exitCode);
     })();
   });
 }
 
 main().catch((error) => {
   void (async () => {
-    await appendRunSpoolRecord(runId, {
-      ts: nowIso(),
-      stream: 'error',
-      line: error.message,
+    await finalizeSidecarRunError(runId, {
+      nowIso,
+      error,
     });
-    await updateRun(runId, (current) => ({
-      ...current,
-      state: current?.cancelRequested ? 'cancelled' : 'failed',
-      completedAt: nowIso(),
-      failureReason: error.message,
-    }));
     process.exit(1);
   })();
 });

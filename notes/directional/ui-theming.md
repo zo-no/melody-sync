@@ -9,7 +9,7 @@ RemoteLab should follow the operator's browser / OS `prefers-color-scheme` autom
 For now that baseline is intentionally simple:
 
 - no Settings surface for theme selection yet
-- owner chat, login, and share snapshot surfaces should stay visually coherent across light and dark mode
+- owner chat and login surfaces should stay visually coherent across light and dark mode
 - all page-level colors should continue to flow through a small semantic CSS variable layer instead of per-component hard-coded palettes
 
 ## Deferred TODO

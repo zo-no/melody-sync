@@ -104,7 +104,7 @@ After that, reuse `cookie.jar` on HTTP requests and WebSocket upgrades.
 Current note:
 
 - this is owner-scope auth
-- visitor auth is for shared Apps, not for automation connectors
+- public sharing is retired; automation connectors always use owner-scoped auth
 
 ---
 
@@ -145,13 +145,13 @@ Naming policy for connector-created sessions:
 - do not repeat provider/app/group words already stored in `group`, `appName`, or other metadata
 - generic names such as `Feishu group`, `GitHub issue`, or `Mail reply` are treated as temporary and may be discarded
 
-For recurring owner-side automations, prefer treating the connector as an Automation App:
+For recurring owner-side automations, prefer treating the connector as a stable session source:
 
-- create a normal RemoteLab App for the automation's identity and prompt
-- use that App's `id`, `name`, and `systemPrompt` when creating/reusing the review session
+- create or reuse one durable session per automation thread
+- store connector identity in passive metadata such as `sourceId`, `sourceName`, `group`, and `externalTriggerId`
 - keep one stable `externalTriggerId` per automation thread so review stays in one durable session
 
-See `automation-apps.md` for the higher-level product pattern.
+See `current-features.md` for the current shipped product surface.
 
 Example:
 

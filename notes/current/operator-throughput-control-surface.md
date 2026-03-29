@@ -10,7 +10,6 @@ _Last updated: 2026-03-14_
 > - `notes/current/core-domain-contract.md`
 > - `notes/directional/product-vision.md`
 > - `notes/directional/ai-driven-interaction.md`
-> - `notes/current/scheduled-trigger-phase1.md`
 
 ---
 
@@ -396,13 +395,11 @@ This note turns that into implementation-oriented product requirements.
 
 ### AI-Driven Interaction
 
-`notes/directional/ai-driven-interaction.md` already points toward richer session metadata and deferred triggers.
+`notes/directional/ai-driven-interaction.md` already points toward richer session metadata and deferred follow-up orchestration.
 
 This note says which of those are most valuable for operator throughput.
 
-### Scheduled Trigger
-
-`notes/current/scheduled-trigger-phase1.md` already defines the scheduling primitive.
+### Deferred Follow-Up
 
 This note explains why wake-up / follow-up is essential for parallel work management, not just for reminders.
 

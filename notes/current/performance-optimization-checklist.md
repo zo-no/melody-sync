@@ -60,4 +60,4 @@ Use this before and during any performance pass on `zo-no-remotelab`.
 - Did the user-visible metric improve?
 - Did restart recovery regress?
 - Did memory or disk usage grow unacceptably?
-- Did the change alter correctness for active runs, archived sessions, or visitor flows?
+- Did the change alter correctness for active runs, archived sessions, or owner-only session flows?

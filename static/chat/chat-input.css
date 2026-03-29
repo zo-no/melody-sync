@@ -218,6 +218,138 @@
   flex-direction: column;
   gap: 8px;
 }
+
+/* ---- MelodySync final input density baseline ---- */
+.input-area {
+  background: transparent;
+}
+
+.input-wrapper {
+  border-radius: 12px;
+  border-width: 1px;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+}
+
+.input-config-row {
+  gap: 8px;
+  padding: 6px 10px 5px;
+}
+
+.tool-select,
+.model-select,
+.effort-select,
+.thinking-toggle,
+.compact-btn {
+  height: 30px;
+  border-radius: 8px;
+}
+
+.tool-select,
+.model-select,
+.effort-select {
+  padding: 3px 8px;
+}
+
+.thinking-toggle,
+.compact-btn {
+  padding: 4px 8px;
+}
+
+.input-config-row .img-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+.input-row {
+  gap: 8px;
+  padding: 8px 10px 8px 12px;
+}
+
+.input-row textarea {
+  min-height: calc(1.5em * 2.5);
+  max-height: calc(1.5em * 8);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.send-btn,
+.cancel-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.queued-panel {
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+@media (max-width: 767px) {
+  .input-area {
+    border-top: 0;
+  }
+
+  .input-resize-handle {
+    height: 14px;
+    margin-bottom: 4px;
+  }
+
+  .input-wrapper {
+    border-radius: 10px;
+  }
+
+  .input-config-row {
+    gap: 6px;
+    padding: 5px 8px 4px;
+  }
+
+  .input-config-group {
+    gap: 5px;
+  }
+
+  .tool-select,
+  .model-select,
+  .effort-select,
+  .thinking-toggle,
+  .compact-btn,
+  .input-config-row .img-btn {
+    height: 28px;
+    min-height: 28px;
+    font-size: 11px;
+  }
+
+  .tool-select {
+    max-width: 84px;
+  }
+
+  .model-select {
+    max-width: 96px;
+  }
+
+  .effort-select {
+    max-width: 76px;
+  }
+
+  .input-row {
+    padding: 6px 8px 6px 10px;
+  }
+
+  .input-row textarea {
+    min-height: calc(1.45em * 2.2);
+    max-height: calc(1.45em * 6);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .input-footer {
+    padding-top: 6px;
+    font-size: 10px;
+  }
+
+  .queued-panel {
+    margin-bottom: 8px;
+  }
+}
 .queued-item {
   border-radius: 10px;
   padding: 9px 10px;

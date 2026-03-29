@@ -81,10 +81,7 @@ writeFileSync(
 process.env.HOME = tempHome;
 process.env.PATH = `${tempBin}:${process.env.PATH}`;
 
-const appsModule = await import(pathToFileURL(join(repoRoot, 'chat', 'apps.mjs')).href);
 const sessionManager = await import(pathToFileURL(join(repoRoot, 'chat', 'session-manager.mjs')).href);
-
-const { WELCOME_APP_ID } = appsModule;
 const {
   createSession,
   getSession,
@@ -102,9 +99,10 @@ async function waitFor(predicate, description, timeoutMs = 4000) {
 }
 
 const session = await createSession(tempHome, 'fake-codex', 'Welcome Intake', {
-  appId: WELCOME_APP_ID,
+  sourceId: 'chat',
+  sourceName: 'Chat',
   group: 'RemoteLab',
-  description: 'Welcome app intake state should keep a hidden task card.',
+  description: 'Intake state should keep a hidden task card.',
 });
 
 await sendMessage(session.id, '我有两个原始文件，想把周报整理这件事交给你。', [], {

@@ -1,5 +1,8 @@
 (function workbenchModule() {
   const tracker = document.getElementById("questTracker");
+  const trackerStatusEl = document.getElementById("questTrackerStatus");
+  const trackerStatusDotEl = document.getElementById("questTrackerStatusDot");
+  const trackerStatusTextEl = document.getElementById("questTrackerStatusText");
   const trackerLabelEl = document.getElementById("questTrackerLabel");
   const trackerTitleEl = document.getElementById("questTrackerTitle");
   const trackerBranchEl = document.getElementById("questTrackerBranch");
@@ -7,6 +10,10 @@
   const trackerBranchTitleEl = document.getElementById("questTrackerBranchTitle");
   const trackerNextEl = document.getElementById("questTrackerNext");
   const trackerTaskListEl = document.getElementById("questTaskList");
+  const taskMapRail = document.getElementById("taskMapRail");
+  const taskMapDrawerBtn = document.getElementById("taskMapDrawerBtn");
+  const taskMapDrawerBackdrop = document.getElementById("taskMapDrawerBackdrop");
+  const trackerFooterEl = document.getElementById("questTrackerFooter");
   const trackerActionsEl = document.getElementById("questTrackerActions");
   const trackerToggleBtn = document.getElementById("questTrackerToggleBtn");
   const trackerCloseBtn = document.getElementById("questTrackerCloseBtn");
@@ -16,9 +23,11 @@
   const finishResolveBtn = document.getElementById("questFinishResolveBtn");
   const finishParkBtn = document.getElementById("questFinishParkBtn");
   const finishMergeBtn = document.getElementById("questFinishMergeBtn");
+  const finishSummaryInput = document.getElementById("questFinishSummaryInput");
   if (!tracker) return;
 
   const SUPPRESSED_PREFIX = "melodysyncSuppressedBranch";
+  const TASK_MAP_MOCK_STORAGE_KEY = "melodysyncTaskMapMockPreset";
 
   let snapshot = {
     captureItems: [],
@@ -33,9 +42,15 @@
   let trackerRefreshInFlight = null;
   let fullSnapshotRefreshTimer = null;
   let finishPanelOpen = false;
+  let finishSummaryDraftBySession = new Map();
   let branchStructureExpanded = false;
+  let focusedSessionId = "";
   let taskMindmapNodeExpansionState = new Map();
   let lastTaskMindmapRenderKey = "";
+
+  function translate(key, vars) {
+    return typeof window?.remotelabT === "function" ? window.remotelabT(key, vars) : key;
+  }
 
   function clipText(value, max = 120) {
     const text = String(value || "").replace(/\s+/g, " ").trim();
@@ -69,6 +84,23 @@
     return title.length > max ? title.slice(0, max).trim() : title;
   }
 
+  function normalizeComparableText(value) {
+    return String(value || "")
+      .replace(/\s+/g, " ")
+      .replace(/[：:·•，。,.;；、!?！？]/g, "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function isRedundantTrackerText(value, ...comparisons) {
+    const base = normalizeComparableText(value);
+    if (!base) return true;
+    return comparisons.some((entry) => {
+      const candidate = normalizeComparableText(entry);
+      return candidate && candidate === base;
+    });
+  }
+
   function renderChevronIcon(expanded, className = "") {
     if (typeof renderUiIcon === "function") {
       return renderUiIcon(expanded ? "chevron-down" : "chevron-right", className);
@@ -76,25 +108,168 @@
     return expanded ? "▾" : "▸";
   }
 
-  function setTrackerToggleContent(expanded) {
-    if (!trackerToggleBtn) return;
-    trackerToggleBtn.innerHTML = `
-      <span class="quest-tracker-toggle-label">子任务</span>
+  function setTaskMapButtonContent(button, expanded) {
+    if (!button) return;
+    button.innerHTML = `
+      <span class="quest-tracker-toggle-label">地图</span>
       <span class="quest-tracker-toggle-icon">${renderChevronIcon(expanded, "quest-tracker-toggle-svg")}</span>
     `;
   }
 
-  function getSessionActivityTimestamp(session) {
-    const value = session?.updatedAt || session?.lastEventAt || session?.created || "";
-    const stamp = new Date(value).getTime();
-    return Number.isFinite(stamp) ? stamp : 0;
+  function isMobileTaskMapDrawerOpen() {
+    return isMobileQuestTracker() && branchStructureExpanded === true;
   }
 
-  function normalizeTaskClusterKey(value) {
-    return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  function getTrackerVisualStatus(session) {
+    if (!session) {
+      return {
+        label: "空闲",
+        dotClass: "",
+      };
+    }
+    const archived = session?.archived === true;
+    if (typeof getSessionVisualStatus === "function") {
+      const visualStatus = getSessionVisualStatus(session) || {};
+      if (archived && !visualStatus?.label) {
+        return { label: "已归档", dotClass: "" };
+      }
+      return {
+        label: archived && visualStatus?.label ? `${visualStatus.label} · 已归档` : (visualStatus?.label || (archived ? "已归档" : "空闲")),
+        dotClass: String(visualStatus?.dotClass || "").replace(/^status-dot\s*/, "").trim(),
+      };
+    }
+    return {
+      label: archived ? "已归档" : "空闲",
+      dotClass: "",
+    };
   }
 
-  function closeFinishPanel() {
+  function renderTrackerStatus(state) {
+    if (!trackerStatusEl || !trackerStatusDotEl || !trackerStatusTextEl) return;
+    if (!state?.hasSession || !state?.session) {
+      trackerStatusEl.hidden = true;
+      trackerStatusDotEl.className = "quest-tracker-status-dot";
+      trackerStatusTextEl.textContent = "";
+      return;
+    }
+    const visualStatus = getTrackerVisualStatus(state.session);
+    trackerStatusEl.hidden = false;
+    trackerStatusTextEl.textContent = visualStatus.label || "空闲";
+    trackerStatusDotEl.className = `quest-tracker-status-dot${visualStatus.dotClass ? ` ${visualStatus.dotClass}` : ""}`;
+  }
+
+  function setTaskMapDrawerExpanded(expanded, options = {}) {
+    const nextExpanded = expanded === true;
+    if (branchStructureExpanded === nextExpanded && options.force !== true) {
+      if (options.render === true) renderTracker();
+      return;
+    }
+    branchStructureExpanded = nextExpanded;
+    if (options.render !== false) {
+      renderTracker();
+    }
+  }
+
+  function syncTaskMapDrawerUi(isMounted) {
+    const mobileDrawer = isMobileQuestTracker();
+    const shouldMount = Boolean(isMounted);
+    const drawerOpen = shouldMount && mobileDrawer && isMobileTaskMapDrawerOpen();
+    if (taskMapRail) {
+      taskMapRail.classList.toggle("is-mobile-drawer", mobileDrawer && shouldMount);
+      taskMapRail.classList.toggle("is-mobile-open", drawerOpen);
+      taskMapRail.setAttribute("aria-hidden", shouldMount && (!mobileDrawer || drawerOpen) ? "false" : "true");
+    }
+    if (taskMapDrawerBackdrop) {
+      taskMapDrawerBackdrop.hidden = !(mobileDrawer && shouldMount && drawerOpen);
+    }
+    if (taskMapDrawerBtn) {
+      taskMapDrawerBtn.hidden = !(mobileDrawer && shouldMount);
+      taskMapDrawerBtn.setAttribute("aria-expanded", drawerOpen ? "true" : "false");
+      taskMapDrawerBtn.title = drawerOpen ? "收起任务地图" : "展开任务地图";
+      taskMapDrawerBtn.setAttribute("aria-label", taskMapDrawerBtn.title);
+      setTaskMapButtonContent(taskMapDrawerBtn, drawerOpen);
+    }
+    if (trackerToggleBtn) {
+      trackerToggleBtn.hidden = true;
+    }
+    document.body?.classList?.toggle?.("task-map-drawer-open", drawerOpen);
+  }
+
+  function getTrackerPrimaryTitle(state) {
+    if (!state?.hasSession) return "当前任务";
+    const baseTitle = state.isBranch
+      ? (state.currentGoal || state.session?.name || state.mainGoal)
+      : (state.currentGoal || state.mainGoal || state.session?.name);
+    return toConciseGoal(baseTitle, isMobileQuestTracker() ? 44 : 64) || "当前任务";
+  }
+
+  function getTrackerPrimaryDetail(state) {
+    if (!state?.hasSession) return "";
+    if (state.isBranch) {
+      return clipText(`来自主线：${state.branchFrom || state.mainGoal || "当前主线"}`, isMobileQuestTracker() ? 84 : 112);
+    }
+    return clipText(getCurrentTaskSummary(state), isMobileQuestTracker() ? 80 : 112);
+  }
+
+  function getTrackerSecondaryDetail(state, primaryDetail = "") {
+    if (!state?.hasSession || !state?.isBranch) return "";
+    const nextStep = clipText(state.nextStep || "", isMobileQuestTracker() ? 72 : 96);
+    if (!nextStep) return "";
+    return isRedundantTrackerText(nextStep, state.currentGoal, primaryDetail) ? "" : nextStep;
+  }
+
+  function getBranchFinishSummarySeed(state = null) {
+    const resolvedState = state || deriveQuestState();
+    if (!resolvedState?.hasSession || !resolvedState?.isBranch) return "";
+    return clipText(
+      getTaskCardList(resolvedState.taskCard, "knownConclusions")[0]
+      || resolvedState.taskCard?.summary
+      || resolvedState.taskCard?.checkpoint
+      || getTaskCardList(resolvedState.taskCard, "nextSteps")[0]
+      || resolvedState.latestContext?.checkpointSummary
+      || resolvedState.latestContext?.resumeHint
+      || "",
+      180,
+    );
+  }
+
+  function rememberFinishSummaryDraft(sessionId = "", value = "") {
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!normalizedSessionId) return;
+    const nextValue = String(value || "").trim();
+    if (nextValue) {
+      finishSummaryDraftBySession.set(normalizedSessionId, nextValue);
+      return;
+    }
+    finishSummaryDraftBySession.delete(normalizedSessionId);
+  }
+
+  function resolveFinishSummaryDraft(state = null) {
+    const resolvedState = state || deriveQuestState();
+    const sessionId = normalizeSessionId(resolvedState?.session?.id || "");
+    if (!sessionId) return "";
+    return finishSummaryDraftBySession.get(sessionId) || getBranchFinishSummarySeed(resolvedState);
+  }
+
+  function syncFinishSummaryInput(state = null) {
+    if (!finishSummaryInput) return;
+    const resolvedState = state || deriveQuestState();
+    finishSummaryInput.value = resolveFinishSummaryDraft(resolvedState);
+  }
+
+  function openFinishPanel(state = null) {
+    const resolvedState = state || deriveQuestState();
+    if (!resolvedState?.hasSession || !resolvedState?.isBranch) return;
+    finishPanelOpen = true;
+    if (finishPanel) finishPanel.hidden = false;
+    syncFinishSummaryInput(resolvedState);
+  }
+
+  function closeFinishPanel(options = {}) {
+    const targetSessionId = normalizeSessionId(options.sessionId || getFocusedSessionId());
+    if (options.preserveDraft !== false && finishSummaryInput) {
+      rememberFinishSummaryDraft(targetSessionId, finishSummaryInput.value);
+    }
     finishPanelOpen = false;
     if (finishPanel) finishPanel.hidden = true;
   }
@@ -104,21 +279,12 @@
     return viewportWidth > 0 && viewportWidth <= 767;
   }
 
-  function syncFinishPanelVisibility(state) {
-    if (!finishPanel) return;
-    const shouldShow = Boolean(
-      finishPanelOpen
-      && state?.isBranch
-      && String(state?.branchStatus || "").toLowerCase() === "active"
-    );
-    finishPanel.hidden = !shouldShow;
-  }
-
   function shouldHideTrackerNext(value) {
     const text = String(value || "").replace(/\s+/g, " ").trim();
     if (!text) return true;
     return [
       /等待用户.*决定/i,
+      /等待用户.*提供/i,
       /保留还是撤回/i,
       /是否保留/i,
       /是否撤回/i,
@@ -139,6 +305,134 @@
   function getCurrentSessionSafe() {
     if (typeof getCurrentSession === "function") return getCurrentSession();
     return null;
+  }
+
+  function normalizeSessionId(value) {
+    return String(value || "").trim();
+  }
+
+  function getCurrentSessionIdSafe() {
+    return normalizeSessionId(getCurrentSessionSafe()?.id || "");
+  }
+
+  function getFocusedSessionId() {
+    const normalizedFocused = normalizeSessionId(focusedSessionId);
+    if (normalizedFocused) {
+      if (normalizedFocused === getCurrentSessionIdSafe()) return normalizedFocused;
+      if (getSessionRecord(normalizedFocused)) return normalizedFocused;
+    }
+    return getCurrentSessionIdSafe();
+  }
+
+  function getFocusedSessionRecord() {
+    const sessionId = getFocusedSessionId();
+    if (!sessionId) return null;
+    return getSessionRecord(sessionId)
+      || (getCurrentSessionSafe()?.id === sessionId ? getCurrentSessionSafe() : null);
+  }
+
+  function getClusterBranchSessionIds(cluster) {
+    const ids = new Set();
+    for (const sessionId of Array.isArray(cluster?.branchSessionIds) ? cluster.branchSessionIds : []) {
+      const normalizedSessionId = normalizeSessionId(sessionId);
+      if (normalizedSessionId) ids.add(normalizedSessionId);
+    }
+    for (const session of Array.isArray(cluster?.branchSessions) ? cluster.branchSessions : []) {
+      const normalizedSessionId = normalizeSessionId(session?.id || "");
+      if (normalizedSessionId) ids.add(normalizedSessionId);
+    }
+    return ids;
+  }
+
+  function getResolvedClusterCurrentBranchSessionId(cluster, preferredSessionId = "") {
+    const resolvedCluster = cluster || null;
+    if (!resolvedCluster) return "";
+    const normalizedPreferredSessionId = normalizeSessionId(preferredSessionId || getFocusedSessionId());
+    const rootSessionId = normalizeSessionId(resolvedCluster?.mainSessionId || "");
+    if (normalizedPreferredSessionId) {
+      if (normalizedPreferredSessionId === rootSessionId) return "";
+      if (getClusterBranchSessionIds(resolvedCluster).has(normalizedPreferredSessionId)) {
+        return normalizedPreferredSessionId;
+      }
+    }
+    return normalizeSessionId(resolvedCluster?.currentBranchSessionId || "");
+  }
+
+  function applyFocusedSessionToSnapshot(sessionId) {
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!normalizedSessionId) return false;
+    const clusters = Array.isArray(snapshot?.taskClusters) ? snapshot.taskClusters : [];
+    for (const cluster of clusters) {
+      const rootSessionId = normalizeSessionId(cluster?.mainSessionId || "");
+      if (!rootSessionId) continue;
+      if (normalizedSessionId === rootSessionId) {
+        if (normalizeSessionId(cluster?.currentBranchSessionId || "")) {
+          cluster.currentBranchSessionId = "";
+          return true;
+        }
+        return false;
+      }
+      if (getClusterBranchSessionIds(cluster).has(normalizedSessionId)) {
+        if (normalizeSessionId(cluster?.currentBranchSessionId || "") !== normalizedSessionId) {
+          cluster.currentBranchSessionId = normalizedSessionId;
+          return true;
+        }
+        return false;
+      }
+    }
+    return false;
+  }
+
+  function setFocusedSessionId(sessionId, options = {}) {
+    const nextFocusedSessionId = normalizeSessionId(sessionId) || getCurrentSessionIdSafe();
+    const focusChanged = nextFocusedSessionId !== focusedSessionId;
+    focusedSessionId = nextFocusedSessionId;
+    const snapshotChanged = options.syncSnapshot === false
+      ? false
+      : applyFocusedSessionToSnapshot(nextFocusedSessionId);
+    if ((focusChanged || snapshotChanged) && options.render !== false) {
+      lastTaskMindmapRenderKey = "";
+      renderTracker();
+      if (options.renderSessionList === true && typeof renderSessionList === "function") {
+        renderSessionList();
+      }
+    }
+    return focusedSessionId;
+  }
+
+  function getTaskMapMockPreset() {
+    try {
+      const href = String(window?.location?.href || "");
+      if (href) {
+        const url = new URL(href);
+        const fromQuery = String(url.searchParams.get("taskMapMock") || "").trim();
+        if (fromQuery) {
+          return fromQuery;
+        }
+      }
+    } catch {
+    }
+    try {
+      return String(localStorage.getItem(TASK_MAP_MOCK_STORAGE_KEY) || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function getTaskMapProjection() {
+    if (typeof window?.MelodySyncTaskMapModel?.buildTaskMapProjection !== "function") {
+      return null;
+    }
+    const projection = window.MelodySyncTaskMapModel.buildTaskMapProjection({
+      snapshot,
+      sessions: getSessionRecords(),
+      currentSessionId: getCurrentSessionIdSafe(),
+      focusedSessionId: getFocusedSessionId(),
+    });
+    if (typeof window?.MelodySyncTaskMapModel?.applyTaskMapMockPreset === "function") {
+      return window.MelodySyncTaskMapModel.applyTaskMapMockPreset(projection, getTaskMapMockPreset());
+    }
+    return projection;
   }
 
   function getSessionRecords() {
@@ -319,19 +613,8 @@
     return names;
   }
 
-  function getClusterKey(cluster) {
-    return String(
-      cluster?.mainSessionId
-      || cluster?.mainGoal
-      || cluster?.mainSession?.taskCard?.mainGoal
-      || cluster?.mainSession?.taskCard?.goal
-      || cluster?.mainSession?.name
-      || "",
-    ).trim().toLowerCase();
-  }
-
   function getClusterLeadSession(cluster) {
-    const currentBranchId = String(cluster?.currentBranchSessionId || "").trim();
+    const currentBranchId = getResolvedClusterCurrentBranchSessionId(cluster);
     if (currentBranchId) {
       const currentBranch = getSessionRecord(currentBranchId)
         || (Array.isArray(cluster?.branchSessions) ? cluster.branchSessions.find((entry) => entry?.id === currentBranchId) : null);
@@ -356,7 +639,7 @@
   }
 
   function getClusterSummary(cluster) {
-    const currentBranchId = String(cluster?.currentBranchSessionId || "").trim();
+    const currentBranchId = getResolvedClusterCurrentBranchSessionId(cluster);
     const currentBranch = currentBranchId
       ? (getSessionRecord(currentBranchId)
         || (Array.isArray(cluster?.branchSessions) ? cluster.branchSessions.find((entry) => entry?.id === currentBranchId) : null))
@@ -374,44 +657,15 @@
     return "";
   }
 
-  function getClusterTimestamp(cluster) {
-    const branchTimes = Array.isArray(cluster?.branchSessions)
-      ? cluster.branchSessions.map((entry) => getSessionActivityTimestamp(entry))
-      : [];
-    const mainTime = getSessionActivityTimestamp(cluster?.mainSession || getClusterLeadSession(cluster));
-    return Math.max(mainTime, ...branchTimes, 0);
-  }
-
-  function getVisibleTaskClusters(state) {
-    const deduped = new Map();
-    const addCluster = (cluster) => {
-      const key = getClusterKey(cluster);
-      if (!key || deduped.has(key)) return;
-      deduped.set(key, cluster);
-    };
-    if (Array.isArray(snapshot.taskClusters)) {
-      snapshot.taskClusters.forEach(addCluster);
-    }
-    if (state?.cluster) addCluster(state.cluster);
-    const currentKey = getClusterKey(state?.cluster);
-    return [...deduped.values()].sort((left, right) => {
-      const leftIsCurrent = getClusterKey(left) === currentKey ? 1 : 0;
-      const rightIsCurrent = getClusterKey(right) === currentKey ? 1 : 0;
-      return (rightIsCurrent - leftIsCurrent) || (getClusterTimestamp(right) - getClusterTimestamp(left));
-    });
-  }
-
-  function getCompressedTaskSiblingLimit() {
-    const viewportWidth = Number(window?.innerWidth || 0);
-    if (viewportWidth > 0 && viewportWidth <= 480) return 1;
-    return 2;
-  }
-
   function getCurrentTaskSummary(state) {
     if (!state?.hasSession) return "";
     if (state.isBranch) {
-      const sourceGoal = normalizeTitle(state.branchFrom || state.mainGoal || "");
-      return sourceGoal ? `来自主线：${sourceGoal}` : "当前正在处理子任务";
+      return clipText(
+        state.nextStep
+        || normalizeTitle(state.branchFrom || state.mainGoal || "")
+        || "继续推进这条支线",
+        88,
+      );
     }
     const nextStep = clipText(state.nextStep || "", 88);
     if (nextStep) return nextStep;
@@ -420,23 +674,7 @@
     return "继续推进这项任务";
   }
 
-  function getCurrentTaskMeta(state) {
-    if (!state?.hasSession) return "";
-    if (state.isBranch) {
-      return getBranchStatusUi(state.branchStatus).label;
-    }
-    return "主线";
-  }
-
-  function getSortedBranchSessions(cluster) {
-    return [...(Array.isArray(cluster?.branchSessions) ? cluster.branchSessions : [])].sort((left, right) => {
-      const leftStatus = String(left?._branchStatus || "").toLowerCase() === "active" ? 1 : 0;
-      const rightStatus = String(right?._branchStatus || "").toLowerCase() === "active" ? 1 : 0;
-      return (rightStatus - leftStatus) || (getSessionActivityTimestamp(right) - getSessionActivityTimestamp(left));
-    });
-  }
-
-  function getStructuredBranchSessions(cluster, currentBranchSessionId = "") {
+  function getStructuredBranchSessions(cluster) {
     const branchSessions = Array.isArray(cluster?.branchSessions)
       ? cluster.branchSessions.filter((entry) => entry?.id)
       : [];
@@ -453,19 +691,19 @@
       childrenByParent.get(parentId).push(branchSession);
     }
 
-    const statusOrder = { active: 0, parked: 1, resolved: 2, merged: 3 };
+    const branchOrderMap = new Map(branchSessions.map((entry, index) => [entry.id, index]));
     const ordered = [];
     const visited = new Set();
     const sortChildren = (left, right) => {
-      const leftCurrent = left?.id === currentBranchSessionId ? 0 : 1;
-      const rightCurrent = right?.id === currentBranchSessionId ? 0 : 1;
-      if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent;
+      const leftOrder = branchOrderMap.get(left?.id) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = branchOrderMap.get(right?.id) ?? Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
 
-      const leftStatus = statusOrder[String(left?._branchStatus || "active").toLowerCase()] ?? 99;
-      const rightStatus = statusOrder[String(right?._branchStatus || "active").toLowerCase()] ?? 99;
-      if (leftStatus !== rightStatus) return leftStatus - rightStatus;
+      const leftCreated = Date.parse(left?.createdAt || left?.created || left?.updatedAt || left?.lastEventAt || "") || 0;
+      const rightCreated = Date.parse(right?.createdAt || right?.created || right?.updatedAt || right?.lastEventAt || "") || 0;
+      if (leftCreated !== rightCreated) return leftCreated - rightCreated;
 
-      return getSessionActivityTimestamp(right) - getSessionActivityTimestamp(left);
+      return String(left?.id || "").localeCompare(String(right?.id || ""));
     };
     const appendTree = (parentId, fallbackDepth = 1) => {
       const children = [...(childrenByParent.get(parentId) || [])].sort(sortChildren);
@@ -499,16 +737,14 @@
   function getVisibleBranchEntries(state) {
     return getStructuredBranchSessions(
       state?.cluster,
-      String(state?.cluster?.currentBranchSessionId || state?.session?.id || "").trim(),
     );
   }
 
   function getTaskMindmapActiveBranchId(state) {
-    return String(
-      state?.cluster?.currentBranchSessionId
-      || (state?.isBranch ? state?.session?.id : "")
-      || "",
-    ).trim();
+    return getResolvedClusterCurrentBranchSessionId(
+      state?.cluster,
+      state?.isBranch ? state?.session?.id : (state?.focusedSessionId || state?.session?.id || ""),
+    );
   }
 
   function getTaskMindmapCurrentLineageIds(cluster, currentBranchSessionId = "") {
@@ -547,6 +783,7 @@
     const rootSessionId = String(cluster?.mainSessionId || "").trim();
     const branchById = new Map(branchSessions.map((entry) => [entry.id, entry]));
     const currentLineageIds = getTaskMindmapCurrentLineageIds(cluster, currentBranchSessionId);
+    const branchOrderMap = new Map(branchSessions.map((entry, index) => [entry.id, index]));
     const childrenByParent = new Map();
     for (const branchSession of branchSessions) {
       const parentId = typeof branchSession?._branchParentSessionId === "string" && branchSession._branchParentSessionId.trim()
@@ -559,21 +796,16 @@
       childrenByParent.get(resolvedParentId).push(branchSession);
     }
 
-    const statusOrder = { active: 0, parked: 1, resolved: 2, merged: 3 };
     const compareBranches = (left, right) => {
-      const leftInLineage = currentLineageIds.has(left?.id) ? 0 : 1;
-      const rightInLineage = currentLineageIds.has(right?.id) ? 0 : 1;
-      if (leftInLineage !== rightInLineage) return leftInLineage - rightInLineage;
+      const leftOrder = branchOrderMap.get(left?.id) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = branchOrderMap.get(right?.id) ?? Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
 
-      const leftCurrent = left?.id === currentBranchSessionId ? 0 : 1;
-      const rightCurrent = right?.id === currentBranchSessionId ? 0 : 1;
-      if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent;
+      const leftCreated = Date.parse(left?.createdAt || left?.created || left?.updatedAt || left?.lastEventAt || "") || 0;
+      const rightCreated = Date.parse(right?.createdAt || right?.created || right?.updatedAt || right?.lastEventAt || "") || 0;
+      if (leftCreated !== rightCreated) return leftCreated - rightCreated;
 
-      const leftStatus = statusOrder[String(left?._branchStatus || "active").toLowerCase()] ?? 99;
-      const rightStatus = statusOrder[String(right?._branchStatus || "active").toLowerCase()] ?? 99;
-      if (leftStatus !== rightStatus) return leftStatus - rightStatus;
-
-      return getSessionActivityTimestamp(right) - getSessionActivityTimestamp(left);
+      return String(left?.id || "").localeCompare(String(right?.id || ""));
     };
     for (const [parentId, children] of childrenByParent.entries()) {
       childrenByParent.set(parentId, [...children].sort(compareBranches));
@@ -617,14 +849,14 @@
 
   function getTaskMindmapRootSummary(state) {
     const activePath = String(state?.activeBranchChain || "").trim();
-    if (activePath) return `当前路径：${activePath}`;
+    if (activePath) return activePath;
     const nextStep = clipText(state?.nextStep || "", 88);
     if (nextStep) return nextStep;
     const branchNames = Array.isArray(state?.branchNames)
       ? state.branchNames.filter((entry) => typeof entry === "string" && entry.trim())
       : [];
     if (branchNames.length > 0) {
-      return `支线：${branchNames.slice(0, 3).join("、")}`;
+      return branchNames.slice(0, 3).join("、");
     }
     return "";
   }
@@ -681,10 +913,83 @@
     renderTracker();
   }
 
+  function syncProjectedTaskMapExpansionState(activeQuest) {
+    const validIds = new Set(
+      Array.isArray(activeQuest?.nodes)
+        ? activeQuest.nodes.map((node) => String(node?.id || "").trim()).filter(Boolean)
+        : [],
+    );
+    for (const nodeId of [...taskMindmapNodeExpansionState.keys()]) {
+      if (!validIds.has(nodeId)) {
+        taskMindmapNodeExpansionState.delete(nodeId);
+      }
+    }
+  }
+
+  function isProjectedTaskMapNodeExpanded(nodeId, currentPathNodeIds, hasChildren) {
+    const normalizedNodeId = String(nodeId || "").trim();
+    if (!normalizedNodeId || !hasChildren) return false;
+    if (taskMindmapNodeExpansionState.has(normalizedNodeId)) {
+      return taskMindmapNodeExpansionState.get(normalizedNodeId) === true;
+    }
+    return currentPathNodeIds.has(normalizedNodeId);
+  }
+
+  function toggleProjectedTaskMapNode(nodeId, expanded) {
+    const normalizedNodeId = String(nodeId || "").trim();
+    if (!normalizedNodeId) return;
+    taskMindmapNodeExpansionState.set(normalizedNodeId, Boolean(expanded));
+    lastTaskMindmapRenderKey = "";
+    renderTracker();
+  }
+
+  function getProjectedTaskMapRenderKey(state, activeQuest) {
+    const nodeEntries = Array.isArray(activeQuest?.nodes)
+      ? activeQuest.nodes.map((node) => [
+        node?.id || "",
+        node?.parentNodeId || "",
+        node?.status || "",
+        node?.kind || "",
+        node?.title || "",
+      ].join(":"))
+      : [];
+    const expansionKey = [...taskMindmapNodeExpansionState.entries()]
+      .sort((left, right) => String(left[0]).localeCompare(String(right[0])))
+      .map(([nodeId, expanded]) => `${nodeId}:${expanded ? "1" : "0"}`)
+      .join(",");
+    return [
+      state?.session?.id || "",
+      activeQuest?.id || "",
+      activeQuest?.currentNodeId || "",
+      expansionKey,
+      nodeEntries.join("|"),
+    ].join("||");
+  }
+
+  function getProjectedTaskMapRootSummary(activeQuest) {
+    if (!activeQuest) return "";
+    const currentNodeTitle = clipText(activeQuest.currentNodeTitle || "", 48);
+    const questTitle = clipText(activeQuest.title || "", 48);
+    if (currentNodeTitle && currentNodeTitle !== questTitle) {
+      return currentNodeTitle;
+    }
+    const summary = clipText(activeQuest.summary || "", 96);
+    if (summary) return summary;
+    const candidateCount = Number(activeQuest?.counts?.candidateBranches || 0);
+    const branchCount = Number(activeQuest?.counts?.activeBranches || 0)
+      + Number(activeQuest?.counts?.parkedBranches || 0)
+      + Number(activeQuest?.counts?.completedBranches || 0);
+    if (branchCount > 0 || candidateCount > 0) {
+      return `${branchCount} 条支线 · ${candidateCount} 条候选`;
+    }
+    return "";
+  }
+
   function createTaskListItem({
     title,
     details = [],
     meta = "",
+    metaClassName = "",
     current = false,
     onClick = null,
     status = "",
@@ -740,6 +1045,9 @@
     if (meta) {
       const metaEl = document.createElement("span");
       metaEl.classList.add("quest-task-item-meta");
+      if (metaClassName) {
+        String(metaClassName).split(/\s+/).filter(Boolean).forEach((token) => metaEl.classList.add(token));
+      }
       metaEl.textContent = meta;
       row.appendChild(metaEl);
     }
@@ -753,17 +1061,612 @@
     return row;
   }
 
+  function getProjectedTaskFlowConfig() {
+    const mobile = isMobileQuestTracker();
+    return {
+      nodeWidth: mobile ? 152 : 176,
+      rootWidth: mobile ? 176 : 208,
+      nodeHeight: mobile ? 88 : 96,
+      rootHeight: mobile ? 98 : 112,
+      candidateHeight: mobile ? 108 : 120,
+      levelGap: mobile ? 98 : 116,
+      siblingGap: mobile ? 18 : 20,
+      paddingX: mobile ? 144 : 220,
+      paddingY: mobile ? 112 : 168,
+      overscanX: mobile ? 220 : 360,
+      overscanY: mobile ? 240 : 320,
+    };
+  }
+
+  function getProjectedTaskFlowNodeChildren(node, nodeMap) {
+    return Array.isArray(node?.childNodeIds)
+      ? node.childNodeIds.map((childId) => nodeMap.get(childId)).filter(Boolean)
+      : [];
+  }
+
+  function getProjectedTaskFlowNodeWidth(node, metrics) {
+    return node?.parentNodeId ? metrics.nodeWidth : metrics.rootWidth;
+  }
+
+  function getProjectedTaskFlowNodeHeight(node, metrics) {
+    if (!node?.parentNodeId) return metrics.rootHeight;
+    if (node?.kind === "candidate") return metrics.candidateHeight;
+    return metrics.nodeHeight;
+  }
+
+  function buildProjectedTaskFlowTree(nodeId, nodeMap) {
+    const node = nodeMap.get(nodeId);
+    if (!node) return null;
+    return {
+      node,
+      children: getProjectedTaskFlowNodeChildren(node, nodeMap)
+        .map((child) => buildProjectedTaskFlowTree(child.id, nodeMap))
+        .filter(Boolean),
+      width: 0,
+      x: 0,
+      y: 0,
+      nodeWidth: 0,
+      nodeHeight: 0,
+    };
+  }
+
+  function measureProjectedTaskFlowTree(tree, metrics) {
+    if (!tree) return 0;
+    const nodeWidth = getProjectedTaskFlowNodeWidth(tree.node, metrics);
+    if (!tree.children.length) {
+      tree.width = nodeWidth;
+      return tree.width;
+    }
+    const childWidths = tree.children.map((child) => measureProjectedTaskFlowTree(child, metrics));
+    const childrenWidth = childWidths.reduce((sum, width) => sum + width, 0)
+      + Math.max(0, tree.children.length - 1) * metrics.siblingGap;
+    tree.width = Math.max(nodeWidth, childrenWidth);
+    return tree.width;
+  }
+
+  function positionProjectedTaskFlowTree(tree, left, top, metrics) {
+    if (!tree) return;
+    tree.nodeWidth = getProjectedTaskFlowNodeWidth(tree.node, metrics);
+    tree.nodeHeight = getProjectedTaskFlowNodeHeight(tree.node, metrics);
+    tree.x = left + Math.max(0, (tree.width - tree.nodeWidth) / 2);
+    tree.y = top;
+    if (!tree.children.length) return;
+
+    const childrenWidth = tree.children.reduce((sum, child) => sum + child.width, 0)
+      + Math.max(0, tree.children.length - 1) * metrics.siblingGap;
+    let cursor = left + Math.max(0, (tree.width - childrenWidth) / 2);
+    const nextTop = top + tree.nodeHeight + metrics.levelGap;
+    for (const child of tree.children) {
+      positionProjectedTaskFlowTree(child, cursor, nextTop, metrics);
+      cursor += child.width + metrics.siblingGap;
+    }
+  }
+
+  function flattenProjectedTaskFlowTree(tree, results = []) {
+    if (!tree) return results;
+    results.push(tree);
+    for (const child of tree.children) {
+      flattenProjectedTaskFlowTree(child, results);
+    }
+    return results;
+  }
+
+  function collectProjectedTaskFlowEdges(tree, results = []) {
+    if (!tree) return results;
+    for (const child of tree.children) {
+      results.push({
+        fromX: tree.x + tree.nodeWidth / 2,
+        fromY: tree.y + tree.nodeHeight,
+        toX: child.x + child.nodeWidth / 2,
+        toY: child.y,
+        current: child.node?.isCurrent === true || child.node?.isCurrentPath === true,
+        candidate: child.node?.kind === "candidate",
+      });
+      collectProjectedTaskFlowEdges(child, results);
+    }
+    return results;
+  }
+
+  function createSvgElement(tagName) {
+    if (typeof document?.createElementNS === "function") {
+      return document.createElementNS("http://www.w3.org/2000/svg", tagName);
+    }
+    return document.createElement(tagName);
+  }
+
+  function clampNumber(value, min, max) {
+    if (!Number.isFinite(value)) return min;
+    if (!Number.isFinite(min) && !Number.isFinite(max)) return value;
+    if (!Number.isFinite(min)) return Math.min(value, max);
+    if (!Number.isFinite(max)) return Math.max(value, min);
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function getProjectedTaskFlowNodeMeta(node, activeQuest) {
+    if (node.kind === "candidate") return "可选";
+    if (!node?.parentNodeId) return "进行中";
+    return getBranchStatusUi(node.status).label;
+  }
+
+  function getProjectedTaskFlowNodeSummary(node, activeQuest) {
+    if (!node) return "";
+    if (!node.parentNodeId) {
+      const currentNodeTitle = clipText(activeQuest?.currentNodeTitle || "", 40);
+      if (currentNodeTitle && currentNodeTitle !== clipText(node.title || "", 40)) {
+        return currentNodeTitle;
+      }
+      return clipText(node.summary || activeQuest?.summary || "", 72);
+    }
+    if (node.kind === "candidate") {
+      return clipText(node.summary || "适合单独展开", 72);
+    }
+    return clipText(node.summary || "", 72);
+  }
+
+  function renderProjectedTaskFlowBoard({ activeQuest, nodeMap, rootNode, state }) {
+    const metrics = getProjectedTaskFlowConfig();
+    const tree = buildProjectedTaskFlowTree(rootNode.id, nodeMap);
+    measureProjectedTaskFlowTree(tree, metrics);
+    positionProjectedTaskFlowTree(tree, metrics.paddingX, metrics.paddingY, metrics);
+
+    const entries = flattenProjectedTaskFlowTree(tree, []);
+    const edges = collectProjectedTaskFlowEdges(tree, []);
+    const canvasWidth = Math.max(
+      metrics.rootWidth + metrics.paddingX * 2,
+      ...entries.map((entry) => entry.x + entry.nodeWidth + metrics.paddingX),
+    );
+    const canvasHeight = Math.max(
+      metrics.rootHeight + metrics.paddingY * 2,
+      ...entries.map((entry) => entry.y + entry.nodeHeight + metrics.paddingY),
+    );
+
+    const board = document.createElement("div");
+    board.className = "quest-task-mindmap-board is-spine quest-task-flow-shell";
+
+    const scroll = document.createElement("div");
+    scroll.className = "quest-task-flow-scroll";
+
+    const canvas = document.createElement("div");
+    canvas.className = "quest-task-flow-canvas";
+    canvas.style.width = `${Math.ceil(canvasWidth)}px`;
+    canvas.style.height = `${Math.ceil(canvasHeight)}px`;
+
+    const svg = createSvgElement("svg");
+    if (typeof svg.setAttribute === "function") {
+      svg.setAttribute("class", "quest-task-flow-edges");
+    } else {
+      svg.className = "quest-task-flow-edges";
+    }
+    if (typeof svg.setAttribute === "function") {
+      svg.setAttribute("viewBox", `0 0 ${Math.ceil(canvasWidth)} ${Math.ceil(canvasHeight)}`);
+      svg.setAttribute("width", String(Math.ceil(canvasWidth)));
+      svg.setAttribute("height", String(Math.ceil(canvasHeight)));
+      svg.setAttribute("aria-hidden", "true");
+    }
+
+    for (const edge of edges) {
+      const path = createSvgElement("path");
+      const midY = edge.fromY + ((edge.toY - edge.fromY) * 0.48);
+      if (typeof path.setAttribute === "function") {
+        path.setAttribute("d", `M ${edge.fromX} ${edge.fromY} V ${midY} H ${edge.toX} V ${edge.toY}`);
+        path.setAttribute("class", `quest-task-flow-edge${edge.current ? " is-current" : ""}${edge.candidate ? " is-candidate" : ""}`);
+      } else {
+        path.className = `quest-task-flow-edge${edge.current ? " is-current" : ""}${edge.candidate ? " is-candidate" : ""}`;
+      }
+      svg.appendChild(path);
+    }
+    canvas.appendChild(svg);
+
+    const createCandidateAction = (node) => {
+      const actionBtn = document.createElement("button");
+      actionBtn.type = "button";
+      actionBtn.className = "quest-branch-btn quest-branch-btn-primary quest-task-flow-node-action panzoom-exclude";
+      actionBtn.textContent = "开启支线";
+      const sourceSessionId = String(node?.sessionId || node?.sourceSessionId || "").trim();
+      if (!sourceSessionId) {
+        actionBtn.disabled = true;
+        return actionBtn;
+      }
+      actionBtn.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        actionBtn.disabled = true;
+        try {
+          setTaskMapDrawerExpanded(false, { render: false });
+          await enterBranchFromSession(sourceSessionId, node.title, {
+            branchReason: node?.parentNodeId
+              ? `从「${nodeMap.get(node.parentNodeId)?.title || "当前节点"}」继续拆出独立支线`
+              : "从当前任务拆出独立支线",
+            checkpointSummary: node.title,
+          });
+        } finally {
+          actionBtn.disabled = false;
+        }
+      });
+      return actionBtn;
+    };
+
+    for (const entry of entries) {
+      const node = entry.node;
+      const isCandidate = node.kind === "candidate";
+      const nodeEl = document.createElement(isCandidate ? "div" : "button");
+      if (nodeEl.type !== undefined && !isCandidate) {
+        nodeEl.type = "button";
+      }
+      nodeEl.className = "quest-task-flow-node";
+      if (!node.parentNodeId) nodeEl.classList.add("is-root");
+      if (isCandidate) nodeEl.classList.add("is-candidate");
+      if (node.isCurrentPath) nodeEl.classList.add("is-current-path");
+      if (node.isCurrent) nodeEl.classList.add("is-current");
+      if (node.status === "parked") nodeEl.classList.add("is-parked");
+      if (node.status === "resolved" || node.status === "merged") nodeEl.classList.add("is-resolved");
+      nodeEl.style.left = `${entry.x}px`;
+      nodeEl.style.top = `${entry.y}px`;
+      nodeEl.style.width = `${entry.nodeWidth}px`;
+      nodeEl.style.minHeight = `${entry.nodeHeight}px`;
+
+      const badge = document.createElement("div");
+      badge.className = "quest-task-flow-node-badge";
+      badge.textContent = getProjectedTaskFlowNodeMeta(node, activeQuest);
+      nodeEl.appendChild(badge);
+
+      const titleEl = document.createElement("div");
+      titleEl.className = "quest-task-flow-node-title";
+      titleEl.textContent = clipText(node.title || "当前任务", isCandidate ? 22 : 28);
+      titleEl.title = String(node.title || "").trim();
+      nodeEl.appendChild(titleEl);
+
+      const summary = getProjectedTaskFlowNodeSummary(node, activeQuest);
+      if (summary) {
+        const summaryEl = document.createElement("div");
+        summaryEl.className = "quest-task-flow-node-summary";
+        summaryEl.textContent = summary;
+        summaryEl.title = summary;
+        nodeEl.appendChild(summaryEl);
+      }
+
+      if (isCandidate) {
+        nodeEl.appendChild(createCandidateAction(node));
+      } else if (node.sessionId) {
+        nodeEl.addEventListener("click", () => {
+          const sessionRecord = getSessionRecord(node.sessionId) || state?.parentSession || state?.cluster?.mainSession || null;
+          if (typeof attachSession === "function") {
+            setTaskMapDrawerExpanded(false, { render: false });
+            attachSession(node.sessionId, sessionRecord);
+          }
+        });
+      }
+
+      canvas.appendChild(nodeEl);
+    }
+
+    scroll.appendChild(canvas);
+    board.appendChild(scroll);
+
+    const focusEntries = entries.filter((entry) => entry?.node && (entry.node.isCurrent || entry.node.isCurrentPath || !entry.node.parentNodeId));
+    const focusEntry = focusEntries[0] || entries.find((entry) => entry?.node?.isCurrent) || entries.find((entry) => entry?.node?.isCurrentPath) || entries[0];
+    const focusBounds = focusEntries.length > 0
+      ? focusEntries.reduce((acc, entry) => ({
+        left: Math.min(acc.left, entry.x),
+        right: Math.max(acc.right, entry.x + entry.nodeWidth),
+        top: Math.min(acc.top, entry.y),
+        bottom: Math.max(acc.bottom, entry.y + entry.nodeHeight),
+      }), {
+        left: Number.POSITIVE_INFINITY,
+        right: Number.NEGATIVE_INFINITY,
+        top: Number.POSITIVE_INFINITY,
+        bottom: Number.NEGATIVE_INFINITY,
+      })
+      : null;
+    const focusCenterX = focusBounds
+      ? ((focusBounds.left + focusBounds.right) / 2)
+      : (focusEntry ? (focusEntry.x + focusEntry.nodeWidth / 2) : (tree.x + tree.nodeWidth / 2));
+    const focusCenterY = focusBounds
+      ? ((focusBounds.top + focusBounds.bottom) / 2)
+      : (focusEntry ? (focusEntry.y + focusEntry.nodeHeight / 2) : (tree.y + tree.nodeHeight / 2));
+    const scheduleScrollSync = typeof window?.setTimeout === "function"
+      ? window.setTimeout.bind(window)
+      : (typeof globalThis?.setTimeout === "function" ? globalThis.setTimeout.bind(globalThis) : ((fn) => fn()));
+    scheduleScrollSync(() => {
+      initializeTaskFlowCanvasViewport({
+        scroll,
+        canvas,
+        svg,
+        focusCenterX,
+        focusCenterY,
+        focusTopY: focusBounds?.top ?? (focusEntry ? focusEntry.y : tree.y),
+        contentWidth: canvasWidth,
+        contentHeight: canvasHeight,
+        metrics,
+      });
+    }, 0);
+
+    if (entries.length <= 1) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "task-map-empty";
+      const emptyLabel = translate("taskMap.empty");
+      emptyState.textContent = emptyLabel && emptyLabel !== "taskMap.empty"
+        ? emptyLabel
+        : "暂无支线，后续任务流程会显示在这里。";
+      board.appendChild(emptyState);
+    }
+
+    return board;
+  }
+
+  function renderProjectedTaskList(state, projection, activeQuest) {
+    const nodeMap = new Map(
+      (Array.isArray(activeQuest?.nodes) ? activeQuest.nodes : [])
+        .filter((node) => node?.id)
+        .map((node) => [node.id, node]),
+    );
+    const rootNode = nodeMap.get(`session:${activeQuest?.rootSessionId || ""}`) || null;
+    const hasMapNodes = nodeMap.size > 0;
+    const desktopTaskMap = !isMobileQuestTracker();
+    const shouldMount = Boolean(
+      state?.hasSession
+      && (desktopTaskMap || hasMapNodes)
+    );
+    if (taskMapRail) taskMapRail.hidden = !shouldMount;
+    trackerTaskListEl.classList.toggle("is-flow-board", shouldMount);
+    syncTaskMapDrawerUi(shouldMount);
+    if (!shouldMount) {
+      trackerTaskListEl.hidden = true;
+      lastTaskMindmapRenderKey = "";
+      return;
+    }
+
+    syncProjectedTaskMapExpansionState(activeQuest);
+    const renderKey = getProjectedTaskMapRenderKey(state, activeQuest);
+    if (
+      !trackerTaskListEl.hidden
+      && trackerTaskListEl.children.length > 0
+      && renderKey === lastTaskMindmapRenderKey
+    ) {
+      return;
+    }
+    lastTaskMindmapRenderKey = renderKey;
+    trackerTaskListEl.innerHTML = "";
+
+    if (!rootNode) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "task-map-empty";
+      emptyState.textContent = "暂无任务地图。";
+      trackerTaskListEl.appendChild(emptyState);
+      trackerTaskListEl.hidden = false;
+      return;
+    }
+
+    trackerTaskListEl.appendChild(renderProjectedTaskFlowBoard({
+      activeQuest,
+      nodeMap,
+      rootNode,
+      state,
+    }));
+    trackerTaskListEl.hidden = trackerTaskListEl.children.length === 0;
+  }
+
+  function initializeTaskFlowCanvasViewport({
+    scroll,
+    canvas,
+    svg = null,
+    focusCenterX = 0,
+    focusCenterY = 0,
+    focusTopY = 0,
+    contentWidth = 0,
+    contentHeight = 0,
+    metrics = null,
+  }) {
+    if (!scroll || !canvas) return;
+    const viewportWidth = Number(scroll?.clientWidth || scroll?.offsetWidth || 0);
+    const viewportHeight = Number(scroll?.clientHeight || scroll?.offsetHeight || 0);
+    if (viewportWidth <= 0 || viewportHeight <= 0) return;
+
+    const overscanX = Number(metrics?.overscanX || 0);
+    const overscanY = Number(metrics?.overscanY || 0);
+    const nextCanvasWidth = Math.max(
+      Number(contentWidth || canvas?.offsetWidth || canvas?.scrollWidth || 0),
+      viewportWidth + overscanX,
+    );
+    const nextCanvasHeight = Math.max(
+      Number(contentHeight || canvas?.offsetHeight || canvas?.scrollHeight || 0),
+      viewportHeight + overscanY,
+    );
+    if (nextCanvasWidth <= 0 || nextCanvasHeight <= 0) return;
+
+    canvas.style.width = `${Math.ceil(nextCanvasWidth)}px`;
+    canvas.style.height = `${Math.ceil(nextCanvasHeight)}px`;
+    if (svg && typeof svg.setAttribute === "function") {
+      svg.setAttribute("viewBox", `0 0 ${Math.ceil(nextCanvasWidth)} ${Math.ceil(nextCanvasHeight)}`);
+      svg.setAttribute("width", String(Math.ceil(nextCanvasWidth)));
+      svg.setAttribute("height", String(Math.ceil(nextCanvasHeight)));
+    }
+
+    const targetX = clampNumber(
+      (viewportWidth / 2) - focusCenterX,
+      Math.min(0, viewportWidth - nextCanvasWidth),
+      0,
+    );
+    const targetY = clampNumber(
+      Math.min(metrics?.paddingY || 0, viewportHeight * 0.18) - focusTopY,
+      Math.min(0, viewportHeight - nextCanvasHeight),
+      0,
+    );
+
+    const PanzoomFactory = typeof window !== "undefined" ? window.Panzoom : null;
+    if (typeof PanzoomFactory === "function") {
+      try {
+        if (scroll._taskFlowPanzoom && typeof scroll._taskFlowPanzoom.destroy === "function") {
+          scroll._taskFlowPanzoom.destroy();
+        }
+        const panzoom = PanzoomFactory(canvas, {
+          canvas: true,
+          noBind: true,
+          disableZoom: true,
+          animate: false,
+          cursor: "grab",
+          excludeClass: "panzoom-exclude",
+          overflow: "hidden",
+          touchAction: "none",
+          startX: targetX,
+          startY: targetY,
+        });
+        scroll._taskFlowPanzoom = panzoom;
+        bindTaskFlowCanvasInteractions(scroll);
+        scroll.classList.add("is-panzoom-ready");
+        panzoom.pan(targetX, targetY, { force: true });
+        return;
+      } catch (error) {
+        console.warn("[quest] Failed to initialize task flow panzoom:", error?.message || error);
+      }
+    }
+
+    scroll.classList.remove("is-panzoom-ready");
+    scroll.scrollLeft = Math.max(0, focusCenterX - (viewportWidth / 2));
+    scroll.scrollTop = Math.max(0, focusCenterY - Math.min(viewportHeight * 0.42, viewportHeight / 2));
+  }
+
+  function bindTaskFlowCanvasInteractions(scroll) {
+    if (!scroll || scroll.dataset.taskFlowInteractionsBound === "true") return;
+    scroll.dataset.taskFlowInteractionsBound = "true";
+
+    let dragState = null;
+    let startX = 0;
+    let startY = 0;
+    let startPanX = 0;
+    let startPanY = 0;
+    let suppressClickUntil = 0;
+
+    const reset = () => {
+      dragState = null;
+      scroll.classList.remove("is-pointer-down", "is-dragging");
+    };
+
+    const canStartPan = (target) => {
+      if (!(target instanceof Element)) return true;
+      if (target.closest(".panzoom-exclude")) return false;
+      return true;
+    };
+
+    const readPan = () => {
+      const panzoom = scroll._taskFlowPanzoom;
+      if (panzoom && typeof panzoom.getPan === "function") {
+        return panzoom.getPan();
+      }
+      return {
+        x: -Number(scroll.scrollLeft || 0),
+        y: -Number(scroll.scrollTop || 0),
+      };
+    };
+
+    const applyPan = (x, y) => {
+      const panzoom = scroll._taskFlowPanzoom;
+      if (panzoom && typeof panzoom.pan === "function") {
+        panzoom.pan(x, y, { force: true });
+        return;
+      }
+      scroll.scrollLeft = Math.max(0, -x);
+      scroll.scrollTop = Math.max(0, -y);
+    };
+
+    const startDrag = (clientX, clientY, target) => {
+      if (!canStartPan(target)) return false;
+      startX = clientX;
+      startY = clientY;
+      const currentPan = readPan();
+      startPanX = Number(currentPan?.x || 0);
+      startPanY = Number(currentPan?.y || 0);
+      dragState = { dragging: false };
+      scroll.classList.add("is-pointer-down");
+      return true;
+    };
+
+    const updateDrag = (clientX, clientY, event) => {
+      if (!dragState) return;
+      const deltaX = clientX - startX;
+      const deltaY = clientY - startY;
+      if (!dragState.dragging && Math.hypot(deltaX, deltaY) >= 6) {
+        dragState.dragging = true;
+        scroll.classList.add("is-dragging");
+      }
+      if (!dragState.dragging) return;
+      event.preventDefault?.();
+      applyPan(startPanX + deltaX, startPanY + deltaY);
+    };
+
+    const finishDrag = () => {
+      if (!dragState) return;
+      const didDrag = dragState.dragging === true;
+      reset();
+      if (didDrag) {
+        suppressClickUntil = Date.now() + 180;
+      }
+    };
+
+    scroll.addEventListener("dragstart", (event) => {
+      event.preventDefault();
+    });
+
+    scroll.addEventListener("mousedown", (event) => {
+      if (event.button !== 0) return;
+      startDrag(event.clientX, event.clientY, event.target);
+    });
+
+    document.addEventListener("mousemove", (event) => {
+      updateDrag(event.clientX, event.clientY, event);
+    });
+
+    document.addEventListener("mouseup", () => {
+      finishDrag();
+    });
+
+    scroll.addEventListener("touchstart", (event) => {
+      if (!event.touches || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      startDrag(touch.clientX, touch.clientY, event.target);
+    }, { passive: true });
+
+    scroll.addEventListener("touchmove", (event) => {
+      if (!event.touches || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      updateDrag(touch.clientX, touch.clientY, event);
+    }, { passive: false });
+
+    scroll.addEventListener("touchend", () => {
+      finishDrag();
+    }, { passive: true });
+
+    scroll.addEventListener("touchcancel", () => {
+      finishDrag();
+    }, { passive: true });
+
+    scroll.addEventListener("click", (event) => {
+      if (Date.now() <= suppressClickUntil) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }, true);
+  }
+
   function renderTaskList(state) {
     if (!trackerTaskListEl) return;
+    const projection = getTaskMapProjection();
+    const activeQuest = projection?.activeMainQuest || null;
+    if (activeQuest) {
+      renderProjectedTaskList(state, projection, activeQuest);
+      return;
+    }
+    trackerTaskListEl.classList.remove("is-flow-board");
+    const desktopTaskMap = !isMobileQuestTracker();
     const activeBranchId = getTaskMindmapActiveBranchId(state);
     const treeState = getTaskMindmapTreeState(state?.cluster, activeBranchId);
     const hasVisibleBranches = treeState.branchSessions.length > 0;
-    const shouldShow = Boolean(
+    const shouldMount = Boolean(
       state?.hasSession
-      && hasVisibleBranches
-      && branchStructureExpanded
+      && (desktopTaskMap || hasVisibleBranches)
     );
-    if (!shouldShow) {
+    if (taskMapRail) taskMapRail.hidden = !shouldMount;
+    syncTaskMapDrawerUi(shouldMount);
+    if (!shouldMount) {
       trackerTaskListEl.hidden = true;
       lastTaskMindmapRenderKey = "";
       return;
@@ -797,11 +1700,24 @@
       extraClassName: "quest-task-mindmap-root",
       onClick: state.isBranch && rootSessionId ? () => {
         if (typeof attachSession === "function") {
+          setTaskMapDrawerExpanded(false, { render: false });
           attachSession(rootSessionId, state.parentSession || state?.cluster?.mainSession || null);
         }
       } : null,
     });
     trackerTaskListEl.appendChild(rootCard);
+
+    if (!hasVisibleBranches) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "task-map-empty";
+      const emptyLabel = translate("taskMap.empty");
+      emptyState.textContent = emptyLabel && emptyLabel !== "taskMap.empty"
+        ? emptyLabel
+        : "暂无支线，后续任务流程会显示在这里。";
+      trackerTaskListEl.appendChild(emptyState);
+      trackerTaskListEl.hidden = false;
+      return;
+    }
 
     if (!canRenderStableTree) {
       trackerTaskListEl.hidden = false;
@@ -856,6 +1772,7 @@
         } : null,
         onClick: () => {
           if (typeof attachSession === "function") {
+            setTaskMapDrawerExpanded(false, { render: false });
             attachSession(branchSession.id, branchSession);
           }
         },
@@ -975,20 +1892,24 @@
   }
 
   function deriveQuestState() {
-    const session = getCurrentSessionSafe();
-    const liveSession = session?.id ? getSessionRecord(session.id) : null;
-    if (!session?.id || !liveSession) {
+    const focusedSession = getFocusedSessionRecord();
+    const liveSession = focusedSession?.id
+      ? (getSessionRecord(focusedSession.id) || focusedSession)
+      : null;
+    if (!liveSession?.id) {
       return { hasSession: false };
     }
+    const liveSessionId = normalizeSessionId(liveSession.id);
     const taskCard = getTaskCard(liveSession);
     const activeContext = getActiveSessionContext(liveSession.id);
     const latestContext = getLatestSessionContext(liveSession.id);
     const cluster = getClusterForSession(liveSession.id);
+    const resolvedCurrentBranchSessionId = getResolvedClusterCurrentBranchSessionId(cluster, liveSessionId);
     const clusterMainSession = cluster?.mainSessionId ? (getSessionRecord(cluster.mainSessionId) || cluster?.mainSession || null) : null;
     const clusterBranchSession = Array.isArray(cluster?.branchSessions)
-      ? cluster.branchSessions.find((entry) => entry?.id === liveSession.id)
+      ? cluster.branchSessions.find((entry) => entry?.id === resolvedCurrentBranchSessionId)
       : null;
-    const fallbackIsBranch = Boolean(cluster && cluster.mainSessionId && cluster.mainSessionId !== liveSession.id);
+    const fallbackIsBranch = Boolean(cluster && cluster.mainSessionId && cluster.mainSessionId !== liveSessionId);
     const isBranch = String(
       activeContext?.lineRole
       || latestContext?.lineRole
@@ -1051,17 +1972,17 @@
       ? (getSessionRecord(parentSessionId) || clusterMainSession)
       : null;
     const hasBranches = Boolean(cluster && Array.isArray(cluster.branchSessionIds) && cluster.branchSessionIds.length > 0);
-    const currentBranchLineage = cluster?.currentBranchSessionId
-      ? getBranchLineageForSession(cluster.currentBranchSessionId, cluster)
+    const currentBranchLineage = resolvedCurrentBranchSessionId
+      ? getBranchLineageForSession(resolvedCurrentBranchSessionId, cluster)
       : [];
     const activeBranchChain = currentBranchLineage.length > 1
       ? currentBranchLineage.slice(1).join(" / ")
       : "";
     const branchLineage = isBranch
-      ? getBranchLineageForSession(liveSession.id, cluster)
+      ? getBranchLineageForSession(liveSessionId, cluster)
       : currentBranchLineage;
     const totalBranchCount = Array.isArray(cluster?.branchSessions) ? cluster.branchSessions.length : 0;
-    const branchNames = summarizeBranchNames(cluster?.branchSessions || [], liveSession.id);
+    const branchNames = summarizeBranchNames(cluster?.branchSessions || [], resolvedCurrentBranchSessionId || liveSessionId);
     const hiddenBranchCount = Math.max(0, totalBranchCount - branchNames.length);
     const mainOverview = branchNames.length > 0
       ? `主线：${mainGoal} · 支线：${branchNames.join("、")}${hiddenBranchCount > 0 ? ` 等 ${totalBranchCount} 条` : ""}`
@@ -1069,6 +1990,7 @@
     return {
       hasSession: true,
       session: liveSession,
+      focusedSessionId: liveSessionId,
       taskCard,
       activeContext,
       latestContext,
@@ -1082,6 +2004,7 @@
       parentSessionId,
       parentSession,
       cluster,
+      resolvedCurrentBranchSessionId,
       hasBranches,
       branchLineage,
       activeBranchChain,
@@ -1146,6 +2069,9 @@
     if (!state.hasSession) {
       closeFinishPanel();
       tracker.hidden = true;
+      if (taskMapRail) taskMapRail.hidden = true;
+      if (trackerTaskListEl) trackerTaskListEl.hidden = true;
+      syncTaskMapDrawerUi(false);
       syncQuestEmptyState(state);
       return;
     }
@@ -1153,32 +2079,31 @@
     tracker.hidden = false;
     syncQuestEmptyState(state);
     const showBranch = Boolean(state.isBranch && state.currentGoal);
-    const mainTrackerTitle = state.mainSummary || state.mainGoal;
     tracker.classList.toggle("is-branch-focus", showBranch);
     const branchStatus = String(state.branchStatus || "").toLowerCase();
-    const branchStatusUi = getBranchStatusUi(branchStatus);
     const visibleBranchEntries = getVisibleBranchEntries(state);
-    trackerLabelEl.textContent = showBranch ? "当前子任务" : "当前任务";
-    trackerTitleEl.textContent = showBranch
-      ? toConciseGoal(state.currentGoal, 52)
-      : (mainTrackerTitle || "当前任务");
+    const taskBarLabel = translate("taskBar.label");
+    trackerLabelEl.textContent = taskBarLabel && taskBarLabel !== "taskBar.label"
+      ? taskBarLabel
+      : "当前任务";
+    renderTrackerStatus(state);
+    const trackerTitle = getTrackerPrimaryTitle(state);
+    const trackerPrimaryDetail = getTrackerPrimaryDetail(state);
+    const trackerSecondaryDetail = getTrackerSecondaryDetail(state, trackerPrimaryDetail);
+    trackerTitleEl.textContent = trackerTitle;
     trackerTitleEl.hidden = false;
     if (trackerBranchEl) {
-      trackerBranchEl.hidden = true;
+      trackerBranchEl.hidden = !trackerPrimaryDetail;
+      trackerBranchLabelEl.textContent = "任务详情";
+      trackerBranchTitleEl.textContent = trackerPrimaryDetail;
     }
-    trackerNextEl.hidden = !showBranch || !state.nextStep || branchStructureExpanded;
-    trackerNextEl.textContent = showBranch ? clipText(state.nextStep, 80) : "";
+    trackerNextEl.hidden = !trackerSecondaryDetail;
+    trackerNextEl.textContent = trackerSecondaryDetail;
     if (trackerToggleBtn) {
-      const showToggle = visibleBranchEntries.length > 0 && isMobileQuestTracker();
-      trackerToggleBtn.hidden = !showToggle;
-      if (showToggle) setTrackerToggleContent(branchStructureExpanded);
-      trackerToggleBtn.setAttribute("aria-expanded", branchStructureExpanded ? "true" : "false");
-      trackerToggleBtn.title = branchStructureExpanded ? "收起子任务" : "展开子任务";
-      trackerToggleBtn.setAttribute("aria-label", trackerToggleBtn.title);
+      trackerToggleBtn.hidden = true;
     }
     trackerActionsEl?.classList.toggle("is-inline-links", Boolean(
-      (trackerToggleBtn && !trackerToggleBtn.hidden)
-      || (showBranch && (branchStatus === "active" || ["resolved", "merged", "parked"].includes(branchStatus)))
+      showBranch && (branchStatus === "active" || ["resolved", "merged", "parked"].includes(branchStatus))
     ));
     if (trackerCloseBtn) {
       trackerCloseBtn.hidden = true;
@@ -1196,18 +2121,17 @@
     if (showBranch && branchStatus === "active") {
       if (trackerCloseBtn) {
         trackerCloseBtn.hidden = false;
-        trackerCloseBtn.textContent = "close";
+        trackerCloseBtn.textContent = finishPanelOpen ? "取消收束" : "收束支线";
         trackerCloseBtn.setAttribute("aria-label", trackerCloseBtn.textContent);
         trackerCloseBtn.title = trackerCloseBtn.textContent;
       }
       if (trackerAltBtn) {
         trackerAltBtn.hidden = false;
-        trackerAltBtn.textContent = "stop";
+        trackerAltBtn.textContent = "挂起";
         trackerAltBtn.setAttribute("aria-label", trackerAltBtn.textContent);
         trackerAltBtn.title = trackerAltBtn.textContent;
       }
       trackerBackBtn.hidden = true;
-      closeFinishPanel();
     } else if (showBranch && ["resolved", "merged", "parked"].includes(branchStatus)) {
       closeFinishPanel();
       if (trackerAltBtn) {
@@ -1220,6 +2144,18 @@
     } else {
       closeFinishPanel();
       trackerBackBtn.textContent = showBranch ? "完成当前任务" : "";
+    }
+    trackerFooterEl?.classList.toggle("has-actions", Boolean(
+      (trackerCloseBtn && !trackerCloseBtn.hidden)
+      || (trackerAltBtn && !trackerAltBtn.hidden)
+      || (trackerBackBtn && !trackerBackBtn.hidden)
+    ));
+    if (finishPanel) {
+      const canFinishCurrentBranch = showBranch && branchStatus === "active";
+      finishPanel.hidden = !(canFinishCurrentBranch && finishPanelOpen);
+      if (canFinishCurrentBranch && finishPanelOpen) {
+        syncFinishSummaryInput(state);
+      }
     }
     if (!trackerBackBtn.hidden) {
       trackerBackBtn.setAttribute("aria-label", trackerBackBtn.textContent);
@@ -1247,7 +2183,7 @@
 
   async function refreshTrackerSnapshot(sessionIdOverride = "") {
     const session = getCurrentSessionSafe();
-    const targetSessionId = String(sessionIdOverride || session?.id || "").trim();
+    const targetSessionId = String(sessionIdOverride || getFocusedSessionId() || session?.id || "").trim();
     if (!targetSessionId) {
       renderTracker();
       return null;
@@ -1313,12 +2249,12 @@
     }
   }
 
-  async function enterBranchFromCurrentSession(branchTitle, options = {}) {
-    const session = getCurrentSessionSafe();
-    if (!session?.id || !branchTitle) return null;
-    clearSuppressed(session.id, branchTitle);
-    void persistCandidateSuppression(session.id, branchTitle, false);
-    const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(session.id)}/branches`, {
+  async function enterBranchFromSession(sessionId, branchTitle, options = {}) {
+    const normalizedSessionId = String(sessionId || "").trim();
+    if (!normalizedSessionId || !branchTitle) return null;
+    clearSuppressed(normalizedSessionId, branchTitle);
+    void persistCandidateSuppression(normalizedSessionId, branchTitle, false);
+    const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(normalizedSessionId)}/branches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1335,11 +2271,18 @@
       await fetchSessionsList();
     }
     if (response?.session && typeof attachSession === "function") {
+      setTaskMapDrawerExpanded(false, { render: false });
       attachSession(response.session.id, response.session);
     }
     renderTracker();
     renderPathPanel();
     return response?.session || null;
+  }
+
+  async function enterBranchFromCurrentSession(branchTitle, options = {}) {
+    const session = getCurrentSessionSafe();
+    if (!session?.id || !branchTitle) return null;
+    return enterBranchFromSession(session.id, branchTitle, options);
   }
 
   async function openManualBranchFromText(text, options = {}) {
@@ -1358,24 +2301,37 @@
     return Boolean(state.hasSession);
   }
 
-  async function returnToMainline() {
+  async function returnToMainline(payload = {}) {
     const state = deriveQuestState();
     if (!state.hasSession || !state.isBranch || !state.session?.id) return null;
     const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(state.session.id)}/merge-return`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify(payload || {}),
     });
     snapshot = response?.snapshot || snapshot;
+    rememberFinishSummaryDraft(state.session.id, "");
     if (typeof fetchSessionsList === "function") {
       await fetchSessionsList();
     }
     if (response?.session && typeof attachSession === "function") {
+      setTaskMapDrawerExpanded(false, { render: false });
       attachSession(response.session.id, response.session);
     }
     renderTracker();
     renderPathPanel();
     return response?.session || null;
+  }
+
+  async function mergeCurrentBranchSummaryAndReturnToMainline() {
+    const state = deriveQuestState();
+    if (!state.hasSession || !state.isBranch || !state.session?.id) return null;
+    const broughtBack = String(finishSummaryInput?.value || "").trim() || resolveFinishSummaryDraft(state);
+    rememberFinishSummaryDraft(state.session.id, broughtBack);
+    return returnToMainline({
+      mergeType: "conclusion",
+      broughtBack,
+    });
   }
 
   async function setCurrentBranchStatus(status, sessionIdOverride = "") {
@@ -1407,6 +2363,7 @@
   async function parkAndReturnToMainline() {
     const state = deriveQuestState();
     if (!state.hasSession || !state.isBranch) return null;
+    rememberFinishSummaryDraft(state.session?.id, finishSummaryInput?.value || "");
     await setCurrentBranchStatus("parked");
     return returnToParentSession();
   }
@@ -1414,6 +2371,7 @@
   async function resolveAndReturnToMainline() {
     const state = deriveQuestState();
     if (!state.hasSession || !state.isBranch) return null;
+    rememberFinishSummaryDraft(state.session?.id, "");
     await setCurrentBranchStatus("resolved");
     return returnToParentSession();
   }
@@ -1421,6 +2379,7 @@
   function returnToParentSession() {
     const state = deriveQuestState();
     if (!state.parentSessionId || typeof attachSession !== "function") return null;
+    setTaskMapDrawerExpanded(false, { render: false });
     attachSession(state.parentSessionId, state.parentSession || null);
     renderTracker();
     return state.parentSessionId;
@@ -1440,6 +2399,9 @@
 
     const row = document.createElement("div");
     row.className = "quest-branch-suggestion-item";
+    if (isAutoSuggested) {
+      row.classList.add("quest-branch-suggestion-item-auto");
+    }
 
     const main = document.createElement("div");
     main.className = "quest-branch-suggestion-main";
@@ -1462,7 +2424,7 @@
     const enterBtn = document.createElement("button");
     enterBtn.type = "button";
     enterBtn.className = "quest-branch-btn quest-branch-btn-primary";
-    enterBtn.textContent = "单独展开";
+    enterBtn.textContent = "开启支线";
     enterBtn.addEventListener("click", async () => {
       enterBtn.disabled = true;
       try {
@@ -1538,7 +2500,7 @@
     const state = deriveQuestState();
     const branchStatus = String(state.branchStatus || "").toLowerCase();
     if (branchStatus === "active") {
-      void returnToMainline();
+      openFinishPanel(state);
       return;
     }
     void reopenCurrentBranch();
@@ -1558,8 +2520,16 @@
     const state = deriveQuestState();
     const branchStatus = String(state.branchStatus || "").toLowerCase();
     if (branchStatus === "active") {
-      void resolveAndReturnToMainline();
+      if (finishPanelOpen) {
+        closeFinishPanel();
+      } else {
+        openFinishPanel(state);
+      }
     }
+  });
+
+  finishSummaryInput?.addEventListener("input", () => {
+    rememberFinishSummaryDraft(getFocusedSessionId(), finishSummaryInput.value);
   });
 
   finishResolveBtn?.addEventListener("click", async () => {
@@ -1574,16 +2544,20 @@
 
   finishMergeBtn?.addEventListener("click", async () => {
     closeFinishPanel();
-    await returnToMainline();
+    await mergeCurrentBranchSummaryAndReturnToMainline();
   });
 
-  document.addEventListener("melodysync:session-change", () => {
-    branchStructureExpanded = false;
-    taskMindmapNodeExpansionState = new Map();
+  document.addEventListener("melodysync:session-change", (event) => {
+    const previousFocusedSessionId = getFocusedSessionId();
+    const nextFocusedSessionId = normalizeSessionId(event?.detail?.session?.id || "");
+    closeFinishPanel({ sessionId: previousFocusedSessionId });
+    setTaskMapDrawerExpanded(false, { render: false });
+    if (nextFocusedSessionId) {
+      setFocusedSessionId(nextFocusedSessionId, { render: false });
+    }
     lastTaskMindmapRenderKey = "";
-    closeFinishPanel();
     renderTracker();
-    void refreshTrackerSnapshot();
+    void refreshTrackerSnapshot(nextFocusedSessionId);
     scheduleFullSnapshotRefresh(1400);
   });
 
@@ -1592,39 +2566,67 @@
     scheduleFullSnapshotRefresh(1800);
   });
 
-  trackerToggleBtn?.addEventListener("click", () => {
-    branchStructureExpanded = !branchStructureExpanded;
+  window.addEventListener("resize", () => {
+    lastTaskMindmapRenderKey = "";
+    if (!isMobileQuestTracker()) {
+      branchStructureExpanded = false;
+    }
     renderTracker();
+  });
+
+  window.addEventListener("melodysync:status-change", () => {
+    renderTracker();
+  });
+
+  trackerToggleBtn?.addEventListener("click", () => {
+    setTaskMapDrawerExpanded(!isMobileTaskMapDrawerOpen());
+  });
+
+  taskMapDrawerBtn?.addEventListener("click", () => {
+    setTaskMapDrawerExpanded(!isMobileTaskMapDrawerOpen());
+  });
+
+  taskMapDrawerBackdrop?.addEventListener("click", () => {
+    setTaskMapDrawerExpanded(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event?.key !== "Escape" || !isMobileTaskMapDrawerOpen()) return;
+    setTaskMapDrawerExpanded(false);
   });
 
   tracker?.addEventListener("mouseenter", () => {
-    const state = deriveQuestState();
-    if (isMobileQuestTracker() || getVisibleBranchEntries(state).length <= 0) return;
-    branchStructureExpanded = true;
-    renderTracker();
+    if (!isMobileQuestTracker()) return;
   });
 
   tracker?.addEventListener("mouseleave", () => {
-    if (isMobileQuestTracker()) return;
-    branchStructureExpanded = false;
-    renderTracker();
+    if (!isMobileQuestTracker()) return;
   });
 
   window.MelodySyncWorkbench = {
     surfaceMode: "quest_tracker",
     refresh: refreshSnapshot,
     getSnapshot: () => snapshot,
+    getTaskMapProjection,
+    getFocusedSessionId,
+    setFocusedSessionId,
     canOpenManualBranch,
     createBranchSuggestionItem,
     createBranchEnteredCard,
     createMergeNoteCard,
+    enterBranchFromSession,
     enterBranchFromCurrentSession,
     openManualBranchFromText,
     returnToMainline,
     parkAndReturnToMainline,
     resolveAndReturnToMainline,
     reopenCurrentBranch,
+    mergeCurrentBranchSummaryAndReturnToMainline,
     setCurrentBranchStatus,
+    openTaskMapDrawer: () => setTaskMapDrawerExpanded(true),
+    closeTaskMapDrawer: () => setTaskMapDrawerExpanded(false),
+    toggleTaskMapDrawer: () => setTaskMapDrawerExpanded(!isMobileTaskMapDrawerOpen()),
+    isTaskMapDrawerOpen: isMobileTaskMapDrawerOpen,
   };
 
   renderTracker();

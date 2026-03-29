@@ -107,11 +107,7 @@ function classifyApiRoute(method, pathname) {
   if (pathname === '/api/browse' && method === 'GET') return 'GET /api/browse';
   if (pathname === '/api/push/vapid-public-key' && method === 'GET') return 'GET /api/push/vapid-public-key';
   if (pathname === '/api/push/subscribe' && method === 'POST') return 'POST /api/push/subscribe';
-  if (pathname === '/api/apps' && method === 'GET') return 'GET /api/apps';
-  if (pathname === '/api/apps' && method === 'POST') return 'POST /api/apps';
   if (pathname === '/api/runtime-selection' && method === 'POST') return 'POST /api/runtime-selection';
-  if (pathname.startsWith('/api/apps/') && method === 'PATCH') return 'PATCH /api/apps/:appId';
-  if (pathname.startsWith('/api/apps/') && method === 'DELETE') return 'DELETE /api/apps/:appId';
   if (pathname.startsWith('/api/images/') && method === 'GET') return 'GET /api/images/:imageName';
   if (pathname.startsWith('/api/media/') && method === 'GET') return 'GET /api/media/:mediaName';
   if (pathname === '/api/sessions' && method === 'POST') return 'POST /api/sessions';
@@ -122,13 +118,11 @@ function classifyApiRoute(method, pathname) {
       if (parts.length === 3 && method === 'PATCH') return 'PATCH /api/sessions/:sessionId';
       if (parts.length === 4 && method === 'POST') {
         if (parts[3] === 'messages') return 'POST /api/sessions/:sessionId/messages';
-        if (parts[3] === 'run-scheduled-trigger') return 'POST /api/sessions/:sessionId/run-scheduled-trigger';
         if (parts[3] === 'cancel') return 'POST /api/sessions/:sessionId/cancel';
         if (parts[3] === 'compact') return 'POST /api/sessions/:sessionId/compact';
         if (parts[3] === 'drop-tools') return 'POST /api/sessions/:sessionId/drop-tools';
         if (parts[3] === 'fork') return 'POST /api/sessions/:sessionId/fork';
         if (parts[3] === 'delegate') return 'POST /api/sessions/:sessionId/delegate';
-        if (parts[3] === 'share') return 'POST /api/sessions/:sessionId/share';
       }
     }
   }

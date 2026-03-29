@@ -11,12 +11,12 @@ const repoRoot = dirname(__dirname);
 
 const filesToParse = [
   join(repoRoot, 'static', 'chat.js'),
+  join(repoRoot, 'static', 'chat', 'bootstrap-data.js'),
   join(repoRoot, 'static', 'chat', 'i18n.js'),
   join(repoRoot, 'static', 'chat', 'bootstrap.js'),
   join(repoRoot, 'static', 'chat', 'bootstrap-session-catalog.js'),
   join(repoRoot, 'static', 'chat', 'layout-tooling.js'),
   join(repoRoot, 'static', 'chat', 'tooling.js'),
-  join(repoRoot, 'static', 'chat', 'settings-ui.js'),
   join(repoRoot, 'static', 'chat', 'sidebar-ui.js'),
   join(repoRoot, 'static', 'chat', 'compose.js'),
 ];
@@ -310,12 +310,12 @@ context.window.crypto = context.crypto;
 context.window.getComputedStyle = context.getComputedStyle;
 
 const orderedFiles = [
+  'bootstrap-data.js',
   'i18n.js',
   'bootstrap.js',
   'bootstrap-session-catalog.js',
   'layout-tooling.js',
   'tooling.js',
-  'settings-ui.js',
   'sidebar-ui.js',
   'compose.js',
 ];

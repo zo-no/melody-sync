@@ -107,7 +107,6 @@ function createContext() {
     },
     pendingNavigationState: null,
     activeTab: 'sessions',
-    visitorMode: false,
     currentSessionId: 'current-session',
     hasAttachedSession: true,
     sessions: [
@@ -158,7 +157,6 @@ function createContext() {
     updateResumeButton() {},
     syncBrowserState() {},
     syncForkButton() {},
-    syncShareButton() {},
     finishedUnread: new Set(),
     getSessionDisplayName(session) {
       return session?.name || '';

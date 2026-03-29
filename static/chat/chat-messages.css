@@ -2,13 +2,76 @@
 .chat-area {
   flex: 1;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
   min-height: 0;
   min-width: 0;
 }
 .chat-area > * {
   min-width: 0;
+}
+
+.task-manager-body {
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "rail"
+    "main";
+  gap: 12px;
+}
+
+.task-manager-main-column {
+  grid-area: main;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+}
+
+.task-map-rail {
+  grid-area: rail;
+  min-width: 0;
+  min-height: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.task-map-rail[hidden] {
+  display: none !important;
+}
+
+.task-map-rail-header {
+  display: none;
+}
+
+.task-map-rail-label {
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.task-map-rail-title {
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.task-map-rail-note {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  max-width: 30ch;
 }
 
 .gesture-pill {

@@ -31,7 +31,7 @@ Options:
   --help                  Show this help
 
 Defaults probe these paths:
-  /api/sessions?view=refs&includeVisitor=1
+  /api/sessions?view=refs
   /api/models
   /chat/ui.js
 `);
@@ -89,7 +89,7 @@ function parseArgs(argv) {
 
   if (args.paths.length === 0) {
     args.paths = [
-      '/api/sessions?view=refs&includeVisitor=1',
+      '/api/sessions?view=refs',
       '/api/models',
       '/chat/ui.js',
     ];

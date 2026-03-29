@@ -131,8 +131,6 @@ function createContext() {
     },
     pendingNavigationState: null,
     activeTab: 'sessions',
-    visitorMode: false,
-    visitorSessionId: null,
     currentSessionId: 'current-session',
     hasAttachedSession: true,
     hasLoadedSessions: true,
@@ -196,7 +194,6 @@ function createContext() {
     updateResumeButton() {},
     syncBrowserState() {},
     syncForkButton() {},
-    syncShareButton() {},
     finishedUnread: new Set(),
     getSessionDisplayName(session) {
       return session?.name || '';
@@ -238,7 +235,7 @@ function createContext() {
     applyNavigationState() {},
     fetch: async (url) => {
       fetchCalls.push(String(url));
-      if (String(url) === '/api/sessions?includeVisitor=1') {
+      if (String(url) === '/api/sessions') {
         return createFetchResponse({
           sessions: [
             {
@@ -267,7 +264,7 @@ function createContext() {
           archivedCount: 0,
         }, {
           etag: '"etag-session-list"',
-          url: 'http://127.0.0.1/api/sessions?includeVisitor=1',
+          url: 'http://127.0.0.1/api/sessions',
         });
       }
       throw new Error(`Unexpected fetch: ${url}`);
@@ -286,7 +283,7 @@ await context.fetchSessionsList();
 
 assert.deepEqual(
   context.fetchCalls,
-  ['/api/sessions?includeVisitor=1'],
+  ['/api/sessions'],
   'session list refresh should hydrate from the default list endpoint',
 );
 assert.equal(context.renderCalls.length, 1, 'session list refresh should rerender the sidebar once');
@@ -336,7 +333,6 @@ const preToolAttachContext = {
   renderSessionList() {},
   syncBrowserState() {},
   syncForkButton() {},
-  syncShareButton() {},
 };
 preToolAttachContext.globalThis = preToolAttachContext;
 
@@ -373,8 +369,6 @@ let restoreCalls = 0;
 
 const bootstrapContext = {
   console,
-  visitorMode: false,
-  visitorSessionId: null,
   currentSessionId: 'session-bootstrap',
   attachSession() {
     throw new Error('owner deferred bootstrap should not attach a placeholder session');

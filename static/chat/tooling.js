@@ -7,7 +7,7 @@ let runtimeSelectionSyncPromise = Promise.resolve();
 let lastSyncedRuntimeSelectionPayload = '';
 
 function buildRuntimeSelectionPayload() {
-  if (visitorMode || !selectedTool) return null;
+  if (!selectedTool) return null;
   return {
     selectedTool,
     selectedModel: selectedModel || '',
@@ -60,7 +60,7 @@ function getAttachedSessionToolPreferences(toolId = selectedTool) {
 }
 
 function persistCurrentSessionToolPreferences() {
-  if (visitorMode || !currentSessionId || !selectedTool) return;
+  if (!currentSessionId || !selectedTool) return;
   const payload = {
     action: "session_preferences",
     sessionId: currentSessionId,
@@ -236,18 +236,9 @@ function resetHeaderActionButton(button) {
   }
 }
 
-function syncShareButton() {
-  if (!shareSnapshotBtn) return;
-  const visible = !visitorMode && !!currentSessionId;
-  shareSnapshotBtn.style.display = visible ? "" : "none";
-  if (!visible) {
-    resetHeaderActionButton(shareSnapshotBtn);
-  }
-}
-
 function syncForkButton() {
   if (!forkSessionBtn) return;
-  const visible = !visitorMode && !!currentSessionId;
+  const visible = !!currentSessionId;
   forkSessionBtn.style.display = visible ? "" : "none";
   if (!visible) {
     resetHeaderActionButton(forkSessionBtn);
@@ -258,73 +249,8 @@ function syncForkButton() {
   forkSessionBtn.disabled = !session || activity.run.state === "running" || activity.compact.state === "pending";
 }
 
-function getShareSnapshotTitle(session) {
-  const name = typeof session?.name === "string" ? session.name.trim() : "";
-  if (name) return name;
-  const tool = typeof session?.tool === "string" ? session.tool.trim() : "";
-  if (tool) return tool;
-  return `RemoteLab ${getToolingLabel("status.readOnlySnapshot")}`;
-}
-
-function buildShareSnapshotShareText(session, shareUrl) {
-  const title = getShareSnapshotTitle(session);
-  const link = typeof shareUrl === "string" ? shareUrl.trim() : "";
-  return link ? `${title}\n${link}` : title;
-}
-
-async function shareCurrentSessionSnapshot() {
-  if (!currentSessionId || visitorMode || !shareSnapshotBtn) return;
-
-  const currentSession = getCurrentSession();
-  shareSnapshotBtn.disabled = true;
-
-  try {
-    const res = await fetch(`/api/sessions/${encodeURIComponent(currentSessionId)}/share`, {
-      method: "POST",
-    });
-
-    let payload = null;
-    try {
-      payload = await res.json();
-    } catch {}
-
-    const shareUrl = payload?.share?.url
-      ? new URL(payload.share.url, location.origin).toString()
-      : null;
-    const shareText = buildShareSnapshotShareText(currentSession, shareUrl);
-
-    if (!res.ok || !shareUrl) {
-      throw new Error(payload?.error || "Failed to create share link");
-    }
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ text: shareText });
-        updateCopyButtonLabel(shareSnapshotBtn, getToolingLabel("action.share"));
-        return;
-      } catch (err) {
-        if (err?.name === "AbortError") return;
-      }
-    }
-
-    try {
-      await copyText(shareText);
-      updateCopyButtonLabel(shareSnapshotBtn, getToolingLabel("action.copied"));
-    } catch {
-      window.prompt("Copy share text", shareText);
-      updateCopyButtonLabel(shareSnapshotBtn, getToolingLabel("action.copy"));
-    }
-  } catch (err) {
-    console.warn("[share] Failed to create snapshot:", err.message);
-    updateCopyButtonLabel(shareSnapshotBtn, getToolingLabel("action.copyFailed"));
-  } finally {
-    shareSnapshotBtn.disabled = false;
-    syncShareButton();
-  }
-}
-
 async function forkCurrentSession() {
-  if (!currentSessionId || visitorMode || !forkSessionBtn) return;
+  if (!currentSessionId || !forkSessionBtn) return;
 
   const original = forkSessionBtn.dataset.originalLabel || forkSessionBtn.textContent;
   forkSessionBtn.dataset.originalLabel = original;
@@ -431,7 +357,7 @@ async function saveSimpleToolConfig() {
 }
 
 function renderInlineToolOptions(selectedValue, emptyMessage = "No agents found") {
-  inlineToolSelect.disabled = visitorMode;
+  inlineToolSelect.disabled = false;
   inlineToolSelect.innerHTML = "";
 
   if (toolsList.length === 0) {
@@ -520,14 +446,6 @@ async function fetchModelResponse(toolId, { refresh = false } = {}) {
 }
 
 async function loadInlineTools({ skipModelLoad = false } = {}) {
-  if (visitorMode) {
-    allToolsList = [];
-    toolsList = [];
-    selectedTool = null;
-    selectedModel = null;
-    selectedEffort = null;
-    return;
-  }
   try {
     const data = await fetchJsonOrRedirect("/api/tools");
     allToolsList = Array.isArray(data.tools) ? data.tools : [];
@@ -542,20 +460,11 @@ async function loadInlineTools({ skipModelLoad = false } = {}) {
     if (!skipModelLoad) {
       await loadModelsForCurrentTool();
     }
-    if (typeof renderAppToolSelectOptions === "function") {
-      renderAppToolSelectOptions(newAppToolSelect, newAppToolSelect?.value || selectedTool || initialTool || "");
-    }
-    if (typeof renderSettingsAppsPanel === "function") {
-      renderSettingsAppsPanel();
-    }
   } catch (err) {
     allToolsList = [];
     toolsList = [];
     console.warn("[tools] Failed to load tools:", err.message);
     renderInlineToolOptions("", "Failed to load agents");
-    if (typeof renderAppToolSelectOptions === "function") {
-      renderAppToolSelectOptions(newAppToolSelect, newAppToolSelect?.value || "");
-    }
   }
 }
 
@@ -572,20 +481,6 @@ inlineToolSelect.addEventListener("change", async () => {
 
 // ---- Model select ----
 async function loadModelsForCurrentTool({ refresh = false } = {}) {
-  if (visitorMode) {
-    currentToolModels = [];
-    currentToolEffortLevels = null;
-    currentToolReasoningKind = "none";
-    currentToolReasoningLabel = t("tooling.thinking");
-    currentToolReasoningDefault = null;
-    selectedModel = null;
-    selectedEffort = null;
-    inlineModelSelect.innerHTML = "";
-    inlineModelSelect.style.display = "none";
-    thinkingToggle.style.display = "none";
-    effortSelect.style.display = "none";
-    return;
-  }
   const toolId = selectedTool;
   if (!selectedTool) {
     currentToolModels = [];
@@ -755,10 +650,6 @@ copyProviderPromptBtn?.addEventListener("click", async () => {
     console.warn("[copy] Failed to copy provider prompt:", err.message);
   }
 });
-
-if (shareSnapshotBtn) {
-  shareSnapshotBtn.addEventListener("click", shareCurrentSessionSnapshot);
-}
 
 if (forkSessionBtn) {
   forkSessionBtn.addEventListener("click", forkCurrentSession);

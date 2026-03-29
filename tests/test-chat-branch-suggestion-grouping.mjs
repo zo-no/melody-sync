@@ -184,6 +184,9 @@ const context = {
       createBranchSuggestionItem(evt) {
         const item = makeElement('div');
         item.className = 'quest-branch-suggestion-item';
+        if (evt?.autoSuggested !== false) {
+          item.classList.add('quest-branch-suggestion-item-auto');
+        }
         const title = makeElement('div');
         title.className = 'quest-branch-suggestion-title';
         title.textContent = evt.branchTitle;
@@ -255,6 +258,20 @@ assert.deepEqual(
   rows.map((row) => row.querySelector('.quest-branch-suggestion-title')?.textContent),
   ['按这段内容开启支线任务', '表现主义'],
   'auto-detected branch titles should be appended after the manual branch option inside the same group',
+);
+
+context.renderStatusInto(messagesInner, {
+  type: 'status',
+  statusKind: 'branch_candidate',
+  branchTitle: '法国新浪潮',
+  branchReason: '这条线也偏离电影史主线，适合单独展开。',
+  sourceSeq: 7,
+});
+
+assert.equal(
+  group.querySelectorAll('.quest-branch-suggestion-item').length,
+  2,
+  'historical duplicate auto suggestions should collapse to the first auto suggestion within the same message group',
 );
 
 console.log('test-chat-branch-suggestion-grouping: ok');

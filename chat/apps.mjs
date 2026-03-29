@@ -1,17 +1,15 @@
-import { randomBytes } from 'crypto';
 import { dirname } from 'path';
-import { APPS_FILE, AUTH_FILE, CHAT_PORT, CHAT_SESSIONS_FILE, USERS_FILE, VISITORS_FILE } from '../lib/config.mjs';
+import { randomBytes } from 'crypto';
+import { APPS_FILE, AUTH_FILE, CHAT_PORT, CHAT_SESSIONS_FILE, USERS_FILE } from '../lib/config.mjs';
 import { createSerialTaskQueue, ensureDir, readJson, writeJsonAtomic } from './fs-utils.mjs';
 
 const runAppsMutation = createSerialTaskQueue();
 const BUILTIN_CREATED_AT = '1970-01-01T00:00:00.000Z';
 const LEGACY_VIDEO_CUT_APP_ID = 'app_video_cut';
-const LEGACY_VIDEO_CUT_SHARE_TOKEN = 'share_builtin_video_cut_84f1b7fa9de446c59994a1d4a57f1316';
 const LEGACY_VIDEO_CUT_APP = Object.freeze({
   id: LEGACY_VIDEO_CUT_APP_ID,
   name: 'Video Cut',
   tool: 'codex',
-  shareToken: LEGACY_VIDEO_CUT_SHARE_TOKEN,
   systemPrompt: [
     'You are the Video Cut app inside RemoteLab.',
     'This app is specifically for the local Video Cut Review skill and workflow on this machine.',
@@ -62,7 +60,6 @@ export const BUILTIN_APPS = Object.freeze([
     name: 'Welcome',
     builtin: true,
     templateSelectable: true,
-    shareEnabled: false,
     tool: DEFAULT_APP_TOOL,
     systemPrompt: [
       'You are the Welcome app inside RemoteLab.',
@@ -116,7 +113,6 @@ export const BUILTIN_APPS = Object.freeze([
     name: 'Basic Chat',
     builtin: true,
     templateSelectable: true,
-    shareEnabled: false,
     tool: DEFAULT_APP_TOOL,
     systemPrompt: '',
     welcomeMessage: '',
@@ -131,13 +127,12 @@ function cloneApp(app) {
 }
 
 function findLegacyVideoCutAppRecord(apps = []) {
-  return apps.find((app) => app && (app.id === LEGACY_VIDEO_CUT_APP_ID || app.shareToken === LEGACY_VIDEO_CUT_SHARE_TOKEN)) || null;
+  return apps.find((app) => app && app.id === LEGACY_VIDEO_CUT_APP_ID) || null;
 }
 
 async function hasLegacyVideoCutReferences() {
-  const [users, visitors, sessions] = await Promise.all([
+  const [users, sessions] = await Promise.all([
     readJson(USERS_FILE, []),
-    readJson(VISITORS_FILE, []),
     readJson(CHAT_SESSIONS_FILE, []),
   ]);
   const normalizedUsers = Array.isArray(users) ? users : [];
@@ -145,11 +140,6 @@ async function hasLegacyVideoCutReferences() {
     user.defaultAppId === LEGACY_VIDEO_CUT_APP_ID
     || (Array.isArray(user.appIds) && user.appIds.includes(LEGACY_VIDEO_CUT_APP_ID))
   ))) {
-    return true;
-  }
-
-  const normalizedVisitors = Array.isArray(visitors) ? visitors : [];
-  if (normalizedVisitors.some((visitor) => visitor && !visitor.deleted && visitor.appId === LEGACY_VIDEO_CUT_APP_ID)) {
     return true;
   }
 
@@ -262,19 +252,6 @@ export async function getApp(id) {
   return null;
 }
 
-export async function getAppByShareToken(shareToken) {
-  if (!shareToken) return null;
-  const builtin = BUILTIN_APPS.find((app) => app.shareToken === shareToken);
-  if (builtin) return cloneApp(builtin);
-  const apps = await loadApps();
-  const existing = apps.find((app) => app.shareToken === shareToken);
-  if (existing) return existing.deleted ? null : existing;
-  if (shareToken === LEGACY_VIDEO_CUT_SHARE_TOKEN) {
-    return materializeLegacyVideoCutApp({ force: true });
-  }
-  return null;
-}
-
 export async function createApp(input = {}) {
   const {
     name,
@@ -286,7 +263,6 @@ export async function createApp(input = {}) {
   } = input;
   return runAppsMutation(async () => {
     const id = `app_${randomBytes(16).toString('hex')}`;
-    const shareToken = `share_${randomBytes(32).toString('hex')}`;
     const app = {
       id,
       name: name || 'Untitled App',
@@ -294,7 +270,6 @@ export async function createApp(input = {}) {
       welcomeMessage: welcomeMessage || '',
       skills: skills || [],
       tool: tool || DEFAULT_APP_TOOL,
-      shareToken,
       createdAt: new Date().toISOString(),
     };
     const normalizedTemplateContext = normalizeTemplateContext(templateContext);

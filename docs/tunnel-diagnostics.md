@@ -18,7 +18,7 @@ Probe specific routes:
 
 ```bash
 npm run diag:tunnel -- \
-  --path /api/sessions?view=refs&includeVisitor=1 \
+  --path /api/sessions?view=refs \
   --path /api/models \
   --path /chat/ui.js \
   --warm 3
@@ -61,4 +61,3 @@ This script is designed to answer the product question “should we keep Cloudfl
 - keep Tunnel when the local app is the clear bottleneck and the tunnel adds little
 - optimize app caching when local `304` work is large
 - consider another ingress path when static assets and stable `304`s are still slow over the tunnel while local origin is fast
-

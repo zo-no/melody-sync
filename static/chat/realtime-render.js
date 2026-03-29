@@ -28,7 +28,6 @@ function showEmpty() {
     syncSessionTemplateControls();
   }
   syncForkButton();
-  syncShareButton();
   document.dispatchEvent(new CustomEvent("melodysync:session-change", {
     detail: { session: null },
   }));
@@ -276,13 +275,6 @@ async function fetchEventBlock(sessionId, startSeq, endSeq) {
   const key = eventBlockCacheKey(sessionId, startSeq, endSeq);
   if (eventBlockCache.has(key)) return eventBlockCache.get(key);
   if (eventBlockRequests.has(key)) return eventBlockRequests.get(key);
-  if ((typeof shareSnapshotMode !== "undefined" && shareSnapshotMode) && typeof getShareSnapshotEventBlock === "function") {
-    const localBlock = getShareSnapshotEventBlock(startSeq, endSeq);
-    if (localBlock) {
-      eventBlockCache.set(key, localBlock);
-      return localBlock;
-    }
-  }
   const request = fetchJsonOrRedirect(
     `/api/sessions/${encodeURIComponent(sessionId)}/events/blocks/${startSeq}-${endSeq}`,
     { revalidate: false },

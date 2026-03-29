@@ -119,4 +119,32 @@ assert.equal(
   'multiple related refinements inside the same goal should not surface a branch suggestion',
 );
 
+const suppressedCandidates = normalizeSessionTaskCard({
+  goal: '完成首页插画',
+  mainGoal: '完成首页插画',
+  branchReason: '继续把首页插画细化一下',
+  candidateBranches: ['光影补充', '配色调整', '构图优化'],
+  nextSteps: ['继续把首页插画细化一下'],
+});
+
+assert.deepEqual(
+  suppressedCandidates?.candidateBranches || [],
+  [],
+  'same-goal refinements should not keep proactive candidate branches on the stored task card',
+);
+
+const narrowedCandidates = normalizeSessionTaskCard({
+  goal: '完成首页插画',
+  mainGoal: '完成首页插画',
+  branchReason: '用户已经偏离当前主线，开始转向独立的角色设定专题，这条线需要单独展开。',
+  candidateBranches: ['角色设定专题', '世界观整理'],
+  nextSteps: ['先把首页插画完成'],
+});
+
+assert.deepEqual(
+  narrowedCandidates?.candidateBranches || [],
+  ['角色设定专题'],
+  'auto branch candidates should keep only the first high-confidence drift target',
+);
+
 console.log('test-session-task-card: ok');

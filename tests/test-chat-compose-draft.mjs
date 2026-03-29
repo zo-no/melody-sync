@@ -213,7 +213,6 @@ function createContext({
     createRequestId() {
       return 'req_test';
     },
-    visitorMode: false,
     isDesktop: true,
     selectedTool: null,
     selectedModel: null,

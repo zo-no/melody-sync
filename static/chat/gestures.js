@@ -14,9 +14,10 @@ let swipeGestureActionInFlight = false;
 
 function canUseSwipeGestures() {
   if (!gesturePill) return false;
-  if (isDesktop || visitorMode) return false;
+  if (isDesktop) return false;
   if (sidebarOverlay?.classList.contains("open")) return false;
   if (addToolModal && !addToolModal.hidden) return false;
+  if (window.MelodySyncWorkbench?.isTaskMapDrawerOpen?.()) return false;
   return true;
 }
 
@@ -75,8 +76,8 @@ function getSwipeGestureAction(direction) {
   if (direction === "left") {
     return {
       pillSide: "right",
-      label: t("gestures.newSession"),
-      run: () => Promise.resolve(createNewSessionShortcut()),
+      label: "任务地图",
+      run: () => Promise.resolve(window.MelodySyncWorkbench?.openTaskMapDrawer?.()),
     };
   }
   return null;

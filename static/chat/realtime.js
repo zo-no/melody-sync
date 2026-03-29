@@ -8,9 +8,6 @@ function renderRealtimeIcon(name, className = "") {
 }
 
 function resolveWsUrl(path) {
-  if (typeof withVisitorModeUrl === "function") {
-    return withVisitorModeUrl(path);
-  }
   return typeof path === "string" ? path : String(path || "");
 }
 
@@ -96,7 +93,6 @@ async function dispatchAction(msg) {
                 tool: msg.tool,
                 name: msg.name || "",
                 group: msg.group || "",
-                appId: msg.appId || "",
                 sourceId: msg.sourceId || "",
                 sourceName: msg.sourceName || "",
               }),
@@ -311,31 +307,6 @@ async function dispatchAction(msg) {
         }
         return true;
       }
-      case "apply_template": {
-        const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId || currentSessionId)}/apply-template`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ appId: msg.appId }),
-        });
-        if (data.session) {
-          const session = upsertSession(data.session) || data.session;
-          renderSessionList();
-          if (currentSessionId === session.id) {
-            applyAttachedSessionState(session.id, session);
-          }
-        }
-        await refreshCurrentSession();
-        return true;
-      }
-      case "save_template": {
-        await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId || currentSessionId)}/save-template`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: msg.name || "" }),
-        });
-        await fetchAppsList();
-        return true;
-      }
       case "cancel":
         await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSessionId)}/cancel`, {
           method: "POST",
@@ -466,7 +437,7 @@ function handleWsMessage(msg) {
       }
       if (msg.sessionId === currentSessionId) {
         refreshCurrentSession().catch(() => {});
-      } else if (!visitorMode) {
+      } else {
         refreshSidebarSession(msg.sessionId).catch(() => {});
       }
       break;
@@ -479,31 +450,6 @@ function handleWsMessage(msg) {
 
 // ---- Status ----
 function updateStatus(connState, session = getCurrentSession()) {
-  if (typeof shareSnapshotMode !== "undefined" && shareSnapshotMode) {
-    statusDot.className = "status-dot";
-    statusText.textContent = t("status.readOnlySnapshot");
-    msgInput.disabled = true;
-    msgInput.readOnly = true;
-    msgInput.placeholder = t("input.placeholder.readOnlySnapshot");
-    sendBtn.style.display = "";
-    sendBtn.disabled = true;
-    sendBtn.title = t("action.readOnly");
-    cancelBtn.style.display = "none";
-    imgBtn.disabled = true;
-    inlineToolSelect.disabled = true;
-    inlineModelSelect.disabled = true;
-    thinkingToggle.disabled = true;
-    effortSelect.disabled = true;
-    if (typeof syncSessionTemplateControls === "function") {
-      syncSessionTemplateControls();
-    }
-    if (typeof syncComposerVoiceCleanupToggle === "function") {
-      syncComposerVoiceCleanupToggle();
-    }
-    syncForkButton();
-    syncShareButton();
-    return;
-  }
   const archived = session?.archived === true;
   if (connState === "disconnected") {
     statusDot.className = "status-dot";
@@ -516,6 +462,15 @@ function updateStatus(connState, session = getCurrentSession()) {
     if (typeof syncComposerVoiceCleanupToggle === "function") {
       syncComposerVoiceCleanupToggle();
     }
+    window.dispatchEvent(new CustomEvent("melodysync:status-change", {
+      detail: {
+        connState,
+        sessionId: currentSessionId || "",
+        session,
+        label: statusText.textContent,
+        dotClass: statusDot.className,
+      },
+    }));
     return;
   }
   const visualStatus = getSessionVisualStatus(session);
@@ -550,8 +505,17 @@ function updateStatus(connState, session = getCurrentSession()) {
   sendBtn.title = inputBusy ? t("action.queueFollowUp") : t("action.send");
   cancelBtn.style.display = runIsActive && hasSession ? "flex" : "none";
   imgBtn.disabled = !hasSession || archived;
-  inlineToolSelect.disabled = visitorMode || archived;
+  inlineToolSelect.disabled = !hasSession || archived;
   inlineModelSelect.disabled = !hasSession || archived;
+  window.dispatchEvent(new CustomEvent("melodysync:status-change", {
+    detail: {
+      connState,
+      sessionId: currentSessionId || "",
+      session,
+      label: statusText.textContent,
+      dotClass: statusDot.className,
+    },
+  }));
   thinkingToggle.disabled = !hasSession || archived;
   effortSelect.disabled = !hasSession || archived;
   if (typeof syncSessionTemplateControls === "function") {
@@ -561,5 +525,4 @@ function updateStatus(connState, session = getCurrentSession()) {
     syncComposerVoiceCleanupToggle();
   }
   syncForkButton();
-  syncShareButton();
 }

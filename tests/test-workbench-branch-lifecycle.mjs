@@ -43,7 +43,10 @@ async function main() {
     goal: '学习电影史',
     mainGoal: '学习电影史',
     lineRole: 'main',
+    summary: '电影史主线',
     checkpoint: '先搭建电影史主线框架',
+    background: ['当前已经明确古典、现代、当代三段结构'],
+    knownConclusions: ['目前已经划出古典、现代、当代三段'],
     nextSteps: ['先搭建电影史主线框架'],
   });
   await syncSessionContinuityFromSession(seededMain, { taskCard: seededMain?.taskCard });
@@ -59,6 +62,16 @@ async function main() {
   assert.equal(branchSession.taskCard?.goal, '表现主义', 'branch session should be seeded with branch goal');
   assert.equal(branchSession.taskCard?.mainGoal, '学习电影史', 'branch session should retain main goal');
   assert.equal(branchSession.taskCard?.lineRole, 'branch', 'branch session should be marked as branch');
+  assert.equal(
+    branchSession.taskCard?.background?.some((entry) => entry.includes('主线目标：学习电影史')),
+    true,
+    'branch session should carry the mainline goal into the seeded branch background',
+  );
+  assert.equal(
+    branchSession.taskCard?.knownConclusions?.includes('目前已经划出古典、现代、当代三段'),
+    true,
+    'branch session should inherit concise mainline conclusions as carryover context',
+  );
 
   const trackerSnapshot = await getWorkbenchTrackerSnapshot(branchSession.id);
   assert.equal(Array.isArray(trackerSnapshot?.taskClusters), true, 'tracker snapshot should include task clusters');
@@ -87,8 +100,16 @@ async function main() {
   assert.equal(branchEntry?._branchStatus, 'active', 'resolved branch should reopen to active');
   assert.equal(cluster?.currentBranchSessionId, branchSession.id, 'reopened branch should become current branch');
 
-  const mergeOutcome = await mergeBranchSessionBackToMain(branchSession.id, {});
+  const mergeOutcome = await mergeBranchSessionBackToMain(branchSession.id, {
+    mergeType: 'conclusion',
+    broughtBack: '已经明确表现主义的视觉语言，可以继续比较其他流派。',
+  });
   assert.equal(mergeOutcome?.mergeNote?.branchTitle, '表现主义', 'merge should carry branch title');
+  assert.equal(
+    mergeOutcome?.mergeNote?.broughtBack,
+    '已经明确表现主义的视觉语言，可以继续比较其他流派。',
+    'merge should keep the explicit branch wrap-up summary supplied by the caller',
+  );
 
   snapshot = await getWorkbenchSnapshot();
   cluster = (snapshot.taskClusters || []).find((entry) => entry.mainSessionId === mainSession.id);

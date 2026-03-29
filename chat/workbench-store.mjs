@@ -146,6 +146,27 @@ function sortByUpdatedDesc(items) {
   });
 }
 
+function getStableBranchEntryTimestamp(entry) {
+  return Date.parse(
+    entry?.context?.createdAt
+    || entry?.session?.createdAt
+    || entry?.session?.created
+    || entry?.context?.updatedAt
+    || entry?.session?.updatedAt
+    || entry?.session?.lastEventAt
+    || ''
+  ) || 0;
+}
+
+function sortBranchEntriesStable(items) {
+  return [...items].sort((left, right) => {
+    const leftTime = getStableBranchEntryTimestamp(left);
+    const rightTime = getStableBranchEntryTimestamp(right);
+    if (leftTime !== rightTime) return leftTime - rightTime;
+    return String(left?.session?.id || '').localeCompare(String(right?.session?.id || ''));
+  });
+}
+
 async function loadArrayStore(filePath) {
   const data = await readJson(filePath, []);
   return Array.isArray(data) ? data : [];
@@ -246,7 +267,7 @@ function buildTaskClusters(state, sessions = []) {
   }
 
   function collectBranchEntries(parentSessionId, depth = 1, visited = new Set()) {
-    const directChildren = sortByUpdatedDesc((branchChildren.get(parentSessionId) || []).map((entry) => ({
+    const directChildren = sortBranchEntriesStable((branchChildren.get(parentSessionId) || []).map((entry) => ({
       id: entry.session.id,
       updatedAt: entry.context?.updatedAt || entry.session.updatedAt || entry.session.lastEventAt || entry.session.created || '',
       status: normalizeBranchContextStatus(entry.context?.status),
@@ -400,6 +421,67 @@ function buildBranchCarryoverLine(branchTitle, broughtBack) {
   return `来自支线「${title}」：${summary}`;
 }
 
+function buildBranchCarryoverSeed({
+  sourceSession = null,
+  mainGoal = '',
+  branchFrom = '',
+  checkpointSummary = '',
+  nextStep = '',
+  projectTitle = '',
+} = {}) {
+  const sourceTaskCard = normalizeSessionTaskCard(sourceSession?.taskCard || {}) || {};
+  const resolvedMainGoal = normalizeNullableText(
+    mainGoal
+    || sourceTaskCard.mainGoal
+    || sourceTaskCard.goal
+    || projectTitle
+    || sourceSession?.name
+  );
+  const resolvedBranchFrom = normalizeNullableText(
+    branchFrom
+    || sourceTaskCard.goal
+    || sourceTaskCard.branchFrom
+    || resolvedMainGoal
+  );
+  const resolvedCheckpoint = normalizeNullableText(
+    checkpointSummary
+    || sourceTaskCard.checkpoint
+    || sourceTaskCard.summary
+    || (sourceTaskCard.nextSteps || [])[0]
+  );
+  const resolvedNextStep = normalizeNullableText(
+    nextStep
+    || (sourceTaskCard.nextSteps || [])[0]
+    || resolvedCheckpoint
+  );
+  const resolvedSummary = normalizeNullableText(sourceTaskCard.summary);
+  return {
+    mainGoal: resolvedMainGoal,
+    branchFrom: resolvedBranchFrom,
+    checkpointSummary: resolvedCheckpoint,
+    nextStep: resolvedNextStep,
+    carryoverSummary: normalizeNullableText(
+      [
+        resolvedSummary ? `主线摘要：${resolvedSummary}` : '',
+        resolvedCheckpoint ? `分叉前进度：${resolvedCheckpoint}` : '',
+      ].filter(Boolean).join('；')
+    ),
+    background: dedupeTexts([
+      resolvedMainGoal ? `主线目标：${resolvedMainGoal}` : '',
+      resolvedBranchFrom ? `分叉位置：${resolvedBranchFrom}` : '',
+      resolvedSummary ? `主线当前摘要：${resolvedSummary}` : '',
+      resolvedCheckpoint ? `切出前推进点：${resolvedCheckpoint}` : '',
+      resolvedNextStep ? `主线下一步：${resolvedNextStep}` : '',
+      ...(sourceTaskCard.background || []).slice(0, 2),
+    ]),
+    rawMaterials: dedupeTexts([
+      ...(sourceTaskCard.rawMaterials || []).slice(0, 2),
+      ...(sourceTaskCard.knownConclusions || []).slice(0, 2),
+    ]),
+    knownConclusions: dedupeTexts((sourceTaskCard.knownConclusions || []).slice(0, 2)),
+  };
+}
+
 function buildSeedBranchTaskCard({
   goal = '',
   mainGoal = '',
@@ -407,10 +489,14 @@ function buildSeedBranchTaskCard({
   branchReason = '',
   checkpointSummary = '',
   nextStep = '',
+  summary = '',
+  background = [],
+  rawMaterials = [],
+  knownConclusions = [],
 } = {}) {
   return normalizeSessionTaskCard({
     mode: 'continue',
-    summary: '',
+    summary: normalizeNullableText(summary),
     goal: normalizeNullableText(goal),
     mainGoal: normalizeNullableText(mainGoal || goal),
     lineRole: 'branch',
@@ -418,10 +504,10 @@ function buildSeedBranchTaskCard({
     branchReason: normalizeNullableText(branchReason),
     checkpoint: normalizeNullableText(checkpointSummary),
     candidateBranches: [],
-    background: [],
-    rawMaterials: [],
+    background: dedupeTexts(background),
+    rawMaterials: dedupeTexts(rawMaterials),
     assumptions: [],
-    knownConclusions: [],
+    knownConclusions: dedupeTexts(knownConclusions),
     nextSteps: normalizeNullableText(nextStep) ? [normalizeNullableText(nextStep)] : [],
     memory: [],
     needsFromUser: [],
@@ -738,7 +824,13 @@ function buildSingleProjectDocument(project, treeMarkdown, summaryMarkdown, skil
   ].join('\n');
 }
 
-function buildBranchSeedPrompt({ project, node, goal }) {
+function formatSeedList(label, items = []) {
+  const entries = dedupeTexts(items);
+  if (!entries.length) return '';
+  return `${label}:\n${entries.map((entry) => `- ${entry}`).join('\n')}`;
+}
+
+function buildBranchSeedPrompt({ project, node, goal, carryover = null }) {
   return [
     'Continue this branch based on the existing project node context.',
     '',
@@ -746,8 +838,12 @@ function buildBranchSeedPrompt({ project, node, goal }) {
     `Node: ${node.title}`,
     `Node type: ${normalizeNodeType(node.type)}`,
     goal ? `Branch goal: ${goal}` : 'Branch goal: Continue exploring this node without losing the main line.',
+    normalizeNullableText(carryover?.carryoverSummary) ? `Mainline carryover: ${carryover.carryoverSummary}` : '',
     trimText(node.summary) ? `Node summary: ${node.summary}` : '',
     trimText(node.nextAction) ? `Suggested next action: ${node.nextAction}` : '',
+    formatSeedList('Carryover background', carryover?.background || []),
+    formatSeedList('Carryover materials', carryover?.rawMaterials || []),
+    formatSeedList('Carryover conclusions', carryover?.knownConclusions || []),
     '',
     'Start by restating the branch objective, then propose the next concrete step.',
   ].filter(Boolean).join('\n');
@@ -1127,6 +1223,14 @@ export async function createBranchFromNode(nodeId, payload = {}) {
       throw new Error('Source session not found');
     }
     const goal = normalizeNullableText(payload.goal) || `Continue node: ${node.title}`;
+    const carryover = buildBranchCarryoverSeed({
+      sourceSession,
+      mainGoal: project.title,
+      branchFrom: node.title,
+      checkpointSummary: normalizeNullableText(payload.checkpointSummary) || node.summary || '',
+      nextStep: normalizeNullableText(node.nextAction),
+      projectTitle: project.title,
+    });
     const branchSession = await createSession(
       sourceSession.folder,
       sourceSession.tool,
@@ -1183,11 +1287,15 @@ export async function createBranchFromNode(nodeId, payload = {}) {
     await saveState(state);
     await updateSessionTaskCard(branchSession.id, buildSeedBranchTaskCard({
       goal,
-      mainGoal: branchContext.mainGoal,
-      branchFrom: node.title,
+      summary: carryover.carryoverSummary,
+      mainGoal: carryover.mainGoal || branchContext.mainGoal,
+      branchFrom: carryover.branchFrom || node.title,
       branchReason: branchContext.branchReason,
-      checkpointSummary: branchContext.checkpointSummary,
-      nextStep: branchContext.nextStep || branchContext.resumeHint,
+      checkpointSummary: carryover.checkpointSummary || branchContext.checkpointSummary,
+      nextStep: carryover.nextStep || branchContext.nextStep || branchContext.resumeHint,
+      background: carryover.background,
+      rawMaterials: carryover.rawMaterials,
+      knownConclusions: carryover.knownConclusions,
     }));
     await appendBranchEnteredStatus(branchSession.id, {
       branchTitle: goal,
@@ -1195,7 +1303,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
     });
 
     if (payload.seedMessage !== false) {
-      await submitHttpMessage(branchSession.id, buildBranchSeedPrompt({ project, node, goal }), [], {
+      await submitHttpMessage(branchSession.id, buildBranchSeedPrompt({ project, node, goal, carryover }), [], {
         requestId: createId('branch_seed'),
         ...(sourceSession.model ? { model: sourceSession.model } : {}),
         ...(sourceSession.effort ? { effort: sourceSession.effort } : {}),
@@ -1236,6 +1344,14 @@ export async function createBranchFromSession(sessionId, payload = {}) {
     }
 
     const goal = normalizeNullableText(payload.goal) || `Continue branch: ${parentNode.title}`;
+    const carryover = buildBranchCarryoverSeed({
+      sourceSession,
+      mainGoal: activeContext.mainGoal || project.title || parentNode.title,
+      branchFrom: parentNode.title,
+      checkpointSummary: normalizeNullableText(payload.checkpointSummary) || activeContext.resumeHint || activeContext.checkpointSummary || '',
+      nextStep: normalizeNullableText(payload.nextStep) || activeContext.nextStep || activeContext.resumeHint || '',
+      projectTitle: project.title,
+    });
     const branchSession = await createSession(
       sourceSession.folder,
       sourceSession.tool,
@@ -1291,11 +1407,15 @@ export async function createBranchFromSession(sessionId, payload = {}) {
     await saveState(state);
     await updateSessionTaskCard(branchSession.id, buildSeedBranchTaskCard({
       goal,
-      mainGoal: branchContext.mainGoal,
-      branchFrom: parentNode.title,
+      summary: carryover.carryoverSummary,
+      mainGoal: carryover.mainGoal || branchContext.mainGoal,
+      branchFrom: carryover.branchFrom || parentNode.title,
       branchReason: branchContext.branchReason,
-      checkpointSummary: branchContext.checkpointSummary,
-      nextStep: branchContext.nextStep || branchContext.resumeHint,
+      checkpointSummary: carryover.checkpointSummary || branchContext.checkpointSummary,
+      nextStep: carryover.nextStep || branchContext.nextStep || branchContext.resumeHint,
+      background: carryover.background,
+      rawMaterials: carryover.rawMaterials,
+      knownConclusions: carryover.knownConclusions,
     }));
     await appendBranchEnteredStatus(branchSession.id, {
       branchTitle: goal,

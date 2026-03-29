@@ -25,9 +25,14 @@ function renderSessionList() {
     const items = document.createElement("div");
     items.className = "pinned-items";
     for (const cluster of pinnedClusters) {
-      items.appendChild(createTaskClusterItem(cluster.root, cluster.branches, {
-        currentBranchSessionId: cluster.currentBranchSessionId,
-      }));
+      const nodes = typeof createTaskClusterNodes === "function"
+        ? createTaskClusterNodes(cluster.root, cluster.branches, {
+            currentBranchSessionId: cluster.currentBranchSessionId,
+          })
+        : [createTaskClusterItem(cluster.root, cluster.branches, {
+            currentBranchSessionId: cluster.currentBranchSessionId,
+          })];
+      nodes.forEach((node) => items.appendChild(node));
     }
 
     section.appendChild(header);
@@ -82,20 +87,89 @@ function renderSessionList() {
     items.className = "folder-group-items";
 
     for (const cluster of taskClusters) {
-      items.appendChild(createTaskClusterItem(cluster.root, cluster.branches, {
-        currentBranchSessionId: cluster.currentBranchSessionId,
-      }));
+      const nodes = typeof createTaskClusterNodes === "function"
+        ? createTaskClusterNodes(cluster.root, cluster.branches, {
+            currentBranchSessionId: cluster.currentBranchSessionId,
+          })
+        : [createTaskClusterItem(cluster.root, cluster.branches, {
+            currentBranchSessionId: cluster.currentBranchSessionId,
+          })];
+      nodes.forEach((node) => items.appendChild(node));
     }
 
     group.appendChild(items);
     sessionList.appendChild(group);
   }
 
+  renderArchivedSection();
 }
 
 function renderArchivedSection() {
   const existing = document.getElementById("archivedSection");
   if (existing) existing.remove();
+  const archivedSessions = getVisibleArchivedSessions();
+  const shouldRenderSection = archivedSessionsLoading || archivedSessionsLoaded || archivedSessionCount > 0 || archivedSessions.length > 0;
+  if (!shouldRenderSection) return;
+
+  const ARCHIVED_FOLDER_KEY = "folder:archived";
+  const isCollapsed = collapsedFolders[ARCHIVED_FOLDER_KEY] === true;
+  const count = archivedSessionsLoaded ? archivedSessions.length : Math.max(archivedSessionCount, archivedSessions.length);
+
+  const section = document.createElement("div");
+  section.id = "archivedSection";
+  section.className = "archived-section";
+
+  const header = document.createElement("div");
+  header.className = "archived-section-header" + (isCollapsed ? " collapsed" : "");
+  header.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
+    <span class="archived-label">${esc(t("sidebar.archive"))}</span>
+    <span class="folder-count">${count}</span>`;
+  header.addEventListener("click", () => {
+    const nextCollapsed = !header.classList.contains("collapsed");
+    header.classList.toggle("collapsed", nextCollapsed);
+    collapsedFolders[ARCHIVED_FOLDER_KEY] = nextCollapsed;
+    localStorage.setItem(
+      COLLAPSED_GROUPS_STORAGE_KEY,
+      JSON.stringify(collapsedFolders),
+    );
+    if (!nextCollapsed && !archivedSessionsLoaded && !archivedSessionsLoading && archivedSessionCount > 0) {
+      void fetchArchivedSessions().catch((error) => {
+        console.warn("[sessions] Failed to load archived tasks:", error?.message || error);
+      });
+    }
+  });
+  section.appendChild(header);
+
+  const items = document.createElement("div");
+  items.className = "archived-items";
+  section.appendChild(items);
+
+  if (!isCollapsed && !archivedSessionsLoaded && !archivedSessionsLoading && archivedSessionCount > 0) {
+    void fetchArchivedSessions().catch((error) => {
+      console.warn("[sessions] Failed to load archived tasks:", error?.message || error);
+    });
+  }
+
+  if (archivedSessionsLoading && archivedSessions.length === 0) {
+    const loading = document.createElement("div");
+    loading.className = "archived-empty";
+    loading.textContent = t("sidebar.loadingArchived");
+    items.appendChild(loading);
+  } else if (archivedSessions.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "archived-empty";
+    empty.textContent = getFilteredSessionEmptyText({ archived: true });
+    items.appendChild(empty);
+  } else {
+    for (const session of archivedSessions) {
+      const row = createActiveSessionItem(session, {
+        extraClassName: `archived-item${typeof isBranchTaskSession === "function" && isBranchTaskSession(session) ? " is-archived-branch" : ""}`,
+      });
+      items.appendChild(row);
+    }
+  }
+
+  sessionList.appendChild(section);
 }
 
 function startRename(itemEl, session) {
@@ -131,6 +205,9 @@ function startRename(itemEl, session) {
 }
 
 function attachSession(id, session) {
+  if (typeof window !== "undefined" && typeof window.MelodySyncWorkbench?.setFocusedSessionId === "function") {
+    window.MelodySyncWorkbench.setFocusedSessionId(id, { render: false });
+  }
   const shouldReattach = !hasAttachedSession || currentSessionId !== id;
   if (shouldReattach) {
     clearMessages();

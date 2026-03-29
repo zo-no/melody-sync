@@ -13,7 +13,6 @@ import {
 } from './session-workflow-state.mjs';
 import { normalizeSessionAgreements } from './session-agreements.mjs';
 import { normalizeSessionTaskCard } from './session-task-card.mjs';
-import { normalizeScheduledTriggers } from './scheduled-trigger-utils.mjs';
 
 let sessionsMetaCache = null;
 let sessionsMetaCacheMtimeMs = null;
@@ -130,16 +129,7 @@ function normalizeStoredSessionMeta(meta) {
     Object.prototype.hasOwnProperty.call(normalized, 'scheduledTriggers')
     || Object.prototype.hasOwnProperty.call(normalized, 'scheduledTrigger')
   ) {
-    const nextScheduledTriggers = normalizeScheduledTriggers(
-      normalized.scheduledTriggers || normalized.scheduledTrigger,
-      { preserveRuntimeState: true },
-    );
-    if (nextScheduledTriggers.length > 0) {
-      if (JSON.stringify(normalized.scheduledTriggers || []) !== JSON.stringify(nextScheduledTriggers)) {
-        normalized.scheduledTriggers = nextScheduledTriggers;
-        changed = true;
-      }
-    } else if (Object.prototype.hasOwnProperty.call(normalized, 'scheduledTriggers')) {
+    if (Object.prototype.hasOwnProperty.call(normalized, 'scheduledTriggers')) {
       delete normalized.scheduledTriggers;
       changed = true;
     }

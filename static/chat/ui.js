@@ -193,7 +193,26 @@ function createComposerAttachmentPreviewNode(attachment) {
 }
 
 function appendWorkbenchBranchAction(container, evt) {
-  return;
+  if (!container || !evt) return null;
+  const sourceSeq = Number.isInteger(evt?.seq) ? evt.seq : 0;
+  if (sourceSeq < 1) return null;
+  if (!window.MelodySyncWorkbench) return null;
+  if (typeof window.MelodySyncWorkbench.canOpenManualBranch === "function" && !window.MelodySyncWorkbench.canOpenManualBranch()) {
+    return null;
+  }
+
+  const branchText = String(evt?.content || evt?.bodyPreview || "").trim();
+  if (!branchText) return null;
+
+  let host = container.querySelector?.(`.msg-inline-actions[data-source-seq="${sourceSeq}"]`) || null;
+  if (!host) {
+    host = document.createElement("div");
+    host.className = "msg-inline-actions";
+    host.dataset.sourceSeq = String(sourceSeq);
+    container.appendChild(host);
+  }
+  host.dataset.branchText = branchText;
+  return ensureBranchSuggestionGroup(host);
 }
 
 function createManualBranchSuggestionItem(branchText) {
@@ -209,7 +228,7 @@ function createManualBranchSuggestionItem(branchText) {
 
   const title = document.createElement("div");
   title.className = "quest-branch-suggestion-title";
-  title.textContent = "如需单独展开";
+  title.textContent = "按这段内容开启支线任务";
   main.appendChild(title);
 
   const actions = document.createElement("div");
@@ -218,7 +237,7 @@ function createManualBranchSuggestionItem(branchText) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "quest-branch-btn quest-branch-btn-primary";
-  button.textContent = "单独展开";
+  button.textContent = "开启支线";
   button.addEventListener("click", async () => {
     button.disabled = true;
     try {
@@ -250,7 +269,7 @@ function ensureBranchSuggestionGroup(host) {
 
   const label = document.createElement("div");
   label.className = "quest-branch-suggestion-group-label";
-  label.textContent = "新目标";
+  label.textContent = "支线任务建议";
   group.appendChild(label);
 
   const list = document.createElement("div");
@@ -861,19 +880,25 @@ function renderReasoning(evt) {
 function renderStatusInto(container, evt) {
   if (!container) return null;
   if (evt?.statusKind === "branch_candidate" && window.MelodySyncWorkbench?.createBranchSuggestionItem) {
-      const item = window.MelodySyncWorkbench.createBranchSuggestionItem(evt);
-      if (item) {
-      const host = container;
+    const item = window.MelodySyncWorkbench.createBranchSuggestionItem(evt);
+    if (item) {
+      const sourceHost = Number.isInteger(evt?.sourceSeq)
+        ? findBranchSuggestionHost(evt.sourceSeq)
+        : null;
+      const host = sourceHost || container;
       let group = host.classList?.contains("msg-inline-actions")
         ? ensureBranchSuggestionGroup(host)
-        : host.lastElementChild;
+        : host.querySelector?.(`.quest-branch-suggestion-group${Number.isInteger(evt?.sourceSeq) ? `[data-source-seq="${evt.sourceSeq}"]` : ""}`);
       if (!group || !group.classList?.contains("quest-branch-suggestion-group")) {
         group = document.createElement("div");
         group.className = "quest-branch-suggestion-group";
+        if (Number.isInteger(evt?.sourceSeq)) {
+          group.dataset.sourceSeq = String(evt.sourceSeq);
+        }
 
         const label = document.createElement("div");
         label.className = "quest-branch-suggestion-group-label";
-        label.textContent = "新目标";
+        label.textContent = "支线任务建议";
         group.appendChild(label);
 
         const list = document.createElement("div");
@@ -882,6 +907,20 @@ function renderStatusInto(container, evt) {
         host.appendChild(group);
       }
       const list = group.querySelector(".quest-branch-suggestion-list") || group;
+      const branchTitle = String(evt?.branchTitle || "").trim();
+      if (branchTitle) {
+        const duplicate = [...(list.querySelectorAll?.(".quest-branch-suggestion-title") || [])]
+          .some((node) => String(node?.textContent || "").trim() === branchTitle);
+        if (duplicate) {
+          return group;
+        }
+      }
+      if (evt?.autoSuggested !== false) {
+        const existingAutoSuggestion = list.querySelector?.(".quest-branch-suggestion-item-auto");
+        if (existingAutoSuggestion) {
+          return group;
+        }
+      }
       list.appendChild(item);
       return group;
     }

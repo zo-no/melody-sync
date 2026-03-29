@@ -82,7 +82,7 @@ function makeElement(tag = 'div') {
   };
 }
 
-const createTaskClusterItemSource = extractFunctionSource(source, 'createTaskClusterItem');
+const createTaskClusterNodesSource = extractFunctionSource(source, 'createTaskClusterNodes');
 const createCalls = [];
 
 const context = {
@@ -164,7 +164,7 @@ const context = {
   window: { MelodySyncWorkbench: { setCurrentBranchStatus() {} } },
 };
 context.globalThis = context;
-vm.runInNewContext(`${createTaskClusterItemSource}\nglobalThis.createTaskClusterItem = createTaskClusterItem;`, context, {
+vm.runInNewContext(`${createTaskClusterNodesSource}\nglobalThis.createTaskClusterNodes = createTaskClusterNodes;`, context, {
   filename: 'static/chat/session-surface-ui.js',
 });
 
@@ -178,37 +178,51 @@ const root = {
 };
 
 createCalls.length = 0;
-const collapsedWrapper = context.createTaskClusterItem(root, [
+const collapsedNodes = context.createTaskClusterNodes(root, [
   { id: 'b1', name: '表现主义', _branchStatus: 'parked', _lineage: '表现主义' },
   { id: 'b2', name: '黑色电影', _branchStatus: 'resolved', _lineage: '黑色电影' },
   { id: 'b3', name: '法国新浪潮', _branchStatus: 'merged', _lineage: '法国新浪潮' },
 ], {});
-assert.match(createCalls[0].options.metaOverrideHtml, /当前焦点/, 'collapsed task cluster should keep the default state focused on one summary line');
+assert.doesNotMatch(createCalls[0].options.metaOverrideHtml, /主线任务/, 'collapsed task cluster should not repeat a main-task label in the sidebar tree');
+assert.match(createCalls[0].options.metaOverrideHtml, /先搭建电影史主线框架/, 'collapsed task cluster should keep a single compact summary line');
 assert.match(createCalls[0].options.metaOverrideHtml, /先搭建电影史主线框架/, 'collapsed task cluster should show the main task checkpoint when no branch is active');
-assert.equal(collapsedWrapper.children[0]?.children[0]?.className, 'task-cluster-expander', 'collapsed task cluster should expose a compact chevron expander');
-assert.equal(collapsedWrapper.children.length, 1, 'collapsed task cluster should not auto-render a nested overview board');
+assert.equal(collapsedNodes[0]?.children[0]?.className, 'task-cluster-expander', 'collapsed task cluster should expose a compact chevron expander');
+assert.equal(collapsedNodes.length, 1, 'collapsed task cluster should not auto-render a sibling branch map panel');
 
 createCalls.length = 0;
 context.currentSessionId = 'b4';
 context.expandedTaskClusters.main = true;
-const expandedWrapper = context.createTaskClusterItem(root, [
+const expandedNodes = context.createTaskClusterNodes(root, [
   { id: 'b4', name: '表现主义', _branchStatus: 'active', _lineage: '表现主义', _branchDepth: 1, _branchParentSessionId: 'main' },
   { id: 'b5', name: '德国表现主义电影', _branchStatus: 'active', _lineage: '表现主义 / 德国表现主义电影', _branchDepth: 2, _branchParentSessionId: 'b4' },
   { id: 'b6', name: '法国新浪潮', _branchStatus: 'parked', _lineage: '法国新浪潮', _branchDepth: 1, _branchParentSessionId: 'main' },
 ], { currentBranchSessionId: 'b4' });
-assert.equal(expandedWrapper.classList.contains('is-expanded'), true, 'task cluster should expand only when the user explicitly opens it');
-assert.match(createCalls[0].options.metaOverrideHtml, /当前路径/, 'expanded cluster summary should keep the current path visible');
+assert.equal(expandedNodes[0]?.classList.contains('is-expanded'), true, 'task cluster should expand only when the user explicitly opens it');
+assert.match(createCalls[0].options.metaOverrideHtml, /表现主义/, 'expanded cluster summary should keep the current branch visible without extra prefix labels');
 assert.match(createCalls[0].options.metaOverrideHtml, /表现主义/, 'expanded cluster summary should show the current branch name');
-assert.equal(expandedWrapper.children[0]?.children[0]?.className, 'task-cluster-expander is-expanded', 'expanded cluster should rotate the same chevron expander instead of using a text button');
-assert.equal(expandedWrapper.children[1]?.className, 'task-cluster-branches task-mindmap-branches', 'expanded task cluster should switch into the mind-map panel');
-assert.equal(expandedWrapper.children[1]?.children[0]?.className, 'task-mindmap-board', 'expanded task cluster should render a dedicated mind-map board');
-assert.equal(expandedWrapper.children[1]?.children[0]?.children[0]?.className, 'task-mindmap-path is-current-path', 'mind-map board should render the current branch path as a dedicated row');
-assert.equal(createCalls[1].session.id, 'b4', 'expanded list should show the current task first');
-assert.match(createCalls[1].options.metaOverrideHtml, /当前位置/, 'current task row should carry the strongest map-position label');
-assert.equal(createCalls[2].session.id, 'b5', 'expanded list should keep active follow-up tasks ahead of parked tasks');
-assert.match(createCalls[2].options.metaOverrideHtml, /上级：表现主义/, 'nested child tasks should show their direct parent');
-assert.match(createCalls[2].options.metaOverrideHtml, /进行中/, 'follow-up active tasks should fall back to a simple active label');
-assert.equal(createCalls[3].session.id, 'b6', 'expanded list should place parked tasks after active ones');
-assert.match(createCalls[3].options.metaOverrideHtml, /已挂起/, 'non-active tasks should fall back to simple status labels');
+assert.equal(expandedNodes[0]?.children[0]?.className, 'task-cluster-expander is-expanded', 'expanded cluster should rotate the same chevron expander instead of using a text button');
+assert.equal(expandedNodes[1]?.className, 'task-cluster-tree-card', 'expanded task cluster should render the branch tree as a sibling card');
+assert.equal(expandedNodes[1]?.children[0]?.className, 'task-cluster-tree', 'expanded task cluster should switch into the nested task tree');
+assert.equal(expandedNodes[1]?.children[0]?.children[0]?.className, 'task-cluster-tree-item depth-1', 'expanded branch card should render tree items instead of horizontal mind-map rows');
+assert.equal(createCalls[1].session.id, 'b4', 'expanded list should keep the first created root branch first');
+assert.match(createCalls[1].options.metaOverrideHtml, /task-branch-dot is-active/, 'current task row should expose an active-status dot instead of a text label');
+assert.equal(createCalls[2].session.id, 'b5', 'expanded list should keep nested children under the same parent in fixed order');
+assert.match(createCalls[2].options.metaOverrideHtml, /task-branch-dot is-active/, 'follow-up active tasks should use the same active-status dot treatment');
+assert.equal(createCalls[3].session.id, 'b6', 'expanded list should place later sibling branches after earlier ones without promoting the current branch');
+assert.match(createCalls[3].options.metaOverrideHtml, /task-branch-dot is-parked/, 'non-active tasks should use a status dot instead of a text badge');
+
+createCalls.length = 0;
+context.currentSessionId = 'b6';
+const stableOrderNodes = context.createTaskClusterNodes(root, [
+  { id: 'b4', name: '表现主义', _branchStatus: 'parked', _lineage: '表现主义', _branchDepth: 1, _branchParentSessionId: 'main' },
+  { id: 'b5', name: '德国表现主义电影', _branchStatus: 'parked', _lineage: '表现主义 / 德国表现主义电影', _branchDepth: 2, _branchParentSessionId: 'b4' },
+  { id: 'b6', name: '法国新浪潮', _branchStatus: 'active', _lineage: '法国新浪潮', _branchDepth: 1, _branchParentSessionId: 'main' },
+], { currentBranchSessionId: 'b6' });
+assert.equal(stableOrderNodes[1]?.className, 'task-cluster-tree-card', 'switching branches should keep the same tree container');
+assert.deepEqual(
+  createCalls.slice(1).map((entry) => entry.session.id),
+  ['b4', 'b5', 'b6'],
+  'switching to another branch should not reshuffle the fixed sidebar branch order',
+);
 
 console.log('test-chat-task-cluster-overview: ok');

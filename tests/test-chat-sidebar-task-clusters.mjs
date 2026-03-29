@@ -64,7 +64,7 @@ context.globalThis = context;
 
 vm.runInNewContext(`
   const TASK_LIST_GROUPS = [
-    { id: "inbox", key: "group:inbox", aliases: ["收件箱", "inbox"] },
+    { id: "inbox", key: "group:inbox", aliases: ["收集箱", "收件箱", "capture", "inbox"] },
     { id: "long_term", key: "group:long-term", aliases: ["长期任务", "long-term", "long term"] },
     { id: "short_term", key: "group:short-term", aliases: ["短期任务", "short-term", "short term"] },
     { id: "knowledge_base", key: "group:knowledge-base", aliases: ["知识库内容", "knowledge-base", "knowledge base"] },
@@ -83,7 +83,7 @@ vm.runInNewContext(`
 });
 
 const rootSession = { id: 'main', name: '短期任务主线', group: '短期任务' };
-const activeBranch = { id: 'active', name: '当前进行中的支线', group: '收件箱' };
+const activeBranch = { id: 'active', name: '当前进行中的支线', group: '收集箱' };
 const knowledgeBranch = { id: 'knowledge', name: '知识库条目', group: '知识库内容' };
 
 context.snapshot = {

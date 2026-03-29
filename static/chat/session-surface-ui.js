@@ -152,6 +152,12 @@ function getSessionActivityTimestamp(session) {
   return Number.isFinite(stamp) ? stamp : 0;
 }
 
+function getSessionCreatedTimestamp(session) {
+  const value = session?.createdAt || session?.created || session?.updatedAt || session?.lastEventAt || "";
+  const stamp = new Date(value).getTime();
+  return Number.isFinite(stamp) ? stamp : 0;
+}
+
 function getSessionMainGoal(session) {
   const mainGoal = typeof session?.taskCard?.mainGoal === "string" ? session.taskCard.mainGoal.trim() : "";
   const goal = typeof session?.taskCard?.goal === "string" ? session.taskCard.goal.trim() : "";
@@ -163,7 +169,12 @@ function normalizeTaskClusterKey(value) {
 }
 
 function sortBranchSessions(branches = []) {
-  return [...branches].sort((a, b) => getSessionActivityTimestamp(b) - getSessionActivityTimestamp(a));
+  return [...branches].sort((a, b) => {
+    const leftCreated = getSessionCreatedTimestamp(a);
+    const rightCreated = getSessionCreatedTimestamp(b);
+    if (leftCreated !== rightCreated) return leftCreated - rightCreated;
+    return String(a?.id || "").localeCompare(String(b?.id || ""));
+  });
 }
 
 function dedupeBranchSessions(branches = []) {
@@ -450,25 +461,6 @@ function renderSessionScopeContext(session) {
   if (sourceName) {
     parts.push(`<span title="${esc(t("session.scope.source"))}">${esc(sourceName)}</span>`);
   }
-
-  const templateAppId = typeof getEffectiveSessionTemplateAppId === "function"
-    ? getEffectiveSessionTemplateAppId(session)
-    : "";
-  if (templateAppId) {
-    const appEntry = typeof getSessionAppCatalogEntry === "function"
-      ? getSessionAppCatalogEntry(templateAppId)
-      : null;
-    const appName = appEntry?.name || session?.appName || "App";
-    parts.push(`<span title="${esc(t("session.scope.app"))}">${esc(t("session.scope.appLabel", { name: appName }))}</span>`);
-  }
-
-  if (session?.visitorId) {
-    const visitorLabel = typeof session?.visitorName === "string" && session.visitorName.trim()
-      ? t("session.scope.visitorNamed", { name: session.visitorName.trim() })
-      : (session?.visitorId ? t("session.scope.visitor") : t("session.scope.owner"));
-    parts.push(`<span title="${esc(t("session.scope.ownerTitle"))}">${esc(visitorLabel)}</span>`);
-  }
-
   return parts;
 }
 
@@ -476,7 +468,6 @@ function getFilteredSessionEmptyText({ archived = false } = {}) {
   if (archived) return t("sidebar.noArchived");
   if (
     activeSourceFilter !== FILTER_ALL_VALUE
-    || activeSessionAppFilter !== FILTER_ALL_VALUE
     || activeUserFilter !== ADMIN_USER_FILTER_VALUE
   ) {
     return t("sidebar.noSessionsFiltered");
@@ -485,7 +476,7 @@ function getFilteredSessionEmptyText({ archived = false } = {}) {
 }
 
 const TASK_LIST_GROUPS = [
-  { id: "inbox", key: "group:inbox", label: () => t("sidebar.group.inbox"), aliases: ["收件箱", "inbox"] },
+  { id: "inbox", key: "group:inbox", label: () => t("sidebar.group.inbox"), aliases: ["收集箱", "收件箱", "capture", "inbox"] },
   { id: "long_term", key: "group:long-term", label: () => t("sidebar.group.longTerm"), aliases: ["长期任务", "long-term", "long term"] },
   { id: "short_term", key: "group:short-term", label: () => t("sidebar.group.shortTerm"), aliases: ["短期任务", "short-term", "short term"] },
   { id: "knowledge_base", key: "group:knowledge-base", label: () => t("sidebar.group.knowledgeBase"), aliases: ["知识库内容", "knowledge-base", "knowledge base"] },
@@ -516,6 +507,39 @@ function renderSessionStatusHtml(statusInfo) {
   return `<span class="${statusInfo.className}"${title}>● ${esc(statusInfo.label)}</span>`;
 }
 
+function buildSessionActionConfigs(session, options = {}) {
+  if (Array.isArray(options.actions)) {
+    return options.actions.filter(Boolean);
+  }
+  if (session?.archived === true) {
+    return [
+      {
+        key: "restore",
+        action: "unarchive",
+        label: t("action.restore"),
+        icon: "unarchive",
+        className: "restore",
+      },
+      {
+        key: "delete",
+        action: "delete",
+        label: t("action.delete"),
+        icon: "trash",
+        className: "delete",
+      },
+    ];
+  }
+  return [
+    {
+      key: "archive",
+      action: "archive",
+      label: t("action.archive"),
+      icon: "archive",
+      className: "archive",
+    },
+  ];
+}
+
 function createActiveSessionItem(session, options = {}) {
   const statusInfo = getSessionMetaStatusInfo(session);
   const completeRead = isSessionCompleteAndReviewed(session);
@@ -536,16 +560,18 @@ function createActiveSessionItem(session, options = {}) {
   const metaHtml = typeof options.metaOverrideHtml === "string"
     ? options.metaOverrideHtml
     : buildSessionMetaParts(session).join(" · ");
-  const hideActions = options.hideActions === true;
+  const actionConfigs = options.hideActions === true ? [] : buildSessionActionConfigs(session, options);
+  const hideActions = actionConfigs.length === 0;
+  const actionsHtml = actionConfigs.map((entry) => `
+      <button class="session-action-btn ${esc(entry.className || entry.key || "action")}" type="button" title="${esc(entry.label || "")}" aria-label="${esc(entry.label || "")}" data-id="${session.id}" data-action="${esc(entry.key || entry.action || "")}">${renderUiIcon(entry.icon || "close")}</button>
+    `).join("");
 
   div.innerHTML = `
     <div class="session-item-info">
       <div class="session-item-name" title="${esc(displayTitle)}">${session.pinned ? `<span class="session-pin-badge" title="${esc(t("sidebar.pinned"))}">${renderUiIcon("pinned")}</span>` : ""}${esc(displayName)}</div>
       ${metaHtml ? `<div class="session-item-meta">${metaHtml}</div>` : ""}
     </div>
-    ${hideActions ? "" : `<div class="session-item-actions">
-      <button class="session-action-btn delete" type="button" title="${esc(t("action.delete"))}" aria-label="${esc(t("action.delete"))}" data-id="${session.id}">${renderUiIcon("trash")}</button>
-    </div>`}`;
+    ${hideActions ? "" : `<div class="session-item-actions">${actionsHtml}</div>`}`;
 
   div.addEventListener("click", (e) => {
     if (e.target.closest(".session-action-btn")) {
@@ -565,18 +591,27 @@ function createActiveSessionItem(session, options = {}) {
   }
 
   if (!hideActions) {
-    div.querySelector(".delete").addEventListener("click", (e) => {
-      e.stopPropagation();
-      dispatchAction({ action: "delete", sessionId: session.id });
+    actionConfigs.forEach((entry) => {
+      const selector = `.session-action-btn[data-action="${entry.key || entry.action || ""}"]`;
+      const actionBtn = div.querySelector(selector);
+      if (!actionBtn) return;
+      actionBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof entry.onClick === "function") {
+          entry.onClick(e, session, div);
+          return;
+        }
+        if (entry.action) {
+          dispatchAction({ action: entry.action, sessionId: session.id });
+        }
+      });
     });
   }
 
   return div;
 }
 
-function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "task-cluster";
+function createTaskClusterNodes(rootSession, branchSessions = [], options = {}) {
   const compactMeta = (value, max = 40) => {
     const text = String(value || "").replace(/\s+/g, " ").trim();
     if (!text) return "";
@@ -594,7 +629,6 @@ function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
     || null;
   const hasBranches = normalizedBranches.length > 0;
   const expanded = hasBranches && expandedTaskClusters[rootSession.id] === true;
-  if (expanded) wrapper.classList.add("is-expanded");
 
   let metaOverrideHtml = buildSessionMetaParts(rootSession).join(" · ");
   if (hasBranches) {
@@ -609,26 +643,22 @@ function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
     const activePath = activeBranch
       ? getBranchLineageNames(rootSession, activeBranch, normalizedBranches).slice(1).map((entry) => compactMeta(entry, 18)).join(" / ")
       : "";
-    const focusLabel = activeBranch ? "当前路径" : "当前焦点";
     const focusText = activeBranch
       ? compactMeta(activePath || getTaskBranchDisplayName(activeBranch), 52)
       : compactMeta(rootCheckpoint || rootNextStep || rootDisplayName, 52);
     const focusHtml = activeBranch
-      ? `<button type="button" class="task-cluster-link task-cluster-current-branch" data-cluster-action="open-current-branch">${esc(focusText)}</button>`
-      : `<span class="task-cluster-current-branch-text">${esc(focusText)}</span>`;
+      ? `<button type="button" class="task-cluster-link task-root-current-link" data-cluster-action="open-current-branch"><span class="task-root-dot is-active"></span><span class="task-root-current-copy">${esc(focusText)}</span></button>`
+      : `<span class="task-root-current-text"><span class="task-root-dot is-active"></span><span class="task-root-current-copy">${esc(focusText)}</span></span>`;
     metaOverrideHtml = `
-      <span class="task-cluster-meta">
-        <span class="task-cluster-focus">
-          <span class="task-cluster-focus-label">${esc(focusLabel)}</span>
-          ${focusHtml}
-        </span>
+      <span class="task-root-meta-line">
+        ${focusHtml}
       </span>
     `;
   }
 
   const mainItem = createActiveSessionItem(rootSession, {
     metaOverrideHtml,
-    extraClassName: hasBranches ? "task-cluster-main" : "",
+    extraClassName: hasBranches ? "task-cluster-main task-cluster-root-card task-tree-root-row" : "",
     onMetaReady(metaNode) {
       const currentBranchBtn = metaNode.querySelector('[data-cluster-action="open-current-branch"]');
       if (currentBranchBtn && activeBranch) {
@@ -640,6 +670,9 @@ function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
       }
     },
   });
+  if (expanded) {
+    mainItem.classList.add("is-expanded");
+  }
   if (hasBranches) {
     const expanderBtn = document.createElement("button");
     expanderBtn.type = "button";
@@ -658,16 +691,18 @@ function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
       mainItem.appendChild(expanderBtn);
     }
   }
-  wrapper.appendChild(mainItem);
+  const nodes = [mainItem];
 
   if (expanded && hasBranches) {
-    const branchesWrap = document.createElement("div");
-    branchesWrap.className = "task-cluster-branches task-mindmap-branches";
-
     const branchById = new Map(
       normalizedBranches
         .filter((session) => session?.id)
         .map((session) => [session.id, session]),
+    );
+    const branchOrderMap = new Map(
+      normalizedBranches
+        .filter((session) => session?.id)
+        .map((session, index) => [session.id, index]),
     );
     const currentLineageIds = new Set();
     let lineageCursor = activeBranch;
@@ -691,158 +726,104 @@ function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
       childrenByParent.get(parentId).push(branchSession);
     }
 
-    const statusOrder = { active: 0, parked: 1, resolved: 2, merged: 3 };
     const compareBranches = (left, right) => {
-      const leftInLineage = currentLineageIds.has(left?.id) ? 0 : 1;
-      const rightInLineage = currentLineageIds.has(right?.id) ? 0 : 1;
-      if (leftInLineage !== rightInLineage) return leftInLineage - rightInLineage;
+      const leftOrder = branchOrderMap.get(left?.id) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = branchOrderMap.get(right?.id) ?? Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
 
-      const leftCurrent = activeBranch?.id === left?.id ? 0 : 1;
-      const rightCurrent = activeBranch?.id === right?.id ? 0 : 1;
-      if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent;
+      const leftCreated = getSessionCreatedTimestamp(left);
+      const rightCreated = getSessionCreatedTimestamp(right);
+      if (leftCreated !== rightCreated) return leftCreated - rightCreated;
 
-      const leftStatus = statusOrder[getBranchStatusValue(left)] ?? 99;
-      const rightStatus = statusOrder[getBranchStatusValue(right)] ?? 99;
-      if (leftStatus !== rightStatus) return leftStatus - rightStatus;
-
-      return String(getTaskBranchDisplayName(left)).localeCompare(String(getTaskBranchDisplayName(right)));
+      return String(left?.id || "").localeCompare(String(right?.id || ""));
     };
-
-    const visitedBranchIds = new Set();
-    const branchPaths = [];
-    const appendPaths = (parentId, lineage = []) => {
-      const children = [...(childrenByParent.get(parentId) || [])].sort(compareBranches);
-      if (!children.length) {
-        if (lineage.length > 0) {
-          branchPaths.push(lineage);
-        }
-        return;
-      }
-      for (const child of children) {
-        if (!child?.id) continue;
-        visitedBranchIds.add(child.id);
-        appendPaths(child.id, [...lineage, child]);
-      }
-    };
-    appendPaths(rootSession.id, []);
-
-    for (const branchSession of [...normalizedBranches].sort(compareBranches)) {
-      if (!branchSession?.id || visitedBranchIds.has(branchSession.id)) continue;
-      const lineage = [];
-      const seen = new Set();
-      let cursor = branchSession;
-      while (cursor?.id && !seen.has(cursor.id)) {
-        seen.add(cursor.id);
-        lineage.unshift(cursor);
-        const parentId = typeof cursor?._branchParentSessionId === "string" && cursor._branchParentSessionId.trim()
-          ? cursor._branchParentSessionId.trim()
-          : "";
-        if (!parentId || parentId === rootSession.id) break;
-        cursor = branchById.get(parentId) || null;
-      }
-      branchPaths.push(lineage.length > 0 ? lineage : [branchSession]);
+    for (const [parentId, children] of childrenByParent.entries()) {
+      childrenByParent.set(parentId, [...children].sort(compareBranches));
     }
 
-    const seenPathKeys = new Set();
-    const uniquePaths = branchPaths.filter((path) => {
-      const key = path.map((session) => session?.id || "").filter(Boolean).join(">");
-      if (!key || seenPathKeys.has(key)) return false;
-      seenPathKeys.add(key);
-      return true;
-    });
+    const createBranchTreeNode = (branchSession, depth = 1) => {
+      const item = document.createElement("div");
+      item.className = `task-cluster-tree-item depth-${Math.min(depth, 6)}`;
 
-    const board = document.createElement("div");
-    board.className = "task-mindmap-board";
+      const children = childrenByParent.get(branchSession.id) || [];
+      const branchStatus = getBranchStatusValue(branchSession);
+      const isCurrentBranch = activeBranch && branchSession.id === activeBranch.id;
+      const isCurrentChain = currentLineageIds.has(branchSession.id);
 
-    for (const path of uniquePaths) {
-      const pathRow = document.createElement("div");
-      const pathHasCurrent = path.some((session) => session?.id && currentLineageIds.has(session.id));
-      pathRow.className = "task-mindmap-path" + (pathHasCurrent ? " is-current-path" : "");
-
-      const rootLink = document.createElement("span");
-      rootLink.className = "task-mindmap-link task-mindmap-root-link" + (pathHasCurrent ? " is-current" : "");
-      pathRow.appendChild(rootLink);
-
-      for (let index = 0; index < path.length; index += 1) {
-        const branchSession = path[index];
-        if (!branchSession?.id) continue;
-        const parentSession = index === 0 ? rootSession : path[index - 1];
-        const branchStatus = getBranchStatusValue(branchSession);
-        const isCurrentBranch = activeBranch && branchSession.id === activeBranch.id;
-        const isCurrentChain = currentLineageIds.has(branchSession.id);
-        const metaParts = [];
-
-        let statusLabel = "进行中";
-        if (branchStatus === "parked") statusLabel = "已挂起";
-        if (branchStatus === "resolved") statusLabel = "已关闭";
-        if (branchStatus === "merged") statusLabel = "已带回";
-        if (isCurrentChain) statusLabel = isCurrentBranch ? "当前位置" : "当前路径";
-
-        if (index > 0 && parentSession) {
-          metaParts.push(`<span class="task-branch-parent">${esc(`上级：${getTaskBranchDisplayName(parentSession)}`)}</span>`);
-        }
-        metaParts.push(`<span class="task-branch-status${isCurrentBranch ? " is-current" : ""}">${esc(statusLabel)}</span>`);
-        const nodeHint = Array.isArray(branchSession?.taskCard?.nextSteps) && typeof branchSession.taskCard.nextSteps[0] === "string"
-          ? branchSession.taskCard.nextSteps[0].trim()
-          : "";
-        if (nodeHint && !isCurrentBranch) {
-          metaParts.push(`<span class="task-branch-path">${esc(compactMeta(nodeHint, 34))}</span>`);
-        }
-        if (branchStatus !== "active") {
-          metaParts.push(`<button type="button" class="task-cluster-link task-branch-reopen" data-branch-action="reopen">继续处理</button>`);
-        }
-
-        const branchItem = createActiveSessionItem(branchSession, {
-          hideActions: true,
-          extraClassName: "task-branch-item task-mindmap-node",
-          metaOverrideHtml: metaParts.join(""),
-          onMetaReady(metaNode) {
-            const reopenBtn = metaNode.querySelector('[data-branch-action="reopen"]');
-            if (reopenBtn && window.MelodySyncWorkbench?.setCurrentBranchStatus) {
-              reopenBtn.addEventListener("click", async (event) => {
-                event.stopPropagation();
-                reopenBtn.disabled = true;
-                try {
-                  await window.MelodySyncWorkbench.setCurrentBranchStatus.call(null, "active", branchSession.id);
-                  attachSession(branchSession.id, branchSession);
-                } finally {
-                  reopenBtn.disabled = false;
-                }
-              });
-            }
-          },
-        });
-        if (isCurrentChain) {
-          branchItem.classList.add("is-current-chain");
-        }
-        if (isCurrentBranch) {
-          branchItem.classList.add("is-current-branch");
-        }
-        if (branchStatus === "resolved") {
-          branchItem.classList.add("is-resolved");
-        }
-        const nameNode = branchItem.querySelector(".session-item-name");
-        if (nameNode) {
-          nameNode.textContent = getTaskBranchDisplayName(branchSession);
-        }
-        pathRow.appendChild(branchItem);
-
-        if (index < path.length - 1) {
-          const link = document.createElement("span");
-          const nextSession = path[index + 1];
-          const nextInCurrentPath = nextSession?.id && currentLineageIds.has(nextSession.id);
-          link.className = "task-mindmap-link" + (nextInCurrentPath ? " is-current" : "");
-          pathRow.appendChild(link);
-        }
+      const summary = compactMeta(
+        (Array.isArray(branchSession?.taskCard?.nextSteps) && typeof branchSession.taskCard.nextSteps[0] === "string"
+          ? branchSession.taskCard.nextSteps[0]
+          : "")
+        || (typeof branchSession?.taskCard?.checkpoint === "string" ? branchSession.taskCard.checkpoint : ""),
+        38,
+      );
+      const metaParts = [
+        `<span class="task-branch-inline-meta"><span class="task-branch-dot is-${esc(branchStatus || "active")}"></span></span>`,
+      ];
+      if (summary) {
+        metaParts.push(`<span class="task-branch-inline-summary">${esc(summary)}</span>`);
       }
 
-      board.appendChild(pathRow);
+      const row = createActiveSessionItem(branchSession, {
+        hideActions: false,
+        extraClassName: "task-cluster-tree-row",
+        metaOverrideHtml: metaParts.join(""),
+      });
+      const nameNode = row.querySelector(".session-item-name");
+      if (nameNode) {
+        nameNode.textContent = getTaskBranchDisplayName(branchSession);
+      }
+      if (isCurrentChain) {
+        row.classList.add("is-current-chain");
+        item.classList.add("is-current-chain");
+      }
+      if (isCurrentBranch) {
+        row.classList.add("is-current-branch");
+        item.classList.add("is-current-branch");
+      }
+      if (branchStatus === "resolved" || branchStatus === "merged") {
+        row.classList.add("is-resolved");
+      }
+
+      item.appendChild(row);
+
+      if (children.length > 0) {
+        const childrenWrap = document.createElement("div");
+        childrenWrap.className = "task-cluster-tree-children";
+        for (const childSession of children) {
+          childrenWrap.appendChild(createBranchTreeNode(childSession, depth + 1));
+        }
+        item.appendChild(childrenWrap);
+      }
+
+      return item;
+    };
+
+    const treeCard = document.createElement("div");
+    treeCard.className = "task-cluster-tree-card";
+    const tree = document.createElement("div");
+    tree.className = "task-cluster-tree";
+    for (const branchSession of childrenByParent.get(rootSession.id) || []) {
+      tree.appendChild(createBranchTreeNode(branchSession, 1));
     }
-
-    branchesWrap.appendChild(board);
-
-    wrapper.appendChild(branchesWrap);
+    treeCard.appendChild(tree);
+    nodes.push(treeCard);
   }
 
+  return nodes;
+}
+
+function createTaskClusterItem(rootSession, branchSessions = [], options = {}) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "task-cluster";
+  const nodes = createTaskClusterNodes(rootSession, branchSessions, options);
+  for (const node of nodes) {
+    wrapper.appendChild(node);
+  }
+  const normalizedBranches = dedupeBranchSessions(branchSessions);
+  const expanded = normalizedBranches.length > 0 && expandedTaskClusters[rootSession.id] === true;
+  if (expanded) {
+    wrapper.classList.add("is-expanded");
+  }
   return wrapper;
 }

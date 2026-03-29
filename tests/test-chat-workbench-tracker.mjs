@@ -7,6 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
+const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'task-map-model.js'), 'utf8');
 const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-ui.js'), 'utf8');
 
 function makeClassList(initial = [], onChange = () => {}) {
@@ -120,17 +121,24 @@ function makeElement(id = '') {
   return element;
 }
 
-function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0 }) {
+function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const elements = new Map();
   for (const id of [
     'questTracker',
+    'questTrackerStatus',
+    'questTrackerStatusDot',
+    'questTrackerStatusText',
     'questTrackerLabel',
     'questTrackerTitle',
     'questTrackerBranch',
     'questTrackerBranchLabel',
     'questTrackerBranchTitle',
     'questTrackerNext',
+    'questTrackerFooter',
     'questTaskList',
+    'taskMapRail',
+    'taskMapDrawerBtn',
+    'taskMapDrawerBackdrop',
     'questTrackerActions',
     'questTrackerToggleBtn',
     'questTrackerCloseBtn',
@@ -140,12 +148,15 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0 }) {
     'questFinishResolveBtn',
     'questFinishParkBtn',
     'questFinishMergeBtn',
+    'questFinishSummaryInput',
     'emptyState',
   ]) {
     elements.set(id, makeElement(id));
   }
 
   const fetchCalls = [];
+  const fetchLog = [];
+  const attachCalls = [];
   const context = {
     console,
     window: {
@@ -158,6 +169,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0 }) {
       },
     },
     document: {
+      body: makeElement('body'),
       getElementById(id) {
         return elements.get(id) || null;
       },
@@ -176,25 +188,62 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0 }) {
     getCurrentSession() {
       return currentSession;
     },
-    fetchJsonOrRedirect: async (url) => {
+    fetchJsonOrRedirect: async (url, options = {}) => {
       fetchCalls.push(url);
+      fetchLog.push({ url, options });
+      if (typeof fetchResponder === 'function') {
+        return fetchResponder(url, options, { snapshot, sessions, elements });
+      }
       return snapshot;
     },
     renderSessionList() {},
-    attachSession() {},
+    attachSession(id, session) {
+      attachCalls.push({ id, session });
+    },
   };
   context.globalThis = context;
-  return { context, elements, fetchCalls };
+  return { context, elements, fetchCalls, fetchLog, attachCalls };
 }
 
-async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0 }) {
-  const { context, elements, fetchCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth });
-  await vm.runInNewContext(`(async () => { ${source}\nawait Promise.resolve(); })();`, context, {
+async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
+  const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
+  await vm.runInNewContext(`(async () => { ${taskMapModelSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'static/chat/workbench-ui.js',
   });
   await Promise.resolve();
   await Promise.resolve();
-  return { elements, fetchCalls };
+  return { elements, fetchCalls, fetchLog, attachCalls, workbench: context.window.MelodySyncWorkbench };
+}
+
+async function flushAsync(turns = 6) {
+  for (let index = 0; index < turns; index += 1) {
+    await Promise.resolve();
+  }
+}
+
+function findFirstByClass(node, className) {
+  if (!node) return null;
+  if (node.classList?.contains(className)) return node;
+  for (const child of Array.isArray(node.children) ? node.children : []) {
+    const match = findFirstByClass(child, className);
+    if (match) return match;
+  }
+  return null;
+}
+
+function findAllByClass(node, className, results = []) {
+  if (!node) return results;
+  if (node.classList?.contains(className)) results.push(node);
+  for (const child of Array.isArray(node.children) ? node.children : []) {
+    findAllByClass(child, className, results);
+  }
+  return results;
+}
+
+function getFlowNodeTitles(rootNode) {
+  return findAllByClass(rootNode, 'quest-task-flow-node').map((node) => (
+    findFirstByClass(node, 'quest-task-flow-node-title')?.textContent || ''
+  ));
 }
 
 const mainSession = {
@@ -216,7 +265,7 @@ const siblingSession = {
     lineRole: 'main',
     goal: '整理任务分组',
     mainGoal: '整理任务分组',
-    nextSteps: ['把新任务归入收件箱'],
+    nextSteps: ['把新任务归入收集箱'],
   },
 };
 
@@ -230,9 +279,12 @@ const mainlineBranchPreview = {
     mainGoal: '学习电影史',
     nextSteps: ['先把表现主义的关键特征讲清楚'],
   },
+  _branchDepth: 1,
+  _branchParentSessionId: 'session-main',
+  _branchStatus: 'active',
 };
 
-const { elements: mainElements, fetchCalls: mainFetchCalls } = await runScenario({
+const { elements: mainElements, fetchCalls: mainFetchCalls, attachCalls: mainAttachCalls } = await runScenario({
   currentSession: mainSession,
   sessions: [mainSession, siblingSession, mainlineBranchPreview],
   snapshot: {
@@ -264,16 +316,131 @@ const { elements: mainElements, fetchCalls: mainFetchCalls } = await runScenario
 });
 
 assert.equal(mainElements.get('questTracker').hidden, false, 'tracker should render when a session is attached');
-assert.equal(mainElements.get('questTrackerLabel').textContent, '当前任务', 'mainline tracker should present the current task as a compact status strip');
+assert.equal(mainElements.get('questTrackerLabel').textContent, '当前任务', 'mainline tracker should keep a simple current-task label');
+assert.equal(mainElements.get('questTrackerStatus').hidden, false, 'mainline tracker should render the task status inside the task bar');
+assert.equal(mainElements.get('questTrackerStatusText').textContent, '空闲', 'idle mainline tasks should surface an idle status inside the task bar');
 assert.equal(mainElements.get('questTrackerTitle').hidden, false, 'mainline tracker should show the current task title directly');
-assert.equal(mainElements.get('questTrackerTitle').textContent, '梳理电影史脉络结构图', 'mainline tracker should prefer the compact summary title and hard-cap it to 10 characters');
-assert.equal(mainElements.get('questTrackerBranch').hidden, true, 'mainline tracker should stay focused on the main task even when child tasks exist');
-assert.equal(mainElements.get('questTrackerNext').hidden, true, 'mainline tracker should keep the summary hidden before any branch exists');
-assert.equal(mainElements.get('questTaskList').hidden, true, 'top strip should no longer render the task list itself');
+assert.equal(mainElements.get('questTrackerTitle').textContent, '系统学习电影史', 'mainline tracker should show the main task title before any supporting detail');
+assert.equal(mainElements.get('questTrackerBranch').hidden, false, 'mainline tracker should keep one supporting detail block directly under the title');
+assert.equal(mainElements.get('questTrackerBranchTitle').textContent, '先搭电影史主线框架', 'mainline tracker should place the current task detail under the title');
+assert.equal(mainElements.get('questTrackerNext').hidden, true, 'mainline tracker should avoid duplicating the same detail block');
+assert.equal(mainElements.get('taskMapRail').hidden, false, 'desktop task manager should keep the task map rail visible');
+assert.equal(mainElements.get('questTaskList').hidden, false, 'desktop task manager should render the task map by default');
+assert.equal(mainElements.get('questTaskList').classList.contains('is-flow-board'), true, 'task-map mounts should route scrolling through the dedicated flow-board surface');
+assert.equal(Boolean(findFirstByClass(mainElements.get('questTaskList'), 'quest-task-flow-shell')), true, 'desktop task map should render as a dedicated flow board');
 assert.deepEqual(mainFetchCalls, [
   '/api/workbench/sessions/session-main/tracker',
   '/api/workbench',
 ], 'tracker should fetch the lightweight session tracker snapshot before the full workbench snapshot');
+findAllByClass(mainElements.get('questTaskList'), 'quest-task-flow-node')
+  .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === '表现主义')
+  ?.click();
+assert.deepEqual(
+  mainAttachCalls.map((entry) => entry.id),
+  ['session-main-branch'],
+  'clicking an existing flow node should still switch the workspace to that branch session',
+);
+
+const candidateOnlyMain = {
+  id: 'session-main-candidate-only',
+  name: '为用户搭出一条兼顾电影史主线与美术史兴趣维度的学习路线',
+  taskCard: {
+    lineRole: 'main',
+    goal: '为用户搭出一条兼顾电影史主线与美术史兴趣维度的学习路线',
+    mainGoal: '为用户搭出一条兼顾电影史主线与美术史兴趣维度的学习路线',
+    checkpoint: '先明确主线骨架，再判断哪些方向值得拆成支线',
+    candidateBranches: ['改成视觉风格线', '生成12周片单'],
+  },
+};
+
+const { elements: candidateOnlyElements } = await runScenario({
+  currentSession: candidateOnlyMain,
+  sessions: [candidateOnlyMain],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main-candidate-only',
+        mainSession: candidateOnlyMain,
+        mainGoal: candidateOnlyMain.taskCard.mainGoal,
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+const candidateOnlyBoard = findFirstByClass(candidateOnlyElements.get('questTaskList'), 'quest-task-flow-shell');
+assert.equal(Boolean(candidateOnlyBoard), true, 'candidate-only quests should still render inside the same flow board');
+assert.equal(findAllByClass(candidateOnlyBoard, 'quest-task-flow-node').length >= 3, true, 'candidate-only quests should render the root node plus candidate side quests');
+assert.equal(findFirstByClass(candidateOnlyBoard, 'quest-task-flow-node-action')?.textContent, '开启支线', 'candidate-only suggestion nodes should expose an explicit branch-entry action');
+
+const openedCandidateBranch = {
+  id: 'session-main-candidate-branch',
+  name: 'Branch · 改成视觉风格线',
+  sourceContext: { parentSessionId: 'session-main-candidate-only' },
+  taskCard: {
+    lineRole: 'branch',
+    goal: '改成视觉风格线',
+    mainGoal: candidateOnlyMain.taskCard.mainGoal,
+    nextSteps: ['先按视觉风格重新组织主线'],
+  },
+};
+
+const { elements: candidateOpenElements, fetchLog: candidateOpenFetchLog, attachCalls: candidateOpenAttachCalls } = await runScenario({
+  currentSession: candidateOnlyMain,
+  sessions: [candidateOnlyMain],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main-candidate-only',
+        mainSession: candidateOnlyMain,
+        mainGoal: candidateOnlyMain.taskCard.mainGoal,
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+  fetchResponder: async (url, options, { snapshot }) => {
+    if (options?.method === 'POST' && url === '/api/workbench/sessions/session-main-candidate-only/branches') {
+      return {
+        session: openedCandidateBranch,
+        snapshot,
+      };
+    }
+    return snapshot;
+  },
+});
+
+findFirstByClass(candidateOpenElements.get('questTaskList'), 'quest-task-flow-node-action')?.click();
+await flushAsync();
+assert.equal(
+  candidateOpenFetchLog.some((entry) => (
+    entry.url === '/api/workbench/sessions/session-main-candidate-only/branches'
+    && entry.options?.method === 'POST'
+    && JSON.parse(entry.options?.body || '{}').goal === '改成视觉风格线'
+  )),
+  true,
+  'clicking a candidate suggestion should open a real branch through the existing branch-creation endpoint',
+);
+assert.deepEqual(
+  candidateOpenAttachCalls.map((entry) => entry.id),
+  ['session-main-candidate-branch'],
+  'opening a candidate suggestion should attach the newly created branch session into the main workspace flow',
+);
 
 const branchSession = {
   id: 'session-branch',
@@ -333,14 +500,16 @@ const { elements: branchElements, fetchCalls: branchFetchCalls } = await runScen
   },
 });
 
-assert.equal(branchElements.get('questTrackerLabel').textContent, '当前子任务', 'branch tracker should keep focus on the current branch');
+assert.equal(branchElements.get('questTrackerLabel').textContent, '当前任务', 'branch tracker should keep a simple current-task label');
 assert.equal(branchElements.get('questTrackerTitle').hidden, false, 'branch tracker should keep the branch title visible');
 assert.equal(branchElements.get('questTrackerTitle').textContent, '表现主义', 'branch tracker should show the current branch goal');
-assert.equal(branchElements.get('questTrackerBranch').hidden, true, 'branch tracker should also hide the parent mainline reference until the tree expands');
+assert.equal(branchElements.get('questTrackerBranch').hidden, false, 'branch tracker should show the parent mainline reference inside the task bar');
+assert.equal(branchElements.get('questTrackerBranchLabel').textContent, '任务详情', 'branch tracker should treat the secondary line as task detail instead of a noisy label block');
+assert.equal(branchElements.get('questTrackerBranchTitle').textContent, '来自主线：学习电影史', 'branch tracker should surface the parent mainline as the first detail line');
 assert.equal(branchElements.get('questTrackerNext').hidden, false, 'branch tracker should keep a concise next-step summary');
-assert.equal(branchElements.get('questTrackerCloseBtn').textContent, 'close', 'branch tracker should expose a compact close action');
+assert.equal(branchElements.get('questTrackerCloseBtn').textContent, '收束支线', 'branch tracker should expose a compact finish action');
 assert.equal(branchElements.get('questTrackerCloseBtn').hidden, false, 'branch tracker should show the finish entry point');
-assert.equal(branchElements.get('questTrackerAltBtn').textContent, 'stop', 'branch tracker should expose a compact stop action');
+assert.equal(branchElements.get('questTrackerAltBtn').textContent, '挂起', 'branch tracker should expose a compact park action');
 assert.equal(branchElements.get('questTrackerAltBtn').hidden, false, 'branch tracker should show the stop action inline');
 assert.equal(branchElements.get('questTrackerBackBtn').hidden, true, 'branch tracker should hide merge action until the finish panel opens');
 assert.equal(branchElements.get('questFinishPanel').hidden, true, 'finish panel should stay collapsed by default');
@@ -348,8 +517,103 @@ assert.deepEqual(branchFetchCalls, [
   '/api/workbench/sessions/session-branch/tracker',
   '/api/workbench',
 ], 'branch tracker should also prefer the lightweight tracker payload before the full workbench snapshot');
-assert.equal(branchElements.get('questTrackerToggleBtn').hidden, false, 'mobile branch tracker should expose the subtask toggle');
-assert.equal(branchElements.get('questTaskList').hidden, true, 'branch state should keep the mind-map collapsed before user interaction');
+assert.equal(branchElements.get('questTrackerStatus').hidden, false, 'mobile branch tracker should render the task status inside the task bar');
+assert.equal(branchElements.get('taskMapDrawerBtn').hidden, false, 'mobile branch tracker should expose the header task-map drawer toggle');
+assert.equal(branchElements.get('questTrackerToggleBtn').hidden, true, 'mobile branch tracker should stop rendering the old inline task-map toggle');
+assert.equal(branchElements.get('taskMapRail').hidden, false, 'mobile branch tracker should keep the task map drawer mounted off-canvas');
+assert.equal(branchElements.get('taskMapDrawerBackdrop').hidden, true, 'mobile branch tracker should keep the drawer backdrop hidden while collapsed');
+assert.equal(branchElements.get('taskMapRail').classList.contains('is-mobile-open'), false, 'mobile task map drawer should stay collapsed by default');
+assert.equal(branchElements.get('questTaskList').hidden, false, 'branch state should keep the mind-map rendered inside the drawer even before interaction');
+
+const mergeableBranchSession = {
+  id: 'session-branch-merge',
+  name: 'Branch · 表现主义',
+  sourceContext: { parentSessionId: 'session-main' },
+  taskCard: {
+    lineRole: 'branch',
+    goal: '表现主义',
+    mainGoal: '学习电影史',
+    checkpoint: '先把表现主义的关键特征讲清楚',
+    nextSteps: ['先把表现主义的关键特征讲清楚'],
+  },
+};
+
+const { elements: mergeElements, fetchLog: mergeFetchLog, attachCalls: mergeAttachCalls } = await runScenario({
+  currentSession: mergeableBranchSession,
+  sessions: [mainSession, mergeableBranchSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [
+      {
+        sessionId: 'session-branch-merge',
+        parentSessionId: 'session-main',
+        lineRole: 'branch',
+        status: 'active',
+        goal: '表现主义',
+        mainGoal: '学习电影史',
+        checkpointSummary: '先把表现主义的关键特征讲清楚',
+        nextStep: '先把表现主义的关键特征讲清楚',
+      },
+    ],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main',
+        mainSession,
+        currentBranchSessionId: 'session-branch-merge',
+        branchSessionIds: ['session-branch-merge'],
+        branchSessions: [
+          {
+            ...mergeableBranchSession,
+            _branchDepth: 1,
+            _branchParentSessionId: 'session-main',
+            _branchStatus: 'active',
+          },
+        ],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+  fetchResponder: async (url, options, { snapshot }) => {
+    if (options?.method === 'POST' && url === '/api/workbench/sessions/session-branch-merge/merge-return') {
+      return {
+        session: mainSession,
+        snapshot,
+      };
+    }
+    return snapshot;
+  },
+});
+
+mergeElements.get('questTrackerCloseBtn').click();
+await flushAsync();
+assert.equal(mergeElements.get('questFinishPanel').hidden, false, 'clicking finish should expand the branch wrap-up panel');
+assert.equal(
+  mergeElements.get('questFinishSummaryInput').value,
+  '先把表现主义的关键特征讲清楚',
+  'finish panel should prefill a carry-back summary draft from the branch task card',
+);
+mergeElements.get('questFinishSummaryInput').value = '已经明确表现主义的视觉特征，可以回到主线继续比较其他流派';
+mergeElements.get('questFinishSummaryInput').trigger('input');
+mergeElements.get('questFinishMergeBtn').click();
+await flushAsync();
+assert.equal(
+  mergeFetchLog.some((entry) => (
+    entry.url === '/api/workbench/sessions/session-branch-merge/merge-return'
+    && entry.options?.method === 'POST'
+    && JSON.parse(entry.options?.body || '{}').mergeType === 'conclusion'
+    && JSON.parse(entry.options?.body || '{}').broughtBack === '已经明确表现主义的视觉特征，可以回到主线继续比较其他流派'
+  )),
+  true,
+  'merging back to the mainline should carry the explicit user summary instead of an empty payload',
+);
+assert.deepEqual(
+  mergeAttachCalls.map((entry) => entry.id),
+  ['session-main'],
+  'successful branch merge should attach the returned mainline session into the workspace',
+);
 
 const nestedBranch = {
   id: 'session-branch-child',
@@ -386,6 +650,9 @@ const parkedBranchChild = {
     nextSteps: ['梳理特吕弗和戈达尔的差异'],
   },
 };
+
+mainSession.taskCard.candidateBranches = ['黑色电影'];
+branchSession.taskCard.candidateBranches = ['卡里加里博士'];
 
 const { elements: expandedElements } = await runScenario({
   currentSession: nestedBranch,
@@ -454,27 +721,118 @@ const { elements: expandedElements } = await runScenario({
   },
 });
 
-expandedElements.get('questTrackerToggleBtn').click();
+expandedElements.get('taskMapDrawerBtn').click();
 const taskList = expandedElements.get('questTaskList');
 assert.equal(taskList.hidden, false, 'clicking the task toggle should expand the tracker mind-map');
-assert.equal(taskList.children[0]?.className, 'quest-task-item quest-task-mindmap-root', 'expanded task bar should start with an explicit root node');
-assert.equal(taskList.children[1]?.className, 'quest-task-directory', 'expanded task bar should render a vertical directory tree');
-assert.equal(taskList.children[1]?.children.length, 2, 'directory tree should show the current root branch first and keep sibling branches collapsed underneath');
-assert.equal(taskList.children[1]?.children[0]?.classList.contains('quest-task-directory-item'), true, 'current branch should render as a directory node');
-assert.equal(taskList.children[1]?.children[0]?.children[0]?.classList.contains('quest-task-directory-row'), true, 'directory nodes should render as full-width rows');
-assert.equal(taskList.children[1]?.children[0]?.children[0]?.children[1]?.children[0]?.textContent, '表现主义', 'the first directory row should keep the current path parent title visible');
-assert.equal(taskList.children[1]?.children[0]?.children[0]?.children[2]?.textContent, '当前路径', 'the parent directory row should stay marked as current path');
-assert.equal(taskList.children[1]?.children[0]?.children[1]?.className, 'quest-task-directory-children', 'current-path branches should expand downward as nested directory children');
-assert.equal(taskList.children[1]?.children[0]?.children[1]?.children[0]?.children[0]?.children[0]?.children[0]?.textContent, '德国表现主义电影', 'deep current branch should render directly under its parent instead of as a horizontal stage');
-assert.equal(taskList.children[1]?.children[0]?.children[1]?.children[0]?.children[0]?.children[0]?.children[1]?.textContent, '上级：表现主义', 'deep current branch should still show its direct parent in the directory tree');
-assert.equal(taskList.children[1]?.children[0]?.children[1]?.children[0]?.children[0]?.children[1]?.textContent, '当前位置', 'deep current directory row should keep the strongest position label');
-assert.equal(taskList.children[1]?.children[1]?.children[0]?.children[1]?.children[0]?.textContent, '法国新浪潮', 'non-current sibling branches should still stay visible in the directory tree');
-assert.equal(taskList.children[1]?.children[1]?.children[0]?.children[2]?.textContent, '子任务 1', 'collapsed sibling folders should summarize child count without auto-expanding');
+assert.equal(expandedElements.get('taskMapRail').hidden, false, 'mobile task map should appear once the user expands the map');
+assert.equal(expandedElements.get('taskMapDrawerBackdrop').hidden, false, 'expanding the mobile task map should also show the drawer backdrop');
+assert.equal(expandedElements.get('taskMapRail').classList.contains('is-mobile-open'), true, 'mobile task map should slide in as an open drawer');
+const mobileBoard = findFirstByClass(taskList, 'quest-task-flow-shell');
+assert.equal(Boolean(mobileBoard), true, 'expanded task bar should render the task map as a dedicated flow board');
+const flowTitles = findAllByClass(mobileBoard, 'quest-task-flow-node-title').map((entry) => entry.textContent);
+assert.equal(flowTitles.includes('表现主义'), true, 'the current path parent should stay visible in the quest map');
+assert.equal(flowTitles.includes('德国表现主义电影'), true, 'deep current branch should render directly under its parent in the quest map');
+assert.equal(flowTitles.includes('法国新浪潮'), true, 'non-current sibling branches should still stay visible in the quest map');
+assert.equal(flowTitles.includes('黑色电影'), true, 'root candidate branches should stay visible as optional side quests');
+assert.equal(flowTitles.includes('卡里加里博士'), true, 'branch-local candidate suggestions should stay visible as nested side-quest nodes');
+assert.equal(findAllByClass(mobileBoard, 'quest-task-flow-node-action').length, 2, 'candidate nodes should expose explicit branch-entry actions at every level');
 
-taskList.children[1]?.children[0]?.children[0]?.children[0]?.click();
-assert.equal(taskList.children[1]?.children[0]?.children.length, 1, 'collapsing a directory node should hide deeper descendants without reordering sibling rows');
+const focusMainSession = {
+  id: 'focus-main',
+  name: '电影史路线规划',
+  taskCard: {
+    lineRole: 'main',
+    summary: '先搭主线，再决定是否拆出独立支线',
+    goal: '电影史路线规划',
+    mainGoal: '电影史路线规划',
+    nextSteps: ['先看当前主线和已开启支线'],
+  },
+};
 
-taskList.children[1]?.children[0]?.children[0]?.children[0]?.click();
-assert.equal(taskList.children[1]?.children[0]?.children.length, 2, 're-expanding the same directory node should deterministically restore its nested child tree');
+const focusBranchSession = {
+  id: 'focus-branch',
+  name: 'Branch · 法国新浪潮',
+  sourceContext: { parentSessionId: 'focus-main' },
+  taskCard: {
+    lineRole: 'branch',
+    goal: '法国新浪潮',
+    mainGoal: '电影史路线规划',
+    nextSteps: ['补充跳切与作者论'],
+  },
+};
+
+const focusNestedBranchSession = {
+  id: 'focus-branch-child',
+  name: 'Branch · 作者论',
+  sourceContext: { parentSessionId: 'focus-branch' },
+  taskCard: {
+    lineRole: 'branch',
+    goal: '作者论',
+    mainGoal: '电影史路线规划',
+    nextSteps: ['对比特吕弗和戈达尔'],
+  },
+};
+
+const { elements: focusElements, workbench: focusWorkbench } = await runScenario({
+  currentSession: focusMainSession,
+  sessions: [focusMainSession, focusBranchSession, focusNestedBranchSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'focus-main',
+        mainSession: focusMainSession,
+        mainGoal: '电影史路线规划',
+        currentBranchSessionId: 'focus-branch',
+        branchSessionIds: ['focus-branch', 'focus-branch-child'],
+        branchSessions: [
+          {
+            ...focusBranchSession,
+            _branchDepth: 1,
+            _branchParentSessionId: 'focus-main',
+            _branchStatus: 'active',
+          },
+          {
+            ...focusNestedBranchSession,
+            _branchDepth: 2,
+            _branchParentSessionId: 'focus-branch',
+            _branchStatus: 'active',
+          },
+        ],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+const titlesBeforeFocusSwitch = getFlowNodeTitles(focusElements.get('questTaskList'));
+focusWorkbench.setFocusedSessionId('focus-branch-child');
+await flushAsync();
+assert.equal(
+  focusWorkbench.getTaskMapProjection()?.activeNode?.sessionId,
+  'focus-branch-child',
+  'switching focus locally should update the projected active node immediately without waiting for a snapshot refresh',
+);
+assert.equal(
+  focusElements.get('questTrackerTitle').textContent,
+  '作者论',
+  'current task bar should follow the locally focused branch immediately',
+);
+const currentFlowNode = findAllByClass(focusElements.get('questTaskList'), 'quest-task-flow-node')
+  .find((node) => node.classList?.contains('is-current')) || null;
+assert.equal(
+  findFirstByClass(currentFlowNode, 'quest-task-flow-node-title')?.textContent || '',
+  '作者论',
+  'flow map highlight should follow the same focused branch as the task bar',
+);
+assert.deepEqual(
+  getFlowNodeTitles(focusElements.get('questTaskList')),
+  titlesBeforeFocusSwitch,
+  'changing focus should not reshuffle the rendered flow node order',
+);
 
 console.log('test-chat-workbench-tracker: ok');

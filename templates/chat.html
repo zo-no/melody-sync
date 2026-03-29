@@ -28,6 +28,7 @@
   <button class="header-btn" id="menuBtn" title="Tasks" aria-label="Tasks" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
   <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync</h1>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
+  <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
 </div>
@@ -54,93 +55,117 @@
 
   <!-- Chat area -->
   <main class="chat-area">
-    <section class="quest-tracker" id="questTracker" hidden>
-      <div class="quest-tracker-main">
-        <div class="quest-tracker-label" id="questTrackerLabel">任务列表</div>
-        <div class="quest-tracker-title" id="questTrackerTitle" hidden></div>
-        <div class="quest-tracker-branch" id="questTrackerBranch" hidden>
-          <div class="quest-tracker-branch-label" id="questTrackerBranchLabel">来自主线</div>
-          <div class="quest-tracker-branch-title" id="questTrackerBranchTitle"></div>
-        </div>
-        <div class="quest-tracker-next" id="questTrackerNext" hidden></div>
+    <div class="task-manager-body">
+      <aside class="task-map-rail" id="taskMapRail" hidden>
         <div class="quest-task-list" id="questTaskList" hidden></div>
-      </div>
-      <div class="quest-tracker-actions" id="questTrackerActions">
-        <button class="quest-tracker-toggle" id="questTrackerToggleBtn" type="button" hidden>子任务</button>
-        <button class="quest-tracker-btn" id="questTrackerCloseBtn" type="button" hidden>结束子任务</button>
-        <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerAltBtn" type="button" hidden>完成但不回主线</button>
-        <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerBackBtn" type="button" hidden>完成当前任务</button>
-      </div>
-      <div class="quest-finish-panel" id="questFinishPanel" hidden>
-        <div class="quest-finish-panel-title">结束当前子任务</div>
-        <div class="quest-finish-panel-list">
-          <button class="quest-finish-option" id="questFinishResolveBtn" type="button">
-            <span class="quest-finish-option-title">直接关闭</span>
-            <span class="quest-finish-option-summary">这条子任务直接收口，回到主线，不带回结论。</span>
-          </button>
-          <button class="quest-finish-option" id="questFinishParkBtn" type="button">
-            <span class="quest-finish-option-title">挂起并回主线</span>
-            <span class="quest-finish-option-summary">先停住这条子任务，稍后可以继续处理。</span>
-          </button>
-          <button class="quest-finish-option" id="questFinishMergeBtn" type="button">
-            <span class="quest-finish-option-title">收尾并回主线</span>
-            <span class="quest-finish-option-summary">把当前结果带回主线，继续推进主任务。</span>
-          </button>
-        </div>
-      </div>
-    </section>
+      </aside>
 
-    <div class="messages" id="messages">
-      <div class="messages-inner" id="messagesInner">
-        <div class="empty-state" id="emptyState">
-          <h2 data-i18n="emptyState.title"></h2>
-        </div>
-      </div>
-    </div>
-
-    <div class="queued-panel" id="queuedPanel"></div>
-
-    <!-- Input area -->
-    <div class="input-area" id="inputArea">
-      <div class="input-resize-handle" id="inputResizeHandle">
-        <div class="input-resize-pill"></div>
-      </div>
-      <div class="input-wrapper">
-        <!-- Attachment preview inside wrapper -->
-        <div class="img-preview-strip" id="imgPreviewStrip" hidden></div>
-        <div class="input-config-row" hidden>
-          <div class="input-config-group left">
-            <select class="tool-select" id="inlineToolSelect" disabled></select>
-            <select class="model-select" id="inlineModelSelect" disabled></select>
-            <button class="thinking-toggle" id="thinkingToggle" disabled data-i18n="tooling.thinking">Thinking</button>
-            <select class="effort-select" id="effortSelect" disabled style="display:none"></select>
-            <button class="img-btn" id="imgBtn" disabled title="Attach files" aria-label="Attach files" data-i18n-title="action.attachFiles" data-i18n-aria-label="action.attachFiles" data-icon="attach">&#128247;</button>
-            <button class="thinking-toggle" id="voiceCleanupToggle" type="button" aria-pressed="true" title="On: clean voice transcripts with the current task before sending" data-i18n-title="compose.voiceCleanup.on" disabled data-i18n="compose.voiceCleanup">Voice cleanup</button>
+      <section class="task-manager-main-column">
+        <section class="quest-tracker" id="questTracker" hidden>
+          <div class="quest-tracker-main">
+            <div class="quest-tracker-label" id="questTrackerLabel" data-i18n="taskBar.label">当前任务 Bar</div>
+            <div class="quest-tracker-title" id="questTrackerTitle" hidden></div>
+            <div class="quest-tracker-branch" id="questTrackerBranch" hidden>
+              <div class="quest-tracker-branch-label" id="questTrackerBranchLabel">任务详情</div>
+              <div class="quest-tracker-branch-title" id="questTrackerBranchTitle"></div>
+            </div>
+            <div class="quest-tracker-next" id="questTrackerNext" hidden></div>
           </div>
-          <div class="input-config-group right">
-            <span id="contextTokens" style="display:none"></span>
-            <button class="compact-btn" id="compactBtn" style="display:none" title="Ask model to summarize conversation, then reset context" data-i18n="action.compact">Compact</button>
-            <button class="compact-btn" id="dropToolsBtn" style="display:none" title="Remove past tool results from context (no model call)" data-i18n="action.dropTools">Drop tools</button>
+          <div class="quest-tracker-footer" id="questTrackerFooter">
+            <div class="quest-tracker-status" id="questTrackerStatus" hidden>
+              <span class="quest-tracker-status-dot" id="questTrackerStatusDot"></span>
+              <span class="quest-tracker-status-text" id="questTrackerStatusText"></span>
+            </div>
+            <div class="quest-tracker-actions" id="questTrackerActions">
+              <button class="quest-tracker-toggle" id="questTrackerToggleBtn" type="button" hidden>子任务</button>
+              <button class="quest-tracker-btn" id="questTrackerCloseBtn" type="button" hidden>结束子任务</button>
+              <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerAltBtn" type="button" hidden>完成但不回主线</button>
+              <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerBackBtn" type="button" hidden>完成当前任务</button>
+            </div>
+          </div>
+          <div class="quest-finish-panel" id="questFinishPanel" hidden>
+            <div class="quest-finish-panel-title">收束当前支线</div>
+            <div class="quest-finish-panel-note">先写一句要带回主线的结论，再决定是回主线、挂起还是直接关闭。</div>
+            <label class="quest-finish-field" for="questFinishSummaryInput">
+              <span class="quest-finish-field-label">带回主线的总结</span>
+              <textarea
+                class="quest-finish-input"
+                id="questFinishSummaryInput"
+                rows="3"
+                placeholder="例如：这条支线已经明确了视觉风格方向，主线下一步可以据此收缩方案范围。"
+              ></textarea>
+            </label>
+            <div class="quest-finish-panel-list">
+              <button class="quest-finish-option quest-finish-option-primary" id="questFinishMergeBtn" type="button">
+                <span class="quest-finish-option-title">收束并回主线</span>
+                <span class="quest-finish-option-summary">把总结带回主线，并切回主线继续推进。</span>
+              </button>
+              <button class="quest-finish-option" id="questFinishParkBtn" type="button">
+                <span class="quest-finish-option-title">挂起</span>
+                <span class="quest-finish-option-summary">先回主线，稍后再继续这条支线。</span>
+              </button>
+              <button class="quest-finish-option" id="questFinishResolveBtn" type="button">
+                <span class="quest-finish-option-title">直接关闭</span>
+                <span class="quest-finish-option-summary">不带回内容，直接结束这条支线。</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <div class="messages" id="messages">
+          <div class="messages-inner" id="messagesInner">
+            <div class="empty-state" id="emptyState">
+              <h2 data-i18n="emptyState.title"></h2>
+            </div>
           </div>
         </div>
-        <div class="input-row">
-          <input type="file" id="imgFileInput" accept="*/*" multiple hidden>
-          <textarea id="msgInput" placeholder="Message..." data-i18n-placeholder="input.placeholder.message" disabled></textarea>
-          <button class="send-btn" id="sendBtn" disabled title="Send" aria-label="Send" data-i18n-title="action.send" data-i18n-aria-label="action.send" data-icon="send">&#9654;</button>
-          <button class="cancel-btn" id="cancelBtn" title="Stop" aria-label="Stop" data-i18n-title="action.stop" data-i18n-aria-label="action.stop" data-icon="debug-stop" style="display:none">&#9632;</button>
+
+        <div class="queued-panel" id="queuedPanel"></div>
+
+        <!-- Input area -->
+        <div class="input-area" id="inputArea">
+          <div class="input-resize-handle" id="inputResizeHandle">
+            <div class="input-resize-pill"></div>
+          </div>
+          <div class="input-wrapper">
+            <!-- Attachment preview inside wrapper -->
+            <div class="img-preview-strip" id="imgPreviewStrip" hidden></div>
+            <div class="input-config-row" hidden>
+              <div class="input-config-group left">
+                <select class="tool-select" id="inlineToolSelect" disabled></select>
+                <select class="model-select" id="inlineModelSelect" disabled></select>
+                <button class="thinking-toggle" id="thinkingToggle" disabled data-i18n="tooling.thinking">Thinking</button>
+                <select class="effort-select" id="effortSelect" disabled style="display:none"></select>
+                <button class="img-btn" id="imgBtn" disabled title="Attach files" aria-label="Attach files" data-i18n-title="action.attachFiles" data-i18n-aria-label="action.attachFiles" data-icon="attach">&#128247;</button>
+                <button class="thinking-toggle" id="voiceCleanupToggle" type="button" aria-pressed="true" title="On: clean voice transcripts with the current task before sending" data-i18n-title="compose.voiceCleanup.on" disabled data-i18n="compose.voiceCleanup">Voice cleanup</button>
+              </div>
+              <div class="input-config-group right">
+                <span id="contextTokens" style="display:none"></span>
+                <button class="compact-btn" id="compactBtn" style="display:none" title="Ask model to summarize conversation, then reset context" data-i18n="action.compact">Compact</button>
+                <button class="compact-btn" id="dropToolsBtn" style="display:none" title="Remove past tool results from context (no model call)" data-i18n="action.dropTools">Drop tools</button>
+              </div>
+            </div>
+            <div class="input-row">
+              <input type="file" id="imgFileInput" accept="*/*" multiple hidden>
+              <textarea id="msgInput" placeholder="Message..." data-i18n-placeholder="input.placeholder.message" disabled></textarea>
+              <button class="send-btn" id="sendBtn" disabled title="Send" aria-label="Send" data-i18n-title="action.send" data-i18n-aria-label="action.send" data-icon="send">&#9654;</button>
+              <button class="cancel-btn" id="cancelBtn" title="Stop" aria-label="Stop" data-i18n-title="action.stop" data-i18n-aria-label="action.stop" data-icon="debug-stop" style="display:none">&#9632;</button>
+            </div>
+            <div class="composer-pending-state" id="composerPendingState" aria-live="polite"></div>
+          </div>
+          <div class="input-footer">
+            <a href="https://github.com/zo-no/melody-sync" target="_blank" rel="noreferrer noopener" data-i18n="footer.openSource">Open source on GitHub ↗</a>
+            <span class="input-footer-tagline" data-i18n="footer.tagline">Built with AI &amp; ❤️</span>
+          </div>
         </div>
-        <div class="composer-pending-state" id="composerPendingState" aria-live="polite"></div>
-      </div>
-      <div class="input-footer">
-        <a href="https://github.com/zo-no/melody-sync" target="_blank" rel="noreferrer noopener" data-i18n="footer.openSource">Open source on GitHub ↗</a>
-        <span class="input-footer-tagline" data-i18n="footer.tagline">Built with AI &amp; ❤️</span>
-      </div>
+      </section>
     </div>
   </main>
 
 </div>
-</div>
 
+<button class="task-map-drawer-backdrop" id="taskMapDrawerBackdrop" hidden aria-label="关闭任务地图"></button>
+</div>
 <div class="gesture-pill" id="gesturePill" aria-hidden="true"></div>
 
 {{BOOTSTRAP_SCRIPT_TAGS}}
@@ -159,9 +184,11 @@
 <script src="/chat/realtime.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/realtime-render.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-  <script src="/chat/session-surface-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/session-surface-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session-list-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/task-map-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/vendor/panzoom.min.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>

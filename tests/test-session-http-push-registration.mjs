@@ -50,7 +50,6 @@ function createHarness({ existingSubscription }) {
     Promise,
     encodeURIComponent,
     buildAssetVersion: 'build-test',
-    visitorMode: false,
     navigator: {
       serviceWorker: {
         register() {

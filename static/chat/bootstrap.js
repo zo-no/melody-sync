@@ -1,10 +1,8 @@
 "use strict";
 
-const buildInfo = window.__REMOTELAB_BUILD__ || {};
-const pageBootstrap =
-  window.__REMOTELAB_BOOTSTRAP__ && typeof window.__REMOTELAB_BOOTSTRAP__ === "object"
-    ? window.__REMOTELAB_BOOTSTRAP__
-    : {};
+const bootstrapStore = window.RemoteLabBootstrap;
+const buildInfo = bootstrapStore?.getBuildInfo?.() || {};
+const pageBootstrap = bootstrapStore?.getBootstrap?.() || {};
 const buildAssetVersion = buildInfo.assetVersion || "dev";
 const bootstrapT = window.remotelabT || ((key) => key);
 
@@ -16,25 +14,9 @@ function normalizeBootstrapText(value) {
 
 function normalizeBootstrapAuthInfo(raw) {
   if (!raw || typeof raw !== "object") return null;
-  const role = raw.role === "visitor" ? "visitor" : "owner";
+  const role = "owner";
   const preferredLanguage = normalizeBootstrapText(raw.preferredLanguage);
-  if (role === "owner") {
-    return preferredLanguage ? { role, preferredLanguage } : { role };
-  }
-
-  const sessionId = normalizeBootstrapText(raw.sessionId);
-  if (!sessionId) return null;
-
-  const info = {
-    role,
-    sessionId,
-  };
-  const appId = normalizeBootstrapText(raw.appId);
-  const visitorId = normalizeBootstrapText(raw.visitorId);
-  if (appId) info.appId = appId;
-  if (visitorId) info.visitorId = visitorId;
-  if (preferredLanguage) info.preferredLanguage = preferredLanguage;
-  return info;
+  return preferredLanguage ? { role, preferredLanguage } : { role };
 }
 
 const bootstrapAuthInfo = normalizeBootstrapAuthInfo(pageBootstrap.auth);
@@ -56,73 +38,8 @@ function normalizeBootstrapAssetUploads(raw) {
 
 const bootstrapAssetUploads = normalizeBootstrapAssetUploads(pageBootstrap.assetUploads);
 
-function normalizeBootstrapShareSnapshot(rawPayload, rawMeta = null) {
-  const payload = rawPayload && typeof rawPayload === "object"
-    ? rawPayload
-    : {};
-  const meta = rawMeta && typeof rawMeta === "object"
-    ? rawMeta
-    : {};
-  if (Object.keys(payload).length === 0 && Object.keys(meta).length === 0) {
-    return null;
-  }
-
-  const id = normalizeBootstrapText(payload.id || meta.id || meta.shareId);
-  const sessionRaw = payload.session && typeof payload.session === "object"
-    ? payload.session
-    : (meta.session && typeof meta.session === "object" ? meta.session : {});
-  const payloadView = payload.view && typeof payload.view === "object"
-    ? payload.view
-    : {};
-  const metaView = meta.view && typeof meta.view === "object"
-    ? meta.view
-    : {};
-  const view = {
-    ...payloadView,
-    ...metaView,
-  };
-  if (meta.badge && !view.badge) view.badge = meta.badge;
-  if (meta.note && !view.note) view.note = meta.note;
-  if (meta.titleSuffix && !view.titleSuffix) view.titleSuffix = meta.titleSuffix;
-  const eventBlocks = payload.eventBlocks && typeof payload.eventBlocks === "object"
-    ? Object.fromEntries(
-      Object.entries(payload.eventBlocks)
-        .filter(([key, events]) => typeof key === "string" && Array.isArray(events)),
-    )
-    : {};
-  const displayEvents = Array.isArray(payload.displayEvents)
-    ? payload.displayEvents.filter((event) => event && typeof event === "object")
-    : [];
-
-  return {
-    id,
-    version: payload.version,
-    createdAt: normalizeBootstrapText(payload.createdAt || meta.createdAt) || null,
-    session: {
-      name: normalizeBootstrapText(sessionRaw.name),
-      tool: normalizeBootstrapText(sessionRaw.tool),
-      created: normalizeBootstrapText(sessionRaw.created) || null,
-    },
-    view,
-    eventCount: Number.isInteger(payload.eventCount)
-      ? payload.eventCount
-      : displayEvents.length,
-    displayEvents,
-    eventBlocks,
-  };
-}
-
-const bootstrapShareSnapshot = normalizeBootstrapShareSnapshot(
-  window.__REMOTELAB_SHARE__,
-  pageBootstrap.shareSnapshot,
-);
-
 function getBootstrapAuthInfo() {
   return bootstrapAuthInfo ? { ...bootstrapAuthInfo } : null;
-}
-
-function getBootstrapShareSnapshot() {
-  return bootstrapShareSnapshot;
 }
 
 function getBootstrapAssetUploads() {
@@ -152,7 +69,7 @@ async function clearFrontendCaches() {
 function updateFrontendRefreshUi() {
   if (!refreshFrontendBtn) return;
   const hasUpdate = !!newerBuildInfo?.assetVersion;
-  refreshFrontendBtn.hidden = false;
+  refreshFrontendBtn.hidden = !hasUpdate;
   refreshFrontendBtn.classList.toggle("ready", hasUpdate);
   const updateTitle = hasUpdate
     ? bootstrapT("status.frontendUpdateReady")
@@ -210,26 +127,11 @@ const menuBtn = document.getElementById("menuBtn");
 const sidebarOverlay = document.getElementById("sidebarOverlay");
 const closeSidebar = document.getElementById("closeSidebar");
 const forkSessionBtn = document.getElementById("forkSessionBtn");
-const shareSnapshotBtn = document.getElementById("shareSnapshotBtn");
 const sidebarFilters = document.getElementById("sidebarFilters");
 const sessionList = document.getElementById("sessionList");
 const sessionListFooter = document.getElementById("sessionListFooter");
-const newUserNameInput = document.getElementById("newUserNameInput");
-const newUserAppsPicker = document.getElementById("newUserAppsPicker");
-const newUserDefaultAppSelect = document.getElementById("newUserDefaultAppSelect");
-const newUserLanguageSelect = document.getElementById("newUserLanguageSelect");
-const createUserBtn = document.getElementById("createUserBtn");
-const userFormStatus = document.getElementById("userFormStatus");
-const settingsUsersList = document.getElementById("settingsUsersList");
-const settingsAppsList = document.getElementById("settingsAppsList");
 const uiLanguageSelect = document.getElementById("uiLanguageSelect");
 const uiLanguageStatus = document.getElementById("uiLanguageStatus");
-const newAppNameInput = document.getElementById("newAppNameInput");
-const newAppToolSelect = document.getElementById("newAppToolSelect");
-const newAppWelcomeInput = document.getElementById("newAppWelcomeInput");
-const newAppSystemPromptInput = document.getElementById("newAppSystemPromptInput");
-const createAppConfigBtn = document.getElementById("createAppConfigBtn");
-const appFormStatus = document.getElementById("appFormStatus");
 const sortSessionListBtn = document.getElementById("sortSessionListBtn");
 const newSessionBtn = document.getElementById("newSessionBtn");
 const messagesEl = document.getElementById("messages");
@@ -253,16 +155,9 @@ const cancelBtn = document.getElementById("cancelBtn");
 const contextTokens = document.getElementById("contextTokens");
 const compactBtn = document.getElementById("compactBtn");
 const dropToolsBtn = document.getElementById("dropToolsBtn");
-const saveTemplateBtn = document.getElementById("saveTemplateBtn");
-const sessionTemplateRow = document.getElementById("sessionTemplateRow");
-const sessionTemplateSelect = document.getElementById("sessionTemplateSelect");
-const sessionTemplateStatus = document.getElementById("sessionTemplateStatus");
 const tabSessions = document.getElementById("tabSessions");
-const tabSettings = document.getElementById("tabSettings");
 const sourceFilterSelect = document.getElementById("sourceFilterSelect");
-const sessionAppFilterSelect = document.getElementById("sessionAppFilterSelect");
 const userFilterSelect = document.getElementById("userFilterSelect");
-const settingsPanel = document.getElementById("settingsPanel");
 const inputArea = document.getElementById("inputArea");
 const composerPendingState = document.getElementById("composerPendingState");
 const inputResizeHandle = document.getElementById("inputResizeHandle");
@@ -299,7 +194,6 @@ const ACTIVE_SESSION_STORAGE_KEY = "activeSessionId";
 const ACTIVE_SIDEBAR_TAB_STORAGE_KEY = "activeSidebarTab";
 const LEGACY_ACTIVE_SOURCE_FILTER_STORAGE_KEY = "activeAppFilter";
 const ACTIVE_SOURCE_FILTER_STORAGE_KEY = "activeSourceFilter";
-const ACTIVE_SESSION_APP_FILTER_STORAGE_KEY = "activeSessionAppFilter";
 const ACTIVE_USER_FILTER_STORAGE_KEY = "activeUserFilter";
 const LEGACY_SESSION_SEND_FAILURES_STORAGE_KEY = "sessionSendFailures";
 const SESSION_REVIEW_MARKERS_STORAGE_KEY = "sessionReviewedAtById";
@@ -311,11 +205,6 @@ const SOURCE_FILTER_AUTOMATION_VALUE = "automation";
 const ADMIN_USER_FILTER_VALUE = "user_admin";
 const USER_FILTER_ALL_VALUE = "__all_users__";
 const DEFAULT_APP_ID = "chat";
-const WELCOME_APP_ID = "app_welcome";
-const BASIC_CHAT_APP_ID = "app_basic_chat";
-const WELCOME_TEMPLATE_APP_ID = WELCOME_APP_ID;
-const BASIC_CHAT_TEMPLATE_APP_ID = BASIC_CHAT_APP_ID;
-const CREATE_APP_TEMPLATE_APP_ID = "app_create_app";
 const DEFAULT_APP_NAME = "Chat";
 const sessionStateModel = window.RemoteLabSessionStateModel;
 if (!sessionStateModel) {
@@ -323,7 +212,6 @@ if (!sessionStateModel) {
 }
 
 function normalizeSidebarTab(tab) {
-  if (tab === "settings" && tabSettings && settingsPanel) return "settings";
   return "sessions";
 }
 
@@ -370,19 +258,13 @@ let hasAttachedSession = false;
 let sessionStatus = "idle";
 let reconnectTimer = null;
 let sessions = [];
-let sessionAppCatalog = [];
-let availableApps = [];
-let availableUsers = [];
-let hasLoadedUsers = false;
+var availableUsers = [];
+var hasLoadedUsers = false;
 let hasLoadedSessions = false;
 let archivedSessionCount = 0;
 let archivedSessionsLoaded = false;
 let archivedSessionsLoading = false;
 let archivedSessionsRefreshPromise = null;
-let visitorMode = false;
-let visitorSessionId = null;
-let shareSnapshotMode = false;
-let shareSnapshotPayload = bootstrapShareSnapshot;
 let currentSessionRefreshPromise = null;
 let pendingCurrentSessionRefresh = false;
 let hasSeenWsOpen = false;
@@ -412,26 +294,6 @@ const renderedEventState = {
 function setRunningEventBlockExpanded(sessionId, expanded) {
   if (!sessionId || renderedEventState.sessionId !== sessionId) return;
   renderedEventState.runningBlockExpanded = expanded === true;
-}
-
-function shouldUseVisitorRequests() {
-  if (visitorMode) return true;
-  try {
-    return new URL(window.location.href).searchParams.get("visitor") === "1";
-  } catch {
-    return false;
-  }
-}
-
-function withVisitorModeUrl(url) {
-  const parsed = new URL(String(url || ""), window.location.href);
-  if (shouldUseVisitorRequests()) {
-    parsed.searchParams.set("visitor", "1");
-  }
-  if (parsed.origin === window.location.origin) {
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-  }
-  return parsed.toString();
 }
 
 let currentTokens = 0;

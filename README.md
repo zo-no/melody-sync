@@ -10,7 +10,7 @@ It does not care much whether the control surface is a phone, tablet, or desktop
 
 ![MelodySync across surfaces](docs/readme-multisurface-demo.png)
 
-> Current baseline: `v0.3` — an owner-first session runtime, durable on-disk history, executor adapters, App-based workflow packaging, and a no-build web UI that works across phone and desktop.
+> Current baseline: `v0.3` — an owner-first session runtime, durable on-disk history, executor adapters, and a no-build web UI that works across phone and desktop.
 
 > Reach the same system from desktop, phone, and integration surfaces like Feishu or email-driven flows.
 
@@ -56,10 +56,10 @@ The first goal is concrete: in a short conversation, help a user hand off a tedi
 - The biggest unmet need is not encouraging people to open endless concurrent sessions; it is finding repetitive work that is actually worth automating.
 - Most target users are not AI-native operators and do not arrive with product-manager-grade prompts; the AI needs to help clarify the task, gather examples, and design a workable approach.
 - The first high-fit user slice is not literally everyone with a computer; it looks more like time-pressed middle managers / owner-operators in traditional industries who both coordinate others and still personally carry repetitive digital admin work.
-- The first screen cannot be a blank session list. New users need a default `Welcome App` that briefly explains what MelodySync can do, asks about their role and repetitive-work pain point, and guides them toward one concrete first automation.
+- The first screen cannot be a blank session list. New users need a clear default task-entry flow that helps them describe one concrete repetitive job worth automating.
 - The best wedge is simple, fast-payback digital work: data cleanup, analysis, file processing, reports, notifications, and other repetitive scriptable tasks.
 - Phone + desktop + real-machine execution is the product advantage: capture context anywhere, let the machine do the heavy work, and review results or approvals from the most convenient device.
-- `Session`, `App`, concurrency, and distribution still matter, but they are enabling layers or later multipliers rather than the first headline.
+- `Session`, source metadata, concurrency, and distribution still matter, but they are enabling layers or later multipliers rather than the first headline.
 
 ### What MelodySync is
 
@@ -67,7 +67,7 @@ The first goal is concrete: in a short conversation, help a user hand off a tedi
 - an AI collaboration entry point that helps users turn vague problems into executable plans
 - a cross-surface control plane where people can start from phone, continue from desktop, and let the machine do the work
 - a durable work-thread system that helps humans recover context instead of repeatedly re-explaining the task
-- a packaging layer that can turn proven automations into reusable `Apps`
+- a task workspace that keeps durable threads, execution state, and reusable source context
 
 ### What MelodySync is not
 
@@ -81,7 +81,7 @@ The first goal is concrete: in a short conversation, help a user hand off a tedi
 ### Two core product layers
 
 1. **First, solve repetitive digital work.** MelodySync should accept a messy but recurring task, help the user clarify inputs, outputs, and constraints, and turn it into an automation that reliably saves time.
-2. **Then package and reuse what works.** Once an automation proves valuable, MelodySync can turn it into an `App`, template, or other reusable entry point for the same user or nearby user groups.
+2. **Then stabilize and reuse what works.** Once an automation proves valuable, MelodySync should preserve the session context, source metadata, and operating pattern in a form that can be redesigned later without distorting the current product.
 
 ### Product grammar
 
@@ -89,15 +89,14 @@ The current product model is intentionally simple:
 
 - `Session` — the durable work thread
 - `Run` — one execution attempt inside a session
-- `App` — a reusable workflow / policy package for starting sessions
-- `Share snapshot` — an immutable read-only export of a session
+- `Source metadata` — passive tags such as `sourceId` / `sourceName` used to label how a session entered the system
 
 The architectural assumptions behind that model:
 
 - HTTP is the canonical state path and WebSocket only hints that something changed
 - the browser is a control surface, not the system of record
 - runtime processes are disposable; durable state lives on disk
-- the product is single-owner first, with visitor access scoped through `Apps`
+- the product is single-owner first
 - the frontend stays framework-light and endpoint-flexible
 
 ### Why this boundary matters
@@ -107,7 +106,7 @@ MelodySync is opinionated in a few ways:
 - **Clarify the problem before executing.** MelodySync should not assume the user already thinks like an AI product manager; the AI needs to carry part of the problem-framing and solution-design work.
 - **Do not rebuild the executor layer.** MelodySync should not spend most of its energy optimizing single-task agent internals.
 - **Recover context, do not dump logs.** Durable sessions matter more than raw terminal continuity.
-- **Package workflows, do not just share prompts.** `Apps` are reusable operating shapes, not just copy-pasted text.
+- **Package recurring workflows carefully, but keep the current shipped product session-first until the next workflow model is ready.**
 - **Integrate the strongest tools, keep them replaceable.** The point is a stable abstraction layer so better executors can be adopted quickly as the ecosystem evolves.
 
 ### What you can do
@@ -118,8 +117,6 @@ MelodySync is opinionated in a few ways:
 - let the agent auto-title and auto-group sessions in the sidebar
 - paste screenshots directly into the chat
 - let the UI follow your system light/dark appearance automatically
-- create immutable read-only share snapshots
-- create App links for visitor-scoped entry flows
 
 ### Provider note
 
@@ -183,8 +180,6 @@ Open your MelodySync URL on the device you want to use:
 - start from `~` by default, or point the agent at another repo when needed
 - send messages while the UI re-fetches canonical HTTP state in the background
 - leave and come back later without losing the conversation thread
-- share immutable read-only snapshots of a session
-- optionally configure App-based visitor flows and push notifications
 
 ### Daily usage
 
@@ -206,7 +201,7 @@ If you are refreshing yourself after several architecture iterations, use this r
 3. `docs/README.md` — documentation taxonomy and sync rules
 4. `notes/current/core-domain-contract.md` — current domain/refactor baseline
 5. `notes/README.md` — note buckets and cleanup policy
-6. focused guides such as `docs/setup.md`, `docs/external-message-protocol.md`, `docs/creating-apps.md`, and `docs/feishu-bot-setup.md`
+6. focused guides such as `docs/setup.md`, `docs/external-message-protocol.md`, `docs/current-features.md`, and `docs/feishu-bot-setup.md`
 
 ---
 
@@ -264,7 +259,7 @@ melodysync set-password         Set username & password login
 melodysync --help               Show help
 ```
 
-For quick shareable sandboxes on the same machine, use `melodysync guest-instance create <name>`. It provisions a separate `REMOTELAB_INSTANCE_ROOT`, a dedicated launchd service, and an optional Cloudflare hostname without mixing chat history or memory into the owner's main instance. If the agent mailbox is initialized, `create` and `show` also print the default inbound mailbox for that instance, such as `rowan+trial4@example.com` or `trial4@example.com`, depending on the mailbox identity's `instanceAddressMode`.
+For quick isolated sandboxes on the same machine, use `melodysync guest-instance create <name>`. It provisions a separate `REMOTELAB_INSTANCE_ROOT`, a dedicated launchd service, and an optional Cloudflare hostname without mixing chat history or memory into the owner's main instance. If the agent mailbox is initialized, `create` and `show` also print the default inbound mailbox for that instance, such as `rowan+trial4@example.com` or `trial4@example.com`, depending on the mailbox identity's `instanceAddressMode`.
 
 Production updates should go through `melodysync release` rather than live-editing the running `7760` surface. The release command snapshots the shipped runtime, restarts only after the test gate passes, and automatically restores the previous active release if the health check fails.
 
@@ -288,12 +283,10 @@ These are the default paths when no instance overrides are set.
 | Path | Contents |
 |------|----------|
 | `~/.config/melody-sync/auth.json` | Access token + password hash |
-| `~/.config/melody-sync/auth-sessions.json` | Owner/visitor auth sessions |
+| `~/.config/melody-sync/auth-sessions.json` | Owner auth sessions |
 | `~/.config/melody-sync/chat-sessions.json` | Chat session metadata |
 | `~/.config/melody-sync/chat-history/` | Per-session event store (`meta.json`, `context.json`, `events/*.json`, `bodies/*.txt`) |
 | `~/.config/melody-sync/chat-runs/` | Durable run manifests, spool output, and final results |
-| `~/.config/melody-sync/apps.json` | App template definitions |
-| `~/.config/melody-sync/shared-snapshots/` | Immutable read-only session share snapshots |
 | `~/.melody-sync/memory/` | Private machine-specific memory used for pointer-first startup |
 | `~/Library/Logs/chat-server.log` | Chat server stdout **(macOS)** |
 | `~/Library/Logs/cloudflared.log` | Tunnel stdout **(macOS)** |
@@ -324,7 +317,6 @@ These are the default paths when no instance overrides are set.
 - `HttpOnly` + `Secure` + `SameSite=Strict` auth cookies (`Secure` disabled in Tailscale mode)
 - per-IP rate limiting with exponential backoff on failed login
 - default: services bind to `127.0.0.1` only — no direct external exposure; set `CHAT_BIND_HOST=0.0.0.0` for LAN access
-- share snapshots are read-only and isolated from the owner chat surface
 - CSP headers with nonce-based script allowlist
 
 ## Troubleshooting

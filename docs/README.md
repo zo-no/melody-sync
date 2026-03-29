@@ -14,10 +14,11 @@ Read these first when you need the current truth:
 1. `../AGENTS.md` — repo rules, constraints, active priorities
 2. `../README.md` / `../README.zh.md` — product framing, setup path, operator-facing expectations
 3. `project-architecture.md` — current shipped architecture and code map
-4. `../notes/current/core-domain-contract.md` — current domain/refactor baseline
-5. `../notes/current/session-first-workflow-surfaces.md` — current workflow-organization contract for session list / grouping / task-like views
-6. `../notes/current/product-surface-lifecycle.md` — current keep/iterate/retire rule for shipped product surfaces
-7. `setup.md` / `external-message-protocol.md` / other focused guides as needed
+4. `current-features.md` — current shipped feature table
+5. `../notes/current/core-domain-contract.md` — current domain/refactor baseline
+6. `../notes/current/session-first-workflow-surfaces.md` — current workflow-organization contract for session list / grouping / task-like views
+7. `../notes/current/product-surface-lifecycle.md` — current keep/iterate/retire rule for shipped product surfaces
+8. `setup.md` / `external-message-protocol.md` / other focused guides as needed
 
 ## Keep These In Sync
 
@@ -49,17 +50,16 @@ For setup, deployment, connector, and feature-rollout docs, assume the operator 
 - `local-maintenance.md` — upstream-first fork workflow, branch hygiene, and local runtime isolation rules
 - `setup.md` — model-first setup contract, one-round input handoff, human checkpoints, and target state
 - `external-message-protocol.md` — canonical integration contract for external channels
-- `creating-apps.md` — user/developer guide for Apps
+- `current-features.md` — current shipped feature table after product-surface cleanup
 - `../notes/current/session-first-workflow-surfaces.md` — current rule that workflow-organization views stay session-first
 - `../notes/current/product-surface-lifecycle.md` — current rule that shipped features stay reviewable and may later be simplified or retired
 
 ### Focused Integrations
 
-- `automation-apps.md` — automation-as-App pattern for owner-side recurring workflows and review sessions
 - `cloudflare-email-worker.md` — model-first Cloudflare Email Worker deployment contract
 - `feishu-bot-setup.md` — model-first operator + console contract for the RemoteLab Feishu connector
 - `github-auto-triage.md` — model-first GitHub intake and auto-reply rollout contract
-- `remote-capability-monitor.md` — remote-agent capability monitoring backed by a RemoteLab App and review session
+- `remote-capability-monitor.md` — remote-agent capability monitoring backed by the core session API
 - `tunnel-diagnostics.md` — Cloudflare Tunnel latency probe workflow for separating app cost from edge/tunnel cost
 - `voice-connector.md` — model-first wake-word speaker/microphone connector contract for RemoteLab
 
@@ -71,8 +71,7 @@ Short version:
 
 - `../notes/current/` — current baseline notes that still matter operationally
 - `../notes/directional/` — future-facing design direction
-- `../notes/archive/` — historical RFCs, investigations, and superseded merge notes
-- `../notes/local/` — machine/operator-specific state that should not be treated as shared architecture truth
+- keep machine-specific state and stale investigations out of the repo unless they still need to be shared
 
 ## Authoring Rule
 
@@ -88,7 +87,7 @@ If the answer is unclear, prefer:
 - `README.md` / `README.zh.md` for user-facing overview and setup
 - `docs/` for current operational truth
 - `notes/directional/` for future design
-- `notes/archive/` for investigation history
+- PR/commit history for investigations that no longer need an in-repo note
 
 For any new feature doc that describes enabling, wiring, or operating a capability, default to the same pattern:
 

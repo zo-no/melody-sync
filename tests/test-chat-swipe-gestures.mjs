@@ -77,21 +77,25 @@ function createHarness() {
     Promise,
     Element: FakeElement,
     isDesktop: false,
-    visitorMode: false,
     sidebarOverlay,
     addToolModal: { hidden: true },
     openSessionsSidebarCalls: 0,
-    createNewSessionShortcutCalls: 0,
+    openTaskMapDrawerCalls: 0,
     openSessionsSidebar() {
       context.openSessionsSidebarCalls += 1;
       return true;
     },
-    createNewSessionShortcut() {
-      context.createNewSessionShortcutCalls += 1;
-      return true;
-    },
     window: {
       innerWidth: 390,
+      MelodySyncWorkbench: {
+        isTaskMapDrawerOpen() {
+          return false;
+        },
+        openTaskMapDrawer() {
+          context.openTaskMapDrawerCalls += 1;
+          return true;
+        },
+      },
     },
     document: {
       documentElement: {
@@ -158,7 +162,7 @@ const centerRightResult = await runSwipe(centerRightHarness, {
 });
 assert.equal(centerRightResult.prevented, false, 'center-right swipe should no longer steal scrolling');
 assert.equal(centerRightHarness.context.openSessionsSidebarCalls, 0, 'swiping right from the middle should not open the session list');
-assert.equal(centerRightHarness.context.createNewSessionShortcutCalls, 0, 'center-right swipe should not create a new session');
+assert.equal(centerRightHarness.context.openTaskMapDrawerCalls, 0, 'center-right swipe should not open the task map');
 
 const edgeRightHarness = createHarness();
 const edgeRightResult = await runSwipe(edgeRightHarness, {
@@ -168,7 +172,7 @@ const edgeRightResult = await runSwipe(edgeRightHarness, {
 });
 assert.equal(edgeRightResult.prevented, true, 'right-edge swipe should lock the gesture');
 assert.equal(edgeRightHarness.context.openSessionsSidebarCalls, 1, 'swiping right from the left edge should open the session list');
-assert.equal(edgeRightHarness.context.createNewSessionShortcutCalls, 0, 'right-edge swipe should not create a new session');
+assert.equal(edgeRightHarness.context.openTaskMapDrawerCalls, 0, 'right-edge swipe should not open the task map');
 
 const centerLeftHarness = createHarness();
 const centerLeftResult = await runSwipe(centerLeftHarness, {
@@ -178,7 +182,7 @@ const centerLeftResult = await runSwipe(centerLeftHarness, {
 });
 assert.equal(centerLeftResult.prevented, false, 'center-left swipe should no longer steal scrolling');
 assert.equal(centerLeftHarness.context.openSessionsSidebarCalls, 0, 'left swipe from the middle should not open the session list');
-assert.equal(centerLeftHarness.context.createNewSessionShortcutCalls, 0, 'left swipe from the middle should not create a new session');
+assert.equal(centerLeftHarness.context.openTaskMapDrawerCalls, 0, 'left swipe from the middle should not open the task map');
 
 const edgeLeftHarness = createHarness();
 const edgeLeftResult = await runSwipe(edgeLeftHarness, {
@@ -188,7 +192,7 @@ const edgeLeftResult = await runSwipe(edgeLeftHarness, {
 });
 assert.equal(edgeLeftResult.prevented, true, 'left-edge swipe should lock the gesture');
 assert.equal(edgeLeftHarness.context.openSessionsSidebarCalls, 0, 'left-edge swipe should not open the session list');
-assert.equal(edgeLeftHarness.context.createNewSessionShortcutCalls, 1, 'swiping left from the right edge should create a new session');
+assert.equal(edgeLeftHarness.context.openTaskMapDrawerCalls, 1, 'swiping left from the right edge should open the task map drawer');
 
 const verticalHarness = createHarness();
 const verticalResult = await runSwipe(verticalHarness, {
@@ -200,7 +204,7 @@ const verticalResult = await runSwipe(verticalHarness, {
 });
 assert.equal(verticalResult.prevented, false, 'vertical motion should not steal scrolling');
 assert.equal(verticalHarness.context.openSessionsSidebarCalls, 0, 'vertical motion should not open the session list');
-assert.equal(verticalHarness.context.createNewSessionShortcutCalls, 0, 'vertical motion should not create a new session');
+assert.equal(verticalHarness.context.openTaskMapDrawerCalls, 0, 'vertical motion should not open the task map');
 
 const blockedHarness = createHarness();
 await runSwipe(blockedHarness, {
@@ -210,6 +214,6 @@ await runSwipe(blockedHarness, {
   target: new FakeElement({ blocked: true }),
 });
 assert.equal(blockedHarness.context.openSessionsSidebarCalls, 0, 'blocked interactive targets should ignore swipe shortcuts');
-assert.equal(blockedHarness.context.createNewSessionShortcutCalls, 0, 'blocked interactive targets should not create sessions');
+assert.equal(blockedHarness.context.openTaskMapDrawerCalls, 0, 'blocked interactive targets should not open the task map');
 
 console.log('test-chat-swipe-gestures: ok');

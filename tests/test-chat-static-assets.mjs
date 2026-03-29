@@ -10,7 +10,6 @@ import { spawn } from 'child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const cookie = 'session_token=test-session';
-const visitorCookie = 'visitor_session_token=visitor-session';
 
 function randomPort() {
   return 43000 + Math.floor(Math.random() * 10000);
@@ -85,14 +84,6 @@ function setupTempHome() {
     join(configDir, 'auth-sessions.json'),
     JSON.stringify({
       'test-session': { expiry: Date.now() + 60 * 60 * 1000, role: 'owner' },
-      'visitor-session': {
-        expiry: Date.now() + 60 * 60 * 1000,
-        role: 'visitor',
-        appId: 'shared-app',
-        sessionId: 'visitor-session-id',
-        visitorId: 'visitor-123',
-        preferredLanguage: 'zh-CN',
-      },
     }, null, 2),
     'utf8',
   );
@@ -203,22 +194,6 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/gestures\.js(?:\?v=[^"]*)?"/);
     assert.doesNotMatch(page.text, /<script src="\/chat\/voice-input\.js(?:\?v=[^"]*)?"/);
 
-    const visitorPage = await request(port, 'GET', '/?visitor=1', null, { Cookie: visitorCookie });
-    assert.equal(visitorPage.status, 200, 'chat page should also render for visitor session');
-    const visitorBootstrapMatch = visitorPage.text.match(/window\.__REMOTELAB_BOOTSTRAP__ = ([^;]+);/);
-    assert.ok(visitorBootstrapMatch, 'visitor page should inline bootstrap payload');
-    const visitorBootstrap = JSON.parse(visitorBootstrapMatch[1]);
-    assert.deepEqual(
-      visitorBootstrap.auth,
-      {
-        role: 'visitor',
-        appId: 'shared-app',
-        preferredLanguage: 'zh-CN',
-        sessionId: 'visitor-session-id',
-        visitorId: 'visitor-123',
-      },
-      'visitor page should inline auth bootstrap data from the server render',
-    );
     assert.match(page.text, /<script src="\/chat\/init\.js(?:\?v=[^"]*)?"/);
     assert.doesNotMatch(page.text, /id="appFilterSelect"/);
     assert.doesNotMatch(page.text, /id="sourceFilterSelect"/);
@@ -247,7 +222,12 @@ async function main() {
     assert.doesNotMatch(page.text, /id="tabProgress"/);
     assert.doesNotMatch(page.text, /id="saveTemplateBtn"/);
     assert.doesNotMatch(page.text, /id="sessionTemplateSelect"/);
-    assert.match(page.text, /id="questTaskList"/, 'chat page should ship the compressed task-list mount for the session header');
+    assert.match(page.text, /id="taskMapRail"/, 'chat page should ship the dedicated middle-column task map rail');
+    assert.match(page.text, /id="questTaskList"/, 'chat page should ship the task-map mount');
+    assert.match(page.text, /id="taskMapDrawerBtn"/, 'chat page should ship the mobile task-map drawer toggle');
+    assert.match(page.text, /id="taskMapDrawerBackdrop"/, 'chat page should ship the mobile task-map drawer backdrop');
+    assert.match(page.text, /id="questTrackerStatus"/, 'chat page should render the task-status mount inside the task bar');
+    assert.match(page.text, /\/chat\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');
@@ -291,7 +271,10 @@ async function main() {
     assert.match(combinedChatStyles, /--sidebar-width-expanded:\s*min\(80vw, calc\(100vw - 240px\)\);/);
     assert.match(combinedChatStyles, /\.app-shell\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\);/, 'app shell should reserve a fixed header row and a flexible body row');
     assert.match(combinedChatStyles, /\.app-container\s*\{[\s\S]*?min-height:\s*0;/);
-    assert.match(combinedChatStyles, /\.chat-area\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\) auto auto;[\s\S]*?min-height:\s*0;/, 'chat area should model tracker, content, queued panel, and composer as explicit rows');
+    assert.match(combinedChatStyles, /\.chat-area\s*\{[\s\S]*?grid-template-rows:\s*minmax\(0, 1fr\);[\s\S]*?min-height:\s*0;/, 'chat area should now host a single flexible task-manager body row');
+    assert.match(combinedChatStyles, /\.task-manager-main-column\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\) auto auto;[\s\S]*?overflow:\s*hidden;/, 'task-manager main column should model task bar, messages, queued panel, and composer as explicit rows');
+    assert.match(combinedChatStyles, /\.task-manager-body\s*\{[\s\S]*?grid-template-areas:\s*"rail"[\s\S]*?"main";/, 'task-manager body should explicitly model the task map and the main task column');
+    assert.match(combinedChatStyles, /@media \(min-width: 1040px\)\s*\{[\s\S]*?grid-template-areas:\s*"rail main";/, 'desktop task manager should become a true middle-map and right-task-page layout');
     assert.match(combinedChatStyles, /\.chat-area > \*\s*\{[\s\S]*?min-width:\s*0;/, 'chat-area grid children should be allowed to shrink horizontally instead of expanding the column');
     assert.match(combinedChatStyles, /\.messages\s*\{[\s\S]*?min-height:\s*0;/);
     assert.match(combinedChatStyles, /\.messages-inner\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/, 'message column should stay bound to the available chat width');
@@ -319,10 +302,6 @@ async function main() {
     assert.match(loginPage.text, /<meta name="theme-color" content="#f5f5f5" media="\(prefers-color-scheme: light\)">/);
     assert.match(loginPage.text, /<meta name="theme-color" content="#181818" media="\(prefers-color-scheme: dark\)">/);
     assert.match(loginPage.text, /@media \(prefers-color-scheme: dark\)/);
-
-    const apps = await request(port, 'GET', '/api/apps');
-    assert.equal(apps.status, 410, 'owner apps endpoint should report the removed endpoint status');
-    assert.match(apps.text, /"error":"App management has been removed from MelodySync"/);
 
     const createdChat = await request(port, 'POST', '/api/sessions', {
       folder: home,
@@ -376,12 +355,13 @@ async function main() {
       'split asset should use safe revalidation caching',
     );
     assert.ok(splitAsset.headers.etag, 'split asset should expose an ETag');
-    assert.match(splitAsset.text, /const buildInfo = window\.__REMOTELAB_BUILD__ \|\| \{\};/);
+    assert.match(splitAsset.text, /const bootstrapStore = window\.RemoteLabBootstrap;/);
+    assert.match(splitAsset.text, /const buildInfo = bootstrapStore\?\.getBuildInfo\?\.\(\) \|\| \{\};/);
 
     const sessionHttpHelpersAsset = await request(port, 'GET', '/chat/session-http-helpers.js');
     assert.equal(sessionHttpHelpersAsset.status, 200, 'session http helpers asset should load');
     assert.match(sessionHttpHelpersAsset.text, /function enhanceRenderedContentLinks\(/);
-    assert.match(sessionHttpHelpersAsset.text, /const SESSION_LIST_URL = "\/api\/sessions\?includeVisitor=1";/);
+    assert.match(sessionHttpHelpersAsset.text, /const SESSION_LIST_URL = "\/api\/sessions";/);
 
     const sessionHttpListStateAsset = await request(port, 'GET', '/chat/session-http-list-state.js');
     assert.equal(sessionHttpListStateAsset.status, 200, 'session http list state asset should load');
@@ -519,9 +499,7 @@ async function main() {
     assert.match(sidebarUiAsset.text, /requestLayoutPass\("composer-images"\)/);
 
     const settingsUiAsset = await request(port, 'GET', '/chat/settings-ui.js');
-    assert.equal(settingsUiAsset.status, 200, 'settings ui asset should load');
-    assert.match(settingsUiAsset.text, /function renderSettingsAppsPanel\(/);
-    assert.match(settingsUiAsset.text, /function renderSettingsUsersPanel\(/);
+    assert.equal(settingsUiAsset.status, 404, 'removed settings ui asset should no longer be served');
 
     const composeAsset = await request(port, 'GET', '/chat/compose.js');
     assert.equal(composeAsset.status, 200, 'compose asset should load');
@@ -557,12 +535,7 @@ async function main() {
     assert.equal(splitAsset304.text, '', '304 response should not include a body');
 
     const versionedSettingsUiAsset = await request(port, 'GET', '/chat/settings-ui.js?v=test-build');
-    assert.equal(versionedSettingsUiAsset.status, 200, 'versioned settings ui asset should load');
-    assert.equal(
-      versionedSettingsUiAsset.headers['cache-control'],
-      'public, max-age=31536000, immutable',
-      'versioned settings ui asset should be immutable cache hits',
-    );
+    assert.equal(versionedSettingsUiAsset.status, 404, 'removed versioned settings ui asset should no longer be served');
 
     const versionedSessionSurfaceUiAsset = await request(port, 'GET', '/chat/session-surface-ui.js?v=test-build');
     assert.equal(versionedSessionSurfaceUiAsset.status, 200, 'versioned session surface ui asset should load');

@@ -215,11 +215,11 @@ Read against these files:
 - `lib/auth.mjs`
 - `chat/router.mjs`
 - `chat/system-prompt.mjs`
-- share-link and visitor-related flows in `chat/session-manager.mjs`
+- owner-side session flows in `chat/session-manager.mjs`
 
 Practice task:
 
-- map the trust boundaries for owner, visitor, external connector, and local process execution
+- map the trust boundaries for owner, external connector, and local process execution
 
 Deliverable:
 

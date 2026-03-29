@@ -143,8 +143,7 @@ function syncComposerVoiceCleanupToggle() {
     && getCurrentSession()?.archived === true;
   const disabled = !!hasPendingComposerSend()
     || !currentSessionId
-    || archived
-    || (typeof shareSnapshotMode !== "undefined" && shareSnapshotMode);
+    || archived;
   voiceCleanupToggle.disabled = disabled;
   voiceCleanupToggle.classList.toggle("active", enabled);
   voiceCleanupToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
@@ -354,7 +353,6 @@ function getComposerDraftText(sessionId = currentSessionId) {
 }
 
 function sendMessage(existingRequestId) {
-  if (typeof shareSnapshotMode !== "undefined" && shareSnapshotMode) return;
   const text = msgInput.value.trim();
   const currentSession = getCurrentSession();
   if (hasPendingComposerSend()) return;
@@ -413,14 +411,12 @@ function sendMessage(existingRequestId) {
         text: outboundText || "(attachment)",
       };
       msg.requestId = requestId;
-      if (!visitorMode) {
-        if (sendTool) msg.tool = sendTool;
-        if (sendModel) msg.model = sendModel;
-        if (sendReasoningKind === "enum") {
-          if (sendEffort) msg.effort = sendEffort;
-        } else if (sendReasoningKind === "toggle") {
-          msg.thinking = sendThinking;
-        }
+      if (sendTool) msg.tool = sendTool;
+      if (sendModel) msg.model = sendModel;
+      if (sendReasoningKind === "enum") {
+        if (sendEffort) msg.effort = sendEffort;
+      } else if (sendReasoningKind === "toggle") {
+        msg.thinking = sendThinking;
       }
       if (outboundImages.length > 0) {
         msg.images = outboundImages.map((img) => ({
@@ -708,33 +704,21 @@ let activeTab = normalizeSidebarTab(
   pendingNavigationState.tab ||
     localStorage.getItem(ACTIVE_SIDEBAR_TAB_STORAGE_KEY) ||
     "sessions",
-); // "sessions" | "settings"
+);
 
 function switchTab(tab, { syncState = true } = {}) {
   activeTab = normalizeSidebarTab(tab);
-  const showingSessions = activeTab === "sessions";
-  tabSessions?.classList.toggle("active", activeTab === "sessions");
-  tabSettings?.classList.toggle("active", activeTab === "settings");
+  const showingSessions = true;
+  tabSessions?.classList.toggle("active", true);
   if (typeof syncSidebarFiltersVisibility === "function") {
     syncSidebarFiltersVisibility(showingSessions);
   } else if (sidebarFilters) {
     sidebarFilters.classList.toggle("hidden", !showingSessions);
   }
-  if (sessionList) sessionList.style.display = showingSessions ? "" : "none";
-  settingsPanel?.classList.toggle("visible", activeTab === "settings");
-  sessionListFooter?.classList.toggle("hidden", activeTab === "settings");
-  sortSessionListBtn?.classList.toggle("hidden", activeTab === "settings");
-  newSessionBtn?.classList.toggle("hidden", activeTab === "settings");
-  if (activeTab === "settings" && !visitorMode && typeof fetchAppsList === "function") {
-    void fetchAppsList().catch((error) => {
-      console.warn("[apps] Failed to refresh apps for settings:", error.message);
-    });
-    if (typeof fetchUsersList === "function") {
-      void fetchUsersList().catch((error) => {
-        console.warn("[users] Failed to refresh users for settings:", error.message);
-      });
-    }
-  }
+  if (sessionList) sessionList.style.display = "";
+  sessionListFooter?.classList.remove("hidden");
+  sortSessionListBtn?.classList.remove("hidden");
+  newSessionBtn?.classList.remove("hidden");
   if (syncState) {
     syncBrowserState();
   }
@@ -743,6 +727,5 @@ function switchTab(tab, { syncState = true } = {}) {
 globalThis.switchTab = switchTab;
 
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
-tabSettings?.addEventListener("click", () => switchTab("settings"));
 
 switchTab(activeTab, { syncState: false });
