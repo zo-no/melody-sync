@@ -316,7 +316,7 @@ const { elements: mainElements, fetchCalls: mainFetchCalls, attachCalls: mainAtt
 });
 
 assert.equal(mainElements.get('questTracker').hidden, false, 'tracker should render when a session is attached');
-assert.equal(mainElements.get('questTrackerLabel').textContent, '当前任务', 'mainline tracker should keep a simple current-task label');
+assert.equal(mainElements.get('questTrackerLabel').textContent, '', 'mainline tracker should not render an extra task-bar label');
 assert.equal(mainElements.get('questTrackerStatus').hidden, false, 'mainline tracker should render the task status inside the task bar');
 assert.equal(mainElements.get('questTrackerStatusText').textContent, '空闲', 'idle mainline tasks should surface an idle status inside the task bar');
 assert.equal(mainElements.get('questTrackerTitle').hidden, false, 'mainline tracker should show the current task title directly');
@@ -500,7 +500,7 @@ const { elements: branchElements, fetchCalls: branchFetchCalls } = await runScen
   },
 });
 
-assert.equal(branchElements.get('questTrackerLabel').textContent, '当前任务', 'branch tracker should keep a simple current-task label');
+assert.equal(branchElements.get('questTrackerLabel').textContent, '', 'branch tracker should not render an extra task-bar label');
 assert.equal(branchElements.get('questTrackerTitle').hidden, false, 'branch tracker should keep the branch title visible');
 assert.equal(branchElements.get('questTrackerTitle').textContent, '表现主义', 'branch tracker should show the current branch goal');
 assert.equal(branchElements.get('questTrackerBranch').hidden, false, 'branch tracker should show the parent mainline reference inside the task bar');

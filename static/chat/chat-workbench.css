@@ -100,7 +100,6 @@
   font-size: 16px;
 }
 
-.quest-tracker-label,
 .quest-tracker-branch-label,
 .quest-merge-note-label {
   font-size: 9px;
@@ -111,7 +110,6 @@
   color: var(--text-secondary);
 }
 
-.quest-tracker-label,
 .quest-tracker-branch-label {
   display: none;
 }
@@ -2141,7 +2139,6 @@ button.quest-task-flow-node {
 }
 
 .quest-tracker-topline,
-.quest-tracker-label,
 .quest-tracker-branch-label {
   display: none !important;
 }

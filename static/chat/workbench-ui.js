@@ -3,7 +3,6 @@
   const trackerStatusEl = document.getElementById("questTrackerStatus");
   const trackerStatusDotEl = document.getElementById("questTrackerStatusDot");
   const trackerStatusTextEl = document.getElementById("questTrackerStatusText");
-  const trackerLabelEl = document.getElementById("questTrackerLabel");
   const trackerTitleEl = document.getElementById("questTrackerTitle");
   const trackerBranchEl = document.getElementById("questTrackerBranch");
   const trackerBranchLabelEl = document.getElementById("questTrackerBranchLabel");
@@ -2082,10 +2081,6 @@
     tracker.classList.toggle("is-branch-focus", showBranch);
     const branchStatus = String(state.branchStatus || "").toLowerCase();
     const visibleBranchEntries = getVisibleBranchEntries(state);
-    const taskBarLabel = translate("taskBar.label");
-    trackerLabelEl.textContent = taskBarLabel && taskBarLabel !== "taskBar.label"
-      ? taskBarLabel
-      : "当前任务";
     renderTrackerStatus(state);
     const trackerTitle = getTrackerPrimaryTitle(state);
     const trackerPrimaryDetail = getTrackerPrimaryDetail(state);
