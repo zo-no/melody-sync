@@ -276,7 +276,7 @@ async function main() {
     assert.match(combinedChatStyles, /\.chat-area\s*\{[\s\S]*?grid-template-rows:\s*minmax\(0, 1fr\);[\s\S]*?min-height:\s*0;/, 'chat area should now host a single flexible task-manager body row');
     assert.match(combinedChatStyles, /\.task-manager-main-column\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\) auto auto;[\s\S]*?overflow:\s*hidden;/, 'task-manager main column should model task bar, messages, queued panel, and composer as explicit rows');
     assert.match(combinedChatStyles, /\.task-manager-body\s*\{[\s\S]*?grid-template-areas:\s*"rail"[\s\S]*?"main";/, 'task-manager body should explicitly model the task map and the main task column');
-    assert.match(combinedChatStyles, /@media \(min-width: 1040px\)\s*\{[\s\S]*?grid-template-areas:\s*"rail main";/, 'desktop task manager should become a true middle-map and right-task-page layout');
+    assert.match(combinedChatStyles, /@media \(min-width: 768px\)\s*\{[\s\S]*?grid-template-areas:\s*"main rail";/, 'desktop task manager should use a single PC-first workspace with the map as the right-side rail');
     assert.match(combinedChatStyles, /\.chat-area > \*\s*\{[\s\S]*?min-width:\s*0;/, 'chat-area grid children should be allowed to shrink horizontally instead of expanding the column');
     assert.match(combinedChatStyles, /\.messages\s*\{[\s\S]*?min-height:\s*0;/);
     assert.match(combinedChatStyles, /\.messages-inner\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/, 'message column should stay bound to the available chat width');

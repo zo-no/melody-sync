@@ -58,6 +58,7 @@ const SESSION_ORGANIZER_POLL_INTERVAL_MS = 1200;
 const SESSION_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 let sessionListOrganizerInFlight = null;
 let sessionListOrganizerLabelResetTimer = null;
+let initialInboxSessionPromise = null;
 
 const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   "You are MelodySync's hidden session-list organizer.",
@@ -103,6 +104,79 @@ function scheduleSortSessionListButtonReset(delayMs = 1600) {
     sessionListOrganizerLabelResetTimer = null;
     setSortSessionListButtonState(DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL, { busy: false });
   }, delayMs);
+}
+
+function getInitialInboxSessionName() {
+  const translated = typeof window?.remotelabT === "function"
+    ? window.remotelabT("sidebar.bootstrapSession")
+    : "";
+  return translated && translated !== "sidebar.bootstrapSession"
+    ? translated
+    : "Initial Task";
+}
+
+function getInboxGroupLabel() {
+  const translated = typeof window?.remotelabT === "function"
+    ? window.remotelabT("sidebar.group.inbox")
+    : "";
+  return translated && translated !== "sidebar.group.inbox"
+    ? translated
+    : "收集箱";
+}
+
+function getPreferredSessionCreationTool() {
+  return [
+    preferredTool,
+    selectedTool,
+    Array.isArray(toolsList) ? toolsList[0]?.id : "",
+    typeof DEFAULT_TOOL_ID === "string" ? DEFAULT_TOOL_ID : "",
+  ].find((value) => typeof value === "string" && value.trim()) || "";
+}
+
+async function ensureInitialInboxSession() {
+  if (initialInboxSessionPromise) return initialInboxSessionPromise;
+  const tool = getPreferredSessionCreationTool();
+  if (!tool) return null;
+  initialInboxSessionPromise = (async () => {
+    try {
+      const data = await fetchJsonOrRedirect("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          folder: "~",
+          tool,
+          name: getInitialInboxSessionName(),
+          group: getInboxGroupLabel(),
+          sourceId: typeof DEFAULT_APP_ID === "string" ? DEFAULT_APP_ID : "chat",
+          sourceName: typeof DEFAULT_APP_NAME === "string" ? DEFAULT_APP_NAME : "Chat",
+        }),
+      });
+      const session = data?.session || null;
+      if (!session) return null;
+      applySessionListState([session], { archivedCount: 0 });
+      const hasSelectedSession = currentSessionId
+        && sessions.some((entry) => entry?.id === currentSessionId);
+      if (!hasSelectedSession && typeof attachSession === "function") {
+        attachSession(session.id, session);
+      }
+      if (typeof globalThis.setSidebarCollapsed === "function") {
+        globalThis.setSidebarCollapsed(true);
+      }
+      if (typeof window !== "undefined" && typeof window.MelodySyncWorkbench?.closeTaskMapDrawer === "function") {
+        window.MelodySyncWorkbench.closeTaskMapDrawer();
+      }
+      if (typeof requestLayoutPass === "function") {
+        requestLayoutPass("seed-session-layout");
+      }
+      return session;
+    } catch (error) {
+      console.warn("[sessions] Failed to create the initial inbox task:", error?.message || error);
+      return null;
+    } finally {
+      initialInboxSessionPromise = null;
+    }
+  })();
+  return initialInboxSessionPromise;
 }
 
 function buildSessionListOrganizerSessionMetadata(session) {
@@ -607,8 +681,16 @@ async function fetchArchivedSessions() {
 
 async function fetchSessionsList() {
   const data = await fetchJsonOrRedirect(SESSION_LIST_URL);
-  applySessionListState(data.sessions || [], {
-    archivedCount: Number.isInteger(data.archivedCount) ? data.archivedCount : 0,
+  const nextSessions = Array.isArray(data?.sessions) ? data.sessions : [];
+  const nextArchivedCount = Number.isInteger(data?.archivedCount) ? data.archivedCount : 0;
+  if (nextSessions.length === 0 && nextArchivedCount === 0) {
+    const seededSession = await ensureInitialInboxSession();
+    if (seededSession) {
+      return sessions;
+    }
+  }
+  applySessionListState(nextSessions, {
+    archivedCount: nextArchivedCount,
   });
   return sessions;
 }

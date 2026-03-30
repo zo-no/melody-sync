@@ -51,7 +51,7 @@ function renderSessionList() {
     groups.get(groupInfo.key).clusters.push(cluster);
   }
 
-  const showGroupHeaders = groups.size > 1 || pinnedClusters.length > 0;
+  const showGroupHeaders = groups.size > 0;
   const orderedGroups = [...groups.entries()].sort(([, left], [, right]) => {
     const leftOrder = Number.isInteger(left?.order) ? left.order : 999;
     const rightOrder = Number.isInteger(right?.order) ? right.order : 999;
@@ -108,7 +108,7 @@ function renderArchivedSection() {
   const existing = document.getElementById("archivedSection");
   if (existing) existing.remove();
   const archivedSessions = getVisibleArchivedSessions();
-  const shouldRenderSection = archivedSessionsLoading || archivedSessionsLoaded || archivedSessionCount > 0 || archivedSessions.length > 0;
+  const shouldRenderSection = archivedSessionsLoading || archivedSessionCount > 0 || archivedSessions.length > 0;
   if (!shouldRenderSection) return;
 
   const ARCHIVED_FOLDER_KEY = "folder:archived";

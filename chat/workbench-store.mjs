@@ -219,12 +219,15 @@ function getSessionClusterGoal(session, context = null) {
   );
 }
 
-function getSessionClusterLineRole(session, context = null) {
-  return normalizeLineRole(
-    context?.lineRole
-    || session?.taskCard?.lineRole
-    || (normalizeNullableText(session?.sourceContext?.parentSessionId) ? 'branch' : 'main'),
+function getRecordedParentSessionId(session, context = null) {
+  return normalizeNullableText(
+    context?.parentSessionId
+    || session?.sourceContext?.parentSessionId,
   );
+}
+
+function getSessionClusterLineRole(session, context = null) {
+  return getRecordedParentSessionId(session, context) ? 'branch' : 'main';
 }
 
 function buildTaskClusters(state, sessions = []) {
@@ -393,13 +396,13 @@ function pickProjectTitle(session, taskCard) {
   );
 }
 
-function pickMainGoal(session, taskCard) {
+function pickMainGoal(session, taskCard, options = {}) {
+  const lineRole = options.lineRole || (getRecordedParentSessionId(session, options.context) ? 'branch' : 'main');
   const goal = normalizeNullableText(
-    normalizeLineRole(taskCard?.lineRole) === 'branch'
+    lineRole === 'branch'
       ? (taskCard?.goal || session?.name || '')
       : (session?.name || taskCard?.goal || ''),
   );
-  const lineRole = normalizeLineRole(taskCard?.lineRole);
   const branchFrom = normalizeNullableText(taskCard?.branchFrom);
   return normalizeNullableText(
     (lineRole === 'branch' ? taskCard?.mainGoal : '')
@@ -889,14 +892,18 @@ function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(
   const taskCard = normalizeSessionTaskCard(taskCardInput || session.taskCard || {});
   const project = upsertProject(state, session, taskCard, now);
 
-  const mainGoal = pickMainGoal(session, taskCard) || project.title;
-  const lineRole = normalizeLineRole(taskCard?.lineRole || (normalizeNullableText(session?.sourceContext?.kind) ? 'branch' : 'main'));
+  const existingContext = getActiveSessionContext(state, session.id);
+  const parentSessionId = getRecordedParentSessionId(session, existingContext);
+  const lineRole = parentSessionId ? 'branch' : 'main';
+  const mainGoal = pickMainGoal(session, taskCard, {
+    context: existingContext,
+    lineRole,
+  }) || project.title;
   const currentGoal = normalizeNullableText(taskCard?.goal || session.name || mainGoal);
   const nextStep = normalizeNullableText((taskCard?.nextSteps || [])[0]);
   const checkpoint = pickCheckpoint(taskCard, currentGoal || mainGoal);
   const sourceNodeId = normalizeNullableText(session?.sourceContext?.nodeId);
   const sourceNode = sourceNodeId ? getNodeById(state, sourceNodeId) : null;
-  const parentSessionId = normalizeNullableText(session?.sourceContext?.parentSessionId);
 
   let rootNode = project.rootNodeId ? getNodeById(state, project.rootNodeId) : null;
   rootNode = upsertNode(state, {
@@ -925,7 +932,6 @@ function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(
     };
   }
 
-  const existingContext = getActiveSessionContext(state, session.id);
   if (existingContext && normalizeLineRole(existingContext.lineRole) !== lineRole) {
     const contextIndex = state.branchContexts.findIndex((entry) => entry.id === existingContext.id);
     if (contextIndex !== -1) {

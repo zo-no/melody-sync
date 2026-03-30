@@ -531,6 +531,11 @@
   background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
 }
 
+.task-cluster-expander-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .task-cluster-expander-icon,
 .task-cluster-expander-icon.rl-icon {
   width: 14px;

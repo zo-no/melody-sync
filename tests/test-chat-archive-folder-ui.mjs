@@ -233,4 +233,51 @@ assert.equal(
   'archived folder should not recursively refetch while an archived-session load is already in flight',
 );
 
+const emptyDocument = createFakeDocument();
+const emptyContext = {
+  document: emptyDocument,
+  sessionList: emptyDocument.createElement('div'),
+  collapsedFolders: {},
+  archivedSessionsLoading: false,
+  archivedSessionsLoaded: true,
+  archivedSessionCount: 0,
+  COLLAPSED_GROUPS_STORAGE_KEY: 'collapsedSessionGroups',
+  localStorage: { setItem() {} },
+  console,
+  t: renderContext.t,
+  esc: renderContext.esc,
+  renderUiIcon: renderContext.renderUiIcon,
+  getVisibleArchivedSessions() {
+    return [];
+  },
+  getFilteredSessionEmptyText() {
+    return 'No archived tasks';
+  },
+  isBranchTaskSession() {
+    return false;
+  },
+  createActiveSessionItem() {
+    throw new Error('createActiveSessionItem should not run when there are no archived tasks');
+  },
+  fetchArchivedSessions() {
+    throw new Error('fetchArchivedSessions should not run when there are no archived tasks');
+  },
+};
+emptyContext.globalThis = emptyContext;
+
+vm.runInNewContext(`
+  ${renderArchivedSectionSource}
+  globalThis.renderArchivedSection = renderArchivedSection;
+`, emptyContext, {
+  filename: 'static/chat/session-list-ui.js',
+});
+
+emptyContext.renderArchivedSection();
+
+assert.equal(
+  emptyContext.sessionList.children.length,
+  0,
+  'archived folder should stay hidden when there are no archived tasks',
+);
+
 console.log('test-chat-archive-folder-ui: ok');

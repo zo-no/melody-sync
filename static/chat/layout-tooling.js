@@ -191,6 +191,12 @@ function initResponsiveLayout() {
       document.documentElement.classList.remove("keyboard-open");
       document.body?.classList.remove("keyboard-open");
       sidebarOverlay.classList.remove("open");
+    } else {
+      document.body?.classList?.remove?.("sidebar-is-collapsed");
+      sidebarOverlay.classList.remove("is-collapsed");
+    }
+    if (typeof globalThis.syncSidebarCollapseState === "function") {
+      globalThis.syncSidebarCollapseState({ persist: false });
     }
     runLayoutPass("breakpoint");
   }

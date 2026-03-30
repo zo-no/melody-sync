@@ -10,11 +10,57 @@ function closeSidebarFn() {
   sidebarOverlay.classList.remove("open");
 }
 
+function getSidebarCollapseLabel() {
+  return t(desktopSidebarCollapsed ? "sidebar.expand" : "sidebar.collapse");
+}
+
+function persistSidebarCollapseState() {
+  try {
+    localStorage.setItem(
+      SIDEBAR_COLLAPSE_STORAGE_KEY,
+      desktopSidebarCollapsed ? "true" : "false",
+    );
+  } catch {}
+}
+
+function syncSidebarCollapseState({ persist = false } = {}) {
+  const collapsed = isDesktop && desktopSidebarCollapsed === true;
+  sidebarOverlay.classList.toggle("is-collapsed", collapsed);
+  document.body?.classList?.toggle?.("sidebar-is-collapsed", collapsed);
+  const menuLabel = isDesktop ? getSidebarCollapseLabel() : t("nav.sessions");
+  menuBtn.title = menuLabel;
+  menuBtn.setAttribute("aria-label", menuLabel);
+  menuBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  if (persist) {
+    persistSidebarCollapseState();
+  }
+}
+
+function setSidebarCollapsed(collapsed, { persist = true } = {}) {
+  desktopSidebarCollapsed = isDesktop && collapsed === true;
+  syncSidebarCollapseState({ persist });
+  if (typeof requestLayoutPass === "function") {
+    requestLayoutPass("sidebar-collapse");
+  }
+}
+
+function toggleSidebarCollapsed() {
+  if (!isDesktop) {
+    openSidebar();
+    return;
+  }
+  setSidebarCollapsed(!desktopSidebarCollapsed);
+}
+
 function openSessionsSidebar() {
   if (typeof switchTab === "function") {
     switchTab("sessions");
   }
-  openSidebar();
+  if (isDesktop) {
+    setSidebarCollapsed(false);
+  } else {
+    openSidebar();
+  }
   return true;
 }
 
@@ -42,12 +88,15 @@ function createSortSessionListShortcut() {
 
 globalThis.createNewSessionShortcut = createNewSessionShortcut;
 globalThis.createSortSessionListShortcut = createSortSessionListShortcut;
+globalThis.syncSidebarCollapseState = syncSidebarCollapseState;
+globalThis.setSidebarCollapsed = setSidebarCollapsed;
 
-menuBtn.addEventListener("click", openSidebar);
+menuBtn.addEventListener("click", toggleSidebarCollapsed);
 closeSidebar.addEventListener("click", closeSidebarFn);
 sidebarOverlay.addEventListener("click", (e) => {
   if (e.target === sidebarOverlay && !isDesktop) closeSidebarFn();
 });
+syncSidebarCollapseState({ persist: false });
 
 // ---- Session list actions ----
 newSessionBtn?.addEventListener("click", () => {

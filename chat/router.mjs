@@ -12,26 +12,16 @@ import {
 import { saveUiRuntimeSelection } from '../lib/runtime-selection.mjs';
 import { getAvailableToolsAsync } from '../lib/tools.mjs';
 import {
-  cancelActiveRun,
-  createSession,
-  delegateSession,
   deleteSessionPermanently,
-  forkSession,
   getHistory,
-  getRunState,
-  organizeSession,
-  resolveSavedAttachments,
-  saveAttachments,
   getSession,
   getSessionEventsAfter,
   getSessionSourceContext,
   getSessionTimelineEvents,
   listSessions,
   renameSession,
-  sendMessage,
   setSessionArchived,
   setSessionPinned,
-  submitHttpMessage,
   updateSessionLastReviewedAt,
   updateSessionGrouping,
   updateSessionAgreements,
@@ -59,7 +49,10 @@ import { broadcastAll } from './ws-clients.mjs';
 import { handlePublicRoutes } from './router-public-routes.mjs';
 import { handleAssetRoutes } from './routes/assets.mjs';
 import { handleAuthRoutes } from './routes/auth.mjs';
+import { handleRunRoutes } from './routes/runs.mjs';
 import { handleSessionReadRoutes } from './routes/session-read.mjs';
+import { handleSessionWriteRoutes } from './routes/session-write.mjs';
+import { handleWorkbenchRoutes } from './routes/workbench.mjs';
 import {
   buildFileAssetDirectUrl,
   createFileAssetUploadIntent,
@@ -68,22 +61,6 @@ import {
   getFileAssetBootstrapConfig,
   getFileAssetForClient,
 } from './file-assets.mjs';
-import {
-  createBranchFromSession,
-  createBranchFromNode,
-  createCaptureItem,
-  createNode as createWorkbenchNode,
-  createProject as createWorkbenchProject,
-  createProjectSummary,
-  getWorkbenchSnapshot,
-  getWorkbenchTrackerSnapshot,
-  mergeBranchSessionBackToMain,
-  promoteCaptureItem,
-  setBranchCandidateSuppressed,
-  setBranchSessionStatus,
-  setSessionReminderSnooze,
-  writeProjectToObsidian,
-} from './workbench-store.mjs';
 
 // Paths are resolved from the active runtime root on each request.
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -152,7 +129,6 @@ const staticMimeTypesByExtension = {
 };
 
 const staticDirResolved = resolve(staticDir);
-const MESSAGE_SUBMISSION_MAX_BYTES = 256 * 1024 * 1024;
 const uploadedMediaMimeTypes = {
   gif: 'image/gif',
   jpeg: 'image/jpeg',
@@ -174,96 +150,6 @@ const uploadedMediaMimeTypes = {
   webp: 'image/webp',
   zip: 'application/zip',
 };
-
-function bodyTooLargeError() {
-  return Object.assign(new Error('Request body too large'), { code: 'BODY_TOO_LARGE' });
-}
-
-function getMultipartBodyLength(req) {
-  const rawLength = Array.isArray(req.headers['content-length'])
-    ? req.headers['content-length'][0]
-    : req.headers['content-length'];
-  const parsedLength = Number.parseInt(rawLength || '', 10);
-  return Number.isFinite(parsedLength) && parsedLength >= 0 ? parsedLength : null;
-}
-
-function parseFormString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function parseFormJson(value, fallback) {
-  if (typeof value !== 'string' || !value.trim()) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-}
-
-async function readSessionMessagePayload(req, pathname) {
-  const contentType = String(req.headers['content-type'] || '').toLowerCase();
-  if (!contentType.startsWith('multipart/form-data')) {
-    const body = await readBody(req, MESSAGE_SUBMISSION_MAX_BYTES);
-    return JSON.parse(body);
-  }
-
-  const contentLength = getMultipartBodyLength(req);
-  if (contentLength !== null && contentLength > MESSAGE_SUBMISSION_MAX_BYTES) {
-    throw bodyTooLargeError();
-  }
-
-  const formRequest = new Request(`http://127.0.0.1${pathname}`, {
-    method: req.method,
-    headers: req.headers,
-    body: req,
-    duplex: 'half',
-  });
-  const formData = await formRequest.formData();
-  const images = [];
-  for (const entry of formData.getAll('images')) {
-    if (!entry || typeof entry.arrayBuffer !== 'function') continue;
-    images.push({
-      buffer: Buffer.from(await entry.arrayBuffer()),
-      mimeType: typeof entry.type === 'string' ? entry.type : '',
-      originalName: typeof entry.name === 'string' ? entry.name : '',
-    });
-  }
-  const existingImages = parseFormJson(parseFormString(formData.get('existingImages')), []);
-  if (Array.isArray(existingImages)) {
-    for (const image of existingImages) {
-      if (!image || typeof image !== 'object') continue;
-      if (typeof image.filename !== 'string' || !image.filename.trim()) continue;
-      images.push({
-        filename: image.filename.trim(),
-        originalName: parseFormString(image.originalName),
-        mimeType: parseFormString(image.mimeType),
-      });
-    }
-  }
-  const externalAssets = parseFormJson(parseFormString(formData.get('externalAssets')), []);
-  if (Array.isArray(externalAssets)) {
-    for (const asset of externalAssets) {
-      if (!asset || typeof asset !== 'object') continue;
-      if (typeof asset.assetId !== 'string' || !asset.assetId.trim()) continue;
-      images.push({
-        assetId: asset.assetId.trim(),
-        originalName: parseFormString(asset.originalName),
-        mimeType: parseFormString(asset.mimeType),
-      });
-    }
-  }
-
-  return {
-    requestId: parseFormString(formData.get('requestId')),
-    text: parseFormString(formData.get('text')),
-    tool: parseFormString(formData.get('tool')),
-    model: parseFormString(formData.get('model')),
-    effort: parseFormString(formData.get('effort')),
-    thinking: parseFormString(formData.get('thinking')) === 'true',
-    sourceContext: parseFormJson(parseFormString(formData.get('sourceContext')), null),
-    images,
-  };
-}
 
 function getLatestMtimeMsSync(path) {
   let stat;
@@ -893,166 +779,14 @@ export async function handleRequest(req, res) {
     return;
   }
 
-  if (pathname === '/api/workbench' && req.method === 'GET') {
-    const snapshot = await getWorkbenchSnapshot();
-    writeJson(res, 200, snapshot);
-    return;
-  }
-
-  if (pathname.startsWith('/api/workbench/') && req.method === 'GET') {
-    const parts = pathname.split('/').filter(Boolean);
-    if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'tracker') {
-      const sessionId = parts[3];
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      const trackerSnapshot = await getWorkbenchTrackerSnapshot(sessionId);
-      writeJson(res, 200, trackerSnapshot);
-      return;
-    }
-  }
-
-  if (pathname.startsWith('/api/workbench/') && req.method === 'POST') {
-    const parts = pathname.split('/').filter(Boolean);
-    let payload = {};
-    try {
-      const raw = await readBody(req, 65536);
-      payload = raw ? JSON.parse(raw) : {};
-    } catch {
-      writeJson(res, 400, { error: 'Invalid request body' });
-      return;
-    }
-
-    try {
-      if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'captures') {
-        const captureItem = await createCaptureItem(payload);
-        writeJson(res, 201, {
-          captureItem,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects') {
-        const project = await createWorkbenchProject(payload);
-        writeJson(res, 201, {
-          project,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'nodes') {
-        const node = await createWorkbenchNode(payload);
-        writeJson(res, 201, {
-          node,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'captures' && parts[4] === 'promote') {
-        const captureId = parts[3];
-        const outcome = await promoteCaptureItem(captureId, payload);
-        writeJson(res, 201, {
-          ...outcome,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'nodes' && parts[4] === 'branch') {
-        const nodeId = parts[3];
-        const outcome = await createBranchFromNode(nodeId, payload);
-        writeJson(res, 201, {
-          session: createClientSessionDetail(outcome.session),
-          branchContext: outcome.branchContext,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'branches') {
-        const sessionId = parts[3];
-        const outcome = await createBranchFromSession(sessionId, payload);
-        writeJson(res, 201, {
-          session: createClientSessionDetail(outcome.session),
-          branchContext: outcome.branchContext,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'candidate-suppression') {
-        const sessionId = parts[3];
-        const branchTitle = typeof payload?.branchTitle === 'string' ? payload.branchTitle.trim() : '';
-        if (!branchTitle) {
-          writeJson(res, 400, { error: 'branchTitle is required' });
-          return;
-        }
-        const outcome = await setBranchCandidateSuppressed(sessionId, branchTitle, payload?.suppressed !== false);
-        writeJson(res, 200, {
-          session: createClientSessionDetail(outcome.session),
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'branch-status') {
-        const sessionId = parts[3];
-        const outcome = await setBranchSessionStatus(sessionId, payload);
-        writeJson(res, 200, {
-          session: createClientSessionDetail(outcome.session),
-          branchContext: outcome.branchContext,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'reminder') {
-        const sessionId = parts[3];
-        const reminder = await setSessionReminderSnooze(sessionId, payload);
-        writeJson(res, 200, {
-          reminder,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'merge-return') {
-        const sessionId = parts[3];
-        const outcome = await mergeBranchSessionBackToMain(sessionId, payload);
-        writeJson(res, 200, {
-          session: createClientSessionDetail(outcome.parentSession),
-          mergeNote: outcome.mergeNote,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects' && parts[4] === 'summaries') {
-        const projectId = parts[3];
-        const summary = await createProjectSummary(projectId);
-        writeJson(res, 201, {
-          summary,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-
-      if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects' && parts[4] === 'writeback') {
-        const projectId = parts[3];
-        const outcome = await writeProjectToObsidian(projectId, payload);
-        writeJson(res, 200, {
-          ...outcome,
-          snapshot: await getWorkbenchSnapshot(),
-        });
-        return;
-      }
-    } catch (error) {
-      writeJson(res, 400, { error: error.message || 'Workbench request failed' });
-      return;
-    }
-
-    writeJson(res, 404, { error: 'Workbench route not found' });
+  if (await handleWorkbenchRoutes({
+    req,
+    res,
+    pathname,
+    authSession,
+    requireSessionAccess,
+    writeJson,
+  })) {
     return;
   }
 
@@ -1242,319 +976,14 @@ export async function handleRequest(req, res) {
     return;
   }
 
-  if (pathname.startsWith('/api/sessions/') && req.method === 'POST') {
-    const parts = pathname.split('/').filter(Boolean);
-    const sessionId = parts[2];
-    const action = parts[3] || null;
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'run-scheduled-trigger') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      writeJson(res, 410, { error: 'Scheduled session triggers have been removed from MelodySync' });
-      return;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'organize') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      let payload = {};
-      try {
-        const body = await readBody(req, 8192);
-        payload = body ? JSON.parse(body) : {};
-      } catch {
-        writeJson(res, 400, { error: 'Invalid request body' });
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'tool') && payload.tool !== null && typeof payload.tool !== 'string') {
-        writeJson(res, 400, { error: 'tool must be a string when provided' });
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'model') && payload.model !== null && typeof payload.model !== 'string') {
-        writeJson(res, 400, { error: 'model must be a string when provided' });
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'effort') && payload.effort !== null && typeof payload.effort !== 'string') {
-        writeJson(res, 400, { error: 'effort must be a string when provided' });
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'thinking') && typeof payload.thinking !== 'boolean') {
-        writeJson(res, 400, { error: 'thinking must be a boolean when provided' });
-        return;
-      }
-
-      try {
-        const outcome = await organizeSession(sessionId, {
-          tool: typeof payload?.tool === 'string' ? payload.tool.trim() : '',
-          model: typeof payload?.model === 'string' ? payload.model.trim() : '',
-          effort: typeof payload?.effort === 'string' ? payload.effort.trim() : '',
-          thinking: payload?.thinking === true,
-        });
-        writeJson(res, outcome.duplicate ? 200 : 202, {
-          duplicate: outcome.duplicate,
-          run: outcome.run || null,
-          session: createClientSessionDetail(outcome.session),
-        });
-      } catch (error) {
-        writeJson(res, 409, { error: error.message || 'Failed to organize session' });
-      }
-      return;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'messages') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      let body;
-      try {
-        body = await readSessionMessagePayload(req, pathname);
-      } catch (err) {
-        writeJson(res, err.code === 'BODY_TOO_LARGE' ? 413 : 400, { error: err.code === 'BODY_TOO_LARGE' ? 'Request body too large' : 'Bad request' });
-        return;
-      }
-      let payload = body;
-      if (!payload || typeof payload !== 'object') {
-        writeJson(res, 400, { error: 'Invalid request body' });
-        return;
-      }
-      if (!payload?.text || typeof payload.text !== 'string') {
-        writeJson(res, 400, { error: 'text is required' });
-        return;
-      }
-      try {
-        const requestId = typeof payload?.requestId === 'string' ? payload.requestId.trim() : '';
-        const requestedImages = Array.isArray(payload?.images) ? payload.images.filter(Boolean) : [];
-        const uploadedImages = requestedImages.filter((image) => Buffer.isBuffer(image?.buffer) || typeof image?.data === 'string');
-        const existingImages = requestedImages.filter((image) => typeof image?.filename === 'string' && image.filename.trim() && !image?.assetId);
-        const externalAssetImages = [];
-        for (const image of requestedImages) {
-          const assetId = typeof image?.assetId === 'string' ? image.assetId.trim() : '';
-          if (!assetId) continue;
-          const asset = await getFileAsset(assetId);
-          if (!asset) {
-            writeJson(res, 400, { error: `Unknown asset: ${assetId}` });
-            return;
-          }
-          if (!requireSessionAccess(res, authSession, asset.sessionId)) return;
-          if (asset.status !== 'ready') {
-            writeJson(res, 409, { error: `Asset is not ready: ${assetId}` });
-            return;
-          }
-          const localizedPath = typeof asset.localizedPath === 'string' && asset.localizedPath && await pathExists(asset.localizedPath)
-            ? asset.localizedPath
-            : '';
-          externalAssetImages.push({
-            assetId: asset.id,
-            ...(localizedPath ? {
-              savedPath: localizedPath,
-              filename: typeof image?.filename === 'string' && image.filename.trim()
-                ? image.filename.trim()
-                : basename(localizedPath),
-            } : {}),
-            originalName: typeof image?.originalName === 'string' && image.originalName.trim()
-              ? image.originalName.trim()
-              : asset.originalName,
-            mimeType: typeof image?.mimeType === 'string' && image.mimeType.trim()
-              ? image.mimeType.trim()
-              : asset.mimeType,
-          });
-        }
-        const preSavedAttachments = [
-          ...(await resolveSavedAttachments(existingImages)),
-          ...(uploadedImages.length > 0 ? await saveAttachments(uploadedImages) : []),
-          ...externalAssetImages,
-        ];
-        const messageOptions = {
-          tool: payload.tool || undefined,
-          thinking: !!payload.thinking,
-          model: payload.model || undefined,
-          effort: payload.effort || undefined,
-          sourceContext: payload.sourceContext,
-          ...(preSavedAttachments.length > 0 ? { preSavedAttachments } : {}),
-        };
-        const outcome = requestId
-          ? await submitHttpMessage(sessionId, payload.text.trim(), [], {
-              ...messageOptions,
-              requestId,
-            })
-          : await sendMessage(sessionId, payload.text.trim(), [], messageOptions);
-      writeJson(res, outcome.duplicate ? 200 : 202, {
-          requestId: requestId || outcome.run?.requestId || null,
-          duplicate: outcome.duplicate,
-          queued: outcome.queued,
-          run: outcome.run,
-          session: createClientSessionDetail(outcome.session),
-        });
-      } catch (error) {
-        const statusCode = error?.code === 'SESSION_ARCHIVED' ? 409 : 400;
-        writeJson(res, statusCode, { error: error.message || 'Failed to submit message' });
-      }
-      return;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'cancel') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      const run = await cancelActiveRun(sessionId);
-      if (!run) {
-        const session = await getSessionForClient(sessionId);
-        if (session && session.activity?.run?.state !== 'running') {
-          writeJson(res, 200, { run: null, session });
-          return;
-        }
-        writeJson(res, 409, { error: 'No active run' });
-        return;
-      }
-      writeJson(res, 200, { run });
-      return;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'apply-template') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      writeJson(res, 410, { error: 'App templates have been removed from MelodySync' });
-      return;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'save-template') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      writeJson(res, 410, { error: 'App template creation has been removed from MelodySync' });
-      return;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'fork') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      const forked = await forkSession(sessionId);
-      if (!forked) {
-        writeJson(res, 409, { error: 'Unable to fork session' });
-        return;
-      }
-      writeJson(res, 201, { session: createClientSessionDetail(forked) });
-      return;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'delegate') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return;
-      const source = await getSessionForClient(sessionId);
-      if (!source) {
-        writeJson(res, 404, { error: 'Session not found' });
-        return;
-      }
-
-      let payload = {};
-      try {
-        const body = await readBody(req, 32768);
-        payload = body ? JSON.parse(body) : {};
-      } catch {
-        writeJson(res, 400, { error: 'Invalid request body' });
-        return;
-      }
-
-      const task = typeof payload?.task === 'string' ? payload.task.trim() : '';
-      if (!task) {
-        writeJson(res, 400, { error: 'task is required' });
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'tool') && payload.tool !== null && typeof payload.tool !== 'string') {
-        writeJson(res, 400, { error: 'tool must be a string when provided' });
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'internal') && typeof payload.internal !== 'boolean') {
-        writeJson(res, 400, { error: 'internal must be a boolean when provided' });
-        return;
-      }
-
-      try {
-        const outcome = await delegateSession(sessionId, {
-          task,
-          name: typeof payload?.name === 'string' ? payload.name.trim() : '',
-          tool: typeof payload?.tool === 'string' ? payload.tool.trim() : '',
-          internal: payload?.internal === true,
-        });
-        if (!outcome?.session) {
-          writeJson(res, 409, { error: 'Unable to delegate session' });
-          return;
-        }
-        writeJson(res, 201, {
-          session: createClientSessionDetail(outcome.session),
-          run: outcome.run || null,
-        });
-      } catch (error) {
-        writeJson(res, 400, { error: error.message || 'Failed to delegate session' });
-      }
-      return;
-    }
-  }
-
-  if (pathname === '/api/sessions' && req.method === 'POST') {
-    let body;
-    try { body = await readBody(req, 10240); } catch (err) {
-      if (err.code === 'BODY_TOO_LARGE') {
-        res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Request body too large' }));
-        return;
-      }
-      throw err;
-    }
-    try {
-      const payload = JSON.parse(body);
-      const {
-        folder,
-        tool,
-        name,
-        appId,
-        appName,
-        userId,
-        userName,
-        sourceId,
-        sourceName,
-        group,
-        description,
-        systemPrompt,
-        internalRole,
-        completionTargets,
-        externalTriggerId,
-        sourceContext,
-      } = payload;
-      if (!folder || !tool) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'folder and tool are required' }));
-        return;
-      }
-      const resolvedFolder = folder.startsWith('~')
-        ? join(homedir(), folder.slice(1))
-        : resolve(folder);
-      if (!await isDirectoryPath(resolvedFolder)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Folder does not exist' }));
-        return;
-      }
-      const createOptions = {
-        appId: typeof appId === 'string' ? appId : '',
-        appName: typeof appName === 'string' ? appName : '',
-        userId: typeof userId === 'string' ? userId : '',
-        userName: typeof userName === 'string' ? userName : '',
-        sourceId: typeof sourceId === 'string' ? sourceId : '',
-        sourceName: typeof sourceName === 'string' ? sourceName : '',
-        group: group || '',
-        description: description || '',
-        completionTargets: Array.isArray(completionTargets) ? completionTargets : [],
-        externalTriggerId: typeof externalTriggerId === 'string' ? externalTriggerId : '',
-      };
-      if (Object.prototype.hasOwnProperty.call(payload, 'systemPrompt')) {
-        createOptions.systemPrompt = typeof systemPrompt === 'string' ? systemPrompt : '';
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'internalRole')) {
-        if (internalRole !== null && typeof internalRole !== 'string') {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'internalRole must be a string when provided' }));
-          return;
-        }
-        createOptions.internalRole = typeof internalRole === 'string' ? internalRole.trim() : '';
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'sourceContext')) {
-        createOptions.sourceContext = sourceContext;
-      }
-      const session = await createSession(resolvedFolder, tool, name || '', createOptions);
-
-      res.writeHead(201, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ session: createClientSessionDetail(session) }));
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid request body' }));
-    }
+  if (await handleSessionWriteRoutes({
+    req,
+    res,
+    pathname,
+    authSession,
+    requireSessionAccess,
+    writeJson,
+  })) {
     return;
   }
 
@@ -1580,47 +1009,16 @@ export async function handleRequest(req, res) {
     return;
   }
 
-  if (pathname.startsWith('/api/runs/') && req.method === 'GET') {
-    const parts = pathname.split('/').filter(Boolean);
-    const runId = parts[2];
-    if (parts.length !== 3 || parts[0] !== 'api' || parts[1] !== 'runs' || !runId) {
-      writeJson(res, 400, { error: 'Invalid run path' });
-      return;
-    }
-    const run = await getRunState(runId);
-    if (!run) {
-      writeJson(res, 404, { error: 'Run not found' });
-      return;
-    }
-    if (!requireSessionAccess(res, authSession, run.sessionId)) return;
-    writeJsonCached(req, res, { run });
+  if (await handleRunRoutes({
+    req,
+    res,
+    pathname,
+    authSession,
+    requireSessionAccess,
+    writeJsonCached,
+    writeJson,
+  })) {
     return;
-  }
-
-  if (pathname.startsWith('/api/runs/') && req.method === 'POST') {
-    const parts = pathname.split('/').filter(Boolean);
-    const runId = parts[2];
-    const action = parts[3];
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'runs' && action === 'cancel' && runId) {
-      const run = await getRunState(runId);
-      if (!run) {
-        writeJson(res, 404, { error: 'Run not found' });
-        return;
-      }
-      if (!requireSessionAccess(res, authSession, run.sessionId)) return;
-      const updated = await cancelActiveRun(run.sessionId);
-      if (!updated) {
-        const refreshed = await getRunState(runId);
-        if (refreshed && refreshed.state !== 'running' && refreshed.state !== 'accepted') {
-          writeJson(res, 200, { run: refreshed });
-          return;
-        }
-        writeJson(res, 409, { error: 'No active run' });
-        return;
-      }
-      writeJson(res, 200, { run: updated });
-      return;
-    }
   }
 
   if (pathname === '/api/models' && req.method === 'GET') {

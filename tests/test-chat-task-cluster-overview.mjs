@@ -225,4 +225,11 @@ assert.deepEqual(
   'switching to another branch should not reshuffle the fixed sidebar branch order',
 );
 
+const noBranchNodes = context.createTaskClusterNodes(root, [], {});
+assert.equal(
+  noBranchNodes[0]?.children[0]?.className,
+  'task-cluster-expander task-cluster-expander-placeholder',
+  'root task rows should reserve the expander slot even before the first branch is created',
+);
+
 console.log('test-chat-task-cluster-overview: ok');

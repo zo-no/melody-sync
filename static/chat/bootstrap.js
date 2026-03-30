@@ -309,12 +309,17 @@ let allToolsList = [];
 let toolsList = [];
 let isDesktop = window.matchMedia("(min-width: 768px)").matches;
 const COLLAPSED_GROUPS_STORAGE_KEY = "collapsedSessionGroups";
+const SIDEBAR_COLLAPSE_STORAGE_KEY = "melodysyncSidebarCollapsed";
 let isSavingToolConfig = false;
 let collapsedFolders = JSON.parse(
   localStorage.getItem(COLLAPSED_GROUPS_STORAGE_KEY) ||
     localStorage.getItem("collapsedFolders") ||
     "{}",
 );
+let desktopSidebarCollapsed = false;
+try {
+  desktopSidebarCollapsed = localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY) === "true";
+} catch {}
 
 try {
   localStorage.removeItem(LEGACY_SESSION_SEND_FAILURES_STORAGE_KEY);

@@ -136,8 +136,10 @@ function persistExpandedTaskClusters() {
 }
 
 function isBranchTaskSession(session) {
-  const lineRole = String(session?.taskCard?.lineRole || "").trim().toLowerCase();
-  return lineRole === "branch" || Boolean(session?.sourceContext?.parentSessionId);
+  return Boolean(
+    (typeof session?._branchParentSessionId === "string" && session._branchParentSessionId.trim())
+    || (typeof session?.sourceContext?.parentSessionId === "string" && session.sourceContext.parentSessionId.trim())
+  );
 }
 
 function getBranchParentSessionId(session) {
@@ -685,23 +687,31 @@ function createTaskClusterNodes(rootSession, branchSessions = [], options = {}) 
   if (expanded) {
     mainItem.classList.add("is-expanded");
   }
-  if (hasBranches) {
-    const expanderBtn = document.createElement("button");
-    expanderBtn.type = "button";
-    expanderBtn.className = "task-cluster-expander" + (expanded ? " is-expanded" : "");
-    expanderBtn.innerHTML = renderTaskChevronIcon(expanded, "task-cluster-expander-icon");
-    expanderBtn.setAttribute("aria-label", expanded ? "收起任务树" : "展开任务树");
-    expanderBtn.title = expanded ? "收起任务树" : "展开任务树";
-    expanderBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      toggleTaskClusterExpanded(rootSession.id, !expanded);
-    });
-    const infoNode = mainItem.querySelector(".session-item-info");
-    if (infoNode) {
-      mainItem.insertBefore(expanderBtn, infoNode);
-    } else {
-      mainItem.appendChild(expanderBtn);
-    }
+  const expanderSlot = hasBranches
+    ? (() => {
+        const expanderBtn = document.createElement("button");
+        expanderBtn.type = "button";
+        expanderBtn.className = "task-cluster-expander" + (expanded ? " is-expanded" : "");
+        expanderBtn.innerHTML = renderTaskChevronIcon(expanded, "task-cluster-expander-icon");
+        expanderBtn.setAttribute("aria-label", expanded ? "收起任务树" : "展开任务树");
+        expanderBtn.title = expanded ? "收起任务树" : "展开任务树";
+        expanderBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          toggleTaskClusterExpanded(rootSession.id, !expanded);
+        });
+        return expanderBtn;
+      })()
+    : (() => {
+        const placeholder = document.createElement("span");
+        placeholder.className = "task-cluster-expander task-cluster-expander-placeholder";
+        placeholder.setAttribute("aria-hidden", "true");
+        return placeholder;
+      })();
+  const infoNode = mainItem.querySelector(".session-item-info");
+  if (infoNode) {
+    mainItem.insertBefore(expanderSlot, infoNode);
+  } else {
+    mainItem.appendChild(expanderSlot);
   }
   const nodes = [mainItem];
 

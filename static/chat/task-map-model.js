@@ -54,9 +54,7 @@
   }
 
   function getLineRole(session) {
-    const role = normalizeKey(session?.taskCard?.lineRole || "");
-    if (role === "branch") return "branch";
-    return trimText(session?.sourceContext?.parentSessionId) ? "branch" : "main";
+    return trimText(session?._branchParentSessionId || session?.sourceContext?.parentSessionId) ? "branch" : "main";
   }
 
   function getBranchStatus(session) {

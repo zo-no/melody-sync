@@ -1482,6 +1482,7 @@ async function enrichSessionMeta(meta, _options = {}) {
   const snapshot = await getHistorySnapshot(meta.id);
   const queuedCount = getFollowUpQueueCount(meta);
   const runActivity = await resolveSessionRunActivity(meta);
+  const taskCard = stabilizeSessionTaskCard(meta, meta.taskCard);
   const {
     followUpQueue,
     recentFollowUpRequestIds,
@@ -1489,11 +1490,13 @@ async function enrichSessionMeta(meta, _options = {}) {
     activeRun,
     visitorId: _legacyVisitorId,
     visitorName: _legacyVisitorName,
+    taskCard: _rawTaskCard,
     ...rest
   } = meta;
   const sourceId = resolveSessionSourceId(meta);
   return {
     ...rest,
+    ...(taskCard ? { taskCard } : {}),
     appId: resolveEffectiveAppId(meta.appId),
     sourceId,
     sourceName: resolveSessionSourceName(meta, sourceId),
@@ -2310,14 +2313,21 @@ function normalizeCandidateBranchTitles(taskCard) {
     : [];
 }
 
+function getSessionParentSessionId(sessionMeta) {
+  return typeof sessionMeta?.sourceContext?.parentSessionId === 'string'
+    ? sessionMeta.sourceContext.parentSessionId.trim()
+    : '';
+}
+
 function stabilizeSessionTaskCard(sessionMeta, taskCard) {
   const parsedTaskCard = normalizeSessionTaskCard(taskCard);
   if (!parsedTaskCard) return null;
 
   const currentTaskCard = normalizeSessionTaskCard(sessionMeta?.taskCard || null);
   const stableSessionTitle = trimString(sessionMeta?.name);
+  const canPersistBranchRole = Boolean(getSessionParentSessionId(sessionMeta));
 
-  if (parsedTaskCard.lineRole !== 'branch') {
+  if (parsedTaskCard.lineRole !== 'branch' || !canPersistBranchRole) {
     const anchoredMainGoal = trimString(
       currentTaskCard?.lineRole !== 'branch'
         ? (currentTaskCard?.mainGoal || currentTaskCard?.goal || stableSessionTitle)
@@ -2326,9 +2336,7 @@ function stabilizeSessionTaskCard(sessionMeta, taskCard) {
 
     return normalizeSessionTaskCard({
       ...parsedTaskCard,
-      summary: currentTaskCard?.lineRole !== 'branch'
-        ? (currentTaskCard?.summary || parsedTaskCard.summary)
-        : parsedTaskCard.summary,
+      summary: currentTaskCard?.summary || parsedTaskCard.summary,
       goal: anchoredMainGoal,
       mainGoal: anchoredMainGoal,
       lineRole: 'main',
@@ -3265,8 +3273,8 @@ export async function updateSessionGrouping(id, patch = {}) {
 }
 
 export async function updateSessionTaskCard(id, taskCard) {
-  const nextTaskCard = normalizeSessionTaskCard(taskCard);
   const result = await mutateSessionMeta(id, (session) => {
+    const nextTaskCard = stabilizeSessionTaskCard(session, taskCard);
     const currentTaskCard = normalizeSessionTaskCard(session.taskCard);
     if (JSON.stringify(currentTaskCard) === JSON.stringify(nextTaskCard)) {
       return false;

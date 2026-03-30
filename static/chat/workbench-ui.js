@@ -36,7 +36,8 @@
   let trackerRefreshInFlight = null;
   let fullSnapshotRefreshTimer = null;
   let branchMergeInFlight = false;
-  let branchStructureExpanded = false;
+  let taskMapExpanded = !isMobileQuestTracker();
+  let lastTaskMapViewportMode = isMobileQuestTracker() ? "mobile" : "desktop";
   let focusedSessionId = "";
   let taskMindmapNodeExpansionState = new Map();
   let lastTaskMindmapRenderKey = "";
@@ -110,7 +111,11 @@
   }
 
   function isMobileTaskMapDrawerOpen() {
-    return isMobileQuestTracker() && branchStructureExpanded === true;
+    return isMobileQuestTracker() && taskMapExpanded === true;
+  }
+
+  function isTaskMapExpanded() {
+    return taskMapExpanded === true;
   }
 
   function getTrackerVisualStatus(session) {
@@ -153,39 +158,53 @@
 
   function setTaskMapDrawerExpanded(expanded, options = {}) {
     const nextExpanded = expanded === true;
-    if (branchStructureExpanded === nextExpanded && options.force !== true) {
+    const currentExpanded = isTaskMapExpanded();
+    if (currentExpanded === nextExpanded && options.force !== true) {
       if (options.render === true) renderTracker();
       return;
     }
-    branchStructureExpanded = nextExpanded;
+    taskMapExpanded = nextExpanded;
+    if (typeof requestLayoutPass === "function") {
+      requestLayoutPass("task-map-toggle");
+    }
     if (options.render !== false) {
       renderTracker();
     }
   }
 
+  function collapseTaskMapAfterAction(options = {}) {
+    if (!isMobileQuestTracker()) return;
+    setTaskMapDrawerExpanded(false, options);
+  }
+
   function syncTaskMapDrawerUi(isMounted) {
     const mobileDrawer = isMobileQuestTracker();
     const shouldMount = Boolean(isMounted);
-    const drawerOpen = shouldMount && mobileDrawer && isMobileTaskMapDrawerOpen();
+    const mapExpanded = shouldMount && isTaskMapExpanded();
+    const drawerOpen = mapExpanded && mobileDrawer;
+    const desktopCollapsed = shouldMount && !mobileDrawer && !mapExpanded;
     if (taskMapRail) {
       taskMapRail.classList.toggle("is-mobile-drawer", mobileDrawer && shouldMount);
+      taskMapRail.classList.remove("is-desktop-drawer", "is-drawer-open");
       taskMapRail.classList.toggle("is-mobile-open", drawerOpen);
-      taskMapRail.setAttribute("aria-hidden", shouldMount && (!mobileDrawer || drawerOpen) ? "false" : "true");
+      taskMapRail.classList.toggle("is-collapsed", desktopCollapsed);
+      taskMapRail.setAttribute("aria-hidden", mapExpanded ? "false" : "true");
     }
     if (taskMapDrawerBackdrop) {
       taskMapDrawerBackdrop.hidden = !(mobileDrawer && shouldMount && drawerOpen);
     }
     if (taskMapDrawerBtn) {
-      taskMapDrawerBtn.hidden = !(mobileDrawer && shouldMount);
-      taskMapDrawerBtn.setAttribute("aria-expanded", drawerOpen ? "true" : "false");
-      taskMapDrawerBtn.title = drawerOpen ? "收起任务地图" : "展开任务地图";
+      taskMapDrawerBtn.hidden = !shouldMount;
+      taskMapDrawerBtn.setAttribute("aria-expanded", mapExpanded ? "true" : "false");
+      taskMapDrawerBtn.title = mapExpanded ? "收起任务地图" : "展开任务地图";
       taskMapDrawerBtn.setAttribute("aria-label", taskMapDrawerBtn.title);
-      setTaskMapButtonContent(taskMapDrawerBtn, drawerOpen);
+      setTaskMapButtonContent(taskMapDrawerBtn, mapExpanded);
     }
     if (trackerToggleBtn) {
       trackerToggleBtn.hidden = true;
     }
     document.body?.classList?.toggle?.("task-map-drawer-open", drawerOpen);
+    document.body?.classList?.toggle?.("task-map-is-collapsed", desktopCollapsed);
   }
 
   function getTrackerPrimaryTitle(state) {
@@ -421,6 +440,19 @@
     return Array.isArray(taskCard?.[key])
       ? taskCard[key].filter((entry) => typeof entry === "string" && entry.trim())
       : [];
+  }
+
+  function isSessionAwaitingFirstMessage(session) {
+    if (!session || typeof session !== "object") return false;
+    const messageCount = Number.isInteger(session?.messageCount) ? session.messageCount : null;
+    const latestSeq = Number.isInteger(session?.latestSeq) ? session.latestSeq : null;
+    if (messageCount !== null) {
+      return messageCount <= 0 && (latestSeq === null || latestSeq <= 0);
+    }
+    if (latestSeq !== null) {
+      return latestSeq <= 0;
+    }
+    return true;
   }
 
   function getClusterForSession(sessionId) {
@@ -1232,7 +1264,7 @@
         event.stopPropagation();
         actionBtn.disabled = true;
         try {
-          setTaskMapDrawerExpanded(false, { render: false });
+          collapseTaskMapAfterAction({ render: false });
           await enterBranchFromSession(sourceSessionId, node.title, {
             branchReason: node?.parentNodeId
               ? `从「${nodeMap.get(node.parentNodeId)?.title || "当前节点"}」继续拆出独立支线`
@@ -1293,7 +1325,7 @@
         nodeEl.addEventListener("click", () => {
           const sessionRecord = getSessionRecord(node.sessionId) || state?.parentSession || state?.cluster?.mainSession || null;
           if (typeof attachSession === "function") {
-            setTaskMapDrawerExpanded(false, { render: false });
+            collapseTaskMapAfterAction({ render: false });
             attachSession(node.sessionId, sessionRecord);
           }
         });
@@ -1373,6 +1405,11 @@
     trackerTaskListEl.classList.toggle("is-flow-board", shouldMount);
     syncTaskMapDrawerUi(shouldMount);
     if (!shouldMount) {
+      trackerTaskListEl.hidden = true;
+      lastTaskMindmapRenderKey = "";
+      return;
+    }
+    if (!isMobileQuestTracker() && !isTaskMapExpanded()) {
       trackerTaskListEl.hidden = true;
       lastTaskMindmapRenderKey = "";
       return;
@@ -1634,6 +1671,11 @@
       lastTaskMindmapRenderKey = "";
       return;
     }
+    if (!isMobileQuestTracker() && !isTaskMapExpanded()) {
+      trackerTaskListEl.hidden = true;
+      lastTaskMindmapRenderKey = "";
+      return;
+    }
 
     const canRenderStableTree = !state?.cluster?._isLocalFallback;
     syncTaskMindmapNodeExpansionState(treeState);
@@ -1663,7 +1705,7 @@
       extraClassName: "quest-task-mindmap-root",
       onClick: state.isBranch && rootSessionId ? () => {
         if (typeof attachSession === "function") {
-          setTaskMapDrawerExpanded(false, { render: false });
+          collapseTaskMapAfterAction({ render: false });
           attachSession(rootSessionId, state.parentSession || state?.cluster?.mainSession || null);
         }
       } : null,
@@ -1735,7 +1777,7 @@
         } : null,
         onClick: () => {
           if (typeof attachSession === "function") {
-            setTaskMapDrawerExpanded(false, { render: false });
+            collapseTaskMapAfterAction({ render: false });
             attachSession(branchSession.id, branchSession);
           }
         },
@@ -1971,6 +2013,7 @@
       resolvedCurrentBranchSessionId,
       hasBranches,
       candidateBranchCount: getTaskCardList(taskCard, "candidateBranches").length,
+      awaitingFirstMessage: isSessionAwaitingFirstMessage(liveSession),
       branchLineage,
       activeBranchChain,
       totalBranchCount,
@@ -2003,6 +2046,7 @@
 
     if (!state?.hasSession) {
       emptyNode.classList.remove("quest-empty-state");
+      emptyNode.classList.remove("quest-empty-state-seeded");
       emptyNode.hidden = true;
       if (titleEl) {
         titleEl.hidden = false;
@@ -2017,6 +2061,22 @@
 
     emptyNode.hidden = false;
     emptyNode.classList.add("quest-empty-state");
+    emptyNode.classList.toggle("quest-empty-state-seeded", state.awaitingFirstMessage === true);
+    if (state.awaitingFirstMessage === true) {
+      if (titleEl) {
+        titleEl.hidden = false;
+        titleEl.textContent = state.isBranch
+          ? (state.currentGoal || state.session?.name || "当前子任务")
+          : (state.session?.name || state.mainGoal || state.currentGoal || "初始化任务");
+      }
+      if (bodyEl) {
+        bodyEl.hidden = false;
+        bodyEl.textContent = state.isBranch
+          ? "这个子任务还没有开始，直接输入第一条消息继续推进；需要时再从上方返回主线。"
+          : "这是当前默认任务。直接输入第一条消息开始推进；左侧任务列表和右侧地图都可以按需再展开。";
+      }
+      return;
+    }
     if (titleEl) {
       titleEl.hidden = true;
       titleEl.textContent = state.isBranch ? "继续当前子任务" : "继续当前任务";
@@ -2227,7 +2287,7 @@
       await fetchSessionsList();
     }
     if (response?.session && typeof attachSession === "function") {
-      setTaskMapDrawerExpanded(false, { render: false });
+      collapseTaskMapAfterAction({ render: false });
       attachSession(response.session.id, response.session);
     }
     renderTracker();
@@ -2270,7 +2330,7 @@
       await fetchSessionsList();
     }
     if (response?.session && typeof attachSession === "function") {
-      setTaskMapDrawerExpanded(false, { render: false });
+      collapseTaskMapAfterAction({ render: false });
       attachSession(response.session.id, response.session);
     }
     renderTracker();
@@ -2322,7 +2382,7 @@
   function returnToParentSession() {
     const state = deriveQuestState();
     if (!state.parentSessionId || typeof attachSession !== "function") return null;
-    setTaskMapDrawerExpanded(false, { render: false });
+    collapseTaskMapAfterAction({ render: false });
     attachSession(state.parentSessionId, state.parentSession || null);
     renderTracker();
     return state.parentSessionId;
@@ -2471,7 +2531,7 @@
 
   document.addEventListener("melodysync:session-change", (event) => {
     const nextFocusedSessionId = normalizeSessionId(event?.detail?.session?.id || "");
-    setTaskMapDrawerExpanded(false, { render: false });
+    collapseTaskMapAfterAction({ render: false });
     if (nextFocusedSessionId) {
       setFocusedSessionId(nextFocusedSessionId, { render: false });
     }
@@ -2488,8 +2548,10 @@
 
   window.addEventListener("resize", () => {
     lastTaskMindmapRenderKey = "";
-    if (!isMobileQuestTracker()) {
-      branchStructureExpanded = false;
+    const nextViewportMode = isMobileQuestTracker() ? "mobile" : "desktop";
+    if (nextViewportMode !== lastTaskMapViewportMode) {
+      lastTaskMapViewportMode = nextViewportMode;
+      taskMapExpanded = nextViewportMode === "desktop";
     }
     renderTracker();
   });
@@ -2499,15 +2561,26 @@
   });
 
   trackerToggleBtn?.addEventListener("click", () => {
-    setTaskMapDrawerExpanded(!isMobileTaskMapDrawerOpen());
+    setTaskMapDrawerExpanded(!isTaskMapExpanded());
   });
 
   taskMapDrawerBtn?.addEventListener("click", () => {
-    setTaskMapDrawerExpanded(!isMobileTaskMapDrawerOpen());
+    setTaskMapDrawerExpanded(!isTaskMapExpanded());
   });
 
   taskMapDrawerBackdrop?.addEventListener("click", () => {
     setTaskMapDrawerExpanded(false);
+  });
+
+  taskMapRail?.addEventListener("transitionend", (event) => {
+    if (isMobileQuestTracker() || !isTaskMapExpanded()) return;
+    const propertyName = String(event?.propertyName || "").trim();
+    if (!["width", "transform", "opacity"].includes(propertyName)) return;
+    lastTaskMindmapRenderKey = "";
+    renderTracker();
+    if (typeof requestLayoutPass === "function") {
+      requestLayoutPass("task-map-settle");
+    }
   });
 
   document.addEventListener("keydown", (event) => {
@@ -2544,7 +2617,7 @@
     setCurrentBranchStatus,
     openTaskMapDrawer: () => setTaskMapDrawerExpanded(true),
     closeTaskMapDrawer: () => setTaskMapDrawerExpanded(false),
-    toggleTaskMapDrawer: () => setTaskMapDrawerExpanded(!isMobileTaskMapDrawerOpen()),
+    toggleTaskMapDrawer: () => setTaskMapDrawerExpanded(!isTaskMapExpanded()),
     isTaskMapDrawerOpen: isMobileTaskMapDrawerOpen,
   };
 
