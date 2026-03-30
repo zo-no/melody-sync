@@ -10,22 +10,16 @@ const repoRoot = dirname(__dirname);
 const sources = {
   messages: readFileSync(join(repoRoot, 'static/chat/chat-messages.css'), 'utf8'),
   workbench: readFileSync(join(repoRoot, 'static/chat/chat-workbench.css'), 'utf8'),
+  sidebar: readFileSync(join(repoRoot, 'static/chat/chat-sidebar.css'), 'utf8'),
   input: readFileSync(join(repoRoot, 'static/chat/chat-input.css'), 'utf8'),
   responsive: readFileSync(join(repoRoot, 'static/chat/chat-responsive.css'), 'utf8'),
   base: readFileSync(join(repoRoot, 'static/chat/chat-base.css'), 'utf8'),
   workbenchUI: readFileSync(join(repoRoot, 'static/chat/workbench-ui.js'), 'utf8'),
 };
 
-assert.ok(/\.empty-state\s*\{[\s\S]*display:\s*none\s*!?\s*important?/.test(sources.messages), 'empty state should be force-hidden in message styles');
+assert.ok(!/Flat visual cleanup|Flat high-contrast|Flat UI cleanup|Flat responsive cleanup|UI cleanup high-contrast/.test(sources.base + sources.messages + sources.input + sources.workbench + sources.sidebar + sources.responsive), 'legacy one-off flat cleanup blocks should be removed');
 assert.ok(!/quest-empty-state-seeded/.test(sources.workbenchUI), 'seeded empty-state branch should be removed from workbench logic');
-
-const workbenchOverride = /\.quest-tracker[\s\S]{0,260}border:\s*1px solid var\(--border\)/.test(sources.workbench);
-assert.ok(workbenchOverride, 'workbench tracker should keep high-contrast border override');
-
-assert.ok(/\.quest-tracker-btn[\s\S]*background:\s*var\(--bg\)/.test(sources.workbench), 'workbench tracker button should have explicit flat background');
-assert.ok(/\.send-btn,\s*\.cancel-btn/.test(sources.input), 'input action buttons should include high-contrast block');
-assert.ok(/quest-branch-btn/.test(sources.input), 'input styles should include branch button focus treatment shared token');
-assert.ok(/\.task-map-rail/.test(sources.responsive), 'responsive layout should include task-map rail cleanup');
-assert.ok(/body::before\s*\{[\s\S]*display:\s*none/i.test(sources.base), 'base theme should disable decorative body pseudo background');
+assert.ok(/quest-empty-state/.test(sources.workbenchUI), 'empty-state rendering hook should still exist for centered empty-state container reuse');
+assert.ok(/body::before\s*\{[\s\S]*background:/i.test(sources.base), 'base theme should keep pseudo background for glass-like surface layering');
 
 console.log('test-chat-ui-cleanup: ok');

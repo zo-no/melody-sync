@@ -844,10 +844,3 @@
     background: var(--tool-bg);
   }
 }
-
-/* ---- Flat high-contrast cleanup ---- */
-.empty-state {
-  display: none !important;
-  min-height: 0;
-  padding: 0;
-}
