@@ -593,33 +593,6 @@
   color: var(--text-secondary);
 }
 
-.empty-state.quest-empty-state.quest-empty-state-seeded {
-  margin: auto;
-  min-height: min(56vh, 440px);
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 42px 28px;
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.52);
-  background: rgba(241, 246, 248, 0.84);
-  box-shadow: var(--shadow-card);
-}
-
-.empty-state.quest-empty-state.quest-empty-state-seeded h2 {
-  max-width: min(100%, 720px);
-  margin-bottom: 12px;
-  font-size: clamp(1.6rem, 3.2vw, 2.4rem);
-  line-height: 1.15;
-}
-
-.empty-state.quest-empty-state.quest-empty-state-seeded p {
-  max-width: min(100%, 460px);
-  margin: 0 auto;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
 .msg-user {
   margin-bottom: 0;
 }
