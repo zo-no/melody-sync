@@ -2030,63 +2030,14 @@
   function syncQuestEmptyState(state) {
     const emptyNode = getEmptyStateNode();
     if (!emptyNode) return;
-    const titleEl = emptyNode.querySelector("h2");
-    let bodyEl = emptyNode.querySelector("p");
-    if (!bodyEl) {
-      bodyEl = document.createElement("p");
-      bodyEl.hidden = true;
-      emptyNode.appendChild(bodyEl);
-    }
-    if (titleEl && !titleEl.dataset.defaultText) {
-      titleEl.dataset.defaultText = titleEl.textContent || "";
-    }
-    if (bodyEl && !bodyEl.dataset.defaultText) {
-      bodyEl.dataset.defaultText = bodyEl.textContent || "";
-    }
 
     if (!state?.hasSession) {
-      emptyNode.classList.remove("quest-empty-state");
-      emptyNode.classList.remove("quest-empty-state-seeded");
       emptyNode.hidden = true;
-      if (titleEl) {
-        titleEl.hidden = false;
-        titleEl.textContent = titleEl.dataset.defaultText || "";
-      }
-      if (bodyEl) {
-        bodyEl.textContent = bodyEl.dataset.defaultText || "";
-        bodyEl.hidden = !bodyEl.textContent.trim();
-      }
       return;
     }
 
-    emptyNode.hidden = false;
+    emptyNode.hidden = true;
     emptyNode.classList.add("quest-empty-state");
-    emptyNode.classList.toggle("quest-empty-state-seeded", state.awaitingFirstMessage === true);
-    if (state.awaitingFirstMessage === true) {
-      if (titleEl) {
-        titleEl.hidden = false;
-        titleEl.textContent = state.isBranch
-          ? (state.currentGoal || state.session?.name || "当前子任务")
-          : (state.session?.name || state.mainGoal || state.currentGoal || "初始化任务");
-      }
-      if (bodyEl) {
-        bodyEl.hidden = false;
-        bodyEl.textContent = state.isBranch
-          ? "这个子任务还没有开始，直接输入第一条消息继续推进；需要时再从上方返回主线。"
-          : "这是当前默认任务。直接输入第一条消息开始推进；左侧任务列表和右侧地图都可以按需再展开。";
-      }
-      return;
-    }
-    if (titleEl) {
-      titleEl.hidden = true;
-      titleEl.textContent = state.isBranch ? "继续当前子任务" : "继续当前任务";
-    }
-    if (bodyEl) {
-      bodyEl.hidden = false;
-      bodyEl.textContent = state.isBranch
-        ? "直接从输入框继续；需要返回时再用上方任务列表回主线。"
-        : "直接从输入框继续，任务列表已经放在上方。";
-    }
   }
 
   function renderTracker() {

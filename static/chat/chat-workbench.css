@@ -2572,3 +2572,124 @@ button.quest-task-flow-node {
     background-size: 22px 22px;
   }
 }
+
+/* ---- UI cleanup high-contrast overrides ---- */
+.quest-tracker {
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: transparent;
+  box-shadow: none;
+}
+
+.quest-tracker-main {
+  gap: 6px;
+}
+
+.quest-tracker-status {
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.quest-tracker-status-text {
+  color: var(--text);
+}
+
+.quest-tracker-title,
+.quest-tracker-branch-title,
+.quest-tracker-next {
+  font-weight: 700;
+}
+
+.quest-tracker-actions {
+  gap: 8px;
+}
+
+.quest-tracker-toggle,
+.quest-tracker-btn,
+.quest-branch-btn,
+.quest-branch-btn-primary {
+  min-height: 32px;
+  min-width: auto;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.quest-tracker-btn-secondary,
+.quest-branch-btn,
+.quest-tracker-actions.is-inline-links .quest-tracker-btn,
+.quest-tracker-actions.is-inline-links .quest-tracker-toggle,
+.quest-branch-btn {
+  color: var(--text);
+  background: var(--bg-secondary);
+}
+
+.quest-tracker-btn:hover,
+.quest-tracker-toggle:hover,
+.quest-branch-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.quest-tracker-btn:disabled,
+.quest-tracker-toggle:disabled,
+.quest-branch-btn:disabled {
+  opacity: 0.45;
+}
+
+.quest-task-list,
+.quest-task-mindmap-fanout,
+.quest-task-mindmap-board,
+.quest-task-list.is-flow-board .quest-task-flow-scroll {
+  background: transparent;
+}
+
+.quest-task-item,
+.quest-task-list.is-flow-board .quest-task-flow-node,
+.quest-task-directory-row,
+.quest-task-mindmap-candidate-card,
+.quest-task-mindmap-mainline-focus,
+.quest-task-mindmap-candidate-group,
+.quest-task-mindmap-root,
+.quest-task-flow-node,
+.quest-task-flow-canvas,
+.quest-task-map-tree .quest-task-directory-row,
+.quest-task-map-tree .quest-task-directory-children::before,
+.quest-task-map-tree .quest-task-directory-children > .quest-task-directory-item::before,
+.quest-task-mindmap-fanout::before,
+.quest-task-map-tree .quest-task-directory-item::before,
+.quest-task-mindmap-branches::before,
+.quest-task-mindmap-node-row,
+.quest-task-mindmap-link::before,
+.quest-task-mindmap-link::after {
+  background: transparent !important;
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+}
+
+.quest-task-item,
+.quest-task-directory-row,
+.quest-task-flow-node,
+.quest-task-mindmap-candidate-card,
+.quest-task-list.is-flow-board .quest-task-flow-node,
+.quest-task-mindmap-branch,
+.quest-task-mindmap-mainline-focus,
+.quest-task-mindmap-candidate-group {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.quest-task-item-meta,
+.quest-task-item-summary,
+.quest-task-item-candidate-summary,
+.quest-task-mindmap-mainline-meta,
+.quest-task-mindmap-candidate-summary,
+.quest-task-item-parent {
+  color: var(--text-secondary);
+}

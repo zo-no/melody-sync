@@ -327,9 +327,9 @@ body::before {
     -webkit-backdrop-filter: none;
   }
 
-  .sidebar-overlay.open .sidebar {
-    left: 0;
-  }
+.sidebar-overlay.open .sidebar {
+  left: 0;
+}
 
   .task-manager-body {
     gap: 0;
@@ -459,6 +459,31 @@ body::before {
   body.task-map-drawer-open {
     overflow: hidden;
   }
+}
+
+/* ---- Flat responsive cleanup ---- */
+.task-map-rail,
+.task-map-rail.is-mobile-drawer,
+.task-map-rail.is-mobile-open {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+body.task-map-drawer-open .modal-backdrop {
+  opacity: 1;
+}
+
+.task-map-drawer-backdrop,
+.task-map-rail.is-mobile-drawer {
+  background: var(--overlay-backdrop) !important;
+}
+
+.task-map-drawer-backdrop {
+  opacity: 0.75;
+}
+
+body.sidebar-is-collapsed .task-manager-body {
+  width: 100%;
 }
 
 @media (max-width: 640px) {

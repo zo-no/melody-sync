@@ -915,3 +915,58 @@
     box-shadow: none;
   }
 }
+
+/* ---- Flat high-contrast cleanup ---- */
+.input-wrapper {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--text);
+}
+
+.tool-select,
+.model-select,
+.effort-select,
+.thinking-toggle,
+.input-config-row .img-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.tool-select:focus,
+.model-select:focus,
+.effort-select:focus,
+.input-config-row .img-btn:focus,
+.thinking-toggle:focus-visible,
+.send-btn:focus-visible,
+.cancel-btn:focus-visible,
+.quest-branch-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--text) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.send-btn,
+.cancel-btn {
+  border: 1px solid var(--border);
+  color: var(--bg);
+  background: var(--text);
+}
+
+.cancel-btn {
+  color: #ffffff;
+}
+
+.send-btn:disabled,
+.cancel-btn:disabled {
+  opacity: 0.35;
+}
+
+.input-config-row .img-btn:hover,
+.thinking-toggle:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
