@@ -1125,7 +1125,7 @@
 }
 
 .quest-tracker-btn-secondary {
-  color: var(--text-secondary);
+  color: var(--text);
 }
 
 .quest-tracker-actions.is-inline-links {
@@ -1138,7 +1138,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text);
   font-size: 12px;
   font-weight: 700;
 }

@@ -38,6 +38,7 @@
   let branchMergeInFlight = false;
   let taskMapExpanded = !isMobileQuestTracker();
   let lastTaskMapViewportMode = isMobileQuestTracker() ? "mobile" : "desktop";
+  let questHasSessionTracked = false;
   let focusedSessionId = "";
   let taskMindmapNodeExpansionState = new Map();
   let lastTaskMindmapRenderKey = "";
@@ -349,6 +350,9 @@
   function setFocusedSessionId(sessionId, options = {}) {
     const nextFocusedSessionId = normalizeSessionId(sessionId) || getCurrentSessionIdSafe();
     const focusChanged = nextFocusedSessionId !== focusedSessionId;
+    if (focusChanged) {
+      questHasSessionTracked = false;
+    }
     focusedSessionId = nextFocusedSessionId;
     const snapshotChanged = options.syncSnapshot === false
       ? false
@@ -2032,12 +2036,37 @@
     if (!emptyNode) return;
 
     if (!state?.hasSession) {
+      questHasSessionTracked = false;
+      document.body?.classList?.remove?.("workbench-has-session");
       emptyNode.hidden = true;
+      emptyNode.classList.remove("quest-empty-state");
       return;
     }
 
+    document.body?.classList?.add?.("workbench-has-session");
     emptyNode.hidden = true;
-    emptyNode.classList.add("quest-empty-state");
+    emptyNode.classList.remove("quest-empty-state");
+  }
+
+  function scrollWorkbenchToTopIfNeeded(state) {
+    if (!state?.hasSession || questHasSessionTracked) return;
+    const messagesElement = typeof messagesEl !== "undefined" ? messagesEl : null;
+    if (!messagesElement) return;
+    questHasSessionTracked = true;
+    if (typeof scrollCurrentSessionViewportToTop === "function") {
+      scrollCurrentSessionViewportToTop();
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (typeof messagesElement.scrollTo === "function") {
+        messagesElement.scrollTo({
+          top: 0,
+          behavior: "auto",
+        });
+      } else {
+        messagesElement.scrollTop = 0;
+      }
+    });
   }
 
   function renderTracker() {
@@ -2052,6 +2081,7 @@
     }
 
     tracker.hidden = false;
+    scrollWorkbenchToTopIfNeeded(state);
     syncQuestEmptyState(state);
     const showBranch = Boolean(state.isBranch && state.currentGoal);
     tracker.classList.toggle("is-branch-focus", showBranch);
