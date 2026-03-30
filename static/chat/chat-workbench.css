@@ -1,14 +1,14 @@
 .quest-tracker {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 8px;
   align-items: start;
   margin-bottom: 6px;
-  padding: 8px 10px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
-  background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
-  box-shadow: none;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 14%, var(--border));
+  background: color-mix(in srgb, #ffffff 78%, var(--bg) 22%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 56%, transparent);
 }
 
 .quest-tracker[hidden],
@@ -39,10 +39,10 @@
   align-items: center;
   gap: 8px;
   min-height: 24px;
-  padding: 0 10px;
+  padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 66%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
   color: var(--text-secondary);
 }
 
@@ -146,22 +146,24 @@
 
 .quest-task-list {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   margin-top: 0;
   max-height: none;
   overflow: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable both-edges;
-  padding: 2px 2px 8px 0;
+  scrollbar-gutter: stable;
+  padding: 6px 6px 10px;
 }
 
 .task-map-drawer-backdrop {
   position: fixed;
   inset: 0;
   border: 0;
-  background: rgba(7, 11, 16, 0.44);
+  background: rgba(7, 11, 16, 0.34);
   opacity: 1;
   z-index: 120;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .task-map-drawer-backdrop[hidden] {
@@ -170,9 +172,9 @@
 
 .task-map-empty {
   padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px dashed color-mix(in srgb, var(--border-strong) 28%, var(--border));
-  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, #ffffff 84%, var(--bg) 16%);
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
@@ -185,11 +187,11 @@
   align-items: start;
   width: 100%;
   min-width: 0;
-  padding: 10px 10px 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--bg) 84%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 36%, transparent);
+  padding: 10px 11px 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, #ffffff 84%, var(--bg) 16%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 44%, transparent);
   color: var(--text);
   text-align: left;
   font: inherit;
@@ -197,26 +199,27 @@
 }
 
 .quest-task-item.is-current {
-  border-color: color-mix(in srgb, var(--border-strong) 34%, var(--border));
-  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  border-color: color-mix(in srgb, var(--border-strong) 22%, var(--border));
+  background: color-mix(in srgb, #ffffff 90%, var(--bg) 10%);
+  box-shadow: 0 10px 24px color-mix(in srgb, #0b1520 8%, transparent);
 }
 
 .quest-task-item.is-current-chain {
-  border-color: color-mix(in srgb, var(--accent) 26%, var(--border-strong));
-  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--border-strong));
+  background: color-mix(in srgb, #ffffff 88%, var(--bg) 12%);
 }
 
 .quest-task-item.is-current-branch {
-  border-color: color-mix(in srgb, var(--accent) 46%, var(--border-strong));
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border-strong));
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 36%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+    inset 0 1px 0 color-mix(in srgb, #ffffff 44%, transparent),
+    0 8px 22px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .quest-task-item.is-candidate {
   border-style: dashed;
-  border-color: color-mix(in srgb, var(--accent) 22%, var(--border-strong));
-  background: color-mix(in srgb, var(--bg) 76%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 16%, var(--border-strong));
+  background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
 }
 
 .quest-task-item.is-static {
@@ -230,7 +233,7 @@
 .quest-task-item-main {
   min-width: 0;
   display: grid;
-  gap: 1px;
+  gap: 2px;
 }
 
 .quest-task-item-title {
@@ -243,8 +246,8 @@
 
 .quest-task-item-summary,
 .quest-task-item-meta {
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: 10px;
+  line-height: 1.4;
   color: var(--text-secondary);
   overflow-wrap: anywhere;
 }
@@ -268,10 +271,10 @@
   text-align: right;
   white-space: nowrap;
   align-self: start;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 64%, transparent);
 }
 
 .quest-task-item-meta.is-candidate {
@@ -290,7 +293,7 @@
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+  background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -565,11 +568,7 @@
 
 .quest-task-mindmap-mainline-label,
 .quest-task-mindmap-candidate-label {
-  font-size: 11px;
-  line-height: 1.4;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
+  display: none;
 }
 
 .quest-task-mindmap-mainline-title {
@@ -2273,11 +2272,7 @@ button.quest-task-flow-node {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
-  background:
-    linear-gradient(to right, color-mix(in srgb, var(--border) 5%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--border) 5%, transparent) 1px, transparent 1px);
-  background-size: 28px 28px;
-  background-position: center center;
+  background: transparent;
   scrollbar-width: none;
 }
 
@@ -2404,35 +2399,39 @@ button.quest-task-flow-node {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
-  box-shadow: none;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 14%, var(--border));
+  border-radius: 18px;
+  background: color-mix(in srgb, #ffffff 78%, var(--bg) 22%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 56%, transparent);
 }
 
 .quest-tracker-main {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .quest-tracker-title {
-  font-size: 19px;
-  line-height: 1.2;
+  font-size: 18px;
+  line-height: 1.24;
   font-weight: 800;
 }
 
+.quest-tracker-branch-label {
+  display: none;
+}
+
 .quest-tracker-branch-title {
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--text-secondary);
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .quest-tracker-next {
   font-size: 11px;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--text-muted);
   -webkit-line-clamp: 2;
 }
@@ -2443,8 +2442,8 @@ button.quest-task-flow-node {
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  padding-top: 10px;
-  border-top: 1px solid color-mix(in srgb, var(--border-strong) 14%, var(--border));
+  padding-top: 2px;
+  border-top: 0;
 }
 
 .quest-tracker-status {
@@ -2473,11 +2472,7 @@ button.quest-task-flow-node {
   min-height: 0;
   overflow: hidden;
   padding: 0;
-  background:
-    linear-gradient(to right, color-mix(in srgb, var(--border) 7%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--border) 7%, transparent) 1px, transparent 1px);
-  background-size: 28px 28px;
-  background-position: center center;
+  background: transparent;
   cursor: default;
   user-select: none;
   scrollbar-width: none;
@@ -2508,25 +2503,26 @@ button.quest-task-flow-node {
 .quest-task-flow-node {
   gap: 5px;
   padding: 10px 11px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 15%, var(--border));
-  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
-  box-shadow: none;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 66%, transparent);
+  background: color-mix(in srgb, #ffffff 84%, var(--bg) 16%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 44%, transparent);
   transition: background 0.14s ease, border-color 0.14s ease;
 }
 
 .quest-task-flow-node:hover {
   transform: none;
-  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  background: color-mix(in srgb, #ffffff 90%, var(--bg) 10%);
 }
 
 .quest-task-flow-node.is-root {
-  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+  background: color-mix(in srgb, #ffffff 88%, var(--bg) 12%);
 }
 
 .quest-task-flow-node.is-current {
-  background: color-mix(in srgb, var(--accent-soft) 18%, var(--bg-secondary));
-  border-color: color-mix(in srgb, var(--accent) 44%, var(--border-strong));
+  background: color-mix(in srgb, #ffffff 92%, var(--bg) 8%);
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border-strong));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .quest-task-flow-node.is-current-path:not(.is-current) {
@@ -2570,5 +2566,98 @@ button.quest-task-flow-node {
 
   .quest-task-list.is-flow-board .quest-task-flow-scroll {
     background-size: 22px 22px;
+  }
+}
+
+/* ---- MelodySync final task surface cleanup ---- */
+.quest-tracker,
+.quest-tracker-status,
+.task-map-empty,
+.quest-task-item,
+.quest-task-item-meta,
+.quest-task-flow-node,
+.quest-task-mindmap-mainline-focus,
+.quest-task-mindmap-candidate-group,
+.quest-task-mindmap-candidate-card,
+.quest-task-mindmap-chip,
+.quest-task-directory-row,
+.quest-task-map-tree .quest-task-directory-row {
+  border: 0 !important;
+}
+
+.quest-tracker-footer {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.quest-task-list {
+  padding-top: 0;
+}
+
+.quest-task-list.is-flow-board .quest-task-flow-scroll {
+  background: transparent !important;
+}
+
+.quest-task-flow-node.is-current,
+.quest-task-item.is-current,
+.quest-task-item.is-current-branch,
+.quest-task-map-tree .quest-task-directory-item.is-current-branch > .quest-task-directory-row,
+.quest-task-mindmap-chip.is-current {
+  box-shadow: 0 12px 26px color-mix(in srgb, #0b1520 12%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  .quest-tracker {
+    background: rgba(29, 38, 49, 0.94);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
+  }
+
+  .quest-tracker-status {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .quest-task-item,
+  .quest-task-flow-node,
+  .quest-task-mindmap-chip,
+  .quest-task-directory-row,
+  .quest-task-map-tree .quest-task-directory-row,
+  .task-map-empty {
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .quest-task-item.is-current,
+  .quest-task-item.is-current-branch,
+  .quest-task-flow-node.is-current,
+  .quest-task-mindmap-chip.is-current,
+  .quest-task-map-tree .quest-task-directory-item.is-current-branch > .quest-task-directory-row {
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+  }
+
+  .task-map-drawer-backdrop {
+    background: rgba(5, 10, 16, 0.42);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .quest-tracker-btn,
+  .quest-tracker-toggle {
+    background: rgba(255, 255, 255, 0.08);
+    color: #eef4fb;
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .quest-tracker-btn:hover,
+  .quest-tracker-toggle:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+  }
+
+  .quest-tracker-actions.is-inline-links .quest-tracker-btn,
+  .quest-tracker-actions.is-inline-links .quest-tracker-toggle {
+    background: transparent;
+    color: #eef4fb;
   }
 }
