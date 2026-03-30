@@ -71,9 +71,10 @@ const wsClients = await import(
 
 const {
   createSession,
-  dropToolUse,
+  getSession,
   getRunState,
   killAll,
+  renameSession,
   submitHttpMessage,
 } = sessionManager;
 const { setWss } = wsClients;
@@ -150,19 +151,19 @@ assert.equal(
 );
 
 ownerWs.messages = [];
-const dropResult = await dropToolUse(ownerSessionA.id);
-assert.equal(dropResult, true, 'drop tool use should succeed for owner session');
+const renamed = await renameSession(ownerSessionA.id, 'Owner A updated');
+assert.ok(renamed, 'rename should succeed for owner session');
 assert.equal(
   ownerWs.messages.some(
     (msg) => msg.type === 'session_invalidated' && msg.sessionId === ownerSessionA.id,
   ),
   true,
-  'drop tool use should still invalidate the affected session',
+  'rename should still invalidate the affected session',
 );
 assert.equal(
   ownerWs.messages.some((msg) => msg.type === 'sessions_invalidated'),
   false,
-  'drop tool use should not invalidate the whole owner session list',
+  'rename should not invalidate the whole owner session list',
 );
 
 const peerSession = await createSession(tempHome, 'fake-codex', 'Peer Owner A', {
@@ -202,6 +203,15 @@ assert.equal(
   peerOwnerWs.messages.some((msg) => ['session', 'event', 'history'].includes(msg.type)),
   false,
   'owner websocket should stay invalidation-only',
+);
+
+await waitFor(
+  async () => (await getSession(ownerSessionA.id))?.workflowState === 'done',
+  'owner session workflow state suggestion should settle before cleanup',
+);
+await waitFor(
+  async () => (await getSession(peerSession.id))?.workflowState === 'done',
+  'peer session workflow state suggestion should settle before cleanup',
 );
 
 killAll();

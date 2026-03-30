@@ -18,27 +18,23 @@ writeFileSync(
   fakeCodexPath,
   `#!/usr/bin/env node
 const prompt = process.argv[process.argv.length - 1] || '';
-const isWorkflowPrompt = prompt.includes('You are updating RemoteLab workflow state');
-const text = isWorkflowPrompt
-  ? JSON.stringify({ workflowState: 'done', workflowPriority: 'low', reason: 'turn completed' })
-  : [
-      '我先开始整理材料，并把第一版任务卡沉淀下来。',
-      '<private>',
-      '<task_card>{',
-      '  "mode": "project",',
-      '  "summary": "先整理用户丢来的 Excel 和 PPT，再形成第一版可复用流程。",',
-      '  "goal": "接管周报整理流程。",',
-      '  "rawMaterials": ["sales.xlsx", "brief.pptx"],',
-      '  "background": ["用户目前靠手工处理。"],',
-      '  "knownConclusions": ["原始材料比口头描述更关键。"],',
-      '  "nextSteps": ["检查 Excel 结构", "整理第一版摘要"],',
-      '  "memory": ["用户不想先写长说明。"],',
-      '  "needsFromUser": ["若字段含义不清，再补一个目标样例。"]',
-      '}<\\/task_card>',
-      '<\\/private>',
-    ].join(String.fromCharCode(10));
+const text = [
+  '我先开始整理材料，并把第一版任务卡沉淀下来。',
+  '<task_card>{',
+  '  "mode": "project",',
+  '  "summary": "先整理用户丢来的 Excel 和 PPT，再形成第一版可复用流程。",',
+  '  "goal": "接管周报整理流程。",',
+  '  "rawMaterials": ["sales.xlsx", "brief.pptx"],',
+  '  "background": ["用户目前靠手工处理。"],',
+  '  "knownConclusions": ["原始材料比口头描述更关键。"],',
+  '  "nextSteps": ["检查 Excel 结构", "整理第一版摘要"],',
+  '  "memory": ["用户不想先写长说明。"],',
+  '  "candidateBranches": ["沉淀周报模板"],',
+  '  "needsFromUser": ["若字段含义不清，再补一个目标样例。"]',
+  '}</task_card>',
+].join(String.fromCharCode(10));
 
-console.log(JSON.stringify({ type: 'thread.started', thread_id: isWorkflowPrompt ? 'workflow-thread' : 'run-thread' }));
+console.log(JSON.stringify({ type: 'thread.started', thread_id: 'run-thread' }));
 console.log(JSON.stringify({ type: 'turn.started' }));
 console.log(JSON.stringify({
   type: 'item.completed',
@@ -84,6 +80,7 @@ process.env.PATH = `${tempBin}:${process.env.PATH}`;
 const sessionManager = await import(pathToFileURL(join(repoRoot, 'chat', 'session-manager.mjs')).href);
 const {
   createSession,
+  getHistory,
   getSession,
   sendMessage,
   killAll,
@@ -101,8 +98,8 @@ async function waitFor(predicate, description, timeoutMs = 4000) {
 const session = await createSession(tempHome, 'fake-codex', 'Welcome Intake', {
   sourceId: 'chat',
   sourceName: 'Chat',
-  group: 'RemoteLab',
-  description: 'Intake state should keep a hidden task card.',
+  group: 'MelodySync',
+  description: 'Intake state should keep a visible structured task card.',
 });
 
 await sendMessage(session.id, '我有两个原始文件，想把周报整理这件事交给你。', [], {
@@ -118,18 +115,35 @@ await waitFor(
 
 await waitFor(
   async () => (await getSession(session.id))?.taskCard?.summary === '先整理用户丢来的 Excel 和 PPT，再形成第一版可复用流程。',
-  'welcome session should persist the hidden task card',
+  'welcome session should persist the explicit task card',
 );
 
 const updated = await getSession(session.id);
 assert.equal(updated?.taskCard?.mode, 'project');
+assert.equal(updated?.taskCard?.goal, updated?.name, 'mainline task cards should stay anchored to the fixed session task title');
+assert.equal(updated?.taskCard?.mainGoal, updated?.name, 'mainline task cards should keep the main goal aligned with the session title');
 assert.deepEqual(updated?.taskCard?.rawMaterials, ['sales.xlsx', 'brief.pptx']);
 assert.deepEqual(updated?.taskCard?.nextSteps, ['检查 Excel 结构', '整理第一版摘要']);
 assert.deepEqual(updated?.taskCard?.memory, ['用户不想先写长说明。']);
+assert.deepEqual(updated?.taskCard?.candidateBranches, ['沉淀周报模板']);
 
-await waitFor(
-  async () => (await getSession(session.id))?.workflowState === 'done',
-  'workflow state suggestion should settle before cleanup',
+const history = await getHistory(session.id);
+const assistantReply = history.find((event) => event.type === 'message' && event.role === 'assistant');
+assert.ok(assistantReply?.content?.includes('我先开始整理材料'));
+assert.equal(
+  assistantReply?.content?.includes('<task_card>'),
+  false,
+  'persisted assistant messages should strip the explicit task-card markup from visible prose history',
+);
+assert.equal(
+  assistantReply?.content?.includes('"candidateBranches"'),
+  false,
+  'persisted assistant messages should strip the trailing task-card JSON from visible prose history',
+);
+assert.equal(
+  history.some((event) => event.type === 'status' && event.statusKind === 'branch_candidate' && event.branchTitle === '沉淀周报模板'),
+  true,
+  'new candidate branches should also surface as explicit branch recommendation actions in the visible conversation flow',
 );
 
 killAll();

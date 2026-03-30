@@ -385,20 +385,24 @@ function getActiveSessionContext(state, sessionId) {
 
 function pickProjectTitle(session, taskCard) {
   return normalizeNullableText(
-    taskCard?.mainGoal
+    session?.name
+    || taskCard?.mainGoal
     || taskCard?.goal
     || session?.group
-    || session?.name
     || 'Continuity Workspace'
   );
 }
 
 function pickMainGoal(session, taskCard) {
-  const goal = normalizeNullableText(taskCard?.goal || session?.name || '');
+  const goal = normalizeNullableText(
+    normalizeLineRole(taskCard?.lineRole) === 'branch'
+      ? (taskCard?.goal || session?.name || '')
+      : (session?.name || taskCard?.goal || ''),
+  );
   const lineRole = normalizeLineRole(taskCard?.lineRole);
   const branchFrom = normalizeNullableText(taskCard?.branchFrom);
   return normalizeNullableText(
-    taskCard?.mainGoal
+    (lineRole === 'branch' ? taskCard?.mainGoal : '')
     || (lineRole === 'branch' ? branchFrom : '')
     || goal
   );

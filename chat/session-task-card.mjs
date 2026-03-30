@@ -1,4 +1,22 @@
 const TASK_CARD_TAG = 'task_card';
+const TASK_CARD_KEYS = new Set([
+  'mode',
+  'summary',
+  'goal',
+  'mainGoal',
+  'lineRole',
+  'branchFrom',
+  'branchReason',
+  'checkpoint',
+  'candidateBranches',
+  'background',
+  'rawMaterials',
+  'assumptions',
+  'knownConclusions',
+  'nextSteps',
+  'memory',
+  'needsFromUser',
+]);
 const MAX_TASK_CARD_TEXT_CHARS = 360;
 const MAX_TASK_CARD_ITEM_CHARS = 180;
 const MAX_TASK_CARD_ITEMS = 5;
@@ -55,7 +73,6 @@ function textLooksEquivalent(left, right) {
 const INTENT_SHIFT_REASON_PATTERN = /(?:另外|另一|单独|独立|并行|专题|另开|拆出|拆开|分支|支线|切换|转到|转而|换成|不再|脱离|偏离|不同对象|不同目标|不同交付|上下文污染|污染主线|避免污染|separate|independent|parallel|split|branch|switch|drift)/i;
 const SAME_GOAL_REASON_PATTERN = /(?:继续|补充|细化|展开|延伸|说明|约束|调整|修改|优化|完善|补画|重画|再画|再来|追问|示意|草图|变体|同一目标|同一任务|同一条线)/i;
 const NON_INDEPENDENT_TITLE_PATTERN = /^(?:继续|补充|细化|完善|优化|调整|补画|重画|再画|再来|解释|说明|举例|排序|润色)/i;
-const AUTO_BRANCH_STRONG_REASON_PATTERN = /(?:偏离(?:了)?当前|偏离主线|已经偏离|单独展开|单独处理|独立处理|独立专题|另开一条线|拆成独立|不同目标|不同交付|避免(?:主线|上下文).{0,4}污染|context pollution|separate thread|independent thread|split out|branch out)/i;
 
 function taskCardIndicatesIntentShiftNormalized(normalized, branchTitle) {
   const title = normalizeIntentText(branchTitle);
@@ -97,20 +114,26 @@ function taskCardHasIndependentBranchGoalNormalized(normalized, branchTitle) {
 
 function taskCardSupportsAutoBranchNormalized(normalized, branchTitle) {
   if (!normalized) return false;
-  if (!taskCardIndicatesIntentShiftNormalized(normalized, branchTitle)) return false;
   if (!taskCardHasIndependentBranchGoalNormalized(normalized, branchTitle)) return false;
   const reason = normalizeIntentText(normalized.branchReason);
-  if (!reason || reason.length < 6) return false;
-  return AUTO_BRANCH_STRONG_REASON_PATTERN.test(reason);
+  if (!reason) return true;
+  if (SAME_GOAL_REASON_PATTERN.test(reason) && !INTENT_SHIFT_REASON_PATTERN.test(reason)) {
+    return false;
+  }
+  return true;
 }
 
 function filterCandidateBranches(normalized, candidates = []) {
   if (!normalized || !Array.isArray(candidates) || candidates.length === 0) return [];
   const accepted = [];
+  const seen = new Set();
   for (const branchTitle of candidates) {
     if (!taskCardSupportsAutoBranchNormalized(normalized, branchTitle)) continue;
+    const key = normalizeIntentText(branchTitle);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
     accepted.push(branchTitle);
-    break;
+    if (accepted.length >= 3) break;
   }
   return accepted;
 }
@@ -162,6 +185,43 @@ function parseJsonObjectText(modelText) {
   } catch {
     return null;
   }
+}
+
+function looksLikeTaskCardObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.keys(value).some((key) => TASK_CARD_KEYS.has(String(key || '').trim()));
+}
+
+function extractTrailingTaskCardJsonBounds(content) {
+  const text = typeof content === 'string' ? content : '';
+  const trimmedEnd = text.trimEnd();
+  if (!trimmedEnd || !trimmedEnd.endsWith('}')) return null;
+
+  let startIndex = trimmedEnd.lastIndexOf('{');
+  while (startIndex !== -1) {
+    const prefix = trimmedEnd.slice(0, startIndex);
+    if (!prefix || /(?:^|\n\s*\n)\s*$/.test(prefix)) {
+      const candidate = trimmedEnd.slice(startIndex);
+      const parsed = parseJsonObjectText(candidate);
+      if (looksLikeTaskCardObject(parsed)) {
+        return {
+          start: startIndex,
+          end: trimmedEnd.length,
+          parsed,
+        };
+      }
+    }
+    startIndex = trimmedEnd.lastIndexOf('{', startIndex - 1);
+  }
+
+  return null;
+}
+
+function cleanupTaskCardGapText(value) {
+  return String(value || '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function hasMeaningfulTaskCard(card) {
@@ -261,11 +321,13 @@ export function shouldSurfaceTaskCardBranchCandidate(taskCard, branchTitle) {
   return taskCardSupportsAutoBranchNormalized(normalizeSessionTaskCard(taskCard), branchTitle);
 }
 
-export function buildTaskCardPromptBlock(taskCard) {
+export function buildTaskCardPromptBlock(taskCard, options = {}) {
   const normalized = normalizeSessionTaskCard(taskCard);
+  const fixedTaskTitle = clipText(options?.sessionTitle || options?.taskTitle || '', 160);
   const currentCardBlock = normalized
     ? [
-        'Current carried task card (hidden session memory; keep this updated silently):',
+        'Current carried task card (this tracks the session-level task anchor, not a per-message recap):',
+        fixedTaskTitle ? `Fixed session task title: ${fixedTaskTitle}` : '',
         `Execution mode: ${normalized.mode}`,
         normalized.summary ? `Summary: ${normalized.summary}` : '',
         normalized.goal ? `Current goal: ${normalized.goal}` : '',
@@ -287,24 +349,29 @@ export function buildTaskCardPromptBlock(taskCard) {
 
   return [
     currentCardBlock,
-    'After every user-facing reply, append a hidden <private> block that contains exactly one <task_card> JSON object and nothing else inside that hidden block.',
-    'Use literal closing tags exactly as </task_card></private>. Do not escape the slash as <\\/task_card> or <\\/private>.',
+    'After every user-facing reply, append exactly one final <task_card> JSON block at the very end of the reply.',
+    'Keep the normal answer natural and user-facing. Put the <task_card> block after that answer so the client can update the session task bar and branch recommendations.',
+    'Use literal closing tags exactly as </task_card>. Do not escape the slash as <\\/task_card>.',
     'The <task_card> JSON must use these keys: mode, summary, goal, mainGoal, lineRole, branchFrom, branchReason, checkpoint, candidateBranches, background, rawMaterials, assumptions, knownConclusions, nextSteps, memory, needsFromUser.',
-    'For a newly started main task, use summary as a task-bar title rather than a full sentence description.',
+    fixedTaskTitle
+      ? 'For main-line turns, keep goal and mainGoal anchored to the fixed session task title unless the user explicitly redefines the whole task.'
+      : '',
+    'For a newly started main task, use summary as a short task-bar subtitle rather than a full sentence description.',
     'Keep summary to no more than 10 Chinese characters when possible; prefer 6-8.',
     'Treat summary as a short directional title, not a sentence. Prefer a compact verb + object form.',
     'Do not use summary for background, reasoning, process notes, uncertainty, or implementation detail.',
-    'Only rewrite summary when the task direction materially changes.',
+    'Only rewrite summary when the session-level task framing materially changes.',
     'Set lineRole to "main" when the conversation is still pushing the current main line. Set it to "branch" only when the user has clearly drifted into a side line that should be remembered separately.',
-    'Set mainGoal to the main line that should remain visible even when the conversation is currently on a branch. If there is no branch, set mainGoal equal to goal.',
+    'Set mainGoal to the main line that should remain visible even when the conversation is currently on a branch. If there is no branch, set mainGoal equal to the fixed session task title or goal.',
     'Set branchFrom to the main line or parent line the current branch diverged from. Leave branchFrom empty when lineRole is "main".',
     'Set branchReason only when there is a clear reason a branch already exists or should split out, such as a distinct deliverable, a different research track, or a line that would pollute the current context if kept in the same thread.',
     'Set checkpoint to one short resume hint that would let the user or the system continue later without rereading the full history.',
     'Default candidateBranches to an empty list.',
-    'Only add candidateBranches when the user has already started drifting into a different goal that should become its own branch if continued.',
+    'Add candidateBranches when the user has already started drifting into a different goal or when there are clear independent side lines that are likely to deserve their own branch next.',
+    'Use candidateBranches for branch recommendations only. Do not change the main task title just because a candidate branch appeared.',
     'Do not proactively suggest a branch for normal follow-up questions, refinements, examples, reordering, polishing, style tweaks, or deeper explanation inside the same deliverable.',
-    'Only keep one proactive candidate branch at most. If there is any doubt, leave candidateBranches empty.',
-    'Use candidateBranches only for likely side lines that would be worth splitting into their own branch later because they are independent and would otherwise pollute the current context. Keep each item short and actionable. Do not list every sub-question.',
+    'Keep candidateBranches to the strongest 1-3 likely side lines. If there is any doubt, leave candidateBranches empty.',
+    'Use candidateBranches only for likely side lines that would be worth splitting into their own branch later because they are independent and would otherwise pollute the current context. Keep each item short and actionable. Do not list every sub-question or routine refinements.',
     normalized?.mode === 'project'
       ? 'This session is already in project mode. Own the workspace, notes, artifacts, and intermediate outputs without asking the user to organize them.'
       : 'This session is still in lightweight task mode. Keep the summary, next step, and checkpoint current without making the user manage project structure.',
@@ -313,8 +380,31 @@ export function buildTaskCardPromptBlock(taskCard) {
 
 export function parseTaskCardFromAssistantContent(content) {
   const block = extractTaggedBlock(content, TASK_CARD_TAG);
-  if (!block) return null;
-  return normalizeSessionTaskCard(parseJsonObjectText(block));
+  if (block) {
+    return normalizeSessionTaskCard(parseJsonObjectText(block));
+  }
+  const trailingTaskCard = extractTrailingTaskCardJsonBounds(content);
+  return trailingTaskCard ? normalizeSessionTaskCard(trailingTaskCard.parsed) : null;
+}
+
+export function stripTaskCardFromAssistantContent(content) {
+  let text = typeof content === 'string' ? content : '';
+  if (!text) return '';
+
+  text = text
+    .replace(
+      /<private>\s*<task_card>[\s\S]*?<(?:\\\/|\/)task_card>\s*<(?:\\\/|\/)private>/gi,
+      '',
+    )
+    .replace(/<task_card>[\s\S]*?<(?:\\\/|\/)task_card>/gi, '')
+    .replace(/<private>\s*<(?:\\\/|\/)private>/gi, '');
+
+  const trailingTaskCard = extractTrailingTaskCardJsonBounds(text);
+  if (trailingTaskCard) {
+    text = `${text.slice(0, trailingTaskCard.start)}${text.slice(trailingTaskCard.end)}`;
+  }
+
+  return cleanupTaskCardGapText(text);
 }
 
 export { TASK_CARD_TAG };

@@ -130,8 +130,6 @@ const forkSessionBtn = document.getElementById("forkSessionBtn");
 const sidebarFilters = document.getElementById("sidebarFilters");
 const sessionList = document.getElementById("sessionList");
 const sessionListFooter = document.getElementById("sessionListFooter");
-const uiLanguageSelect = document.getElementById("uiLanguageSelect");
-const uiLanguageStatus = document.getElementById("uiLanguageStatus");
 const sortSessionListBtn = document.getElementById("sortSessionListBtn");
 const newSessionBtn = document.getElementById("newSessionBtn");
 const messagesEl = document.getElementById("messages");
@@ -141,6 +139,7 @@ const queuedPanel = document.getElementById("queuedPanel");
 const msgInput = document.getElementById("msgInput");
 const sendBtn = document.getElementById("sendBtn");
 const headerTitle = document.getElementById("headerTitle");
+const organizeSessionBtn = document.getElementById("organizeSessionBtn");
 const refreshFrontendBtn = document.getElementById("refreshFrontendBtn");
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
@@ -153,35 +152,10 @@ const effortSelect = document.getElementById("effortSelect");
 const thinkingToggle = document.getElementById("thinkingToggle");
 const cancelBtn = document.getElementById("cancelBtn");
 const contextTokens = document.getElementById("contextTokens");
-const compactBtn = document.getElementById("compactBtn");
-const dropToolsBtn = document.getElementById("dropToolsBtn");
 const tabSessions = document.getElementById("tabSessions");
-const sourceFilterSelect = document.getElementById("sourceFilterSelect");
-const userFilterSelect = document.getElementById("userFilterSelect");
 const inputArea = document.getElementById("inputArea");
 const composerPendingState = document.getElementById("composerPendingState");
 const inputResizeHandle = document.getElementById("inputResizeHandle");
-const addToolModal = document.getElementById("addToolModal");
-const closeAddToolModalBtn = document.getElementById("closeAddToolModal");
-const closeAddToolModalFooterBtn = document.getElementById(
-  "closeAddToolModalFooter",
-);
-const addToolNameInput = document.getElementById("addToolNameInput");
-const addToolCommandInput = document.getElementById("addToolCommandInput");
-const addToolRuntimeFamilySelect = document.getElementById(
-  "addToolRuntimeFamilySelect",
-);
-const addToolModelsInput = document.getElementById("addToolModelsInput");
-const addToolReasoningKindSelect = document.getElementById(
-  "addToolReasoningKindSelect",
-);
-const addToolReasoningLevelsInput = document.getElementById(
-  "addToolReasoningLevelsInput",
-);
-const addToolStatus = document.getElementById("addToolStatus");
-const providerPromptCode = document.getElementById("providerPromptCode");
-const saveToolConfigBtn = document.getElementById("saveToolConfigBtn");
-const copyProviderPromptBtn = document.getElementById("copyProviderPromptBtn");
 
 refreshFrontendBtn?.addEventListener("click", () => {
   void reloadForFreshBuild(newerBuildInfo);
@@ -192,18 +166,9 @@ let ws = null;
 let pendingImages = [];
 const ACTIVE_SESSION_STORAGE_KEY = "activeSessionId";
 const ACTIVE_SIDEBAR_TAB_STORAGE_KEY = "activeSidebarTab";
-const LEGACY_ACTIVE_SOURCE_FILTER_STORAGE_KEY = "activeAppFilter";
-const ACTIVE_SOURCE_FILTER_STORAGE_KEY = "activeSourceFilter";
-const ACTIVE_USER_FILTER_STORAGE_KEY = "activeUserFilter";
 const LEGACY_SESSION_SEND_FAILURES_STORAGE_KEY = "sessionSendFailures";
 const SESSION_REVIEW_MARKERS_STORAGE_KEY = "sessionReviewedAtById";
 const SESSION_REVIEW_BASELINE_AT_STORAGE_KEY = "sessionReviewBaselineAt";
-const FILTER_ALL_VALUE = "__all__";
-const SOURCE_FILTER_CHAT_VALUE = "chat_ui";
-const SOURCE_FILTER_BOT_VALUE = "bot";
-const SOURCE_FILTER_AUTOMATION_VALUE = "automation";
-const ADMIN_USER_FILTER_VALUE = "user_admin";
-const USER_FILTER_ALL_VALUE = "__all_users__";
 const DEFAULT_APP_ID = "chat";
 const DEFAULT_APP_NAME = "Chat";
 const sessionStateModel = window.RemoteLabSessionStateModel;
@@ -248,6 +213,14 @@ function readNavigationStateFromLocation() {
 }
 
 globalThis.readNavigationStateFromLocation = readNavigationStateFromLocation;
+
+try {
+  // These filters no longer have UI controls. Clear old persisted values so
+  // hidden local state cannot silently hide sessions after a reload.
+  localStorage.removeItem("activeAppFilter");
+  localStorage.removeItem("activeSourceFilter");
+  localStorage.removeItem("activeUserFilter");
+} catch {}
 
 let pendingNavigationState = readNavigationStateFromLocation();
 let currentSessionId =
@@ -335,7 +308,6 @@ let currentToolReasoningDefault = null;
 let allToolsList = [];
 let toolsList = [];
 let isDesktop = window.matchMedia("(min-width: 768px)").matches;
-const ADD_MORE_TOOL_VALUE = "__add_more__";
 const COLLAPSED_GROUPS_STORAGE_KEY = "collapsedSessionGroups";
 let isSavingToolConfig = false;
 let collapsedFolders = JSON.parse(

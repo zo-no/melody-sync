@@ -71,7 +71,6 @@
 }
 
 @media (max-width: 640px) {
-  .provider-helper-grid { grid-template-columns: 1fr; }
   .modal { width: 100%; max-height: calc(100dvh - 24px); }
   .modal-body { padding: 14px; }
   .modal-header,

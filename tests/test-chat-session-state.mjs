@@ -95,7 +95,7 @@ function createBaseContext() {
 
 const normalizeSessionRecordSnippet = sliceBetween(
   sessionHttpSource,
-  'function normalizeSessionRecord',
+  'function normalizeSessionLocalListOrder',
   'function upsertSession',
 );
 
@@ -539,19 +539,39 @@ assert.deepEqual(
   'failed archive should roll the attached session view back after the optimistic update',
 );
 
+const organizeContext = createBaseContext();
+let organizeCall = null;
+organizeContext.currentSessionId = 'session-organize';
+organizeContext.organizeSessionById = async (sessionId, options = {}) => {
+  organizeCall = { sessionId, options };
+  return { id: 'run-organize', state: 'completed' };
+};
+
+vm.runInNewContext(dispatchActionSnippet, organizeContext, {
+  filename: 'chat-dispatch-action-runtime.js',
+});
+
+const organizeAccepted = await organizeContext.dispatchAction({ action: 'organize', viewportIntent: 'preserve' });
+assert.equal(organizeAccepted, true, 'organize should resolve successfully after the explicit helper completes');
+assert.equal(organizeCall?.sessionId, 'session-organize', 'organize should delegate with the current session id');
+assert.equal(
+  organizeCall?.options?.viewportIntent,
+  'preserve',
+  'organize should preserve the current viewport intent when delegating',
+);
+
 const attachContext = createBaseContext();
 let attachStatusUpdate = null;
 let queuedPanelSession = null;
 let attachRenderCalls = 0;
 let browserStateSyncs = 0;
 let forkSyncs = 0;
+let organizeButtonSyncs = 0;
 let modelLoads = 0;
 let draftRestores = 0;
 
 attachContext.currentTokens = 99;
 attachContext.contextTokens = { style: { display: 'block' } };
-attachContext.compactBtn = { style: { display: 'block' } };
-attachContext.dropToolsBtn = { style: { display: 'block' } };
 attachContext.headerTitle = { textContent: '' };
 attachContext.inlineToolSelect = { value: '' };
 attachContext.selectedTool = 'claude';
@@ -578,6 +598,9 @@ attachContext.syncBrowserState = () => {
 attachContext.syncForkButton = () => {
   forkSyncs += 1;
 };
+attachContext.syncOrganizeSessionButton = () => {
+  organizeButtonSyncs += 1;
+};
 
 vm.runInNewContext(applyAttachedSessionStateSnippet, attachContext, {
   filename: 'chat-apply-attached-session-state-runtime.js',
@@ -594,7 +617,6 @@ attachContext.applyAttachedSessionState(attachedSession.id, attachedSession);
 assert.equal(attachContext.currentSessionId, attachedSession.id, 'attaching a session should set the current session id');
 assert.equal(attachContext.hasAttachedSession, true, 'attaching a session should mark the UI as attached');
 assert.equal(attachContext.currentTokens, 0, 'attaching a session should reset the live-context token counter');
-assert.equal(attachContext.headerTitle.textContent, 'Render validation session', 'attaching a session should refresh the header title');
 assert.equal(attachContext.inlineToolSelect.value, 'codex', 'attaching a session should update the inline tool picker');
 assert.equal(attachContext.selectedTool, 'codex', 'attaching a session should adopt the backend tool selection');
 assert.equal(modelLoads, 1, 'attaching a session should refresh models when the tool changes');
@@ -602,6 +624,7 @@ assert.equal(draftRestores, 1, 'attaching a session should restore the local dra
 assert.equal(attachRenderCalls, 1, 'attaching a session should rerender the session list');
 assert.equal(browserStateSyncs, 1, 'attaching a session should sync browser navigation state');
 assert.equal(forkSyncs, 1, 'attaching a session should refresh fork affordances');
+assert.equal(organizeButtonSyncs, 1, 'attaching a session should refresh organize-task affordances');
 assert.deepEqual(attachStatusUpdate, { state: 'connected', session: attachedSession }, 'attaching a session should update the status indicator');
 assert.equal(queuedPanelSession, attachedSession, 'attaching a session should refresh the queued-message panel');
 

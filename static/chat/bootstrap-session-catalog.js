@@ -37,15 +37,6 @@ function refreshSessionAttentionUi(sessionId = currentSessionId) {
 let currentThinkingBlock = null; // { el, body, tools: Set }
 let inThinkingBlock = false;
 
-let activeSourceFilter = normalizeSourceFilter(
-  localStorage.getItem(ACTIVE_SOURCE_FILTER_STORAGE_KEY)
-  || localStorage.getItem(LEGACY_ACTIVE_SOURCE_FILTER_STORAGE_KEY)
-  || FILTER_ALL_VALUE,
-);
-let activeUserFilter = normalizeUserFilter(
-  localStorage.getItem(ACTIVE_USER_FILTER_STORAGE_KEY) || ADMIN_USER_FILTER_VALUE,
-);
-
 function registerHiddenMarkdownExtensions() {
   const hiddenTagStart = /<(private|hide)\b/i;
   const hiddenBlockPattern = /^(?: {0,3})<(private|hide)\b[^>]*>[\s\S]*?<(?:\\\/|\/)\1>(?:\n+|$)/i;
@@ -162,31 +153,6 @@ function normalizeAppId(appId, { fallbackDefault = false } = {}) {
   return trimmed;
 }
 
-function normalizeSourceFilter(value) {
-  const normalized = typeof value === "string" ? value.trim() : "";
-  return [
-    SOURCE_FILTER_CHAT_VALUE,
-    SOURCE_FILTER_BOT_VALUE,
-    SOURCE_FILTER_AUTOMATION_VALUE,
-  ].includes(normalized)
-    ? normalized
-    : FILTER_ALL_VALUE;
-}
-
-function normalizeUserFilter(value) {
-  const normalized = typeof value === "string" ? value.trim() : "";
-  if (normalized === USER_FILTER_ALL_VALUE) return USER_FILTER_ALL_VALUE;
-  return normalized || ADMIN_USER_FILTER_VALUE;
-}
-
-function persistActiveSourceFilter(value) {
-  localStorage.setItem(ACTIVE_SOURCE_FILTER_STORAGE_KEY, normalizeSourceFilter(value));
-}
-
-function persistActiveUserFilter(value) {
-  localStorage.setItem(ACTIVE_USER_FILTER_STORAGE_KEY, normalizeUserFilter(value));
-}
-
 function formatAppNameFromId(appId) {
   const normalized = normalizeAppId(appId);
   if (!normalized) return DEFAULT_APP_NAME;
@@ -230,250 +196,28 @@ function getEffectiveSessionSourceName(session) {
   return formatAppNameFromId(sourceId);
 }
 
-function getSessionSourceCategory(session) {
-  const sourceId = getEffectiveSessionSourceId(session);
-  if (sourceId === DEFAULT_APP_ID) return SOURCE_FILTER_CHAT_VALUE;
-  if (sourceId === "automation" || sourceId.startsWith("automation")) {
-    return SOURCE_FILTER_AUTOMATION_VALUE;
-  }
-  return SOURCE_FILTER_BOT_VALUE;
-}
-
-function getCurrentUserRecord() {
-  if (activeUserFilter === USER_FILTER_ALL_VALUE || activeUserFilter === ADMIN_USER_FILTER_VALUE) {
-    return null;
-  }
-  return availableUsers.find((user) => user.id === activeUserFilter) || null;
-}
-
 function refreshAppCatalog() {
-  renderSourceFilterOptions();
-  renderUserFilterOptions();
-}
-
-function getFilteredActiveSessions({ ignoreSource = false, ignoreUser = false } = {}) {
-  return getActiveSessions().filter((session) => (
-    (ignoreSource || matchesSourceFilter(session, activeSourceFilter))
-    && (ignoreUser || matchesUserFilter(session, activeUserFilter))
-  ));
-}
-
-function matchesSourceFilter(session, sourceFilter = activeSourceFilter) {
-  if (sourceFilter === FILTER_ALL_VALUE) return true;
-  return getSessionSourceCategory(session) === sourceFilter;
-}
-
-function matchesUserFilter(session, scope = activeUserFilter) {
-  if (scope === USER_FILTER_ALL_VALUE) return true;
-  if (scope === ADMIN_USER_FILTER_VALUE) {
-    return !session?.userId;
+  if (sidebarFilters) {
+    sidebarFilters.classList.add("hidden");
   }
-  return session?.userId === scope;
-}
-
-function matchesCurrentFilters(session) {
-  return matchesUserFilter(session, activeUserFilter)
-    && matchesSourceFilter(session, activeSourceFilter);
 }
 
 function getVisibleActiveSessions() {
-  return getActiveSessions().filter((session) => !session.pinned && matchesCurrentFilters(session));
+  return getActiveSessions().filter((session) => !session.pinned);
 }
 
 function getVisiblePinnedSessions() {
-  return getActiveSessions().filter((session) => session.pinned === true && matchesCurrentFilters(session));
+  return getActiveSessions().filter((session) => session.pinned === true);
 }
 
 function getVisibleArchivedSessions() {
-  return getArchivedSessions().filter((session) => matchesCurrentFilters(session));
-}
-
-function getSessionCountForSourceFilter(sourceFilter) {
-  const activeSessions = getFilteredActiveSessions({ ignoreSource: true });
-  if (sourceFilter === FILTER_ALL_VALUE) return activeSessions.length;
-  return activeSessions.filter((session) => getSessionSourceCategory(session) === sourceFilter).length;
-}
-
-function getSessionCountForUser(scope = activeUserFilter) {
-  const activeSessions = getFilteredActiveSessions({ ignoreUser: true });
-  if (scope === USER_FILTER_ALL_VALUE) return activeSessions.length;
-  if (scope === ADMIN_USER_FILTER_VALUE) {
-    return activeSessions.filter((session) => !session?.userId).length;
-  }
-  return activeSessions.filter((session) => session?.userId === scope).length;
-}
-
-function isSidebarFilterControlVisible(control) {
-  if (!control) return false;
-  if (control.hidden === true) return false;
-  return control.style?.display !== "none";
-}
-
-function getVisibleSourceFilterOptions() {
-  return [
-    [SOURCE_FILTER_CHAT_VALUE, t("sidebar.filter.source.chat")],
-    [SOURCE_FILTER_BOT_VALUE, t("sidebar.filter.source.bots")],
-    [SOURCE_FILTER_AUTOMATION_VALUE, t("sidebar.filter.source.automation")],
-  ].filter(([value]) => getSessionCountForSourceFilter(value) > 0);
-}
-
-function getVisibleUserFilterCatalog() {
-  const entries = [];
-  const adminCount = getSessionCountForUser(ADMIN_USER_FILTER_VALUE);
-  if (adminCount > 0) {
-    entries.push({
-      value: ADMIN_USER_FILTER_VALUE,
-      label: t("sidebar.filter.admin", { count: adminCount }),
-    });
-  }
-
-  const customUsers = availableUsers.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" }));
-  for (const user of customUsers) {
-    const count = getSessionCountForUser(user.id);
-    if (count <= 0) continue;
-    entries.push({
-      value: user.id,
-      label: t("sidebar.filter.userCount", {
-        name: user.name || t("settings.users.newUserFallback"),
-        count,
-      }),
-    });
-  }
-
-  return entries;
+  return getArchivedSessions();
 }
 
 function syncSidebarFiltersVisibility(showingSessions = null) {
-  if (!sidebarFilters) return;
-  const resolvedShowingSessions = typeof showingSessions === "boolean"
-    ? showingSessions
-    : (typeof activeTab === "string" ? activeTab === "sessions" : true);
-  const controls = [sourceFilterSelect, userFilterSelect].filter(Boolean);
-  const hasVisibleControls = controls.length === 0
-    ? true
-    : controls.some((control) => isSidebarFilterControlVisible(control));
-  const visible = resolvedShowingSessions && hasVisibleControls;
-  sidebarFilters.classList.toggle("hidden", !visible);
-}
-
-function renderSourceFilterOptions() {
-  if (!sourceFilterSelect) {
-    if (sourceFilterSelect) sourceFilterSelect.style.display = "none";
-    syncSidebarFiltersVisibility();
-    return;
+  if (sidebarFilters) {
+    sidebarFilters.classList.add("hidden");
   }
-
-  const options = getVisibleSourceFilterOptions();
-  if (
-    activeSourceFilter !== FILTER_ALL_VALUE
-    && options.length > 0
-    && !options.some(([value]) => value === activeSourceFilter)
-  ) {
-    activeSourceFilter = FILTER_ALL_VALUE;
-    persistActiveSourceFilter(activeSourceFilter);
-  }
-
-  if (options.length <= 1) {
-    sourceFilterSelect.style.display = "none";
-    syncSidebarFiltersVisibility();
-    return;
-  }
-
-  sourceFilterSelect.style.display = "";
-  sourceFilterSelect.innerHTML = "";
-
-  const allOption = document.createElement("option");
-  allOption.value = FILTER_ALL_VALUE;
-  allOption.textContent = t("sidebar.filter.allOrigins", {
-    count: getSessionCountForSourceFilter(FILTER_ALL_VALUE),
-  });
-  sourceFilterSelect.appendChild(allOption);
-
-  for (const [value, name] of options) {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = `${name} (${getSessionCountForSourceFilter(value)})`;
-    sourceFilterSelect.appendChild(option);
-  }
-  sourceFilterSelect.value = normalizeSourceFilter(activeSourceFilter);
-  syncSidebarFiltersVisibility();
-}
-
-function renderUserFilterOptions() {
-  if (!userFilterSelect) {
-    if (userFilterSelect) userFilterSelect.style.display = "none";
-    syncSidebarFiltersVisibility();
-    return;
-  }
-
-  const usersCatalogReady = hasLoadedUsers === true || availableUsers.length > 0;
-  const availableUserIds = new Set(availableUsers.map((user) => user.id));
-  if (
-    usersCatalogReady
-    && activeUserFilter !== USER_FILTER_ALL_VALUE
-    && activeUserFilter !== ADMIN_USER_FILTER_VALUE
-    && !availableUserIds.has(activeUserFilter)
-  ) {
-    activeUserFilter = ADMIN_USER_FILTER_VALUE;
-    persistActiveUserFilter(activeUserFilter);
-  }
-
-  const catalog = getVisibleUserFilterCatalog();
-  if (
-    usersCatalogReady
-    && catalog.length > 0
-    && activeUserFilter !== USER_FILTER_ALL_VALUE
-    && !catalog.some((entry) => entry.value === activeUserFilter)
-  ) {
-    activeUserFilter = USER_FILTER_ALL_VALUE;
-    persistActiveUserFilter(activeUserFilter);
-  }
-
-  if (catalog.length <= 1) {
-    userFilterSelect.style.display = "none";
-    syncSidebarFiltersVisibility();
-    return;
-  }
-
-  userFilterSelect.style.display = "";
-  userFilterSelect.innerHTML = "";
-
-  for (const entry of catalog) {
-    const option = document.createElement("option");
-    option.value = entry.value;
-    option.textContent = entry.label;
-    userFilterSelect.appendChild(option);
-  }
-
-  const allOption = document.createElement("option");
-  allOption.value = USER_FILTER_ALL_VALUE;
-  allOption.textContent = t("sidebar.filter.allUsers", {
-    count: getSessionCountForUser(USER_FILTER_ALL_VALUE),
-  });
-  userFilterSelect.appendChild(allOption);
-
-  userFilterSelect.value = normalizeUserFilter(activeUserFilter);
-  syncSidebarFiltersVisibility();
-}
-
-if (sourceFilterSelect) {
-  sourceFilterSelect.addEventListener("change", () => {
-    activeSourceFilter = normalizeSourceFilter(sourceFilterSelect.value);
-    persistActiveSourceFilter(activeSourceFilter);
-    renderSourceFilterOptions();
-    renderUserFilterOptions();
-    renderSessionList();
-  });
-}
-
-if (userFilterSelect) {
-  userFilterSelect.addEventListener("change", () => {
-    activeUserFilter = normalizeUserFilter(userFilterSelect.value);
-    persistActiveUserFilter(activeUserFilter);
-    renderSourceFilterOptions();
-    renderUserFilterOptions();
-    renderSessionList();
-  });
 }
 
 refreshAppCatalog();
@@ -549,11 +293,9 @@ function resolveRestoreTargetSession() {
   }
   if (currentSessionId) {
     const current = sessions.find((session) => session.id === currentSessionId);
-    if (current && matchesCurrentFilters(current)) return current;
+    if (current) return current;
   }
-  return getLatestActiveSessionForCurrentFilters()
-    || getLatestSessionForCurrentFilters()
-    || getLatestActiveSession()
+  return getLatestActiveSession()
     || getLatestSession();
 }
 

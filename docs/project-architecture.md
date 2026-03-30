@@ -1,6 +1,6 @@
 # Project Architecture
 
-This document describes the current shipped MelodySync architecture after share/visitor mode, App templates, and scheduled triggers were removed.
+This document describes the current shipped MelodySync architecture after share/visitor mode, App templates, user-management surfaces, and scheduled triggers were removed.
 
 ## Product Boundary
 
@@ -10,7 +10,8 @@ MelodySync is now an owner-operated AI task workspace.
 - `Session` is the durable work thread.
 - `Run` is one detached execution attempt under a session.
 - `sourceId` / `sourceName` remain as passive session metadata for connectors and categorization.
-- Public share links, visitor mode, App templates, and scheduled triggers are not part of the current product.
+- `appId` / `appName` and `userId` / `userName` may still exist in stored data as compatibility metadata.
+- Public share links, visitor mode, App templates, user-management surfaces, and scheduled triggers are not part of the current product.
 
 ## Runtime Topology
 
@@ -27,7 +28,7 @@ MelodySync is now an owner-operated AI task workspace.
 
 - top-level HTTP dispatcher
 - serves auth/build/runtime/session APIs
-- keeps removed admin surfaces on explicit `410 Gone`
+- still contains some retired compatibility stubs that should be pruned during cleanup
 
 `chat/session-manager.mjs`
 
@@ -87,7 +88,7 @@ Key fields:
 - `group`, `description`
 - `workflowState`, `workflowPriority`
 - `forkedFromSessionId`, `rootSessionId`
-- optional passive legacy metadata such as `appId` / `appName`
+- optional passive legacy metadata such as `appId` / `appName` and `userId` / `userName`
 
 Persistence:
 
@@ -159,7 +160,8 @@ An isolated instance can override this via `REMOTELAB_INSTANCE_ROOT`, `REMOTELAB
 - The system is owner-only. Do not reintroduce visitor/share assumptions into auth, routing, or frontend state.
 - `chat/session-manager.mjs` is still the biggest complexity hotspot.
 - Frontend state is split but still mostly global-script driven.
-- Legacy `appId` / `appName` fields may still appear in stored session metadata, but they are not a shipped App system anymore.
+- Legacy `appId` / `appName` / `userId` / `userName` fields may still appear in stored session metadata, but they are not shipped product systems anymore.
+- Workbench and integrations remain valuable, but they should stay layered on the core session/run path rather than drive the primary architecture.
 
 ## Where To Read Next
 

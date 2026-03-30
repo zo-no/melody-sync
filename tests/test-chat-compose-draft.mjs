@@ -103,7 +103,6 @@ function createContext({
       };
     },
   };
-  const voiceCleanupToggle = makeEventTarget();
   const document = {
     body: {
       classList: makeClassList(),
@@ -111,7 +110,6 @@ function createContext({
     addEventListener() {},
     removeEventListener() {},
     getElementById(id) {
-      if (id === 'voiceCleanupToggle') return voiceCleanupToggle;
       return null;
     },
     createElement() {
@@ -176,11 +174,8 @@ function createContext({
       callback();
     },
     cancelBtn: makeEventTarget(),
-    compactBtn: makeEventTarget(),
-    dropToolsBtn: makeEventTarget(),
     sendBtn: makeEventTarget(),
     composerPendingState: makeEventTarget(),
-    voiceCleanupToggle,
     sessionTemplateSelect: makeEventTarget(),
     saveTemplateBtn: makeEventTarget(),
     tabSessions: makeEventTarget(),
@@ -249,9 +244,6 @@ assert.equal(context.msgInput.style.height, '72px', 'composer should default to 
 assert.equal(context.layoutSubscribers.length, 1, 'composer should subscribe to the shared layout controller');
 assert.equal(context.windowResizeListeners.length, 0, 'composer should not attach its own window resize listener when the shared layout controller exists');
 assert.equal(context.visualViewportResizeListeners.length, 0, 'composer should not attach its own visual viewport resize listener when the shared layout controller exists');
-assert.equal(context.isComposerVoiceCleanupEnabled(), true, 'voice cleanup should default to enabled when no explicit preference has been stored');
-assert.equal(context.voiceCleanupToggle['aria-pressed'], 'true', 'the voice cleanup toggle should render as enabled by default');
-assert.equal(context.voiceCleanupToggle.classList.contains('active'), true, 'the voice cleanup toggle should surface its enabled styling by default');
 
 context.msgInput.value = 'draft for A';
 context.saveDraft();
@@ -355,42 +347,6 @@ assert.equal(canonicalSendContext.msgInput.value, '', 'confirmed sends should cl
 assert.equal(canonicalSendContext.msgInput.readOnly, false, 'confirmed sends should restore the composer input state');
 assert.equal(canonicalSendContext.inputArea.classList.contains('is-pending-send'), false, 'confirmed sends should remove the pending composer styling');
 assert.equal(canonicalSendContext.localStorage.getItem('draft_session-a'), null, 'confirmed sends should clear the stored draft');
-
-const cleanupSendContext = createContext({
-  storageSeed: {
-    composerVoiceCleanupBeforeSend: '1',
-  },
-});
-const cleanupRequests = [];
-const cleanupDispatchCalls = [];
-let resolveCleanupRequest = null;
-cleanupSendContext.fetchJsonOrRedirect = (url, options) => {
-  cleanupRequests.push({ url, options });
-  return new Promise((resolve) => {
-    resolveCleanupRequest = () => resolve({ transcript: 'cleaned transcript', rewriteApplied: true });
-  });
-};
-cleanupSendContext.dispatchAction = async (payload) => {
-  cleanupDispatchCalls.push(payload);
-  return true;
-};
-vm.runInNewContext(composeSource, cleanupSendContext, { filename: 'static/chat/compose.js' });
-cleanupSendContext.msgInput.value = 'rough transcript';
-cleanupSendContext.sendMessage();
-assert.equal(cleanupSendContext.composerPendingState.textContent, 'Cleaning transcript…', 'voice-cleanup sends should surface a cleanup stage before dispatching the message');
-assert.equal(cleanupRequests.length, 1, 'voice-cleanup sends should call the hidden cleanup endpoint first');
-assert.equal(cleanupDispatchCalls.length, 0, 'voice-cleanup sends should wait for cleanup before dispatching the message');
-resolveCleanupRequest();
-await Promise.resolve();
-await Promise.resolve();
-await new Promise((resolve) => setTimeout(resolve, 0));
-assert.equal(cleanupDispatchCalls.length, 1, 'voice-cleanup sends should still dispatch exactly one message request');
-assert.equal(cleanupDispatchCalls[0].action, 'send', 'voice-cleanup sends should still go through the normal send action');
-assert.equal(cleanupDispatchCalls[0].sessionId, 'session-a', 'voice-cleanup sends should stay bound to the original session');
-assert.equal(cleanupDispatchCalls[0].text, 'cleaned transcript', 'voice-cleanup sends should forward the cleaned transcript to the normal send path');
-assert.equal(cleanupDispatchCalls[0].requestId, 'req_test', 'voice-cleanup sends should keep the original request id');
-assert.equal(cleanupDispatchCalls[0].thinking, true, 'voice-cleanup sends should snapshot the current reasoning toggle at click time');
-assert.equal(cleanupRequests[0].url, '/api/sessions/session-a/voice-transcriptions', 'voice-cleanup sends should reuse the hidden transcript cleanup endpoint');
 
 const queuedSendContext = createContext();
 queuedSendContext.dispatchAction = async () => true;

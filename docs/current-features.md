@@ -1,6 +1,6 @@
 # Current Features
 
-This document lists the current shipped MelodySync feature surface after App templates and session-level scheduled triggers were removed.
+This document lists the current shipped MelodySync feature surface after App templates, user-management surfaces, share/visitor mode, and session-level scheduled triggers were removed.
 
 ## Product Surface
 
@@ -23,6 +23,7 @@ This document lists the current shipped MelodySync feature surface after App tem
 | Removed area | Current status |
 | --- | --- |
 | App CRUD and App templates | Removed |
+| User management surface | Removed |
 | Session `apply-template` / `save-template` flows | Removed |
 | Session-level scheduled triggers | Removed |
 | Global `/api/triggers` control plane | Removed |
@@ -41,5 +42,6 @@ This document lists the current shipped MelodySync feature surface after App tem
 
 ## Notes
 
-- `appId` / `appName` may still appear in stored session metadata for legacy compatibility or connector source tagging.
-- Those fields are no longer a user-facing App system and should be treated as passive metadata, not a product surface.
+- `appId` / `appName`, `sourceId` / `sourceName`, and `userId` / `userName` may still appear in stored session metadata for compatibility or connector tagging.
+- Those fields are not active product surfaces. They should be treated as passive metadata unless a future product decision explicitly revives them.
+- Integrations and workbench capabilities still matter, but they layer on top of the core session/run model instead of replacing it.

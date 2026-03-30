@@ -17,8 +17,7 @@
 .quest-tracker-next[hidden],
 .quest-task-list[hidden],
 .quest-tracker-toggle[hidden],
-.quest-tracker-btn[hidden],
-.quest-finish-panel[hidden] {
+.quest-tracker-btn[hidden] {
   display: none !important;
 }
 
@@ -314,6 +313,29 @@
   border: 0;
   background: transparent;
   color: var(--text-muted);
+}
+
+.quest-task-item.is-parked .quest-task-item-title,
+.quest-task-item.is-parked .quest-task-item-summary {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.quest-task-item-meta.is-complete::before {
+  content: "✓";
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success) 84%, transparent);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  vertical-align: middle;
 }
 
 .quest-task-mindmap-root {
@@ -1084,107 +1106,6 @@
   height: 14px;
 }
 
-.quest-finish-panel {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 8px;
-  margin-top: 2px;
-  padding: 6px 0 0;
-  border: 0;
-  background: transparent;
-}
-
-.quest-finish-panel-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.quest-finish-panel-note {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-.quest-finish-field {
-  display: grid;
-  gap: 6px;
-}
-
-.quest-finish-field-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.quest-finish-input {
-  width: 100%;
-  min-height: 72px;
-  resize: vertical;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-  background: color-mix(in srgb, var(--bg) 92%, rgba(255, 255, 255, 0.02));
-  color: var(--text);
-  padding: 10px 12px;
-  font: inherit;
-  line-height: 1.55;
-}
-
-.quest-finish-input::placeholder {
-  color: var(--text-muted);
-}
-
-.quest-finish-input:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--accent) 44%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent);
-}
-
-.quest-finish-panel-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.quest-finish-option {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  min-height: 34px;
-  text-align: left;
-  gap: 6px;
-  padding: 7px 11px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-}
-
-.quest-finish-option:hover {
-  color: var(--text);
-  border-color: color-mix(in srgb, var(--text) 18%, var(--border));
-}
-
-.quest-finish-option-primary {
-  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
-  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
-  color: var(--text);
-}
-
-.quest-finish-option-title {
-  font-size: 12px;
-  line-height: 1.45;
-  font-weight: 700;
-}
-
-.quest-finish-option-summary {
-  display: none;
-}
-
 .quest-tracker-btn,
 .quest-branch-btn {
   font: inherit;
@@ -1683,21 +1604,6 @@
   font-size: 11px;
 }
 
-.quest-finish-panel {
-  margin-top: 6px;
-  padding: 10px;
-  border-radius: 12px;
-}
-
-.quest-finish-panel-list {
-  gap: 6px;
-}
-
-.quest-finish-option {
-  padding: 8px 9px;
-  border-radius: 10px;
-}
-
 @media (min-width: 768px) and (max-width: 1279px) {
   .quest-task-mindmap-root {
     width: min(280px, 100%);
@@ -1914,6 +1820,13 @@ button.quest-task-flow-node {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.quest-task-flow-node.is-parked .quest-task-flow-node-title,
+.quest-task-flow-node.is-parked .quest-task-flow-node-summary {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
 }
 
 .quest-task-flow-node.is-root .quest-task-flow-node-badge {
@@ -2420,6 +2333,27 @@ button.quest-task-flow-node {
 
 .quest-task-flow-node.is-current .quest-task-flow-node-badge::before {
   background: color-mix(in srgb, var(--accent) 84%, transparent);
+}
+
+.quest-task-flow-node-badge.is-complete::before {
+  content: "✓";
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success) 84%, transparent);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.quest-task-flow-node-badge.is-parked::before {
+  width: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 84%, transparent);
 }
 
 .quest-task-flow-node-title {

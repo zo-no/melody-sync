@@ -18,11 +18,6 @@
   const trackerCloseBtn = document.getElementById("questTrackerCloseBtn");
   const trackerAltBtn = document.getElementById("questTrackerAltBtn");
   const trackerBackBtn = document.getElementById("questTrackerBackBtn");
-  const finishPanel = document.getElementById("questFinishPanel");
-  const finishResolveBtn = document.getElementById("questFinishResolveBtn");
-  const finishParkBtn = document.getElementById("questFinishParkBtn");
-  const finishMergeBtn = document.getElementById("questFinishMergeBtn");
-  const finishSummaryInput = document.getElementById("questFinishSummaryInput");
   if (!tracker) return;
 
   const SUPPRESSED_PREFIX = "melodysyncSuppressedBranch";
@@ -40,8 +35,7 @@
   let refreshInFlight = null;
   let trackerRefreshInFlight = null;
   let fullSnapshotRefreshTimer = null;
-  let finishPanelOpen = false;
-  let finishSummaryDraftBySession = new Map();
+  let branchMergeInFlight = false;
   let branchStructureExpanded = false;
   let focusedSessionId = "";
   let taskMindmapNodeExpansionState = new Map();
@@ -197,8 +191,8 @@
   function getTrackerPrimaryTitle(state) {
     if (!state?.hasSession) return "当前任务";
     const baseTitle = state.isBranch
-      ? (state.currentGoal || state.session?.name || state.mainGoal)
-      : (state.currentGoal || state.mainGoal || state.session?.name);
+      ? (getBranchDisplayName(state.session) || state.currentGoal || state.session?.name || state.mainGoal)
+      : (state.session?.name || state.mainGoal || state.currentGoal);
     return toConciseGoal(baseTitle, isMobileQuestTracker() ? 44 : 64) || "当前任务";
   }
 
@@ -207,70 +201,21 @@
     if (state.isBranch) {
       return clipText(`来自主线：${state.branchFrom || state.mainGoal || "当前主线"}`, isMobileQuestTracker() ? 84 : 112);
     }
-    return clipText(getCurrentTaskSummary(state), isMobileQuestTracker() ? 80 : 112);
+    const summary = clipText(getCurrentTaskSummary(state), isMobileQuestTracker() ? 80 : 112);
+    if (summary) return summary;
+    const currentGoal = clipText(state.currentGoal || "", isMobileQuestTracker() ? 80 : 112);
+    return isRedundantTrackerText(currentGoal, state.session?.name, state.mainGoal) ? "" : currentGoal;
   }
 
   function getTrackerSecondaryDetail(state, primaryDetail = "") {
-    if (!state?.hasSession || !state?.isBranch) return "";
+    if (!state?.hasSession) return "";
+    if (!state.isBranch) {
+      const candidateCount = Number(state?.candidateBranchCount || 0);
+      return candidateCount > 0 ? `发现 ${candidateCount} 条建议支线` : "";
+    }
     const nextStep = clipText(state.nextStep || "", isMobileQuestTracker() ? 72 : 96);
     if (!nextStep) return "";
     return isRedundantTrackerText(nextStep, state.currentGoal, primaryDetail) ? "" : nextStep;
-  }
-
-  function getBranchFinishSummarySeed(state = null) {
-    const resolvedState = state || deriveQuestState();
-    if (!resolvedState?.hasSession || !resolvedState?.isBranch) return "";
-    return clipText(
-      getTaskCardList(resolvedState.taskCard, "knownConclusions")[0]
-      || resolvedState.taskCard?.summary
-      || resolvedState.taskCard?.checkpoint
-      || getTaskCardList(resolvedState.taskCard, "nextSteps")[0]
-      || resolvedState.latestContext?.checkpointSummary
-      || resolvedState.latestContext?.resumeHint
-      || "",
-      180,
-    );
-  }
-
-  function rememberFinishSummaryDraft(sessionId = "", value = "") {
-    const normalizedSessionId = normalizeSessionId(sessionId);
-    if (!normalizedSessionId) return;
-    const nextValue = String(value || "").trim();
-    if (nextValue) {
-      finishSummaryDraftBySession.set(normalizedSessionId, nextValue);
-      return;
-    }
-    finishSummaryDraftBySession.delete(normalizedSessionId);
-  }
-
-  function resolveFinishSummaryDraft(state = null) {
-    const resolvedState = state || deriveQuestState();
-    const sessionId = normalizeSessionId(resolvedState?.session?.id || "");
-    if (!sessionId) return "";
-    return finishSummaryDraftBySession.get(sessionId) || getBranchFinishSummarySeed(resolvedState);
-  }
-
-  function syncFinishSummaryInput(state = null) {
-    if (!finishSummaryInput) return;
-    const resolvedState = state || deriveQuestState();
-    finishSummaryInput.value = resolveFinishSummaryDraft(resolvedState);
-  }
-
-  function openFinishPanel(state = null) {
-    const resolvedState = state || deriveQuestState();
-    if (!resolvedState?.hasSession || !resolvedState?.isBranch) return;
-    finishPanelOpen = true;
-    if (finishPanel) finishPanel.hidden = false;
-    syncFinishSummaryInput(resolvedState);
-  }
-
-  function closeFinishPanel(options = {}) {
-    const targetSessionId = normalizeSessionId(options.sessionId || getFocusedSessionId());
-    if (options.preserveDraft !== false && finishSummaryInput) {
-      rememberFinishSummaryDraft(targetSessionId, finishSummaryInput.value);
-    }
-    finishPanelOpen = false;
-    if (finishPanel) finishPanel.hidden = true;
   }
 
   function isMobileQuestTracker() {
@@ -453,7 +398,14 @@
     const name = String(session?.name || "").trim();
     const goal = String(session?.taskCard?.goal || "").trim();
     const mainGoal = String(session?.taskCard?.mainGoal || "").trim();
-    return toConciseGoal(goal || mainGoal || name || "当前任务", 56);
+    const isBranch = String(session?.taskCard?.lineRole || "").trim().toLowerCase() === "branch"
+      || Boolean(String(session?.sourceContext?.parentSessionId || "").trim());
+    return toConciseGoal(
+      isBranch
+        ? (goal || name || mainGoal || "当前任务")
+        : (name || mainGoal || goal || "当前任务"),
+      56,
+    );
   }
 
   function getBranchDisplayName(session) {
@@ -647,6 +599,8 @@
       return `当前子任务：${getBranchDisplayName(currentBranch)}`;
     }
     const leadSession = getClusterLeadSession(cluster);
+    const checkpoint = getTaskCardField(getTaskCard(leadSession), "checkpoint");
+    if (checkpoint) return clipText(checkpoint, 88);
     const nextStep = getTaskCardList(getTaskCard(leadSession), "nextSteps")[0] || "";
     if (nextStep) return clipText(nextStep, 88);
     const branchCount = Array.isArray(cluster?.branchSessions) ? cluster.branchSessions.length : 0;
@@ -666,6 +620,8 @@
         88,
       );
     }
+    const checkpoint = clipText(state?.taskCard?.checkpoint || "", 88);
+    if (checkpoint) return checkpoint;
     const nextStep = clipText(state.nextStep || "", 88);
     if (nextStep) return nextStep;
     const clusterSummary = getClusterSummary(state.cluster);
@@ -996,6 +952,7 @@
     expander = null,
   }) {
     const useButton = typeof onClick === "function" && !expander;
+    const normalizedStatus = String(status || "").toLowerCase();
     const row = document.createElement(useButton ? "button" : "div");
     if (row.type !== undefined && useButton) {
       row.type = "button";
@@ -1004,7 +961,8 @@
     if (expander) row.classList.add("has-expander");
     if (current) row.classList.add("is-current", "is-static");
     if (!current && typeof onClick !== "function") row.classList.add("is-static");
-    if (String(status || "").toLowerCase() === "resolved") row.classList.add("is-resolved");
+    if (normalizedStatus === "parked") row.classList.add("is-parked");
+    if (normalizedStatus === "resolved" || normalizedStatus === "merged") row.classList.add("is-resolved");
 
     if (expander) {
       const expanderBtn = document.createElement("button");
@@ -1044,6 +1002,8 @@
     if (meta) {
       const metaEl = document.createElement("span");
       metaEl.classList.add("quest-task-item-meta");
+      if (normalizedStatus === "parked") metaEl.classList.add("is-parked");
+      if (normalizedStatus === "resolved" || normalizedStatus === "merged") metaEl.classList.add("is-complete");
       if (metaClassName) {
         String(metaClassName).split(/\s+/).filter(Boolean).forEach((token) => metaEl.classList.add(token));
       }
@@ -1190,11 +1150,13 @@
   function getProjectedTaskFlowNodeSummary(node, activeQuest) {
     if (!node) return "";
     if (!node.parentNodeId) {
+      const rootSummary = clipText(node.summary || activeQuest?.summary || "", 72);
+      if (rootSummary) return rootSummary;
       const currentNodeTitle = clipText(activeQuest?.currentNodeTitle || "", 40);
       if (currentNodeTitle && currentNodeTitle !== clipText(node.title || "", 40)) {
-        return currentNodeTitle;
+        return `当前焦点：${currentNodeTitle}`;
       }
-      return clipText(node.summary || activeQuest?.summary || "", 72);
+      return "";
     }
     if (node.kind === "candidate") {
       return clipText(node.summary || "适合单独展开", 72);
@@ -1305,6 +1267,8 @@
 
       const badge = document.createElement("div");
       badge.className = "quest-task-flow-node-badge";
+      if (node.status === "parked") badge.classList.add("is-parked");
+      if (node.status === "resolved" || node.status === "merged") badge.classList.add("is-complete");
       badge.textContent = getProjectedTaskFlowNodeMeta(node, activeQuest);
       nodeEl.appendChild(badge);
 
@@ -1811,7 +1775,7 @@
       case "parked":
         return { label: "已挂起", summary: "当前子任务已挂起，并已回到主线。" };
       case "merged":
-        return { label: "已带回主线", summary: "当前子任务已收尾并带回主线。" };
+        return { label: "已收束", summary: "当前子任务已收尾并带回主线。" };
       default:
         return { label: "进行中", summary: "" };
     }
@@ -1921,7 +1885,8 @@
       || (isBranch ? "active" : ""),
     ).toLowerCase();
     const mainGoal = normalizeTitle(
-      activeContext?.mainGoal
+      (!isBranch ? (liveSession.name || "") : "")
+      || activeContext?.mainGoal
       || latestContext?.mainGoal
       || taskCard?.mainGoal
       || cluster?.mainGoal
@@ -2005,6 +1970,7 @@
       cluster,
       resolvedCurrentBranchSessionId,
       hasBranches,
+      candidateBranchCount: getTaskCardList(taskCard, "candidateBranches").length,
       branchLineage,
       activeBranchChain,
       totalBranchCount,
@@ -2066,7 +2032,6 @@
   function renderTracker() {
     const state = deriveQuestState();
     if (!state.hasSession) {
-      closeFinishPanel();
       tracker.hidden = true;
       if (taskMapRail) taskMapRail.hidden = true;
       if (trackerTaskListEl) trackerTaskListEl.hidden = true;
@@ -2089,7 +2054,7 @@
     trackerTitleEl.hidden = false;
     if (trackerBranchEl) {
       trackerBranchEl.hidden = !trackerPrimaryDetail;
-      trackerBranchLabelEl.textContent = "任务详情";
+      trackerBranchLabelEl.textContent = showBranch ? "主线任务" : "当前推进";
       trackerBranchTitleEl.textContent = trackerPrimaryDetail;
     }
     trackerNextEl.hidden = !trackerSecondaryDetail;
@@ -2105,30 +2070,34 @@
       trackerCloseBtn.textContent = "";
       trackerCloseBtn.title = "";
       trackerCloseBtn.removeAttribute("aria-label");
+      trackerCloseBtn.disabled = false;
     }
     if (trackerAltBtn) {
       trackerAltBtn.hidden = true;
       trackerAltBtn.textContent = "";
       trackerAltBtn.title = "";
       trackerAltBtn.removeAttribute("aria-label");
+      trackerAltBtn.disabled = false;
     }
+    trackerBackBtn.disabled = false;
     trackerBackBtn.hidden = !state.isBranch || !state.parentSessionId;
     if (showBranch && branchStatus === "active") {
       if (trackerCloseBtn) {
         trackerCloseBtn.hidden = false;
-        trackerCloseBtn.textContent = finishPanelOpen ? "取消收束" : "收束支线";
+        trackerCloseBtn.textContent = branchMergeInFlight ? "收束中..." : "收束支线";
         trackerCloseBtn.setAttribute("aria-label", trackerCloseBtn.textContent);
         trackerCloseBtn.title = trackerCloseBtn.textContent;
+        trackerCloseBtn.disabled = branchMergeInFlight;
       }
       if (trackerAltBtn) {
         trackerAltBtn.hidden = false;
         trackerAltBtn.textContent = "挂起";
         trackerAltBtn.setAttribute("aria-label", trackerAltBtn.textContent);
         trackerAltBtn.title = trackerAltBtn.textContent;
+        trackerAltBtn.disabled = branchMergeInFlight;
       }
       trackerBackBtn.hidden = true;
     } else if (showBranch && ["resolved", "merged", "parked"].includes(branchStatus)) {
-      closeFinishPanel();
       if (trackerAltBtn) {
         trackerAltBtn.hidden = !state.parentSessionId;
         trackerAltBtn.textContent = "返回主线";
@@ -2137,7 +2106,6 @@
       }
       trackerBackBtn.textContent = "继续处理";
     } else {
-      closeFinishPanel();
       trackerBackBtn.textContent = showBranch ? "完成当前任务" : "";
     }
     trackerFooterEl?.classList.toggle("has-actions", Boolean(
@@ -2145,13 +2113,6 @@
       || (trackerAltBtn && !trackerAltBtn.hidden)
       || (trackerBackBtn && !trackerBackBtn.hidden)
     ));
-    if (finishPanel) {
-      const canFinishCurrentBranch = showBranch && branchStatus === "active";
-      finishPanel.hidden = !(canFinishCurrentBranch && finishPanelOpen);
-      if (canFinishCurrentBranch && finishPanelOpen) {
-        syncFinishSummaryInput(state);
-      }
-    }
     if (!trackerBackBtn.hidden) {
       trackerBackBtn.setAttribute("aria-label", trackerBackBtn.textContent);
       trackerBackBtn.title = trackerBackBtn.textContent;
@@ -2305,7 +2266,6 @@
       body: JSON.stringify(payload || {}),
     });
     snapshot = response?.snapshot || snapshot;
-    rememberFinishSummaryDraft(state.session.id, "");
     if (typeof fetchSessionsList === "function") {
       await fetchSessionsList();
     }
@@ -2321,11 +2281,8 @@
   async function mergeCurrentBranchSummaryAndReturnToMainline() {
     const state = deriveQuestState();
     if (!state.hasSession || !state.isBranch || !state.session?.id) return null;
-    const broughtBack = String(finishSummaryInput?.value || "").trim() || resolveFinishSummaryDraft(state);
-    rememberFinishSummaryDraft(state.session.id, broughtBack);
     return returnToMainline({
       mergeType: "conclusion",
-      broughtBack,
     });
   }
 
@@ -2358,16 +2315,7 @@
   async function parkAndReturnToMainline() {
     const state = deriveQuestState();
     if (!state.hasSession || !state.isBranch) return null;
-    rememberFinishSummaryDraft(state.session?.id, finishSummaryInput?.value || "");
     await setCurrentBranchStatus("parked");
-    return returnToParentSession();
-  }
-
-  async function resolveAndReturnToMainline() {
-    const state = deriveQuestState();
-    if (!state.hasSession || !state.isBranch) return null;
-    rememberFinishSummaryDraft(state.session?.id, "");
-    await setCurrentBranchStatus("resolved");
     return returnToParentSession();
   }
 
@@ -2494,10 +2442,6 @@
   trackerBackBtn?.addEventListener("click", () => {
     const state = deriveQuestState();
     const branchStatus = String(state.branchStatus || "").toLowerCase();
-    if (branchStatus === "active") {
-      openFinishPanel(state);
-      return;
-    }
     void reopenCurrentBranch();
   });
 
@@ -2511,41 +2455,22 @@
     returnToParentSession();
   });
 
-  trackerCloseBtn?.addEventListener("click", () => {
+  trackerCloseBtn?.addEventListener("click", async () => {
     const state = deriveQuestState();
     const branchStatus = String(state.branchStatus || "").toLowerCase();
-    if (branchStatus === "active") {
-      if (finishPanelOpen) {
-        closeFinishPanel();
-      } else {
-        openFinishPanel(state);
-      }
+    if (branchStatus !== "active" || branchMergeInFlight) return;
+    branchMergeInFlight = true;
+    renderTracker();
+    try {
+      await mergeCurrentBranchSummaryAndReturnToMainline();
+    } finally {
+      branchMergeInFlight = false;
+      renderTracker();
     }
   });
 
-  finishSummaryInput?.addEventListener("input", () => {
-    rememberFinishSummaryDraft(getFocusedSessionId(), finishSummaryInput.value);
-  });
-
-  finishResolveBtn?.addEventListener("click", async () => {
-    closeFinishPanel();
-    await resolveAndReturnToMainline();
-  });
-
-  finishParkBtn?.addEventListener("click", async () => {
-    closeFinishPanel();
-    await parkAndReturnToMainline();
-  });
-
-  finishMergeBtn?.addEventListener("click", async () => {
-    closeFinishPanel();
-    await mergeCurrentBranchSummaryAndReturnToMainline();
-  });
-
   document.addEventListener("melodysync:session-change", (event) => {
-    const previousFocusedSessionId = getFocusedSessionId();
     const nextFocusedSessionId = normalizeSessionId(event?.detail?.session?.id || "");
-    closeFinishPanel({ sessionId: previousFocusedSessionId });
     setTaskMapDrawerExpanded(false, { render: false });
     if (nextFocusedSessionId) {
       setFocusedSessionId(nextFocusedSessionId, { render: false });
@@ -2614,7 +2539,6 @@
     openManualBranchFromText,
     returnToMainline,
     parkAndReturnToMainline,
-    resolveAndReturnToMainline,
     reopenCurrentBranch,
     mergeCurrentBranchSummaryAndReturnToMainline,
     setCurrentBranchStatus,

@@ -308,11 +308,11 @@ try {
     const followUpPrompt = await waitFor(() => {
       const prompts = readCapturedPrompts(promptFile);
       return prompts.find((entry) => (
-        /RemoteLab session continuity handoff for this existing conversation\./.test(entry)
+        /MelodySync session continuity handoff for this existing conversation\./.test(entry)
         && /\[Attached files: report\.csv -> .*\.csv\]/.test(entry)
       )) || false;
     }, 'follow-up prompt with continued attachment path');
-    assert.match(followUpPrompt, /RemoteLab session continuity handoff for this existing conversation\./, 'follow-up prompt should include session continuation');
+    assert.match(followUpPrompt, /MelodySync session continuity handoff for this existing conversation\./, 'follow-up prompt should include session continuation');
     assert.match(followUpPrompt, /\[Attached files: report\.csv -> .*\.csv\]/, 'follow-up prompt should carry the stored attachment path into continuation context');
 
     console.log('test-http-session-media-upload: ok');

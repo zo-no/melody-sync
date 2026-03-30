@@ -12,27 +12,28 @@ const repoRoot = dirname(__dirname);
 const cookie = 'session_token=test-session';
 const SESSION_LIST_ORGANIZER_INTERNAL_ROLE = 'session_list_organizer';
 const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
-  'You are RemoteLab\'s hidden session-list organizer.',
-  'Your job is to improve the owner\'s non-archived session sidebar structure using the provided metadata snapshot.',
-  'Do not rename sessions, archive or unarchive them, change pin state, edit prompts, or ask the user follow-up questions.',
-  'Only update existing sessions by calling the owner-authenticated RemoteLab API from this machine.',
-  'Use `remotelab api GET /api/sessions` if you need to double-check current state.',
-  'Use `remotelab api PATCH /api/sessions/<sessionId> --body ...` to update `group` and `sidebarOrder`.',
+  'You are MelodySync\'s hidden session-list organizer.',
+  'Your job is to organize the owner\'s non-archived MelodySync tasks into a simple GTD-style task list.',
+  'Do not rename sessions, delete them, change pin state, edit prompts, or ask the user follow-up questions.',
+  'Only update existing sessions by calling the owner-authenticated MelodySync API from this machine.',
+  'Use `melodysync api GET /api/sessions` if you need to double-check current state.',
+  'Use `melodysync api PATCH /api/sessions/<sessionId> --body ...` to update `group` and `sidebarOrder`.',
   'Only writable API fields for this task are `group` and `sidebarOrder`.',
   'Never send read-only snapshot keys such as `title`, `brief`, `existingGroup`, `existingSidebarOrder`, `currentGroup`, or `currentSidebarOrder` in PATCH bodies.',
-  'Example PATCH body: {"group":"RemoteLab","sidebarOrder":3}',
-  'If `remotelab` is unavailable in PATH, use `node "$REMOTELAB_PROJECT_ROOT/cli.js" api ...` instead.',
+  'Example PATCH body: {"group":"短期任务","sidebarOrder":3}',
+  'If `melodysync` is unavailable in PATH, use `node "$REMOTELAB_PROJECT_ROOT/cli.js" api ...` instead.',
   '`sidebarOrder` must be a positive integer; smaller numbers sort first.',
   'Assign unique contiguous `sidebarOrder` values across the current non-archived sessions you organize.',
-  'Prefer a small number of clear, stable groups; avoid one giant catch-all group when the list is dense.',
+  'Use only these exact groups: 收集箱, 长期任务, 短期任务, 知识库内容, 等待任务.',
+  'Default unclear or newly created work to 收集箱; only move work out when the intent is obvious from the metadata snapshot.',
   'Return only a brief plain-text summary of the grouping strategy you applied.',
 ].join('\n');
 
 function buildSessionListOrganizerTask(sessions = []) {
   return [
-    'Organize the current non-archived RemoteLab session list using the provided metadata snapshot.',
-    'Choose clearer groups and a better sidebar ordering based on the current session density.',
-    'Apply changes by calling the RemoteLab API from this machine; do not merely suggest them.',
+    'Organize the current non-archived MelodySync task list using the provided metadata snapshot.',
+    'Classify tasks into 收集箱, 长期任务, 短期任务, 知识库内容, 等待任务, and improve sidebar ordering inside those groups.',
+    'Apply changes by calling the MelodySync API from this machine; do not merely suggest them.',
     'Snapshot fields like `title`, `brief`, `existingGroup`, and `existingSidebarOrder` are read-only context.',
     'When patching a session, send only `group` and `sidebarOrder` in the API body.',
     '',
@@ -123,13 +124,13 @@ function buildFakeCodexScript() {
     '          throw new Error("organizer payload should use existing* snapshot fields");',
     '        }',
     '        const projectRoot = process.env.REMOTELAB_PROJECT_ROOT || process.cwd();',
-    '        const baseUrl = process.env.REMOTELAB_CHAT_BASE_URL || `http://127.0.0.1:${process.env.CHAT_PORT || "7690"}`;',
+    '        const baseUrl = process.env.REMOTELAB_CHAT_BASE_URL || `http://127.0.0.1:${process.env.CHAT_PORT || "7760"}`;',
     '        const cliPath = `${projectRoot}/cli.js`;',
     '        sessions.sort((left, right) => String(left.title || "").localeCompare(String(right.title || "")));',
     '        for (let index = 0; index < sessions.length; index += 1) {',
     '          const session = sessions[index];',
     '          const title = String(session.title || "");',
-    '          const group = /quartz/i.test(title) ? "Quartz" : "RemoteLab";',
+    '          const group = /quartz/i.test(title) ? "知识库内容" : "收集箱";',
     '          await execFileAsync(process.execPath, [',
     '            cliPath,',
     '            "api",',
@@ -332,11 +333,11 @@ try {
   assert.equal(listed.status, 200, 'session list should remain available after organizing');
   assert.equal((listed.json.sessions || []).length, 2, 'hidden organizer session should not appear in the normal list');
 
-  const remoteLabEntry = listed.json.sessions.find((entry) => entry.id === remoteLabSession.json.session.id);
+  const primaryEntry = listed.json.sessions.find((entry) => entry.id === remoteLabSession.json.session.id);
   const quartzEntry = listed.json.sessions.find((entry) => entry.id === quartzSession.json.session.id);
-  assert.equal(remoteLabEntry?.group, 'RemoteLab', 'organizer should patch the RemoteLab group');
-  assert.equal(remoteLabEntry?.sidebarOrder, 2, 'organizer should patch the RemoteLab sidebar order');
-  assert.equal(quartzEntry?.group, 'Quartz', 'organizer should patch the Quartz group');
+  assert.equal(primaryEntry?.group, '收集箱', 'organizer should patch the default GTD inbox group');
+  assert.equal(primaryEntry?.sidebarOrder, 2, 'organizer should patch the default inbox sidebar order');
+  assert.equal(quartzEntry?.group, '知识库内容', 'organizer should patch the knowledge-base group');
   assert.equal(quartzEntry?.sidebarOrder, 1, 'organizer should patch the Quartz sidebar order');
 
   const storedMeta = JSON.parse(readFileSync(join(configDir, 'chat-sessions.json'), 'utf8'));

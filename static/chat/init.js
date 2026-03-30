@@ -18,7 +18,6 @@ async function resolveInitialAuthInfo() {
 async function initApp() {
   await resolveInitialAuthInfo();
 
-  syncAddToolModal();
   syncForkButton();
 
   initializePushNotifications();

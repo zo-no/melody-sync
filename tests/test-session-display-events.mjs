@@ -112,4 +112,48 @@ assert.deepEqual(
   'expanded folded blocks should still expose manager context when explicitly opened',
 );
 
+const legacyTaskCardHistory = [
+  { seq: 1, type: 'message', role: 'user', content: '继续推进这个理财任务。' },
+  { seq: 2, type: 'status', role: 'system', content: 'Assistant self-check: reviewing the latest reply for early stop…' },
+  {
+    seq: 3,
+    type: 'message',
+    role: 'assistant',
+    content: [
+      '主线我已经帮你整理好了。',
+      '',
+      '{"mode":"project","summary":"规划理财主线","goal":"建立长期理财框架","candidateBranches":["预算盘点","投资白名单"],"nextSteps":["先整理收支结构"]}',
+    ].join('\n'),
+  },
+];
+
+const legacyTaskCardDisplay = buildSessionDisplayEvents(legacyTaskCardHistory, { sessionRunning: false });
+assert.deepEqual(
+  legacyTaskCardDisplay.map((event) => event.type),
+  ['message', 'message'],
+  'legacy self-check statuses should be filtered out of visible display events',
+);
+assert.equal(
+  legacyTaskCardDisplay[1].content,
+  '主线我已经帮你整理好了。',
+  'visible assistant messages should strip leaked trailing task-card JSON from the prose body',
+);
+assert.deepEqual(
+  legacyTaskCardDisplay[1].taskCard?.candidateBranches || [],
+  ['预算盘点', '投资白名单'],
+  'visible assistant messages should preserve parsed task-card data for the UI',
+);
+
+const legacyTaskCardBlockEvents = buildEventBlockEvents(legacyTaskCardHistory, 2, 3);
+assert.equal(
+  legacyTaskCardBlockEvents.some((event) => String(event?.content || '').startsWith('Assistant self-check:')),
+  false,
+  'expanded event blocks should also omit the legacy self-check status noise',
+);
+assert.equal(
+  legacyTaskCardBlockEvents[0]?.content,
+  '主线我已经帮你整理好了。',
+  'event block payload should also expose the sanitized assistant prose instead of the raw task-card JSON tail',
+);
+
 console.log('test-session-display-events: ok');

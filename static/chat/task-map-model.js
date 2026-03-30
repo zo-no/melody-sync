@@ -79,7 +79,13 @@
     const name = trimText(session?.name || "");
     const goal = trimText(session?.taskCard?.goal || "");
     const mainGoal = trimText(session?.taskCard?.mainGoal || "");
-    return toConciseGoal(goal || mainGoal || name || "当前任务", 64);
+    const isBranch = getLineRole(session) === "branch";
+    return toConciseGoal(
+      isBranch
+        ? (goal || name || mainGoal || "当前任务")
+        : (name || mainGoal || goal || "当前任务"),
+      64,
+    );
   }
 
   function getBranchTitle(session) {
@@ -392,7 +398,7 @@
       const realNodes = nodes.filter((node) => node.kind !== "candidate");
       const branchNodes = realNodes.filter((node) => node.kind === "branch");
       const questTitle = clipText(
-        trimText(cluster?.mainGoal || rootSession?.taskCard?.mainGoal || rootSession?.taskCard?.goal || rootSession?.name || "当前任务"),
+        trimText(rootSession?.name || cluster?.mainGoal || rootSession?.taskCard?.mainGoal || rootSession?.taskCard?.goal || "当前任务"),
         72,
       );
       const activeNode = nodeById.get(activeNodeId) || nodeById.get(rootNodeId) || null;

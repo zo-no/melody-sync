@@ -59,8 +59,8 @@ function formatEventsForPrompt(events, {
         }
         break;
       case 'status':
-        if (evt.message) {
-          lines.push(`STATUS: ${clipPromptText(evt.message, statusLimit)}`);
+        if (evt.content) {
+          lines.push(`STATUS: ${clipPromptText(evt.content, statusLimit)}`);
         }
         break;
     }
@@ -243,7 +243,7 @@ async function runSessionLabelSuggestion(sessionMeta, onRename, options = {}) {
   }, turnText);
 
   const prompt = [
-    'You are naming a developer session. Be concise and literal.',
+    'You are naming a MelodySync session. Be concise and literal.',
     'Treat the display group as a flexible project-like container: usually the top-level project or recurring domain. The title should name the concrete subtask inside that group.',
     'Reuse an existing display group when the scope clearly matches. Create a new group only when the work clearly belongs to a different project or domain.',
     'The latest turn may be underspecified. Use earlier session context, scope-router hints, and existing session metadata to infer the right top-level project before naming.',
@@ -267,7 +267,7 @@ async function runSessionLabelSuggestion(sessionMeta, onRename, options = {}) {
     '',
     'Write a JSON object with exactly these fields:',
     shouldGenerateTitle ? '- "title": 2-5 words — a short descriptive session title (for example: "Fix auth bug", "Refactor naming flow").' : '',
-    shouldGenerateGrouping ? '- "group": 1-3 words — a stable display group for similar work (for example: "RemoteLab", "Video tooling", "Hiring"). Not a path.' : '',
+    shouldGenerateGrouping ? '- "group": 1-3 words — a stable display group for similar work (for example: "MelodySync", "Video tooling", "Hiring"). Not a path.' : '',
     shouldGenerateGrouping ? '- "description": One sentence — a compact hidden description of the work, useful for future regrouping.' : '',
     '',
     'Respond with ONLY valid JSON. No markdown, no explanation.',
@@ -371,7 +371,7 @@ async function runSessionWorkflowStateSuggestion(sessionMeta, _options = {}) {
   const currentWorkflowPriority = normalizeSessionWorkflowPriority(workflowPriority || '');
 
   const prompt = [
-    'You are updating RemoteLab workflow state for a developer session.',
+    'You are updating MelodySync workflow state for a session.',
     'Choose the single best durable state after the latest assistant turn.',
     'Valid states:',
     '- "parked": not currently running and not blocked on immediate user input; paused, deferred, or left open for later.',

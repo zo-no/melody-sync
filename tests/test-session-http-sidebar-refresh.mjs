@@ -143,8 +143,6 @@ function createContext() {
     pendingCurrentSessionRefresh: false,
     currentSessionRefreshPromise: null,
     contextTokens: makeElement(),
-    compactBtn: makeElement(),
-    dropToolsBtn: makeElement(),
     resumeBtn: makeElement(),
     headerTitle: makeElement(),
     inlineToolSelect: makeElement(),

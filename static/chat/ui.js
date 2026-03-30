@@ -192,18 +192,8 @@ function createComposerAttachmentPreviewNode(attachment) {
   return createAttachmentFileNode(attachment, { compact: true });
 }
 
-function appendWorkbenchBranchAction(container, evt) {
-  if (!container || !evt) return null;
-  const sourceSeq = Number.isInteger(evt?.seq) ? evt.seq : 0;
-  if (sourceSeq < 1) return null;
-  if (!window.MelodySyncWorkbench) return null;
-  if (typeof window.MelodySyncWorkbench.canOpenManualBranch === "function" && !window.MelodySyncWorkbench.canOpenManualBranch()) {
-    return null;
-  }
-
-  const branchText = String(evt?.content || evt?.bodyPreview || "").trim();
-  if (!branchText) return null;
-
+function createBranchSuggestionHost(container, sourceSeq) {
+  if (!container || !Number.isInteger(sourceSeq) || sourceSeq < 1) return null;
   let host = container.querySelector?.(`.msg-inline-actions[data-source-seq="${sourceSeq}"]`) || null;
   if (!host) {
     host = document.createElement("div");
@@ -211,48 +201,7 @@ function appendWorkbenchBranchAction(container, evt) {
     host.dataset.sourceSeq = String(sourceSeq);
     container.appendChild(host);
   }
-  host.dataset.branchText = branchText;
-  return ensureBranchSuggestionGroup(host);
-}
-
-function createManualBranchSuggestionItem(branchText) {
-  if (!branchText || !window.MelodySyncWorkbench || typeof window.MelodySyncWorkbench.openManualBranchFromText !== "function") {
-    return null;
-  }
-
-  const row = document.createElement("div");
-  row.className = "quest-branch-suggestion-item quest-branch-suggestion-item-manual";
-
-  const main = document.createElement("div");
-  main.className = "quest-branch-suggestion-main";
-
-  const title = document.createElement("div");
-  title.className = "quest-branch-suggestion-title";
-  title.textContent = "按这段内容开启支线任务";
-  main.appendChild(title);
-
-  const actions = document.createElement("div");
-  actions.className = "quest-branch-suggestion-actions";
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "quest-branch-btn quest-branch-btn-primary";
-  button.textContent = "开启支线";
-  button.addEventListener("click", async () => {
-    button.disabled = true;
-    try {
-      await window.MelodySyncWorkbench.openManualBranchFromText(branchText, {
-        checkpointSummary: "从这条回复继续",
-      });
-    } finally {
-      button.disabled = false;
-    }
-  });
-
-  actions.appendChild(button);
-  row.appendChild(main);
-  row.appendChild(actions);
-  return row;
+  return host;
 }
 
 function ensureBranchSuggestionGroup(host) {
@@ -260,7 +209,6 @@ function ensureBranchSuggestionGroup(host) {
   let group = host.querySelector(".quest-branch-suggestion-group");
   if (group) return group;
 
-  const branchText = host.dataset.branchText || "";
   host.classList.add("is-branch-suggestion-host");
   host.innerHTML = "";
 
@@ -276,18 +224,24 @@ function ensureBranchSuggestionGroup(host) {
   list.className = "quest-branch-suggestion-list";
   group.appendChild(list);
 
-  const manualItem = createManualBranchSuggestionItem(branchText);
-  if (manualItem) {
-    list.appendChild(manualItem);
-  }
-
   host.appendChild(group);
   return group;
 }
 
 function findBranchSuggestionHost(sourceSeq) {
   if (!Number.isInteger(sourceSeq) || sourceSeq < 1) return null;
-  return messagesInner.querySelector(`.msg-inline-actions[data-source-seq="${sourceSeq}"]`);
+  const existing = messagesInner.querySelector(`.msg-inline-actions[data-source-seq="${sourceSeq}"]`);
+  if (existing) return existing;
+  const sourceNode = messagesInner.querySelector(`.msg-user[data-source-seq="${sourceSeq}"]`);
+  if (!sourceNode) return null;
+  let sibling = sourceNode.nextElementSibling;
+  while (sibling) {
+    if (sibling.classList?.contains("msg-assistant")) {
+      return createBranchSuggestionHost(sibling, sourceSeq);
+    }
+    sibling = sibling.nextElementSibling;
+  }
+  return null;
 }
 
 // ---- Render functions ----
@@ -302,6 +256,9 @@ function renderMessageInto(container, evt, { finalizeActiveThinkingBlock = false
   if (role === "user") {
     const wrap = document.createElement("div");
     wrap.className = "msg-user";
+    if (Number.isInteger(evt?.seq) && evt.seq > 0) {
+      wrap.dataset.sourceSeq = String(evt.seq);
+    }
     const stack = document.createElement("div");
     stack.className = "msg-user-stack";
     const bubble = document.createElement("div");
@@ -332,7 +289,6 @@ function renderMessageInto(container, evt, { finalizeActiveThinkingBlock = false
     }
     appendMessageTimestamp(bubble, evt.timestamp, "msg-user-time");
     stack.appendChild(bubble);
-    appendWorkbenchBranchAction(stack, evt);
     wrap.appendChild(stack);
     container.appendChild(wrap);
     return wrap;
@@ -1023,8 +979,6 @@ function updateContextDisplay(contextSize, contextWindowSize) {
       })
       : t("context.liveTitle", { context: contextSize.toLocaleString() });
     contextTokens.style.display = "";
-    compactBtn.style.display = "";
-    dropToolsBtn.style.display = "";
   }
 }
 

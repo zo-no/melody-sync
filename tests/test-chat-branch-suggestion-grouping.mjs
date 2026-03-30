@@ -164,8 +164,7 @@ function makeElement(tagName = 'div') {
   return element;
 }
 
-const appendWorkbenchBranchActionSource = extractFunctionSource(uiSource, 'appendWorkbenchBranchAction');
-const createManualBranchSuggestionItemSource = extractFunctionSource(uiSource, 'createManualBranchSuggestionItem');
+const createBranchSuggestionHostSource = extractFunctionSource(uiSource, 'createBranchSuggestionHost');
 const ensureBranchSuggestionGroupSource = extractFunctionSource(uiSource, 'ensureBranchSuggestionGroup');
 const findBranchSuggestionHostSource = extractFunctionSource(uiSource, 'findBranchSuggestionHost');
 const renderStatusIntoSource = extractFunctionSource(uiSource, 'renderStatusInto');
@@ -179,8 +178,6 @@ const context = {
   messagesInner,
   window: {
     MelodySyncWorkbench: {
-      openManualBranchFromText: async () => null,
-      canOpenManualBranch: () => true,
       createBranchSuggestionItem(evt) {
         const item = makeElement('div');
         item.className = 'quest-branch-suggestion-item';
@@ -200,45 +197,31 @@ context.globalThis = context;
 
 vm.runInNewContext(
   [
-    appendWorkbenchBranchActionSource,
-    createManualBranchSuggestionItemSource,
+    createBranchSuggestionHostSource,
     ensureBranchSuggestionGroupSource,
     findBranchSuggestionHostSource,
     renderStatusIntoSource,
-    'globalThis.appendWorkbenchBranchAction = appendWorkbenchBranchAction;',
     'globalThis.renderStatusInto = renderStatusInto;',
   ].join('\n\n'),
   context,
   { filename: 'static/chat/ui.js' },
 );
 
+const userWrap = makeElement('div');
+userWrap.className = 'msg-user';
+userWrap.dataset.sourceSeq = '7';
 const userStack = makeElement('div');
-messagesInner.appendChild(userStack);
-context.appendWorkbenchBranchAction(userStack, {
-  type: 'message',
-  seq: 7,
-  content: '这个知识点应该和之前学到的表现主义结合起来。',
-});
+userStack.className = 'msg-user-stack';
+userWrap.appendChild(userStack);
+messagesInner.appendChild(userWrap);
 
-const host = messagesInner.querySelector('.msg-inline-actions[data-source-seq="7"]');
-assert.ok(host, 'manual branch entry should create a host anchored to the user message sequence');
-
-const group = host.querySelector('.quest-branch-suggestion-group');
-assert.ok(group, 'manual-only branch entry should still render as a grouped suggestion block');
+const assistantReply = makeElement('div');
+assistantReply.className = 'msg-assistant';
+messagesInner.appendChild(assistantReply);
 assert.equal(
-  group.querySelector('.quest-branch-suggestion-group-label')?.textContent,
-  '支线任务建议',
-  'group should use the unified branch suggestion label',
-);
-assert.equal(
-  group.querySelectorAll('.quest-branch-suggestion-item').length,
-  1,
-  'manual-only state should contain exactly one suggestion row',
-);
-assert.equal(
-  group.querySelector('.quest-branch-suggestion-title')?.textContent,
-  '按这段内容开启支线任务',
-  'manual branch entry should appear as the first suggestion row inside the group',
+  assistantReply.querySelector('.quest-branch-suggestion-group'),
+  null,
+  'plain user replies should not pre-render a branch suggestion group before any branch candidate event arrives',
 );
 
 context.renderStatusInto(messagesInner, {
@@ -250,14 +233,15 @@ context.renderStatusInto(messagesInner, {
 });
 
 const groups = messagesInner.querySelectorAll('.quest-branch-suggestion-group');
-assert.equal(groups.length, 1, 'auto suggestions should merge into the existing sourceSeq group instead of creating a second block');
+assert.equal(groups.length, 1, 'auto suggestions should create exactly one grouped block for the matching source sequence');
+const group = groups[0];
 
 const rows = group.querySelectorAll('.quest-branch-suggestion-item');
-assert.equal(rows.length, 2, 'group should contain both the manual branch option and the auto-detected suggestion');
+assert.equal(rows.length, 1, 'group should only contain the auto-detected branch suggestion');
 assert.deepEqual(
   rows.map((row) => row.querySelector('.quest-branch-suggestion-title')?.textContent),
-  ['按这段内容开启支线任务', '表现主义'],
-  'auto-detected branch titles should be appended after the manual branch option inside the same group',
+  ['表现主义'],
+  'auto-detected branch titles should render without a redundant manual placeholder row',
 );
 
 context.renderStatusInto(messagesInner, {
@@ -270,7 +254,7 @@ context.renderStatusInto(messagesInner, {
 
 assert.equal(
   group.querySelectorAll('.quest-branch-suggestion-item').length,
-  2,
+  1,
   'historical duplicate auto suggestions should collapse to the first auto suggestion within the same message group',
 );
 

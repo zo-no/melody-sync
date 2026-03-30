@@ -16,7 +16,6 @@ function canUseSwipeGestures() {
   if (!gesturePill) return false;
   if (isDesktop) return false;
   if (sidebarOverlay?.classList.contains("open")) return false;
-  if (addToolModal && !addToolModal.hidden) return false;
   if (window.MelodySyncWorkbench?.isTaskMapDrawerOpen?.()) return false;
   return true;
 }

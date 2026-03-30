@@ -47,16 +47,14 @@ const freshPrompt = await buildPrompt(
   { skipSessionContinuation: true },
 );
 
-assert.match(freshPrompt, /<private>[\s\S]*Manager note: RemoteLab remains the manager for this turn/);
 assert.match(freshPrompt, /User message:/);
 assert.match(freshPrompt, /do not mirror its headings, bullets, or checklist structure back to the user/);
-assert.match(freshPrompt, /active working agreements/);
-assert.match(freshPrompt, /默认用自然连贯的段落表达，不要自己起标题和列表/);
-assert.match(freshPrompt, /current execution state, then whether the user is needed now or the work can stay parked/);
-assert.match(freshPrompt, /multi-goal routing as a first-order judgment/);
-assert.match(freshPrompt, /bounded work deserves bounded context/);
-assert.match(freshPrompt, /remotelab session-spawn --task "<focused task>" --wait --internal --output-mode final-only --json/);
+assert.match(freshPrompt, /melodysync session-spawn --task "<focused task>" --wait --internal --output-mode final-only --json/);
 assert.match(freshPrompt, /suppresses the visible parent handoff note and returns only the child session's final reply to stdout/);
+assert.match(freshPrompt, /append exactly one final <task_card> JSON block/i);
+assert.doesNotMatch(freshPrompt, /active working agreements/);
+assert.doesNotMatch(freshPrompt, /Routing principle for this turn/);
+assert.doesNotMatch(freshPrompt, /Current carried task card/);
 
 const resumedPrompt = await buildPrompt(
   'session-test-1',
@@ -71,10 +69,10 @@ const resumedPrompt = await buildPrompt(
   {},
 );
 
-assert.match(resumedPrompt, /<private>[\s\S]*Manager note: RemoteLab remains the manager for this turn/);
 assert.match(resumedPrompt, /Current user message:/);
+assert.match(resumedPrompt, /append exactly one final <task_card> JSON block/i);
 assert.doesNotMatch(resumedPrompt, /Memory System — Pointer-First Activation/);
-assert.match(resumedPrompt, /Agent 更像执行器，Manager 负责统一任务语义和边界/);
+assert.doesNotMatch(resumedPrompt, /active working agreements/);
 
 const splitPrompt = await buildPrompt(
   'session-test-6',
@@ -88,11 +86,9 @@ const splitPrompt = await buildPrompt(
   { skipSessionContinuation: true },
 );
 
-assert.match(splitPrompt, /Routing principle for this turn/);
-assert.match(splitPrompt, /Bounded work should prefer bounded context/);
-assert.match(splitPrompt, /Prefer splitting them into child sessions/);
-assert.match(splitPrompt, /1\. 现在都积压了哪些任务，我们看下接下来做什么/);
-assert.match(splitPrompt, /2\. 我们的 TODO 记录是标准流程吗，需不需要做一个定型/);
+assert.doesNotMatch(splitPrompt, /Routing principle for this turn/);
+assert.match(splitPrompt, /User message:/);
+assert.match(splitPrompt, /append exactly one final <task_card> JSON block/i);
 
 const feishuSourcePrompt = await buildPrompt(
   'session-test-3',
@@ -112,7 +108,7 @@ const feishuSourcePrompt = await buildPrompt(
 );
 
 assert.match(feishuSourcePrompt, /Source\/runtime instructions \(backend-owned for this session source\):/);
-assert.match(feishuSourcePrompt, /same RemoteLab executor you would be in ChatUI/);
+assert.match(feishuSourcePrompt, /same local workspace agent you would be in MelodySync chat/);
 assert.match(feishuSourcePrompt, /Do not collapse action requests into a one-line acknowledgement/);
 assert.match(feishuSourcePrompt, /Do not include emoji characters, emoticons, or sticker aliases/);
 assert.match(feishuSourcePrompt, /source-context/);
@@ -160,14 +156,15 @@ const microAgentPrompt = await buildPrompt(
   { skipSessionContinuation: true },
 );
 
-assert.match(microAgentPrompt, /<private>[\s\S]*Manager note: RemoteLab remains the manager for this turn/);
-assert.match(microAgentPrompt, /User message:/);
-assert.match(microAgentPrompt, /Memory System — Pointer-First Activation/);
+assert.match(microAgentPrompt, /看一下这个项目的背景/);
+assert.doesNotMatch(microAgentPrompt, /Current carried task card/);
+assert.doesNotMatch(microAgentPrompt, /active working agreements/);
 
 const promptWithTaskCard = await buildPrompt(
   'session-test-7',
   {
     ...baseSession,
+    name: '整理销售周报流程',
     taskCard: {
       mode: 'project',
       summary: '先吃透用户丢来的 Excel 和 PPT，再决定如何组织项目态。',
@@ -184,8 +181,9 @@ const promptWithTaskCard = await buildPrompt(
 );
 
 assert.match(promptWithTaskCard, /Current carried task card/);
-assert.match(promptWithTaskCard, /Execution mode: project/);
+assert.match(promptWithTaskCard, /Fixed session task title: 整理销售周报流程/);
 assert.match(promptWithTaskCard, /sales\.xlsx/);
-assert.match(promptWithTaskCard, /Durable user memory/);
+assert.match(promptWithTaskCard, /append exactly one final <task_card> JSON block/i);
+assert.match(promptWithTaskCard, /keep goal and mainGoal anchored to the fixed session task title/i);
 
 console.log('test-session-manager-build-prompt: ok');

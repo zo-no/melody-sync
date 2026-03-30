@@ -220,6 +220,8 @@ async function main() {
     assert.doesNotMatch(page.text, /id="tabSettings"/);
     assert.doesNotMatch(page.text, /id="collapseBtn"/, 'desktop sidebar should no longer expose a collapse control');
     assert.doesNotMatch(page.text, /id="tabProgress"/);
+    assert.doesNotMatch(page.text, /id="compactBtn"/);
+    assert.doesNotMatch(page.text, /id="dropToolsBtn"/);
     assert.doesNotMatch(page.text, /id="saveTemplateBtn"/);
     assert.doesNotMatch(page.text, /id="sessionTemplateSelect"/);
     assert.match(page.text, /id="taskMapRail"/, 'chat page should ship the dedicated middle-column task map rail');

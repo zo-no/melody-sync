@@ -87,130 +87,6 @@ effortSelect.addEventListener("change", () => {
   persistCurrentSessionToolPreferences();
 });
 // ---- Inline tool select ----
-function slugifyToolValue(value) {
-  const normalized = String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return normalized || "my-agent";
-}
-
-function getSelectedToolDefinition(toolId = selectedTool) {
-  return toolsList.find((tool) => tool.id === toolId) || null;
-}
-
-function parseModelLines(raw) {
-  return String(raw || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split("|");
-      const id = String(parts.shift() || "").trim();
-      const label = String(parts.join("|") || id).trim() || id;
-      return id ? { id, label } : null;
-    })
-    .filter(Boolean);
-}
-
-function parseReasoningLevels(raw) {
-  return [...new Set(
-    String(raw || "")
-      .split(",")
-      .map((level) => level.trim())
-      .filter(Boolean),
-  )];
-}
-
-function setAddToolStatus(message = "", tone = "") {
-  if (!addToolStatus) return;
-  addToolStatus.textContent = message;
-  addToolStatus.className = `provider-helper-status${tone ? ` ${tone}` : ""}`;
-}
-
-function syncQuickAddControls() {
-  const family = addToolRuntimeFamilySelect?.value || "claude-stream-json";
-  const allowedKinds = family === "codex-json" ? ["enum", "none"] : ["toggle", "none"];
-
-  for (const opt of addToolReasoningKindSelect.options) {
-    const allowed = allowedKinds.includes(opt.value);
-    opt.disabled = !allowed;
-    opt.hidden = !allowed;
-  }
-  if (!allowedKinds.includes(addToolReasoningKindSelect.value)) {
-    addToolReasoningKindSelect.value = allowedKinds[0];
-  }
-
-  const showLevels = addToolReasoningKindSelect.value === "enum";
-  const levelsField = addToolReasoningLevelsInput.closest(".provider-helper-field");
-  addToolReasoningLevelsInput.disabled = !showLevels;
-  if (levelsField) levelsField.style.opacity = showLevels ? "1" : "0.55";
-  if (family === "codex-json" && !addToolReasoningLevelsInput.value.trim()) {
-    addToolReasoningLevelsInput.value = "low, medium, high, xhigh";
-  }
-}
-
-function getAddToolDraft() {
-  const name = (addToolNameInput?.value || "").trim() || "My Agent";
-  const command = (addToolCommandInput?.value || "").trim() || "my-agent";
-  const runtimeFamily =
-    addToolRuntimeFamilySelect?.value || "claude-stream-json";
-  const models = parseModelLines(addToolModelsInput?.value || "");
-  const reasoningKind = addToolReasoningKindSelect?.value || "toggle";
-  const reasoning = { kind: reasoningKind, label: t("tooling.thinking") };
-  if (reasoningKind === "enum") {
-    reasoning.levels = parseReasoningLevels(addToolReasoningLevelsInput?.value || "")
-      .length > 0
-      ? parseReasoningLevels(addToolReasoningLevelsInput?.value || "")
-      : ["low", "medium", "high", "xhigh"];
-    reasoning.default = reasoning.levels[0];
-  }
-
-  return {
-    name,
-    command,
-    runtimeFamily,
-    commandSlug: slugifyToolValue(command),
-    models,
-    reasoning,
-  };
-}
-
-function buildProviderBasePrompt() {
-  const draft = getAddToolDraft();
-  const modelLines = draft.models.length > 0
-    ? draft.models.map((model) => `- ${model.id}${model.label !== model.id ? ` | ${model.label}` : ""}`).join("\n")
-    : "- none configured yet";
-  const reasoningLine = draft.reasoning.kind === "enum"
-    ? `${draft.reasoning.kind} (${draft.reasoning.levels.join(", ")})`
-    : draft.reasoning.kind;
-  return [
-    `I want to add a new agent/provider to RemoteLab.`,
-    ``,
-    `Target tool`,
-    `- Name: ${draft.name}`,
-    `- Command: ${draft.command}`,
-    `- Derived ID / slug: ${draft.commandSlug}`,
-    `- Runtime family: ${draft.runtimeFamily}`,
-    `- Reasoning mode: ${reasoningLine}`,
-    `- Models:`,
-    modelLines,
-    ``,
-    `Work in the RemoteLab repo root (usually \`~/code/remotelab\`; adjust if your checkout lives elsewhere).`,
-    `Read \`AGENTS.md\` (legacy \`CLAUDE.md\` is only a compatibility shim) and \`notes/directional/provider-architecture.md\` first.`,
-    ``,
-    `Please:`,
-    `1. Decide whether this can stay a simple provider bound to an existing runtime family or needs full provider code.`,
-    `2. If simple config is enough, explain the minimal runtimeFamily/models/reasoning config that should be saved.`,
-    `3. If the command is not compatible with the runtime family's normal CLI flags, implement the minimal arg-mapping/provider code needed to make it work.`,
-    `4. If full provider support is needed (models, thinking, runtime, parser, resume handling), implement the minimal code changes in the repo.`,
-    `5. Keep changes surgical, update docs if needed, and validate the flow end-to-end.`,
-    ``,
-    `Do not stop at planning — apply the changes if they are clear.`,
-  ].join("\n");
-}
-
 function updateCopyButtonLabel(button, label) {
   if (!button) return;
   const original = button.dataset.originalLabel || button.textContent;
@@ -249,6 +125,58 @@ function syncForkButton() {
   forkSessionBtn.disabled = !session || activity.run.state === "running" || activity.compact.state === "pending";
 }
 
+function canOrganizeSession(session) {
+  if (!session || session.archived === true) return false;
+  const activity = typeof getSessionActivity === "function"
+    ? getSessionActivity(session)
+    : {
+        run: { state: "idle" },
+        compact: { state: "idle" },
+        queue: { count: 0 },
+      };
+  return activity.run.state !== "running"
+    && activity.compact.state !== "pending"
+    && (!Number.isInteger(activity.queue.count) || activity.queue.count === 0);
+}
+
+function syncOrganizeSessionButton() {
+  if (!organizeSessionBtn) return;
+  const visible = !!currentSessionId;
+  organizeSessionBtn.hidden = !visible;
+  if (!visible) {
+    resetHeaderActionButton(organizeSessionBtn);
+    return;
+  }
+  const session = getCurrentSession();
+  organizeSessionBtn.disabled = !canOrganizeSession(session);
+}
+
+async function organizeCurrentSession() {
+  if (!currentSessionId || !organizeSessionBtn) return;
+
+  const original = organizeSessionBtn.dataset.originalLabel || organizeSessionBtn.textContent;
+  organizeSessionBtn.dataset.originalLabel = original;
+  organizeSessionBtn.disabled = true;
+  organizeSessionBtn.textContent = `${getToolingLabel("action.organize")}…`;
+
+  try {
+    const ok = await dispatchAction({
+      action: "organize",
+      sessionId: currentSessionId,
+      viewportIntent: "preserve",
+    });
+    updateCopyButtonLabel(
+      organizeSessionBtn,
+      ok ? getToolingLabel("action.organize") : getToolingLabel("action.copyFailed"),
+    );
+  } catch (err) {
+    console.warn("[session-organize] Failed to organize session:", err.message);
+    updateCopyButtonLabel(organizeSessionBtn, getToolingLabel("action.copyFailed"));
+  } finally {
+    syncOrganizeSessionButton();
+  }
+}
+
 async function forkCurrentSession() {
   if (!currentSessionId || !forkSessionBtn) return;
 
@@ -273,86 +201,6 @@ async function forkCurrentSession() {
     updateCopyButtonLabel(forkSessionBtn, getToolingLabel("action.copyFailed"));
   } finally {
     syncForkButton();
-  }
-}
-
-function syncAddToolModal() {
-  if (!providerPromptCode) return;
-  syncQuickAddControls();
-  providerPromptCode.textContent = buildProviderBasePrompt();
-}
-
-function openAddToolModal() {
-  if (!addToolModal) return;
-  if (!addToolNameInput.value.trim()) addToolNameInput.value = "My Agent";
-  if (!addToolCommandInput.value.trim()) {
-    addToolCommandInput.value = "my-agent";
-  }
-  const selectedToolDef = getSelectedToolDefinition();
-  if (selectedToolDef?.runtimeFamily) {
-    addToolRuntimeFamilySelect.value = selectedToolDef.runtimeFamily;
-  }
-  setAddToolStatus("");
-  syncAddToolModal();
-  addToolModal.hidden = false;
-  addToolNameInput.focus();
-  addToolNameInput.select();
-}
-
-function closeAddToolModal() {
-  if (!addToolModal) return;
-  addToolModal.hidden = true;
-}
-
-async function saveSimpleToolConfig() {
-  if (isSavingToolConfig) return;
-  const draft = getAddToolDraft();
-
-  if (!draft.command) {
-    setAddToolStatus("Command is required.", "error");
-    addToolCommandInput.focus();
-    return;
-  }
-
-  isSavingToolConfig = true;
-  saveToolConfigBtn.disabled = true;
-  setAddToolStatus("Saving and refreshing picker...");
-
-  try {
-    const data = await fetchJsonOrRedirect("/api/tools", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
-    });
-
-    const savedTool = data.tool;
-    if (savedTool?.id) {
-      selectedTool = savedTool.id;
-      preferredTool = savedTool.id;
-      localStorage.setItem("preferredTool", preferredTool);
-      localStorage.setItem("selectedTool", selectedTool);
-    }
-
-    await loadInlineTools({ skipModelLoad: true });
-    if (selectedTool) {
-      await loadModelsForCurrentTool({ refresh: true });
-    }
-
-    if (savedTool?.available) {
-      setAddToolStatus("Saved. The new agent is ready in the picker.", "success");
-      closeAddToolModal();
-    } else {
-      setAddToolStatus(
-        "Saved, but the command is not currently available on PATH, so it will stay hidden until the binary is available.",
-        "error",
-      );
-    }
-  } catch (err) {
-    setAddToolStatus(err.message || "Failed to save tool config", "error");
-  } finally {
-    isSavingToolConfig = false;
-    saveToolConfigBtn.disabled = false;
-    syncAddToolModal();
   }
 }
 
@@ -610,53 +458,9 @@ inlineModelSelect.addEventListener("change", () => {
   persistCurrentSessionToolPreferences();
 });
 
-addToolNameInput?.addEventListener("input", () => {
-  syncAddToolModal();
-});
-
-addToolCommandInput?.addEventListener("input", () => {
-  syncAddToolModal();
-});
-
-addToolRuntimeFamilySelect?.addEventListener("change", () => {
-  syncAddToolModal();
-});
-
-addToolModelsInput?.addEventListener("input", () => {
-  syncAddToolModal();
-});
-
-addToolReasoningKindSelect?.addEventListener("change", () => {
-  syncAddToolModal();
-});
-
-addToolReasoningLevelsInput?.addEventListener("input", () => {
-  syncAddToolModal();
-});
-
-closeAddToolModalBtn?.addEventListener("click", closeAddToolModal);
-closeAddToolModalFooterBtn?.addEventListener("click", closeAddToolModal);
-addToolModal?.addEventListener("click", (e) => {
-  if (e.target === addToolModal) closeAddToolModal();
-});
-
-saveToolConfigBtn?.addEventListener("click", saveSimpleToolConfig);
-
-copyProviderPromptBtn?.addEventListener("click", async () => {
-  try {
-    await copyText(buildProviderBasePrompt());
-    updateCopyButtonLabel(copyProviderPromptBtn, t("action.copied"));
-  } catch (err) {
-    console.warn("[copy] Failed to copy provider prompt:", err.message);
-  }
-});
-
 if (forkSessionBtn) {
   forkSessionBtn.addEventListener("click", forkCurrentSession);
 }
-
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && addToolModal && !addToolModal.hidden) {
-    closeAddToolModal();
-  }
-});
+if (organizeSessionBtn) {
+  organizeSessionBtn.addEventListener("click", organizeCurrentSession);
+}

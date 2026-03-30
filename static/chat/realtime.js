@@ -218,6 +218,12 @@ async function dispatchAction(msg) {
         }
         return true;
       }
+      case "organize": {
+        await organizeSessionById(msg.sessionId || currentSessionId, {
+          viewportIntent: msg.viewportIntent || "preserve",
+        });
+        return true;
+      }
       case "send": {
         const targetSessionId = msg.sessionId || currentSessionId;
         if (!targetSessionId) return false;
@@ -309,18 +315,6 @@ async function dispatchAction(msg) {
       }
       case "cancel":
         await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSessionId)}/cancel`, {
-          method: "POST",
-        });
-        await refreshCurrentSession();
-        return true;
-      case "compact":
-        await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSessionId)}/compact`, {
-          method: "POST",
-        });
-        await refreshCurrentSession();
-        return true;
-      case "drop_tools":
-        await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSessionId)}/drop-tools`, {
           method: "POST",
         });
         await refreshCurrentSession();
@@ -459,9 +453,6 @@ function updateStatus(connState, session = getCurrentSession()) {
     sendBtn.style.display = "";
     sendBtn.disabled = !currentSessionId || archived;
     sendBtn.title = t("action.send");
-    if (typeof syncComposerVoiceCleanupToggle === "function") {
-      syncComposerVoiceCleanupToggle();
-    }
     window.dispatchEvent(new CustomEvent("melodysync:status-change", {
       detail: {
         connState,
@@ -471,6 +462,9 @@ function updateStatus(connState, session = getCurrentSession()) {
         dotClass: statusDot.className,
       },
     }));
+    if (typeof syncOrganizeSessionButton === "function") {
+      syncOrganizeSessionButton();
+    }
     return;
   }
   const visualStatus = getSessionVisualStatus(session);
@@ -518,11 +512,8 @@ function updateStatus(connState, session = getCurrentSession()) {
   }));
   thinkingToggle.disabled = !hasSession || archived;
   effortSelect.disabled = !hasSession || archived;
-  if (typeof syncSessionTemplateControls === "function") {
-    syncSessionTemplateControls();
-  }
-  if (typeof syncComposerVoiceCleanupToggle === "function") {
-    syncComposerVoiceCleanupToggle();
-  }
   syncForkButton();
+  if (typeof syncOrganizeSessionButton === "function") {
+    syncOrganizeSessionButton();
+  }
 }

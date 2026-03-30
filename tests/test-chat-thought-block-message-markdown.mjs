@@ -131,4 +131,20 @@ assert.equal(markdownCalls[0].markdown, assistantMessage.content, 'assistant mes
 assert.equal(attachmentCalls.length, 1, 'assistant message rendering should build attachment nodes for assistant images');
 assert.equal(timestampCalls.length, 1, 'assistant message rendering should still append timestamps');
 
+const taskCardContainer = makeElement('div');
+const taskCardNode = context.renderMessageInto(taskCardContainer, {
+  role: 'assistant',
+  content: '我先把主线整理出来。',
+  taskCard: {
+    summary: '规划理财主线',
+    goal: '建立长期理财框架',
+    checkpoint: '先完成收支盘点',
+    candidateBranches: ['预算盘点', '投资白名单'],
+  },
+});
+
+assert.equal(taskCardContainer.children.length, 1, 'assistant task-card message should also append one rendered node');
+assert.equal(taskCardNode.children.length, 1, 'assistant task-card data should not render as a second inline snapshot under the message body');
+assert.equal(taskCardNode.children[0].className, 'msg-assistant-body', 'assistant task-card data should leave the normal message body rendering unchanged');
+
 console.log('test-chat-thought-block-message-markdown: ok');

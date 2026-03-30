@@ -1,14 +1,11 @@
-import { spawn } from 'child_process';
 import { randomBytes } from 'crypto';
 import { watch } from 'fs';
-import { readFile, writeFile } from 'fs/promises';
+import { writeFile } from 'fs/promises';
 import { homedir } from 'os';
 import { basename, dirname, extname, isAbsolute, join, resolve } from 'path';
-import { createInterface } from 'readline';
-import { CHAT_IMAGES_DIR, MEMORY_DIR } from '../lib/config.mjs';
+import { CHAT_IMAGES_DIR } from '../lib/config.mjs';
 import { getToolDefinitionAsync } from '../lib/tools.mjs';
-import { buildToolProcessEnv } from '../lib/user-shell-env.mjs';
-import { createToolInvocation, resolveCommand, resolveCwd } from './process-runner.mjs';
+import { createToolInvocation } from './process-runner.mjs';
 import {
   appendEvent,
   appendEvents,
@@ -23,26 +20,22 @@ import {
   setForkContext,
   setContextHead,
 } from './history.mjs';
-import { managerContextEvent, messageEvent, statusEvent } from './normalizer.mjs';
-import {
-  triggerSessionLabelSuggestion,
-  triggerSessionWorkflowStateSuggestion,
-} from './summarizer.mjs';
+import { messageEvent, statusEvent } from './normalizer.mjs';
 import { buildSourceRuntimePrompt } from './source-runtime-prompts.mjs';
 import { sendCompletionPush } from './push.mjs';
-import { buildSystemContext } from './system-prompt.mjs';
-import { MANAGER_TURN_POLICY_REMINDER } from './runtime-policy.mjs';
 import {
-  buildSessionAgreementsPromptBlock,
-  normalizeSessionAgreements,
-} from './session-agreements.mjs';
+  buildSessionOrganizerPrompt,
+  extractSessionOrganizerAssistantText,
+  parseSessionOrganizerResult,
+  SESSION_ORGANIZER_INTERNAL_OPERATION,
+} from './session-organizer.mjs';
+import { buildSystemContext } from './system-prompt.mjs';
+import { normalizeSessionAgreements } from './session-agreements.mjs';
 import {
   buildTemplateFreshnessNotice,
   buildSessionContinuationContextFromBody,
   prepareSessionContinuationBody,
 } from './session-continuation.mjs';
-import { buildSessionDisplayEvents } from './session-display-events.mjs';
-import { buildTurnRoutingHint } from './session-routing.mjs';
 import { broadcastOwners, getClientsMatching } from './ws-clients.mjs';
 import {
   buildTemporarySessionName,
@@ -103,9 +96,7 @@ import {
   buildTaskCardPromptBlock,
   normalizeSessionTaskCard,
   parseTaskCardFromAssistantContent,
-  shouldSurfaceTaskCardBranchCandidate,
-  taskCardHasIndependentBranchGoal,
-  taskCardIndicatesIntentShift,
+  stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
 
 const MIME_EXTENSIONS = {
@@ -134,40 +125,13 @@ const EXTENSION_MIME_TYPES = Object.fromEntries(
 const INTERNAL_SESSION_ROLE_CONTEXT_COMPACTOR = 'context_compactor';
 const INTERNAL_SESSION_ROLE_AGENT_DELEGATE = 'agent_delegate';
 const AUTO_COMPACT_MARKER_TEXT = 'Older messages above this marker are no longer in the model\'s live context. They remain visible in the transcript, but only the compressed handoff and newer messages below are loaded for continued work.';
-const REPLY_SELF_REPAIR_INTERNAL_OPERATION = 'reply_self_repair';
-const REPLY_SELF_CHECK_REVIEWING_STATUS = 'Assistant self-check: reviewing the latest reply for early stop…';
-const REPLY_SELF_CHECK_ACCEPT_STATUS = 'Assistant self-check: kept the latest reply as-is.';
-const REPLY_SELF_CHECK_DEFAULT_REASON = 'the latest reply left avoidable unfinished work';
-const VOICE_TRANSCRIPT_REWRITE_BOOTSTRAP_FILE = join(MEMORY_DIR, 'bootstrap.md');
-const VOICE_TRANSCRIPT_REWRITE_PROJECTS_FILE = join(MEMORY_DIR, 'projects.md');
-const VOICE_TRANSCRIPT_REWRITE_RECENT_HISTORY_WINDOW = 24;
-const VOICE_TRANSCRIPT_REWRITE_RECENT_MESSAGE_LIMIT = 8;
-const VOICE_TRANSCRIPT_REWRITE_SESSION_SUMMARY_MAX_CHARS = 1600;
-const VOICE_TRANSCRIPT_REWRITE_RECENT_DISCUSSION_MAX_CHARS = 2400;
-const DEFAULT_VOICE_TRANSCRIPT_REWRITE_LANGUAGE_HINT = 'Match the speaker\'s natural language mix. Chinese messages may naturally include English technical/product terms, repository names, commands, file paths, and identifiers when the surrounding context supports them.';
-const VOICE_TRANSCRIPT_REWRITE_DEVELOPER_INSTRUCTIONS = [
-  'You are a hidden transcript cleanup worker inside RemoteLab.',
-  'Do not use tools, do not ask follow-up questions, and do not mention internal process.',
-  'Fix likely transcription mistakes, likely English technical-term substitutions, and light fluency issues, but never answer the user or continue the conversation.',
-  'When project or session context strongly supports the intended term, normalize to that term instead of preserving an obviously wrong ASR variant.',
-  'Return only the final cleaned transcript text.',
-].join(' ');
-
 const CONTEXT_COMPACTOR_SYSTEM_PROMPT = [
-  'You are RemoteLab\'s hidden context compactor for a user-facing session.',
+  'You are MelodySync\'s hidden context compactor for a user-facing session.',
   'Your job is to condense older session context into a compact continuation package.',
   'Preserve the task objective, accepted decisions, constraints, completed work, current state, open questions, and next steps.',
   'Do not include raw tool dumps unless a tiny excerpt is essential.',
   'Be explicit about what is no longer in live context and what the next worker should rely on.',
 ].join('\n');
-
-const TURN_ACTIVATION_CARD = wrapPrivatePromptBlock([
-  'Turn activation — keep these principles active for this reply:',
-  '- Finish clear, low-risk work to a meaningful stopping point instead of pausing early for permission.',
-  '- Pause only for real ambiguity, missing required user input, or a meaningfully destructive / irreversible action.',
-  '- Default to concise, state-first updates: current execution state, then whether the user is needed now or the work can stay parked; avoid implementation noise unless the user asks for it.',
-  '- Treat multi-goal routing as a first-order judgment: bounded work deserves bounded context, so split independently completable work instead of flattening it into one thread.',
-].join('\n'));
 
 const DEFAULT_AUTO_COMPACT_CONTEXT_WINDOW_PERCENT = 100;
 const FOLLOW_UP_FLUSH_DELAY_MS = 1500;
@@ -398,7 +362,7 @@ async function collectRunOutputPreview(runId, maxLines = 3) {
 async function deriveStructuredRuntimeFailureReason(runId, previewText = '') {
   const preview = clipFailurePreview(previewText) || await collectRunOutputPreview(runId);
   if (preview && /(请登录|登录超时|auth|authentication|sso|sign in|login)/i.test(preview)) {
-    return `Provider requires interactive login before RemoteLab can use it: ${preview}`;
+    return `Provider requires interactive login before MelodySync can use it: ${preview}`;
   }
   if (preview) {
     return `Provider exited without emitting structured events: ${preview}`;
@@ -896,7 +860,7 @@ function buildQueuedFollowUpTranscriptText(queue) {
     return formatQueuedFollowUpTextEntry(queue[0], null);
   }
   return [
-    'Queued follow-up messages sent while RemoteLab was busy:',
+    'Queued follow-up messages sent while MelodySync was busy:',
     '',
     ...queue.map((entry, index) => formatQueuedFollowUpTextEntry(entry, index)),
   ].join('\n\n');
@@ -1080,11 +1044,6 @@ function isContextCompactorSession(meta) {
 
 function shouldExposeSession(meta) {
   return !isInternalSession(meta);
-}
-
-function isTaskCardEnabledForSession(meta) {
-  if (!meta || isInternalSession(meta)) return false;
-  return true;
 }
 
 function ensureLiveSession(sessionId) {
@@ -1273,6 +1232,9 @@ async function buildSessionTimelineEvents(sessionId, options = {}) {
 
   const manifest = await getRunManifest(activeRunId);
   if (!manifest) {
+    return history;
+  }
+  if (manifest.internalOperation === SESSION_ORGANIZER_INTERNAL_OPERATION) {
     return history;
   }
 
@@ -1598,21 +1560,6 @@ function clearRenameState(sessionId, { broadcast = false } = {}) {
   return hadState;
 }
 
-function setRenameState(sessionId, renameState, renameError = '') {
-  const live = ensureLiveSession(sessionId);
-  const changed = live.renameState !== renameState || (live.renameError || '') !== renameError;
-  live.renameState = renameState;
-  if (renameError) {
-    live.renameError = renameError;
-  } else {
-    delete live.renameError;
-  }
-  if (changed) {
-    broadcastSessionInvalidation(sessionId);
-  }
-  return null;
-}
-
 function sendToClients(clients, msg) {
   const data = JSON.stringify(msg);
   for (const client of clients) {
@@ -1742,7 +1689,7 @@ function clipCompactionSection(value, maxChars = 12000) {
   if (!text || text.length <= maxChars) return text;
   const headChars = Math.max(1, Math.floor(maxChars * 0.6));
   const tailChars = Math.max(1, maxChars - headChars);
-  return `${text.slice(0, headChars).trimEnd()}\n[... truncated by RemoteLab ...]\n${text.slice(-tailChars).trimStart()}`;
+  return `${text.slice(0, headChars).trimEnd()}\n[... truncated by MelodySync ...]\n${text.slice(-tailChars).trimStart()}`;
 }
 
 function buildDelegationHandoff({
@@ -1765,515 +1712,6 @@ function extractTaggedBlock(content, tagName) {
   return (match ? match[1] : '').trim();
 }
 
-function parseJsonObjectText(modelText) {
-  const text = typeof modelText === 'string' ? modelText.trim() : '';
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-  }
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return null;
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch {
-    return null;
-  }
-}
-
-function normalizeReplySelfCheckSetting(value) {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) return 'all';
-  if (['0', 'false', 'off', 'disabled', 'disable', 'none'].includes(normalized)) {
-    return 'off';
-  }
-  if (['1', 'true', 'on', 'enabled', 'enable', 'all'].includes(normalized)) {
-    return 'all';
-  }
-  return normalized;
-}
-
-async function shouldRunReplySelfCheck(session, run, manifest) {
-  if (!session?.id || !run?.id) return false;
-  if (manifest?.internalOperation) return false;
-  if (session.archived || isInternalSession(session)) return false;
-  if (run.state !== 'completed') return false;
-  const setting = normalizeReplySelfCheckSetting(process.env.REMOTELAB_REPLY_SELF_CHECK);
-  if (setting === 'off') return false;
-  if (setting === 'all') return true;
-  const toolDefinition = await getToolDefinitionAsync(run.tool || session.tool || '');
-  if (!toolDefinition) return false;
-  if (setting === 'micro-agent') {
-    return toolDefinition.id === 'micro-agent' || toolDefinition.toolProfile === 'micro-agent';
-  }
-  const enabledTools = new Set(setting.split(',').map((entry) => entry.trim()).filter(Boolean));
-  return enabledTools.has(toolDefinition.id || '') || enabledTools.has(toolDefinition.toolProfile || '');
-}
-
-function normalizeReplySelfCheckText(value) {
-  return String(value ?? '').replace(/\r\n/g, '\n').trim();
-}
-
-function clipReplySelfCheckText(value, maxChars = 5000) {
-  const text = normalizeReplySelfCheckText(value);
-  if (!text) return '';
-  if (text.length <= maxChars) return text;
-  const headChars = Math.max(1, Math.floor(maxChars * 0.6));
-  const tailChars = Math.max(1, maxChars - headChars);
-  return `${text.slice(0, headChars).trimEnd()}\n[... truncated by RemoteLab ...]\n${text.slice(-tailChars).trimStart()}`;
-}
-
-function formatReplySelfCheckDisplayEvent(event) {
-  if (!event || typeof event !== 'object') return '';
-  if (event.type === 'message' && event.role === 'assistant') {
-    return normalizeReplySelfCheckText(event.content || '');
-  }
-  if (event.type === 'thinking_block') {
-    const label = normalizeReplySelfCheckText(event.label || 'Thought');
-    return label ? `[Displayed thought block: ${label}]` : '[Displayed thought block]';
-  }
-  if (event.type === 'status') {
-    const content = normalizeReplySelfCheckText(event.content || '');
-    return content ? `[Displayed status: ${content}]` : '';
-  }
-  return '';
-}
-
-function buildReplySelfCheckDisplayedAssistantTurn(history = []) {
-  const displayEvents = buildSessionDisplayEvents(history, { sessionRunning: false });
-  const parts = [];
-  for (const event of displayEvents) {
-    if (event?.type === 'message' && event.role === 'user') continue;
-    const text = formatReplySelfCheckDisplayEvent(event);
-    if (text) {
-      parts.push(text);
-    }
-  }
-  return parts.join('\n\n').trim();
-}
-
-async function loadReplySelfCheckTurnContext(sessionId, runId) {
-  const history = await loadHistory(sessionId, { includeBodies: true });
-  const runHistory = [];
-  let userMessage = null;
-  let latestAssistantMessage = null;
-
-  for (const event of history) {
-    if (runId && event?.runId !== runId) continue;
-    runHistory.push(event);
-    if (event?.type === 'message' && event.role === 'user') {
-      userMessage = event;
-      continue;
-    }
-    if (event?.type === 'message' && event.role === 'assistant') {
-      latestAssistantMessage = event;
-    }
-  }
-
-  const turnHistory = Number.isInteger(userMessage?.seq)
-    ? runHistory.filter((event) => !Number.isInteger(event?.seq) || event.seq >= userMessage.seq)
-    : runHistory;
-  const assistantTurnText = buildReplySelfCheckDisplayedAssistantTurn(turnHistory)
-    || normalizeReplySelfCheckText(latestAssistantMessage?.content || '');
-
-  return {
-    userMessage,
-    assistantTurnText,
-  };
-}
-
-function summarizeReplySelfCheckReason(value, fallback = REPLY_SELF_CHECK_DEFAULT_REASON) {
-  const text = String(value || '').replace(/\s+/g, ' ').trim();
-  if (!text) return fallback;
-  if (text.length <= 160) return text;
-  return `${text.slice(0, 157).trimEnd()}…`;
-}
-
-async function runDetachedAssistantPrompt(sessionMeta, prompt, options = {}) {
-  const {
-    folder,
-    tool,
-    model,
-    effort,
-    thinking,
-  } = sessionMeta;
-
-  if (!tool) {
-    throw new Error('Detached assistant prompt requires an explicit tool');
-  }
-
-  const invocation = await createToolInvocation(tool, prompt, {
-    dangerouslySkipPermissions: true,
-    model: options.model ?? model,
-    effort: options.effort ?? effort,
-    thinking: options.thinking ?? thinking,
-    systemPrefix: Object.prototype.hasOwnProperty.call(options, 'systemPrefix')
-      ? options.systemPrefix
-      : '',
-    developerInstructions: options.developerInstructions,
-  });
-  const resolvedCmd = await resolveCommand(invocation.command);
-  const resolvedFolder = resolveCwd(folder);
-  const env = buildToolProcessEnv();
-  delete env.CLAUDECODE;
-  delete env.CLAUDE_CODE_ENTRYPOINT;
-
-  return new Promise((resolve, reject) => {
-    const proc = spawn(resolvedCmd, invocation.args, {
-      cwd: resolvedFolder,
-      env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    proc.stdin.end();
-
-    const rl = createInterface({ input: proc.stdout });
-    const textParts = [];
-
-    rl.on('line', (line) => {
-      const events = invocation.adapter.parseLine(line);
-      for (const evt of events) {
-        if (evt.type === 'message' && evt.role === 'assistant') {
-          textParts.push(evt.content || '');
-        }
-      }
-    });
-
-    proc.on('error', reject);
-
-    proc.on('exit', (code) => {
-      const raw = textParts.join('\n').trim();
-      if (code !== 0 && !raw) {
-        reject(new Error(`${tool} exited with code ${code}`));
-        return;
-      }
-      resolve(raw);
-    });
-  });
-}
-
-function normalizeVoiceTranscriptRewriteText(value) {
-  return String(value ?? '').replace(/\r\n/g, '\n').trim();
-}
-
-function clipVoiceTranscriptRewriteText(value, maxChars = 1200) {
-  const text = normalizeVoiceTranscriptRewriteText(value);
-  if (!text) return '';
-  if (text.length <= maxChars) return text;
-  const headChars = Math.max(1, Math.floor(maxChars * 0.65));
-  const tailChars = Math.max(1, maxChars - headChars);
-  return `${text.slice(0, headChars).trimEnd()}\n[… clipped …]\n${text.slice(-tailChars).trimStart()}`;
-}
-
-function formatVoiceTranscriptRewriteImages(images = []) {
-  return formatAttachmentContextLine(images);
-}
-
-function formatVoiceTranscriptRewriteDiscussionEvent(event) {
-  if (!(event && event.type === 'message')) return '';
-  const label = event.role === 'assistant' ? 'Assistant' : 'User';
-  const parts = [];
-  const content = clipVoiceTranscriptRewriteText(event.content, 700);
-  const imageLine = formatVoiceTranscriptRewriteImages(event.images);
-  if (content) parts.push(content);
-  if (imageLine) parts.push(imageLine);
-  if (parts.length === 0) return '';
-  return `[${label}]\n${parts.join('\n')}`;
-}
-
-async function loadVoiceTranscriptRewriteMemoryContext() {
-  const entries = [
-    { label: 'Collaboration bootstrap', path: VOICE_TRANSCRIPT_REWRITE_BOOTSTRAP_FILE, maxChars: 2600 },
-    { label: 'Project pointers', path: VOICE_TRANSCRIPT_REWRITE_PROJECTS_FILE, maxChars: 2200 },
-  ];
-  const parts = [];
-
-  for (const entry of entries) {
-    try {
-      const text = clipVoiceTranscriptRewriteText(await readFile(entry.path, 'utf8'), entry.maxChars);
-      if (text) {
-        parts.push(`${entry.label}:\n${text}`);
-      }
-    } catch {}
-  }
-
-  return parts.join('\n\n');
-}
-
-async function loadVoiceTranscriptRewriteSessionContext(sessionId, sessionMeta = null) {
-  const latestSeq = Number.isInteger(sessionMeta?.latestSeq) ? sessionMeta.latestSeq : 0;
-  const fromSeq = latestSeq > 0
-    ? Math.max(1, latestSeq - VOICE_TRANSCRIPT_REWRITE_RECENT_HISTORY_WINDOW + 1)
-    : 1;
-  const [contextHead, recentEvents] = await Promise.all([
-    getContextHead(sessionId).catch(() => null),
-    loadHistory(sessionId, {
-      fromSeq,
-      includeBodies: true,
-    }).catch(() => []),
-  ]);
-
-  const parts = [];
-  const summary = clipVoiceTranscriptRewriteText(
-    typeof contextHead?.summary === 'string' ? contextHead.summary : '',
-    VOICE_TRANSCRIPT_REWRITE_SESSION_SUMMARY_MAX_CHARS,
-  );
-  if (summary) {
-    parts.push(`Current session summary:\n${summary}`);
-  }
-
-  const recentDiscussion = recentEvents
-    .filter((event) => event?.type === 'message' && (event.role === 'user' || event.role === 'assistant'))
-    .slice(-VOICE_TRANSCRIPT_REWRITE_RECENT_MESSAGE_LIMIT)
-    .map(formatVoiceTranscriptRewriteDiscussionEvent)
-    .filter(Boolean)
-    .join('\n\n');
-  if (recentDiscussion) {
-    parts.push(`Recent discussion:\n${clipVoiceTranscriptRewriteText(recentDiscussion, VOICE_TRANSCRIPT_REWRITE_RECENT_DISCUSSION_MAX_CHARS)}`);
-  }
-
-  return parts.join('\n\n');
-}
-
-function buildVoiceTranscriptRewritePrompt(sessionMeta, transcript, memoryContext, sessionContext, options = {}) {
-  const languageHint = normalizeVoiceTranscriptRewriteText(options.language) || DEFAULT_VOICE_TRANSCRIPT_REWRITE_LANGUAGE_HINT;
-  return [
-    'You are cleaning up automatic speech recognition text for a RemoteLab chat composer.',
-    'Rewrite the raw transcript into the message the speaker most likely intended.',
-    'Use stable collaboration memory plus the current session summary and recent discussion to disambiguate names, terms, references, and obvious ASR mistakes.',
-    'Prefer the current session context when it clearly resolves a reference.',
-    'Prefer English technical/product terms, repo names, commands, paths, and identifiers when the project context strongly supports them, even if the raw transcript rendered them phonetically or as odd Chinese words.',
-    'If the transcript contains suspicious out-of-domain words, duplicated near-synonyms, or two conflicting terms for what is probably one concept, treat that as a likely ASR error and resolve it to the single most plausible intended term from context.',
-    'Preserve exact casing, spelling, and formatting for supported technical names when you can infer them confidently from context.',
-    'Allow light fluency smoothing: merge broken fragments, remove accidental repetitions, fix punctuation, and make the sentence sound natural without changing meaning.',
-    'Keep the same meaning, tone, and request.',
-    'Do not answer the request, summarize the conversation, or add any new facts, steps, or conclusions that are not already supported by the raw transcript or the context provided here.',
-    'If something is uncertain, stay close to the raw transcript instead of guessing.',
-    'Keep the result concise and chat-ready.',
-    'Return only the final cleaned transcript.',
-    '',
-    languageHint ? `Language hint: ${languageHint}` : '',
-    sessionMeta?.appName ? `Session app: ${sessionMeta.appName}` : '',
-    sessionMeta?.sourceName ? `Session source: ${sessionMeta.sourceName}` : '',
-    sessionMeta?.folder ? `Working folder: ${sessionMeta.folder}` : '',
-    memoryContext ? `Persistent collaboration memory:\n${memoryContext}` : 'Persistent collaboration memory: [none]',
-    sessionContext ? `Current session context:\n${sessionContext}` : 'Current session context: [none]',
-    '',
-    'Raw ASR transcript:',
-    transcript,
-    '',
-    'Final cleaned transcript:',
-  ].filter(Boolean).join('\n');
-}
-
-function normalizeVoiceTranscriptRewriteOutput(value) {
-  let text = normalizeVoiceTranscriptRewriteText(value);
-  if (!text) return '';
-  text = text
-    .replace(/^```[a-z0-9_-]*\n?/i, '')
-    .replace(/\n?```$/i, '')
-    .replace(/^(final rewritten transcript|rewritten transcript|transcript)\s*:\s*/i, '')
-    .trim();
-  const quotedMatch = text.match(/^["“](.*)["”]$/s);
-  if (quotedMatch?.[1]) {
-    text = quotedMatch[1].trim();
-  }
-  return text;
-}
-
-export async function rewriteVoiceTranscriptForSession(sessionId, transcript, options = {}) {
-  const rawTranscript = normalizeVoiceTranscriptRewriteText(transcript);
-  if (!rawTranscript) {
-    return {
-      transcript: '',
-      changed: false,
-      skipped: 'empty_transcript',
-    };
-  }
-
-  const sessionMeta = await findSessionMeta(sessionId);
-  if (!sessionMeta?.tool) {
-    return {
-      transcript: rawTranscript,
-      changed: false,
-      skipped: 'session_tool_unavailable',
-    };
-  }
-
-  const [memoryContext, sessionContext] = await Promise.all([
-    loadVoiceTranscriptRewriteMemoryContext(),
-    loadVoiceTranscriptRewriteSessionContext(sessionId, sessionMeta),
-  ]);
-  const rewritten = normalizeVoiceTranscriptRewriteOutput(await runDetachedAssistantPrompt({
-    ...sessionMeta,
-    effort: 'low',
-    thinking: false,
-  }, buildVoiceTranscriptRewritePrompt(sessionMeta, rawTranscript, memoryContext, sessionContext, options), {
-    developerInstructions: VOICE_TRANSCRIPT_REWRITE_DEVELOPER_INSTRUCTIONS,
-    systemPrefix: '',
-  }));
-
-  if (!rewritten) {
-    return {
-      transcript: rawTranscript,
-      changed: false,
-      skipped: 'empty_rewrite',
-    };
-  }
-
-  return {
-    transcript: rewritten,
-    changed: rewritten !== rawTranscript,
-    tool: sessionMeta.tool,
-    model: sessionMeta.model || '',
-  };
-}
-
-function buildReplySelfCheckPrompt({ userMessage, assistantTurnText }) {
-  return [
-    'You are RemoteLab\'s hidden end-of-turn completion reviewer.',
-    'Judge only whether the latest assistant reply stopped too early for the current user turn.',
-    'Unless the reply clearly completed the requested work or hit a real blocker, prefer "continue".',
-    'When uncertain between "accept" and "continue", choose "continue".',
-    'If there is no explicit user-side blocker, assume the assistant should continue with the obvious next step.',
-    'Accept only when the reply already reaches a meaningful stopping point for this turn or it clearly states the exact blocker that truly requires the user.',
-    'Real blockers are explicit user-side dependencies such as missing required input, genuine ambiguity that prevents safe progress, missing access / credentials / files, or destructive / irreversible actions that need confirmation.',
-    'Do not treat optional clarification, extra polish, or the assistant\'s own caution as blockers.',
-    'A reply that ends with an open offer or permission request such as "if you want I can...", "I can do that next", or "let me know and I\'ll continue" is never a meaningful stopping point by itself and must be marked "continue" unless the same reply clearly states a real blocker.',
-    'If the only remaining work is something the assistant could already do with the current context, you must choose "continue".',
-    'Strong continue signals include: promising to do the next step later, asking permission to continue without a real blocker, offering to continue if the user wants, summarizing a plan while leaving the requested action undone, or stopping after analysis when execution was still possible.',
-    'Do not require extra artifacts the user did not ask for. Conceptual discussion can already be complete when the user asked only for discussion.',
-    'Return exactly one <hide> JSON object with keys "action", "reason", and "continuationPrompt".',
-    'Valid actions: "accept" or "continue".',
-    'If action is "accept", set continuationPrompt to an empty string.',
-    'If action is "continue", continuationPrompt must tell the next assistant how to finish the missing work immediately without asking permission and without repeating the whole previous reply.',
-    'Write reason and continuationPrompt in the user\'s language.',
-    'Do not output any text outside the <hide> block.',
-    '',
-    'Current user message:',
-    clipReplySelfCheckText(userMessage?.content || '', 3000) || '[none]',
-    '',
-    'Latest assistant turn content shown to the user:',
-    clipReplySelfCheckText(assistantTurnText || '', 5000) || '[none]',
-  ].join('\n');
-}
-
-function parseReplySelfCheckDecision(content) {
-  const hidden = extractTaggedBlock(content, 'hide');
-  const parsed = parseJsonObjectText(hidden || content);
-  const rawAction = String(parsed?.action || '').trim().toLowerCase();
-  const action = rawAction === 'accept'
-    ? 'accept'
-    : 'continue';
-  return {
-    action,
-    reason: summarizeReplySelfCheckReason(parsed?.reason || ''),
-    continuationPrompt: action === 'continue' ? String(parsed?.continuationPrompt || '').trim() : '',
-  };
-}
-
-function buildReplySelfRepairPrompt({ userMessage, assistantTurnText, reviewDecision }) {
-  const continuationPrompt = String(reviewDecision?.continuationPrompt || '').trim();
-  const reason = summarizeReplySelfCheckReason(reviewDecision?.reason || 'finish the missing work now');
-  return [
-    'You are continuing the same user-facing reply after a hidden self-check found an avoidable early stop.',
-    'The previous assistant reply is already visible to the user.',
-    'Add only the missing completion now.',
-    'Default to taking the obvious next step with the information already available.',
-    'Prefer doing the work over describing what you would do.',
-    'Replace any prior open offer or permission request with the actual next action or result now.',
-    'Do not ask for permission to continue.',
-    'Do not mention the hidden self-check or internal review process.',
-    'Do not end with another open offer such as "if you want I can continue" or "I can do that next".',
-    'Only stop if a concrete user-side blocker truly prevents safe progress.',
-    'If you still truly need user input, state exactly what is missing and why it is required.',
-    '',
-    'Original user message:',
-    clipReplySelfCheckText(userMessage?.content || '', 3000) || '[none]',
-    '',
-    'Previous assistant turn content already shown to the user:',
-    clipReplySelfCheckText(assistantTurnText || '', 5000) || '[none]',
-    '',
-    'Hidden reviewer guidance:',
-    continuationPrompt || `Finish the missing work now. Reviewer reason: ${reason}`,
-    '',
-    'Return only the next user-visible assistant message.',
-  ].join('\n');
-}
-
-async function maybeRunReplySelfCheck(sessionId, session, run, manifest) {
-  if (!await shouldRunReplySelfCheck(session, run, manifest)) {
-    return false;
-  }
-  const latestSession = await getSession(sessionId);
-  if (!latestSession || latestSession.activeRunId || getSessionQueueCount(latestSession) > 0) {
-    return false;
-  }
-
-  const { userMessage, assistantTurnText } = await loadReplySelfCheckTurnContext(sessionId, run.id);
-  if (!assistantTurnText) {
-    return false;
-  }
-
-  await appendEvent(sessionId, statusEvent(REPLY_SELF_CHECK_REVIEWING_STATUS));
-  broadcastSessionInvalidation(sessionId);
-
-  let reviewText = '';
-  try {
-    reviewText = await runDetachedAssistantPrompt({
-      id: sessionId,
-      folder: session.folder,
-      tool: run.tool || session.tool,
-      model: run.model || undefined,
-      effort: run.effort || undefined,
-      thinking: false,
-    }, buildReplySelfCheckPrompt({ userMessage, assistantTurnText }));
-  } catch (error) {
-    await appendEvent(sessionId, statusEvent(`Assistant self-check: review failed — ${summarizeReplySelfCheckReason(error.message, 'background reviewer error')}`));
-    broadcastSessionInvalidation(sessionId);
-    return false;
-  }
-
-  const reviewDecision = parseReplySelfCheckDecision(reviewText);
-  const refreshed = await getSession(sessionId);
-  if (!refreshed || refreshed.activeRunId || getSessionQueueCount(refreshed) > 0) {
-    await appendEvent(sessionId, statusEvent('Assistant self-check: skipped automatic continuation because new work arrived first.'));
-    broadcastSessionInvalidation(sessionId);
-    return false;
-  }
-
-  if (reviewDecision.action !== 'continue') {
-    await appendEvent(sessionId, statusEvent(REPLY_SELF_CHECK_ACCEPT_STATUS));
-    broadcastSessionInvalidation(sessionId);
-    return true;
-  }
-
-  const reason = summarizeReplySelfCheckReason(reviewDecision.reason, REPLY_SELF_CHECK_DEFAULT_REASON);
-  await appendEvent(sessionId, statusEvent(`Assistant self-check: continuing automatically — ${reason}`));
-  broadcastSessionInvalidation(sessionId);
-
-  try {
-    await sendMessage(sessionId, buildReplySelfRepairPrompt({
-      userMessage,
-      assistantTurnText,
-      reviewDecision,
-    }), [], {
-      tool: run.tool || session.tool,
-      model: run.model || undefined,
-      effort: run.effort || undefined,
-      thinking: !!run.thinking,
-      recordUserMessage: false,
-      queueIfBusy: false,
-      internalOperation: REPLY_SELF_REPAIR_INTERNAL_OPERATION,
-    });
-  } catch (error) {
-    await appendEvent(sessionId, statusEvent(`Assistant self-check: failed to continue automatically — ${summarizeReplySelfCheckReason(error.message, 'unable to launch follow-up reply')}`));
-    broadcastSessionInvalidation(sessionId);
-    return false;
-  }
-
-  return true;
-}
-
 function parseCompactionWorkerOutput(content) {
   return {
     summary: extractTaggedBlock(content, 'summary'),
@@ -2286,7 +1724,7 @@ function buildFallbackCompactionHandoff(summary, toolIndex) {
     '# Auto Compress',
     '',
     '## Kept in live context',
-    '- RemoteLab carried forward a compressed continuation summary for the task.',
+    '- MelodySync carried forward a compressed continuation summary for the task.',
   ];
 
   const trimmedSummary = clipCompactionSection(summary, 3000);
@@ -2303,7 +1741,7 @@ function buildFallbackCompactionHandoff(summary, toolIndex) {
 }
 
 function buildContextCompactionPrompt({ session, existingSummary, conversationBody, toolIndex, automatic = false }) {
-  const appInstructions = clipCompactionSection(session?.systemPrompt || '', 6000);
+  const sessionInstructions = clipCompactionSection(session?.systemPrompt || '', 6000);
   const priorSummary = clipCompactionSection(existingSummary || '', 12000);
   const conversationSlice = clipCompactionSection(conversationBody || '', 18000);
   const toolActivity = clipCompactionSection(toolIndex || '', 10000);
@@ -2311,7 +1749,7 @@ function buildContextCompactionPrompt({ session, existingSummary, conversationBo
   return [
     'Please compress this entire session into a continuation summary for the same AI worker.',
     '',
-    'You are operating inside RemoteLab\'s hidden compaction worker for a parent session.',
+    'You are operating inside MelodySync\'s hidden compaction worker for a parent session.',
     `Compaction trigger: ${automatic ? 'automatic auto-compress' : 'manual compact request'}`,
     '',
     'Goal:',
@@ -2342,8 +1780,8 @@ function buildContextCompactionPrompt({ session, existingSummary, conversationBo
     '- ...',
     '</handoff>',
     '',
-    'Parent session app instructions:',
-    appInstructions || '[none]',
+    'Parent session instructions:',
+    sessionInstructions || '[none]',
     '',
     'Previously carried summary:',
     priorSummary || '[none]',
@@ -2366,7 +1804,7 @@ function clipCompactionEventText(value, maxChars = 4000) {
   if (text.length <= maxChars) return text;
   const headChars = Math.max(1, Math.floor(maxChars * 0.6));
   const tailChars = Math.max(1, maxChars - headChars);
-  return `${text.slice(0, headChars).trimEnd()}\n[... truncated by RemoteLab ...]\n${text.slice(-tailChars).trimStart()}`;
+  return `${text.slice(0, headChars).trimEnd()}\n[... truncated by MelodySync ...]\n${text.slice(-tailChars).trimStart()}`;
 }
 
 function formatCompactionAttachments(images) {
@@ -2580,60 +2018,6 @@ async function findLatestAssistantMessageForRun(sessionId, runId) {
   return null;
 }
 
-async function findLatestUserMessage(sessionId) {
-  const events = await loadHistory(sessionId, { includeBodies: false });
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index];
-    if (event?.type === 'message' && event.role === 'user') {
-      return event;
-    }
-  }
-  return null;
-}
-
-async function maybeApplyAssistantTaskCard(sessionId, runId, session = null) {
-  const currentSession = session || await getSession(sessionId);
-  if (!currentSession || !isTaskCardEnabledForSession(currentSession)) {
-    return null;
-  }
-
-  const assistantEvent = await findLatestAssistantMessageForRun(sessionId, runId);
-  const latestUserEvent = await findLatestUserMessage(sessionId);
-  const previousTaskCard = normalizeSessionTaskCard(currentSession.taskCard || {});
-  const taskCard = parseTaskCardFromAssistantContent(assistantEvent?.content || '');
-  if (!taskCard) return null;
-
-  const updatedSession = await updateSessionTaskCard(sessionId, taskCard);
-  if (updatedSession) {
-    const previousCandidates = new Set((previousTaskCard?.candidateBranches || []).map((entry) => String(entry || '').trim().toLowerCase()));
-    for (const branchTitle of taskCard.candidateBranches || []) {
-      const normalizedTitle = String(branchTitle || '').trim().toLowerCase();
-      if (!normalizedTitle || previousCandidates.has(normalizedTitle)) continue;
-      const intentShift = taskCardIndicatesIntentShift(taskCard, branchTitle);
-      const independentGoal = taskCardHasIndependentBranchGoal(taskCard, branchTitle);
-      if (!shouldSurfaceTaskCardBranchCandidate(taskCard, branchTitle)) {
-        continue;
-      }
-      await appendEvent(sessionId, statusEvent(`已记住支线：${branchTitle}`, {
-        statusKind: 'branch_candidate',
-        branchTitle,
-        branchReason: taskCard.branchReason || '',
-        autoSuggested: true,
-        intentShift,
-        independentGoal,
-        sourceSeq: Number.isInteger(latestUserEvent?.seq) ? latestUserEvent.seq : undefined,
-      }));
-    }
-    try {
-      const { syncSessionContinuityFromSession } = await import('./workbench-store.mjs');
-      await syncSessionContinuityFromSession(updatedSession, { taskCard });
-    } catch (error) {
-      console.error('Failed to sync session continuity:', error?.message || error);
-    }
-  }
-  return updatedSession;
-}
-
 async function findResultAssetMessageForRun(sessionId, runId) {
   const events = await loadHistory(sessionId, { includeBodies: false });
   for (let index = events.length - 1; index >= 0; index -= 1) {
@@ -2644,6 +2028,82 @@ async function findResultAssetMessageForRun(sessionId, runId) {
     return event;
   }
   return null;
+}
+
+async function applySessionOrganizerPatch(sessionId, patch = {}) {
+  let session = await getSession(sessionId);
+  if (!session) return null;
+
+  const nextName = typeof patch?.name === 'string' ? patch.name.trim() : '';
+  if (nextName && nextName !== session.name) {
+    session = await renameSession(sessionId, nextName) || session;
+  }
+
+  const nextGroup = typeof patch?.group === 'string' ? patch.group : '';
+  const nextDescription = typeof patch?.description === 'string' ? patch.description : '';
+  if ((nextGroup && nextGroup !== (session.group || '')) || (nextDescription && nextDescription !== (session.description || ''))) {
+    session = await updateSessionGrouping(sessionId, {
+      ...(nextGroup ? { group: nextGroup } : {}),
+      ...(nextDescription ? { description: nextDescription } : {}),
+    }) || session;
+  }
+
+  const nextWorkflowState = typeof patch?.workflowState === 'string' ? patch.workflowState : '';
+  const nextWorkflowPriority = typeof patch?.workflowPriority === 'string' ? patch.workflowPriority : '';
+  if (
+    (nextWorkflowState && nextWorkflowState !== (session.workflowState || ''))
+    || (nextWorkflowPriority && nextWorkflowPriority !== (session.workflowPriority || ''))
+  ) {
+    session = await updateSessionWorkflowClassification(sessionId, {
+      ...(nextWorkflowState ? { workflowState: nextWorkflowState } : {}),
+      ...(nextWorkflowPriority ? { workflowPriority: nextWorkflowPriority } : {}),
+    }) || session;
+  }
+
+  return session;
+}
+
+async function finalizeSessionOrganizerRun(sessionId, run, normalizedEvents = []) {
+  const assistantText = extractSessionOrganizerAssistantText(normalizedEvents);
+  if (!assistantText) {
+    await updateRun(run.id, (current) => ({
+      ...current,
+      state: 'failed',
+      failureReason: 'Session organizer produced no assistant output',
+    }));
+    return { session: await getSession(sessionId), changed: false };
+  }
+
+  const parsed = parseSessionOrganizerResult(assistantText);
+  if (!parsed.ok) {
+    await updateRun(run.id, (current) => ({
+      ...current,
+      state: 'failed',
+      failureReason: 'Session organizer returned invalid JSON',
+    }));
+    return { session: await getSession(sessionId), changed: false };
+  }
+
+  const before = await getSession(sessionId);
+  const updated = await applySessionOrganizerPatch(sessionId, parsed);
+  const changed = JSON.stringify({
+    name: before?.name || '',
+    group: before?.group || '',
+    description: before?.description || '',
+    workflowState: before?.workflowState || '',
+    workflowPriority: before?.workflowPriority || '',
+  }) !== JSON.stringify({
+    name: updated?.name || '',
+    group: updated?.group || '',
+    description: updated?.description || '',
+    workflowState: updated?.workflowState || '',
+    workflowPriority: updated?.workflowPriority || '',
+  });
+
+  return {
+    session: updated || before,
+    changed,
+  };
 }
 
 async function maybePublishRunResultAssets(sessionId, run, manifest, normalizedEvents) {
@@ -2707,17 +2167,6 @@ async function maybePublishRunResultAssets(sessionId, run, manifest, normalizedE
   return true;
 }
 
-const MANAGER_TURN_POLICY_BLOCK = `Manager note: ${MANAGER_TURN_POLICY_REMINDER}`;
-
-function buildManagerTurnContextText(session, text = '') {
-  return [
-    MANAGER_TURN_POLICY_BLOCK,
-    buildTurnRoutingHint(text),
-    buildSessionAgreementsPromptBlock(session?.activeAgreements || []),
-    buildTaskCardPromptBlock(session?.taskCard),
-  ].filter(Boolean).join('\n\n');
-}
-
 function resolveResumeState(toolId, session, options = {}) {
   if (options.freshThread === true) {
     return {
@@ -2753,12 +2202,6 @@ function resolveResumeState(toolId, session, options = {}) {
   };
 }
 
-function wrapPrivatePromptBlock(text) {
-  const normalized = typeof text === 'string' ? text.trim() : '';
-  if (!normalized) return '';
-  return ['<private>', normalized, '</private>'].join('\n');
-}
-
 export async function buildPrompt(sessionId, session, text, previousTool, effectiveTool, snapshot = null, options = {}) {
   const toolDefinition = await getToolDefinitionAsync(effectiveTool);
   const promptMode = toolDefinition?.promptMode === 'bare-user'
@@ -2788,18 +2231,21 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
 
   let actualText = text;
   if (promptMode === 'default') {
-    const turnPrefix = wrapPrivatePromptBlock(buildManagerTurnContextText(session, text));
     const turnSections = [];
+    const taskCardPromptBlock = options.internalOperation
+      ? ''
+      : buildTaskCardPromptBlock(session?.taskCard, {
+          sessionTitle: session?.name || '',
+        });
 
     if (continuationContext) {
       turnSections.push(continuationContext);
-      turnSections.push(TURN_ACTIVATION_CARD);
-      if (turnPrefix) turnSections.push(turnPrefix);
       turnSections.push(`Current user message:\n${text}`);
     } else {
-      turnSections.push(TURN_ACTIVATION_CARD);
-      if (turnPrefix) turnSections.push(turnPrefix);
       turnSections.push(`${hasResume ? 'Current user message' : 'User message'}:\n${text}`);
+    }
+    if (taskCardPromptBlock) {
+      turnSections.push(taskCardPromptBlock);
     }
 
     actualText = turnSections.join('\n\n---\n\n');
@@ -2828,116 +2274,143 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
   return actualText;
 }
 
+function sanitizeAssistantRunEvents(events = []) {
+  let latestTaskCard = null;
+  const sanitizedEvents = (Array.isArray(events) ? events : []).map((event) => {
+    if (event?.type !== 'message' || event.role !== 'assistant') {
+      return event;
+    }
+
+    const content = typeof event.content === 'string' ? event.content : '';
+    const parsedTaskCard = parseTaskCardFromAssistantContent(content);
+    const strippedContent = stripTaskCardFromAssistantContent(content);
+    if (!parsedTaskCard && content === strippedContent) {
+      return event;
+    }
+
+    if (parsedTaskCard) {
+      latestTaskCard = parsedTaskCard;
+    }
+
+    return {
+      ...event,
+      ...(parsedTaskCard ? { taskCard: parsedTaskCard } : {}),
+      ...(content !== strippedContent ? { content: strippedContent } : {}),
+    };
+  });
+
+  return { sanitizedEvents, latestTaskCard };
+}
+
+function normalizeCandidateBranchTitles(taskCard) {
+  return Array.isArray(taskCard?.candidateBranches)
+    ? taskCard.candidateBranches
+      .map((entry) => String(entry || '').replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+    : [];
+}
+
+function stabilizeSessionTaskCard(sessionMeta, taskCard) {
+  const parsedTaskCard = normalizeSessionTaskCard(taskCard);
+  if (!parsedTaskCard) return null;
+
+  const currentTaskCard = normalizeSessionTaskCard(sessionMeta?.taskCard || null);
+  const stableSessionTitle = trimString(sessionMeta?.name);
+
+  if (parsedTaskCard.lineRole !== 'branch') {
+    const anchoredMainGoal = trimString(
+      currentTaskCard?.lineRole !== 'branch'
+        ? (currentTaskCard?.mainGoal || currentTaskCard?.goal || stableSessionTitle)
+        : stableSessionTitle,
+    ) || trimString(parsedTaskCard.mainGoal || parsedTaskCard.goal);
+
+    return normalizeSessionTaskCard({
+      ...parsedTaskCard,
+      summary: currentTaskCard?.lineRole !== 'branch'
+        ? (currentTaskCard?.summary || parsedTaskCard.summary)
+        : parsedTaskCard.summary,
+      goal: anchoredMainGoal,
+      mainGoal: anchoredMainGoal,
+      lineRole: 'main',
+      branchFrom: '',
+      branchReason: '',
+    });
+  }
+
+  const anchoredParentGoal = trimString(
+    parsedTaskCard.mainGoal
+    || currentTaskCard?.mainGoal
+    || currentTaskCard?.goal
+    || stableSessionTitle,
+  ) || trimString(parsedTaskCard.branchFrom || parsedTaskCard.goal);
+
+  return normalizeSessionTaskCard({
+    ...parsedTaskCard,
+    mainGoal: anchoredParentGoal,
+    branchFrom: trimString(parsedTaskCard.branchFrom || anchoredParentGoal),
+  });
+}
+
+async function findLatestUserMessageSeqForRun(sessionId, run) {
+  if (!sessionId || !run?.id) return 0;
+  const events = await loadHistory(sessionId, { includeBodies: false });
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event?.type !== 'message' || event.role !== 'user') continue;
+    if (run.requestId && event.requestId === run.requestId) {
+      return Number.isInteger(event.seq) ? event.seq : 0;
+    }
+    if (event.runId === run.id) {
+      return Number.isInteger(event.seq) ? event.seq : 0;
+    }
+  }
+  return 0;
+}
+
+function buildBranchCandidateStatusEvents(run, {
+  sourceSeq = 0,
+  previousTaskCard = null,
+  nextTaskCard = null,
+  suppressedBranchTitles = [],
+} = {}) {
+  const nextCandidates = normalizeCandidateBranchTitles(nextTaskCard);
+  if (nextCandidates.length === 0) return [];
+
+  const previousKeys = new Set(
+    normalizeCandidateBranchTitles(previousTaskCard).map((entry) => entry.toLowerCase()),
+  );
+  const suppressedKeys = new Set(
+    normalizeSuppressedBranchTitles(suppressedBranchTitles).map((entry) => entry.toLowerCase()),
+  );
+  const branchReason = trimString(nextTaskCard?.branchReason)
+    || `当前主任务保持为「${trimString(nextTaskCard?.mainGoal || nextTaskCard?.goal) || '当前任务'}」，这条线建议单独展开。`;
+
+  return nextCandidates
+    .filter((branchTitle) => {
+      const key = branchTitle.toLowerCase();
+      return !previousKeys.has(key) && !suppressedKeys.has(key);
+    })
+    .map((branchTitle) => ({
+      ...statusEvent(`建议拆出支线：${branchTitle}`, {
+        statusKind: 'branch_candidate',
+        branchTitle,
+        branchReason,
+        autoSuggested: true,
+        intentShift: true,
+        independentGoal: true,
+        ...(sourceSeq > 0 ? { sourceSeq } : {}),
+      }),
+      runId: run.id,
+      ...(run.requestId ? { requestId: run.requestId } : {}),
+    }));
+}
+
 function normalizeRunEvents(run, events) {
   return (events || []).map((event) => ({
     ...event,
     runId: run.id,
     ...(run.requestId ? { requestId: run.requestId } : {}),
   }));
-}
-
-async function applyGeneratedSessionGrouping(sessionId, summaryResult) {
-  const summary = summaryResult?.summary;
-  if (!summary) return getSession(sessionId);
-  const current = await getSession(sessionId);
-  if (!current) return null;
-
-  const nextGroup = summary.group === undefined
-    ? (current.group || '')
-    : normalizeSessionGroup(summary.group || '');
-  const nextDescription = summary.description === undefined
-    ? (current.description || '')
-    : normalizeSessionDescription(summary.description || '');
-
-  if ((nextGroup || '') === (current.group || '') && (nextDescription || '') === (current.description || '')) {
-    return current;
-  }
-
-  return updateSessionGrouping(sessionId, {
-    group: nextGroup,
-    description: nextDescription,
-  });
-}
-
-function scheduleSessionWorkflowStateSuggestion(session, run) {
-  if (!session?.id || !run || session.archived || isInternalSession(session)) {
-    return false;
-  }
-
-  const suggestionDone = triggerSessionWorkflowStateSuggestion({
-    id: session.id,
-    folder: session.folder,
-    name: session.name || '',
-    group: session.group || '',
-    description: session.description || '',
-    workflowState: session.workflowState || '',
-    workflowPriority: session.workflowPriority || '',
-    tool: run.tool || session.tool,
-    model: run.model || undefined,
-    thinking: false,
-    runState: run.state,
-    queuedCount: getSessionQueueCount(session),
-  });
-
-  suggestionDone.then(async (result) => {
-    const nextWorkflowState = normalizeSessionWorkflowState(result?.workflowState || '');
-    const nextWorkflowPriority = normalizeSessionWorkflowPriority(result?.workflowPriority || '');
-    if (!nextWorkflowState && !nextWorkflowPriority) return;
-    await updateSessionWorkflowClassification(session.id, {
-      workflowState: nextWorkflowState,
-      workflowPriority: nextWorkflowPriority,
-    });
-  }).catch((error) => {
-    console.error(`[workflow-state] Failed to update workflow state for ${session.id?.slice(0, 8)}: ${error.message}`);
-  });
-
-  return true;
-}
-
-function launchEarlySessionLabelSuggestion(sessionId, sessionMeta) {
-  const live = ensureLiveSession(sessionId);
-  if (live.earlyTitlePromise) {
-    return live.earlyTitlePromise;
-  }
-
-  const shouldGenerateTitle = isSessionAutoRenamePending(sessionMeta);
-  if (shouldGenerateTitle) {
-    setRenameState(sessionId, 'pending');
-  }
-
-  const promise = triggerSessionLabelSuggestion(
-    sessionMeta,
-    async (newName) => {
-      const currentSession = await getSession(sessionId);
-      if (!isSessionAutoRenamePending(currentSession)) return null;
-      return renameSession(sessionId, newName);
-    },
-  )
-    .then(async (result) => {
-      const grouped = await applyGeneratedSessionGrouping(sessionId, result);
-      const currentSession = grouped || await getSession(sessionId);
-      if (shouldGenerateTitle) {
-        if (currentSession && isSessionAutoRenamePending(currentSession)) {
-          setRenameState(
-            sessionId,
-            'failed',
-            result?.rename?.error || result?.error || 'No title generated',
-          );
-        } else {
-          clearRenameState(sessionId, { broadcast: true });
-        }
-      }
-      return result;
-    })
-    .finally(() => {
-      const current = liveSessions.get(sessionId);
-      if (current?.earlyTitlePromise === promise) {
-        delete current.earlyTitlePromise;
-      }
-    });
-
-  live.earlyTitlePromise = promise;
-  return promise;
 }
 
 async function queueContextCompaction(sessionId, session, run, { automatic = false } = {}) {
@@ -3062,17 +2535,24 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
   const live = liveSessions.get(sessionId);
   const directCompaction = manifest?.internalOperation === 'context_compaction';
   const workerCompaction = manifest?.internalOperation === 'context_compaction_worker';
+  const sessionOrganizing = manifest?.internalOperation === SESSION_ORGANIZER_INTERNAL_OPERATION;
   const compacting = directCompaction || workerCompaction;
   const compactionTargetSessionId = typeof manifest?.compactionTargetSessionId === 'string'
     ? manifest.compactionTargetSessionId
     : '';
+  const {
+    sanitizedEvents: finalizedEvents,
+    latestTaskCard,
+  } = sessionOrganizing
+    ? { sanitizedEvents: normalizedEvents, latestTaskCard: null }
+    : sanitizeAssistantRunEvents(normalizedEvents);
 
-  if (Array.isArray(normalizedEvents) && normalizedEvents.length > 0) {
-    await appendEvents(sessionId, normalizedEvents);
+  if (!sessionOrganizing && Array.isArray(finalizedEvents) && finalizedEvents.length > 0) {
+    await appendEvents(sessionId, finalizedEvents);
     historyChanged = true;
   }
 
-  if (run.state === 'cancelled') {
+  if (!sessionOrganizing && run.state === 'cancelled') {
     const event = {
       ...statusEvent('cancelled'),
       runId: run.id,
@@ -3080,7 +2560,7 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     };
     await appendEvent(sessionId, event);
     historyChanged = true;
-  } else if (run.state === 'failed' && run.failureReason) {
+  } else if (!sessionOrganizing && run.state === 'failed' && run.failureReason) {
     const event = {
       ...statusEvent(`error: ${run.failureReason}`),
       runId: run.id,
@@ -3162,6 +2642,37 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     ...current,
     finalizedAt: current.finalizedAt || nowIso(),
   })) || run;
+
+  const currentSessionMeta = finalizedMeta.meta || await findSessionMeta(sessionId);
+  const stabilizedTaskCard = !sessionOrganizing && latestTaskCard
+    ? stabilizeSessionTaskCard(currentSessionMeta, latestTaskCard)
+    : null;
+
+  if (!sessionOrganizing && latestTaskCard) {
+    const updatedTaskCard = await updateSessionTaskCard(sessionId, stabilizedTaskCard);
+    sessionChanged = sessionChanged || !!updatedTaskCard;
+
+    const branchCandidateEvents = buildBranchCandidateStatusEvents(finalizedRun, {
+      sourceSeq: await findLatestUserMessageSeqForRun(sessionId, finalizedRun),
+      previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
+      nextTaskCard: stabilizedTaskCard,
+      suppressedBranchTitles: currentSessionMeta?.suppressedBranchTitles || [],
+    });
+    if (branchCandidateEvents.length > 0) {
+      await appendEvents(sessionId, branchCandidateEvents);
+      historyChanged = true;
+    }
+  }
+
+  if (sessionOrganizing) {
+    if (run.state === 'completed') {
+      const organized = await finalizeSessionOrganizerRun(sessionId, finalizedRun, normalizedEvents);
+      sessionChanged = sessionChanged || organized.changed;
+    }
+    broadcastSessionInvalidation(sessionId);
+    return { historyChanged, sessionChanged };
+  }
+
   if (compacting) {
     if (workerCompaction && compactionTargetSessionId) {
       const targetSession = await getSession(compactionTargetSessionId);
@@ -3180,87 +2691,15 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     return { historyChanged, sessionChanged };
   }
 
-  if (!manifest?.internalOperation) {
-    const taskCardSession = await maybeApplyAssistantTaskCard(sessionId, run.id, latestSession);
-    if (taskCardSession) {
-      latestSession = taskCardSession;
-      sessionChanged = true;
-    }
-  }
-
-  historyChanged = await maybePublishRunResultAssets(sessionId, finalizedRun, manifest, normalizedEvents) || historyChanged;
+  historyChanged = await maybePublishRunResultAssets(sessionId, finalizedRun, manifest, finalizedEvents) || historyChanged;
 
   if (getSessionQueueCount(latestSession) > 0) {
     scheduleQueuedFollowUpDispatch(sessionId);
   }
 
   queueSessionCompletionTargets(latestSession, finalizedRun, manifest);
-  if (!manifest?.internalOperation) {
-    scheduleSessionWorkflowStateSuggestion(latestSession, finalizedRun);
-  }
 
-  const needsRename = isSessionAutoRenamePending(latestSession);
-  const needsGrouping = !latestSession.group || !latestSession.description;
-
-  if (needsRename || needsGrouping) {
-    if (needsRename) {
-      setRenameState(sessionId, 'pending');
-    }
-
-    const labelSuggestionDone = triggerSessionLabelSuggestion(
-      {
-        id: sessionId,
-        folder: latestSession.folder,
-        name: latestSession.name || '',
-        group: latestSession.group || '',
-        description: latestSession.description || '',
-        appName: latestSession.appName || '',
-        sourceName: latestSession.sourceName || '',
-        autoRenamePending: latestSession.autoRenamePending,
-        tool: finalizedRun.tool || latestSession.tool,
-        model: finalizedRun.model || undefined,
-        effort: finalizedRun.effort || undefined,
-        thinking: !!finalizedRun.thinking,
-      },
-      async (newName) => {
-        const currentSession = await getSession(sessionId);
-        if (!isSessionAutoRenamePending(currentSession)) return null;
-        return renameSession(sessionId, newName);
-      },
-    );
-
-    if (needsRename) {
-      labelSuggestionDone.then(async (labelResult) => {
-        const grouped = await applyGeneratedSessionGrouping(sessionId, labelResult);
-        const updated = grouped || await getSession(sessionId);
-        const stillPendingRename = !!updated && isSessionAutoRenamePending(updated);
-        if (stillPendingRename) {
-          setRenameState(
-            sessionId,
-            'failed',
-            labelResult?.rename?.error || labelResult?.error || 'No title generated',
-          );
-        } else {
-          clearRenameState(sessionId, { broadcast: true });
-        }
-        sendCompletionPush({ ...(updated || latestSession), id: sessionId }).catch(() => {});
-      });
-      if (!manifest?.internalOperation) {
-        void maybeRunReplySelfCheck(sessionId, latestSession, finalizedRun, manifest);
-      }
-      return { historyChanged, sessionChanged };
-    }
-
-    labelSuggestionDone.then(async (labelResult) => {
-      await applyGeneratedSessionGrouping(sessionId, labelResult);
-    });
-  }
-
-  void maybeAutoCompact(sessionId, latestSession, finalizedRun, manifest);
   sendCompletionPush({ ...latestSession, id: sessionId }).catch(() => {});
-  if (!manifest?.internalOperation) {
-    void maybeRunReplySelfCheck(sessionId, latestSession, finalizedRun, manifest);
-  }
   return { historyChanged, sessionChanged };
 }
 
@@ -3368,6 +2807,38 @@ export async function getRunState(runId) {
   const run = await getRun(runId);
   if (!run) return null;
   return await flushDetachedRunIfNeeded(run.sessionId, runId) || await getRun(runId);
+}
+
+export async function organizeSession(sessionId, options = {}) {
+  const session = await getSession(sessionId);
+  if (!session) {
+    throw new Error('Session not found');
+  }
+  if (session.activity?.run?.state === 'running') {
+    throw new Error('Session is currently running');
+  }
+  if (getSessionQueueCount(session) > 0) {
+    throw new Error('Session has queued follow-up messages');
+  }
+
+  const prompt = await buildSessionOrganizerPrompt(session);
+  const outcome = await sendMessage(sessionId, prompt, [], {
+    tool: options.tool || session.tool,
+    model: options.model || session.model || undefined,
+    effort: options.effort || session.effort || undefined,
+    thinking: options.thinking === true,
+    recordUserMessage: false,
+    queueIfBusy: false,
+    internalOperation: SESSION_ORGANIZER_INTERNAL_OPERATION,
+    freshThread: true,
+    skipSessionContinuation: true,
+  });
+
+  return {
+    run: outcome.run,
+    session: outcome.session,
+    duplicate: outcome.duplicate,
+  };
 }
 
 export async function createSession(folder, tool, name, extra = {}) {
@@ -4254,51 +3725,26 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
       ...(sourceContext ? { sourceContext } : {}),
     });
     await appendEvent(sessionId, userEvent);
-
-    const toolDefinition = await getToolDefinitionAsync(effectiveTool);
-    const promptMode = toolDefinition?.promptMode === 'bare-user'
-      ? 'bare-user'
-      : 'default';
-    if (promptMode === 'default') {
-      const managerTurnContext = buildManagerTurnContextText(session, normalizedText);
-      if (managerTurnContext) {
-        await appendEvent(sessionId, managerContextEvent(managerTurnContext, {
-          requestId,
-          runId: run.id,
-        }));
-      }
-    }
   }
 
   if (!options.internalOperation && isFirstRecordedUserMessage && isSessionAutoRenamePending(session)) {
     const draftName = buildTemporarySessionName(recordedUserText);
     if (draftName && draftName !== session.name) {
-      const renamed = await renameSession(sessionId, draftName, { preserveAutoRename: true });
+      const renamed = await renameSession(sessionId, draftName);
       if (renamed) {
         session = renamed;
       }
+    } else {
+      const updatedMeta = await mutateSessionMeta(sessionId, (draft) => {
+        if (draft.autoRenamePending !== true) return false;
+        draft.autoRenamePending = false;
+        draft.updatedAt = nowIso();
+        return true;
+      });
+      if (updatedMeta.meta) {
+        session = await enrichSessionMeta(updatedMeta.meta);
+      }
     }
-  }
-
-  const needsEarlySessionLabeling = isSessionAutoRenamePending(session)
-    || !session.group
-    || !session.description;
-
-  if (!options.internalOperation && options.recordUserMessage !== false && !isInternalSession(session) && needsEarlySessionLabeling) {
-    launchEarlySessionLabelSuggestion(sessionId, {
-      id: sessionId,
-      folder: session.folder,
-      name: session.name || '',
-      group: session.group || '',
-      description: session.description || '',
-      appName: session.appName || '',
-      sourceName: session.sourceName || '',
-      autoRenamePending: false,
-      tool: effectiveTool,
-      model: options.model || undefined,
-      effort: options.effort || undefined,
-      thinking: options.thinking === true,
-    });
   }
 
   observeDetachedRun(sessionId, run.id);
@@ -4455,51 +3901,6 @@ export async function delegateSession(sessionId, payload = {}) {
     session: outcome.session || await getSession(child.id) || child,
     run: outcome.run || null,
   };
-}
-
-export async function dropToolUse(sessionId) {
-  const session = await getSession(sessionId);
-  if (!session) return false;
-
-  const history = await loadHistory(sessionId);
-  const textEvents = history.filter((event) => event.type === 'message');
-  const transcript = textEvents
-    .map((event) => `[${event.role === 'user' ? 'User' : 'Assistant'}]: ${event.content || ''}`)
-    .join('\n\n');
-
-  await clearPersistedResumeIds(sessionId);
-  if (transcript.trim()) {
-    const snapshot = await getHistorySnapshot(sessionId);
-    await setContextHead(sessionId, {
-      mode: 'summary',
-      summary: `[Previous conversation — tool results removed]\n\n${transcript}`,
-      activeFromSeq: snapshot.latestSeq,
-      compactedThroughSeq: snapshot.latestSeq,
-      updatedAt: nowIso(),
-      source: 'drop_tool_use',
-    });
-  } else {
-    await clearContextHead(sessionId);
-  }
-
-  const kept = textEvents.length;
-  const dropped = history.filter((event) => ['tool_use', 'tool_result', 'file_change'].includes(event.type)).length;
-  const dropEvent = statusEvent(`Tool results dropped — ${dropped} tool events removed from context, ${kept} messages kept`);
-  await appendEvent(sessionId, dropEvent);
-  broadcastSessionInvalidation(sessionId);
-  return true;
-}
-
-export async function compactSession(sessionId) {
-  const session = await getSession(sessionId);
-  if (!session) return false;
-  if (getSessionQueueCount(session) > 0) return false;
-  const runId = getSessionRunId(session);
-  if (runId) {
-    const run = await getRun(runId);
-    if (run && !isTerminalRunState(run.state)) return false;
-  }
-  return queueContextCompaction(sessionId, session, null, { automatic: false });
 }
 
 export function killAll() {

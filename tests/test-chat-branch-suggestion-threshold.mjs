@@ -150,8 +150,8 @@ assert.equal(
 );
 assert.equal(
   visibleAuto.querySelector('.quest-branch-btn')?.textContent,
-  '单独展开',
-  'auto suggestion action should use the softer branch wording',
+  '开启支线',
+  'auto suggestion action should use the same branch-entry wording as the task map',
 );
 
 const manualSuggestion = context.createBranchSuggestionItem({

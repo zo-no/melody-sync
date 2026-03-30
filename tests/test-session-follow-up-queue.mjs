@@ -165,7 +165,7 @@ try {
   const userMessages = history.filter((event) => event.type === 'message' && event.role === 'user');
   assert.equal(userMessages.length, 2, 'queued follow-ups should become one consolidated user turn');
   assert.equal(userMessages[0].content, 'First run');
-  assert.match(userMessages[1].content, /Queued follow-up messages sent while RemoteLab was busy:/);
+  assert.match(userMessages[1].content, /Queued follow-up messages sent while MelodySync was busy:/);
   assert.match(userMessages[1].content, /Follow-up one/);
   assert.match(userMessages[1].content, /Actually prioritize the second follow-up/);
 

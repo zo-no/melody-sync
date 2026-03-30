@@ -156,6 +156,30 @@ body {
   border-color: color-mix(in srgb, var(--notice) 28%, var(--border));
 }
 .header-refresh-btn[hidden] { display: none !important; }
+.header-organize-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, opacity 0.14s ease;
+}
+.header-organize-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.header-organize-btn[hidden] { display: none !important; }
 .header-timer,
 .header-schedule {
   position: relative;
@@ -899,7 +923,8 @@ body::before {
 }
 
 .header-btn,
-.header-refresh-btn {
+.header-refresh-btn,
+.header-organize-btn {
   border: 1px solid rgba(255, 255, 255, 0.5);
   background: linear-gradient(145deg, rgba(245, 248, 250, 0.95), rgba(221, 230, 236, 0.9));
   color: var(--text-secondary);
@@ -907,7 +932,8 @@ body::before {
 }
 
 .header-btn:hover,
-.header-refresh-btn:hover {
+.header-refresh-btn:hover,
+.header-organize-btn:hover {
   background: linear-gradient(145deg, rgba(249, 251, 252, 0.98), rgba(225, 233, 238, 0.94));
   color: var(--text);
   border-color: rgba(255, 255, 255, 0.62);

@@ -466,12 +466,6 @@ function renderSessionScopeContext(session) {
 
 function getFilteredSessionEmptyText({ archived = false } = {}) {
   if (archived) return t("sidebar.noArchived");
-  if (
-    activeSourceFilter !== FILTER_ALL_VALUE
-    || activeUserFilter !== ADMIN_USER_FILTER_VALUE
-  ) {
-    return t("sidebar.noSessionsFiltered");
-  }
   return t("sidebar.noSessions");
 }
 
@@ -511,6 +505,17 @@ function buildSessionActionConfigs(session, options = {}) {
   if (Array.isArray(options.actions)) {
     return options.actions.filter(Boolean);
   }
+  const activity = typeof getSessionActivity === "function"
+    ? getSessionActivity(session)
+    : {
+        run: { state: "idle" },
+        compact: { state: "idle" },
+        queue: { count: 0 },
+      };
+  const canOrganize = session?.archived !== true
+    && activity.run.state !== "running"
+    && activity.compact.state !== "pending"
+    && (!Number.isInteger(activity.queue.count) || activity.queue.count === 0);
   if (session?.archived === true) {
     return [
       {
@@ -530,6 +535,13 @@ function buildSessionActionConfigs(session, options = {}) {
     ];
   }
   return [
+    canOrganize ? {
+      key: "organize",
+      action: "organize",
+      label: t("action.organize"),
+      icon: "refresh",
+      className: "organize",
+    } : null,
     {
       key: "archive",
       action: "archive",
@@ -537,7 +549,7 @@ function buildSessionActionConfigs(session, options = {}) {
       icon: "archive",
       className: "archive",
     },
-  ];
+  ].filter(Boolean);
 }
 
 function createActiveSessionItem(session, options = {}) {

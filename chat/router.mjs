@@ -10,17 +10,16 @@ import {
   getAuthSession, refreshAuthSession,
 } from '../lib/auth.mjs';
 import { saveUiRuntimeSelection } from '../lib/runtime-selection.mjs';
-import { getAvailableToolsAsync, saveSimpleToolAsync } from '../lib/tools.mjs';
+import { getAvailableToolsAsync } from '../lib/tools.mjs';
 import {
   cancelActiveRun,
-  compactSession,
   createSession,
   delegateSession,
   deleteSessionPermanently,
-  dropToolUse,
   forkSession,
   getHistory,
   getRunState,
+  organizeSession,
   resolveSavedAttachments,
   saveAttachments,
   getSession,
@@ -29,7 +28,6 @@ import {
   getSessionTimelineEvents,
   listSessions,
   renameSession,
-  rewriteVoiceTranscriptForSession,
   sendMessage,
   setSessionArchived,
   setSessionPinned,
@@ -59,7 +57,9 @@ import {
 import { pathExists, statOrNull } from './fs-utils.mjs';
 import { broadcastAll } from './ws-clients.mjs';
 import { handlePublicRoutes } from './router-public-routes.mjs';
-import { handleAdminRoutes } from './router-admin-routes.mjs';
+import { handleAssetRoutes } from './routes/assets.mjs';
+import { handleAuthRoutes } from './routes/auth.mjs';
+import { handleSessionReadRoutes } from './routes/session-read.mjs';
 import {
   buildFileAssetDirectUrl,
   createFileAssetUploadIntent,
@@ -153,7 +153,6 @@ const staticMimeTypesByExtension = {
 
 const staticDirResolved = resolve(staticDir);
 const MESSAGE_SUBMISSION_MAX_BYTES = 256 * 1024 * 1024;
-const VOICE_CLEANUP_PAYLOAD_MAX_BYTES = 256 * 1024;
 const uploadedMediaMimeTypes = {
   gif: 'image/gif',
   jpeg: 'image/jpeg',
@@ -263,28 +262,6 @@ async function readSessionMessagePayload(req, pathname) {
     thinking: parseFormString(formData.get('thinking')) === 'true',
     sourceContext: parseFormJson(parseFormString(formData.get('sourceContext')), null),
     images,
-  };
-}
-
-async function readVoiceCleanupPayload(req) {
-  const contentType = String(req.headers['content-type'] || '').toLowerCase();
-  if (contentType.startsWith('multipart/form-data')) {
-    const error = new Error('Audio voice input has been removed. Send `providedTranscript` JSON instead.');
-    error.statusCode = 410;
-    throw error;
-  }
-
-  const body = await readBody(req, VOICE_CLEANUP_PAYLOAD_MAX_BYTES);
-  const payload = body ? JSON.parse(body) : {};
-  if (payload?.audio) {
-    const error = new Error('Audio voice input has been removed. Send `providedTranscript` JSON instead.');
-    error.statusCode = 410;
-    throw error;
-  }
-
-  return {
-    rewriteWithContext: payload?.rewriteWithContext === true,
-    providedTranscript: typeof payload?.providedTranscript === 'string' ? payload.providedTranscript.trim() : '',
   };
 }
 
@@ -771,6 +748,7 @@ function isOwnerOnlyRoute(pathname, method) {
   if (pathname.startsWith('/api/triggers/') && ['GET', 'PATCH', 'DELETE'].includes(method)) return true;
   if (pathname.startsWith('/api/sessions/') && pathname.endsWith('/fork') && method === 'POST') return true;
   if (pathname.startsWith('/api/sessions/') && pathname.endsWith('/delegate') && method === 'POST') return true;
+  if (pathname.startsWith('/api/sessions/') && pathname.endsWith('/organize') && method === 'POST') return true;
   if (pathname.startsWith('/api/sessions/') && method === 'PATCH') return true;
   if (pathname === '/api/models' && method === 'GET') return true;
   if (pathname === '/api/tools' && (method === 'GET' || method === 'POST')) return true;
@@ -778,8 +756,6 @@ function isOwnerOnlyRoute(pathname, method) {
   if (pathname === '/api/browse' && method === 'GET') return true;
   if (pathname === '/api/push/vapid-public-key' && method === 'GET') return true;
   if (pathname === '/api/push/subscribe' && method === 'POST') return true;
-  if (pathname === '/api/users') return true;
-  if (pathname.startsWith('/api/users/')) return true;
   return false;
 }
 
@@ -874,200 +850,46 @@ export async function handleRequest(req, res) {
     return;
   }
 
-  if (pathname === '/api/assets/upload-intents' && req.method === 'POST') {
-    writeJson(res, 410, { error: 'Attachments have been removed from MelodySync' });
+  if (await handleAssetRoutes({
+    req,
+    res,
+    pathname,
+    fileAssetRoute,
+    authSession,
+    requireSessionAccess,
+    createFileAssetUploadIntent,
+    getFileAsset,
+    getFileAssetForClient,
+    finalizeFileAssetUpload,
+    buildFileAssetDirectUrl,
+    readBody,
+    writeJson,
+    buildHeaders,
+  })) {
     return;
   }
 
-  if (fileAssetRoute && req.method === 'GET' && !fileAssetRoute.action) {
-    const asset = await getFileAsset(fileAssetRoute.assetId);
-    if (!asset) {
-      writeJson(res, 404, { error: 'Asset not found' });
-      return;
-    }
-    if (!requireSessionAccess(res, authSession, asset.sessionId)) return;
-    const clientAsset = await getFileAssetForClient(asset.id, {
-      includeDirectUrl: asset.status === 'ready',
-    });
-    writeJson(res, 200, { asset: clientAsset });
-    return;
-  }
-
-  if (fileAssetRoute?.action === 'finalize' && req.method === 'POST') {
-    const asset = await getFileAsset(fileAssetRoute.assetId);
-    if (!asset) {
-      writeJson(res, 404, { error: 'Asset not found' });
-      return;
-    }
-    if (!requireSessionAccess(res, authSession, asset.sessionId)) return;
-
-    let payload = {};
-    try {
-      const body = await readBody(req, 32768);
-      payload = body ? JSON.parse(body) : {};
-    } catch {
-      writeJson(res, 400, { error: 'Invalid request body' });
-      return;
-    }
-
-    try {
-      const next = await finalizeFileAssetUpload(asset.id, {
-        sizeBytes: payload?.sizeBytes,
-        etag: typeof payload?.etag === 'string' ? payload.etag : '',
-      });
-      writeJson(res, 200, { asset: next });
-    } catch (error) {
-      writeJson(res, error?.statusCode || 400, { error: error.message || 'Failed to finalize asset upload' });
-    }
-    return;
-  }
-
-  if (fileAssetRoute?.action === 'download' && req.method === 'GET') {
-    const asset = await getFileAsset(fileAssetRoute.assetId);
-    if (!asset) {
-      writeJson(res, 404, { error: 'Asset not found' });
-      return;
-    }
-    if (!requireSessionAccess(res, authSession, asset.sessionId)) return;
-
-    try {
-      const direct = await buildFileAssetDirectUrl(asset);
-      res.writeHead(302, buildHeaders({
-        Location: direct.url,
-        'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
-      }));
-      res.end();
-    } catch (error) {
-      writeJson(res, error?.statusCode || 400, { error: error.message || 'Failed to build asset download link' });
-    }
-    return;
-  }
-
-  if (sessionGetRoute?.kind === 'list' || sessionGetRoute?.kind === 'archived-list') {
-    const view = typeof parsedUrl.query.view === 'string'
-      ? String(parsedUrl.query.view || '').trim().toLowerCase()
-      : '';
-    const sessionList = await listSessionListItemsForClient({
-      includeArchived: true,
-      appId: typeof parsedUrl.query.appId === 'string' ? parsedUrl.query.appId : '',
-      sourceId: typeof parsedUrl.query.sourceId === 'string' ? parsedUrl.query.sourceId : '',
-    });
-    const folderFilter = parsedUrl.query.folder;
-    const filtered = folderFilter
-      ? sessionList.filter((session) => session.folder === folderFilter)
-      : sessionList;
-    const archivedSessions = filtered.filter((session) => session?.archived === true);
-    const activeSessions = filtered.filter((session) => session?.archived !== true);
-    const targetSessions = sessionGetRoute.kind === 'archived-list'
-      ? archivedSessions
-      : activeSessions;
-    const sessionRefs = targetSessions.map(createSessionSummaryRef).filter((ref) => ref?.id);
-    if (view === 'refs') {
-      writeJsonCached(req, res, {
-        sessionRefs,
-        archivedCount: archivedSessions.length,
-      });
-      return;
-    }
-    writeJsonCached(req, res, {
-      sessions: targetSessions,
-      archivedCount: archivedSessions.length,
-    });
-    return;
-  }
-
-  if (sessionGetRoute?.kind === 'detail') {
-    const { sessionId } = sessionGetRoute;
-    if (!requireSessionAccess(res, authSession, sessionId)) return;
-    const view = typeof parsedUrl.query.view === 'string'
-      ? String(parsedUrl.query.view || '').trim().toLowerCase()
-      : '';
-    const session = view === 'summary' || view === 'sidebar'
-      ? await getSessionListItemForClient(sessionId)
-      : await getSessionForClient(sessionId, { includeQueuedMessages: true });
-    if (!session) {
-      writeJson(res, 404, { error: 'Session not found' });
-      return;
-    }
-    writeJsonCached(req, res, { session });
-    return;
-  }
-
-  if (sessionGetRoute?.kind === 'events') {
-    const { sessionId } = sessionGetRoute;
-    if (!requireSessionAccess(res, authSession, sessionId)) return;
-    const filter = typeof parsedUrl.query.filter === 'string'
-      ? String(parsedUrl.query.filter || '').trim().toLowerCase()
-      : '';
-    if (filter === 'all') {
-      const events = await getSessionEventsAfter(sessionId, 0);
-      writeJsonCached(req, res, { sessionId, filter: 'all', events });
-      return;
-    }
-    const session = await getSessionForClient(sessionId);
-    if (!session) {
-      writeJson(res, 404, { error: 'Session not found' });
-      return;
-    }
-    const timeline = await getSessionTimelineEvents(sessionId);
-    const events = buildSessionDisplayEvents(timeline, {
-      sessionRunning: session?.activity?.run?.state === 'running',
-    });
-    writeJsonCached(req, res, { sessionId, filter: 'visible', events });
-    return;
-  }
-
-  if (sessionGetRoute?.kind === 'source-context') {
-    const { sessionId } = sessionGetRoute;
-    if (!requireSessionAccess(res, authSession, sessionId)) return;
-    const sourceContext = await getSessionSourceContext(sessionId, {
-      requestId: typeof parsedUrl.query.requestId === 'string' ? parsedUrl.query.requestId : '',
-    });
-    if (!sourceContext) {
-      writeJson(res, 404, { error: 'Session not found' });
-      return;
-    }
-    writeJson(res, 200, { sessionId, sourceContext });
-    return;
-  }
-
-  if (sessionGetRoute?.kind === 'event-block') {
-    const {
-      sessionId,
-      startSeq,
-      endSeq,
-    } = sessionGetRoute;
-    if (!requireSessionAccess(res, authSession, sessionId)) return;
-    const session = await getSessionForClient(sessionId);
-    if (!session) {
-      writeJson(res, 404, { error: 'Session not found' });
-      return;
-    }
-    const timeline = await getSessionTimelineEvents(sessionId);
-    const events = buildEventBlockEvents(timeline, startSeq, endSeq);
-    if (events.length === 0) {
-      writeJson(res, 404, { error: 'Event block not found' });
-      return;
-    }
-    writeJsonCached(req, res, { sessionId, startSeq, endSeq, events }, {
-      cacheControl: IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL,
-      vary: '',
-    });
-    return;
-  }
-
-  if (sessionGetRoute?.kind === 'event-body') {
-    const { sessionId, seq } = sessionGetRoute;
-    if (!requireSessionAccess(res, authSession, sessionId)) return;
-    const body = await readEventBody(sessionId, seq);
-    if (!body) {
-      writeJson(res, 404, { error: 'Event body not found' });
-      return;
-    }
-    writeJsonCached(req, res, { body }, {
-      cacheControl: IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL,
-      vary: '',
-    });
+  if (await handleSessionReadRoutes({
+    req,
+    res,
+    parsedUrl,
+    sessionGetRoute,
+    authSession,
+    requireSessionAccess,
+    listSessionListItemsForClient,
+    createSessionSummaryRef,
+    writeJsonCached,
+    writeJson,
+    getSessionListItemForClient,
+    getSessionForClient,
+    getSessionEventsAfter,
+    getSessionTimelineEvents,
+    buildSessionDisplayEvents,
+    getSessionSourceContext,
+    buildEventBlockEvents,
+    readEventBody,
+    immutablePrivateEventCacheControl: IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL,
+  })) {
     return;
   }
 
@@ -1430,6 +1252,51 @@ export async function handleRequest(req, res) {
       return;
     }
 
+    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'organize') {
+      if (!requireSessionAccess(res, authSession, sessionId)) return;
+      let payload = {};
+      try {
+        const body = await readBody(req, 8192);
+        payload = body ? JSON.parse(body) : {};
+      } catch {
+        writeJson(res, 400, { error: 'Invalid request body' });
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'tool') && payload.tool !== null && typeof payload.tool !== 'string') {
+        writeJson(res, 400, { error: 'tool must be a string when provided' });
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'model') && payload.model !== null && typeof payload.model !== 'string') {
+        writeJson(res, 400, { error: 'model must be a string when provided' });
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'effort') && payload.effort !== null && typeof payload.effort !== 'string') {
+        writeJson(res, 400, { error: 'effort must be a string when provided' });
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'thinking') && typeof payload.thinking !== 'boolean') {
+        writeJson(res, 400, { error: 'thinking must be a boolean when provided' });
+        return;
+      }
+
+      try {
+        const outcome = await organizeSession(sessionId, {
+          tool: typeof payload?.tool === 'string' ? payload.tool.trim() : '',
+          model: typeof payload?.model === 'string' ? payload.model.trim() : '',
+          effort: typeof payload?.effort === 'string' ? payload.effort.trim() : '',
+          thinking: payload?.thinking === true,
+        });
+        writeJson(res, outcome.duplicate ? 200 : 202, {
+          duplicate: outcome.duplicate,
+          run: outcome.run || null,
+          session: createClientSessionDetail(outcome.session),
+        });
+      } catch (error) {
+        writeJson(res, 409, { error: error.message || 'Failed to organize session' });
+      }
+      return;
+    }
+
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'messages') {
       if (!requireSessionAccess(res, authSession, sessionId)) return;
       let body;
@@ -1519,11 +1386,6 @@ export async function handleRequest(req, res) {
       return;
     }
 
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'voice-transcriptions' && req.method === 'POST') {
-      writeJson(res, 410, { error: 'Voice cleanup has been removed from MelodySync' });
-      return;
-    }
-
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'cancel') {
       if (!requireSessionAccess(res, authSession, sessionId)) return;
       const run = await cancelActiveRun(sessionId);
@@ -1537,16 +1399,6 @@ export async function handleRequest(req, res) {
         return;
       }
       writeJson(res, 200, { run });
-      return;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'compact') {
-      writeJson(res, 410, { error: 'Context compaction has been removed from MelodySync' });
-      return;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'drop-tools') {
-      writeJson(res, 410, { error: 'Tool-result dropping has been removed from MelodySync' });
       return;
     }
 
@@ -1892,27 +1744,16 @@ export async function handleRequest(req, res) {
     return;
   }
 
-  if (await handleAdminRoutes({
+  // ---- Auth info endpoint ----
+  if (await handleAuthRoutes({
     req,
     res,
     pathname,
+    getAuthSession,
+    buildAuthInfo,
+    refreshAuthSession,
+    writeJsonCached,
   })) {
-    return;
-  }
-
-  // ---- Auth info endpoint ----
-  if (pathname === '/api/auth/me' && req.method === 'GET') {
-    const authSession = getAuthSession(req);
-    if (!authSession) {
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not authenticated' }));
-      return;
-    }
-    const info = buildAuthInfo(authSession);
-    const refreshedCookie = await refreshAuthSession(req);
-    writeJsonCached(req, res, info, {
-      headers: refreshedCookie ? { 'Set-Cookie': refreshedCookie } : undefined,
-    });
     return;
   }
 

@@ -5,6 +5,7 @@ import {
   buildTaskCardPromptBlock,
   normalizeSessionTaskCard,
   parseTaskCardFromAssistantContent,
+  stripTaskCardFromAssistantContent,
   shouldSurfaceTaskCardBranchCandidate,
 } from '../chat/session-task-card.mjs';
 
@@ -26,7 +27,6 @@ assert.deepEqual(normalized?.rawMaterials, ['sales-weekly.xlsx', 'review-deck.pp
 
 const parsed = parseTaskCardFromAssistantContent([
   '先看材料，我已经开始整理。',
-  '<private>',
   '<task_card>{',
   '  "mode": "task",',
   '  "summary": "先做一版轻量整理，再决定是否进入项目态。",',
@@ -34,7 +34,6 @@ const parsed = parseTaskCardFromAssistantContent([
   '  "nextSteps": ["检查字段", "给出样例输出"],',
   '  "memory": ["用户一般直接给原始材料，不喜欢先写长说明"]',
   '}</task_card>',
-  '</private>',
 ].join('\n'));
 
 assert.equal(parsed?.mode, 'task');
@@ -56,14 +55,44 @@ const parsedEscaped = parseTaskCardFromAssistantContent([
 assert.equal(parsedEscaped?.goal, '修复隐藏块兼容性。');
 assert.deepEqual(parsedEscaped?.nextSteps, ['兼容 <\\/task_card>']);
 
+const parsedTrailingJson = parseTaskCardFromAssistantContent([
+  '下面是当前任务快照。',
+  '',
+  '{"mode":"project","summary":"规划任务线","goal":"把主线和支线理顺","candidateBranches":["预算方案","执行清单"],"nextSteps":["先定主线"]}',
+].join('\n'));
+
+assert.equal(parsedTrailingJson?.summary, '规划任务线');
+assert.deepEqual(parsedTrailingJson?.candidateBranches, ['预算方案', '执行清单']);
+
+assert.equal(
+  stripTaskCardFromAssistantContent([
+    '我先把主线整理好。',
+    '',
+    '<task_card>{"summary":"整理主线","nextSteps":["列出候选支线"]}</task_card>',
+  ].join('\n')),
+  '我先把主线整理好。',
+  'visible task-card blocks should be removed from the prose body once parsed',
+);
+
+assert.equal(
+  stripTaskCardFromAssistantContent([
+    '先继续。',
+    '',
+    '{"mode":"task","summary":"整理候选支线","candidateBranches":["预算方案"]}',
+  ].join('\n')),
+  '先继续。',
+  'trailing task-card JSON should also be removed from the visible assistant prose',
+);
+
 const promptBlock = buildTaskCardPromptBlock(parsed);
 assert.match(promptBlock, /Current carried task card/);
 assert.match(promptBlock, /Execution mode: task/);
 assert.match(promptBlock, /Raw materials:/);
 assert.match(promptBlock, /weekly\.xlsx/);
 assert.match(promptBlock, /Durable user memory:/);
-assert.match(promptBlock, /Do not escape the slash as <\\\/task_card> or <\\\/private>/);
-assert.match(promptBlock, /task-bar title rather than a full sentence description/);
+assert.match(promptBlock, /append exactly one final <task_card> JSON block/i);
+assert.match(promptBlock, /Do not escape the slash as <\\\/task_card>/);
+assert.match(promptBlock, /task-bar subtitle rather than a full sentence description/);
 assert.match(promptBlock, /no more than 10 Chinese characters/i);
 assert.match(promptBlock, /Prefer a compact verb \+ object form/);
 
@@ -143,8 +172,8 @@ const narrowedCandidates = normalizeSessionTaskCard({
 
 assert.deepEqual(
   narrowedCandidates?.candidateBranches || [],
-  ['角色设定专题'],
-  'auto branch candidates should keep only the first high-confidence drift target',
+  ['角色设定专题', '世界观整理'],
+  'auto branch candidates should keep multiple independent side lines when they are clearly separate from the current goal',
 );
 
 console.log('test-session-task-card: ok');

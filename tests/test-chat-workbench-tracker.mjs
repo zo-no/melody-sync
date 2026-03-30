@@ -248,7 +248,7 @@ function getFlowNodeTitles(rootNode) {
 
 const mainSession = {
   id: 'session-main',
-  name: 'Placeholder session name',
+  name: '系统学习电影史',
   taskCard: {
     lineRole: 'main',
     summary: '梳理电影史脉络结构图谱',
@@ -380,6 +380,9 @@ const candidateOnlyBoard = findFirstByClass(candidateOnlyElements.get('questTask
 assert.equal(Boolean(candidateOnlyBoard), true, 'candidate-only quests should still render inside the same flow board');
 assert.equal(findAllByClass(candidateOnlyBoard, 'quest-task-flow-node').length >= 3, true, 'candidate-only quests should render the root node plus candidate side quests');
 assert.equal(findFirstByClass(candidateOnlyBoard, 'quest-task-flow-node-action')?.textContent, '开启支线', 'candidate-only suggestion nodes should expose an explicit branch-entry action');
+assert.equal(candidateOnlyElements.get('questTrackerTitle').textContent, '为用户搭出一条兼顾电影史主线与美术史兴趣维度的学习路线', 'mainline tracker should keep the fixed session task title as the top-level anchor');
+assert.equal(candidateOnlyElements.get('questTrackerBranchTitle').textContent, '先明确主线骨架，再判断哪些方向值得拆成支线', 'mainline tracker should use the stable checkpoint as the task-progress detail when no next step exists yet');
+assert.equal(candidateOnlyElements.get('questTrackerNext').textContent, '发现 2 条建议支线', 'mainline tracker should surface candidate branch discovery as a separate secondary hint');
 
 const openedCandidateBranch = {
   id: 'session-main-candidate-branch',
@@ -504,15 +507,14 @@ assert.equal(branchElements.get('questTrackerLabel').textContent, '', 'branch tr
 assert.equal(branchElements.get('questTrackerTitle').hidden, false, 'branch tracker should keep the branch title visible');
 assert.equal(branchElements.get('questTrackerTitle').textContent, '表现主义', 'branch tracker should show the current branch goal');
 assert.equal(branchElements.get('questTrackerBranch').hidden, false, 'branch tracker should show the parent mainline reference inside the task bar');
-assert.equal(branchElements.get('questTrackerBranchLabel').textContent, '任务详情', 'branch tracker should treat the secondary line as task detail instead of a noisy label block');
+assert.equal(branchElements.get('questTrackerBranchLabel').textContent, '主线任务', 'branch tracker should treat the secondary line as the parent mainline anchor');
 assert.equal(branchElements.get('questTrackerBranchTitle').textContent, '来自主线：学习电影史', 'branch tracker should surface the parent mainline as the first detail line');
 assert.equal(branchElements.get('questTrackerNext').hidden, false, 'branch tracker should keep a concise next-step summary');
 assert.equal(branchElements.get('questTrackerCloseBtn').textContent, '收束支线', 'branch tracker should expose a compact finish action');
 assert.equal(branchElements.get('questTrackerCloseBtn').hidden, false, 'branch tracker should show the finish entry point');
 assert.equal(branchElements.get('questTrackerAltBtn').textContent, '挂起', 'branch tracker should expose a compact park action');
 assert.equal(branchElements.get('questTrackerAltBtn').hidden, false, 'branch tracker should show the stop action inline');
-assert.equal(branchElements.get('questTrackerBackBtn').hidden, true, 'branch tracker should hide merge action until the finish panel opens');
-assert.equal(branchElements.get('questFinishPanel').hidden, true, 'finish panel should stay collapsed by default');
+assert.equal(branchElements.get('questTrackerBackBtn').hidden, true, 'active branch tracker should keep the reopen action hidden');
 assert.deepEqual(branchFetchCalls, [
   '/api/workbench/sessions/session-branch/tracker',
   '/api/workbench',
@@ -589,25 +591,15 @@ const { elements: mergeElements, fetchLog: mergeFetchLog, attachCalls: mergeAtta
 
 mergeElements.get('questTrackerCloseBtn').click();
 await flushAsync();
-assert.equal(mergeElements.get('questFinishPanel').hidden, false, 'clicking finish should expand the branch wrap-up panel');
-assert.equal(
-  mergeElements.get('questFinishSummaryInput').value,
-  '先把表现主义的关键特征讲清楚',
-  'finish panel should prefill a carry-back summary draft from the branch task card',
-);
-mergeElements.get('questFinishSummaryInput').value = '已经明确表现主义的视觉特征，可以回到主线继续比较其他流派';
-mergeElements.get('questFinishSummaryInput').trigger('input');
-mergeElements.get('questFinishMergeBtn').click();
-await flushAsync();
 assert.equal(
   mergeFetchLog.some((entry) => (
     entry.url === '/api/workbench/sessions/session-branch-merge/merge-return'
     && entry.options?.method === 'POST'
     && JSON.parse(entry.options?.body || '{}').mergeType === 'conclusion'
-    && JSON.parse(entry.options?.body || '{}').broughtBack === '已经明确表现主义的视觉特征，可以回到主线继续比较其他流派'
+    && !Object.prototype.hasOwnProperty.call(JSON.parse(entry.options?.body || '{}'), 'broughtBack')
   )),
   true,
-  'merging back to the mainline should carry the explicit user summary instead of an empty payload',
+  'clicking branch finish should immediately merge back to the mainline and let the backend derive the carry-back summary',
 );
 assert.deepEqual(
   mergeAttachCalls.map((entry) => entry.id),
@@ -651,12 +643,24 @@ const parkedBranchChild = {
   },
 };
 
+const mergedBranch = {
+  id: 'session-branch-merged',
+  name: 'Branch · 好莱坞黄金时代',
+  sourceContext: { parentSessionId: 'session-main' },
+  taskCard: {
+    lineRole: 'branch',
+    goal: '好莱坞黄金时代',
+    mainGoal: '学习电影史',
+    nextSteps: ['比较制片厂制度和作者表达'],
+  },
+};
+
 mainSession.taskCard.candidateBranches = ['黑色电影'];
 branchSession.taskCard.candidateBranches = ['卡里加里博士'];
 
 const { elements: expandedElements } = await runScenario({
   currentSession: nestedBranch,
-  sessions: [mainSession, branchSession, nestedBranch, parkedBranch, parkedBranchChild],
+  sessions: [mainSession, branchSession, nestedBranch, parkedBranch, parkedBranchChild, mergedBranch],
   innerWidth: 390,
   snapshot: {
     captureItems: [],
@@ -687,7 +691,7 @@ const { elements: expandedElements } = await runScenario({
         mainSessionId: 'session-main',
         mainSession,
         currentBranchSessionId: 'session-branch-child',
-        branchSessionIds: ['session-branch', 'session-branch-child', 'session-branch-parked', 'session-branch-parked-child'],
+        branchSessionIds: ['session-branch', 'session-branch-child', 'session-branch-parked', 'session-branch-parked-child', 'session-branch-merged'],
         branchSessions: [
           {
             ...branchSession,
@@ -713,6 +717,12 @@ const { elements: expandedElements } = await runScenario({
             _branchDepth: 2,
             _branchParentSessionId: 'session-branch-parked',
           },
+          {
+            ...mergedBranch,
+            _branchStatus: 'merged',
+            _branchDepth: 1,
+            _branchParentSessionId: 'session-main',
+          },
         ],
       },
     ],
@@ -733,9 +743,21 @@ const flowTitles = findAllByClass(mobileBoard, 'quest-task-flow-node-title').map
 assert.equal(flowTitles.includes('表现主义'), true, 'the current path parent should stay visible in the quest map');
 assert.equal(flowTitles.includes('德国表现主义电影'), true, 'deep current branch should render directly under its parent in the quest map');
 assert.equal(flowTitles.includes('法国新浪潮'), true, 'non-current sibling branches should still stay visible in the quest map');
+assert.equal(flowTitles.includes('好莱坞黄金时代'), true, 'merged sibling branches should still stay visible in the quest map');
 assert.equal(flowTitles.includes('黑色电影'), true, 'root candidate branches should stay visible as optional side quests');
 assert.equal(flowTitles.includes('卡里加里博士'), true, 'branch-local candidate suggestions should stay visible as nested side-quest nodes');
 assert.equal(findAllByClass(mobileBoard, 'quest-task-flow-node-action').length, 2, 'candidate nodes should expose explicit branch-entry actions at every level');
+const parkedFlowNode = findAllByClass(mobileBoard, 'quest-task-flow-node')
+  .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === '法国新浪潮');
+assert.equal(Boolean(parkedFlowNode?.classList?.contains('is-parked')), true, 'parked branches should carry the parked node class for strikethrough styling');
+const mergedFlowNode = findAllByClass(mobileBoard, 'quest-task-flow-node')
+  .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === '好莱坞黄金时代');
+assert.equal(Boolean(mergedFlowNode?.classList?.contains('is-resolved')), true, 'merged branches should carry the terminal node class');
+assert.equal(
+  Boolean(findFirstByClass(mergedFlowNode, 'quest-task-flow-node-badge')?.classList?.contains('is-complete')),
+  true,
+  'merged branches should expose the completion badge hook for the finished icon',
+);
 
 const focusMainSession = {
   id: 'focus-main',

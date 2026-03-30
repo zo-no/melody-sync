@@ -2,7 +2,7 @@ import { formatAttachmentContextLine } from './attachment-utils.mjs';
 
 const MAX_EVENT_CHARS = 4000;
 const MAX_CONTEXT_CHARS = 24000;
-const TRUNCATED_MARKER = '\n[... truncated by RemoteLab ...]\n';
+const TRUNCATED_MARKER = '\n[... truncated by MelodySync ...]\n';
 
 function normalizeText(value) {
   return String(value ?? '').replace(/\r\n/g, '\n').trim();
@@ -143,8 +143,8 @@ function buildContinuationIntro(options = {}) {
   const toTool = options.toTool || '';
   const switchedTools = fromTool && toTool && fromTool !== toTool;
   return switchedTools
-    ? `RemoteLab session continuity handoff: the user switched tools from ${fromTool} to ${toTool}.`
-    : 'RemoteLab session continuity handoff for this existing conversation.';
+    ? `MelodySync session continuity handoff: the user switched tools from ${fromTool} to ${toTool}.`
+    : 'MelodySync session continuity handoff for this existing conversation.';
 }
 
 export function prepareSessionContinuationBody(events) {
@@ -163,7 +163,7 @@ export function buildSessionContinuationContextFromBody(body, options = {}) {
 
   return [
     buildContinuationIntro(options),
-    'Below is the prior session state reconstructed from RemoteLab\'s normalized history.',
+    'Below is the prior session state reconstructed from MelodySync\'s normalized history.',
     'Treat it as the authoritative context for continuing this same session.',
     '',
     normalizedBody,

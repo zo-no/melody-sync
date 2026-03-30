@@ -1,8 +1,5 @@
 // ---- Send message ----
 const fallbackStrings = {
-  "compose.voiceCleanup.on": "On: clean voice transcripts with the current task before sending",
-  "compose.voiceCleanup.off": "Off: send immediately without the hidden transcript cleanup step",
-  "compose.pending.cleaningWithText": "Cleaning transcript\u2026",
   "compose.pending.uploading": "Uploading attachment\u2026",
   "compose.pending.sendingAttachment": "Sending attachment\u2026",
   "compose.pending.sending": "Sending\u2026",
@@ -17,37 +14,6 @@ function t(key, vars) {
 }
 
 let pendingComposerSend = null;
-const COMPOSER_VOICE_CLEANUP_PREF_KEY = "composerVoiceCleanupBeforeSend";
-const voiceCleanupToggle = document.getElementById("voiceCleanupToggle");
-
-function readComposerVoiceCleanupEnabled() {
-  try {
-    const stored = localStorage.getItem(COMPOSER_VOICE_CLEANUP_PREF_KEY);
-    if (stored === null) return true;
-    return stored === "1";
-  } catch {
-    return true;
-  }
-}
-
-function writeComposerVoiceCleanupEnabled(enabled) {
-  try {
-    localStorage.setItem(COMPOSER_VOICE_CLEANUP_PREF_KEY, enabled ? "1" : "0");
-  } catch {}
-  return enabled === true;
-}
-
-function isComposerVoiceCleanupEnabled() {
-  if (!voiceCleanupToggle || voiceCleanupToggle.hidden === true) return false;
-  return readComposerVoiceCleanupEnabled();
-}
-
-function shouldRunComposerVoiceCleanup(sessionId = currentSessionId, text = "") {
-  return !!sessionId
-    && !!String(text || "").trim()
-    && isComposerVoiceCleanupEnabled()
-    && typeof fetchJsonOrRedirect === "function";
-}
 
 function getComposerAssetUploadConfig() {
   return typeof getBootstrapAssetUploads === "function"
@@ -136,61 +102,6 @@ async function prepareComposerAttachmentsForSend(sessionId, attachments) {
   return prepared;
 }
 
-function syncComposerVoiceCleanupToggle() {
-  if (!voiceCleanupToggle) return;
-  const enabled = isComposerVoiceCleanupEnabled();
-  const archived = typeof getCurrentSession === "function"
-    && getCurrentSession()?.archived === true;
-  const disabled = !!hasPendingComposerSend()
-    || !currentSessionId
-    || archived;
-  voiceCleanupToggle.disabled = disabled;
-  voiceCleanupToggle.classList.toggle("active", enabled);
-  voiceCleanupToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
-  voiceCleanupToggle.title = enabled
-    ? t("compose.voiceCleanup.on")
-    : t("compose.voiceCleanup.off");
-}
-
-async function maybeRewriteComposerTextBeforeSend(sessionId, text) {
-  const rawText = typeof text === "string" ? text.trim() : "";
-  if (!shouldRunComposerVoiceCleanup(sessionId, rawText)) {
-    return {
-      text: rawText,
-      rewriteApplied: false,
-      skipped: "disabled",
-    };
-  }
-
-  try {
-    const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(sessionId)}/voice-transcriptions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        persistAudio: false,
-        rewriteWithContext: true,
-        providedTranscript: rawText,
-      }),
-    });
-    const rewrittenText = typeof data?.transcript === "string" && data.transcript.trim()
-      ? data.transcript.trim()
-      : rawText;
-    return {
-      text: rewrittenText,
-      rewriteApplied: data?.rewriteApplied === true,
-      rawText,
-    };
-  } catch (error) {
-    console.warn("Composer voice cleanup failed:", error?.message || error);
-    return {
-      text: rawText,
-      rewriteApplied: false,
-      fallback: true,
-      error: error?.message || "",
-    };
-  }
-}
-
 function hasPendingComposerSend() {
   return !!pendingComposerSend;
 }
@@ -209,26 +120,21 @@ function syncComposerPendingUi() {
   msgInput.readOnly = pendingForCurrentSession;
 
   if (!composerPendingState) {
-    syncComposerVoiceCleanupToggle();
     return;
   }
   if (!pendingForCurrentSession) {
     composerPendingState.textContent = "";
     composerPendingState.classList.remove("visible");
-    syncComposerVoiceCleanupToggle();
     return;
   }
 
   const hasAttachments = Array.isArray(pendingComposerSend?.images) && pendingComposerSend.images.length > 0;
-  composerPendingState.textContent = pendingComposerSend?.stage === "cleaning" && pendingComposerSend?.text
-    ? t("compose.pending.cleaningWithText")
-    : pendingComposerSend?.stage === "uploading"
-      ? t("compose.pending.uploading")
-      : (hasAttachments && !pendingComposerSend?.text
-        ? t("compose.pending.sendingAttachment")
-        : t("compose.pending.sending"));
+  composerPendingState.textContent = pendingComposerSend?.stage === "uploading"
+    ? t("compose.pending.uploading")
+    : (hasAttachments && !pendingComposerSend?.text
+      ? t("compose.pending.sendingAttachment")
+      : t("compose.pending.sending"));
   composerPendingState.classList.add("visible");
-  syncComposerVoiceCleanupToggle();
 }
 
 function finalizeComposerPendingSend(requestId) {
@@ -361,7 +267,6 @@ function sendMessage(existingRequestId) {
   const requestId = existingRequestId || createRequestId();
   const sessionId = currentSessionId;
   const queuedImages = pendingImages.slice();
-  const shouldCleanTranscript = shouldRunComposerVoiceCleanup(sessionId, text);
   const sendTool = selectedTool;
   const sendModel = selectedModel;
   const sendReasoningKind = currentToolReasoningKind;
@@ -374,7 +279,7 @@ function sendMessage(existingRequestId) {
     text,
     images: queuedImages,
     baselineActivity: getComposerSessionActivitySnapshot(currentSession),
-    stage: shouldCleanTranscript ? "cleaning" : "sending",
+    stage: "sending",
   };
   clearDraft(sessionId);
   syncComposerPendingUi();
@@ -384,17 +289,6 @@ function sendMessage(existingRequestId) {
     let outboundText = text;
     let outboundImages = queuedImages;
     try {
-      if (shouldCleanTranscript) {
-        const cleanupResult = await maybeRewriteComposerTextBeforeSend(sessionId, text);
-        if (!(pendingComposerSend && pendingComposerSend.requestId === requestId)) return;
-        outboundText = cleanupResult.text || text;
-        pendingComposerSend.text = outboundText;
-        pendingComposerSend.stage = "sending";
-        pendingComposerSend.cleanupApplied = cleanupResult.rewriteApplied === true;
-        pendingComposerSend.cleanupFallback = cleanupResult.fallback === true;
-        syncComposerPendingUi();
-      }
-
       if (queuedImages.length > 0) {
         pendingComposerSend.stage = "uploading";
         syncComposerPendingUi();
@@ -445,16 +339,6 @@ function sendMessage(existingRequestId) {
 
 cancelBtn.addEventListener("click", () => dispatchAction({ action: "cancel" }));
 
-compactBtn?.addEventListener("click", () => {
-  if (!currentSessionId) return;
-  dispatchAction({ action: "compact" });
-});
-
-dropToolsBtn?.addEventListener("click", () => {
-  if (!currentSessionId) return;
-  dispatchAction({ action: "drop_tools" });
-});
-
 sendBtn.addEventListener("click", sendMessage);
 msgInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
@@ -462,11 +346,6 @@ msgInput.addEventListener("keydown", (e) => {
     sendMessage();
   }
 });
-voiceCleanupToggle?.addEventListener("click", () => {
-  writeComposerVoiceCleanupEnabled(!isComposerVoiceCleanupEnabled());
-  syncComposerVoiceCleanupToggle();
-});
-syncComposerVoiceCleanupToggle();
 
 // ---- Composer height ----
 const INPUT_MIN_LINES = 3;

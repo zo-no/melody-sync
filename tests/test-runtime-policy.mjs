@@ -27,7 +27,7 @@ try {
   assert.equal(resolvedManagedHome, managedHome, 'managed Codex home should resolve to the requested directory');
   assert.match(
     readFileSync(join(managedHome, 'config.toml'), 'utf8'),
-    /RemoteLab-managed Codex runtime home/,
+    /MelodySync-managed Codex runtime home/,
     'managed Codex home should carry a minimal manager-owned config',
   );
   const authStat = lstatSync(join(managedHome, 'auth.json'));
@@ -65,7 +65,7 @@ try {
 
   assert.match(
     DEFAULT_CODEX_DEVELOPER_INSTRUCTIONS,
-    /RemoteLab owns the higher-level workflow, memory policy, and reply style/,
+    /MelodySync owns the higher-level workflow, memory policy, and reply style/,
     'default Codex developer instructions should reinforce manager ownership',
   );
   assert.match(

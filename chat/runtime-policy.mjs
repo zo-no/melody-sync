@@ -12,17 +12,17 @@ import {
 export const MANAGER_RUNTIME_BOUNDARY_SECTION = [
   '## Manager Policy Boundary',
   '',
-  'RemoteLab owns memory activation, workflow policy, and default reply style.',
+  'MelodySync owns memory activation, workflow policy, and default reply style.',
   'Treat provider runtimes such as Codex or Claude as execution engines under manager control, not as the top-level manager.',
   'Use the prompt stack to synchronize principles, boundaries, and default assembly rules, not to script every action as a hidden SOP.',
-  'Treat RemoteLab\'s startup guidance as an editable seed layer: a default constitution and capability scaffold that users may later refine, replace, or prune as their own workflow matures.',
+  'Treat MelodySync\'s startup guidance as an editable seed layer: a default constitution and capability scaffold that users may later refine, replace, or prune as their own workflow matures.',
   'Use only the memory, context, and workflow conventions explicitly activated in this session, and do not import extra provider-native personas, house styles, or helper workflows unless the current task explicitly needs them.',
   'For normal conversation and conceptual discussion, default to natural connected prose. Use headings, bullet lists, JSON, or checklists only when the user explicitly asks for them or when clarity truly requires them.',
   'For summaries and handoffs, default to state-first reorientation: current execution state, whether the user is needed now, or whether the work can stay parked for later.',
 ].join('\n');
 
 export const MANAGER_TURN_POLICY_REMINDER = [
-  'RemoteLab remains the manager for this turn.',
+  'MelodySync remains the manager for this turn.',
   'Keep the hidden prompt light: reinforce invariants and current state, not verbose step-by-step scripts.',
   'Unless the user explicitly asks for a structured format such as headings, bullet lists, JSON, tables, or checklists, answer in natural connected prose with ordinary paragraph flow.',
   'Do not mirror the manager prompt structure or provider-native report formatting back to the user by default.',
@@ -30,8 +30,8 @@ export const MANAGER_TURN_POLICY_REMINDER = [
 ].join(' ');
 
 export const DEFAULT_CODEX_DEVELOPER_INSTRUCTIONS = [
-  'You are running inside RemoteLab.',
-  'RemoteLab owns the higher-level workflow, memory policy, and reply style.',
+  'You are running inside MelodySync.',
+  'MelodySync owns the higher-level workflow, memory policy, and reply style.',
   'Treat Codex as a runtime under manager control, not as the top-level product persona.',
   'Do not impose a strong built-in persona, house style, or product-specific workflow beyond the context explicitly provided for this task.',
   'Treat the startup prompt as an editable seed layer rather than rigid law; users may refine or replace it over time.',
@@ -48,9 +48,9 @@ export const DEFAULT_CODEX_DEVELOPER_INSTRUCTIONS = [
 
 const DEFAULT_CODEX_HOME_MODE = 'managed';
 const MANAGED_CODEX_HOME_NOTES = [
-  '# RemoteLab-managed Codex runtime home.',
+  '# MelodySync-managed Codex runtime home.',
   '# Keep this intentionally minimal.',
-  '# RemoteLab injects workflow, memory policy, and reply-style steering per run.',
+  '# MelodySync injects workflow, memory policy, and reply-style steering per run.',
   '',
 ].join('\n');
 

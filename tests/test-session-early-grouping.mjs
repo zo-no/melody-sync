@@ -17,29 +17,10 @@ const fakeCodexPath = join(tempBin, 'fake-codex');
 writeFileSync(
   fakeCodexPath,
   `#!/usr/bin/env node
-const prompt = process.argv[process.argv.length - 1] || '';
-const isLabelPrompt = prompt.includes('You are naming a developer session');
-const wantsTitle = prompt.includes('"title"');
-const wantsGrouping = prompt.includes('"group"') && prompt.includes('"description"');
-const delayMs = isLabelPrompt ? 50 : 220;
-const text = isLabelPrompt
-  ? JSON.stringify(
-      wantsTitle
-        ? {
-            title: 'RemoteLab Should Stay Hidden',
-            group: 'RemoteLab',
-            description: 'Classify the feature work before the first run finishes.',
-          }
-        : wantsGrouping
-          ? {
-              group: 'RemoteLab',
-              description: 'Classify the feature work before the first run finishes.',
-            }
-          : {}
-    )
-  : 'main task finished';
+const delayMs = 220;
+const text = 'main task finished';
 
-console.log(JSON.stringify({ type: 'thread.started', thread_id: isLabelPrompt ? 'label-thread' : 'run-thread' }));
+console.log(JSON.stringify({ type: 'thread.started', thread_id: 'run-thread' }));
 console.log(JSON.stringify({ type: 'turn.started' }));
 setTimeout(() => {
   console.log(JSON.stringify({
@@ -121,16 +102,16 @@ await waitFor(
   async () => {
     const current = await getSession(session.id);
     return current?.name === 'Precise Feature Task'
-      && current?.group === 'RemoteLab'
-      && current?.description === 'Classify the feature work before the first run finishes.';
+      && !current?.group
+      && !current?.description;
   },
-  'session should receive early grouping without renaming the existing title',
+  'session should keep its existing title without auto grouping during the reply flow',
 );
 
 assert.equal(
   (await getSession(session.id))?.activity?.run?.state,
   'running',
-  'early grouping should land while the main task is still running',
+  'main task should keep running without background grouping work',
 );
 
 await waitFor(
@@ -141,12 +122,8 @@ await waitFor(
 const finished = await getSession(session.id);
 assert.equal(finished?.name, 'Precise Feature Task', 'existing titles should stay unchanged during grouping-only labeling');
 assert.equal(finished?.autoRenamePending, false, 'grouping-only labeling should not reopen auto-rename');
-assert.equal(finished?.group, 'RemoteLab', 'finished session should keep the early AI grouping');
-assert.equal(
-  finished?.description,
-  'Classify the feature work before the first run finishes.',
-  'finished session should keep the early AI description',
-);
+assert.equal(finished?.group || '', '', 'finished session should not auto-group during the reply flow');
+assert.equal(finished?.description || '', '', 'finished session should not auto-describe during the reply flow');
 
 killAll();
 rmSync(tempHome, { recursive: true, force: true });

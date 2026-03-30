@@ -157,10 +157,6 @@ function resolveRequestUrl(url) {
   return typeof url === "string" ? url : String(url || "");
 }
 
-function isShareSnapshotReadOnlyMode() {
-  return false;
-}
-
 function shouldOpenCurrentSessionFromTop() {
   return false;
 }

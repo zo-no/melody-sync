@@ -90,6 +90,7 @@ const renderArchivedSectionSource = extractFunctionSource(sessionListSource, 're
 const actionContext = {
   t(key) {
     return {
+      'action.organize': 'Organize',
       'action.archive': 'Archive',
       'action.restore': 'Restore',
       'action.delete': 'Delete',
@@ -107,8 +108,8 @@ vm.runInNewContext(`
 
 assert.equal(
   actionContext.buildSessionActionConfigs({ id: 'active-task' }).map((entry) => entry.action).join(','),
-  'archive',
-  'active tasks should expose archive as the default sidebar action',
+  'organize,archive',
+  'active tasks should expose organize and archive as the default sidebar actions',
 );
 assert.equal(
   actionContext.buildSessionActionConfigs({ id: 'archived-task', archived: true }).map((entry) => entry.action).join(','),

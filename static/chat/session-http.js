@@ -39,9 +39,9 @@ function notifyCompletion(session) {
   if (document.visibilityState === "visible") return;
   const folder = (session?.folder || "").split("/").pop() || "Session";
   const name = session?.name || folder;
-  const n = new Notification("RemoteLab", {
+  const n = new Notification("MelodySync", {
     body: `${name} — task completed`,
-    tag: "remotelab-done",
+    tag: "melodysync-done",
   });
   n.onclick = () => {
     window.focus();
@@ -54,20 +54,22 @@ const SESSION_LIST_ORGANIZER_POLL_INTERVAL_MS = 1200;
 const SESSION_LIST_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 const SESSION_LIST_ORGANIZER_INTERNAL_ROLE = "session_list_organizer";
 const DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL = "整理任务";
+const SESSION_ORGANIZER_POLL_INTERVAL_MS = 1200;
+const SESSION_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 let sessionListOrganizerInFlight = null;
 let sessionListOrganizerLabelResetTimer = null;
 
 const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
-  "You are RemoteLab's hidden session-list organizer.",
+  "You are MelodySync's hidden session-list organizer.",
   "Your job is to organize the owner's non-archived MelodySync tasks into a simple GTD-style task list.",
   "Do not rename sessions, delete them, change pin state, edit prompts, or ask the user follow-up questions.",
-  "Only update existing sessions by calling the owner-authenticated RemoteLab API from this machine.",
-  "Use `remotelab api GET /api/sessions` if you need to double-check current state.",
-  "Use `remotelab api PATCH /api/sessions/<sessionId> --body ...` to update `group` and `sidebarOrder`.",
+  "Only update existing sessions by calling the owner-authenticated MelodySync API from this machine.",
+  "Use `melodysync api GET /api/sessions` if you need to double-check current state.",
+  "Use `melodysync api PATCH /api/sessions/<sessionId> --body ...` to update `group` and `sidebarOrder`.",
   "Only writable API fields for this task are `group` and `sidebarOrder`.",
   "Never send read-only snapshot keys such as `title`, `brief`, `existingGroup`, `existingSidebarOrder`, `currentGroup`, or `currentSidebarOrder` in PATCH bodies.",
-  "Example PATCH body: {\"group\":\"RemoteLab\",\"sidebarOrder\":3}",
-  "If `remotelab` is unavailable in PATH, use `node \"$REMOTELAB_PROJECT_ROOT/cli.js\" api ...` instead.",
+  "Example PATCH body: {\"group\":\"短期任务\",\"sidebarOrder\":3}",
+  "If `melodysync` is unavailable in PATH, use `node \"$REMOTELAB_PROJECT_ROOT/cli.js\" api ...` instead.",
   "`sidebarOrder` must be a positive integer; smaller numbers sort first.",
   "Assign unique contiguous `sidebarOrder` values across the current non-archived sessions you organize.",
   "Use only these exact groups: 收集箱, 长期任务, 短期任务, 知识库内容, 等待任务.",
@@ -152,7 +154,7 @@ function buildSessionListOrganizerTask(sessions) {
   return [
     "Organize the current non-archived MelodySync task list using the provided metadata snapshot.",
     "Classify tasks into 收集箱, 长期任务, 短期任务, 知识库内容, 等待任务, and improve sidebar ordering inside those groups.",
-    "Apply changes by calling the RemoteLab API from this machine; do not merely suggest them.",
+    "Apply changes by calling the MelodySync API from this machine; do not merely suggest them.",
     "Snapshot fields like `title`, `brief`, `existingGroup`, and `existingSidebarOrder` are read-only context.",
     "When patching a session, send only `group` and `sidebarOrder` in the API body.",
     "",
@@ -199,7 +201,20 @@ async function createSessionListOrganizerRun(payload) {
 }
 
 async function waitForSessionListOrganizerRun(runId) {
-  const deadline = Date.now() + SESSION_LIST_ORGANIZER_POLL_TIMEOUT_MS;
+  return waitForDetachedRunCompletion(runId, {
+    pollIntervalMs: SESSION_LIST_ORGANIZER_POLL_INTERVAL_MS,
+    timeoutMs: SESSION_LIST_ORGANIZER_POLL_TIMEOUT_MS,
+  });
+}
+
+async function waitForDetachedRunCompletion(
+  runId,
+  {
+    pollIntervalMs = SESSION_ORGANIZER_POLL_INTERVAL_MS,
+    timeoutMs = SESSION_ORGANIZER_POLL_TIMEOUT_MS,
+  } = {},
+) {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const data = await fetchJsonOrRedirect(`/api/runs/${encodeURIComponent(runId)}`, {
       revalidate: false,
@@ -208,9 +223,54 @@ async function waitForSessionListOrganizerRun(runId) {
     if (["completed", "failed", "cancelled"].includes(state)) {
       return data.run || null;
     }
-    await sleep(SESSION_LIST_ORGANIZER_POLL_INTERVAL_MS);
+    await sleep(pollIntervalMs);
   }
-  throw new Error("Timed out while sorting the session list");
+  throw new Error("Timed out while waiting for the run to finish");
+}
+
+function buildSessionOrganizerPayload(session) {
+  const attachedSession = session || (typeof getCurrentSession === "function" ? getCurrentSession() : null);
+  return {
+    tool: attachedSession?.tool || selectedTool || preferredTool || "codex",
+    ...(attachedSession?.model ? { model: attachedSession.model } : {}),
+    ...(attachedSession?.effort ? { effort: attachedSession.effort } : {}),
+    ...(attachedSession?.thinking === true ? { thinking: true } : {}),
+  };
+}
+
+async function organizeSessionById(sessionId, { viewportIntent = "preserve" } = {}) {
+  const targetSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
+  if (!targetSessionId) {
+    throw new Error("Missing session id");
+  }
+  const session = sessions.find((entry) => entry?.id === targetSessionId) || null;
+  const payload = buildSessionOrganizerPayload(session);
+  const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(targetSessionId)}/organize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (data.session) {
+    const nextSession = upsertSession(data.session) || data.session;
+    renderSessionList();
+    if (currentSessionId === targetSessionId) {
+      applyAttachedSessionState(targetSessionId, nextSession);
+    }
+  }
+  const runId = typeof data?.run?.id === "string" ? data.run.id.trim() : "";
+  if (!runId) {
+    throw new Error("Organize task did not start a run");
+  }
+  const run = await waitForDetachedRunCompletion(runId);
+  if (run?.state !== "completed") {
+    throw new Error(run?.failureReason || `Organize task ${run?.state || "failed"}`);
+  }
+  if (currentSessionId === targetSessionId) {
+    await refreshCurrentSession({ viewportIntent });
+  } else {
+    await refreshSidebarSession(targetSessionId);
+  }
+  return run;
 }
 
 
@@ -606,8 +666,6 @@ function applyAttachedSessionState(id, session) {
   hasAttachedSession = true;
   currentTokens = 0;
   contextTokens.style.display = "none";
-  compactBtn.style.display = "none";
-  dropToolsBtn.style.display = "none";
 
   const displayName = getSessionDisplayName(session);
   if (typeof document !== "undefined") {
@@ -641,6 +699,9 @@ function applyAttachedSessionState(id, session) {
   renderSessionList();
   syncBrowserState();
   syncForkButton();
+  if (typeof syncOrganizeSessionButton === "function") {
+    syncOrganizeSessionButton();
+  }
   if (typeof window !== "undefined" && typeof window.MelodySyncWorkbench?.setFocusedSessionId === "function") {
     window.MelodySyncWorkbench.setFocusedSessionId(id, { render: false });
   }

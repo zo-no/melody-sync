@@ -1,6 +1,11 @@
 import { stripEventAttachmentSavedPaths } from './attachment-utils.mjs';
+import {
+  parseTaskCardFromAssistantContent,
+  stripTaskCardFromAssistantContent,
+} from './session-task-card.mjs';
 
 const HIDDEN_EVENT_TYPES = new Set(['reasoning', 'manager_context', 'tool_use', 'tool_result', 'file_change']);
+const SELF_CHECK_STATUS_PREFIX = 'assistant self-check:';
 
 function cloneJson(value) {
   if (value === null || value === undefined) return value;
@@ -10,7 +15,9 @@ function cloneJson(value) {
 function isIgnoredStatusEvent(event) {
   if (event?.type !== 'status') return false;
   const content = typeof event.content === 'string' ? event.content.trim().toLowerCase() : '';
-  return content === 'thinking' || content === 'completed';
+  return content === 'thinking'
+    || content === 'completed'
+    || content.startsWith(SELF_CHECK_STATUS_PREFIX);
 }
 
 function isHiddenEvent(event) {
@@ -34,6 +41,26 @@ function stripDeferredBodyFields(event) {
   delete next.bodyLoaded;
   delete next.bodyPreview;
   delete next.bodyBytes;
+  return next;
+}
+
+function sanitizeDisplayEvent(event) {
+  const next = stripDeferredBodyFields(event);
+  if (!next || next.type !== 'message' || next.role !== 'assistant') {
+    return next;
+  }
+
+  const content = typeof next.content === 'string' ? next.content : '';
+  const taskCard = parseTaskCardFromAssistantContent(content);
+  const strippedContent = stripTaskCardFromAssistantContent(content);
+
+  if (taskCard) {
+    next.taskCard = taskCard;
+  }
+  if (content !== strippedContent) {
+    next.content = strippedContent;
+  }
+
   return next;
 }
 
@@ -81,7 +108,7 @@ function buildThinkingBlockEvent(hiddenEvents, state = 'completed') {
 
 function pushVisibleEvent(target, event) {
   if (!isVisibleEvent(event)) return;
-  target.push(stripDeferredBodyFields(event));
+  target.push(sanitizeDisplayEvent(event));
 }
 
 function emitSegmentedTurnBody(target, bodyEvents, { sessionRunning = false } = {}) {
@@ -184,5 +211,5 @@ export function buildEventBlockEvents(history = [], startSeq = 0, endSeq = 0) {
   return (Array.isArray(history) ? history : [])
     .filter((event) => Number.isInteger(event?.seq) && event.seq >= startSeq && event.seq <= endSeq)
     .filter((event) => !isIgnoredStatusEvent(event))
-    .map(stripDeferredBodyFields);
+    .map(sanitizeDisplayEvent);
 }

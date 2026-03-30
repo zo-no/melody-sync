@@ -93,12 +93,6 @@
   font-size: 11px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
-.compact-btn {
-  background: none; border: 1px solid var(--border); color: var(--text-muted);
-  font-size: 11px; cursor: pointer; padding: 2px 7px; border-radius: 4px;
-  line-height: 1.4; white-space: nowrap; flex-shrink: 0; font-family: inherit;
-}
-.compact-btn:hover { border-color: var(--border-strong); color: var(--text-secondary); }
 .input-config-row .img-btn {
   width: 26px; height: 26px; border-radius: 5px; border: 1px solid var(--border);
   background: transparent; color: var(--text-muted); font-size: 14px;
@@ -238,8 +232,7 @@
 .tool-select,
 .model-select,
 .effort-select,
-.thinking-toggle,
-.compact-btn {
+.thinking-toggle {
   height: 30px;
   border-radius: 8px;
 }
@@ -250,8 +243,7 @@
   padding: 3px 8px;
 }
 
-.thinking-toggle,
-.compact-btn {
+.thinking-toggle {
   padding: 4px 8px;
 }
 
@@ -311,7 +303,6 @@
   .model-select,
   .effort-select,
   .thinking-toggle,
-  .compact-btn,
   .input-config-row .img-btn {
     height: 28px;
     min-height: 28px;
@@ -515,114 +506,6 @@
   line-height: 1.55;
   color: var(--text-secondary);
 }
-.provider-helper-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-.provider-helper-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.provider-helper-field label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-.provider-helper-field input {
-  width: 100%;
-  padding: 9px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-}
-.provider-helper-field select,
-.provider-helper-field textarea {
-  width: 100%;
-  padding: 9px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-}
-.provider-helper-field textarea {
-  min-height: 94px;
-  resize: vertical;
-}
-.provider-helper-field input:focus,
-.provider-helper-field select:focus,
-.provider-helper-field textarea:focus {
-  outline: none;
-  border-color: var(--border-strong);
-}
-.provider-helper-card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  background: var(--bg-secondary);
-}
-.provider-helper-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-.provider-helper-card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-.provider-helper-card p,
-.provider-helper-card ul {
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--text-secondary);
-}
-.provider-helper-card ul {
-  padding-left: 18px;
-  margin-top: 8px;
-}
-.provider-helper-card code.inline-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 1px 5px;
-}
-.provider-helper-code {
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  overflow: auto;
-}
-.provider-helper-code code {
-  display: block;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--text);
-}
-.provider-helper-note {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-.provider-helper-status {
-  min-height: 18px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-.provider-helper-status.success { color: var(--success); }
-.provider-helper-status.error { color: var(--error); }
 
 /* ---- MelodySync soft-card refresh ---- */
 .input-area {

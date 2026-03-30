@@ -18,7 +18,8 @@ Read these first when you need the current truth:
 5. `../notes/current/core-domain-contract.md` — current domain/refactor baseline
 6. `../notes/current/session-first-workflow-surfaces.md` — current workflow-organization contract for session list / grouping / task-like views
 7. `../notes/current/product-surface-lifecycle.md` — current keep/iterate/retire rule for shipped product surfaces
-8. `setup.md` / `external-message-protocol.md` / other focused guides as needed
+8. `structural-cleanup-plan.md` — staged cleanup contract for removing residue without breaking the main session flow
+9. `setup.md` / `external-message-protocol.md` / other focused guides as needed
 
 ## Keep These In Sync
 
@@ -47,6 +48,7 @@ For setup, deployment, connector, and feature-rollout docs, assume the operator 
 ### Current Core
 
 - `project-architecture.md` — top-down map of the shipped system
+- `structural-cleanup-plan.md` — staged cleanup plan for in-place simplification and refactor work
 - `local-maintenance.md` — upstream-first fork workflow, branch hygiene, and local runtime isolation rules
 - `setup.md` — model-first setup contract, one-round input handoff, human checkpoints, and target state
 - `external-message-protocol.md` — canonical integration contract for external channels
