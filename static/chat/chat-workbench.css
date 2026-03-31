@@ -2779,6 +2779,317 @@ button.quest-task-flow-node {
   display: none !important;
 }
 
+.header-timeline-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.header-timeline-btn:hover {
+  background: var(--bg-hover, var(--bg-secondary));
+  color: var(--text);
+}
+
+.header-timeline-btn[hidden] {
+  display: none !important;
+}
+
+/* ── Timeline Overlay (flowchart) ─────────────────────────────── */
+
+.timeline-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg, #fff);
+}
+
+.timeline-overlay[hidden] {
+  display: none !important;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  flex-shrink: 0;
+}
+
+.timeline-session-goal {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-title {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.timeline-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.timeline-close-btn:hover {
+  background: color-mix(in srgb, var(--border) 40%, transparent);
+  color: var(--text);
+}
+
+.timeline-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 20px 40px;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.timeline-session-name {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.timeline-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+/* ── Timeline flowchart nodes & edges ─────────────────────────── */
+
+.tl-scroll-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 16px 60px 60px 24px;
+}
+
+.tl-canvas {
+  position: relative;
+  min-width: 400px;
+}
+
+.tl-svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.tl-main-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: relative;
+  padding-left: 24px;
+}
+
+.tl-row-spacer {
+  flex-shrink: 0;
+}
+
+/* SVG edges — same palette as quest-task-flow-edge */
+.tl-edge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
+  stroke-width: 1.5;
+}
+.tl-edge-main {
+  fill: none;
+  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
+  stroke-width: 1.5;
+}
+.tl-edge-branch {
+  fill: none;
+  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
+  stroke-width: 1.5;
+}
+.tl-edge-merge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 60%, var(--border-strong));
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+}
+.tl-edge-candidate {
+  fill: none;
+  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+/* SVG dots */
+.tl-dot {
+  fill: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
+  stroke-width: 1.5;
+}
+.tl-dot-current {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+.tl-dot-branch {
+  fill: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
+}
+.tl-dot-candidate {
+  fill: color-mix(in srgb, var(--bg) 38%, transparent);
+  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
+  stroke-dasharray: 3 2;
+}
+
+/* ── Timeline nodes — same base as quest-task-flow-node ── */
+.tl-node {
+  position: absolute;
+  appearance: none;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  box-sizing: border-box;
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+}
+
+.tl-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.tl-badge-merged { color: color-mix(in srgb, var(--accent) 70%, var(--text-muted)); }
+.tl-badge-parked { color: var(--text-muted); }
+
+.tl-time {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.tl-label {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tl-sub {
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Commit node — main line */
+.tl-node-commit {
+  cursor: pointer;
+}
+.tl-node-commit:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+}
+.tl-node-commit.is-current {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border-strong));
+  background: color-mix(in srgb, var(--accent-soft) 20%, var(--bg-secondary));
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 74%, transparent);
+}
+.tl-node-commit.is-current .tl-label { color: var(--accent); }
+.tl-node-commit.is-current .tl-time  { color: var(--accent); }
+
+/* Branch node */
+.tl-node-branch {
+  cursor: pointer;
+}
+.tl-node-branch:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+}
+.tl-node-branch.is-current {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border-strong));
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 74%, transparent);
+}
+.tl-node-branch.is-merged {
+  opacity: 0.72;
+}
+.tl-node-branch.is-merged .tl-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+.tl-node-branch.is-parked {
+  opacity: 0.72;
+}
+.tl-node-branch.is-parked .tl-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+/* Candidate node */
+.tl-node-candidate {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--bg) 38%, transparent);
+  opacity: 0.7;
+}
+.tl-node-candidate .tl-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
 .commit-tree-backdrop {
   position: fixed;
   inset: 0;

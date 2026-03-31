@@ -1681,6 +1681,58 @@ export async function writeProjectToObsidian(projectId, payload = {}) {
   });
 }
 
+// Recursively build branch node for a given session/branchContext
+async function buildBranchNode(ctx, sess, sessionMap, allContexts) {
+  // Load commits for this branch session
+  let commits = [];
+  try {
+    const events = await loadHistory(sess.id, { includeBodies: false });
+    commits = events
+      .filter((ev) => ev.type === 'message' && ev.role === 'user')
+      .map((ev) => ({
+        seq: ev.seq,
+        preview: trimText(typeof ev.content === 'string' ? ev.content : '').slice(0, 60) || '(message)',
+        timestamp: ev.timestamp ? new Date(ev.timestamp).toISOString() : null,
+      }));
+  } catch { /* history may not exist yet */ }
+
+  // Find merge_note in parent session history for broughtBack
+  const status = normalizeBranchContextStatus(ctx.status);
+  const broughtBack = normalizeNullableText(ctx.checkpointSummary) || null;
+
+  // Recursively find sub-branches (branches whose parentSessionId === this session)
+  const subBranches = [];
+  for (const subCtx of allContexts) {
+    const subParentId = normalizeNullableText(subCtx.parentSessionId);
+    if (subParentId !== sess.id) continue;
+    const subSess = sessionMap.get(normalizeNullableText(subCtx.sessionId));
+    if (!subSess) continue;
+    subBranches.push(await buildBranchNode(subCtx, subSess, sessionMap, allContexts));
+  }
+
+  // Sort sub-branches by forkAtSeq then createdAt
+  subBranches.sort((a, b) => {
+    const sa = a.forkAtSeq ?? Infinity;
+    const sb = b.forkAtSeq ?? Infinity;
+    if (sa !== sb) return sa - sb;
+    return (a.createdAt || '') < (b.createdAt || '') ? -1 : 1;
+  });
+
+  return {
+    branchSessionId: sess.id,
+    name: normalizeNullableText(sess.name) || 'Untitled',
+    goal: normalizeNullableText(sess.taskCard?.goal) || normalizeNullableText(ctx.goal) || '',
+    forkAtSeq: Number.isInteger(ctx.forkAtSeq) ? ctx.forkAtSeq : null,
+    status,
+    broughtBack,
+    createdAt: normalizeNullableText(ctx.createdAt),
+    updatedAt: normalizeNullableText(ctx.updatedAt),
+    lastEventAt: sess.lastEventAt ? new Date(sess.lastEventAt).toISOString() : null,
+    commits,
+    subBranches,
+  };
+}
+
 export async function getSessionCommitItems(sessionId) {
   const normalizedSessionId = normalizeNullableText(sessionId);
   if (!normalizedSessionId) {
@@ -1701,121 +1753,62 @@ export async function getSessionCommitItems(sessionId) {
   const state = await loadState();
   const allSessions = await listSessions({ includeArchived: true });
   const sessionMap = new Map(allSessions.map((s) => [s.id, s]));
+  const allContexts = state.branchContexts || [];
 
   // Load main line events
   const mainEvents = await loadHistory(rootSessionId, { includeBodies: false });
 
-  // Build commit items from main line user messages
-  const commitItems = mainEvents
+  // Build commit nodes from main line user messages
+  const commitNodes = mainEvents
     .filter((ev) => ev.type === 'message' && ev.role === 'user')
     .map((ev) => ({
       type: 'commit',
       seq: ev.seq,
       preview: trimText(typeof ev.content === 'string' ? ev.content : '').slice(0, 60) || '(message)',
       timestamp: ev.timestamp ? new Date(ev.timestamp).toISOString() : null,
+      branches: [], // will be populated below
     }));
 
-  // Build merge items from main line merge_note assistant messages
-  const mergeItems = mainEvents
-    .filter((ev) => ev.type === 'message' && ev.role === 'assistant' && ev.extra?.messageKind === 'merge_note')
-    .map((ev) => ({
-      type: 'merge',
-      seq: ev.seq,
-      timestamp: ev.timestamp ? new Date(ev.timestamp).toISOString() : null,
-      branchSessionId: normalizeNullableText(ev.extra?.sourceBranchSessionId),
-      branchTitle: normalizeNullableText(ev.extra?.branchTitle) || '支线',
-      broughtBack: normalizeNullableText(ev.extra?.broughtBack),
-    }));
+  // Index commits by seq for branch attachment
+  const commitBySeq = new Map(commitNodes.map((c) => [c.seq, c]));
 
-  // Index merge items by branchSessionId for quick lookup
-  const mergeByBranchId = new Map(
-    mergeItems
-      .filter((m) => m.branchSessionId)
-      .map((m) => [m.branchSessionId, m])
-  );
-
-  // Build branch items from branchContexts
-  const branchItems = [];
-  for (const ctx of state.branchContexts || []) {
+  // Build top-level branch nodes (parentSessionId === rootSessionId)
+  const danglingBranches = []; // branches with no matching forkAtSeq commit
+  for (const ctx of allContexts) {
     const parentId = normalizeNullableText(ctx.parentSessionId);
     if (parentId !== rootSessionId) continue;
     const branchSess = sessionMap.get(normalizeNullableText(ctx.sessionId));
     if (!branchSess) continue;
 
-    // Load branch commits
-    let branchCommits = [];
-    try {
-      const branchEvents = await loadHistory(branchSess.id, { includeBodies: false });
-      branchCommits = branchEvents
-        .filter((ev) => ev.type === 'message' && ev.role === 'user')
-        .map((ev) => ({
-          seq: ev.seq,
-          preview: trimText(typeof ev.content === 'string' ? ev.content : '').slice(0, 60) || '(message)',
-          timestamp: ev.timestamp ? new Date(ev.timestamp).toISOString() : null,
-        }));
-    } catch {
-      // session history may not exist yet
+    const branchNode = await buildBranchNode(ctx, branchSess, sessionMap, allContexts);
+
+    // Attach to the commit at forkAtSeq, or dangle at end
+    const forkCommit = branchNode.forkAtSeq != null ? commitBySeq.get(branchNode.forkAtSeq) : null;
+    if (forkCommit) {
+      forkCommit.branches.push(branchNode);
+    } else {
+      danglingBranches.push(branchNode);
     }
-
-    const mergeItem = mergeByBranchId.get(branchSess.id);
-    const status = normalizeBranchContextStatus(ctx.status);
-    const broughtBack = mergeItem?.broughtBack
-      || normalizeNullableText(ctx.checkpointSummary)
-      || null;
-
-    // For merged branches without a merge_note event, synthesize a merge item
-    if (status === 'merged' && !mergeItem) {
-      const forkSeq = Number.isInteger(ctx.forkAtSeq) ? ctx.forkAtSeq : null;
-      mergeItems.push({
-        type: 'merge',
-        seq: forkSeq != null ? forkSeq + 1 : null,
-        timestamp: normalizeNullableText(ctx.updatedAt),
-        branchSessionId: branchSess.id,
-        branchTitle: normalizeNullableText(branchSess.name) || '支线',
-        broughtBack,
-        _synthetic: true,
-      });
-    }
-
-    branchItems.push({
-      type: 'branch',
-      branchSessionId: branchSess.id,
-      name: normalizeNullableText(branchSess.name) || 'Untitled',
-      forkAtSeq: Number.isInteger(ctx.forkAtSeq) ? ctx.forkAtSeq : null,
-      status,
-      broughtBack,
-      commits: branchCommits,
-    });
   }
 
-  // Merge all items and sort by seq
-  // branch/merge items are placed after their anchor seq
-  // Items without forkAtSeq go to the end (seq = Infinity)
-  const allItems = [
-    ...commitItems,
-    ...mergeItems,
-    ...branchItems.map((b) => ({
-      ...b,
-      _sortSeq: b.forkAtSeq != null ? b.forkAtSeq + 0.5 : Infinity,
-    })),
-  ].map((item) => ({
-    ...item,
-    _sortSeq: item._sortSeq ?? item.seq ?? Infinity,
-  }));
+  // Sort branches within each commit by createdAt
+  for (const commit of commitNodes) {
+    commit.branches.sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? -1 : 1);
+  }
+  danglingBranches.sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? -1 : 1);
 
-  allItems.sort((a, b) => {
-    if (a._sortSeq !== b._sortSeq) return a._sortSeq - b._sortSeq;
-    // Within same anchor: commits first, then branches, then merges
-    const order = { commit: 0, branch: 1, merge: 2 };
-    return (order[a.type] ?? 3) - (order[b.type] ?? 3);
-  });
-
-  // Strip internal sort key
-  const items = allItems.map(({ _sortSeq, ...rest }) => rest);
+  // Candidates from root session taskCard
+  const candidates = (rootSession.taskCard?.candidateBranches || [])
+    .filter(Boolean)
+    .map((title) => ({ title }));
 
   return {
     sessionId: rootSessionId,
     name: normalizeNullableText(rootSession.name) || 'Untitled',
-    items,
+    goal: normalizeNullableText(rootSession.taskCard?.goal) || '',
+    currentSessionId: normalizedSessionId,
+    commits: commitNodes,
+    danglingBranches,
+    candidates,
   };
 }

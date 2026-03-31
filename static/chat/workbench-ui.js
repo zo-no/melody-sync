@@ -19,6 +19,11 @@
   const trackerCloseBtn = document.getElementById("questTrackerCloseBtn");
   const trackerAltBtn = document.getElementById("questTrackerAltBtn");
   const trackerBackBtn = document.getElementById("questTrackerBackBtn");
+  const timelineBtn = document.getElementById("timelineBtn");
+  const timelineOverlay = document.getElementById("timelineOverlay");
+  const timelineCloseBtn = document.getElementById("timelineCloseBtn");
+  const timelineBody = document.getElementById("timelineBody");
+  const timelineSessionGoal = document.getElementById("timelineSessionGoal");
   const trackerDetailEl = document.getElementById("questTrackerDetail");
   const trackerDetailToggleBtn = document.getElementById("questTrackerDetailToggle");
   const trackerGoalRowEl = document.getElementById("questTrackerGoalRow");
@@ -52,6 +57,9 @@
   let taskMindmapNodeExpansionState = new Map();
   let lastTaskMindmapRenderKey = "";
   let trackerDetailExpanded = false;
+  let timelineOpen = false;
+  let timelineFetchInFlight = null;
+  let timelineExpanded = new Map();
 
   function translate(key, vars) {
     return typeof window?.remotelabT === "function" ? window.remotelabT(key, vars) : key;
@@ -377,6 +385,10 @@
     if (focusChanged && commitTreeOpen) {
       commitTreeFetchInFlight = null;
       renderCommitTree();
+    }
+    if (focusChanged && timelineOpen) {
+      timelineFetchInFlight = null;
+      renderTimeline();
     }
     return focusedSessionId;
   }
@@ -2238,6 +2250,369 @@
     trackerDetailEl.hidden = !hasAny || !trackerDetailExpanded;
   }
 
+  function setTimelineOpen(next) {
+    timelineOpen = next === true;
+    if (timelineOverlay) timelineOverlay.hidden = !timelineOpen;
+    if (timelineBtn) timelineBtn.setAttribute("aria-expanded", timelineOpen ? "true" : "false");
+    document.body?.classList?.toggle?.("timeline-open", timelineOpen);
+    if (timelineOpen) renderTimeline();
+  }
+
+  // ── Timeline flowchart renderer ──────────────────────────────────
+  const TL = {
+    NODE_W: 160,
+    GAP_Y: 32,         // vertical gap between main rows
+    BRANCH_X_GAP: 52,  // horizontal gap: main col right edge → branch col left edge
+    BRANCH_Y_GAP: 14,  // vertical gap between branches in same fork
+    SUB_X_GAP: 44,     // horizontal gap for sub-branches
+    MAIN_X: 24,        // left padding for main column
+    DOT_R: 5,
+  };
+
+  function tlMakeNode(cls, html, onClick) {
+    const el = document.createElement("div");
+    el.className = "tl-node " + cls;
+    el.innerHTML = html;
+    if (onClick) {
+      el.addEventListener("click", onClick);
+      el.setAttribute("role", "button");
+      el.setAttribute("tabindex", "0");
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") onClick(); });
+    }
+    return el;
+  }
+
+  function tlHtml(badge, time, label, sub) {
+    return (badge ? `<span class="tl-badge ${badge.cls}">${badge.text}</span>` : "") +
+      (time ? `<span class="tl-time">${time}</span>` : "") +
+      `<span class="tl-label">${label || ""}</span>` +
+      (sub ? `<span class="tl-sub">${sub}</span>` : "");
+  }
+
+  function tlSvgEl(svg, tag, attrs) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    svg.appendChild(el);
+    return el;
+  }
+
+  // Get center of a DOM element relative to canvas
+  function tlCenter(el, canvasRect) {
+    const r = el.getBoundingClientRect();
+    return {
+      cx: r.left - canvasRect.left + r.width / 2,
+      cy: r.top - canvasRect.top + r.height / 2,
+      left: r.left - canvasRect.left,
+      right: r.right - canvasRect.left,
+      top: r.top - canvasRect.top,
+      bottom: r.bottom - canvasRect.top,
+    };
+  }
+
+  async function renderTimeline() {
+    if (!timelineBody) return;
+    const sessionId = focusedSessionId;
+    if (!sessionId) {
+      timelineBody.innerHTML = `<div class="timeline-empty">没有活跃会话</div>`;
+      return;
+    }
+    if (timelineFetchInFlight) return;
+
+    timelineFetchInFlight = fetch(`/api/workbench/sessions/${encodeURIComponent(sessionId)}/commit-tree`)
+      .then((r) => r.json())
+      .then((data) => {
+        timelineBody.innerHTML = "";
+        if (timelineSessionGoal) timelineSessionGoal.textContent = clipText(data.goal || data.name || "", 80);
+
+        const commits = data.commits || [];
+        const danglingBranches = data.danglingBranches || [];
+        const candidates = data.candidates || [];
+
+        if (commits.length === 0 && danglingBranches.length === 0) {
+          timelineBody.innerHTML = `<div class="timeline-empty">暂无会话记录</div>`;
+          return;
+        }
+
+        // ── PASS 1: Place all nodes in DOM (no SVG yet) ──
+        const wrap = document.createElement("div");
+        wrap.className = "tl-scroll-wrap";
+        const canvas = document.createElement("div");
+        canvas.className = "tl-canvas";
+        // SVG overlay — drawn in pass 2
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", "tl-svg");
+        svg.style.cssText = "position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;";
+        canvas.appendChild(svg);
+        wrap.appendChild(canvas);
+        timelineBody.appendChild(wrap);
+
+        const lastCommitSeq = commits.length > 0 ? commits[commits.length - 1].seq : null;
+
+        // Track DOM nodes for pass 2
+        const commitEls = [];      // [{ el, commit, branchEls: [{el, branch, subEls}] }]
+        const candidateEls = [];
+
+        // Layout: CSS flow (no absolute positioning for now — let browser do it)
+        // Main column: flex column
+        // Branch columns: absolutely positioned after pass 1
+
+        const mainCol = document.createElement("div");
+        mainCol.className = "tl-main-col";
+        canvas.appendChild(mainCol);
+
+        for (const commit of commits) {
+          const isCurrent = commit.seq === lastCommitSeq;
+          const commitEl = tlMakeNode(
+            "tl-node-commit" + (isCurrent ? " is-current" : ""),
+            tlHtml(null, formatTrackerTime(commit.timestamp), clipText(commit.preview, 34)),
+            () => {
+              if (typeof attachSession === "function") attachSession(data.sessionId, null);
+              setTimelineOpen(false);
+              setTimeout(() => {
+                const msgEl = document.querySelector(`.msg-user[data-source-seq="${commit.seq}"]`);
+                if (msgEl) msgEl.scrollIntoView({ block: "start", behavior: "smooth" });
+              }, 300);
+            }
+          );
+          commitEl.style.width = TL.NODE_W + "px";
+          mainCol.appendChild(commitEl);
+
+          // Spacer — will be sized in pass 2 to make room for branches
+          const spacer = document.createElement("div");
+          spacer.className = "tl-row-spacer";
+          spacer.style.height = TL.GAP_Y + "px";
+          mainCol.appendChild(spacer);
+
+          const branchEls = [];
+          for (const branch of commit.branches || []) {
+            const isMerged = branch.status === "merged";
+            const isBranchCurrent = branch.branchSessionId === sessionId;
+            const badge = isMerged ? { cls: "tl-badge-merged", text: "已收束" }
+              : branch.status === "parked" ? { cls: "tl-badge-parked", text: "已挂起" } : null;
+            const subLabel = isMerged
+              ? (branch.broughtBack ? clipText(branch.broughtBack, 32) : "已收束")
+              : ((branch.commits?.length || 0) > 0 ? `${branch.commits.length} 条消息` : "未开始");
+            const bEl = tlMakeNode(
+              "tl-node-branch" + (isMerged ? " is-merged" : "") + (isBranchCurrent ? " is-current" : ""),
+              tlHtml(badge, formatTrackerTime(branch.lastEventAt || branch.createdAt), clipText(branch.goal || branch.name, 28), subLabel),
+              () => { if (typeof attachSession === "function") attachSession(branch.branchSessionId, null); setTimelineOpen(false); }
+            );
+            bEl.style.width = TL.NODE_W + "px";
+            canvas.appendChild(bEl); // absolute, positioned in pass 2
+
+            const subEls = [];
+            for (const sub of branch.subBranches || []) {
+              const isSubMerged = sub.status === "merged";
+              const subBadge = isSubMerged ? { cls: "tl-badge-merged", text: "已收束" }
+                : sub.status === "parked" ? { cls: "tl-badge-parked", text: "已挂起" } : null;
+              const subSubLabel = isSubMerged
+                ? (sub.broughtBack ? clipText(sub.broughtBack, 32) : "已收束")
+                : ((sub.commits?.length || 0) > 0 ? `${sub.commits.length} 条消息` : "未开始");
+              const sEl = tlMakeNode(
+                "tl-node-branch" + (isSubMerged ? " is-merged" : "") + (sub.branchSessionId === sessionId ? " is-current" : ""),
+                tlHtml(subBadge, formatTrackerTime(sub.lastEventAt || sub.createdAt), clipText(sub.goal || sub.name, 28), subSubLabel),
+                () => { if (typeof attachSession === "function") attachSession(sub.branchSessionId, null); setTimelineOpen(false); }
+              );
+              sEl.style.width = TL.NODE_W + "px";
+              canvas.appendChild(sEl);
+              subEls.push({ el: sEl, branch: sub });
+            }
+            branchEls.push({ el: bEl, branch, subEls });
+          }
+          commitEls.push({ el: commitEl, spacer, commit, branchEls });
+        }
+
+        // Dangling branches
+        const danglingEls = [];
+        for (const branch of danglingBranches) {
+          const isMerged = branch.status === "merged";
+          const badge = isMerged ? { cls: "tl-badge-merged", text: "已收束" } : null;
+          const subLabel = isMerged ? (branch.broughtBack ? clipText(branch.broughtBack, 32) : "已收束") : `${branch.commits?.length || 0} 条消息`;
+          const bEl = tlMakeNode(
+            "tl-node-branch" + (isMerged ? " is-merged" : ""),
+            tlHtml(badge, formatTrackerTime(branch.lastEventAt || branch.createdAt), clipText(branch.goal || branch.name, 28), subLabel),
+            () => { if (typeof attachSession === "function") attachSession(branch.branchSessionId, null); setTimelineOpen(false); }
+          );
+          bEl.style.width = TL.NODE_W + "px";
+          canvas.appendChild(bEl);
+          danglingEls.push({ el: bEl, branch });
+        }
+
+        // Candidates
+        for (const { title } of candidates) {
+          const cEl = tlMakeNode("tl-node-candidate", tlHtml({ cls: "tl-badge-parked", text: "计划" }, null, clipText(title, 32)));
+          cEl.style.width = TL.NODE_W + "px";
+          mainCol.appendChild(cEl);
+          const spacer = document.createElement("div");
+          spacer.className = "tl-row-spacer";
+          spacer.style.height = TL.GAP_Y + "px";
+          mainCol.appendChild(spacer);
+          candidateEls.push(cEl);
+        }
+
+        // ── PASS 2: Read actual positions, size spacers, place branch nodes, draw SVG ──
+        requestAnimationFrame(() => {
+          const canvasRect = canvas.getBoundingClientRect();
+
+          // Position branch nodes relative to their fork commit
+          const branchColX = TL.MAIN_X + TL.NODE_W + TL.BRANCH_X_GAP;
+          const subColX = branchColX + TL.NODE_W + TL.SUB_X_GAP;
+
+          for (const { el: commitEl, spacer, branchEls } of commitEls) {
+            if (branchEls.length === 0) continue;
+            const commitR = tlCenter(commitEl, canvasRect);
+
+            // Stack branch nodes vertically starting at commit top
+            let bTop = commitR.top;
+            for (const { el: bEl, branch, subEls } of branchEls) {
+              bEl.style.cssText += `position:absolute;left:${branchColX}px;top:${bTop}px;`;
+              const bR = tlCenter(bEl, canvasRect);
+
+              // Stack sub-branches
+              let sTop = bTop;
+              for (const { el: sEl } of subEls) {
+                sEl.style.cssText += `position:absolute;left:${subColX}px;top:${sTop}px;`;
+                sTop += sEl.getBoundingClientRect().height + TL.BRANCH_Y_GAP;
+              }
+
+              const bHeight = Math.max(bEl.getBoundingClientRect().height, sTop - bTop - TL.BRANCH_Y_GAP + (subEls.length > 0 ? 0 : 0));
+              bTop += Math.max(bEl.getBoundingClientRect().height, sTop - bTop) + TL.BRANCH_Y_GAP;
+            }
+
+            // Expand spacer so next commit clears all branches
+            const lastBEl = branchEls[branchEls.length - 1];
+            const lastBR = lastBEl.el.getBoundingClientRect();
+            const branchBottom = lastBR.bottom - canvasRect.top;
+            const commitBottom = commitEl.getBoundingClientRect().bottom - canvasRect.top;
+            const neededSpacerH = Math.max(TL.GAP_Y, branchBottom - commitBottom + TL.GAP_Y);
+            spacer.style.height = neededSpacerH + "px";
+          }
+
+          // Position dangling branches below last commit
+          if (danglingEls.length > 0) {
+            const lastCommitEl = commitEls.length > 0 ? commitEls[commitEls.length - 1].el : null;
+            const startTop = lastCommitEl
+              ? lastCommitEl.getBoundingClientRect().bottom - canvasRect.top + TL.GAP_Y
+              : 20;
+            let dTop = startTop;
+            for (const { el: bEl } of danglingEls) {
+              bEl.style.cssText += `position:absolute;left:${branchColX}px;top:${dTop}px;`;
+              dTop += bEl.getBoundingClientRect().height + TL.BRANCH_Y_GAP;
+            }
+          }
+
+          // ── Draw SVG edges ──
+          const mainLineX = TL.MAIN_X + TL.NODE_W / 2;
+
+          // Main vertical line: first commit top → last commit bottom (or candidate)
+          if (commitEls.length > 0) {
+            const firstR = tlCenter(commitEls[0].el, canvasRect);
+            const lastMainEl = candidateEls.length > 0
+              ? candidateEls[candidateEls.length - 1]
+              : commitEls[commitEls.length - 1].el;
+            const lastR = tlCenter(lastMainEl, canvasRect);
+            tlSvgEl(svg, "line", {
+              x1: mainLineX, y1: firstR.cy,
+              x2: mainLineX, y2: lastR.cy,
+              class: "tl-edge tl-edge-main",
+            });
+          }
+
+          // Dots on main nodes
+          for (let ri = 0; ri < commitEls.length; ri++) {
+            const { el, commit } = commitEls[ri];
+            const isCurrent = commit.seq === lastCommitSeq;
+            const r = tlCenter(el, canvasRect);
+            tlSvgEl(svg, "circle", {
+              cx: mainLineX, cy: r.cy, r: TL.DOT_R,
+              class: "tl-dot " + (isCurrent ? "tl-dot-current" : ""),
+            });
+          }
+          for (const cEl of candidateEls) {
+            const r = tlCenter(cEl, canvasRect);
+            tlSvgEl(svg, "circle", { cx: mainLineX, cy: r.cy, r: TL.DOT_R, class: "tl-dot tl-dot-candidate" });
+          }
+
+          // Branch edges
+          for (let ri = 0; ri < commitEls.length; ri++) {
+            const { el: commitEl, branchEls } = commitEls[ri];
+            if (branchEls.length === 0) continue;
+            const commitR = tlCenter(commitEl, canvasRect);
+            const nextCommitEl = commitEls[ri + 1]?.el;
+            const nextCommitCY = nextCommitEl ? tlCenter(nextCommitEl, canvasRect).cy : null;
+
+            for (const { el: bEl, branch, subEls } of branchEls) {
+              const bR = tlCenter(bEl, canvasRect);
+              // Fork: main right → branch left (cubic bezier)
+              tlSvgEl(svg, "path", {
+                d: `M ${commitR.right} ${commitR.cy} C ${commitR.right + 30} ${commitR.cy} ${bR.left - 30} ${bR.cy} ${bR.left} ${bR.cy}`,
+                class: "tl-edge tl-edge-branch",
+              });
+              tlSvgEl(svg, "circle", { cx: bR.left, cy: bR.cy, r: TL.DOT_R, class: "tl-dot tl-dot-branch" });
+
+              // Merge-back: branch right → next main left
+              if (branch.status === "merged" && nextCommitCY != null) {
+                const nextCommitLeft = TL.MAIN_X;
+                tlSvgEl(svg, "path", {
+                  d: `M ${bR.right} ${bR.cy} C ${bR.right + 36} ${bR.cy} ${nextCommitLeft + mainLineX} ${nextCommitCY} ${nextCommitLeft + TL.NODE_W / 2} ${nextCommitCY}`,
+                  class: "tl-edge tl-edge-merge",
+                });
+              }
+
+              // Sub-branch edges
+              for (const { el: sEl, branch: sub } of subEls) {
+                const sR = tlCenter(sEl, canvasRect);
+                tlSvgEl(svg, "path", {
+                  d: `M ${bR.right} ${bR.cy} C ${bR.right + 28} ${bR.cy} ${sR.left - 28} ${sR.cy} ${sR.left} ${sR.cy}`,
+                  class: "tl-edge tl-edge-branch",
+                });
+                tlSvgEl(svg, "circle", { cx: sR.left, cy: sR.cy, r: TL.DOT_R, class: "tl-dot tl-dot-branch" });
+              }
+            }
+          }
+
+          // Dangling branch edges (from last main node)
+          if (danglingEls.length > 0 && commitEls.length > 0) {
+            const lastCommitR = tlCenter(commitEls[commitEls.length - 1].el, canvasRect);
+            for (const { el: bEl } of danglingEls) {
+              const bR = tlCenter(bEl, canvasRect);
+              tlSvgEl(svg, "path", {
+                d: `M ${lastCommitR.right} ${lastCommitR.cy} C ${lastCommitR.right + 30} ${lastCommitR.cy} ${bR.left - 30} ${bR.cy} ${bR.left} ${bR.cy}`,
+                class: "tl-edge tl-edge-branch",
+              });
+              tlSvgEl(svg, "circle", { cx: bR.left, cy: bR.cy, r: TL.DOT_R, class: "tl-dot tl-dot-branch" });
+            }
+          }
+
+          // Resize canvas to fit all content
+          const allEls = [
+            ...commitEls.map((c) => c.el),
+            ...commitEls.flatMap((c) => c.branchEls.map((b) => b.el)),
+            ...commitEls.flatMap((c) => c.branchEls.flatMap((b) => b.subEls.map((s) => s.el))),
+            ...danglingEls.map((d) => d.el),
+            ...candidateEls,
+          ];
+          let maxRight = 0, maxBottom = 0;
+          for (const el of allEls) {
+            const r = el.getBoundingClientRect();
+            maxRight = Math.max(maxRight, r.right - canvasRect.left);
+            maxBottom = Math.max(maxBottom, r.bottom - canvasRect.top);
+          }
+          canvas.style.width = (maxRight + 40) + "px";
+          canvas.style.minHeight = (maxBottom + 40) + "px";
+          svg.style.width = canvas.style.width;
+          svg.style.height = canvas.style.minHeight;
+        });
+      })
+      .catch((err) => {
+        console.error("timeline render error", err);
+        timelineBody.innerHTML = `<div class="timeline-empty">加载失败，请重试</div>`;
+      })
+      .finally(() => {
+        timelineFetchInFlight = null;
+      });
+  }
+
   function renderPathPanel() {
     // Path-cluster UI has been removed from the user-facing surface.
   }
@@ -2901,7 +3276,14 @@
   commitTreeCloseBtn?.addEventListener("click", () => setCommitTreeOpen(false));
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && commitTreeOpen) setCommitTreeOpen(false);
+    if (e.key === "Escape" && timelineOpen) setTimelineOpen(false);
   });
+
+  if (timelineBtn) {
+    timelineBtn.hidden = false;
+    timelineBtn.addEventListener("click", () => setTimelineOpen(!timelineOpen));
+  }
+  timelineCloseBtn?.addEventListener("click", () => setTimelineOpen(false));
 
   // ─────────────────────────────────────────────────────────────────
 

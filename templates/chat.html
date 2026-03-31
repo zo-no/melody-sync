@@ -30,6 +30,7 @@
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
   <button class="header-commit-tree-btn" id="commitTreeBtn" type="button" aria-label="会话树" title="会话树" hidden>树</button>
+  <button class="header-timeline-btn" id="timelineBtn" type="button" aria-label="任务时间线" title="任务时间线" hidden>轴</button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
 </div>
@@ -159,6 +160,14 @@
   <div class="commit-tree-inner" id="commitTreeInner"></div>
 </aside>
 <button class="commit-tree-backdrop" id="commitTreeBackdrop" hidden aria-label="关闭会话树"></button>
+</div>
+<div class="timeline-overlay" id="timelineOverlay" hidden>
+  <div class="timeline-header">
+    <span class="timeline-session-goal" id="timelineSessionGoal"></span>
+    <span class="timeline-title">任务时间线</span>
+    <button class="timeline-close-btn" id="timelineCloseBtn" type="button" aria-label="关闭">✕</button>
+  </div>
+  <div class="timeline-body" id="timelineBody"></div>
 </div>
 <div class="gesture-pill" id="gesturePill" aria-hidden="true"></div>
 
