@@ -81,7 +81,7 @@ function taskCardIndicatesIntentShiftNormalized(normalized, branchTitle) {
   if (
     textLooksEquivalent(title, normalized.goal)
     || textLooksEquivalent(title, normalized.mainGoal)
-    || normalized.nextSteps.some((entry) => textLooksEquivalent(title, entry))
+    || (normalized.knownConclusions || []).some((entry) => textLooksEquivalent(title, entry))
     || textLooksEquivalent(title, normalized.checkpoint)
   ) {
     return false;
@@ -103,7 +103,7 @@ function taskCardHasIndependentBranchGoalNormalized(normalized, branchTitle) {
   if (
     textLooksEquivalent(title, normalized.goal)
     || textLooksEquivalent(title, normalized.mainGoal)
-    || normalized.nextSteps.some((entry) => textLooksEquivalent(title, entry))
+    || (normalized.knownConclusions || []).some((entry) => textLooksEquivalent(title, entry))
     || textLooksEquivalent(title, normalized.checkpoint)
   ) {
     return false;
@@ -230,14 +230,9 @@ function hasMeaningfulTaskCard(card) {
     card.goal
     || card.mainGoal
     || card.summary
-    || (card.background || []).length > 0
-    || (card.rawMaterials || []).length > 0
-    || (card.assumptions || []).length > 0
     || (card.knownConclusions || []).length > 0
-    || (card.nextSteps || []).length > 0
     || (card.candidateBranches || []).length > 0
     || (card.memory || []).length > 0
-    || (card.needsFromUser || []).length > 0
   );
 }
 
@@ -255,29 +250,16 @@ export function normalizeSessionTaskCard(value) {
     value.candidateBranches || value.branchCandidates || value.sideQuests || value.sideLines,
     { maxItems: 3, maxChars: 120 },
   );
-  const background = normalizeTaskCardList(value.background || value.context || value.backgroundNotes);
-  const rawMaterials = normalizeTaskCardList(value.rawMaterials || value.materials || value.sourceMaterials);
-  const assumptions = normalizeTaskCardList(value.assumptions);
   const knownConclusions = normalizeTaskCardList(
     value.knownConclusions || value.conclusions || value.knownFindings || value.findings,
   );
-  const nextSteps = normalizeTaskCardList(value.nextSteps || value.nextActions || value.plan);
   const memory = normalizeTaskCardList(value.memory || value.userMemory || value.reusableContext || value.durableMemory);
-  const needsFromUser = normalizeTaskCardList(
-    value.needsFromUser || value.openQuestions || value.blockers || value.missingInputs,
-  );
   const mode = normalizeTaskCardMode(
     value.mode
     || value.executionMode
     || value.projectState
     || value.projectMode,
-  ) || (
-    rawMaterials.length >= 3
-    || nextSteps.length >= 2
-    || background.length >= 2
-      ? 'project'
-      : 'task'
-  );
+  ) || 'task';
 
   const normalized = {
     version: 1,
@@ -290,13 +272,8 @@ export function normalizeSessionTaskCard(value) {
     branchReason,
     checkpoint,
     candidateBranches,
-    background,
-    rawMaterials,
-    assumptions,
     knownConclusions,
-    nextSteps,
     memory,
-    needsFromUser,
   };
 
   normalized.candidateBranches = filterCandidateBranches(normalized, normalized.candidateBranches);
@@ -337,13 +314,8 @@ export function buildTaskCardPromptBlock(taskCard, options = {}) {
         normalized.branchReason ? `Branch reason: ${normalized.branchReason}` : '',
         normalized.checkpoint ? `Checkpoint: ${normalized.checkpoint}` : '',
         formatTaskCardList('Candidate branches', normalized.candidateBranches),
-        formatTaskCardList('Background', normalized.background),
-        formatTaskCardList('Raw materials', normalized.rawMaterials),
-        formatTaskCardList('Assumptions', normalized.assumptions),
         formatTaskCardList('Known conclusions', normalized.knownConclusions),
-        formatTaskCardList('Next steps', normalized.nextSteps),
         formatTaskCardList('Durable user memory', normalized.memory),
-        formatTaskCardList('Needs from user', normalized.needsFromUser),
       ].filter(Boolean).join('\n\n')
     : '';
 
@@ -352,7 +324,7 @@ export function buildTaskCardPromptBlock(taskCard, options = {}) {
     'After every user-facing reply, append exactly one final <task_card> JSON block at the very end of the reply.',
     'Keep the normal answer natural and user-facing. Put the <task_card> block after that answer so the client can update the session task bar and branch recommendations.',
     'Use literal closing tags exactly as </task_card>. Do not escape the slash as <\\/task_card>.',
-    'The <task_card> JSON must use these keys: mode, summary, goal, mainGoal, lineRole, branchFrom, branchReason, checkpoint, candidateBranches, background, rawMaterials, assumptions, knownConclusions, nextSteps, memory, needsFromUser.',
+    'The <task_card> JSON must use these keys: mode, summary, goal, mainGoal, lineRole, branchFrom, branchReason, checkpoint, candidateBranches, knownConclusions, memory.',
     fixedTaskTitle
       ? 'For main-line turns, keep goal and mainGoal anchored to the fixed session task title unless the user explicitly redefines the whole task.'
       : '',

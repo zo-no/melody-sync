@@ -7,6 +7,7 @@ import {
   createNode as createWorkbenchNode,
   createProject as createWorkbenchProject,
   createProjectSummary,
+  getSessionCommitItems,
   getWorkbenchSnapshot,
   getWorkbenchTrackerSnapshot,
   mergeBranchSessionBackToMain,
@@ -44,6 +45,19 @@ export async function handleWorkbenchRoutes({
       writeJson(res, 200, trackerSnapshot);
       return true;
     }
+
+    if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'commit-tree') {
+      const sessionId = parts[3];
+      if (!requireSessionAccess(res, authSession, sessionId)) return true;
+      try {
+        const result = await getSessionCommitItems(sessionId);
+        writeJson(res, 200, result);
+      } catch (error) {
+        writeJson(res, 400, { error: error.message || 'Failed to build commit tree' });
+      }
+      return true;
+    }
+
     return false;
   }
 

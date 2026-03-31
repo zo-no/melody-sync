@@ -15,6 +15,10 @@
 .quest-tracker-title[hidden],
 .quest-tracker-branch[hidden],
 .quest-tracker-next[hidden],
+.quest-tracker-time[hidden],
+.quest-tracker-detail[hidden],
+.quest-tracker-detail-row[hidden],
+.quest-tracker-detail-toggle[hidden],
 .quest-task-list[hidden],
 .quest-tracker-toggle[hidden],
 .quest-tracker-btn[hidden] {
@@ -1181,6 +1185,72 @@
   -webkit-line-clamp: 2;
 }
 
+.quest-tracker-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.quest-tracker-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.quest-tracker-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quest-tracker-detail-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.quest-tracker-detail-value {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.quest-tracker-detail-item {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding-left: 10px;
+  position: relative;
+}
+
+.quest-tracker-detail-item::before {
+  content: "·";
+  position: absolute;
+  left: 2px;
+  opacity: 0.4;
+}
+
+.quest-tracker-detail-toggle {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.quest-tracker-detail-toggle:hover {
+  opacity: 1;
+}
+
 .quest-merge-note {
   display: grid;
   gap: 6px;
@@ -1805,6 +1875,11 @@ button.quest-task-flow-node {
   opacity: 0.72;
 }
 
+.quest-task-flow-node.is-resolved .quest-task-flow-node-title,
+.quest-task-flow-node.is-resolved .quest-task-flow-node-summary {
+  text-decoration: line-through;
+}
+
 .quest-task-flow-node-badge {
   justify-self: start;
   display: inline-flex;
@@ -2344,6 +2419,11 @@ button.quest-task-flow-node {
   font-weight: 800;
 }
 
+.quest-task-flow-node-badge.is-merged::before {
+  content: "↩";
+  background: color-mix(in srgb, var(--accent, #3b82f6) 80%, transparent);
+}
+
 .quest-task-flow-node-badge.is-parked::before {
   width: 10px;
   height: 2px;
@@ -2669,4 +2749,364 @@ button.quest-task-flow-node {
     background: transparent;
     color: #eef4fb;
   }
+}
+
+/* ── Commit Tree Overlay ─────────────────────────────────────────── */
+
+.header-commit-tree-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.header-commit-tree-btn:hover {
+  background: var(--bg-hover, var(--bg-secondary));
+  color: var(--text);
+}
+
+.header-commit-tree-btn[hidden] {
+  display: none !important;
+}
+
+.commit-tree-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgba(7, 11, 16, 0.34);
+  opacity: 1;
+  z-index: 120;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.commit-tree-backdrop[hidden] {
+  display: none !important;
+}
+
+.commit-tree-rail {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: min(320px, calc(100vw - 16px));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 14%, var(--border));
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  box-shadow: 0 18px 40px color-mix(in srgb, #0b1520 18%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transform: translateX(calc(100% + 16px));
+  transition: transform 0.22s ease, opacity 0.22s ease;
+  opacity: 0;
+  overflow: hidden;
+  z-index: 160;
+  pointer-events: none;
+}
+
+.commit-tree-rail.is-open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.commit-tree-rail[hidden] {
+  display: none !important;
+}
+
+.commit-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  flex-shrink: 0;
+}
+
+.commit-tree-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.commit-tree-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.commit-tree-close-btn:hover {
+  background: color-mix(in srgb, var(--border) 40%, transparent);
+  color: var(--text);
+}
+
+.commit-tree-inner {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 12px;
+}
+
+.commit-tree-empty {
+  padding: 24px 16px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.commit-tree-session {
+  margin: 4px 8px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.commit-tree-session-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: color-mix(in srgb, var(--border) 20%, transparent);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+
+.commit-tree-session-header:hover {
+  background: color-mix(in srgb, var(--border) 35%, transparent);
+}
+
+.commit-tree-session-header.is-current {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 14%, transparent);
+  color: var(--accent, #3b82f6);
+}
+
+.commit-tree-branch-label {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--border) 50%, transparent);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.commit-tree-commits {
+  padding: 2px 0 4px 16px;
+}
+
+.commit-tree-commit {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 7px;
+  transition: background 0.1s, color 0.1s;
+  line-height: 1.4;
+}
+
+.commit-tree-commit:hover {
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+  color: var(--text);
+}
+
+.commit-tree-commit.is-current {
+  color: var(--accent, #3b82f6);
+  font-weight: 500;
+}
+
+.commit-tree-commit-seq {
+  font-size: 10px;
+  color: var(--text-tertiary, var(--text-secondary));
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+
+.commit-tree-commit-preview {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-tree-children {
+  padding-left: 12px;
+  border-left: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  margin-left: 10px;
+  margin-top: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .commit-tree-rail {
+    background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  }
+}
+
+/* ── Commit Tree v2 — items list ──────────────────────────────── */
+
+.commit-tree-items {
+  padding: 4px 0 8px;
+}
+
+.commit-tree-session-header {
+  padding: 8px 14px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  border-radius: 10px;
+  margin: 4px 8px 2px;
+  background: color-mix(in srgb, var(--border) 20%, transparent);
+}
+
+/* Branch card */
+.commit-tree-branch-card {
+  margin: 4px 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.commit-tree-branch-card.is-current {
+  border-color: color-mix(in srgb, var(--accent, #3b82f6) 40%, transparent);
+}
+
+.commit-tree-branch-card.is-merged {
+  opacity: 0.72;
+}
+
+.commit-tree-branch-card.is-merged .commit-tree-branch-label {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent);
+  color: var(--accent, #3b82f6);
+}
+
+.commit-tree-branch-card-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  background: color-mix(in srgb, var(--border) 15%, transparent);
+  transition: background 0.1s;
+}
+
+.commit-tree-branch-card-header:hover {
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+}
+
+.commit-tree-branch-arrow {
+  font-size: 10px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  width: 12px;
+}
+
+.commit-tree-branch-name {
+  flex: 1;
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.commit-tree-branch-name:hover {
+  text-decoration: underline;
+}
+
+.commit-tree-branch-merged-summary {
+  padding: 5px 10px 5px 27px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-left: 2px solid color-mix(in srgb, var(--accent, #3b82f6) 40%, transparent);
+  margin: 0 10px 4px 10px;
+  opacity: 0.85;
+}
+
+.commit-tree-branch-commits {
+  padding: 2px 0 4px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.commit-tree-branch-commits[hidden] {
+  display: none !important;
+}
+
+/* Merge item */
+.commit-tree-merge {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px 14px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+
+.commit-tree-merge-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.commit-tree-merge-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.commit-tree-merge-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-tree-merge-time {
+  flex-shrink: 0;
+  font-size: 10px;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.commit-tree-merge-body {
+  margin-left: 18px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.8;
+  border-left: 2px solid var(--border-color, rgba(128,128,128,0.2));
+  padding-left: 8px;
 }

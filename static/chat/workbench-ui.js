@@ -8,6 +8,7 @@
   const trackerBranchLabelEl = document.getElementById("questTrackerBranchLabel");
   const trackerBranchTitleEl = document.getElementById("questTrackerBranchTitle");
   const trackerNextEl = document.getElementById("questTrackerNext");
+  const trackerTimeEl = document.getElementById("questTrackerTime");
   const trackerTaskListEl = document.getElementById("questTaskList");
   const taskMapRail = document.getElementById("taskMapRail");
   const taskMapDrawerBtn = document.getElementById("taskMapDrawerBtn");
@@ -18,6 +19,14 @@
   const trackerCloseBtn = document.getElementById("questTrackerCloseBtn");
   const trackerAltBtn = document.getElementById("questTrackerAltBtn");
   const trackerBackBtn = document.getElementById("questTrackerBackBtn");
+  const trackerDetailEl = document.getElementById("questTrackerDetail");
+  const trackerDetailToggleBtn = document.getElementById("questTrackerDetailToggle");
+  const trackerGoalRowEl = document.getElementById("questTrackerGoalRow");
+  const trackerGoalValEl = document.getElementById("questTrackerGoalVal");
+  const trackerConclusionsRowEl = document.getElementById("questTrackerConclusionsRow");
+  const trackerConclusionsListEl = document.getElementById("questTrackerConclusionsList");
+  const trackerMemoryRowEl = document.getElementById("questTrackerMemoryRow");
+  const trackerMemoryListEl = document.getElementById("questTrackerMemoryList");
   if (!tracker) return;
 
   const SUPPRESSED_PREFIX = "melodysyncSuppressedBranch";
@@ -42,6 +51,7 @@
   let focusedSessionId = "";
   let taskMindmapNodeExpansionState = new Map();
   let lastTaskMindmapRenderKey = "";
+  let trackerDetailExpanded = false;
 
   function translate(key, vars) {
     return typeof window?.remotelabT === "function" ? window.remotelabT(key, vars) : key;
@@ -363,6 +373,10 @@
       if (options.renderSessionList === true && typeof renderSessionList === "function") {
         renderSessionList();
       }
+    }
+    if (focusChanged && commitTreeOpen) {
+      commitTreeFetchInFlight = null;
+      renderCommitTree();
     }
     return focusedSessionId;
   }
@@ -1295,7 +1309,8 @@
       if (node.isCurrentPath) nodeEl.classList.add("is-current-path");
       if (node.isCurrent) nodeEl.classList.add("is-current");
       if (node.status === "parked") nodeEl.classList.add("is-parked");
-      if (node.status === "resolved" || node.status === "merged") nodeEl.classList.add("is-resolved");
+      if (node.status === "resolved") nodeEl.classList.add("is-resolved");
+      if (node.status === "merged") nodeEl.classList.add("is-resolved", "is-merged");
       nodeEl.style.left = `${entry.x}px`;
       nodeEl.style.top = `${entry.y}px`;
       nodeEl.style.width = `${entry.nodeWidth}px`;
@@ -1304,7 +1319,8 @@
       const badge = document.createElement("div");
       badge.className = "quest-task-flow-node-badge";
       if (node.status === "parked") badge.classList.add("is-parked");
-      if (node.status === "resolved" || node.status === "merged") badge.classList.add("is-complete");
+      if (node.status === "resolved") badge.classList.add("is-complete");
+      if (node.status === "merged") badge.classList.add("is-complete", "is-merged");
       badge.textContent = getProjectedTaskFlowNodeMeta(node, activeQuest);
       nodeEl.appendChild(badge);
 
@@ -1814,6 +1830,18 @@
     trackerTaskListEl.hidden = trackerTaskListEl.children.length === 0;
   }
 
+  function formatTrackerTime(value) {
+    if (!value) return "";
+    const ts = new Date(typeof value === "number" ? value : value).getTime();
+    if (!Number.isFinite(ts)) return "";
+    const d = new Date(ts);
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const dy = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${mo}-${dy} ${hh}:${mm}`;
+  }
+
   function getBranchStatusUi(branchStatus) {
     switch (String(branchStatus || "").toLowerCase()) {
       case "resolved":
@@ -2100,6 +2128,12 @@
     }
     trackerNextEl.hidden = !trackerSecondaryDetail;
     trackerNextEl.textContent = trackerSecondaryDetail;
+    if (trackerTimeEl) {
+      const sessionTime = state.session?.lastEventAt || state.session?.updatedAt || state.session?.created || "";
+      const timeText = formatTrackerTime(sessionTime);
+      trackerTimeEl.hidden = !timeText;
+      trackerTimeEl.textContent = timeText;
+    }
     if (trackerToggleBtn) {
       trackerToggleBtn.hidden = true;
     }
@@ -2162,6 +2196,46 @@
       trackerBackBtn.title = "";
     }
     renderTaskList(state);
+    renderTrackerDetail(state.session?.taskCard);
+  }
+
+  function renderTrackerDetail(taskCard) {
+    if (!trackerDetailEl) return;
+    const goal = taskCard?.goal || "";
+    const showGoal = Boolean(goal);
+    if (trackerGoalValEl) trackerGoalValEl.textContent = goal;
+    if (trackerGoalRowEl) trackerGoalRowEl.hidden = !showGoal;
+
+    const conclusions = Array.isArray(taskCard?.knownConclusions) ? taskCard.knownConclusions : [];
+    if (trackerConclusionsListEl) {
+      trackerConclusionsListEl.innerHTML = "";
+      conclusions.forEach((c) => {
+        const item = document.createElement("div");
+        item.className = "quest-tracker-detail-item";
+        item.textContent = c;
+        trackerConclusionsListEl.appendChild(item);
+      });
+    }
+    if (trackerConclusionsRowEl) trackerConclusionsRowEl.hidden = conclusions.length === 0;
+
+    const memory = Array.isArray(taskCard?.memory) ? taskCard.memory : [];
+    if (trackerMemoryListEl) {
+      trackerMemoryListEl.innerHTML = "";
+      memory.forEach((m) => {
+        const item = document.createElement("div");
+        item.className = "quest-tracker-detail-item";
+        item.textContent = m;
+        trackerMemoryListEl.appendChild(item);
+      });
+    }
+    if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = memory.length === 0;
+
+    const hasAny = showGoal || conclusions.length > 0 || memory.length > 0;
+    if (trackerDetailToggleBtn) {
+      trackerDetailToggleBtn.hidden = !hasAny;
+      trackerDetailToggleBtn.textContent = trackerDetailExpanded ? "详情 ▾" : "详情 ▸";
+    }
+    trackerDetailEl.hidden = !hasAny || !trackerDetailExpanded;
   }
 
   function renderPathPanel() {
@@ -2496,6 +2570,11 @@
     returnToParentSession();
   });
 
+  trackerDetailToggleBtn?.addEventListener("click", () => {
+    trackerDetailExpanded = !trackerDetailExpanded;
+    renderTracker();
+  });
+
   trackerCloseBtn?.addEventListener("click", async () => {
     const state = deriveQuestState();
     const branchStatus = String(state.branchStatus || "").toLowerCase();
@@ -2577,6 +2656,255 @@
     if (!isMobileQuestTracker()) return;
   });
 
+  // ── Commit Tree ──────────────────────────────────────────────────
+
+  const commitTreeBtn = document.getElementById("commitTreeBtn");
+  const commitTreeRail = document.getElementById("commitTreeRail");
+  const commitTreeBackdrop = document.getElementById("commitTreeBackdrop");
+  const commitTreeCloseBtn = document.getElementById("commitTreeCloseBtn");
+  const commitTreeInner = document.getElementById("commitTreeInner");
+
+  let commitTreeOpen = false;
+  let commitTreeFetchInFlight = null;
+
+  function setCommitTreeOpen(next) {
+    commitTreeOpen = next === true;
+    if (commitTreeRail) {
+      commitTreeRail.hidden = false;
+      commitTreeRail.classList.toggle("is-open", commitTreeOpen);
+      commitTreeRail.setAttribute("aria-hidden", commitTreeOpen ? "false" : "true");
+    }
+    if (commitTreeBackdrop) {
+      commitTreeBackdrop.hidden = !commitTreeOpen;
+    }
+    if (commitTreeBtn) {
+      commitTreeBtn.setAttribute("aria-expanded", commitTreeOpen ? "true" : "false");
+    }
+    document.body?.classList?.toggle?.("commit-tree-open", commitTreeOpen);
+    if (commitTreeOpen) {
+      renderCommitTree();
+    }
+  }
+
+  // branch expansion state: branchSessionId → boolean
+  let commitTreeExpanded = new Map();
+
+  function buildCommitItem(commit, targetSessionId, currentSessionId) {
+    const el = document.createElement("div");
+    el.className = "commit-tree-commit" + (targetSessionId === currentSessionId ? "" : "");
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
+
+    const timeEl = document.createElement("span");
+    timeEl.className = "commit-tree-commit-seq";
+    timeEl.textContent = formatTrackerTime(commit.timestamp) || `#${commit.seq}`;
+
+    const previewEl = document.createElement("span");
+    previewEl.className = "commit-tree-commit-preview";
+    previewEl.textContent = commit.preview || "(message)";
+
+    el.appendChild(timeEl);
+    el.appendChild(previewEl);
+
+    el.addEventListener("click", () => {
+      if (typeof attachSession === "function") {
+        attachSession(targetSessionId, null);
+      }
+      const doScroll = () => {
+        const msgEl = document.querySelector(`.msg-user[data-source-seq="${commit.seq}"]`);
+        if (msgEl) msgEl.scrollIntoView({ block: "start", behavior: "smooth" });
+      };
+      if (targetSessionId === focusedSessionId) {
+        doScroll();
+      } else {
+        setTimeout(doScroll, 400);
+      }
+    });
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") el.click(); });
+    return el;
+  }
+
+  function buildBranchCard(item, currentSessionId) {
+    const isExpanded = commitTreeExpanded.get(item.branchSessionId) === true;
+    const isActive = item.branchSessionId === currentSessionId;
+    const isMerged = item.status === "merged";
+
+    const card = document.createElement("div");
+    card.className = "commit-tree-branch-card"
+      + (isExpanded ? " is-expanded" : "")
+      + (isActive ? " is-current" : "")
+      + (isMerged ? " is-merged" : "");
+
+    const header = document.createElement("div");
+    header.className = "commit-tree-branch-card-header";
+    header.setAttribute("role", "button");
+    header.setAttribute("tabindex", "0");
+
+    const arrow = document.createElement("span");
+    arrow.className = "commit-tree-branch-arrow";
+    arrow.textContent = isExpanded ? "▾" : "▸";
+
+    const label = document.createElement("span");
+    label.className = "commit-tree-branch-label";
+    label.textContent = isMerged ? "已收束" : "branch";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "commit-tree-branch-name";
+    nameSpan.textContent = clipText(item.name, 36);
+
+    header.appendChild(arrow);
+    header.appendChild(label);
+    header.appendChild(nameSpan);
+    card.appendChild(header);
+
+    // Merge summary (shown inline for merged branches, above commits)
+    if (isMerged && item.broughtBack) {
+      const mergedSummary = document.createElement("div");
+      mergedSummary.className = "commit-tree-branch-merged-summary";
+      mergedSummary.textContent = item.broughtBack;
+      card.appendChild(mergedSummary);
+    }
+
+    // Commits list (collapsed by default)
+    const commitsEl = document.createElement("div");
+    commitsEl.className = "commit-tree-branch-commits";
+    commitsEl.hidden = !isExpanded;
+
+    if (item.commits && item.commits.length > 0) {
+      for (const commit of item.commits) {
+        commitsEl.appendChild(buildCommitItem(commit, item.branchSessionId, currentSessionId));
+      }
+    } else {
+      const empty = document.createElement("div");
+      empty.className = "commit-tree-empty";
+      empty.textContent = "暂无消息";
+      commitsEl.appendChild(empty);
+    }
+    card.appendChild(commitsEl);
+
+    // Toggle expand on header click
+    header.addEventListener("click", () => {
+      const next = !commitTreeExpanded.get(item.branchSessionId);
+      commitTreeExpanded.set(item.branchSessionId, next);
+      arrow.textContent = next ? "▾" : "▸";
+      commitsEl.hidden = !next;
+      card.classList.toggle("is-expanded", next);
+    });
+    header.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") header.click(); });
+
+    // Click on name navigates to branch session
+    nameSpan.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (typeof attachSession === "function") attachSession(item.branchSessionId, null);
+    });
+
+    return card;
+  }
+
+  function buildMergeItem(item) {
+    const el = document.createElement("div");
+    el.className = "commit-tree-merge";
+
+    const header = document.createElement("div");
+    header.className = "commit-tree-merge-header";
+
+    const icon = document.createElement("span");
+    icon.className = "commit-tree-merge-icon";
+    icon.textContent = "↩";
+
+    const text = document.createElement("span");
+    text.className = "commit-tree-merge-text";
+    text.textContent = `${clipText(item.branchTitle, 28)} 已收束`;
+
+    const timeEl = document.createElement("span");
+    timeEl.className = "commit-tree-merge-time";
+    timeEl.textContent = formatTrackerTime(item.timestamp);
+
+    header.appendChild(icon);
+    header.appendChild(text);
+    header.appendChild(timeEl);
+    el.appendChild(header);
+
+    if (item.broughtBack) {
+      const body = document.createElement("div");
+      body.className = "commit-tree-merge-body";
+      body.textContent = item.broughtBack;
+      el.appendChild(body);
+    }
+
+    return el;
+  }
+
+  async function renderCommitTree() {
+    if (!commitTreeInner) return;
+    const sessionId = focusedSessionId;
+    if (!sessionId) {
+      commitTreeInner.innerHTML = "";
+      const empty = document.createElement("div");
+      empty.className = "commit-tree-empty";
+      empty.textContent = "没有活跃会话";
+      commitTreeInner.appendChild(empty);
+      return;
+    }
+
+    if (commitTreeFetchInFlight) return;
+    commitTreeFetchInFlight = fetch(`/api/workbench/sessions/${encodeURIComponent(sessionId)}/commit-tree`)
+      .then((r) => r.json())
+      .then((data) => {
+        commitTreeInner.innerHTML = "";
+        if (!data?.items || data.items.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "commit-tree-empty";
+          empty.textContent = "暂无会话记录";
+          commitTreeInner.appendChild(empty);
+          return;
+        }
+
+        // Session header
+        const sessionHeader = document.createElement("div");
+        sessionHeader.className = "commit-tree-session-header";
+        sessionHeader.textContent = clipText(data.name || "主线", 40);
+        commitTreeInner.appendChild(sessionHeader);
+
+        const listEl = document.createElement("div");
+        listEl.className = "commit-tree-items";
+
+        for (const item of data.items) {
+          if (item.type === "commit") {
+            listEl.appendChild(buildCommitItem(item, data.sessionId, sessionId));
+          } else if (item.type === "branch") {
+            listEl.appendChild(buildBranchCard(item, sessionId));
+          } else if (item.type === "merge") {
+            listEl.appendChild(buildMergeItem(item));
+          }
+        }
+
+        commitTreeInner.appendChild(listEl);
+      })
+      .catch(() => {
+        commitTreeInner.innerHTML = "";
+        const empty = document.createElement("div");
+        empty.className = "commit-tree-empty";
+        empty.textContent = "加载失败，请重试";
+        commitTreeInner.appendChild(empty);
+      })
+      .finally(() => {
+        commitTreeFetchInFlight = null;
+      });
+  }
+
+  if (commitTreeBtn) {
+    commitTreeBtn.hidden = false;
+    commitTreeBtn.addEventListener("click", () => setCommitTreeOpen(!commitTreeOpen));
+  }
+  commitTreeBackdrop?.addEventListener("click", () => setCommitTreeOpen(false));
+  commitTreeCloseBtn?.addEventListener("click", () => setCommitTreeOpen(false));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && commitTreeOpen) setCommitTreeOpen(false);
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+
   window.MelodySyncWorkbench = {
     surfaceMode: "quest_tracker",
     refresh: refreshSnapshot,
@@ -2600,6 +2928,9 @@
     closeTaskMapDrawer: () => setTaskMapDrawerExpanded(false),
     toggleTaskMapDrawer: () => setTaskMapDrawerExpanded(!isTaskMapExpanded()),
     isTaskMapDrawerOpen: isMobileTaskMapDrawerOpen,
+    openCommitTree: () => setCommitTreeOpen(true),
+    closeCommitTree: () => setCommitTreeOpen(false),
+    refreshCommitTree: () => { if (commitTreeOpen) renderCommitTree(); },
   };
 
   renderTracker();

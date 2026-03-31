@@ -29,6 +29,7 @@
   <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync</h1>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
+  <button class="header-commit-tree-btn" id="commitTreeBtn" type="button" aria-label="会话树" title="会话树" hidden>树</button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
 </div>
@@ -69,6 +70,21 @@
               <div class="quest-tracker-branch-title" id="questTrackerBranchTitle"></div>
             </div>
             <div class="quest-tracker-next" id="questTrackerNext" hidden></div>
+            <div class="quest-tracker-time" id="questTrackerTime" hidden></div>
+            <div class="quest-tracker-detail" id="questTrackerDetail" hidden>
+              <div class="quest-tracker-detail-row" id="questTrackerGoalRow" hidden>
+                <span class="quest-tracker-detail-label">目标</span>
+                <span class="quest-tracker-detail-value" id="questTrackerGoalVal"></span>
+              </div>
+              <div class="quest-tracker-detail-row" id="questTrackerConclusionsRow" hidden>
+                <span class="quest-tracker-detail-label">结论</span>
+                <div class="quest-tracker-detail-list" id="questTrackerConclusionsList"></div>
+              </div>
+              <div class="quest-tracker-detail-row" id="questTrackerMemoryRow" hidden>
+                <span class="quest-tracker-detail-label">记忆</span>
+                <div class="quest-tracker-detail-list" id="questTrackerMemoryList"></div>
+              </div>
+            </div>
           </div>
           <div class="quest-tracker-footer" id="questTrackerFooter">
             <div class="quest-tracker-status" id="questTrackerStatus" hidden>
@@ -76,6 +92,7 @@
               <span class="quest-tracker-status-text" id="questTrackerStatusText"></span>
             </div>
             <div class="quest-tracker-actions" id="questTrackerActions">
+              <button class="quest-tracker-detail-toggle" id="questTrackerDetailToggle" type="button" hidden>详情 ▸</button>
               <button class="quest-tracker-toggle" id="questTrackerToggleBtn" type="button" hidden>子任务</button>
               <button class="quest-tracker-btn" id="questTrackerCloseBtn" type="button" hidden>结束子任务</button>
               <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerAltBtn" type="button" hidden>完成但不回主线</button>
@@ -134,6 +151,14 @@
 </div>
 
 <button class="task-map-drawer-backdrop" id="taskMapDrawerBackdrop" hidden aria-label="关闭任务地图"></button>
+<aside class="commit-tree-rail" id="commitTreeRail" hidden aria-label="会话树" aria-hidden="true">
+  <div class="commit-tree-header">
+    <span class="commit-tree-title">会话树</span>
+    <button class="commit-tree-close-btn" id="commitTreeCloseBtn" type="button" aria-label="关闭会话树">✕</button>
+  </div>
+  <div class="commit-tree-inner" id="commitTreeInner"></div>
+</aside>
+<button class="commit-tree-backdrop" id="commitTreeBackdrop" hidden aria-label="关闭会话树"></button>
 </div>
 <div class="gesture-pill" id="gesturePill" aria-hidden="true"></div>
 

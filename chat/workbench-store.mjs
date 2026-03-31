@@ -18,7 +18,7 @@ import {
   submitHttpMessage,
   updateSessionTaskCard,
 } from './session-manager.mjs';
-import { appendEvent } from './history.mjs';
+import { appendEvent, loadHistory, getHistorySnapshot } from './history.mjs';
 import { messageEvent, statusEvent } from './normalizer.mjs';
 import { createSessionListItem } from './session-api-shapes.mjs';
 import { normalizeSessionTaskCard } from './session-task-card.mjs';
@@ -658,6 +658,7 @@ function upsertSessionContext(state, payload = {}) {
     checkpointSummary: normalizeNullableText(payload.checkpointSummary),
     resumeHint: normalizeNullableText(payload.resumeHint),
     nextStep: normalizeNullableText(payload.nextStep),
+    forkAtSeq: Number.isInteger(payload.forkAtSeq) ? payload.forkAtSeq : (existing?.forkAtSeq ?? null),
     snoozedUntil: normalizeNullableText(payload.snoozedUntil),
     createdAt: existing?.createdAt || now,
     updatedAt: now,
@@ -1392,6 +1393,7 @@ export async function createBranchFromSession(sessionId, payload = {}) {
       throw new Error('Unable to create branch session');
     }
 
+    const sourceSnap = await getHistorySnapshot(sourceSession.id);
     const branchContext = {
       id: createId('branch'),
       projectId: project.id,
@@ -1409,6 +1411,7 @@ export async function createBranchFromSession(sessionId, payload = {}) {
       checkpointSummary: normalizeNullableText(payload.checkpointSummary) || activeContext.resumeHint || activeContext.checkpointSummary || '',
       resumeHint: normalizeNullableText(payload.checkpointSummary) || activeContext.nextStep || activeContext.resumeHint || '',
       nextStep: normalizeNullableText(payload.nextStep),
+      forkAtSeq: sourceSnap.latestSeq || 0,
       snoozedUntil: '',
       createdAt: now,
       updatedAt: now,
@@ -1676,4 +1679,143 @@ export async function writeProjectToObsidian(projectId, payload = {}) {
       writtenFiles,
     };
   });
+}
+
+export async function getSessionCommitItems(sessionId) {
+  const normalizedSessionId = normalizeNullableText(sessionId);
+  if (!normalizedSessionId) {
+    throw new Error('sessionId is required');
+  }
+
+  const session = await getSession(normalizedSessionId);
+  if (!session) {
+    throw new Error('Session not found');
+  }
+
+  // Find the root session (main line)
+  const rootSessionId = normalizeNullableText(session.rootSessionId) || normalizedSessionId;
+  const rootSession = rootSessionId !== normalizedSessionId
+    ? (await getSession(rootSessionId) || session)
+    : session;
+
+  const state = await loadState();
+  const allSessions = await listSessions({ includeArchived: true });
+  const sessionMap = new Map(allSessions.map((s) => [s.id, s]));
+
+  // Load main line events
+  const mainEvents = await loadHistory(rootSessionId, { includeBodies: false });
+
+  // Build commit items from main line user messages
+  const commitItems = mainEvents
+    .filter((ev) => ev.type === 'message' && ev.role === 'user')
+    .map((ev) => ({
+      type: 'commit',
+      seq: ev.seq,
+      preview: trimText(typeof ev.content === 'string' ? ev.content : '').slice(0, 60) || '(message)',
+      timestamp: ev.timestamp ? new Date(ev.timestamp).toISOString() : null,
+    }));
+
+  // Build merge items from main line merge_note assistant messages
+  const mergeItems = mainEvents
+    .filter((ev) => ev.type === 'message' && ev.role === 'assistant' && ev.extra?.messageKind === 'merge_note')
+    .map((ev) => ({
+      type: 'merge',
+      seq: ev.seq,
+      timestamp: ev.timestamp ? new Date(ev.timestamp).toISOString() : null,
+      branchSessionId: normalizeNullableText(ev.extra?.sourceBranchSessionId),
+      branchTitle: normalizeNullableText(ev.extra?.branchTitle) || '支线',
+      broughtBack: normalizeNullableText(ev.extra?.broughtBack),
+    }));
+
+  // Index merge items by branchSessionId for quick lookup
+  const mergeByBranchId = new Map(
+    mergeItems
+      .filter((m) => m.branchSessionId)
+      .map((m) => [m.branchSessionId, m])
+  );
+
+  // Build branch items from branchContexts
+  const branchItems = [];
+  for (const ctx of state.branchContexts || []) {
+    const parentId = normalizeNullableText(ctx.parentSessionId);
+    if (parentId !== rootSessionId) continue;
+    const branchSess = sessionMap.get(normalizeNullableText(ctx.sessionId));
+    if (!branchSess) continue;
+
+    // Load branch commits
+    let branchCommits = [];
+    try {
+      const branchEvents = await loadHistory(branchSess.id, { includeBodies: false });
+      branchCommits = branchEvents
+        .filter((ev) => ev.type === 'message' && ev.role === 'user')
+        .map((ev) => ({
+          seq: ev.seq,
+          preview: trimText(typeof ev.content === 'string' ? ev.content : '').slice(0, 60) || '(message)',
+          timestamp: ev.timestamp ? new Date(ev.timestamp).toISOString() : null,
+        }));
+    } catch {
+      // session history may not exist yet
+    }
+
+    const mergeItem = mergeByBranchId.get(branchSess.id);
+    const status = normalizeBranchContextStatus(ctx.status);
+    const broughtBack = mergeItem?.broughtBack
+      || normalizeNullableText(ctx.checkpointSummary)
+      || null;
+
+    // For merged branches without a merge_note event, synthesize a merge item
+    if (status === 'merged' && !mergeItem) {
+      const forkSeq = Number.isInteger(ctx.forkAtSeq) ? ctx.forkAtSeq : null;
+      mergeItems.push({
+        type: 'merge',
+        seq: forkSeq != null ? forkSeq + 1 : null,
+        timestamp: normalizeNullableText(ctx.updatedAt),
+        branchSessionId: branchSess.id,
+        branchTitle: normalizeNullableText(branchSess.name) || '支线',
+        broughtBack,
+        _synthetic: true,
+      });
+    }
+
+    branchItems.push({
+      type: 'branch',
+      branchSessionId: branchSess.id,
+      name: normalizeNullableText(branchSess.name) || 'Untitled',
+      forkAtSeq: Number.isInteger(ctx.forkAtSeq) ? ctx.forkAtSeq : null,
+      status,
+      broughtBack,
+      commits: branchCommits,
+    });
+  }
+
+  // Merge all items and sort by seq
+  // branch/merge items are placed after their anchor seq
+  // Items without forkAtSeq go to the end (seq = Infinity)
+  const allItems = [
+    ...commitItems,
+    ...mergeItems,
+    ...branchItems.map((b) => ({
+      ...b,
+      _sortSeq: b.forkAtSeq != null ? b.forkAtSeq + 0.5 : Infinity,
+    })),
+  ].map((item) => ({
+    ...item,
+    _sortSeq: item._sortSeq ?? item.seq ?? Infinity,
+  }));
+
+  allItems.sort((a, b) => {
+    if (a._sortSeq !== b._sortSeq) return a._sortSeq - b._sortSeq;
+    // Within same anchor: commits first, then branches, then merges
+    const order = { commit: 0, branch: 1, merge: 2 };
+    return (order[a.type] ?? 3) - (order[b.type] ?? 3);
+  });
+
+  // Strip internal sort key
+  const items = allItems.map(({ _sortSeq, ...rest }) => rest);
+
+  return {
+    sessionId: rootSessionId,
+    name: normalizeNullableText(rootSession.name) || 'Untitled',
+    items,
+  };
 }
