@@ -2592,6 +2592,15 @@ button.quest-task-flow-node {
 
 .quest-task-list {
   padding-top: 0;
+  scrollbar-gutter: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.quest-task-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .quest-task-list.is-flow-board .quest-task-flow-scroll {
