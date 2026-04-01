@@ -192,6 +192,7 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/workbench-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/compose\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/gestures\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/hooks-ui\.js(?:\?v=[^"]*)?"/);
     assert.doesNotMatch(page.text, /<script src="\/chat\/voice-input\.js(?:\?v=[^"]*)?"/);
 
     assert.match(page.text, /<script src="\/chat\/init\.js(?:\?v=[^"]*)?"/);
@@ -357,7 +358,7 @@ async function main() {
       'split asset should use safe revalidation caching',
     );
     assert.ok(splitAsset.headers.etag, 'split asset should expose an ETag');
-    assert.match(splitAsset.text, /const bootstrapStore = window\.RemoteLabBootstrap;/);
+    assert.match(splitAsset.text, /const bootstrapStore = window\.MelodySyncBootstrap;/);
     assert.match(splitAsset.text, /const buildInfo = bootstrapStore\?\.getBuildInfo\?\.\(\) \|\| \{\};/);
 
     const sessionHttpHelpersAsset = await request(port, 'GET', '/chat/session-http-helpers.js');
@@ -457,14 +458,14 @@ async function main() {
       'session state model should use safe revalidation caching',
     );
     assert.ok(stateModelAsset.headers.etag, 'session state model asset should expose an ETag');
-    assert.match(stateModelAsset.text, /RemoteLabSessionStateModel/);
+    assert.match(stateModelAsset.text, /MelodySyncSessionStateModel/);
 
     const layoutToolingAsset = await request(port, 'GET', '/chat/layout-tooling.js');
     assert.equal(layoutToolingAsset.status, 200, 'layout tooling asset should load');
     assert.match(layoutToolingAsset.text, /document\.documentElement\.style\.setProperty\("--app-height"/);
     assert.match(layoutToolingAsset.text, /document\.documentElement\.style\.setProperty\("--keyboard-inset-height"/);
     assert.match(layoutToolingAsset.text, /function requestLayoutPass\(/);
-    assert.match(layoutToolingAsset.text, /window\.RemoteLabLayout = \{/);
+    assert.match(layoutToolingAsset.text, /window\.MelodySyncLayout = \{/);
     assert.match(layoutToolingAsset.text, /window\.visualViewport\?\.addEventListener\("resize", \(\) => requestLayoutPass\("visual-viewport-resize"\)\)/);
     assert.doesNotMatch(layoutToolingAsset.text, /window\.visualViewport\?\.addEventListener\("scroll"/);
     assert.match(layoutToolingAsset.text, /function focusComposer\(/);
@@ -494,6 +495,32 @@ async function main() {
     assert.match(sessionListUiAsset.text, /function attachSession\(/);
     assert.match(sessionListUiAsset.text, /focusComposer\(\{ preventScroll: true \}\)/);
 
+    const hooksUiAsset = await request(port, 'GET', '/chat/hooks-ui.js');
+    assert.equal(hooksUiAsset.status, 200, 'hooks ui asset should load');
+    assert.match(hooksUiAsset.text, /fetch\('\/api\/hooks'/);
+    assert.match(hooksUiAsset.text, /document\.getElementById\('hooksPanelBody'\)/);
+
+    const hooksApi = await request(port, 'GET', '/api/hooks');
+    assert.equal(hooksApi.status, 200, 'hooks api should list registered hooks');
+    const hooksApiJson = JSON.parse(hooksApi.text);
+    assert.deepEqual(
+      hooksApiJson.events,
+      ['session.created', 'run.started', 'run.completed', 'run.failed'],
+      'hooks api should expose the supported lifecycle events',
+    );
+    const hookIds = hooksApiJson.hooks.map((hook) => hook.id);
+    for (const expectedHookId of [
+      'builtin.push-notification',
+      'builtin.email-completion',
+      'builtin.workbench-sync',
+      'builtin.workbench-sync-on-fail',
+    ]) {
+      assert.ok(
+        hookIds.includes(expectedHookId),
+        `hooks api should expose ${expectedHookId} for the settings panel`,
+      );
+    }
+
     const sidebarUiAsset = await request(port, 'GET', '/chat/sidebar-ui.js');
     assert.equal(sidebarUiAsset.status, 200, 'sidebar ui asset should load');
     assert.match(sidebarUiAsset.text, /function openSidebar\(/);
@@ -506,7 +533,7 @@ async function main() {
     const composeAsset = await request(port, 'GET', '/chat/compose.js');
     assert.equal(composeAsset.status, 200, 'compose asset should load');
     assert.match(composeAsset.text, /focusComposer\(\{ force: true, preventScroll: true \}\)/);
-    assert.match(composeAsset.text, /window\.RemoteLabLayout\?\.subscribe/);
+    assert.match(composeAsset.text, /window\.MelodySyncLayout\?\.subscribe/);
 
     const voiceInputAsset = await request(port, 'GET', '/chat/voice-input.js');
     assert.equal(voiceInputAsset.status, 404, 'removed voice input asset should no longer be served');

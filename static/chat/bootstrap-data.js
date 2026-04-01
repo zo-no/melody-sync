@@ -44,5 +44,5 @@
     },
   };
 
-  root.RemoteLabBootstrap = api;
+  root.MelodySyncBootstrap = api;
 })(window);

@@ -3,7 +3,7 @@ import {
   HOOK_EVENTS,
   listHooks,
   setHookEnabled,
-} from '../session-hooks.mjs';
+} from '../session-hook-registry.mjs';
 
 export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) {
   // GET /api/hooks — list all registered hooks

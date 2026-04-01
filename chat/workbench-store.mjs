@@ -11,13 +11,13 @@ import {
   WORKBENCH_SUMMARIES_FILE,
 } from '../lib/config.mjs';
 import {
-  createSession,
-  getSession,
-  listSessions,
-  setSessionBranchCandidateSuppressed,
-  submitHttpMessage,
-  updateSessionTaskCard,
-} from './session-manager.mjs';
+  createWorkbenchSession,
+  getWorkbenchSession,
+  listWorkbenchSessions,
+  setWorkbenchSessionBranchCandidateSuppressed,
+  submitWorkbenchSessionMessage,
+  updateWorkbenchSessionTaskCard,
+} from './workbench-session-ports.mjs';
 import { appendEvent, loadHistory, getHistorySnapshot } from './history.mjs';
 import { messageEvent, statusEvent } from './normalizer.mjs';
 import { createSessionListItem } from './session-api-shapes.mjs';
@@ -875,7 +875,7 @@ function buildBranchSeedPrompt({ project, node, goal, carryover = null }) {
 
 export async function getWorkbenchSnapshot() {
   const state = await loadState();
-  const sessions = await listSessions({ includeArchived: true });
+  const sessions = await listWorkbenchSessions({ includeArchived: true });
   return buildSnapshot(state, sessions);
 }
 
@@ -885,7 +885,7 @@ export async function getWorkbenchTrackerSnapshot(sessionId) {
     throw new Error('sessionId is required');
   }
   const state = await loadState();
-  const sessions = await listSessions({ includeArchived: true });
+  const sessions = await listWorkbenchSessions({ includeArchived: true });
   const taskClusters = buildTaskClusters(state, sessions);
   const cluster = taskClusters.find((entry) => (
     entry?.mainSessionId === normalizedSessionId
@@ -1022,7 +1022,7 @@ export async function syncSessionContinuityFromSession(sessionLike, options = {}
   return WORKBENCH_QUEUE(sessionId || '__global__', async () => {
     const session = sessionLike && typeof sessionLike === 'object'
       ? sessionLike
-      : await getSession(sessionId);
+      : await getWorkbenchSession(sessionId);
     if (!session?.id) {
       throw new Error('Session not found');
     }
@@ -1042,7 +1042,7 @@ export async function setSessionReminderSnooze(sessionId, payload = {}) {
       throw new Error('sessionId is required');
     }
 
-    const session = await getSession(normalizedSessionId);
+    const session = await getWorkbenchSession(normalizedSessionId);
     if (!session) {
       throw new Error('Session not found');
     }
@@ -1248,7 +1248,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
     if (!sourceSessionId) {
       throw new Error('sourceSessionId is required');
     }
-    const sourceSession = await getSession(sourceSessionId);
+    const sourceSession = await getWorkbenchSession(sourceSessionId);
     if (!sourceSession) {
       throw new Error('Source session not found');
     }
@@ -1261,7 +1261,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
       nextStep: normalizeNullableText(node.nextAction),
       projectTitle: project.title,
     });
-    const branchSession = await createSession(
+    const branchSession = await createWorkbenchSession(
       sourceSession.folder,
       sourceSession.tool,
       `Branch · ${node.title}`,
@@ -1315,7 +1315,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
     };
     state.branchContexts.push(branchContext);
     await saveState(state);
-    await updateSessionTaskCard(branchSession.id, buildSeedBranchTaskCard({
+    const seededBranchSession = await updateWorkbenchSessionTaskCard(branchSession.id, buildSeedBranchTaskCard({
       goal,
       summary: carryover.carryoverSummary,
       mainGoal: carryover.mainGoal || branchContext.mainGoal,
@@ -1333,7 +1333,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
     });
 
     if (payload.seedMessage !== false) {
-      await submitHttpMessage(branchSession.id, buildBranchSeedPrompt({ project, node, goal, carryover }), [], {
+      await submitWorkbenchSessionMessage(branchSession.id, buildBranchSeedPrompt({ project, node, goal, carryover }), [], {
         requestId: createId('branch_seed'),
         ...(sourceSession.model ? { model: sourceSession.model } : {}),
         ...(sourceSession.effort ? { effort: sourceSession.effort } : {}),
@@ -1342,7 +1342,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
     }
 
     return {
-      session: await getSession(branchSession.id) || branchSession,
+      session: seededBranchSession || await getWorkbenchSession(branchSession.id) || branchSession,
       branchContext,
     };
   });
@@ -1350,7 +1350,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
 
 export async function createBranchFromSession(sessionId, payload = {}) {
   return WORKBENCH_QUEUE(async () => {
-    const sourceSession = await getSession(sessionId);
+    const sourceSession = await getWorkbenchSession(sessionId);
     if (!sourceSession) {
       throw new Error('Source session not found');
     }
@@ -1382,7 +1382,7 @@ export async function createBranchFromSession(sessionId, payload = {}) {
       nextStep: normalizeNullableText(payload.nextStep) || activeContext.nextStep || activeContext.resumeHint || '',
       projectTitle: project.title,
     });
-    const branchSession = await createSession(
+    const branchSession = await createWorkbenchSession(
       sourceSession.folder,
       sourceSession.tool,
       `Branch · ${goal}`,
@@ -1437,7 +1437,7 @@ export async function createBranchFromSession(sessionId, payload = {}) {
     };
     state.branchContexts.push(branchContext);
     await saveState(state);
-    await updateSessionTaskCard(branchSession.id, buildSeedBranchTaskCard({
+    const seededBranchSession = await updateWorkbenchSessionTaskCard(branchSession.id, buildSeedBranchTaskCard({
       goal,
       summary: carryover.carryoverSummary,
       mainGoal: carryover.mainGoal || branchContext.mainGoal,
@@ -1455,7 +1455,7 @@ export async function createBranchFromSession(sessionId, payload = {}) {
     });
 
     return {
-      session: await getSession(branchSession.id) || branchSession,
+      session: seededBranchSession || await getWorkbenchSession(branchSession.id) || branchSession,
       branchContext,
     };
   });
@@ -1463,7 +1463,7 @@ export async function createBranchFromSession(sessionId, payload = {}) {
 
 export async function mergeBranchSessionBackToMain(sessionId, payload = {}) {
   return WORKBENCH_QUEUE(async () => {
-    const branchSession = await getSession(sessionId);
+    const branchSession = await getWorkbenchSession(sessionId);
     if (!branchSession) {
       throw new Error('Branch session not found');
     }
@@ -1480,7 +1480,7 @@ export async function mergeBranchSessionBackToMain(sessionId, payload = {}) {
       throw new Error('Parent session not found');
     }
 
-    const parentSession = await getSession(parentSessionId);
+    const parentSession = await getWorkbenchSession(parentSessionId);
     if (!parentSession) {
       throw new Error('Parent session not found');
     }
@@ -1517,7 +1517,7 @@ export async function mergeBranchSessionBackToMain(sessionId, payload = {}) {
       broughtBack,
       nextStep,
     });
-    const updatedParentSession = await updateSessionTaskCard(parentSessionId, mergedParentTaskCard) || parentSession;
+    const updatedParentSession = await updateWorkbenchSessionTaskCard(parentSessionId, mergedParentTaskCard) || parentSession;
 
     await appendEvent(parentSessionId, messageEvent('assistant', mergeContent, undefined, {
       messageKind: 'merge_note',
@@ -1542,7 +1542,7 @@ export async function mergeBranchSessionBackToMain(sessionId, payload = {}) {
     await saveState(state);
 
     return {
-      parentSession: await getSession(parentSessionId) || updatedParentSession,
+      parentSession: await getWorkbenchSession(parentSessionId) || updatedParentSession,
       mergeNote: {
         mergeType,
         branchTitle,
@@ -1555,7 +1555,7 @@ export async function mergeBranchSessionBackToMain(sessionId, payload = {}) {
 
 export async function setBranchSessionStatus(sessionId, payload = {}) {
   return WORKBENCH_QUEUE(async () => {
-    const branchSession = await getSession(sessionId);
+    const branchSession = await getWorkbenchSession(sessionId);
     if (!branchSession) {
       throw new Error('Branch session not found');
     }
@@ -1586,14 +1586,14 @@ export async function setBranchSessionStatus(sessionId, payload = {}) {
     await saveState(state);
 
     return {
-      session: await getSession(sessionId) || branchSession,
+      session: await getWorkbenchSession(sessionId) || branchSession,
       branchContext: state.branchContexts[branchIndex],
     };
   });
 }
 
 export async function setBranchCandidateSuppressed(sessionId, branchTitle, suppressed = true) {
-  const session = await setSessionBranchCandidateSuppressed(sessionId, branchTitle, suppressed);
+  const session = await setWorkbenchSessionBranchCandidateSuppressed(sessionId, branchTitle, suppressed);
   return { session };
 }
 
@@ -1758,7 +1758,7 @@ export async function getSessionCommitItems(sessionId) {
     throw new Error('sessionId is required');
   }
 
-  const session = await getSession(normalizedSessionId);
+  const session = await getWorkbenchSession(normalizedSessionId);
   if (!session) {
     throw new Error('Session not found');
   }
@@ -1766,11 +1766,11 @@ export async function getSessionCommitItems(sessionId) {
   // Find the root session (main line)
   const rootSessionId = normalizeNullableText(session.rootSessionId) || normalizedSessionId;
   const rootSession = rootSessionId !== normalizedSessionId
-    ? (await getSession(rootSessionId) || session)
+    ? (await getWorkbenchSession(rootSessionId) || session)
     : session;
 
   const state = await loadState();
-  const allSessions = await listSessions({ includeArchived: true });
+  const allSessions = await listWorkbenchSessions({ includeArchived: true });
   const sessionMap = new Map(allSessions.map((s) => [s.id, s]));
   const allContexts = state.branchContexts || [];
 

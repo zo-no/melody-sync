@@ -230,9 +230,14 @@ function hasMeaningfulTaskCard(card) {
     card.goal
     || card.mainGoal
     || card.summary
+    || (card.background || []).length > 0
+    || (card.rawMaterials || []).length > 0
+    || (card.assumptions || []).length > 0
     || (card.knownConclusions || []).length > 0
+    || (card.nextSteps || []).length > 0
     || (card.candidateBranches || []).length > 0
     || (card.memory || []).length > 0
+    || (card.needsFromUser || []).length > 0
   );
 }
 
@@ -250,16 +255,28 @@ export function normalizeSessionTaskCard(value) {
     value.candidateBranches || value.branchCandidates || value.sideQuests || value.sideLines,
     { maxItems: 3, maxChars: 120 },
   );
+  const background = normalizeTaskCardList(value.background || value.contextBackground || value.backgroundContext);
+  const rawMaterials = normalizeTaskCardList(value.rawMaterials || value.materials || value.inputs);
+  const assumptions = normalizeTaskCardList(value.assumptions || value.openAssumptions || value.hypotheses);
   const knownConclusions = normalizeTaskCardList(
     value.knownConclusions || value.conclusions || value.knownFindings || value.findings,
   );
+  const nextSteps = normalizeTaskCardList(value.nextSteps || value.nextActions || value.actions, {
+    maxItems: 3,
+  });
   const memory = normalizeTaskCardList(value.memory || value.userMemory || value.reusableContext || value.durableMemory);
-  const mode = normalizeTaskCardMode(
+  const needsFromUser = normalizeTaskCardList(
+    value.needsFromUser || value.userNeeds || value.pendingUserInputs,
+    { maxItems: 3 },
+  );
+  const explicitMode = normalizeTaskCardMode(
     value.mode
     || value.executionMode
     || value.projectState
     || value.projectMode,
-  ) || 'task';
+  );
+  const inferredProjectMode = rawMaterials.length >= 2 || nextSteps.length >= 2;
+  const mode = explicitMode || (inferredProjectMode ? 'project' : 'task');
 
   const normalized = {
     version: 1,
@@ -272,8 +289,13 @@ export function normalizeSessionTaskCard(value) {
     branchReason,
     checkpoint,
     candidateBranches,
+    background,
+    rawMaterials,
+    assumptions,
     knownConclusions,
+    nextSteps,
     memory,
+    needsFromUser,
   };
 
   normalized.candidateBranches = filterCandidateBranches(normalized, normalized.candidateBranches);
@@ -314,8 +336,13 @@ export function buildTaskCardPromptBlock(taskCard, options = {}) {
         normalized.branchReason ? `Branch reason: ${normalized.branchReason}` : '',
         normalized.checkpoint ? `Checkpoint: ${normalized.checkpoint}` : '',
         formatTaskCardList('Candidate branches', normalized.candidateBranches),
+        formatTaskCardList('Background', normalized.background),
+        formatTaskCardList('Raw materials', normalized.rawMaterials),
+        formatTaskCardList('Assumptions', normalized.assumptions),
         formatTaskCardList('Known conclusions', normalized.knownConclusions),
+        formatTaskCardList('Next steps', normalized.nextSteps),
         formatTaskCardList('Durable user memory', normalized.memory),
+        formatTaskCardList('Needs from user', normalized.needsFromUser),
       ].filter(Boolean).join('\n\n')
     : '';
 

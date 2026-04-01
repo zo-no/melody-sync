@@ -63,7 +63,7 @@ const context = {
         taskMapCloseCalls += 1;
       },
     },
-    remotelabT(key) {
+    melodySyncT(key) {
       return {
         'sidebar.bootstrapSession': '初始化任务',
         'sidebar.group.inbox': '收集箱',

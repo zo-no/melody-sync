@@ -173,7 +173,7 @@ function focusComposer({ force = false, preventScroll = false } = {}) {
   return true;
 }
 
-window.RemoteLabLayout = {
+window.MelodySyncLayout = {
   getState: getLayoutState,
   getViewportHeight: getViewportHeightPx,
   requestPass: requestLayoutPass,

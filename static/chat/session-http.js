@@ -27,7 +27,7 @@ function restoreOwnerSessionSelection() {
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
-    if (event.data?.type !== "remotelab:open-session") return;
+    if (event.data?.type !== "melodysync:open-session") return;
     applyNavigationState(event.data);
     window.focus();
   });
@@ -107,8 +107,8 @@ function scheduleSortSessionListButtonReset(delayMs = 1600) {
 }
 
 function getInitialInboxSessionName() {
-  const translated = typeof window?.remotelabT === "function"
-    ? window.remotelabT("sidebar.bootstrapSession")
+  const translated = typeof window?.melodySyncT === "function"
+    ? window.melodySyncT("sidebar.bootstrapSession")
     : "";
   return translated && translated !== "sidebar.bootstrapSession"
     ? translated
@@ -116,8 +116,8 @@ function getInitialInboxSessionName() {
 }
 
 function getInboxGroupLabel() {
-  const translated = typeof window?.remotelabT === "function"
-    ? window.remotelabT("sidebar.group.inbox")
+  const translated = typeof window?.melodySyncT === "function"
+    ? window.melodySyncT("sidebar.group.inbox")
     : "";
   return translated && translated !== "sidebar.group.inbox"
     ? translated
@@ -636,6 +636,9 @@ function upsertSession(session) {
   assignSessionListOrderHints(sessions, previous ? new Map([[session.id, previous]]) : null);
   sortSessionsInPlace();
   refreshAppCatalog();
+  if (typeof syncMelodySyncAppState === "function") {
+    syncMelodySyncAppState();
+  }
   return normalized;
 }
 
@@ -746,6 +749,9 @@ async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
 function applyAttachedSessionState(id, session) {
   currentSessionId = id;
   hasAttachedSession = true;
+  if (typeof syncMelodySyncAppState === "function") {
+    syncMelodySyncAppState();
+  }
   currentTokens = 0;
   contextTokens.style.display = "none";
 
@@ -1023,9 +1029,9 @@ async function setupPushNotifications() {
       { updateViaCache: "none" },
     );
     await reg.update().catch(() => {});
-    reg.installing?.postMessage({ type: "remotelab:clear-caches" });
-    reg.waiting?.postMessage({ type: "remotelab:clear-caches" });
-    reg.active?.postMessage({ type: "remotelab:clear-caches" });
+    reg.installing?.postMessage({ type: "melodysync:clear-caches" });
+    reg.waiting?.postMessage({ type: "melodysync:clear-caches" });
+    reg.active?.postMessage({ type: "melodysync:clear-caches" });
     await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
     if (existing) {

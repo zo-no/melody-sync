@@ -21,7 +21,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type !== 'remotelab:clear-caches') return;
+  if (event.data?.type !== 'melodysync:clear-caches') return;
   event.waitUntil(clearLegacyCaches());
 });
 
@@ -64,7 +64,7 @@ self.addEventListener('notificationclick', (event) => {
       const client = clientList[0];
       if (client) {
         client.postMessage({
-          type: 'remotelab:open-session',
+          type: 'melodysync:open-session',
           sessionId: target.sessionId,
           tab: target.tab,
           url: target.url,

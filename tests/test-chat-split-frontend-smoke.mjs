@@ -273,7 +273,7 @@ const context = {
       addEventListener() {},
       removeEventListener() {},
     },
-    RemoteLabSessionStateModel: {
+    MelodySyncSessionStateModel: {
       createEmptyStatus() {
         return {};
       },

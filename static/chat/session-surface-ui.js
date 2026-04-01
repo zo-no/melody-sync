@@ -1,5 +1,5 @@
 function t(key, vars) {
-  return window.remotelabT ? window.remotelabT(key, vars) : key;
+  return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
 function esc(s) {
@@ -418,26 +418,26 @@ function getSessionMetaStatusInfo(session) {
     return liveStatus;
   }
   const workflowStatus = typeof window !== "undefined"
-    && window.RemoteLabSessionStateModel
-    && typeof window.RemoteLabSessionStateModel.getWorkflowStatusInfo === "function"
-    ? window.RemoteLabSessionStateModel.getWorkflowStatusInfo(session?.workflowState)
+    && window.MelodySyncSessionStateModel
+    && typeof window.MelodySyncSessionStateModel.getWorkflowStatusInfo === "function"
+    ? window.MelodySyncSessionStateModel.getWorkflowStatusInfo(session?.workflowState)
     : null;
   return workflowStatus || liveStatus;
 }
 
 function getSessionReviewStatusInfo(session) {
   return typeof window !== "undefined"
-    && window.RemoteLabSessionStateModel
-    && typeof window.RemoteLabSessionStateModel.getSessionReviewStatusInfo === "function"
-    ? window.RemoteLabSessionStateModel.getSessionReviewStatusInfo(session)
+    && window.MelodySyncSessionStateModel
+    && typeof window.MelodySyncSessionStateModel.getSessionReviewStatusInfo === "function"
+    ? window.MelodySyncSessionStateModel.getSessionReviewStatusInfo(session)
     : null;
 }
 
 function isSessionCompleteAndReviewed(session) {
   return typeof window !== "undefined"
-    && window.RemoteLabSessionStateModel
-    && typeof window.RemoteLabSessionStateModel.isSessionCompleteAndReviewed === "function"
-    ? window.RemoteLabSessionStateModel.isSessionCompleteAndReviewed(session)
+    && window.MelodySyncSessionStateModel
+    && typeof window.MelodySyncSessionStateModel.isSessionCompleteAndReviewed === "function"
+    ? window.MelodySyncSessionStateModel.isSessionCompleteAndReviewed(session)
     : false;
 }
 

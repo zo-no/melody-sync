@@ -20,7 +20,7 @@ vm.runInNewContext(source, context, {
   filename: 'session-state-model.js',
 });
 
-const model = context.RemoteLabSessionStateModel;
+const model = context.MelodySyncSessionStateModel;
 
 assert.ok(model, 'session state model should attach to the global scope');
 

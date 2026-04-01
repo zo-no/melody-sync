@@ -1,10 +1,10 @@
 // ---- WebSocket ----
 function t(key, vars) {
-  return window.remotelabT ? window.remotelabT(key, vars) : key;
+  return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
 function renderRealtimeIcon(name, className = "") {
-  return window.RemoteLabIcons?.render(name, { className }) || "";
+  return window.MelodySyncIcons?.render(name, { className }) || "";
 }
 
 function resolveWsUrl(path) {
@@ -414,7 +414,7 @@ function getCurrentSession() {
 function handleWsMessage(msg) {
   switch (msg.type) {
     case "build_info":
-      void window.RemoteLabBuild?.applyBuildInfo?.(msg.buildInfo);
+      void window.MelodySyncBuild?.applyBuildInfo?.(msg.buildInfo);
       break;
 
     case "sessions_invalidated":

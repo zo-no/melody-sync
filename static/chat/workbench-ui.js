@@ -62,7 +62,7 @@
   let timelineExpanded = new Map();
 
   function translate(key, vars) {
-    return typeof window?.remotelabT === "function" ? window.remotelabT(key, vars) : key;
+    return typeof window?.melodySyncT === "function" ? window.melodySyncT(key, vars) : key;
   }
 
   function clipText(value, max = 120) {

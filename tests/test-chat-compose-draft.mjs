@@ -154,7 +154,7 @@ function createContext({
       return () => {};
     },
   };
-  windowTarget.RemoteLabLayout = remoteLabLayout;
+  windowTarget.MelodySyncLayout = remoteLabLayout;
   const context = {
     console: consoleMock,
     msgInput,

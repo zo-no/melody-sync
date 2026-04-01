@@ -243,7 +243,7 @@ async function runSessionLabelSuggestion(sessionMeta, onRename, options = {}) {
   }, turnText);
 
   const prompt = [
-    'You are naming a MelodySync session. Be concise and literal.',
+    'You are naming a developer session in MelodySync. Be concise and literal.',
     'Treat the display group as a flexible project-like container: usually the top-level project or recurring domain. The title should name the concrete subtask inside that group.',
     'Reuse an existing display group when the scope clearly matches. Create a new group only when the work clearly belongs to a different project or domain.',
     'The latest turn may be underspecified. Use earlier session context, scope-router hints, and existing session metadata to infer the right top-level project before naming.',

@@ -322,5 +322,5 @@ function applyNavigationState(rawState) {
   syncBrowserState({ tab: next.tab || activeTab });
 }
 function t(key, vars) {
-  return window.remotelabT ? window.remotelabT(key, vars) : key;
+  return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }

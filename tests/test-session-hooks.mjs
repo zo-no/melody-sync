@@ -33,7 +33,9 @@ try {
     pathToFileURL(join(repoRoot, 'chat/session-manager.mjs')).href
   );
 
-  // Trigger startup registration (same as chat-server.mjs does)
+  // Trigger startup registration (same as chat-server.mjs does).
+  // Run it twice to verify the registration path is idempotent.
+  await startDetachedRunObservers();
   await startDetachedRunObservers();
 
   // ── Assertions ────────────────────────────────────────────────────────────

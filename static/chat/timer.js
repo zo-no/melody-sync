@@ -1,6 +1,6 @@
 "use strict";
 
-(function initRemoteLabTimer() {
+(function initMelodySyncTimer() {
   const STORAGE_KEY = "remotelabFocusTimer";
   const DEFAULT_MINUTES = 25;
   const MIN_MINUTES = 1;
@@ -334,7 +334,7 @@
   ensureTicking();
   syncTimerUi();
 
-  window.RemoteLabTimer = {
+  window.MelodySyncTimer = {
     getState() {
       return {
         ...timerState,

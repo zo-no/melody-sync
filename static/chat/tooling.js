@@ -1,6 +1,6 @@
 // ---- Thinking toggle / effort select ----
 function t(key, vars) {
-  return window.remotelabT ? window.remotelabT(key, vars) : key;
+  return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
 let runtimeSelectionSyncPromise = Promise.resolve();
@@ -100,7 +100,7 @@ function updateCopyButtonLabel(button, label) {
 
 function getToolingLabel(key, vars) {
   if (typeof t === "function") return t(key, vars);
-  return window.remotelabT ? window.remotelabT(key, vars) : key;
+  return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
 function resetHeaderActionButton(button) {

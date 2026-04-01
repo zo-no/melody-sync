@@ -17,8 +17,12 @@ const fakeCodexPath = join(tempBin, 'fake-codex');
 writeFileSync(
   fakeCodexPath,
   `#!/usr/bin/env node
-const delayMs = 220;
-const text = 'main task finished';
+const prompt = process.argv[process.argv.length - 1] || '';
+const isLabelPrompt = prompt.includes('You are naming a developer session');
+const delayMs = isLabelPrompt ? 50 : 220;
+const text = isLabelPrompt
+  ? JSON.stringify({ title: 'Refactor naming flow' })
+  : 'main task finished';
 
 console.log(JSON.stringify({ type: 'thread.started', thread_id: 'run-thread' }));
 console.log(JSON.stringify({ type: 'turn.started' }));
@@ -105,9 +109,9 @@ await waitFor(
     return current?.name === 'Refactor the…'
       && !current?.group
       && !current?.description
-      && current?.autoRenamePending === false;
+      && current?.autoRenamePending === true;
   },
-  'session should adopt the first-message draft title and clear autoRenamePending immediately',
+  'session should adopt the first-message draft title while keeping autoRenamePending until the final naming pass',
 );
 
 assert.equal(
@@ -124,19 +128,19 @@ await waitFor(
 await waitFor(
   async () => {
     const current = await getSession(session.id);
-    return current?.name === 'Refactor the…'
+    return current?.name === 'Refactor naming flow'
       && !current?.group
       && !current?.description
       && current?.autoRenamePending === false;
   },
-  'session should keep the simple draft title after the first turn completes',
+  'session should replace the draft title with a final contextual title after the first turn completes',
 );
 
 const finished = await getSession(session.id);
-assert.equal(finished?.name, 'Refactor the…', 'finished session should keep the simple first-message draft title');
+assert.equal(finished?.name, 'Refactor naming flow', 'finished session should adopt the final contextual title');
 assert.equal(finished?.group || '', '', 'finished session should not auto-group during the reply flow');
 assert.equal(finished?.description || '', '', 'finished session should not auto-describe during the reply flow');
-assert.equal(finished?.autoRenamePending, false, 'post-turn rename should clear autoRenamePending');
+assert.equal(finished?.autoRenamePending, false, 'final naming should clear autoRenamePending');
 
 killAll();
 rmSync(tempHome, { recursive: true, force: true });

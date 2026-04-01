@@ -1,6 +1,6 @@
 "use strict";
 
-(function attachRemoteLabI18n(root) {
+(function attachMelodySyncI18n(root) {
   const UI_LANGUAGE_STORAGE_KEY = "remotelab.uiLanguage";
   const AUTO_UI_LANGUAGE = "auto";
   const DEFAULT_UI_LANGUAGE = "en";
@@ -388,7 +388,7 @@
   }
 
   function getBootstrapPreferredLanguage() {
-    const auth = root.RemoteLabBootstrap?.getBootstrap?.()?.auth;
+    const auth = root.MelodySyncBootstrap?.getBootstrap?.()?.auth;
     return normalizeUiLanguagePreference(auth?.preferredLanguage, { allowAuto: true });
   }
 
@@ -473,7 +473,7 @@
     activeUiLanguage = resolveActiveUiLanguage(uiLanguagePreference);
     applyTranslations(root.document);
     try {
-      root.dispatchEvent(new CustomEvent("remotelab:localechange", {
+      root.dispatchEvent(new CustomEvent("melodysync:localechange", {
         detail: {
           preference: uiLanguagePreference,
           active: activeUiLanguage,
@@ -497,21 +497,21 @@
     ];
   }
 
-  root.remotelabT = t;
-  root.remotelabApplyTranslations = applyTranslations;
-  root.remotelabGetUiLanguagePreference = function getUiLanguagePreference() {
+  root.melodySyncT = t;
+  root.melodySyncApplyTranslations = applyTranslations;
+  root.melodySyncGetUiLanguagePreference = function getUiLanguagePreference() {
     return uiLanguagePreference;
   };
-  root.remotelabGetActiveUiLanguage = function getActiveUiLanguage() {
+  root.melodySyncGetActiveUiLanguage = function getActiveUiLanguage() {
     return activeUiLanguage;
   };
-  root.remotelabSetUiLanguagePreference = setUiLanguagePreference;
-  root.remotelabGetUiLanguageOptions = getUiLanguageOptions;
-  root.RemoteLabI18n = {
+  root.melodySyncSetUiLanguagePreference = setUiLanguagePreference;
+  root.melodySyncGetUiLanguageOptions = getUiLanguageOptions;
+  root.MelodySyncI18n = {
     t,
     applyTranslations,
-    getUiLanguagePreference: root.remotelabGetUiLanguagePreference,
-    getActiveUiLanguage: root.remotelabGetActiveUiLanguage,
+    getUiLanguagePreference: root.melodySyncGetUiLanguagePreference,
+    getActiveUiLanguage: root.melodySyncGetActiveUiLanguage,
     setUiLanguagePreference,
     getUiLanguageOptions,
     normalizeUiLanguagePreference,

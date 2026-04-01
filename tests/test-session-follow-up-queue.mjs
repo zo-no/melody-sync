@@ -67,6 +67,9 @@ process.env.FAKE_CODEX_DELAY_MS = '120';
 const sessionManager = await import(
   pathToFileURL(join(repoRoot, 'chat', 'session-manager.mjs')).href
 );
+const { mutateSessionMeta } = await import(
+  pathToFileURL(join(repoRoot, 'chat', 'session-meta-store.mjs')).href
+);
 
 const {
   createSession,
@@ -186,6 +189,72 @@ try {
   await waitFor(
     () => getRunState(initialOutcome.run.id).then((run) => run && ['completed', 'failed', 'cancelled'].includes(run.state)),
     'initial run should reach a terminal state',
+  );
+
+  const legacySession = await createSession(home, 'fake-codex', 'Follow-up queue legacy requestId test', {
+    group: 'Tests',
+    description: 'Verifies queue flushing still clears legacy queued entries without request ids',
+  });
+
+  const legacyOutcome = await submitHttpMessage(legacySession.id, 'Legacy first run', [], {
+    requestId: 'req-legacy-first-run',
+    tool: 'fake-codex',
+    model: 'fake-model',
+    effort: 'low',
+  });
+
+  await waitFor(
+    async () => (await getSession(legacySession.id))?.activity?.run?.state === 'running',
+    'legacy initial run should enter running state',
+  );
+
+  const legacyQueued = await submitHttpMessage(legacySession.id, 'Legacy queued follow-up', [], {
+    requestId: 'req-legacy-follow-1',
+    tool: 'fake-codex',
+    model: 'fake-model',
+    effort: 'low',
+  });
+  assert.equal(legacyQueued.queued, true, 'legacy follow-up should queue while the current run is active');
+
+  await mutateSessionMeta(legacySession.id, (draft) => {
+    const queue = Array.isArray(draft.followUpQueue) ? draft.followUpQueue : [];
+    if (queue.length === 0) return false;
+    draft.followUpQueue = [
+      {
+        ...queue[0],
+        requestId: '',
+      },
+      ...queue.slice(1),
+    ];
+    return true;
+  });
+
+  await waitFor(
+    async () => {
+      const current = await getSession(legacySession.id, { includeQueuedMessages: true });
+      const history = await getHistory(legacySession.id);
+      const userMessages = history.filter((event) => event.type === 'message' && event.role === 'user');
+      return current?.activity?.run?.state === 'idle'
+        && current?.activity?.queue?.count === 0
+        && userMessages.length === 2;
+    },
+    'legacy queued follow-up without request id should flush exactly once',
+    12000,
+  );
+
+  await sleep(400);
+
+  const legacyDrained = await getSession(legacySession.id, { includeQueuedMessages: true });
+  const legacyHistory = await getHistory(legacySession.id);
+  const legacyUserMessages = legacyHistory.filter((event) => event.type === 'message' && event.role === 'user');
+  assert.equal(legacyDrained?.activity?.queue?.count, 0, 'legacy queue should clear after flush');
+  assert.deepEqual(legacyDrained?.queuedMessages, [], 'legacy queue should not retain orphaned entries');
+  assert.equal(legacyUserMessages.length, 2, 'legacy queue should not replay the same queued turn repeatedly');
+  assert.match(legacyUserMessages[1].content, /Legacy queued follow-up/);
+
+  await waitFor(
+    () => getRunState(legacyOutcome.run.id).then((run) => run && ['completed', 'failed', 'cancelled'].includes(run.state)),
+    'legacy initial run should reach a terminal state',
   );
 
   console.log('test-session-follow-up-queue: ok');

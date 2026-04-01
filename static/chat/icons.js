@@ -1,6 +1,6 @@
 "use strict";
 
-const REMOTELAB_ICONS = Object.freeze({
+const MELODYSYNC_ICONS = Object.freeze({
   menu: {
     viewBox: "0 0 16 16",
     body: '<path d="M2 3.5C2 3.22386 2.22386 3 2.5 3H13.5C13.7761 3 14 3.22386 14 3.5C14 3.77614 13.7761 4 13.5 4H2.5C2.22386 4 2 3.77614 2 3.5ZM2 7.5C2 7.22386 2.22386 7 2.5 7H13.5C13.7761 7 14 7.22386 14 7.5C14 7.77614 13.7761 8 13.5 8H2.5C2.22386 8 2 7.77614 2 7.5ZM2 11.5C2 11.2239 2.22386 11 2.5 11H13.5C13.7761 11 14 11.2239 14 11.5C14 11.7761 13.7761 12 13.5 12H2.5C2.22386 12 2 11.7761 2 11.5Z"/>'
@@ -79,30 +79,30 @@ function normalizeIconClassName(className) {
     .join(" ");
 }
 
-function renderRemoteLabIcon(name, options = {}) {
-  const icon = REMOTELAB_ICONS[name];
+function renderMelodySyncIcon(name, options = {}) {
+  const icon = MELODYSYNC_ICONS[name];
   if (!icon) return "";
   const className = normalizeIconClassName(`rl-icon ${options.className || ""}`);
   return `<svg class="${className}" viewBox="${icon.viewBox}" aria-hidden="true" focusable="false">${icon.body}</svg>`;
 }
 
-function hydrateRemoteLabIcons(root = document) {
+function hydrateMelodySyncIcons(root = document) {
   root.querySelectorAll("[data-icon]").forEach((node) => {
     const iconName = node.getAttribute("data-icon");
     if (!iconName) return;
-    node.innerHTML = renderRemoteLabIcon(iconName, {
+    node.innerHTML = renderMelodySyncIcon(iconName, {
       className: node.getAttribute("data-icon-class") || "",
     });
   });
 }
 
-window.RemoteLabIcons = Object.freeze({
-  hydrate: hydrateRemoteLabIcons,
-  render: renderRemoteLabIcon,
+window.MelodySyncIcons = Object.freeze({
+  hydrate: hydrateMelodySyncIcons,
+  render: renderMelodySyncIcon,
 });
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => hydrateRemoteLabIcons(), { once: true });
+  document.addEventListener("DOMContentLoaded", () => hydrateMelodySyncIcons(), { once: true });
 } else {
-  hydrateRemoteLabIcons();
+  hydrateMelodySyncIcons();
 }

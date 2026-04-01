@@ -18,8 +18,17 @@ Read these first when you need the current truth:
 5. `../notes/current/core-domain-contract.md` — current domain/refactor baseline
 6. `../notes/current/session-first-workflow-surfaces.md` — current workflow-organization contract for session list / grouping / task-like views
 7. `../notes/current/product-surface-lifecycle.md` — current keep/iterate/retire rule for shipped product surfaces
-8. `structural-cleanup-plan.md` — staged cleanup contract for removing residue without breaking the main session flow
-9. `setup.md` / `external-message-protocol.md` / other focused guides as needed
+8. `../notes/current/session-run-closure-requirements.md` — next-stage task closure direction after the current refactor line
+9. `structural-cleanup-plan.md` — staged cleanup contract for removing residue without breaking the main session flow
+10. `setup.md` / `external-message-protocol.md` / other focused guides as needed
+
+For the current internal note grouping, also see:
+
+- `../notes/current/README.md`
+
+If you want to understand how the docs should be managed as a project system rather than a file pile, also read:
+
+- `../notes/current/documentation-flywheel.md`
 
 ## Keep These In Sync
 
@@ -48,13 +57,22 @@ For setup, deployment, connector, and feature-rollout docs, assume the operator 
 ### Current Core
 
 - `project-architecture.md` — top-down map of the shipped system
+- `current-features.md` — current shipped feature table after product-surface cleanup
 - `structural-cleanup-plan.md` — staged cleanup plan for in-place simplification and refactor work
 - `local-maintenance.md` — upstream-first fork workflow, branch hygiene, and local runtime isolation rules
 - `setup.md` — model-first setup contract, one-round input handoff, human checkpoints, and target state
 - `external-message-protocol.md` — canonical integration contract for external channels
-- `current-features.md` — current shipped feature table after product-surface cleanup
 - `../notes/current/session-first-workflow-surfaces.md` — current rule that workflow-organization views stay session-first
 - `../notes/current/product-surface-lifecycle.md` — current rule that shipped features stay reviewable and may later be simplified or retired
+- `../notes/current/session-run-closure-requirements.md` — next-stage task-closure and workbench direction
+
+### Product Direction And Internal Maps
+
+- `../notes/current/README.md` — current internal note map and grouping
+- `../notes/current/documentation-flywheel.md` — how docs should drive product, refactor, implementation, and cleanup
+- `../notes/current/core-domain-contract.md` — current domain contract
+- `../notes/current/core-domain-implementation-mapping.md` — current code/object mapping
+- `../notes/current/core-domain-refactor-todo.md` — active refactor backlog
 
 ### Focused Integrations
 

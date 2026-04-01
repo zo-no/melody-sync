@@ -1,6 +1,6 @@
 const gesturePill = document.getElementById("gesturePill");
 function t(key, vars) {
-  return window.remotelabT ? window.remotelabT(key, vars) : key;
+  return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
 const SWIPE_GESTURE_LOCK_DISTANCE_PX = 18;

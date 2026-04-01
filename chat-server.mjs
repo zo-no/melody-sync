@@ -29,13 +29,14 @@ if (shouldUseActiveRelease()) {
 
 if (!delegatedToRelease) {
   const http = await import('http');
-  const [{ CHAT_PORT, CHAT_BIND_HOST, SECURE_COOKIES, MEMORY_DIR }, { handleRequest }, apiRequestLog, ws, sessionManager, { ensureDir }] = await Promise.all([
+  const [{ CHAT_PORT, CHAT_BIND_HOST, SECURE_COOKIES, MEMORY_DIR }, { handleRequest }, apiRequestLog, ws, sessionManager, { ensureDir }, { registerBuiltinHooks }] = await Promise.all([
     import('./lib/config.mjs'),
     import('./chat/router.mjs'),
     import('./chat/api-request-log.mjs'),
     import('./chat/ws.mjs'),
     import('./chat/session-manager.mjs'),
     import('./chat/fs-utils.mjs'),
+    import('./chat/hooks/register-builtin-hooks.mjs'),
   ]);
 
   for (const dir of [MEMORY_DIR, join(MEMORY_DIR, 'tasks')]) {
@@ -43,6 +44,7 @@ if (!delegatedToRelease) {
   }
 
   await apiRequestLog.initApiRequestLog();
+  registerBuiltinHooks();
 
   const server = http.createServer((req, res) => {
     const requestLog = apiRequestLog.startApiRequestLog(req, res);

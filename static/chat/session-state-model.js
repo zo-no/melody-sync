@@ -1,6 +1,6 @@
 "use strict";
 
-(function attachRemoteLabSessionStateModel(root) {
+(function attachMelodySyncSessionStateModel(root) {
   const fallbackStrings = {
     "status.idle": "idle",
     "status.running": "running",
@@ -34,8 +34,8 @@
     ));
   }
 
-  const t = root.remotelabT
-    ? (key, vars) => root.remotelabT(key, vars)
+  const t = root.melodySyncT
+    ? (key, vars) => root.melodySyncT(key, vars)
     : fallbackTranslate;
   const workflowPrioritySpecs = {
     high: {
@@ -398,7 +398,7 @@
     return getSessionSortTime(b) - getSessionSortTime(a);
   }
 
-  root.RemoteLabSessionStateModel = {
+  root.MelodySyncSessionStateModel = {
     createEmptyStatus,
     normalizeSessionWorkflowPriority,
     normalizeSessionWorkflowState,

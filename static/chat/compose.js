@@ -10,7 +10,7 @@ function fallbackTranslate(key) {
 }
 
 function t(key, vars) {
-  return window.remotelabT ? window.remotelabT(key, vars) : fallbackTranslate(key);
+  return window.melodySyncT ? window.melodySyncT(key, vars) : fallbackTranslate(key);
 }
 
 let pendingComposerSend = null;
@@ -381,7 +381,7 @@ function getInputChromeH() {
 }
 
 function getViewportHeight() {
-  const managedViewportHeight = window.RemoteLabLayout?.getViewportHeight?.();
+  const managedViewportHeight = window.MelodySyncLayout?.getViewportHeight?.();
   if (Number.isFinite(managedViewportHeight) && managedViewportHeight > 0) {
     return managedViewportHeight;
   }
@@ -512,8 +512,8 @@ if (inputResizeHandle) {
   inputResizeHandle.addEventListener("touchstart", onInputResizeStart, { passive: false });
 }
 
-if (window.RemoteLabLayout?.subscribe) {
-  window.RemoteLabLayout.subscribe(() => {
+if (window.MelodySyncLayout?.subscribe) {
+  window.MelodySyncLayout.subscribe(() => {
     syncInputHeightForLayout();
   });
 } else {

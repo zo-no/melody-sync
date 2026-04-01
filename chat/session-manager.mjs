@@ -22,13 +22,14 @@ import {
 } from './history.mjs';
 import { messageEvent, statusEvent } from './normalizer.mjs';
 import { buildSourceRuntimePrompt } from './source-runtime-prompts.mjs';
-import { emit as emitHook, registerHook } from './session-hooks.mjs';
+import { emit as emitHook, registerHook } from './session-hook-registry.mjs';
 import {
   buildSessionOrganizerPrompt,
   extractSessionOrganizerAssistantText,
   parseSessionOrganizerResult,
   SESSION_ORGANIZER_INTERNAL_OPERATION,
 } from './session-organizer.mjs';
+import { triggerSessionLabelSuggestion } from './summarizer.mjs';
 import { buildSystemContext } from './system-prompt.mjs';
 import { normalizeSessionAgreements } from './session-agreements.mjs';
 import {
@@ -86,10 +87,16 @@ import {
 import { dispatchSessionEmailCompletionTargets, sanitizeEmailCompletionTargets } from '../lib/agent-mail-completion-targets.mjs';
 import {
   DEFAULT_APP_ID,
-  getBuiltinApp,
+  applySessionCompatFields,
   normalizeAppId,
+  normalizeSessionAppName,
+  normalizeSessionCompatInput,
+  normalizeSessionSourceName,
+  normalizeSessionUserName,
   resolveEffectiveAppId,
-} from './apps.mjs';
+  resolveSessionSourceId,
+  resolveSessionSourceName,
+} from './session-meta-compat.mjs';
 import { publishLocalFileAssetFromPath } from './file-assets.mjs';
 import { ensureDir, pathExists, removePath, statOrNull } from './fs-utils.mjs';
 import {
@@ -98,6 +105,7 @@ import {
   parseTaskCardFromAssistantContent,
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
+import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
 
 const MIME_EXTENSIONS = {
   'application/json': '.json',
@@ -411,62 +419,6 @@ function buildDelegationNoticeMessage(task, childSession) {
     '',
     'This new session is independent and can continue on its own.',
   ].filter(Boolean).join('\n');
-}
-
-function normalizeSessionAppName(value) {
-  if (typeof value !== 'string') return '';
-  return value.trim().replace(/\s+/g, ' ');
-}
-
-function normalizeSessionSourceName(value) {
-  if (typeof value !== 'string') return '';
-  return value.trim().replace(/\s+/g, ' ');
-}
-
-function normalizeSessionUserName(value) {
-  if (typeof value !== 'string') return '';
-  return value.trim().replace(/\s+/g, ' ');
-}
-
-function isTemplateAppScopeId(appId) {
-  const normalized = normalizeAppId(appId);
-  return /^app[_-]/i.test(normalized);
-}
-
-function formatSessionSourceNameFromId(sourceId) {
-  const normalized = typeof sourceId === 'string' ? sourceId.trim() : '';
-  if (!normalized) return 'Chat';
-  return normalized
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function resolveSessionSourceId(meta) {
-  const explicitSourceId = normalizeAppId(meta?.sourceId);
-  if (explicitSourceId) return explicitSourceId;
-
-  const legacyAppId = normalizeAppId(meta?.appId);
-  if (legacyAppId && !isTemplateAppScopeId(legacyAppId)) {
-    return legacyAppId;
-  }
-
-  return DEFAULT_APP_ID;
-}
-
-function resolveSessionSourceName(meta, sourceId = resolveSessionSourceId(meta)) {
-  const explicitSourceName = normalizeSessionSourceName(meta?.sourceName);
-  if (explicitSourceName) return explicitSourceName;
-
-  const legacyAppId = normalizeAppId(meta?.appId);
-  if (legacyAppId && !isTemplateAppScopeId(legacyAppId) && legacyAppId === sourceId) {
-    const legacyAppName = normalizeSessionAppName(meta?.appName);
-    if (legacyAppName) return legacyAppName;
-  }
-
-  const builtinSource = getBuiltinApp(sourceId);
-  if (builtinSource?.name) return builtinSource.name;
-
-  return formatSessionSourceNameFromId(sourceId);
 }
 
 function getFollowUpQueue(meta) {
@@ -811,6 +763,44 @@ function serializeQueuedFollowUp(entry) {
   };
 }
 
+function serializeQueuedFollowUpForMatch(entry) {
+  return JSON.stringify({
+    requestId: typeof entry?.requestId === 'string' ? entry.requestId : '',
+    text: typeof entry?.text === 'string' ? entry.text : '',
+    queuedAt: typeof entry?.queuedAt === 'string' ? entry.queuedAt : '',
+    images: sanitizeQueuedFollowUpAttachments(entry?.images),
+    tool: typeof entry?.tool === 'string' ? entry.tool : '',
+    model: typeof entry?.model === 'string' ? entry.model : '',
+    effort: typeof entry?.effort === 'string' ? entry.effort : '',
+    thinking: entry?.thinking === true,
+    sourceContext: normalizeSourceContext(entry?.sourceContext),
+  });
+}
+
+function removeDispatchedQueuedFollowUps(currentQueue, dispatchedQueue) {
+  const current = Array.isArray(currentQueue) ? currentQueue : [];
+  const dispatched = Array.isArray(dispatchedQueue) ? dispatchedQueue : [];
+  if (current.length === 0 || dispatched.length === 0) return current;
+
+  const prefixMatches = current.length >= dispatched.length
+    && dispatched.every((entry, index) => (
+      serializeQueuedFollowUpForMatch(current[index]) === serializeQueuedFollowUpForMatch(entry)
+    ));
+  if (prefixMatches) {
+    return current.slice(dispatched.length);
+  }
+
+  const requestIdSet = new Set(
+    dispatched
+      .map((entry) => (typeof entry?.requestId === 'string' ? entry.requestId.trim() : ''))
+      .filter(Boolean),
+  );
+  if (requestIdSet.size === 0) {
+    return current;
+  }
+  return current.filter((entry) => !requestIdSet.has(typeof entry?.requestId === 'string' ? entry.requestId : ''));
+}
+
 function trimRecentFollowUpRequestIds(ids) {
   if (!Array.isArray(ids)) return [];
   const unique = [];
@@ -937,7 +927,9 @@ async function flushQueuedFollowUps(sessionId) {
     const queue = getFollowUpQueue(rawSession);
     if (queue.length === 0) return false;
 
-    const requestIds = queue.map((entry) => entry.requestId).filter(Boolean);
+    const requestIds = queue
+      .map((entry) => (typeof entry?.requestId === 'string' ? entry.requestId.trim() : ''))
+      .filter(Boolean);
     const dispatchText = buildQueuedFollowUpDispatchText(queue);
     const transcriptText = buildQueuedFollowUpTranscriptText(queue);
     const dispatchOptions = resolveQueuedFollowUpDispatchOptions(queue, rawSession);
@@ -958,9 +950,8 @@ async function flushQueuedFollowUps(sessionId) {
     const cleared = await mutateSessionMeta(sessionId, (session) => {
       const currentQueue = getFollowUpQueue(session);
       if (currentQueue.length === 0) return false;
-      const requestIdSet = new Set(requestIds);
-      const nextQueue = currentQueue.filter((entry) => !requestIdSet.has(entry.requestId));
-      if (nextQueue.length === currentQueue.length && requestIdSet.size > 0) {
+      const nextQueue = removeDispatchedQueuedFollowUps(currentQueue, queue);
+      if (nextQueue.length === currentQueue.length) {
         return false;
       }
       if (nextQueue.length > 0) {
@@ -1535,18 +1526,39 @@ async function flushDetachedRunIfNeeded(sessionId, runId) {
   return run;
 }
 
+async function reconcileLinkedCompactionSession(meta) {
+  const compactionSessionId = typeof meta?.compactionSessionId === 'string'
+    ? meta.compactionSessionId.trim()
+    : '';
+  if (!compactionSessionId) return false;
+  const compactionMeta = await findSessionMeta(compactionSessionId);
+  if (!compactionMeta?.activeRunId) return false;
+  await syncDetachedRun(compactionMeta.id, compactionMeta.activeRunId);
+  return true;
+}
+
 async function reconcileSessionMeta(meta) {
-  if (!meta?.activeRunId) return meta;
-  await syncDetachedRun(meta.id, meta.activeRunId);
-  return await findSessionMeta(meta.id) || meta;
+  let changed = false;
+  if (meta?.activeRunId) {
+    await syncDetachedRun(meta.id, meta.activeRunId);
+    changed = true;
+  }
+  if (await reconcileLinkedCompactionSession(meta)) {
+    changed = true;
+  }
+  return changed ? (await findSessionMeta(meta.id) || meta) : meta;
 }
 
 async function reconcileSessionsMetaList(list) {
   let changed = false;
   for (const meta of list) {
-    if (!meta?.activeRunId) continue;
-    await syncDetachedRun(meta.id, meta.activeRunId);
-    changed = true;
+    if (meta?.activeRunId) {
+      await syncDetachedRun(meta.id, meta.activeRunId);
+      changed = true;
+    }
+    if (await reconcileLinkedCompactionSession(meta)) {
+      changed = true;
+    }
   }
   return changed ? loadSessionsMeta() : list;
 }
@@ -2109,6 +2121,39 @@ async function finalizeSessionOrganizerRun(sessionId, run, normalizedEvents = []
   };
 }
 
+async function triggerAutomaticSessionLabeling(sessionId, session) {
+  const currentSession = await getSession(sessionId) || session;
+  if (!currentSession || !isSessionAutoRenamePending(currentSession)) {
+    return {
+      ok: true,
+      skipped: 'session_labels_not_needed',
+      rename: { attempted: false, renamed: false },
+    };
+  }
+  if (getSessionQueueCount(currentSession) > 0) {
+    return {
+      ok: true,
+      skipped: 'queued_follow_ups_present',
+      rename: { attempted: false, renamed: false },
+    };
+  }
+
+  const outcome = await triggerSessionLabelSuggestion(
+    currentSession,
+    async (newName) => !!(await renameSession(sessionId, newName)),
+    { skipReason: 'Auto-rename no longer needed' },
+  );
+
+  const summary = outcome?.summary;
+  if (summary && (summary.group || summary.description)) {
+    await updateSessionGrouping(sessionId, {
+      ...(summary.group ? { group: summary.group } : {}),
+      ...(summary.description ? { description: summary.description } : {}),
+    });
+  }
+  return outcome;
+}
+
 async function maybePublishRunResultAssets(sessionId, run, manifest, normalizedEvents) {
   if (manifest?.internalOperation) {
     return false;
@@ -2538,190 +2583,42 @@ async function applyCompactionWorkerResult(targetSessionId, run, manifest) {
 }
 
 async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = []) {
-  let historyChanged = false;
-  let sessionChanged = false;
-  const live = liveSessions.get(sessionId);
-  const directCompaction = manifest?.internalOperation === 'context_compaction';
-  const workerCompaction = manifest?.internalOperation === 'context_compaction_worker';
-  const sessionOrganizing = manifest?.internalOperation === SESSION_ORGANIZER_INTERNAL_OPERATION;
-  const compacting = directCompaction || workerCompaction;
-  const compactionTargetSessionId = typeof manifest?.compactionTargetSessionId === 'string'
-    ? manifest.compactionTargetSessionId
-    : '';
-  const {
-    sanitizedEvents: finalizedEvents,
-    latestTaskCard,
-  } = sessionOrganizing
-    ? { sanitizedEvents: normalizedEvents, latestTaskCard: null }
-    : sanitizeAssistantRunEvents(normalizedEvents);
-
-  if (!sessionOrganizing && Array.isArray(finalizedEvents) && finalizedEvents.length > 0) {
-    await appendEvents(sessionId, finalizedEvents);
-    historyChanged = true;
-  }
-
-  if (!sessionOrganizing && run.state === 'cancelled') {
-    const event = {
-      ...statusEvent('cancelled'),
-      runId: run.id,
-      ...(run.requestId ? { requestId: run.requestId } : {}),
-    };
-    await appendEvent(sessionId, event);
-    historyChanged = true;
-  } else if (!sessionOrganizing && run.state === 'failed' && run.failureReason) {
-    const event = {
-      ...statusEvent(`error: ${run.failureReason}`),
-      runId: run.id,
-      ...(run.requestId ? { requestId: run.requestId } : {}),
-    };
-    await appendEvent(sessionId, event);
-    historyChanged = true;
-  }
-
-  if (compacting) {
-    const targetLive = workerCompaction && compactionTargetSessionId
-      ? liveSessions.get(compactionTargetSessionId)
-      : live;
-    if (targetLive) {
-      targetLive.pendingCompact = false;
-    }
-    if (live && live !== targetLive) {
-      live.pendingCompact = false;
-    }
-
-    if (workerCompaction && compactionTargetSessionId) {
-      if (run.state === 'completed') {
-        if (await applyCompactionWorkerResult(compactionTargetSessionId, run, manifest)) {
-          historyChanged = true;
-          sessionChanged = true;
-        }
-      } else if (run.state === 'failed' && run.failureReason) {
-        await appendEvent(compactionTargetSessionId, statusEvent(`error: auto compress failed: ${run.failureReason}`));
-        historyChanged = true;
-      } else if (run.state === 'cancelled') {
-        await appendEvent(compactionTargetSessionId, statusEvent('Auto Compress cancelled'));
-        historyChanged = true;
-      }
-    } else if (directCompaction && run.state === 'completed') {
-      const workerEvent = await findLatestAssistantMessageForRun(sessionId, run.id);
-      const summary = extractTaggedBlock(workerEvent?.content || '', 'summary');
-      if (summary) {
-        const compactEvent = await appendEvent(sessionId, statusEvent('Context compacted — next message will resume from summary'));
-        await setContextHead(sessionId, {
-          mode: 'summary',
-          summary,
-          activeFromSeq: compactEvent.seq,
-          compactedThroughSeq: compactEvent.seq,
-          inputTokens: run.contextInputTokens || null,
-          updatedAt: nowIso(),
-          source: 'context_compaction',
-        });
-        const cleared = await clearPersistedResumeIds(sessionId);
-        sessionChanged = sessionChanged || cleared;
-        historyChanged = true;
-      }
-    }
-  }
-
-  const finalizedMeta = await mutateSessionMeta(sessionId, (session) => {
-    let changed = false;
-    if (session.activeRunId === run.id) {
-      delete session.activeRunId;
-      changed = true;
-    }
-    if (!compacting) {
-      if (run.claudeSessionId && session.claudeSessionId !== run.claudeSessionId) {
-        session.claudeSessionId = run.claudeSessionId;
-        changed = true;
-      }
-      if (run.codexThreadId && session.codexThreadId !== run.codexThreadId) {
-        session.codexThreadId = run.codexThreadId;
-        changed = true;
-      }
-    }
-    if (changed) {
-      session.updatedAt = nowIso();
-    }
-    return changed;
+  return finalizeDetachedRunWithDeps({
+    liveSessions,
+    SESSION_ORGANIZER_INTERNAL_OPERATION,
+    nowIso,
+    sanitizeAssistantRunEvents,
+    appendEvents,
+    appendEvent,
+    statusEvent,
+    findLatestAssistantMessageForRun,
+    extractTaggedBlock,
+    setContextHead,
+    clearPersistedResumeIds,
+    mutateSessionMeta,
+    updateRun,
+    findSessionMeta,
+    stabilizeSessionTaskCard,
+    updateSessionTaskCard,
+    buildBranchCandidateStatusEvents,
+    findLatestUserMessageSeqForRun,
+    finalizeSessionOrganizerRun,
+    broadcastSessionInvalidation,
+    getSession,
+    getSessionQueueCount,
+    scheduleQueuedFollowUpDispatch,
+    getFollowUpQueueCount,
+    maybePublishRunResultAssets,
+    emitHook,
+    normalizeSessionTaskCard,
+    maybeAutoCompact,
+    applyCompactionWorkerResult,
+  }, {
+    sessionId,
+    run,
+    manifest,
+    normalizedEvents,
   });
-  sessionChanged = sessionChanged || finalizedMeta.changed;
-
-  const finalizedRun = await updateRun(run.id, (current) => ({
-    ...current,
-    finalizedAt: current.finalizedAt || nowIso(),
-  })) || run;
-
-  const currentSessionMeta = finalizedMeta.meta || await findSessionMeta(sessionId);
-  const stabilizedTaskCard = !sessionOrganizing && latestTaskCard
-    ? stabilizeSessionTaskCard(currentSessionMeta, latestTaskCard)
-    : null;
-
-  let branchCandidateEvents = [];
-  if (!sessionOrganizing && latestTaskCard) {
-    const updatedTaskCard = await updateSessionTaskCard(sessionId, stabilizedTaskCard);
-    sessionChanged = sessionChanged || !!updatedTaskCard;
-
-    // Compute candidate events here (needs pre/post taskCard diff), pass to hook via context.
-    // The actual appendEvents call is done in the branch-candidates hook.
-    branchCandidateEvents = buildBranchCandidateStatusEvents(finalizedRun, {
-      sourceSeq: await findLatestUserMessageSeqForRun(sessionId, finalizedRun),
-      previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
-      nextTaskCard: stabilizedTaskCard,
-      suppressedBranchTitles: currentSessionMeta?.suppressedBranchTitles || [],
-    });
-  }
-
-  if (sessionOrganizing) {
-    if (run.state === 'completed') {
-      const organized = await finalizeSessionOrganizerRun(sessionId, finalizedRun, normalizedEvents);
-      sessionChanged = sessionChanged || organized.changed;
-    }
-    broadcastSessionInvalidation(sessionId);
-    return { historyChanged, sessionChanged };
-  }
-
-  if (compacting) {
-    if (workerCompaction && compactionTargetSessionId) {
-      const targetSession = await getSession(compactionTargetSessionId);
-      if (getSessionQueueCount(targetSession) > 0) {
-        scheduleQueuedFollowUpDispatch(compactionTargetSessionId);
-      }
-      broadcastSessionInvalidation(compactionTargetSessionId);
-    } else if (getFollowUpQueueCount(finalizedMeta.meta) > 0) {
-      scheduleQueuedFollowUpDispatch(sessionId);
-    }
-    broadcastSessionInvalidation(sessionId);
-    return { historyChanged, sessionChanged };
-  }
-  let latestSession = await getSession(sessionId);
-  if (!latestSession) {
-    return { historyChanged, sessionChanged };
-  }
-
-  // Determine the terminal event type for hooks.
-  const runEvent = finalizedRun.state === 'completed' ? 'run.completed' : 'run.failed';
-
-  // Run result assets can be resolved in parallel with side-effect hooks.
-  const [assetsPublished] = await Promise.all([
-    maybePublishRunResultAssets(sessionId, finalizedRun, manifest, finalizedEvents),
-    emitHook(runEvent, {
-      sessionId,
-      session: latestSession,
-      run: finalizedRun,
-      events: finalizedEvents,
-      taskCard: latestTaskCard,
-      previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
-      branchCandidateEvents,
-      manifest,
-    }),
-  ]);
-  historyChanged = assetsPublished || historyChanged;
-
-  if (getSessionQueueCount(latestSession) > 0) {
-    scheduleQueuedFollowUpDispatch(sessionId);
-  }
-
-  return { historyChanged, sessionChanged };
 }
 
 async function syncDetachedRun(sessionId, runId) {
@@ -2741,12 +2638,19 @@ async function syncDetachedRun(sessionId, runId) {
 
 // Register session-manager-owned hooks here to avoid circular imports.
 // These hooks need access to session-manager internals.
+let sessionManagerHooksRegistered = false;
+
 function registerSessionManagerHooks() {
+  if (sessionManagerHooksRegistered) return;
+  sessionManagerHooksRegistered = true;
+
   // Branch candidate events: append branch suggestion events to session history.
   registerHook('run.completed', async ({ sessionId, branchCandidateEvents }) => {
     if (!Array.isArray(branchCandidateEvents) || branchCandidateEvents.length === 0) return;
     await appendEvents(sessionId, branchCandidateEvents);
-    broadcastSessionInvalidation(sessionId);
+    // No extra broadcast here — syncDetachedRunUnlocked already broadcasts
+    // after finalizeDetachedRun returns. An extra broadcast here would cause
+    // the frontend to fetch the session before the follow-up queue is flushed.
   }, {
     id: 'builtin.branch-candidates',
     label: '支线任务推荐',
@@ -2754,21 +2658,17 @@ function registerSessionManagerHooks() {
     builtIn: true,
   });
 
-  // Session auto-naming: trigger organizer run after first user message completes.
+  // Session auto-naming: derive the final title/group after the first real user turn.
   registerHook('run.completed', async ({ sessionId, session, manifest }) => {
     if (manifest?.internalOperation) return;
     if (!session || !isSessionAutoRenamePending(session)) return;
-    organizeSession(sessionId, {
-      tool: session.tool,
-      model: session.model,
-      effort: session.effort,
-    }).catch((err) => {
+    await triggerAutomaticSessionLabeling(sessionId, session).catch((err) => {
       console.error(`[session-hooks] session-naming ${sessionId}: ${err.message}`);
     });
   }, {
     id: 'builtin.session-naming',
     label: 'Session 自动命名',
-    description: '第一次 Run 完成后触发 AI 为 session 生成标题和分组',
+    description: '第一次 Run 完成后基于最后一轮对话生成标题和分组',
     builtIn: true,
   });
 }
@@ -2796,7 +2696,7 @@ export async function listSessions({
   sourceId = '',
   includeQueuedMessages = false,
 } = {}) {
-  const metas = await loadSessionsMeta();
+  const metas = await reconcileSessionsMetaList(await loadSessionsMeta());
   const normalizedAppId = normalizeAppId(appId);
   const normalizedSourceId = normalizeAppId(sourceId);
   const filtered = metas
@@ -2817,7 +2717,7 @@ export async function getSession(id, options = {}) {
   const metas = await loadSessionsMeta();
   const meta = metas.find((entry) => entry.id === id) || await findSessionMeta(id);
   if (!meta) return null;
-  return enrichSessionMetaForClient(meta, options);
+  return enrichSessionMetaForClient(await reconcileSessionMeta(meta), options);
 }
 
 export async function getSessionEventsAfter(sessionId, afterSeq = 0, options = {}) {
@@ -2898,13 +2798,16 @@ export async function organizeSession(sessionId, options = {}) {
 }
 
 export async function createSession(folder, tool, name, extra = {}) {
+  registerSessionManagerHooks();
   const externalTriggerId = typeof extra.externalTriggerId === 'string' ? extra.externalTriggerId.trim() : '';
-  const requestedAppId = normalizeAppId(extra.appId);
-  const requestedAppName = normalizeSessionAppName(extra.appName);
-  const requestedSourceId = normalizeAppId(extra.sourceId);
-  const requestedSourceName = normalizeSessionSourceName(extra.sourceName);
-  const requestedUserId = typeof extra.userId === 'string' ? extra.userId.trim() : '';
-  const requestedUserName = normalizeSessionUserName(extra.userName);
+  const {
+    requestedAppId,
+    requestedAppName,
+    requestedSourceId,
+    requestedSourceName,
+    requestedUserId,
+    requestedUserName,
+  } = normalizeSessionCompatInput(extra);
   const requestedGroup = normalizeSessionGroup(extra.group || '');
   const requestedDescription = normalizeSessionDescription(extra.description || '');
   const hasRequestedSystemPrompt = Object.prototype.hasOwnProperty.call(extra, 'systemPrompt');
@@ -3045,9 +2948,30 @@ export async function createSession(folder, tool, name, extra = {}) {
           }
         }
 
-        const nextAppId = requestedAppId || resolveEffectiveAppId(updated.appId);
-        if (updated.appId !== nextAppId) {
-          updated.appId = nextAppId;
+        const beforeCompat = JSON.stringify({
+          appId: updated.appId || '',
+          appName: updated.appName || '',
+          sourceId: updated.sourceId || '',
+          sourceName: updated.sourceName || '',
+          userId: updated.userId || '',
+          userName: updated.userName || '',
+        });
+        applySessionCompatFields(updated, {
+          requestedAppId,
+          requestedAppName,
+          requestedSourceId,
+          requestedSourceName,
+          requestedUserId,
+          requestedUserName,
+        });
+        if (JSON.stringify({
+          appId: updated.appId || '',
+          appName: updated.appName || '',
+          sourceId: updated.sourceId || '',
+          sourceName: updated.sourceName || '',
+          userId: updated.userId || '',
+          userName: updated.userName || '',
+        }) !== beforeCompat) {
           changed = true;
         }
 
@@ -3073,22 +2997,24 @@ export async function createSession(folder, tool, name, extra = {}) {
       id,
       folder,
       tool,
-      appId: resolveEffectiveAppId(extra.appId),
       name: initialNaming.name,
       autoRenamePending: initialNaming.autoRenamePending,
       created: now,
       updatedAt: now,
     };
+    applySessionCompatFields(session, {
+      requestedAppId,
+      requestedAppName,
+      requestedSourceId,
+      requestedSourceName,
+      requestedUserId,
+      requestedUserName,
+    });
 
     if (requestedGroup) session.group = requestedGroup;
     if (requestedDescription) session.description = requestedDescription;
     if (workflowState) session.workflowState = workflowState;
     if (workflowPriority) session.workflowPriority = workflowPriority;
-    if (requestedAppName) session.appName = requestedAppName;
-    if (requestedSourceId) session.sourceId = requestedSourceId;
-    if (requestedSourceName) session.sourceName = requestedSourceName;
-    if (requestedUserId) session.userId = requestedUserId;
-    if (requestedUserName) session.userName = requestedUserName;
     if (requestedSystemPrompt) session.systemPrompt = requestedSystemPrompt;
     if (requestedModel) session.model = requestedModel;
     if (requestedEffort) session.effort = requestedEffort;
@@ -3586,6 +3512,7 @@ export async function updateSessionRuntimePreferences(id, patch = {}) {
 }
 
 export async function submitHttpMessage(sessionId, text, images, options = {}) {
+  registerSessionManagerHooks();
   const requestId = typeof options.requestId === 'string' ? options.requestId.trim() : '';
   if (!requestId) {
     throw new Error('requestId is required');
@@ -3794,7 +3721,9 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
   if (!options.internalOperation && isFirstRecordedUserMessage && isSessionAutoRenamePending(session)) {
     const draftName = buildTemporarySessionName(recordedUserText);
     if (draftName && draftName !== session.name) {
-      const renamed = await renameSession(sessionId, draftName);
+      const renamed = await renameSession(sessionId, draftName, {
+        preserveAutoRename: true,
+      });
       if (renamed) {
         session = renamed;
       }
@@ -3835,6 +3764,7 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
 }
 
 export async function sendMessage(sessionId, text, images, options = {}) {
+  registerSessionManagerHooks();
   return submitHttpMessage(sessionId, text, images, {
     ...options,
     requestId: options.requestId || createInternalRequestId('compat'),

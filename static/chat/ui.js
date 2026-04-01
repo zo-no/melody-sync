@@ -1,5 +1,5 @@
 function t(key, vars) {
-  return window.remotelabT ? window.remotelabT(key, vars) : key;
+  return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
 function formatFileChangeTypeLabel(kind) {
@@ -20,7 +20,7 @@ function formatFileChangeTypeLabel(kind) {
 }
 
 function renderUiIcon(name, className = "") {
-  return window.RemoteLabIcons?.render(name, { className }) || "";
+  return window.MelodySyncIcons?.render(name, { className }) || "";
 }
 
 function renderMarkdownIntoNode(node, markdown) {

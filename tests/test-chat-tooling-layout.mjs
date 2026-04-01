@@ -144,7 +144,7 @@ const mobileHarness = createContext({
 });
 vm.runInNewContext(responsiveSource, mobileHarness.context, { filename: 'static/chat/layout-tooling.js' });
 
-assert.ok(mobileHarness.context.window.RemoteLabLayout, 'tooling should expose a single shared layout controller');
+assert.ok(mobileHarness.context.window.MelodySyncLayout, 'tooling should expose a single shared layout controller');
 
 mobileHarness.context.syncViewportHeight();
 assert.equal(mobileHarness.documentElementStyle.get('--app-height'), '812px', 'app shell should track the active viewport height');
@@ -164,7 +164,7 @@ assert.equal(mobileHarness.documentElementStyle.get('--keyboard-inset-height'), 
 assert.equal(mobileHarness.body.classList.contains('keyboard-open'), false, 'keyboard-open should clear once the viewport is fully restored');
 
 const layoutNotifications = [];
-mobileHarness.context.window.RemoteLabLayout.subscribe((state, reason) => {
+mobileHarness.context.window.MelodySyncLayout.subscribe((state, reason) => {
   layoutNotifications.push({ state, reason });
 });
 mobileHarness.setViewport(520);

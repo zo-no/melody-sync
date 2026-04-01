@@ -1,10 +1,11 @@
 "use strict";
 
-const bootstrapStore = window.RemoteLabBootstrap;
+const bootstrapStore = window.MelodySyncBootstrap;
 const buildInfo = bootstrapStore?.getBuildInfo?.() || {};
 const pageBootstrap = bootstrapStore?.getBootstrap?.() || {};
 const buildAssetVersion = buildInfo.assetVersion || "dev";
-const bootstrapT = window.remotelabT || ((key) => key);
+const bootstrapT = window.melodySyncT || ((key) => key);
+const appStateStore = window.MelodySyncAppState || null;
 
 function normalizeBootstrapText(value) {
   if (typeof value !== "string") return "";
@@ -47,7 +48,7 @@ function getBootstrapAssetUploads() {
 }
 
 console.info(
-  "RemoteLab build",
+  "MelodySync build",
   buildInfo.title || buildInfo.serviceTitle || buildAssetVersion,
 );
 
@@ -60,7 +61,7 @@ async function clearFrontendCaches() {
     () => null,
   );
   if (!registration) return;
-  const message = { type: "remotelab:clear-caches" };
+  const message = { type: "melodysync:clear-caches" };
   registration.installing?.postMessage(message);
   registration.waiting?.postMessage(message);
   registration.active?.postMessage(message);
@@ -86,7 +87,7 @@ async function reloadForFreshBuild(nextBuildInfo) {
   buildRefreshScheduled = true;
   refreshFrontendBtn?.setAttribute("aria-busy", "true");
   console.info(
-    "RemoteLab frontend updated; reloading",
+    "MelodySync frontend updated; reloading",
     nextBuildInfo?.title ||
       newerBuildInfo?.title ||
       nextBuildInfo?.assetVersion ||
@@ -117,7 +118,7 @@ async function applyBuildInfo(nextBuildInfo) {
   return false;
 }
 
-window.RemoteLabBuild = {
+window.MelodySyncBuild = {
   applyBuildInfo,
   reloadForFreshBuild,
 };
@@ -172,9 +173,9 @@ const SESSION_REVIEW_MARKERS_STORAGE_KEY = "sessionReviewedAtById";
 const SESSION_REVIEW_BASELINE_AT_STORAGE_KEY = "sessionReviewBaselineAt";
 const DEFAULT_APP_ID = "chat";
 const DEFAULT_APP_NAME = "Chat";
-const sessionStateModel = window.RemoteLabSessionStateModel;
+const sessionStateModel = window.MelodySyncSessionStateModel;
 if (!sessionStateModel) {
-  throw new Error("RemoteLabSessionStateModel must load before bootstrap.js");
+  throw new Error("MelodySyncSessionStateModel must load before bootstrap.js");
 }
 
 function normalizeSidebarTab(tab) {
@@ -264,6 +265,16 @@ const renderedEventState = {
   runState: "idle",
   runningBlockExpanded: false,
 };
+
+function syncMelodySyncAppState() {
+  appStateStore?.replaceState?.({
+    currentSessionId,
+    sessions,
+  });
+}
+
+globalThis.syncMelodySyncAppState = syncMelodySyncAppState;
+syncMelodySyncAppState();
 
 function setRunningEventBlockExpanded(sessionId, expanded) {
   if (!sessionId || renderedEventState.sessionId !== sessionId) return;
@@ -425,6 +436,7 @@ function setLocalSessionReviewedAt(sessionId, stamp) {
     } else {
       delete existing.localReviewedAt;
     }
+    syncMelodySyncAppState();
   }
 
   return normalized || "";

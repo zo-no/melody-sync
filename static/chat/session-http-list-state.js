@@ -45,6 +45,9 @@ function applySessionListState(nextSessions, {
     showEmpty();
     restoreDraft();
   }
+  if (typeof syncMelodySyncAppState === "function") {
+    syncMelodySyncAppState();
+  }
   return sessions;
 }
 
@@ -71,6 +74,9 @@ function applyArchivedSessionListState(nextSessions, {
     : archivedSessions.length;
   refreshAppCatalog();
   renderSessionList();
+  if (typeof syncMelodySyncAppState === "function") {
+    syncMelodySyncAppState();
+  }
   return archivedSessions;
 
 }
