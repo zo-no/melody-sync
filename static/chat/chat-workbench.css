@@ -1867,6 +1867,21 @@ button.quest-task-flow-node {
   background: color-mix(in srgb, var(--bg) 38%, transparent);
 }
 
+/* Goal node: anchor showing the task objective */
+.quest-task-flow-node.is-goal {
+  border-style: solid;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+  cursor: default;
+}
+.quest-task-flow-node.is-goal .quest-task-flow-node-badge {
+  color: var(--accent);
+}
+.quest-task-flow-node.is-goal .quest-task-flow-node-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
 .quest-task-flow-node.is-parked {
   opacity: 0.92;
 }

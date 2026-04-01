@@ -28,6 +28,8 @@ import {
   dispatchSessionEmailCompletionTargets,
   sanitizeEmailCompletionTargets,
 } from '../lib/agent-mail-completion-targets.mjs';
+// Note: session-naming hooks are registered from session-manager.mjs to avoid
+// circular imports (session-manager imports session-hooks, not vice versa).
 
 // ─── Event catalogue ─────────────────────────────────────────────────────────
 

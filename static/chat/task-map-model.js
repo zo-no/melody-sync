@@ -247,6 +247,12 @@
   function buildTaskMapProjection({ snapshot = {}, sessions = [], currentSessionId = "", focusedSessionId = "" } = {}) {
     const sessionMap = createSessionMap(sessions);
     const clusters = getClusterList(snapshot, sessions, currentSessionId);
+    // Index branchContexts by sessionId for O(1) lookup
+    const branchContextBySessionId = new Map(
+      (Array.isArray(snapshot?.branchContexts) ? snapshot.branchContexts : [])
+        .filter((ctx) => ctx?.sessionId)
+        .map((ctx) => [trimText(ctx.sessionId), ctx]),
+    );
     const quests = [];
     const preferredSessionIds = [trimText(focusedSessionId), trimText(currentSessionId)].filter(Boolean);
 
@@ -370,6 +376,12 @@
         for (const branchSession of directChildSessions) {
           const nodeId = `session:${branchSession.id}`;
           const branchStatus = getBranchStatus(branchSession);
+          const branchCtx = branchContextBySessionId.get(trimText(branchSession.id));
+          const isMerged = branchStatus === "merged" || branchStatus === "resolved";
+          // Show conclusion text on merged/resolved branches
+          const conclusionText = isMerged
+            ? trimText(branchCtx?.checkpointSummary || "")
+            : "";
           addNode({
             id: nodeId,
             questId,
@@ -380,14 +392,36 @@
             parentNodeId,
             depth,
             title: getBranchTitle(branchSession),
-            summary: getNodeSummary(branchSession),
+            summary: conclusionText || getNodeSummary(branchSession),
             status: branchStatus,
             isCurrent: nodeId === activeNodeId,
             isCurrentPath: currentLineageIds.has(branchSession.id),
+            conclusionText,
           });
           appendBranchTree(branchSession.id, nodeId, depth + 1);
           appendCandidateNodes(branchSession, nodeId, depth + 1, childrenByParent.get(branchSession.id) || []);
         }
+      }
+
+      // Goal node: anchors the task objective below the main node.
+      // Only shown when taskCard.goal is set and differs meaningfully from the session name.
+      const goalText = trimText(getTaskCard(rootSession)?.goal || "");
+      const sessionTitle = trimText(rootSession?.name || "");
+      const goalNodeId = `goal:${rootSession.id}`;
+      if (goalText && goalText.toLowerCase() !== sessionTitle.toLowerCase()) {
+        addNode({
+          id: goalNodeId,
+          questId,
+          kind: "goal",
+          lineRole: "main",
+          sessionId: rootSession.id,
+          sourceSessionId: rootSession.id,
+          parentNodeId: rootNodeId,
+          depth: 1,
+          title: goalText,
+          summary: "",
+          status: "goal",
+        });
       }
 
       appendBranchTree(rootSession.id, rootNodeId, 1);

@@ -1112,6 +1112,7 @@
   function getProjectedTaskFlowNodeHeight(node, metrics) {
     if (!node?.parentNodeId) return metrics.rootHeight;
     if (node?.kind === "candidate") return metrics.candidateHeight;
+    if (node?.kind === "goal") return metrics.candidateHeight;
     return metrics.nodeHeight;
   }
 
@@ -1205,6 +1206,7 @@
 
   function getProjectedTaskFlowNodeMeta(node, activeQuest) {
     if (node.kind === "candidate") return "可选";
+    if (node.kind === "goal") return "目标";
     if (!node?.parentNodeId) return "进行中";
     return getBranchStatusUi(node.status).label;
   }
@@ -1311,13 +1313,16 @@
     for (const entry of entries) {
       const node = entry.node;
       const isCandidate = node.kind === "candidate";
-      const nodeEl = document.createElement(isCandidate ? "div" : "button");
-      if (nodeEl.type !== undefined && !isCandidate) {
+      const isGoal = node.kind === "goal";
+      const isNonInteractive = isCandidate || isGoal;
+      const nodeEl = document.createElement(isNonInteractive ? "div" : "button");
+      if (nodeEl.type !== undefined && !isNonInteractive) {
         nodeEl.type = "button";
       }
       nodeEl.className = "quest-task-flow-node";
       if (!node.parentNodeId) nodeEl.classList.add("is-root");
       if (isCandidate) nodeEl.classList.add("is-candidate");
+      if (isGoal) nodeEl.classList.add("is-goal");
       if (node.isCurrentPath) nodeEl.classList.add("is-current-path");
       if (node.isCurrent) nodeEl.classList.add("is-current");
       if (node.status === "parked") nodeEl.classList.add("is-parked");
@@ -1353,6 +1358,8 @@
 
       if (isCandidate) {
         nodeEl.appendChild(createCandidateAction(node));
+      } else if (isGoal) {
+        // Goal node: display only, no click action
       } else if (node.sessionId) {
         nodeEl.addEventListener("click", () => {
           const sessionRecord = getSessionRecord(node.sessionId) || state?.parentSession || state?.cluster?.mainSession || null;

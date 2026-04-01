@@ -22,7 +22,7 @@ import {
 } from './history.mjs';
 import { messageEvent, statusEvent } from './normalizer.mjs';
 import { buildSourceRuntimePrompt } from './source-runtime-prompts.mjs';
-import { emit as emitHook } from './session-hooks.mjs';
+import { emit as emitHook, registerHook } from './session-hooks.mjs';
 import {
   buildSessionOrganizerPrompt,
   extractSessionOrganizerAssistantText,
@@ -2656,11 +2656,13 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     ? stabilizeSessionTaskCard(currentSessionMeta, latestTaskCard)
     : null;
 
+  let branchCandidateEvents = [];
   if (!sessionOrganizing && latestTaskCard) {
     const updatedTaskCard = await updateSessionTaskCard(sessionId, stabilizedTaskCard);
     sessionChanged = sessionChanged || !!updatedTaskCard;
 
-    const branchCandidateEvents = buildBranchCandidateStatusEvents(finalizedRun, {
+    // Compute candidate events here (needs pre/post taskCard diff), pass to hook via context.
+    branchCandidateEvents = buildBranchCandidateStatusEvents(finalizedRun, {
       sourceSeq: await findLatestUserMessageSeqForRun(sessionId, finalizedRun),
       previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
       nextTaskCard: stabilizedTaskCard,
@@ -2711,6 +2713,8 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
       run: finalizedRun,
       events: finalizedEvents,
       taskCard: latestTaskCard,
+      previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
+      branchCandidateEvents,
       manifest,
     }),
   ]);
@@ -2738,7 +2742,30 @@ async function syncDetachedRun(sessionId, runId) {
   return promise;
 }
 
+// Register session-manager-owned hooks here to avoid circular imports.
+// These hooks need access to session-manager internals.
+function registerSessionManagerHooks() {
+  // Session auto-naming: trigger organizer run after first user message completes.
+  registerHook('run.completed', async ({ sessionId, session, manifest }) => {
+    if (manifest?.internalOperation) return;
+    if (!session || !isSessionAutoRenamePending(session)) return;
+    organizeSession(sessionId, {
+      tool: session.tool,
+      model: session.model,
+      effort: session.effort,
+    }).catch((err) => {
+      console.error(`[session-hooks] session-naming ${sessionId}: ${err.message}`);
+    });
+  }, {
+    id: 'builtin.session-naming',
+    label: 'Session 自动命名',
+    description: 'Run 完成后触发 AI 为 session 生成标题和分组',
+    builtIn: true,
+  });
+}
+
 export async function startDetachedRunObservers() {
+  registerSessionManagerHooks();
   for (const meta of await loadSessionsMeta()) {
     if (meta?.activeRunId) {
       const run = await syncDetachedRun(meta.id, meta.activeRunId) || await getRun(meta.activeRunId);
