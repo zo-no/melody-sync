@@ -83,16 +83,21 @@ const registry = new Map();
 export function registerHook(eventPattern, hook, meta = {}) {
   if (typeof hook !== 'function') return;
   if (!registry.has(eventPattern)) registry.set(eventPattern, []);
-  // Attach metadata directly to the function for introspection
-  hook._hookMeta = {
-    id: meta.id || hook.name || 'anonymous',
-    label: meta.label || hook.name || 'Anonymous hook',
-    description: meta.description || '',
-    builtIn: meta.builtIn === true,
-    eventPattern,
-    enabled: true,
+  // Store metadata alongside the hook function as a tuple [fn, meta].
+  // Keeping meta separate prevents multiple registrations of the same function
+  // from overwriting each other's metadata.
+  const entry = {
+    fn: hook,
+    meta: {
+      id: meta.id || hook.name || 'anonymous',
+      label: meta.label || hook.name || 'Anonymous hook',
+      description: meta.description || '',
+      builtIn: meta.builtIn === true,
+      eventPattern,
+      enabled: true,
+    },
   };
-  registry.get(eventPattern).push(hook);
+  registry.get(eventPattern).push(entry);
 }
 
 /**
@@ -101,9 +106,9 @@ export function registerHook(eventPattern, hook, meta = {}) {
  */
 export function listHooks() {
   const result = [];
-  for (const hooks of registry.values()) {
-    for (const hook of hooks) {
-      if (hook._hookMeta) result.push({ ...hook._hookMeta });
+  for (const entries of registry.values()) {
+    for (const entry of entries) {
+      result.push({ ...entry.meta });
     }
   }
   return result;
@@ -116,10 +121,10 @@ export function listHooks() {
  * @returns {boolean} whether the hook was found
  */
 export function setHookEnabled(hookId, enabled) {
-  for (const hooks of registry.values()) {
-    for (const hook of hooks) {
-      if (hook._hookMeta?.id === hookId) {
-        hook._hookMeta.enabled = Boolean(enabled);
+  for (const entries of registry.values()) {
+    for (const entry of entries) {
+      if (entry.meta?.id === hookId) {
+        entry.meta.enabled = Boolean(enabled);
         return true;
       }
     }
@@ -140,10 +145,10 @@ function collectHooks(event) {
   const [namespace] = event.split('.');
   const wildcardNs = `${namespace}.*`;
 
-  for (const [pattern, hooks] of registry.entries()) {
+  for (const [pattern, entries] of registry.entries()) {
     if (pattern === event || pattern === wildcardNs || pattern === '*') {
-      for (const hook of hooks) {
-        if (hook._hookMeta?.enabled !== false) matched.push(hook);
+      for (const entry of entries) {
+        if (entry.meta?.enabled !== false) matched.push(entry.fn);
       }
     }
   }

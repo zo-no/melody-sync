@@ -427,6 +427,29 @@
       appendBranchTree(rootSession.id, rootNodeId, 1);
       appendCandidateNodes(rootSession, rootNodeId, 1, childrenByParent.get(rootSession.id) || []);
 
+      // Done node: appears when all branches are resolved/merged (task fully closed).
+      // Requires at least one branch to exist — no branches means the task hasn't split yet.
+      {
+        const directBranches = childrenByParent.get(rootSession.id) || [];
+        const allBranchNodes = nodes.filter((n) => n.kind === "branch");
+        const hasOpenBranches = allBranchNodes.some((n) => n.status === "active" || n.status === "parked");
+        if (directBranches.length > 0 && allBranchNodes.length > 0 && !hasOpenBranches) {
+          addNode({
+            id: `done:${rootSession.id}`,
+            questId,
+            kind: "done",
+            lineRole: "main",
+            sessionId: rootSession.id,
+            sourceSessionId: rootSession.id,
+            parentNodeId: rootNodeId,
+            depth: 1,
+            title: "任务收束",
+            summary: `${allBranchNodes.length} 条支线已全部完成`,
+            status: "done",
+          });
+        }
+      }
+
       const realNodes = nodes.filter((node) => node.kind !== "candidate");
       const branchNodes = realNodes.filter((node) => node.kind === "branch");
       const questTitle = clipText(

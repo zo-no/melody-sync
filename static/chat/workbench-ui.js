@@ -1113,6 +1113,7 @@
     if (!node?.parentNodeId) return metrics.rootHeight;
     if (node?.kind === "candidate") return metrics.candidateHeight;
     if (node?.kind === "goal") return metrics.candidateHeight;
+    if (node?.kind === "done") return metrics.candidateHeight;
     return metrics.nodeHeight;
   }
 
@@ -1207,6 +1208,7 @@
   function getProjectedTaskFlowNodeMeta(node, activeQuest) {
     if (node.kind === "candidate") return "可选";
     if (node.kind === "goal") return "目标";
+    if (node.kind === "done") return "已收束";
     if (!node?.parentNodeId) return "进行中";
     return getBranchStatusUi(node.status).label;
   }
@@ -1314,7 +1316,8 @@
       const node = entry.node;
       const isCandidate = node.kind === "candidate";
       const isGoal = node.kind === "goal";
-      const isNonInteractive = isCandidate || isGoal;
+      const isDone = node.kind === "done";
+      const isNonInteractive = isCandidate || isGoal || isDone;
       const nodeEl = document.createElement(isNonInteractive ? "div" : "button");
       if (nodeEl.type !== undefined && !isNonInteractive) {
         nodeEl.type = "button";
@@ -1323,6 +1326,7 @@
       if (!node.parentNodeId) nodeEl.classList.add("is-root");
       if (isCandidate) nodeEl.classList.add("is-candidate");
       if (isGoal) nodeEl.classList.add("is-goal");
+      if (isDone) nodeEl.classList.add("is-done");
       if (node.isCurrentPath) nodeEl.classList.add("is-current-path");
       if (node.isCurrent) nodeEl.classList.add("is-current");
       if (node.status === "parked") nodeEl.classList.add("is-parked");
@@ -1358,8 +1362,8 @@
 
       if (isCandidate) {
         nodeEl.appendChild(createCandidateAction(node));
-      } else if (isGoal) {
-        // Goal node: display only, no click action
+      } else if (isGoal || isDone) {
+        // Display-only nodes, no click action
       } else if (node.sessionId) {
         nodeEl.addEventListener("click", () => {
           const sessionRecord = getSessionRecord(node.sessionId) || state?.parentSession || state?.cluster?.mainSession || null;

@@ -2662,16 +2662,13 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     sessionChanged = sessionChanged || !!updatedTaskCard;
 
     // Compute candidate events here (needs pre/post taskCard diff), pass to hook via context.
+    // The actual appendEvents call is done in the branch-candidates hook.
     branchCandidateEvents = buildBranchCandidateStatusEvents(finalizedRun, {
       sourceSeq: await findLatestUserMessageSeqForRun(sessionId, finalizedRun),
       previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
       nextTaskCard: stabilizedTaskCard,
       suppressedBranchTitles: currentSessionMeta?.suppressedBranchTitles || [],
     });
-    if (branchCandidateEvents.length > 0) {
-      await appendEvents(sessionId, branchCandidateEvents);
-      historyChanged = true;
-    }
   }
 
   if (sessionOrganizing) {
@@ -2745,6 +2742,18 @@ async function syncDetachedRun(sessionId, runId) {
 // Register session-manager-owned hooks here to avoid circular imports.
 // These hooks need access to session-manager internals.
 function registerSessionManagerHooks() {
+  // Branch candidate events: append branch suggestion events to session history.
+  registerHook('run.completed', async ({ sessionId, branchCandidateEvents }) => {
+    if (!Array.isArray(branchCandidateEvents) || branchCandidateEvents.length === 0) return;
+    await appendEvents(sessionId, branchCandidateEvents);
+    broadcastSessionInvalidation(sessionId);
+  }, {
+    id: 'builtin.branch-candidates',
+    label: '支线任务推荐',
+    description: 'Run 完成后将 AI 推荐的支线写入会话，显示在地图上',
+    builtIn: true,
+  });
+
   // Session auto-naming: trigger organizer run after first user message completes.
   registerHook('run.completed', async ({ sessionId, session, manifest }) => {
     if (manifest?.internalOperation) return;
@@ -2759,7 +2768,7 @@ function registerSessionManagerHooks() {
   }, {
     id: 'builtin.session-naming',
     label: 'Session 自动命名',
-    description: 'Run 完成后触发 AI 为 session 生成标题和分组',
+    description: '第一次 Run 完成后触发 AI 为 session 生成标题和分组',
     builtIn: true,
   });
 }
@@ -3813,7 +3822,7 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
     sessionId,
     session,
     run,
-    manifest,
+    manifest: null,
   }).catch(() => {});
 
   broadcastSessionInvalidation(sessionId);

@@ -1867,6 +1867,21 @@ button.quest-task-flow-node {
   background: color-mix(in srgb, var(--bg) 38%, transparent);
 }
 
+/* Done node: all branches resolved, task fully closed */
+.quest-task-flow-node.is-done {
+  border-style: solid;
+  border-color: var(--border-strong);
+  background: var(--bg-secondary);
+  cursor: default;
+  opacity: 0.82;
+}
+.quest-task-flow-node.is-done .quest-task-flow-node-badge {
+  color: var(--text-muted);
+}
+.quest-task-flow-node.is-done .quest-task-flow-node-title {
+  color: var(--text-secondary);
+}
+
 /* Goal node: anchor showing the task objective */
 .quest-task-flow-node.is-goal {
   border-style: solid;
