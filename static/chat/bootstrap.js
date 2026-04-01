@@ -132,6 +132,7 @@ const sessionList = document.getElementById("sessionList");
 const sessionListFooter = document.getElementById("sessionListFooter");
 const sortSessionListBtn = document.getElementById("sortSessionListBtn");
 const newSessionBtn = document.getElementById("newSessionBtn");
+const hooksSettingsBtn = document.getElementById("hooksSettingsBtn");
 const messagesEl = document.getElementById("messages");
 const messagesInner = document.getElementById("messagesInner");
 const emptyState = document.getElementById("emptyState");

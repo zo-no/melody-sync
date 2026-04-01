@@ -306,14 +306,11 @@ async function loadStoredEvent(sessionId, seq) {
 
 async function countMessageEventsAfter(sessionId, afterSeq = 0) {
   const meta = await loadMeta(sessionId);
-  let count = 0;
-  for (let seq = Math.max(1, afterSeq + 1); seq <= meta.latestSeq; seq += 1) {
-    const stored = await loadStoredEvent(sessionId, seq);
-    if (stored?.type === 'message') {
-      count += 1;
-    }
-  }
-  return count;
+  const fromSeq = Math.max(1, afterSeq + 1);
+  if (fromSeq > meta.latestSeq) return 0;
+  const seqs = Array.from({ length: meta.latestSeq - fromSeq + 1 }, (_, i) => fromSeq + i);
+  const events = await Promise.all(seqs.map((seq) => loadStoredEvent(sessionId, seq)));
+  return events.filter((e) => e?.type === 'message').length;
 }
 
 async function hydrateEvent(sessionId, event) {
@@ -404,13 +401,12 @@ export async function loadHistory(sessionId, options = {}) {
   const meta = await loadMeta(sessionId);
   const includeBodies = options.includeBodies !== false;
   const fromSeq = Number.isInteger(options.fromSeq) && options.fromSeq > 0 ? options.fromSeq : 1;
-  const events = [];
-  for (let seq = fromSeq; seq <= meta.latestSeq; seq += 1) {
-    const stored = await loadStoredEvent(sessionId, seq);
-    if (!stored) continue;
-    events.push(includeBodies ? await hydrateEvent(sessionId, stored) : stored);
-  }
-  return events;
+  if (fromSeq > meta.latestSeq) return [];
+  const seqs = Array.from({ length: meta.latestSeq - fromSeq + 1 }, (_, i) => fromSeq + i);
+  const stored = await Promise.all(seqs.map((seq) => loadStoredEvent(sessionId, seq)));
+  const valid = stored.filter(Boolean);
+  if (!includeBodies) return valid;
+  return Promise.all(valid.map((event) => hydrateEvent(sessionId, event)));
 }
 
 export async function readLastTurnEvents(sessionId, options = {}) {
@@ -479,17 +475,13 @@ export async function appendEvents(sessionId, events) {
 export async function readEventsAfter(sessionId, afterSeq = 0, options = {}) {
   const meta = await loadMeta(sessionId);
   const includeBodies = options.includeBodies === true;
-  const events = [];
-  for (let seq = Math.max(1, afterSeq + 1); seq <= meta.latestSeq; seq += 1) {
-    const stored = await loadStoredEvent(sessionId, seq);
-    if (!stored) continue;
-    if (includeBodies) {
-      events.push(await hydrateEvent(sessionId, stored));
-    } else {
-      events.push(serializeEventForIndex(stored, options));
-    }
-  }
-  return events;
+  const fromSeq = Math.max(1, afterSeq + 1);
+  if (fromSeq > meta.latestSeq) return [];
+  const seqs = Array.from({ length: meta.latestSeq - fromSeq + 1 }, (_, i) => fromSeq + i);
+  const stored = await Promise.all(seqs.map((seq) => loadStoredEvent(sessionId, seq)));
+  const valid = stored.filter(Boolean);
+  if (includeBodies) return Promise.all(valid.map((e) => hydrateEvent(sessionId, e)));
+  return valid.map((e) => serializeEventForIndex(e, options));
 }
 
 export async function readEventBody(sessionId, seq) {

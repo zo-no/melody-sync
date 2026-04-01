@@ -31,7 +31,23 @@ import {
   writeTextAtomic,
 } from './fs-utils.mjs';
 
-const WORKBENCH_QUEUE = createSerialTaskQueue();
+// Per-scope serial queues prevent cross-session write contention while still
+// serializing writes within the same project/session scope.
+const _workbenchQueues = new Map();
+function WORKBENCH_QUEUE(scopeKey, fn) {
+  if (typeof scopeKey === 'function') {
+    // Legacy call without scope key — use a global fallback queue.
+    if (!_workbenchQueues.has('__global__')) {
+      _workbenchQueues.set('__global__', createSerialTaskQueue());
+    }
+    return _workbenchQueues.get('__global__')(scopeKey);
+  }
+  const key = typeof scopeKey === 'string' && scopeKey ? scopeKey : '__global__';
+  if (!_workbenchQueues.has(key)) {
+    _workbenchQueues.set(key, createSerialTaskQueue());
+  }
+  return _workbenchQueues.get(key)(fn);
+}
 const LOCAL_OBSIDIAN_PROJECT_DIR = join(
   homedir(),
   'Desktop',
@@ -1000,10 +1016,13 @@ function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(
 }
 
 export async function syncSessionContinuityFromSession(sessionLike, options = {}) {
-  return WORKBENCH_QUEUE(async () => {
+  const sessionId = sessionLike && typeof sessionLike === 'object'
+    ? normalizeNullableText(sessionLike.id)
+    : normalizeNullableText(sessionLike);
+  return WORKBENCH_QUEUE(sessionId || '__global__', async () => {
     const session = sessionLike && typeof sessionLike === 'object'
       ? sessionLike
-      : await getSession(normalizeNullableText(sessionLike));
+      : await getSession(sessionId);
     if (!session?.id) {
       throw new Error('Session not found');
     }

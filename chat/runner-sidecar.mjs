@@ -235,8 +235,13 @@ async function main() {
     }
   };
 
-  createInterface({ input: proc.stdout }).on('line', (line) => {
-    void recordStdoutLine(line);
+  // Backpressure-aware stdout reader: pause the readline interface while
+  // the async spool write is in flight so the tool process is never blocked
+  // by a full pipe buffer.
+  const rl = createInterface({ input: proc.stdout });
+  rl.on('line', (line) => {
+    rl.pause();
+    recordStdoutLine(line).finally(() => rl.resume());
   });
   proc.stderr.on('data', (chunk) => {
     void recordStderrText(chunk.toString());

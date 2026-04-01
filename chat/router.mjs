@@ -10,7 +10,6 @@ import {
   getAuthSession, refreshAuthSession,
 } from '../lib/auth.mjs';
 import { saveUiRuntimeSelection } from '../lib/runtime-selection.mjs';
-import { getAvailableToolsAsync } from '../lib/tools.mjs';
 import {
   deleteSessionPermanently,
   getHistory,
@@ -34,8 +33,6 @@ import {
 } from './session-workflow-state.mjs';
 import { appendEvent, readEventBody } from './history.mjs';
 import { messageEvent } from './normalizer.mjs';
-import { getPublicKey, addSubscription } from './push.mjs';
-import { getModelsForTool } from './models.mjs';
 import { createSessionDetail, createSessionListItem } from './session-api-shapes.mjs';
 import { buildEventBlockEvents, buildSessionDisplayEvents } from './session-display-events.mjs';
 import { parseSessionGetRoute } from './session-route-utils.mjs';
@@ -53,6 +50,8 @@ import { handleRunRoutes } from './routes/runs.mjs';
 import { handleSessionReadRoutes } from './routes/session-read.mjs';
 import { handleSessionWriteRoutes } from './routes/session-write.mjs';
 import { handleWorkbenchRoutes } from './routes/workbench.mjs';
+import { handleHooksRoutes } from './routes/hooks.mjs';
+import { handleSystemRoutes } from './router-system-routes.mjs';
 import {
   buildFileAssetDirectUrl,
   createFileAssetUploadIntent,
@@ -1021,136 +1020,24 @@ export async function handleRequest(req, res) {
     return;
   }
 
-  if (pathname === '/api/models' && req.method === 'GET') {
-    const toolId = parsedUrl.query ? parsedUrl.query.tool || '' : '';
-    const result = await getModelsForTool(toolId);
-    writeJsonCached(req, res, result);
+  if (await handleHooksRoutes({ req, res, pathname, writeJson })) {
     return;
   }
 
-  if (pathname === '/api/tools' && req.method === 'GET') {
-    const tools = await getAvailableToolsAsync();
-    writeJsonCached(req, res, { tools });
-    return;
-  }
-
-  if (pathname === '/api/tools' && req.method === 'POST') {
-    res.writeHead(410, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Tool creation has been removed from MelodySync' }));
-    return;
-  }
-
-  if (pathname === '/api/autocomplete' && req.method === 'GET') {
-    const query = parsedUrl.query.q || '';
-    const suggestions = [];
-    try {
-      const resolvedQuery = query.startsWith('~') ? join(homedir(), query.slice(1)) : query;
-      const parentDir = dirname(resolvedQuery);
-      const prefix = basename(resolvedQuery);
-      if (await isDirectoryPath(parentDir)) {
-        for (const entry of await readdir(parentDir)) {
-          if (!prefix.startsWith('.') && entry.startsWith('.')) continue;
-          const fullPath = join(parentDir, entry);
-          if (await isDirectoryPath(fullPath)) {
-            if (entry.toLowerCase().startsWith(prefix.toLowerCase())) {
-              suggestions.push(fullPath);
-            }
-          }
-        }
-      }
-    } catch {}
-    writeJsonCached(req, res, { suggestions: suggestions.slice(0, 20) });
-    return;
-  }
-
-  if (pathname === '/api/browse' && req.method === 'GET') {
-    const pathQuery = parsedUrl.query.path || '~';
-    try {
-      const resolvedPath = pathQuery === '~' || pathQuery === ''
-        ? homedir()
-        : pathQuery.startsWith('~')
-          ? join(homedir(), pathQuery.slice(1))
-          : resolve(pathQuery);
-      const children = [];
-      let parent = null;
-      if (await isDirectoryPath(resolvedPath)) {
-        const parentPath = dirname(resolvedPath);
-        parent = parentPath !== resolvedPath ? parentPath : null;
-        for (const entry of await readdir(resolvedPath)) {
-          if (entry.startsWith('.')) continue;
-          const fullPath = join(resolvedPath, entry);
-          try {
-            if (await isDirectoryPath(fullPath)) children.push({ name: entry, path: fullPath });
-          } catch {}
-        }
-        children.sort((a, b) => a.name.localeCompare(b.name));
-      }
-      writeJsonCached(req, res, { path: resolvedPath, parent, children });
-    } catch {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Failed to browse directory' }));
-    }
-    return;
-  }
-
-  // Serve uploaded media
-  if ((pathname.startsWith('/api/images/') || pathname.startsWith('/api/media/')) && req.method === 'GET') {
-    const prefix = pathname.startsWith('/api/media/') ? '/api/media/' : '/api/images/';
-    const filename = pathname.slice(prefix.length);
-    // Sanitize: only allow alphanumeric, dash, underscore, dot
-    if (!/^[a-zA-Z0-9_-]+\.[a-z0-9]+$/.test(filename)) {
-      res.writeHead(400, { 'Content-Type': 'text/plain' });
-      res.end('Invalid filename');
-      return;
-    }
-    const filepath = join(CHAT_IMAGES_DIR, filename);
-    if (!await pathExists(filepath)) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not found');
-      return;
-    }
-    const ext = filename.split('.').pop()?.toLowerCase();
-    writeFileCached(req, res, uploadedMediaMimeTypes[ext] || 'application/octet-stream', await readFile(filepath), {
-      cacheControl: 'public, max-age=31536000, immutable',
-    });
-    return;
-  }
-
-  // Push notification API
-  if (pathname === '/api/push/vapid-public-key' && req.method === 'GET') {
-    writeJsonCached(req, res, { publicKey: await getPublicKey() });
-    return;
-  }
-
-  if (pathname === '/api/push/subscribe' && req.method === 'POST') {
-    let body;
-    try { body = await readBody(req, 4096); } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Bad request' }));
-      return;
-    }
-    try {
-      const sub = JSON.parse(body);
-      if (!sub.endpoint) throw new Error('Missing endpoint');
-      await addSubscription(sub);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true }));
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid subscription' }));
-    }
-    return;
-  }
-
-  // ---- Auth info endpoint ----
-  if (await handleAuthRoutes({
+  // System routes: models, tools, autocomplete, browse, media, push, auth/me
+  if (await handleSystemRoutes({
     req,
     res,
     pathname,
-    getAuthSession,
+    parsedUrl,
     buildAuthInfo,
-    refreshAuthSession,
+    writeJson,
     writeJsonCached,
+    writeFileCached,
+    isDirectoryPath,
+    pathExists,
+    chatImagesDir: CHAT_IMAGES_DIR,
+    uploadedMediaMimeTypes,
   })) {
     return;
   }

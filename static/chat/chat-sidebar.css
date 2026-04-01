@@ -60,6 +60,21 @@
 }
 .sidebar-tab.active { color: var(--text); border-bottom-color: var(--text); }
 .sidebar-tab:hover:not(.active) { color: var(--text-secondary); }
+/* Icon action button sitting in the tab bar (e.g. Hooks settings) */
+.sidebar-tab-action {
+  flex-shrink: 0;
+  padding: 0 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-family: inherit;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.1s;
+}
+.sidebar-tab-action:hover { color: var(--text); }
 
 .sidebar-filters {
   padding: 10px 8px;

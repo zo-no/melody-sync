@@ -22,7 +22,7 @@ import {
 } from './history.mjs';
 import { messageEvent, statusEvent } from './normalizer.mjs';
 import { buildSourceRuntimePrompt } from './source-runtime-prompts.mjs';
-import { sendCompletionPush } from './push.mjs';
+import { emit as emitHook } from './session-hooks.mjs';
 import {
   buildSessionOrganizerPrompt,
   extractSessionOrganizerAssistantText,
@@ -2699,15 +2699,27 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     return { historyChanged, sessionChanged };
   }
 
-  historyChanged = await maybePublishRunResultAssets(sessionId, finalizedRun, manifest, finalizedEvents) || historyChanged;
+  // Determine the terminal event type for hooks.
+  const runEvent = finalizedRun.state === 'completed' ? 'run.completed' : 'run.failed';
+
+  // Run result assets can be resolved in parallel with side-effect hooks.
+  const [assetsPublished] = await Promise.all([
+    maybePublishRunResultAssets(sessionId, finalizedRun, manifest, finalizedEvents),
+    emitHook(runEvent, {
+      sessionId,
+      session: latestSession,
+      run: finalizedRun,
+      events: finalizedEvents,
+      taskCard: latestTaskCard,
+      manifest,
+    }),
+  ]);
+  historyChanged = assetsPublished || historyChanged;
 
   if (getSessionQueueCount(latestSession) > 0) {
     scheduleQueuedFollowUpDispatch(sessionId);
   }
 
-  queueSessionCompletionTargets(latestSession, finalizedRun, manifest);
-
-  sendCompletionPush({ ...latestSession, id: sessionId }).catch(() => {});
   return { historyChanged, sessionChanged };
 }
 
@@ -3067,7 +3079,15 @@ export async function createSession(folder, tool, name, extra = {}) {
     broadcastSessionsInvalidation();
   }
 
-  return enrichSessionMeta(created.session);
+  const enriched = enrichSessionMeta(created.session);
+  if (created.created) {
+    emitHook('session.created', {
+      sessionId: enriched.id,
+      session: enriched,
+      manifest: null,
+    }).catch(() => {});
+  }
+  return enriched;
 }
 
 export async function setSessionArchived(id, archived = true) {
@@ -3761,6 +3781,13 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
     ...current,
     runnerProcessId: spawned?.pid || current.runnerProcessId || null,
   }));
+
+  emitHook('run.started', {
+    sessionId,
+    session,
+    run,
+    manifest,
+  }).catch(() => {});
 
   broadcastSessionInvalidation(sessionId);
   return {

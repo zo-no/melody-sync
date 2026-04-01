@@ -2111,6 +2111,10 @@
 
   function renderTracker() {
     const state = deriveQuestState();
+    // Keep suggested questions in sync with the current session state.
+    if (typeof window.renderSuggestedQuestions === "function") {
+      window.renderSuggestedQuestions(state.session || null);
+    }
     if (!state.hasSession) {
       tracker.hidden = true;
       if (taskMapRail) taskMapRail.hidden = true;

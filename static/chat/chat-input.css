@@ -144,6 +144,34 @@
   opacity: 0.8;
   flex-shrink: 0;
 }
+/* ── Suggested questions ──────────────────────────────────────────────── */
+.suggested-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 4px;
+}
+.suggested-question-btn {
+  background: var(--surface-2, rgba(255,255,255,0.06));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.12));
+  border-radius: 16px;
+  color: var(--text-secondary, rgba(255,255,255,0.72));
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 4px 12px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.suggested-question-btn:hover {
+  background: var(--surface-3, rgba(255,255,255,0.1));
+  border-color: var(--focus-border, rgba(255,255,255,0.28));
+  color: var(--text-primary, #fff);
+}
+
 .input-footer {
   display: flex;
   align-items: center;

@@ -608,3 +608,48 @@ globalThis.switchTab = switchTab;
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
 
 switchTab(activeTab, { syncState: false });
+
+// ── Suggested questions (candidate branches) ─────────────────────────────────
+
+const suggestedQuestionsEl = document.getElementById("suggestedQuestions");
+
+function renderSuggestedQuestions(session) {
+  if (!suggestedQuestionsEl) return;
+  const candidates = Array.isArray(session?.taskCard?.candidateBranches)
+    ? session.taskCard.candidateBranches.filter((s) => typeof s === "string" && s.trim())
+    : [];
+  const isRunning = Boolean(session?.activity?.run?.state === "running");
+  const hasDraft = Boolean(msgInput?.value?.trim());
+
+  if (candidates.length === 0 || isRunning || hasDraft) {
+    suggestedQuestionsEl.hidden = true;
+    suggestedQuestionsEl.innerHTML = "";
+    return;
+  }
+
+  suggestedQuestionsEl.innerHTML = "";
+  for (const text of candidates.slice(0, 3)) {
+    const btn = document.createElement("button");
+    btn.className = "suggested-question-btn";
+    btn.textContent = text;
+    btn.type = "button";
+    btn.addEventListener("click", () => {
+      if (!msgInput) return;
+      msgInput.value = text;
+      msgInput.dispatchEvent(new Event("input", { bubbles: true }));
+      msgInput.focus();
+      suggestedQuestionsEl.hidden = true;
+    });
+    suggestedQuestionsEl.appendChild(btn);
+  }
+  suggestedQuestionsEl.hidden = false;
+}
+
+// Hide suggestions when the user starts typing.
+msgInput?.addEventListener("input", () => {
+  if (msgInput.value.trim() && suggestedQuestionsEl) {
+    suggestedQuestionsEl.hidden = true;
+  }
+});
+
+globalThis.renderSuggestedQuestions = renderSuggestedQuestions;

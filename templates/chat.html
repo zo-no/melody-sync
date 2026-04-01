@@ -41,6 +41,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <h2>MelodySync</h2>
+        <button class="header-btn" id="hooksSettingsBtn" type="button" title="Hooks 设置" aria-label="Hooks 设置">⚙</button>
         <button class="header-btn" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
       </div>
       <div class="sidebar-tabs">
@@ -53,6 +54,19 @@
         <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">开始任务</button>
       </div>
     </aside>
+  </div>
+
+  <!-- Hooks settings overlay -->
+  <div class="hooks-overlay" id="hooksOverlay" hidden role="dialog" aria-modal="true" aria-label="Hooks 设置">
+    <div class="hooks-panel">
+      <div class="hooks-panel-header">
+        <span class="hooks-panel-title">Hooks 设置</span>
+        <button class="hooks-panel-close" id="hooksOverlayClose" type="button" aria-label="关闭">✕</button>
+      </div>
+      <div class="hooks-panel-body" id="hooksPanelBody">
+        <div class="hooks-loading">加载中…</div>
+      </div>
+    </div>
   </div>
 
   <!-- Chat area -->
@@ -117,6 +131,8 @@
           <div class="input-resize-handle" id="inputResizeHandle">
             <div class="input-resize-pill"></div>
           </div>
+          <!-- Suggested questions — rendered from taskCard.candidateBranches -->
+          <div class="suggested-questions" id="suggestedQuestions" hidden></div>
           <div class="input-wrapper">
             <!-- Attachment preview inside wrapper -->
             <div class="img-preview-strip" id="imgPreviewStrip" hidden></div>
@@ -195,6 +211,7 @@
 <script src="/chat/workbench-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/hooks-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 </body>
 </html>
