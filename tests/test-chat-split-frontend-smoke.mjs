@@ -17,6 +17,7 @@ const filesToParse = [
   join(repoRoot, 'static', 'chat', 'bootstrap-session-catalog.js'),
   join(repoRoot, 'static', 'chat', 'layout-tooling.js'),
   join(repoRoot, 'static', 'chat', 'tooling.js'),
+  join(repoRoot, 'static', 'chat', 'session-list-model.js'),
   join(repoRoot, 'static', 'chat', 'sidebar-ui.js'),
   join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'),
   join(repoRoot, 'static', 'chat', 'task-map-model.js'),

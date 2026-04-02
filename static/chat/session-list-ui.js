@@ -3,16 +3,59 @@ function t(key, vars) {
   return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
+function getSessionListModel() {
+  return window.MelodySyncSessionListModel || null;
+}
+
+function getSessionGroupInfoForList(session) {
+  return getSessionListModel()?.getSessionGroupInfo?.(session) || {
+    key: "group:inbox",
+    label: t("sidebar.group.inbox"),
+    title: t("sidebar.group.inbox"),
+    order: 0,
+  };
+}
+
+function isBranchTaskSessionForList(session) {
+  return getSessionListModel()?.isBranchTaskSession?.(session) === true;
+}
+
+function buildSessionListMetaHtml(session) {
+  const model = getSessionListModel();
+  const metaParts = typeof buildSessionMetaParts === "function"
+    ? buildSessionMetaParts(session)
+    : [];
+  const badgeHtml = Array.isArray(model?.getSessionListBadges?.(session))
+    ? model.getSessionListBadges(session)
+        .filter((badge) => badge?.label)
+        .map((badge) => `<span class="${esc(badge.className || "session-list-badge")}" title="${esc(badge.label)}">${esc(badge.label)}</span>`)
+    : [];
+  return [...badgeHtml, ...metaParts].join(" · ");
+}
+
+function createSidebarSessionItem(session, { archived = false } = {}) {
+  const isBranch = isBranchTaskSessionForList(session);
+  const extraClassNames = [];
+  if (archived) extraClassNames.push("archived-item");
+  if (isBranch) extraClassNames.push(archived ? "is-archived-branch" : "is-branch-session");
+  const metaOverrideHtml = buildSessionListMetaHtml(session);
+  return createActiveSessionItem(session, {
+    extraClassName: extraClassNames.join(" "),
+    ...(metaOverrideHtml ? { metaOverrideHtml } : {}),
+  });
+}
+
+function appendSessionItems(host, entries = [], options = {}) {
+  for (const session of Array.isArray(entries) ? entries : []) {
+    if (!session?.id) continue;
+    host.appendChild(createSidebarSessionItem(session, options));
+  }
+}
+
 function renderSessionList() {
   sessionList.innerHTML = "";
   const pinnedSessions = getVisiblePinnedSessions();
   const visibleSessions = getVisibleActiveSessions();
-  const allVisibleSessions = [...pinnedSessions, ...visibleSessions];
-  const allTaskClusters = typeof getSidebarTaskClusters === "function"
-    ? getSidebarTaskClusters(allVisibleSessions)
-    : allVisibleSessions.map((session) => ({ root: session, branches: [] }));
-  const pinnedClusters = allTaskClusters.filter((cluster) => cluster?.root?.pinned === true);
-  const unpinnedClusters = allTaskClusters.filter((cluster) => cluster?.root?.pinned !== true);
 
   if (pinnedSessions.length > 0) {
     const section = document.createElement("div");
@@ -24,16 +67,7 @@ function renderSessionList() {
 
     const items = document.createElement("div");
     items.className = "pinned-items";
-    for (const cluster of pinnedClusters) {
-      const nodes = typeof createTaskClusterNodes === "function"
-        ? createTaskClusterNodes(cluster.root, cluster.branches, {
-            currentBranchSessionId: cluster.currentBranchSessionId,
-          })
-        : [createTaskClusterItem(cluster.root, cluster.branches, {
-            currentBranchSessionId: cluster.currentBranchSessionId,
-          })];
-      nodes.forEach((node) => items.appendChild(node));
-    }
+    appendSessionItems(items, pinnedSessions);
 
     section.appendChild(header);
     section.appendChild(items);
@@ -41,14 +75,13 @@ function renderSessionList() {
   }
 
   const groups = new Map();
-  for (const cluster of unpinnedClusters) {
-    const rootSession = cluster?.root;
-    if (!rootSession) continue;
-    const groupInfo = getSessionGroupInfo(rootSession);
+  for (const session of visibleSessions) {
+    if (!session?.id) continue;
+    const groupInfo = getSessionGroupInfoForList(session);
     if (!groups.has(groupInfo.key)) {
-      groups.set(groupInfo.key, { ...groupInfo, clusters: [] });
+      groups.set(groupInfo.key, { ...groupInfo, sessions: [] });
     }
-    groups.get(groupInfo.key).clusters.push(cluster);
+    groups.get(groupInfo.key).sessions.push(session);
   }
 
   const showGroupHeaders = groups.size > 0;
@@ -60,7 +93,7 @@ function renderSessionList() {
   });
 
   for (const [groupKey, groupEntry] of orderedGroups) {
-    const taskClusters = groupEntry.clusters;
+    const groupSessions = groupEntry.sessions;
     const group = document.createElement("div");
     group.className = "folder-group" + (showGroupHeaders ? "" : " is-ungrouped");
 
@@ -71,7 +104,7 @@ function renderSessionList() {
         (collapsedFolders[groupKey] ? " collapsed" : "");
       header.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
         <span class="folder-name" title="${esc(groupEntry.title)}">${esc(groupEntry.label)}</span>
-        <span class="folder-count">${taskClusters.length}</span>`;
+        <span class="folder-count">${groupSessions.length}</span>`;
       header.addEventListener("click", () => {
         header.classList.toggle("collapsed");
         collapsedFolders[groupKey] = header.classList.contains("collapsed");
@@ -85,17 +118,7 @@ function renderSessionList() {
 
     const items = document.createElement("div");
     items.className = "folder-group-items";
-
-    for (const cluster of taskClusters) {
-      const nodes = typeof createTaskClusterNodes === "function"
-        ? createTaskClusterNodes(cluster.root, cluster.branches, {
-            currentBranchSessionId: cluster.currentBranchSessionId,
-          })
-        : [createTaskClusterItem(cluster.root, cluster.branches, {
-            currentBranchSessionId: cluster.currentBranchSessionId,
-          })];
-      nodes.forEach((node) => items.appendChild(node));
-    }
+    appendSessionItems(items, groupSessions);
 
     group.appendChild(items);
     sessionList.appendChild(group);
@@ -161,12 +184,7 @@ function renderArchivedSection() {
     empty.textContent = getFilteredSessionEmptyText({ archived: true });
     items.appendChild(empty);
   } else {
-    for (const session of archivedSessions) {
-      const row = createActiveSessionItem(session, {
-        extraClassName: `archived-item${typeof isBranchTaskSession === "function" && isBranchTaskSession(session) ? " is-archived-branch" : ""}`,
-      });
-      items.appendChild(row);
-    }
+    appendSessionItems(items, archivedSessions, { archived: true });
   }
 
   sessionList.appendChild(section);

@@ -19,6 +19,7 @@
     "/chat/realtime-render.js",
     "/chat/ui.js",
     "/chat/session-surface-ui.js",
+    "/chat/session-list-model.js",
     "/chat/session-list-ui.js",
     "/chat/sidebar-ui.js",
     "/chat/workbench-node-contract.js",

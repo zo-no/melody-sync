@@ -13,7 +13,7 @@ This document lists the current shipped MelodySync feature surface after App tem
 | Inputs | Text, file uploads, pasted images | Assets can be saved and reused in a session |
 | Task flow | Fork session, delegate subtask, task/workbench tracking | Keeps the session-first workflow model |
 | Runtime preferences | Tool, model, effort, thinking | Stored per session |
-| Session organization | Auto title, grouping, sidebar sorting helpers | Includes the built-in hidden session organizer flow |
+| Session organization | Auto title, grouping, sidebar sorting helpers, flat task list | Sidebar stays a grouped work list; task structure lives in the map/tracker |
 | UI | Phone + desktop web UI, reconnect refresh, build update prompt | No frontend build step required |
 | Integrations | External message protocol, Feishu/email/GitHub style connectors, remote capability monitor | These create or enrich sessions through the core session API |
 | Deployment | Local self-hosting, Cloudflare Tunnel, Tailscale, guest instances | Instance root can be isolated per runtime |

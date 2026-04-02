@@ -78,6 +78,8 @@
   - 负责支线收束、挂起、回主线和 tracker 动作按钮
 - `static/chat/workbench/operation-record-ui.js`
   - 负责右侧操作记录面板交互
+- `static/chat/session-list-model.js`
+  - 负责左侧任务列表的分组和轻量支线标记，不再依赖 workbench 关系树
 
 现在剩下最值得继续拆的热点，主要回到了 continuity 写侧和 knowledge 这两块。
 
@@ -130,6 +132,8 @@
   - 只负责右侧操作记录面板
 - `static/chat/workbench/branch-actions.js`
   - 只负责结束、挂起、回主线等动作
+- `static/chat/session-list-model.js`
+  - 只负责左侧任务列表的 group / badge / light list semantics
 - `static/chat/workbench/task-map-model.js`
   - 保持纯 projection
 - `static/chat/workbench/node-contract.js`

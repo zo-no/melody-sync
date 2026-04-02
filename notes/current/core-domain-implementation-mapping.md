@@ -22,6 +22,7 @@ For the shipped architecture, start with `../../docs/project-architecture.md`.
 | websocket + live updates | `static/chat/realtime.js`, `static/chat/realtime-render.js` |
 | tool/model picker | `static/chat/tooling.js` |
 | composer + attachments | `static/chat/compose.js` |
+| session list model + grouping | `static/chat/session-list-model.js`, `static/chat/session-list-ui.js` |
 | session detail rendering | `static/chat/session-surface-ui.js` |
 | workbench rendering | `static/chat/workbench-ui.js`, `static/chat/workbench/quest-state.js`, `static/chat/workbench/task-tracker-ui.js`, `static/chat/workbench/task-map-ui.js`, `static/chat/workbench/task-list-ui.js`, `static/chat/workbench/branch-actions.js`, `static/chat/workbench/operation-record-ui.js` |
 

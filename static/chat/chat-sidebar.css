@@ -336,6 +336,20 @@
   font-size: 11px; color: var(--text-muted); margin-top: 1px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.session-list-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
+}
+.session-list-badge-branch {
+  color: var(--notice);
+}
+.session-item.is-branch-session {
+  border-color: color-mix(in srgb, var(--notice) 16%, transparent);
+}
 .session-item.is-complete-read:not(.active) .session-item-meta {
   color: var(--text-muted);
 }
@@ -691,7 +705,7 @@
 .archived-section-header.collapsed + .archived-items { display: none; }
 .archived-item { opacity: 0.65; }
 .archived-item:hover { opacity: 1; }
-.archived-item.is-archived-branch { margin-left: 14px; }
+.archived-item.is-archived-branch { margin-left: 0; }
 .archived-empty {
   padding: 6px 10px;
   color: var(--text-muted);

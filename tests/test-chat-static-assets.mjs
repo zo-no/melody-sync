@@ -187,6 +187,7 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/realtime-render\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/session-surface-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/session-list-model\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/session-list-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/sidebar-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-tracker-ui\.js(?:\?v=[^"]*)?"/);
@@ -511,12 +512,19 @@ async function main() {
     assert.equal(sessionSurfaceUiAsset.status, 200, 'session surface ui asset should load');
     assert.match(sessionSurfaceUiAsset.text, /function createActiveSessionItem\(/);
     assert.match(sessionSurfaceUiAsset.text, /function buildSessionMetaParts\(/);
+    assert.doesNotMatch(sessionSurfaceUiAsset.text, /function createTaskClusterNodes\(/, 'session surface ui should no longer embed sidebar task-tree rendering');
+
+    const sessionListModelAsset = await request(port, 'GET', '/chat/session-list-model.js');
+    assert.equal(sessionListModelAsset.status, 200, 'session list model asset should load');
+    assert.match(sessionListModelAsset.text, /MelodySyncSessionListModel/);
+    assert.match(sessionListModelAsset.text, /function getSessionGroupInfo\(/);
 
     const sessionListUiAsset = await request(port, 'GET', '/chat/session-list-ui.js');
     assert.equal(sessionListUiAsset.status, 200, 'session list ui asset should load');
     assert.match(sessionListUiAsset.text, /function renderSessionList\(/);
     assert.match(sessionListUiAsset.text, /function attachSession\(/);
     assert.match(sessionListUiAsset.text, /focusComposer\(\{ preventScroll: true \}\)/);
+    assert.doesNotMatch(sessionListUiAsset.text, /getSidebarTaskClusters/, 'session list ui should render from stable session list data instead of workbench task clusters');
 
     const hooksUiAsset = await request(port, 'GET', '/chat/hooks-ui.js');
     assert.equal(hooksUiAsset.status, 200, 'hooks ui asset should load');

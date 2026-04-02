@@ -749,9 +749,6 @@
       } catch {}
       renderTracker();
       renderPathPanel();
-      if (typeof renderSessionList === "function") {
-        renderSessionList();
-      }
       trackerRefreshInFlight = null;
       return snapshot;
     })();
@@ -776,9 +773,6 @@
       }
       renderTracker();
       renderPathPanel();
-      if (typeof renderSessionList === "function") {
-        renderSessionList();
-      }
       refreshInFlight = null;
       return snapshot;
     })();
