@@ -11,7 +11,7 @@ For the shipped architecture, start with `../../docs/project-architecture.md`.
 | `Session` | `chat/session-manager.mjs`, `chat/router.mjs`, `chat/history.mjs`, `chat/session-meta-store.mjs` | `chat-sessions.json`, `chat-history/<sessionId>/` |
 | `Run` | `chat/session-manager.mjs`, `chat/runs.mjs`, `chat/runner-sidecar*.mjs` | `chat-runs/<runId>/` |
 | `Source metadata` | `chat/session-manager.mjs`, connector scripts, `chat/router.mjs` | embedded in `chat-sessions.json` |
-| `Workbench state` | `chat/workbench-store.mjs`, `chat/workbench/state-store.mjs`, `chat/workbench/continuity-store.mjs`, `chat/workbench/operation-records.mjs`, `static/chat/workbench-ui.js`, `static/chat/workbench/task-tracker-ui.js`, `static/chat/workbench/operation-record-ui.js` | layered on session/workbench persistence |
+| `Workbench state` | `chat/workbench-store.mjs`, `chat/workbench/state-store.mjs`, `chat/workbench/continuity-store.mjs`, `chat/workbench/operation-records.mjs`, `static/chat/workbench-ui.js`, `static/chat/workbench/quest-state.js`, `static/chat/workbench/task-tracker-ui.js`, `static/chat/workbench/task-map-ui.js`, `static/chat/workbench/task-list-ui.js`, `static/chat/workbench/branch-actions.js`, `static/chat/workbench/operation-record-ui.js` | layered on session/workbench persistence |
 
 ## Frontend Map
 
@@ -23,7 +23,7 @@ For the shipped architecture, start with `../../docs/project-architecture.md`.
 | tool/model picker | `static/chat/tooling.js` |
 | composer + attachments | `static/chat/compose.js` |
 | session detail rendering | `static/chat/session-surface-ui.js` |
-| workbench rendering | `static/chat/workbench-ui.js`, `static/chat/workbench/task-tracker-ui.js`, `static/chat/workbench/operation-record-ui.js` |
+| workbench rendering | `static/chat/workbench-ui.js`, `static/chat/workbench/quest-state.js`, `static/chat/workbench/task-tracker-ui.js`, `static/chat/workbench/task-map-ui.js`, `static/chat/workbench/task-list-ui.js`, `static/chat/workbench/branch-actions.js`, `static/chat/workbench/operation-record-ui.js` |
 
 ## Retired Concepts
 

@@ -9,7 +9,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'), 'utf8');
 const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'task-map-model.js'), 'utf8');
+const questStateSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'quest-state.js'), 'utf8');
 const taskTrackerUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-tracker-ui.js'), 'utf8');
+const taskMapUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-map-ui.js'), 'utf8');
+const taskListUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-list-ui.js'), 'utf8');
+const branchActionsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'branch-actions.js'), 'utf8');
 const operationRecordUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'operation-record-ui.js'), 'utf8');
 const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-ui.js'), 'utf8');
 
@@ -230,7 +234,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
-  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskMapModelSource}\n${taskTrackerUiSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'static/chat/workbench-ui.js',
   });
   await Promise.resolve();

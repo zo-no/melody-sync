@@ -190,6 +190,10 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/session-list-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/sidebar-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-tracker-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/task-list-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/quest-state\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/branch-actions\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/operation-record-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/compose\.js(?:\?v=[^"]*)?"/);
@@ -237,7 +241,7 @@ async function main() {
     assert.match(page.text, /\/chat\/workbench-node-contract\.js\?v=/, 'chat page should load the shared workbench node contract');
     assert.match(page.text, /\/chat\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
     assert.match(page.text, /\/chat\/workbench-node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/task-map-model\.js\?v=/, 'chat page should load the node contract before the task-map projection model');
-    assert.match(page.text, /\/chat\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=/, 'chat page should load workbench UI helpers before the workbench runtime');
+    assert.match(page.text, /\/chat\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=/, 'chat page should load workbench UI helpers before the workbench runtime');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');
@@ -535,6 +539,26 @@ async function main() {
     assert.equal(taskTrackerUiAsset.status, 200, 'task tracker ui asset should load');
     assert.match(taskTrackerUiAsset.text, /MelodySyncTaskTrackerUi/);
     assert.match(taskTrackerUiAsset.text, /createTrackerRenderer/);
+
+    const taskMapUiAsset = await request(port, 'GET', '/chat/workbench/task-map-ui.js');
+    assert.equal(taskMapUiAsset.status, 200, 'task map ui asset should load');
+    assert.match(taskMapUiAsset.text, /MelodySyncTaskMapUi/);
+    assert.match(taskMapUiAsset.text, /createRenderer/);
+
+    const questStateAsset = await request(port, 'GET', '/chat/workbench/quest-state.js');
+    assert.equal(questStateAsset.status, 200, 'quest state asset should load');
+    assert.match(questStateAsset.text, /MelodySyncQuestState/);
+    assert.match(questStateAsset.text, /createSelector/);
+
+    const taskListUiAsset = await request(port, 'GET', '/chat/workbench/task-list-ui.js');
+    assert.equal(taskListUiAsset.status, 200, 'task list ui asset should load');
+    assert.match(taskListUiAsset.text, /MelodySyncTaskListUi/);
+    assert.match(taskListUiAsset.text, /createController/);
+
+    const branchActionsAsset = await request(port, 'GET', '/chat/workbench/branch-actions.js');
+    assert.equal(branchActionsAsset.status, 200, 'branch actions asset should load');
+    assert.match(branchActionsAsset.text, /MelodySyncBranchActions/);
+    assert.match(branchActionsAsset.text, /createController/);
 
     const hooksApi = await request(port, 'GET', '/api/hooks');
     assert.equal(hooksApi.status, 200, 'hooks api should list registered hooks');

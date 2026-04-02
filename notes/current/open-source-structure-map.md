@@ -66,6 +66,14 @@
   - 负责 continuity / taskClusters 的读侧投影
 - `static/chat/workbench/task-tracker-ui.js`
   - 负责顶部 tracker 的标题、状态、详情渲染
+- `static/chat/workbench/quest-state.js`
+  - 负责 quest state / cluster / context / lineage 派生
+- `static/chat/workbench/task-map-ui.js`
+  - 负责 flow-board 任务地图渲染
+- `static/chat/workbench/task-list-ui.js`
+  - 负责任务列表 / 树视图渲染和展开状态
+- `static/chat/workbench/branch-actions.js`
+  - 负责支线收束、挂起、回主线和 tracker 动作按钮
 - `static/chat/workbench/operation-record-ui.js`
   - 负责右侧操作记录面板交互
 
@@ -100,7 +108,7 @@
 ### 前端优先级
 
 1. `static/chat/workbench-ui.js`
-   - 当前混了 tracker、task map、branch action、operation record
+   - 当前还混了 quest state、snapshot 协调和各子模块接线
 2. `static/chat/`
    - 目录仍然偏平，不利于新 contributor 定位
 3. `static/chat/hooks-ui.js`
@@ -110,6 +118,10 @@
 
 - `static/chat/workbench/task-map-ui.js`
   - 只负责地图渲染和交互
+- `static/chat/workbench/quest-state.js`
+  - 只负责 session/snapshot 到 quest state 的 selector 派生
+- `static/chat/workbench/task-list-ui.js`
+  - 只负责任务列表 / 树视图渲染
 - `static/chat/workbench/task-tracker-ui.js`
   - 只负责顶部 tracker
 - `static/chat/workbench/operation-record-ui.js`
@@ -173,7 +185,9 @@ static/chat/
   workbench/
     node-contract.js
     task-map-model.js
+    quest-state.js
     task-map-ui.js
+    task-list-ui.js
     task-tracker-ui.js
     operation-record-ui.js
     branch-actions.js
@@ -186,7 +200,11 @@ static/chat/
   - `chat/workbench/continuity-store.mjs`
   - `chat/workbench/operation-records.mjs`
 - frontend 已经有：
+  - `static/chat/workbench/quest-state.js`
   - `static/chat/workbench/task-tracker-ui.js`
+  - `static/chat/workbench/task-map-ui.js`
+  - `static/chat/workbench/task-list-ui.js`
+  - `static/chat/workbench/branch-actions.js`
   - `static/chat/workbench/operation-record-ui.js`
 - 旧入口仍然保留：
   - `chat/workbench-store.mjs`
