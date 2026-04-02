@@ -64,6 +64,8 @@
   - 负责操作记录投影
 - `chat/workbench/continuity-store.mjs`
   - 负责 continuity / taskClusters 的读侧投影
+- `chat/workbench/exporters.mjs`
+  - 负责 summary / markdown / obsidian export / branch seed prompt
 - `static/chat/workbench/task-tracker-ui.js`
   - 负责顶部 tracker 的标题、状态、详情渲染
 - `static/chat/workbench/quest-state.js`
@@ -77,7 +79,7 @@
 - `static/chat/workbench/operation-record-ui.js`
   - 负责右侧操作记录面板交互
 
-现在剩下最值得继续拆的热点，主要回到了 continuity、knowledge、export 这几块。
+现在剩下最值得继续拆的热点，主要回到了 continuity 写侧和 knowledge 这两块。
 
 ## 2. 最适合优先抽离的内容
 
@@ -199,6 +201,7 @@ static/chat/
   - `chat/workbench/state-store.mjs`
   - `chat/workbench/continuity-store.mjs`
   - `chat/workbench/operation-records.mjs`
+  - `chat/workbench/exporters.mjs`
 - frontend 已经有：
   - `static/chat/workbench/quest-state.js`
   - `static/chat/workbench/task-tracker-ui.js`
