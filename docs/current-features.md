@@ -45,3 +45,4 @@ This document lists the current shipped MelodySync feature surface after App tem
 - `appId` / `appName`, `sourceId` / `sourceName`, and `userId` / `userName` may still appear in stored session metadata for compatibility or connector tagging.
 - Those fields are not active product surfaces. They should be treated as passive metadata unless a future product decision explicitly revives them.
 - Integrations and workbench capabilities still matter, but they layer on top of the core session/run model instead of replacing it.
+- For internal review of which capabilities belong in the main flow, settings, hidden/internal surfaces, or deletion review, see `notes/current/feature-and-settings-inventory.md`.

@@ -24,10 +24,6 @@ function showEmpty() {
   }
   inThinkingBlock = false;
   currentThinkingBlock = null;
-  syncForkButton();
-  if (typeof syncOrganizeSessionButton === "function") {
-    syncOrganizeSessionButton();
-  }
   document.dispatchEvent(new CustomEvent("melodysync:session-change", {
     detail: { session: null },
   }));

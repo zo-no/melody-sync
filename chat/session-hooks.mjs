@@ -4,7 +4,9 @@ registerBuiltinHooks();
 
 export {
   HOOK_EVENTS,
+  HOOK_EVENT_DEFINITIONS,
   emit,
+  listHookEventDefinitions,
   listHooks,
   registerHook,
   setHookEnabled,

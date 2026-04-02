@@ -106,6 +106,7 @@ import {
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
 import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
+import { getBuiltinHookDefinition } from './hooks/builtin-hook-catalog.mjs';
 
 const MIME_EXTENSIONS = {
   'application/json': '.json',
@@ -2640,6 +2641,14 @@ async function syncDetachedRun(sessionId, runId) {
 // These hooks need access to session-manager internals.
 let sessionManagerHooksRegistered = false;
 
+function getSessionManagerHookDefinition(hookId) {
+  const definition = getBuiltinHookDefinition(hookId);
+  if (!definition) {
+    throw new Error(`Unknown session-manager hook definition: ${hookId}`);
+  }
+  return definition;
+}
+
 function registerSessionManagerHooks() {
   if (sessionManagerHooksRegistered) return;
   sessionManagerHooksRegistered = true;
@@ -2651,12 +2660,7 @@ function registerSessionManagerHooks() {
     // No extra broadcast here — syncDetachedRunUnlocked already broadcasts
     // after finalizeDetachedRun returns. An extra broadcast here would cause
     // the frontend to fetch the session before the follow-up queue is flushed.
-  }, {
-    id: 'builtin.branch-candidates',
-    label: '支线任务推荐',
-    description: 'Run 完成后将 AI 推荐的支线写入会话，显示在地图上',
-    builtIn: true,
-  });
+  }, getSessionManagerHookDefinition('builtin.branch-candidates'));
 
   // Session auto-naming: derive the final title/group after the first real user turn.
   registerHook('run.completed', async ({ sessionId, session, manifest }) => {
@@ -2665,12 +2669,7 @@ function registerSessionManagerHooks() {
     await triggerAutomaticSessionLabeling(sessionId, session).catch((err) => {
       console.error(`[session-hooks] session-naming ${sessionId}: ${err.message}`);
     });
-  }, {
-    id: 'builtin.session-naming',
-    label: 'Session 自动命名',
-    description: '第一次 Run 完成后基于最后一轮对话生成标题和分组',
-    builtIn: true,
-  });
+  }, getSessionManagerHookDefinition('builtin.session-naming'));
 }
 
 export async function startDetachedRunObservers() {

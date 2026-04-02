@@ -4,8 +4,7 @@
  *
  * Tests for task-map-model.js node generation:
  *   - main node always present
- *   - goal node appears when taskCard.goal differs from session name
- *   - goal node absent when goal matches session name
+ *   - goal node no longer exists
  *   - candidate nodes from taskCard.candidateBranches
  *   - branch nodes with status
  *   - branch conclusion text from branchContext.checkpointSummary
@@ -20,6 +19,10 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
+const nodeContractSource = readFileSync(
+  join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'),
+  'utf8',
+);
 const source = readFileSync(
   join(repoRoot, 'static', 'chat', 'task-map-model.js'),
   'utf8',
@@ -28,10 +31,12 @@ const source = readFileSync(
 const context = { console };
 context.globalThis = context;
 context.window = context;
+vm.runInNewContext(nodeContractSource, context, { filename: 'workbench-node-contract.js' });
 vm.runInNewContext(source, context, { filename: 'task-map-model.js' });
 
-const { buildTaskMapProjection } = context.MelodySyncTaskMapModel;
+const { buildTaskMapProjection, NODE_KINDS } = context.MelodySyncTaskMapModel;
 assert.ok(buildTaskMapProjection, 'buildTaskMapProjection should be exposed');
+assert.deepEqual(JSON.parse(JSON.stringify(NODE_KINDS)), ['main', 'branch', 'candidate', 'done']);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -98,7 +103,7 @@ function getNodeById(projection, id) {
   console.log('  ✓ main node always present');
 }
 
-// 2. Goal node appears when taskCard.goal differs from session name
+// 2. Goal node has been removed from the map projection
 {
   const session = makeSession({
     name: '主任务',
@@ -106,14 +111,11 @@ function getNodeById(projection, id) {
   });
   const p = project(session);
   const kinds = getNodeKinds(p);
-  assert.ok(kinds.includes('goal'), 'goal node should appear when goal differs from name');
-  const goalNode = getNodeByKind(p, 'goal');
-  assert.equal(goalNode.title, '实现登录功能', 'goal node title should be taskCard.goal');
-  assert.equal(goalNode.parentNodeId, `session:${session.id}`, 'goal node parent should be main node');
-  console.log('  ✓ goal node appears with correct title and parent');
+  assert.ok(!kinds.includes('goal'), 'goal node should not be generated');
+  console.log('  ✓ goal node removed even when taskCard.goal differs from name');
 }
 
-// 3. Goal node absent when goal matches session name (case-insensitive)
+// 3. Goal node stays absent when goal matches session name (case-insensitive)
 {
   const session = makeSession({
     name: '实现登录功能',
@@ -226,7 +228,7 @@ function getNodeById(projection, id) {
   console.log('  ✓ done node absent when no branches exist');
 }
 
-// 13. Full closure: main + goal + 2 merged branches + done
+// 13. Full closure: main + 2 merged branches + done
 {
   const session = makeSession({
     taskCard: { goal: '完成登录系统', candidateBranches: [] },
@@ -236,10 +238,10 @@ function getNodeById(projection, id) {
   const p = project(session, [b1, b2]);
   const kinds = getNodeKinds(p);
   assert.ok(kinds.includes('main'), 'main present');
-  assert.ok(kinds.includes('goal'), 'goal present');
   assert.ok(kinds.includes('branch'), 'branch present');
   assert.ok(kinds.includes('done'), 'done present — full closure achieved');
-  console.log('  ✓ full closure: main + goal + branches + done all present');
+  assert.ok(!kinds.includes('goal'), 'goal remains absent');
+  console.log('  ✓ full closure: main + branches + done all present');
 }
 
 console.log('\ntest-task-map-nodes: ok');

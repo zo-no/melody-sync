@@ -7,6 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
+const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'), 'utf8');
 const source = readFileSync(join(repoRoot, 'static', 'chat', 'task-map-model.js'), 'utf8');
 
 const context = {
@@ -14,13 +15,17 @@ const context = {
   window: {},
 };
 context.globalThis = context;
+vm.runInNewContext(nodeContractSource, context, {
+  filename: 'static/chat/workbench-node-contract.js',
+});
 vm.runInNewContext(source, context, {
   filename: 'static/chat/task-map-model.js',
 });
 
-const { buildTaskMapProjection, applyTaskMapMockPreset } = context.window.MelodySyncTaskMapModel;
+const { buildTaskMapProjection, applyTaskMapMockPreset, NODE_KINDS } = context.window.MelodySyncTaskMapModel;
 assert.equal(typeof buildTaskMapProjection, 'function', 'task map model should expose a projection builder');
 assert.equal(typeof applyTaskMapMockPreset, 'function', 'task map model should expose a mock-preset applicator');
+assert.deepEqual(JSON.parse(JSON.stringify(NODE_KINDS)), ['main', 'branch', 'candidate', 'done']);
 
 function toPlain(value) {
   return JSON.parse(JSON.stringify(value));

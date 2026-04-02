@@ -22,11 +22,15 @@
 
 1. `core-domain-contract.md`
 2. `core-domain-implementation-mapping.md`
-3. `session-first-workflow-surfaces.md`
-4. `product-surface-lifecycle.md`
-5. `session-run-closure-requirements.md`
-6. `core-domain-refactor-todo.md`
-7. `documentation-flywheel.md`
+3. `hooks-and-node-structure.md`
+4. `feature-and-settings-inventory.md`
+5. `open-source-structure-map.md`
+6. `next-feature-cleanup-map.md`
+7. `session-first-workflow-surfaces.md`
+8. `product-surface-lifecycle.md`
+9. `session-run-closure-requirements.md`
+10. `core-domain-refactor-todo.md`
+11. `documentation-flywheel.md`
 
 ### 各自作用与管理方式
 
@@ -39,6 +43,18 @@
 - `session-first-workflow-surfaces.md`
   - workflow 视图必须基于 session 派生，不能偷偷长出平行对象
   - 管理方式：长期保留，作为 workbench / 任务地图设计约束
+- `hooks-and-node-structure.md`
+  - 当前 hooks、task map node、操作记录面板的最小结构说明
+  - 管理方式：hooks、node kind 或操作记录面板发生收敛变化时同步更新
+- `feature-and-settings-inventory.md`
+  - 当前功能盘点表，明确哪些留在主流程、哪些属于设置、哪些是隐藏能力、哪些已经进入删除复核区
+  - 管理方式：产品表面、设置边界或删除候选判断发生变化时同步更新
+- `open-source-structure-map.md`
+  - 面向开源继续收口时，哪些模块最值得先抽、目录应该往哪种责任划分靠
+  - 管理方式：目录结构或模块拆分主方向变化时同步更新
+- `next-feature-cleanup-map.md`
+  - 下一轮删旧上新前，哪些是主骨架、哪些是外围裁剪区、推荐按什么顺序收口
+  - 管理方式：进入新一轮清理或新增大功能前同步更新
 - `product-surface-lifecycle.md`
   - 功能 keep / iterate / retire 的产品面规则
   - 管理方式：长期保留，作为产品面治理规则
@@ -128,10 +144,14 @@
 
 1. `core-domain-contract.md`
 2. `core-domain-implementation-mapping.md`
-3. `session-first-workflow-surfaces.md`
-4. `core-domain-refactor-todo.md`
-5. `session-run-closure-requirements.md`
-6. `documentation-flywheel.md`
+3. `hooks-and-node-structure.md`
+4. `feature-and-settings-inventory.md`
+5. `open-source-structure-map.md`
+6. `next-feature-cleanup-map.md`
+7. `session-first-workflow-surfaces.md`
+8. `core-domain-refactor-todo.md`
+9. `session-run-closure-requirements.md`
+10. `documentation-flywheel.md`
 
 这样能先掌握：
 

@@ -1,6 +1,7 @@
 import { readBody } from '../../lib/utils.mjs';
 import {
   HOOK_EVENTS,
+  listHookEventDefinitions,
   listHooks,
   setHookEnabled,
 } from '../session-hook-registry.mjs';
@@ -10,6 +11,7 @@ export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) 
   if (pathname === '/api/hooks' && req?.method === 'GET') {
     writeJson(res, 200, {
       events: HOOK_EVENTS,
+      eventDefinitions: listHookEventDefinitions(),
       hooks: listHooks(),
     });
     return true;

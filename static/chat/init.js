@@ -18,8 +18,6 @@ async function resolveInitialAuthInfo() {
 async function initApp() {
   await resolveInitialAuthInfo();
 
-  syncForkButton();
-
   initializePushNotifications();
 
   const toolsPromise = loadInlineTools({ skipModelLoad: true });

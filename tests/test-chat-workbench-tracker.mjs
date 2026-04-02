@@ -7,7 +7,10 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
+const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'), 'utf8');
 const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'task-map-model.js'), 'utf8');
+const taskTrackerUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-tracker-ui.js'), 'utf8');
+const operationRecordUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'operation-record-ui.js'), 'utf8');
 const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-ui.js'), 'utf8');
 
 function makeClassList(initial = [], onChange = () => {}) {
@@ -149,6 +152,11 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
     'questFinishParkBtn',
     'questFinishMergeBtn',
     'questFinishSummaryInput',
+    'operationRecordBtn',
+    'operationRecordRail',
+    'operationRecordBackdrop',
+    'operationRecordCloseBtn',
+    'operationRecordInner',
     'emptyState',
   ]) {
     elements.set(id, makeElement(id));
@@ -196,18 +204,33 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
       }
       return snapshot;
     },
+    fetch: async (url, options = {}) => {
+      fetchCalls.push(url);
+      fetchLog.push({ url, options });
+      let payload = snapshot;
+      if (typeof fetchResponder === 'function') {
+        payload = await fetchResponder(url, options, { snapshot, sessions, elements });
+      }
+      return {
+        ok: true,
+        async json() {
+          return payload;
+        },
+      };
+    },
     renderSessionList() {},
     attachSession(id, session) {
       attachCalls.push({ id, session });
     },
   };
+  context.window.fetch = context.fetch;
   context.globalThis = context;
   return { context, elements, fetchCalls, fetchLog, attachCalls };
 }
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
-  await vm.runInNewContext(`(async () => { ${taskMapModelSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskMapModelSource}\n${taskTrackerUiSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'static/chat/workbench-ui.js',
   });
   await Promise.resolve();
@@ -855,6 +878,160 @@ assert.deepEqual(
   getFlowNodeTitles(focusElements.get('questTaskList')),
   titlesBeforeFocusSwitch,
   'changing focus should not reshuffle the rendered flow node order',
+);
+
+const operationRecordSession = {
+  id: 'operation-main',
+  name: '电影史路线规划',
+  taskCard: {
+    lineRole: 'main',
+    goal: '电影史路线规划',
+    mainGoal: '电影史路线规划',
+    nextSteps: ['先看主线再展开支线'],
+  },
+};
+
+const operationBranchSession = {
+  id: 'operation-branch',
+  name: 'Branch · 法国新浪潮',
+  sourceContext: { parentSessionId: 'operation-main' },
+  taskCard: {
+    lineRole: 'branch',
+    goal: '法国新浪潮',
+    mainGoal: '电影史路线规划',
+    nextSteps: ['补充跳切与作者论'],
+  },
+};
+
+const operationNestedBranchSession = {
+  id: 'operation-branch-child',
+  name: 'Branch · 作者论',
+  sourceContext: { parentSessionId: 'operation-branch' },
+  taskCard: {
+    lineRole: 'branch',
+    goal: '作者论',
+    mainGoal: '电影史路线规划',
+    nextSteps: ['对比特吕弗和戈达尔'],
+  },
+};
+
+const {
+  elements: operationRecordElements,
+  fetchLog: operationRecordFetchLog,
+  workbench: operationRecordWorkbench,
+} = await runScenario({
+  currentSession: operationNestedBranchSession,
+  sessions: [operationRecordSession, operationBranchSession, operationNestedBranchSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'operation-main',
+        mainSession: operationRecordSession,
+        mainGoal: '电影史路线规划',
+        currentBranchSessionId: 'operation-branch-child',
+        branchSessionIds: ['operation-branch', 'operation-branch-child'],
+        branchSessions: [
+          {
+            ...operationBranchSession,
+            _branchDepth: 1,
+            _branchParentSessionId: 'operation-main',
+            _branchStatus: 'active',
+          },
+          {
+            ...operationNestedBranchSession,
+            _branchDepth: 2,
+            _branchParentSessionId: 'operation-branch',
+            _branchStatus: 'active',
+          },
+        ],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+  fetchResponder: async (url, options, { snapshot }) => {
+    if (url === '/api/workbench/sessions/operation-branch-child/operation-record') {
+      return {
+        sessionId: 'operation-main',
+        currentSessionId: 'operation-branch-child',
+        name: '电影史路线规划',
+        items: [
+          {
+            type: 'commit',
+            seq: 1,
+            preview: '先搭电影史主线',
+            timestamp: '2026-04-02T08:00:00.000Z',
+            branches: [],
+          },
+          {
+            type: 'branch',
+            branchSessionId: 'operation-branch',
+            name: 'Branch · 法国新浪潮',
+            goal: '法国新浪潮',
+            status: 'active',
+            broughtBack: '补充跳切与作者论',
+            commits: [
+              {
+                seq: 2,
+                preview: '补充法国新浪潮',
+                timestamp: '2026-04-02T08:05:00.000Z',
+              },
+            ],
+            subBranches: [
+              {
+                branchSessionId: 'operation-branch-child',
+                name: 'Branch · 作者论',
+                goal: '作者论',
+                status: 'active',
+                broughtBack: '对比特吕弗和戈达尔',
+                commits: [],
+                subBranches: [],
+              },
+            ],
+          },
+        ],
+      };
+    }
+    return snapshot;
+  },
+});
+
+operationRecordWorkbench.openOperationRecord();
+await flushAsync();
+assert.equal(
+  operationRecordFetchLog.some((entry) => entry.url === '/api/workbench/sessions/operation-branch-child/operation-record'),
+  true,
+  'opening the operation record should request the focused session record payload',
+);
+assert.equal(
+  operationRecordElements.get('operationRecordBackdrop').hidden,
+  false,
+  'opening the operation record should show the clickable backdrop layer',
+);
+assert.equal(
+  operationRecordElements.get('operationRecordRail').classList.contains('is-open'),
+  true,
+  'opening the operation record should slide the rail into view',
+);
+const operationRecordCards = findAllByClass(operationRecordElements.get('operationRecordInner'), 'operation-record-branch-card');
+const nestedOperationCard = operationRecordCards.find((node) => (
+  findFirstByClass(node, 'operation-record-branch-name')?.textContent === 'Branch · 作者论'
+));
+assert.equal(Boolean(nestedOperationCard), true, 'operation record should render nested branch cards');
+assert.equal(
+  nestedOperationCard?.classList?.contains('is-expanded'),
+  true,
+  'operation record should expand the current branch path by default',
+);
+assert.equal(
+  findAllByClass(operationRecordElements.get('operationRecordInner'), 'operation-record-branch-summary')
+    .some((node) => node.textContent === '对比特吕弗和戈达尔'),
+  true,
+  'operation record should show the current branch summary even before the branch has user messages',
 );
 
 console.log('test-chat-workbench-tracker: ok');

@@ -1882,21 +1882,6 @@ button.quest-task-flow-node {
   color: var(--text-secondary);
 }
 
-/* Goal node: anchor showing the task objective */
-.quest-task-flow-node.is-goal {
-  border-style: solid;
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
-  cursor: default;
-}
-.quest-task-flow-node.is-goal .quest-task-flow-node-badge {
-  color: var(--accent);
-}
-.quest-task-flow-node.is-goal .quest-task-flow-node-title {
-  font-weight: 600;
-  color: var(--text);
-}
-
 .quest-task-flow-node.is-parked {
   opacity: 0.92;
 }
@@ -2781,9 +2766,9 @@ button.quest-task-flow-node {
   }
 }
 
-/* ── Commit Tree Overlay ─────────────────────────────────────────── */
+/* ── Operation Record Overlay ────────────────────────────────────── */
 
-.header-commit-tree-btn {
+.header-operation-record-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2800,342 +2785,31 @@ button.quest-task-flow-node {
   white-space: nowrap;
 }
 
-.header-commit-tree-btn:hover {
+.header-operation-record-btn:hover {
   background: var(--bg-hover, var(--bg-secondary));
   color: var(--text);
 }
 
-.header-commit-tree-btn[hidden] {
+.header-operation-record-btn[hidden] {
   display: none !important;
 }
 
-.header-timeline-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-  white-space: nowrap;
-}
-
-.header-timeline-btn:hover {
-  background: var(--bg-hover, var(--bg-secondary));
-  color: var(--text);
-}
-
-.header-timeline-btn[hidden] {
-  display: none !important;
-}
-
-/* ── Timeline Overlay (flowchart) ─────────────────────────────── */
-
-.timeline-overlay {
+.operation-record-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg, #fff);
-}
-
-.timeline-overlay[hidden] {
-  display: none !important;
-}
-
-.timeline-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 20px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  flex-shrink: 0;
-}
-
-.timeline-session-goal {
-  flex: 1;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.timeline-title {
-  font-size: 11px;
-  color: var(--text-secondary);
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-
-.timeline-close-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
   border: 0;
   background: transparent;
-  color: var(--text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.1s, color 0.1s;
-}
-
-.timeline-close-btn:hover {
-  background: color-mix(in srgb, var(--border) 40%, transparent);
-  color: var(--text);
-}
-
-.timeline-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px 20px 40px;
-  max-width: 640px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-.timeline-session-name {
-  font-size: 11px;
-  color: var(--text-secondary);
-  opacity: 0.5;
-  margin-bottom: 16px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-}
-
-.timeline-empty {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
-  opacity: 0.6;
-}
-
-/* ── Timeline flowchart nodes & edges ─────────────────────────── */
-
-.tl-scroll-wrap {
-  overflow-x: auto;
-  overflow-y: visible;
-  padding: 16px 60px 60px 24px;
-}
-
-.tl-canvas {
-  position: relative;
-  min-width: 400px;
-}
-
-.tl-svg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: visible;
-}
-
-.tl-main-col {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  position: relative;
-  padding-left: 24px;
-}
-
-.tl-row-spacer {
-  flex-shrink: 0;
-}
-
-/* SVG edges — same palette as quest-task-flow-edge */
-.tl-edge {
-  fill: none;
-  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
-  stroke-width: 1.5;
-}
-.tl-edge-main {
-  fill: none;
-  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
-  stroke-width: 1.5;
-}
-.tl-edge-branch {
-  fill: none;
-  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
-  stroke-width: 1.5;
-}
-.tl-edge-merge {
-  fill: none;
-  stroke: color-mix(in srgb, var(--accent) 60%, var(--border-strong));
-  stroke-width: 1.5;
-  stroke-dasharray: 5 3;
-}
-.tl-edge-candidate {
-  fill: none;
-  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
-  stroke-width: 1.5;
-  stroke-dasharray: 4 4;
-}
-
-/* SVG dots */
-.tl-dot {
-  fill: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
-  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
-  stroke-width: 1.5;
-}
-.tl-dot-current {
-  fill: var(--accent);
-  stroke: var(--accent);
-}
-.tl-dot-branch {
-  fill: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
-  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
-}
-.tl-dot-candidate {
-  fill: color-mix(in srgb, var(--bg) 38%, transparent);
-  stroke: color-mix(in srgb, var(--border-strong) 26%, var(--border));
-  stroke-dasharray: 3 2;
-}
-
-/* ── Timeline nodes — same base as quest-task-flow-node ── */
-.tl-node {
-  position: absolute;
-  appearance: none;
-  display: grid;
-  align-content: start;
-  gap: 5px;
-  padding: 9px 10px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
-  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
-  color: var(--text);
-  text-align: left;
-  font: inherit;
-  box-sizing: border-box;
-  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
-}
-
-.tl-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  line-height: 1.35;
-}
-
-.tl-badge-merged { color: color-mix(in srgb, var(--accent) 70%, var(--text-muted)); }
-.tl-badge-parked { color: var(--text-muted); }
-
-.tl-time {
-  font-size: 9px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-  line-height: 1.2;
-}
-
-.tl-label {
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.35;
-  color: var(--text);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.tl-sub {
-  font-size: 10px;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Commit node — main line */
-.tl-node-commit {
-  cursor: pointer;
-}
-.tl-node-commit:hover {
-  transform: translateY(-1px);
-  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
-}
-.tl-node-commit.is-current {
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--border-strong));
-  background: color-mix(in srgb, var(--accent-soft) 20%, var(--bg-secondary));
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 74%, transparent);
-}
-.tl-node-commit.is-current .tl-label { color: var(--accent); }
-.tl-node-commit.is-current .tl-time  { color: var(--accent); }
-
-/* Branch node */
-.tl-node-branch {
-  cursor: pointer;
-}
-.tl-node-branch:hover {
-  transform: translateY(-1px);
-  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
-}
-.tl-node-branch.is-current {
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--border-strong));
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 74%, transparent);
-}
-.tl-node-branch.is-merged {
-  opacity: 0.72;
-}
-.tl-node-branch.is-merged .tl-label {
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-}
-.tl-node-branch.is-parked {
-  opacity: 0.72;
-}
-.tl-node-branch.is-parked .tl-label {
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-}
-
-/* Candidate node */
-.tl-node-candidate {
-  border-style: dashed;
-  background: color-mix(in srgb, var(--bg) 38%, transparent);
-  opacity: 0.7;
-}
-.tl-node-candidate .tl-label {
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.commit-tree-backdrop {
-  position: fixed;
-  inset: 0;
-  border: 0;
-  background: rgba(7, 11, 16, 0.34);
   opacity: 1;
   z-index: 120;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-.commit-tree-backdrop[hidden] {
+.operation-record-backdrop[hidden] {
   display: none !important;
 }
 
-.commit-tree-rail {
+.operation-record-rail {
   position: fixed;
   top: 8px;
   right: 8px;
@@ -3145,10 +2819,10 @@ button.quest-task-flow-node {
   flex-direction: column;
   border: 1px solid color-mix(in srgb, var(--border-strong) 14%, var(--border));
   border-radius: 24px;
-  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
-  box-shadow: 0 18px 40px color-mix(in srgb, #0b1520 18%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: var(--bg);
+  box-shadow: 0 18px 40px rgba(11, 21, 32, 0.12);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   transform: translateX(calc(100% + 16px));
   transition: transform 0.22s ease, opacity 0.22s ease;
   opacity: 0;
@@ -3157,17 +2831,17 @@ button.quest-task-flow-node {
   pointer-events: none;
 }
 
-.commit-tree-rail.is-open {
+.operation-record-rail.is-open {
   transform: translateX(0);
   opacity: 1;
   pointer-events: auto;
 }
 
-.commit-tree-rail[hidden] {
+.operation-record-rail[hidden] {
   display: none !important;
 }
 
-.commit-tree-header {
+.operation-record-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3175,13 +2849,13 @@ button.quest-task-flow-node {
   flex-shrink: 0;
 }
 
-.commit-tree-title {
+.operation-record-title {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
 
-.commit-tree-close-btn {
+.operation-record-close-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3196,55 +2870,39 @@ button.quest-task-flow-node {
   transition: background 0.1s, color 0.1s;
 }
 
-.commit-tree-close-btn:hover {
+.operation-record-close-btn:hover {
   background: color-mix(in srgb, var(--border) 40%, transparent);
   color: var(--text);
 }
 
-.commit-tree-inner {
+.operation-record-inner {
   flex: 1;
   overflow-y: auto;
   padding: 8px 0 12px;
 }
 
-.commit-tree-empty {
+.operation-record-empty {
   padding: 24px 16px;
   color: var(--text-secondary);
   font-size: 12px;
   text-align: center;
 }
 
-.commit-tree-session {
-  margin: 4px 8px;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.commit-tree-session-header {
+.operation-record-session-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 10px;
+  padding: 8px 14px 6px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text);
   background: color-mix(in srgb, var(--border) 20%, transparent);
   border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.1s;
+  margin: 4px 8px 2px;
   user-select: none;
 }
 
-.commit-tree-session-header:hover {
-  background: color-mix(in srgb, var(--border) 35%, transparent);
-}
-
-.commit-tree-session-header.is-current {
-  background: color-mix(in srgb, var(--accent, #3b82f6) 14%, transparent);
-  color: var(--accent, #3b82f6);
-}
-
-.commit-tree-branch-label {
+.operation-record-branch-label {
   font-size: 10px;
   font-weight: 500;
   padding: 1px 5px;
@@ -3254,11 +2912,7 @@ button.quest-task-flow-node {
   flex-shrink: 0;
 }
 
-.commit-tree-commits {
-  padding: 2px 0 4px 16px;
-}
-
-.commit-tree-commit {
+.operation-record-commit {
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -3271,17 +2925,17 @@ button.quest-task-flow-node {
   line-height: 1.4;
 }
 
-.commit-tree-commit:hover {
+.operation-record-commit:hover {
   background: color-mix(in srgb, var(--border) 30%, transparent);
   color: var(--text);
 }
 
-.commit-tree-commit.is-current {
+.operation-record-commit.is-current {
   color: var(--accent, #3b82f6);
   font-weight: 500;
 }
 
-.commit-tree-commit-seq {
+.operation-record-commit-seq {
   font-size: 10px;
   color: var(--text-tertiary, var(--text-secondary));
   flex-shrink: 0;
@@ -3289,64 +2943,49 @@ button.quest-task-flow-node {
   opacity: 0.6;
 }
 
-.commit-tree-commit-preview {
+.operation-record-commit-preview {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.commit-tree-children {
+.operation-record-children {
   padding-left: 12px;
   border-left: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
   margin-left: 10px;
   margin-top: 2px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .commit-tree-rail {
-    background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
-  }
-}
+/* ── Operation Record items list ───────────────────────────────── */
 
-/* ── Commit Tree v2 — items list ──────────────────────────────── */
-
-.commit-tree-items {
+.operation-record-items {
   padding: 4px 0 8px;
 }
 
-.commit-tree-session-header {
-  padding: 8px 14px 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-  border-radius: 10px;
-  margin: 4px 8px 2px;
-  background: color-mix(in srgb, var(--border) 20%, transparent);
-}
-
 /* Branch card */
-.commit-tree-branch-card {
+.operation-record-branch-card {
   margin: 4px 8px;
   border-radius: 10px;
   overflow: hidden;
+  background: var(--bg-secondary);
   border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
 
-.commit-tree-branch-card.is-current {
+.operation-record-branch-card.is-current {
   border-color: color-mix(in srgb, var(--accent, #3b82f6) 40%, transparent);
 }
 
-.commit-tree-branch-card.is-merged {
-  opacity: 0.72;
+.operation-record-branch-card.is-merged {
+  border-color: color-mix(in srgb, var(--accent, #3b82f6) 18%, var(--border));
 }
 
-.commit-tree-branch-card.is-merged .commit-tree-branch-label {
+.operation-record-branch-card.is-merged .operation-record-branch-label {
   background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent);
   color: var(--accent, #3b82f6);
 }
 
-.commit-tree-branch-card-header {
+.operation-record-branch-card-header {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -3358,18 +2997,18 @@ button.quest-task-flow-node {
   transition: background 0.1s;
 }
 
-.commit-tree-branch-card-header:hover {
+.operation-record-branch-card-header:hover {
   background: color-mix(in srgb, var(--border) 30%, transparent);
 }
 
-.commit-tree-branch-arrow {
+.operation-record-branch-arrow {
   font-size: 10px;
   color: var(--text-secondary);
   flex-shrink: 0;
   width: 12px;
 }
 
-.commit-tree-branch-name {
+.operation-record-branch-name {
   flex: 1;
   color: var(--text);
   font-weight: 500;
@@ -3379,79 +3018,36 @@ button.quest-task-flow-node {
   cursor: pointer;
 }
 
-.commit-tree-branch-name:hover {
+.operation-record-branch-name:hover {
   text-decoration: underline;
 }
 
-.commit-tree-branch-merged-summary {
+.operation-record-branch-summary {
   padding: 5px 10px 5px 27px;
   font-size: 11px;
   color: var(--text-secondary);
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-  border-left: 2px solid color-mix(in srgb, var(--accent, #3b82f6) 40%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--border-strong) 24%, var(--border));
   margin: 0 10px 4px 10px;
   opacity: 0.85;
 }
 
-.commit-tree-branch-commits {
+.operation-record-branch-summary.is-merged {
+  border-left-color: color-mix(in srgb, var(--accent, #3b82f6) 40%, transparent);
+}
+
+.operation-record-branch-commits {
   padding: 2px 0 4px 16px;
   border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
 }
 
-.commit-tree-branch-commits[hidden] {
+.operation-record-branch-commits[hidden] {
   display: none !important;
 }
 
 /* Merge item */
-.commit-tree-merge {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 5px 14px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  opacity: 0.85;
-}
-
-.commit-tree-merge-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.commit-tree-merge-icon {
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.commit-tree-merge-text {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.commit-tree-merge-time {
-  flex-shrink: 0;
-  font-size: 10px;
-  opacity: 0.6;
-  font-variant-numeric: tabular-nums;
-}
-
-.commit-tree-merge-body {
-  margin-left: 18px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-  opacity: 0.8;
-  border-left: 2px solid var(--border-color, rgba(128,128,128,0.2));
-  padding-left: 8px;
-}
-
 /* ── Hooks settings overlay ──────────────────────────────────────────────── */
 .hooks-overlay {
   position: fixed;
@@ -3530,6 +3126,12 @@ button.quest-task-flow-node {
   color: var(--text-muted);
   padding: 10px 18px 4px;
   letter-spacing: 0.03em;
+}
+.hooks-section-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  padding: 0 18px 8px;
 }
 
 /* Hook row */

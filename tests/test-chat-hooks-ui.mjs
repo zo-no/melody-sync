@@ -110,6 +110,12 @@ const context = {
       async json() {
         return {
           events: ['session.created', 'run.started', 'run.completed', 'run.failed'],
+          eventDefinitions: [
+            { id: 'session.created', label: 'Session 创建后', description: '新 session 完成初始化并写入 metadata 之后。' },
+            { id: 'run.started', label: 'Run 启动后', description: '新的 detached run 建立并进入执行流程之后。' },
+            { id: 'run.completed', label: 'Run 完成后', description: 'Run 成功完成并且结果已经回写之后。' },
+            { id: 'run.failed', label: 'Run 失败/取消后', description: 'Run 失败、终止或取消之后。' },
+          ],
           hooks: [
             {
               id: 'builtin.push-notification',
@@ -148,6 +154,7 @@ assert.equal(documentBody.classList.contains('hooks-overlay-open'), true, 'openi
 assert.deepEqual(fetchCalls, ['/api/hooks'], 'opening hooks settings should fetch the hooks metadata exactly once');
 assert.match(hooksPanelBody.innerHTML, /推送通知/, 'hooks settings should render the fetched hook labels');
 assert.match(hooksPanelBody.innerHTML, /Run 完成后/, 'hooks settings should group hooks by lifecycle event');
+assert.match(hooksPanelBody.innerHTML, /结果已经回写之后/, 'hooks settings should render the event description returned by the API');
 
 hooksOverlayClose.click();
 assert.equal(hooksOverlay.hidden, true, 'close button should hide the hooks overlay');

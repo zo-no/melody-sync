@@ -18,6 +18,11 @@ const filesToParse = [
   join(repoRoot, 'static', 'chat', 'layout-tooling.js'),
   join(repoRoot, 'static', 'chat', 'tooling.js'),
   join(repoRoot, 'static', 'chat', 'sidebar-ui.js'),
+  join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'),
+  join(repoRoot, 'static', 'chat', 'task-map-model.js'),
+  join(repoRoot, 'static', 'chat', 'workbench', 'task-tracker-ui.js'),
+  join(repoRoot, 'static', 'chat', 'workbench', 'operation-record-ui.js'),
+  join(repoRoot, 'static', 'chat', 'hooks-ui.js'),
   join(repoRoot, 'static', 'chat', 'compose.js'),
 ];
 

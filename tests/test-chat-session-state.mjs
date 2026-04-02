@@ -565,8 +565,6 @@ let attachStatusUpdate = null;
 let queuedPanelSession = null;
 let attachRenderCalls = 0;
 let browserStateSyncs = 0;
-let forkSyncs = 0;
-let organizeButtonSyncs = 0;
 let modelLoads = 0;
 let draftRestores = 0;
 
@@ -595,12 +593,6 @@ attachContext.renderSessionList = () => {
 attachContext.syncBrowserState = () => {
   browserStateSyncs += 1;
 };
-attachContext.syncForkButton = () => {
-  forkSyncs += 1;
-};
-attachContext.syncOrganizeSessionButton = () => {
-  organizeButtonSyncs += 1;
-};
 
 vm.runInNewContext(applyAttachedSessionStateSnippet, attachContext, {
   filename: 'chat-apply-attached-session-state-runtime.js',
@@ -623,8 +615,6 @@ assert.equal(modelLoads, 1, 'attaching a session should refresh models when the 
 assert.equal(draftRestores, 1, 'attaching a session should restore the local draft');
 assert.equal(attachRenderCalls, 1, 'attaching a session should rerender the session list');
 assert.equal(browserStateSyncs, 1, 'attaching a session should sync browser navigation state');
-assert.equal(forkSyncs, 1, 'attaching a session should refresh fork affordances');
-assert.equal(organizeButtonSyncs, 1, 'attaching a session should refresh organize-task affordances');
 assert.deepEqual(attachStatusUpdate, { state: 'connected', session: attachedSession }, 'attaching a session should update the status indicator');
 assert.equal(queuedPanelSession, attachedSession, 'attaching a session should refresh the queued-message panel');
 

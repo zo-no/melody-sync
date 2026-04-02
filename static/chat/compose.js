@@ -591,8 +591,6 @@ function switchTab(tab, { syncState = true } = {}) {
   tabSessions?.classList.toggle("active", true);
   if (typeof syncSidebarFiltersVisibility === "function") {
     syncSidebarFiltersVisibility(showingSessions);
-  } else if (sidebarFilters) {
-    sidebarFilters.classList.toggle("hidden", !showingSessions);
   }
   if (sessionList) sessionList.style.display = "";
   sessionListFooter?.classList.remove("hidden");

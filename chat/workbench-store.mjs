@@ -1,35 +1,40 @@
 import { randomUUID } from 'crypto';
 import { homedir } from 'os';
 import { extname, join, resolve } from 'path';
-import {
-  CONFIG_DIR,
-  WORKBENCH_BRANCH_CONTEXTS_FILE,
-  WORKBENCH_CAPTURE_ITEMS_FILE,
-  WORKBENCH_NODES_FILE,
-  WORKBENCH_PROJECTS_FILE,
-  WORKBENCH_SKILLS_FILE,
-  WORKBENCH_SUMMARIES_FILE,
-} from '../lib/config.mjs';
+import { CONFIG_DIR } from '../lib/config.mjs';
 import {
   createWorkbenchSession,
   getWorkbenchSession,
-  listWorkbenchSessions,
   setWorkbenchSessionBranchCandidateSuppressed,
   submitWorkbenchSessionMessage,
   updateWorkbenchSessionTaskCard,
 } from './workbench-session-ports.mjs';
-import { appendEvent, loadHistory, getHistorySnapshot } from './history.mjs';
+import { appendEvent, getHistorySnapshot } from './history.mjs';
 import { messageEvent, statusEvent } from './normalizer.mjs';
-import { createSessionListItem } from './session-api-shapes.mjs';
 import { normalizeSessionTaskCard } from './session-task-card.mjs';
+import {
+  normalizeBranchContextStatus,
+  normalizeNullableText,
+  sortByCreatedAsc,
+  sortByUpdatedDesc,
+  trimText,
+} from './workbench/shared.mjs';
+import {
+  getLatestBranchContextEntry,
+} from './workbench/continuity-store.mjs';
+import {
+  loadWorkbenchState as loadState,
+  saveWorkbenchState as saveState,
+} from './workbench/state-store.mjs';
 import {
   createSerialTaskQueue,
   ensureDir,
   pathExists,
-  readJson,
-  writeJsonAtomic,
   writeTextAtomic,
 } from './fs-utils.mjs';
+
+export { getWorkbenchSnapshot, getWorkbenchTrackerSnapshot } from './workbench/continuity-store.mjs';
+export { getSessionOperationRecords } from './workbench/operation-records.mjs';
 
 // Per-scope serial queues prevent cross-session write contention while still
 // serializing writes within the same project/session scope.
@@ -60,15 +65,6 @@ const LOCAL_OBSIDIAN_PROJECT_DIR = join(
 
 function nowIso() {
   return new Date().toISOString();
-}
-
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function normalizeNullableText(value) {
-  const trimmed = trimText(value);
-  return trimmed || '';
 }
 
 function resolveFsPath(value) {
@@ -126,11 +122,6 @@ function normalizeLineRole(value) {
   return 'main';
 }
 
-function normalizeBranchContextStatus(value) {
-  const status = trimText(value).toLowerCase();
-  if (['active', 'resolved', 'parked', 'merged', 'suppressed'].includes(status)) return status;
-  return 'active';
-}
 
 function dedupeTexts(items) {
   const results = [];
@@ -146,95 +137,6 @@ function dedupeTexts(items) {
   return results;
 }
 
-function sortByCreatedAsc(items) {
-  return [...items].sort((a, b) => {
-    const left = Date.parse(a?.createdAt || a?.created || '') || 0;
-    const right = Date.parse(b?.createdAt || b?.created || '') || 0;
-    return left - right;
-  });
-}
-
-function sortByUpdatedDesc(items) {
-  return [...items].sort((a, b) => {
-    const left = Date.parse(a?.updatedAt || a?.createdAt || a?.created || '') || 0;
-    const right = Date.parse(b?.updatedAt || b?.createdAt || b?.created || '') || 0;
-    return right - left;
-  });
-}
-
-function getStableBranchEntryTimestamp(entry) {
-  return Date.parse(
-    entry?.context?.createdAt
-    || entry?.session?.createdAt
-    || entry?.session?.created
-    || entry?.context?.updatedAt
-    || entry?.session?.updatedAt
-    || entry?.session?.lastEventAt
-    || ''
-  ) || 0;
-}
-
-function sortBranchEntriesStable(items) {
-  return [...items].sort((left, right) => {
-    const leftTime = getStableBranchEntryTimestamp(left);
-    const rightTime = getStableBranchEntryTimestamp(right);
-    if (leftTime !== rightTime) return leftTime - rightTime;
-    return String(left?.session?.id || '').localeCompare(String(right?.session?.id || ''));
-  });
-}
-
-async function loadArrayStore(filePath) {
-  const data = await readJson(filePath, []);
-  return Array.isArray(data) ? data : [];
-}
-
-async function loadState() {
-  const [captureItems, projects, nodes, branchContexts, skills, summaries] = await Promise.all([
-    loadArrayStore(WORKBENCH_CAPTURE_ITEMS_FILE),
-    loadArrayStore(WORKBENCH_PROJECTS_FILE),
-    loadArrayStore(WORKBENCH_NODES_FILE),
-    loadArrayStore(WORKBENCH_BRANCH_CONTEXTS_FILE),
-    loadArrayStore(WORKBENCH_SKILLS_FILE),
-    loadArrayStore(WORKBENCH_SUMMARIES_FILE),
-  ]);
-  return {
-    captureItems,
-    projects,
-    nodes,
-    branchContexts,
-    skills,
-    summaries,
-  };
-}
-
-async function saveState(state) {
-  await Promise.all([
-    writeJsonAtomic(WORKBENCH_CAPTURE_ITEMS_FILE, state.captureItems || []),
-    writeJsonAtomic(WORKBENCH_PROJECTS_FILE, state.projects || []),
-    writeJsonAtomic(WORKBENCH_NODES_FILE, state.nodes || []),
-    writeJsonAtomic(WORKBENCH_BRANCH_CONTEXTS_FILE, state.branchContexts || []),
-    writeJsonAtomic(WORKBENCH_SKILLS_FILE, state.skills || []),
-    writeJsonAtomic(WORKBENCH_SUMMARIES_FILE, state.summaries || []),
-  ]);
-}
-
-function getLatestSessionContext(state, sessionId) {
-  const normalized = normalizeNullableText(sessionId);
-  if (!normalized) return null;
-  return sortByUpdatedDesc((state.branchContexts || []).filter((entry) => (
-    normalizeNullableText(entry.sessionId) === normalized
-  )))[0] || null;
-}
-
-function getSessionClusterGoal(session, context = null) {
-  return normalizeNullableText(
-    context?.mainGoal
-    || session?.taskCard?.mainGoal
-    || session?.taskCard?.goal
-    || session?.name
-  );
-}
-
 function getRecordedParentSessionId(session, context = null) {
   return normalizeNullableText(
     context?.parentSessionId
@@ -244,104 +146,6 @@ function getRecordedParentSessionId(session, context = null) {
 
 function getSessionClusterLineRole(session, context = null) {
   return getRecordedParentSessionId(session, context) ? 'branch' : 'main';
-}
-
-function buildTaskClusters(state, sessions = []) {
-  const allSessions = (Array.isArray(sessions) ? sessions : []).filter((session) => session?.id);
-  const sessionMap = new Map(allSessions.map((session) => [session.id, session]));
-  const visibleRootSessions = allSessions.filter((session) => !session?.archived);
-  const mainSessionsByGoal = new Map();
-
-  for (const session of visibleRootSessions) {
-    const context = getLatestSessionContext(state, session.id);
-    const lineRole = getSessionClusterLineRole(session, context);
-    if (lineRole !== 'main') continue;
-    const goalKey = getSessionClusterGoal(session, context).toLowerCase();
-    if (goalKey && !mainSessionsByGoal.has(goalKey)) {
-      mainSessionsByGoal.set(goalKey, session);
-    }
-  }
-
-  const branchChildren = new Map();
-  const roots = [];
-  for (const session of allSessions) {
-    const context = getLatestSessionContext(state, session.id);
-    const lineRole = getSessionClusterLineRole(session, context);
-    const explicitParentId = normalizeNullableText(context?.parentSessionId || session?.sourceContext?.parentSessionId);
-    const explicitParent = explicitParentId && sessionMap.has(explicitParentId)
-      ? sessionMap.get(explicitParentId)
-      : null;
-    const goalParent = !explicitParent && lineRole === 'branch'
-      ? mainSessionsByGoal.get(getSessionClusterGoal(session, context).toLowerCase()) || null
-      : null;
-    const parent = explicitParent || goalParent;
-    if (lineRole === 'branch' && parent?.id) {
-      if (!branchChildren.has(parent.id)) branchChildren.set(parent.id, []);
-      branchChildren.get(parent.id).push({ session, context });
-      continue;
-    }
-    if (!session?.archived) {
-      roots.push(session);
-    }
-  }
-
-  function collectBranchEntries(parentSessionId, depth = 1, visited = new Set()) {
-    const directChildren = sortBranchEntriesStable((branchChildren.get(parentSessionId) || []).map((entry) => ({
-      id: entry.session.id,
-      updatedAt: entry.context?.updatedAt || entry.session.updatedAt || entry.session.lastEventAt || entry.session.created || '',
-      status: normalizeBranchContextStatus(entry.context?.status),
-      session: entry.session,
-      context: entry.context,
-      depth,
-      parentSessionId,
-    })));
-    const results = [];
-    for (const entry of directChildren) {
-      if (!entry?.session?.id || visited.has(entry.session.id)) continue;
-      visited.add(entry.session.id);
-      results.push(entry);
-      results.push(...collectBranchEntries(entry.session.id, depth + 1, visited));
-    }
-    return results;
-  }
-
-  return roots.map((root) => {
-    const branchEntries = collectBranchEntries(root.id);
-    const activeBranch = sortByUpdatedDesc(branchEntries).find((entry) => entry.status === 'active') || null;
-    const recentBranchEntries = sortByUpdatedDesc(branchEntries).slice(0, 3);
-    return {
-      id: `cluster:${root.id}`,
-      mainSessionId: root.id,
-      mainSession: createSessionListItem(root),
-      mainGoal: getSessionClusterGoal(root, getLatestSessionContext(state, root.id)),
-      currentBranchSessionId: activeBranch?.session?.id || '',
-      branchCount: branchEntries.length,
-      branchSessionIds: branchEntries.map((entry) => entry.session.id),
-      recentBranchSessionIds: recentBranchEntries.map((entry) => entry.session.id),
-      branchSessions: branchEntries.map((entry) => ({
-        ...createSessionListItem(entry.session),
-        _branchDepth: entry.depth,
-        _branchParentSessionId: entry.parentSessionId,
-        _branchStatus: entry.status,
-      })),
-    };
-  });
-}
-
-function buildSnapshot(state, sessions = []) {
-  return {
-    captureItems: sortByUpdatedDesc(state.captureItems || []),
-    projects: sortByUpdatedDesc(state.projects || []),
-    nodes: sortByCreatedAsc(state.nodes || []),
-    branchContexts: sortByUpdatedDesc(state.branchContexts || []),
-    taskClusters: buildTaskClusters(state, sessions),
-    skills: sortByUpdatedDesc(state.skills || []),
-    summaries: sortByUpdatedDesc(state.summaries || []),
-  };
-}
-
-function getLatestBranchContextEntry(state, sessionId) {
-  return getLatestSessionContext(state, sessionId);
 }
 
 async function resolveDefaultObsidianBaseDir() {
@@ -871,38 +675,6 @@ function buildBranchSeedPrompt({ project, node, goal, carryover = null }) {
     '',
     'Start by restating the branch objective, then propose the next concrete step.',
   ].filter(Boolean).join('\n');
-}
-
-export async function getWorkbenchSnapshot() {
-  const state = await loadState();
-  const sessions = await listWorkbenchSessions({ includeArchived: true });
-  return buildSnapshot(state, sessions);
-}
-
-export async function getWorkbenchTrackerSnapshot(sessionId) {
-  const normalizedSessionId = normalizeNullableText(sessionId);
-  if (!normalizedSessionId) {
-    throw new Error('sessionId is required');
-  }
-  const state = await loadState();
-  const sessions = await listWorkbenchSessions({ includeArchived: true });
-  const taskClusters = buildTaskClusters(state, sessions);
-  const cluster = taskClusters.find((entry) => (
-    entry?.mainSessionId === normalizedSessionId
-    || entry?.currentBranchSessionId === normalizedSessionId
-    || (Array.isArray(entry?.branchSessionIds) && entry.branchSessionIds.includes(normalizedSessionId))
-  )) || null;
-  const relevantSessionIds = new Set([normalizedSessionId]);
-  if (cluster?.mainSessionId) relevantSessionIds.add(cluster.mainSessionId);
-  for (const branchSessionId of Array.isArray(cluster?.branchSessionIds) ? cluster.branchSessionIds : []) {
-    if (normalizeNullableText(branchSessionId)) relevantSessionIds.add(normalizeNullableText(branchSessionId));
-  }
-  return {
-    branchContexts: sortByUpdatedDesc((state.branchContexts || []).filter((entry) => (
-      relevantSessionIds.has(normalizeNullableText(entry?.sessionId))
-    ))),
-    taskClusters: cluster ? [cluster] : [],
-  };
 }
 
 function syncSessionContinuityState(state, session, taskCardInput, now = nowIso()) {
@@ -1698,136 +1470,4 @@ export async function writeProjectToObsidian(projectId, payload = {}) {
       writtenFiles,
     };
   });
-}
-
-// Recursively build branch node for a given session/branchContext
-async function buildBranchNode(ctx, sess, sessionMap, allContexts) {
-  // Load commits for this branch session
-  let commits = [];
-  try {
-    const events = await loadHistory(sess.id, { includeBodies: false });
-    commits = events
-      .filter((ev) => ev.type === 'message' && ev.role === 'user')
-      .map((ev) => ({
-        seq: ev.seq,
-        preview: trimText(typeof ev.content === 'string' ? ev.content : '').slice(0, 60) || '(message)',
-        timestamp: ev.timestamp ? new Date(ev.timestamp).toISOString() : null,
-      }));
-  } catch { /* history may not exist yet */ }
-
-  // Find merge_note in parent session history for broughtBack
-  const status = normalizeBranchContextStatus(ctx.status);
-  const broughtBack = normalizeNullableText(ctx.checkpointSummary) || null;
-
-  // Recursively find sub-branches (branches whose parentSessionId === this session)
-  const subBranches = [];
-  for (const subCtx of allContexts) {
-    const subParentId = normalizeNullableText(subCtx.parentSessionId);
-    if (subParentId !== sess.id) continue;
-    const subSess = sessionMap.get(normalizeNullableText(subCtx.sessionId));
-    if (!subSess) continue;
-    subBranches.push(await buildBranchNode(subCtx, subSess, sessionMap, allContexts));
-  }
-
-  // Sort sub-branches by forkAtSeq then createdAt
-  subBranches.sort((a, b) => {
-    const sa = a.forkAtSeq ?? Infinity;
-    const sb = b.forkAtSeq ?? Infinity;
-    if (sa !== sb) return sa - sb;
-    return (a.createdAt || '') < (b.createdAt || '') ? -1 : 1;
-  });
-
-  return {
-    branchSessionId: sess.id,
-    name: normalizeNullableText(sess.name) || 'Untitled',
-    goal: normalizeNullableText(sess.taskCard?.goal) || normalizeNullableText(ctx.goal) || '',
-    forkAtSeq: Number.isInteger(ctx.forkAtSeq) ? ctx.forkAtSeq : null,
-    status,
-    broughtBack,
-    createdAt: normalizeNullableText(ctx.createdAt),
-    updatedAt: normalizeNullableText(ctx.updatedAt),
-    lastEventAt: sess.lastEventAt ? new Date(sess.lastEventAt).toISOString() : null,
-    commits,
-    subBranches,
-  };
-}
-
-export async function getSessionCommitItems(sessionId) {
-  const normalizedSessionId = normalizeNullableText(sessionId);
-  if (!normalizedSessionId) {
-    throw new Error('sessionId is required');
-  }
-
-  const session = await getWorkbenchSession(normalizedSessionId);
-  if (!session) {
-    throw new Error('Session not found');
-  }
-
-  // Find the root session (main line)
-  const rootSessionId = normalizeNullableText(session.rootSessionId) || normalizedSessionId;
-  const rootSession = rootSessionId !== normalizedSessionId
-    ? (await getWorkbenchSession(rootSessionId) || session)
-    : session;
-
-  const state = await loadState();
-  const allSessions = await listWorkbenchSessions({ includeArchived: true });
-  const sessionMap = new Map(allSessions.map((s) => [s.id, s]));
-  const allContexts = state.branchContexts || [];
-
-  // Load main line events
-  const mainEvents = await loadHistory(rootSessionId, { includeBodies: false });
-
-  // Build commit nodes from main line user messages
-  const commitNodes = mainEvents
-    .filter((ev) => ev.type === 'message' && ev.role === 'user')
-    .map((ev) => ({
-      type: 'commit',
-      seq: ev.seq,
-      preview: trimText(typeof ev.content === 'string' ? ev.content : '').slice(0, 60) || '(message)',
-      timestamp: ev.timestamp ? new Date(ev.timestamp).toISOString() : null,
-      branches: [], // will be populated below
-    }));
-
-  // Index commits by seq for branch attachment
-  const commitBySeq = new Map(commitNodes.map((c) => [c.seq, c]));
-
-  // Build top-level branch nodes (parentSessionId === rootSessionId)
-  const danglingBranches = []; // branches with no matching forkAtSeq commit
-  for (const ctx of allContexts) {
-    const parentId = normalizeNullableText(ctx.parentSessionId);
-    if (parentId !== rootSessionId) continue;
-    const branchSess = sessionMap.get(normalizeNullableText(ctx.sessionId));
-    if (!branchSess) continue;
-
-    const branchNode = await buildBranchNode(ctx, branchSess, sessionMap, allContexts);
-
-    // Attach to the commit at forkAtSeq, or dangle at end
-    const forkCommit = branchNode.forkAtSeq != null ? commitBySeq.get(branchNode.forkAtSeq) : null;
-    if (forkCommit) {
-      forkCommit.branches.push(branchNode);
-    } else {
-      danglingBranches.push(branchNode);
-    }
-  }
-
-  // Sort branches within each commit by createdAt
-  for (const commit of commitNodes) {
-    commit.branches.sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? -1 : 1);
-  }
-  danglingBranches.sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? -1 : 1);
-
-  // Candidates from root session taskCard
-  const candidates = (rootSession.taskCard?.candidateBranches || [])
-    .filter(Boolean)
-    .map((title) => ({ title }));
-
-  return {
-    sessionId: rootSessionId,
-    name: normalizeNullableText(rootSession.name) || 'Untitled',
-    goal: normalizeNullableText(rootSession.taskCard?.goal) || '',
-    currentSessionId: normalizedSessionId,
-    commits: commitNodes,
-    danglingBranches,
-    candidates,
-  };
 }

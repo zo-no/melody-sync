@@ -786,10 +786,6 @@ function applyAttachedSessionState(id, session) {
   restoreDraft();
   renderSessionList();
   syncBrowserState();
-  syncForkButton();
-  if (typeof syncOrganizeSessionButton === "function") {
-    syncOrganizeSessionButton();
-  }
   if (typeof window !== "undefined" && typeof window.MelodySyncWorkbench?.setFocusedSessionId === "function") {
     window.MelodySyncWorkbench.setFocusedSessionId(id, { render: false });
   }

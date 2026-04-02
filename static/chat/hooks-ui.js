@@ -8,16 +8,26 @@
 
   if (!overlay || !openBtn || !body) return;
 
-  // ── Event label map ──────────────────────────────────────────────────────────
-  const EVENT_LABELS = {
-    'session.created': 'Session 创建后',
-    'run.started':     'Run 启动后',
-    'run.completed':   'Run 完成后',
-    'run.failed':      'Run 失败/取消后',
-  };
-
   // ── State ────────────────────────────────────────────────────────────────────
   let hooksData = null; // { events: string[], hooks: HookMeta[] }
+
+  function normalizeEventDefinitions(data) {
+    const definitions = Array.isArray(data?.eventDefinitions) ? data.eventDefinitions : [];
+    if (definitions.length > 0) return definitions;
+    return (Array.isArray(data?.events) ? data.events : []).map((eventId) => ({
+      id: eventId,
+      label: eventId,
+      description: '',
+    }));
+  }
+
+  function getEventDefinitionMap(data) {
+    return new Map(
+      normalizeEventDefinitions(data)
+        .filter((definition) => definition?.id)
+        .map((definition) => [definition.id, definition]),
+    );
+  }
 
   // ── Fetch ────────────────────────────────────────────────────────────────────
   async function loadHooks() {
@@ -53,6 +63,7 @@
   function render() {
     if (!hooksData) return;
     const { events, hooks } = hooksData;
+    const eventDefinitionMap = getEventDefinitionMap(hooksData);
 
     // Group hooks by eventPattern
     const byEvent = {};
@@ -68,7 +79,8 @@
       const list = byEvent[event] || [];
       if (list.length === 0) continue;
 
-      const label = EVENT_LABELS[event] || event;
+      const definition = eventDefinitionMap.get(event) || null;
+      const label = definition?.label || event;
       const items = list.map((hook) => {
         const toggleId = `hook-toggle-${hook.id.replace(/[^a-z0-9]/gi, '-')}`;
         return `
@@ -91,6 +103,7 @@
       sections.push(`
         <div class="hooks-section">
           <div class="hooks-section-title">${escHtml(label)}</div>
+          ${definition?.description ? `<div class="hooks-section-desc">${escHtml(definition.description)}</div>` : ''}
           ${items}
         </div>`);
     }

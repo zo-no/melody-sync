@@ -5,16 +5,40 @@
  * list, enable/disable, and emit lifecycle hooks.
  */
 
+export const HOOK_EVENT_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    id: 'session.created',
+    label: 'Session 创建后',
+    description: '新 session 完成初始化并写入 metadata 之后。',
+  }),
+  Object.freeze({
+    id: 'run.started',
+    label: 'Run 启动后',
+    description: '新的 detached run 建立并进入执行流程之后。',
+  }),
+  Object.freeze({
+    id: 'run.completed',
+    label: 'Run 完成后',
+    description: 'Run 成功完成并且结果已经回写之后。',
+  }),
+  Object.freeze({
+    id: 'run.failed',
+    label: 'Run 失败/取消后',
+    description: 'Run 失败、终止或取消之后。',
+  }),
+]);
+
 /**
- * All valid event names. Extend here when adding new lifecycle points.
+ * All valid event names. Extend HOOK_EVENT_DEFINITIONS when adding new lifecycle points.
  * @type {readonly string[]}
  */
-export const HOOK_EVENTS = Object.freeze([
-  'session.created',
-  'run.started',
-  'run.completed',
-  'run.failed',
-]);
+export const HOOK_EVENTS = Object.freeze(
+  HOOK_EVENT_DEFINITIONS.map((definition) => definition.id),
+);
+
+export function listHookEventDefinitions() {
+  return HOOK_EVENT_DEFINITIONS.map((definition) => ({ ...definition }));
+}
 
 /**
  * @typedef {Object} BaseContext
@@ -37,12 +61,13 @@ export function registerHook(eventPattern, hook, meta = {}) {
   const entry = {
     fn: hook,
     meta: {
+      ...meta,
       id: meta.id || hook.name || 'anonymous',
       label: meta.label || hook.name || 'Anonymous hook',
       description: meta.description || '',
       builtIn: meta.builtIn === true,
       eventPattern,
-      enabled: true,
+      enabled: meta.enabled !== false,
     },
   };
   registry.get(eventPattern).push(entry);

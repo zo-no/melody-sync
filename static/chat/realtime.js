@@ -462,9 +462,6 @@ function updateStatus(connState, session = getCurrentSession()) {
         dotClass: statusDot.className,
       },
     }));
-    if (typeof syncOrganizeSessionButton === "function") {
-      syncOrganizeSessionButton();
-    }
     return;
   }
   const visualStatus = getSessionVisualStatus(session);
@@ -512,8 +509,4 @@ function updateStatus(connState, session = getCurrentSession()) {
   }));
   thinkingToggle.disabled = !hasSession || archived;
   effortSelect.disabled = !hasSession || archived;
-  syncForkButton();
-  if (typeof syncOrganizeSessionButton === "function") {
-    syncOrganizeSessionButton();
-  }
 }

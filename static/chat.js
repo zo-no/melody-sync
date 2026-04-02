@@ -21,9 +21,14 @@
     "/chat/session-surface-ui.js",
     "/chat/session-list-ui.js",
     "/chat/sidebar-ui.js",
+    "/chat/workbench-node-contract.js",
+    "/chat/task-map-model.js",
+    "/chat/workbench/task-tracker-ui.js",
+    "/chat/workbench/operation-record-ui.js",
     "/chat/workbench-ui.js",
     "/chat/compose.js",
     "/chat/gestures.js",
+    "/chat/hooks-ui.js",
     "/chat/init.js",
   ];
 

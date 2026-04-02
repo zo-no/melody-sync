@@ -197,9 +197,7 @@ function getEffectiveSessionSourceName(session) {
 }
 
 function refreshAppCatalog() {
-  if (sidebarFilters) {
-    sidebarFilters.classList.add("hidden");
-  }
+  // Legacy sidebar filters were removed from the shipped template.
 }
 
 function getVisibleActiveSessions() {
@@ -215,9 +213,7 @@ function getVisibleArchivedSessions() {
 }
 
 function syncSidebarFiltersVisibility(showingSessions = null) {
-  if (sidebarFilters) {
-    sidebarFilters.classList.add("hidden");
-  }
+  // Legacy sidebar filters were removed from the shipped template.
 }
 
 refreshAppCatalog();

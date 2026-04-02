@@ -1,4 +1,47 @@
 (function taskMapModelModule() {
+  const FALLBACK_NODE_KIND_DEFINITIONS = Object.freeze([
+    Object.freeze({
+      id: "main",
+      label: "主任务",
+      description: "主任务根节点，对应主 session。",
+      sessionBacked: true,
+      derived: false,
+    }),
+    Object.freeze({
+      id: "branch",
+      label: "子任务",
+      description: "已经拆出的真实支线 session。",
+      sessionBacked: true,
+      derived: false,
+    }),
+    Object.freeze({
+      id: "candidate",
+      label: "建议子任务",
+      description: "系统建议但尚未真正展开的下一条执行线。",
+      sessionBacked: false,
+      derived: true,
+    }),
+    Object.freeze({
+      id: "done",
+      label: "收束",
+      description: "当前主任务下的现有支线已经全部收束。",
+      sessionBacked: false,
+      derived: true,
+    }),
+  ]);
+
+  function getNodeKindDefinitions() {
+    const external = globalThis?.MelodySyncWorkbenchNodeContract?.NODE_KIND_DEFINITIONS
+      || globalThis?.window?.MelodySyncWorkbenchNodeContract?.NODE_KIND_DEFINITIONS;
+    if (Array.isArray(external) && external.length > 0) {
+      return external;
+    }
+    return FALLBACK_NODE_KIND_DEFINITIONS;
+  }
+
+  const NODE_KIND_DEFINITIONS = getNodeKindDefinitions();
+  const NODE_KINDS = Object.freeze(NODE_KIND_DEFINITIONS.map((definition) => definition.id));
+
   function cloneJson(value) {
     if (value === null || value === undefined) return value;
     return JSON.parse(JSON.stringify(value));
@@ -403,27 +446,6 @@
         }
       }
 
-      // Goal node: anchors the task objective below the main node.
-      // Only shown when taskCard.goal is set and differs meaningfully from the session name.
-      const goalText = trimText(getTaskCard(rootSession)?.goal || "");
-      const sessionTitle = trimText(rootSession?.name || "");
-      const goalNodeId = `goal:${rootSession.id}`;
-      if (goalText && goalText.toLowerCase() !== sessionTitle.toLowerCase()) {
-        addNode({
-          id: goalNodeId,
-          questId,
-          kind: "goal",
-          lineRole: "main",
-          sessionId: rootSession.id,
-          sourceSessionId: rootSession.id,
-          parentNodeId: rootNodeId,
-          depth: 1,
-          title: goalText,
-          summary: "",
-          status: "goal",
-        });
-      }
-
       appendBranchTree(rootSession.id, rootNodeId, 1);
       appendCandidateNodes(rootSession, rootNodeId, 1, childrenByParent.get(rootSession.id) || []);
 
@@ -669,6 +691,8 @@
   }
 
   window.MelodySyncTaskMapModel = {
+    NODE_KIND_DEFINITIONS,
+    NODE_KINDS,
     buildTaskMapProjection,
     applyTaskMapMockPreset,
   };

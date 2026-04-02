@@ -29,8 +29,7 @@
   <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync</h1>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
-  <button class="header-commit-tree-btn" id="commitTreeBtn" type="button" aria-label="会话树" title="会话树" hidden>树</button>
-  <button class="header-timeline-btn" id="timelineBtn" type="button" aria-label="任务时间线" title="任务时间线" hidden>轴</button>
+  <button class="header-operation-record-btn" id="operationRecordBtn" type="button" aria-label="操作记录" title="操作记录" hidden>记录</button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
 </div>
@@ -168,22 +167,14 @@
 </div>
 
 <button class="task-map-drawer-backdrop" id="taskMapDrawerBackdrop" hidden aria-label="关闭任务地图"></button>
-<aside class="commit-tree-rail" id="commitTreeRail" hidden aria-label="会话树" aria-hidden="true">
-  <div class="commit-tree-header">
-    <span class="commit-tree-title">会话树</span>
-    <button class="commit-tree-close-btn" id="commitTreeCloseBtn" type="button" aria-label="关闭会话树">✕</button>
+<aside class="operation-record-rail" id="operationRecordRail" hidden aria-label="操作记录" aria-hidden="true">
+  <div class="operation-record-header">
+    <span class="operation-record-title">操作记录</span>
+    <button class="operation-record-close-btn" id="operationRecordCloseBtn" type="button" aria-label="关闭操作记录">✕</button>
   </div>
-  <div class="commit-tree-inner" id="commitTreeInner"></div>
+  <div class="operation-record-inner" id="operationRecordInner"></div>
 </aside>
-<button class="commit-tree-backdrop" id="commitTreeBackdrop" hidden aria-label="关闭会话树"></button>
-</div>
-<div class="timeline-overlay" id="timelineOverlay" hidden>
-  <div class="timeline-header">
-    <span class="timeline-session-goal" id="timelineSessionGoal"></span>
-    <span class="timeline-title">任务时间线</span>
-    <button class="timeline-close-btn" id="timelineCloseBtn" type="button" aria-label="关闭">✕</button>
-  </div>
-  <div class="timeline-body" id="timelineBody"></div>
+<button class="operation-record-backdrop" id="operationRecordBackdrop" hidden aria-label="关闭操作记录"></button>
 </div>
 <div class="gesture-pill" id="gesturePill" aria-hidden="true"></div>
 
@@ -207,7 +198,10 @@
 <script src="/chat/session-surface-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session-list-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/workbench-node-contract.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/task-map-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/workbench/task-tracker-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/workbench/operation-record-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/vendor/panzoom.min.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>

@@ -40,7 +40,7 @@ for (let seq = fromSeq; seq <= meta.latestSeq; seq += 1) {
 }
 ```
 
-200 条消息的会话 = 400 次串行 I/O。此函数在 `buildPromptForToolInvocation`、`getSessionCommitItems`、`finalizeDetachedRun` 等高频路径都有调用。
+200 条消息的会话 = 400 次串行 I/O。此函数在 `buildPromptForToolInvocation`、`getSessionOperationRecords`、`finalizeDetachedRun` 等高频路径都有调用。
 
 **优化**：
 ```javascript
@@ -52,7 +52,7 @@ const rawEvents = await Promise.all(seqs.map(seq => loadStoredEvent(sessionId, s
 
 ---
 
-### P1 — `getSessionCommitItems` 在循环里串行 loadHistory
+### P1 — `getSessionOperationRecords` 在循环里串行 loadHistory
 
 **文件**：`chat/workbench-store.mjs:1740`
 
@@ -217,7 +217,7 @@ await Promise.allSettled(runCompleteHooks.map(hook => hook(sessionId, run, event
 |--------|------|--------|------|
 | **P0** | Runner stdout 无背压（可能挂进程） | 1 行 | 可靠性修复 |
 | **P1** | `loadHistory` N+1 串行 → 并行 | 10 行 | 性能，高频路径 |
-| **P1** | `getSessionCommitItems` 循环串行 → 并行 | 5 行 | 性能，会话树渲染 |
+| **P1** | `getSessionOperationRecords` 循环串行 → 并行 | 5 行 | 性能，操作记录渲染 |
 | **P2** | `finalizeDetachedRun` 串行 await 并行化 | 30 行 | 响应完成延迟 |
 | **P2** | WORKBENCH_QUEUE 改为 per-session | 15 行 | 多会话并发 |
 | **P3** | `runCompleteHooks` 架构抽取 | 中等 | 可扩展性 |

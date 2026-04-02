@@ -23,7 +23,7 @@ process.env.HOME = tempHome;
 
 try {
   // Import hooks module first
-  const { listHooks, HOOK_EVENTS } = await import(
+  const { listHooks, HOOK_EVENTS, HOOK_EVENT_DEFINITIONS } = await import(
     pathToFileURL(join(repoRoot, 'chat/session-hooks.mjs')).href
   );
 
@@ -45,6 +45,11 @@ try {
     [...HOOK_EVENTS].sort(),
     ['run.completed', 'run.failed', 'run.started', 'session.created'],
     'HOOK_EVENTS should contain all 4 lifecycle events',
+  );
+  assert.deepEqual(
+    HOOK_EVENT_DEFINITIONS.map((definition) => definition.id),
+    ['session.created', 'run.started', 'run.completed', 'run.failed'],
+    'HOOK_EVENT_DEFINITIONS should preserve the canonical event ordering',
   );
 
   const hooks = listHooks();
@@ -76,6 +81,10 @@ try {
   assert.equal(byId['builtin.session-naming'].eventPattern, 'run.completed');
   assert.equal(byId['builtin.workbench-sync'].eventPattern, 'run.completed');
   assert.equal(byId['builtin.workbench-sync-on-fail'].eventPattern, 'run.failed');
+  assert.equal(byId['builtin.push-notification'].owner, 'hooks');
+  assert.equal(byId['builtin.push-notification'].sourceModule, 'chat/hooks/push-notification-hook.mjs');
+  assert.equal(byId['builtin.branch-candidates'].owner, 'session-manager');
+  assert.equal(byId['builtin.branch-candidates'].sourceModule, 'chat/session-manager.mjs');
 
   // All built-ins should be enabled by default
   for (const h of hooks) {

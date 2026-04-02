@@ -212,7 +212,6 @@ hooks 不再只意味着“run 完成后发个通知”。
 表示任务当前状态，例如：
 
 - `main`
-- `goal`
 - `branch`
 - `done`
 - `reviewed` / `evaluated`
@@ -239,7 +238,7 @@ hooks 不再只意味着“run 完成后发个通知”。
 
 - 建立主任务线
 - 初始化任务生命周期
-- 如果能识别目标，则建立 goal 语义
+- 如果能识别主任务语义，则更新 taskCard 的 goal / mainGoal 字段，但不额外生成 goal node
 
 ### 2. run 推进
 
@@ -331,7 +330,6 @@ hooks 不再只意味着“run 完成后发个通知”。
 ### node 侧最小集合
 
 - `main`
-- `goal`
 - `candidate`
 - `branch`
 - `next-step`

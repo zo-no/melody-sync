@@ -189,6 +189,8 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/session-surface-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/session-list-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/sidebar-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/task-tracker-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/operation-record-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/compose\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/gestures\.js(?:\?v=[^"]*)?"/);
@@ -225,12 +227,17 @@ async function main() {
     assert.doesNotMatch(page.text, /id="dropToolsBtn"/);
     assert.doesNotMatch(page.text, /id="saveTemplateBtn"/);
     assert.doesNotMatch(page.text, /id="sessionTemplateSelect"/);
+    assert.doesNotMatch(page.text, /id="forkSessionBtn"/, 'chat page should not ship detached fork header controls');
+    assert.doesNotMatch(page.text, /id="organizeSessionBtn"/, 'chat page should not ship detached organize header controls');
     assert.match(page.text, /id="taskMapRail"/, 'chat page should ship the dedicated middle-column task map rail');
     assert.match(page.text, /id="questTaskList"/, 'chat page should ship the task-map mount');
     assert.match(page.text, /id="taskMapDrawerBtn"/, 'chat page should ship the mobile task-map drawer toggle');
     assert.match(page.text, /id="taskMapDrawerBackdrop"/, 'chat page should ship the mobile task-map drawer backdrop');
     assert.match(page.text, /id="questTrackerStatus"/, 'chat page should render the task-status mount inside the task bar');
+    assert.match(page.text, /\/chat\/workbench-node-contract\.js\?v=/, 'chat page should load the shared workbench node contract');
     assert.match(page.text, /\/chat\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
+    assert.match(page.text, /\/chat\/workbench-node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/task-map-model\.js\?v=/, 'chat page should load the node contract before the task-map projection model');
+    assert.match(page.text, /\/chat\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=/, 'chat page should load workbench UI helpers before the workbench runtime');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');
@@ -252,6 +259,7 @@ async function main() {
     const chatMessagesStylesheet = await request(port, 'GET', '/chat/chat-messages.css');
     const chatInputStylesheet = await request(port, 'GET', '/chat/chat-input.css');
     const chatResponsiveStylesheet = await request(port, 'GET', '/chat/chat-responsive.css');
+    const chatWorkbenchStylesheet = await request(port, 'GET', '/chat/chat-workbench.css');
     for (const stylesheet of [chatBaseStylesheet, chatSidebarStylesheet, chatMessagesStylesheet, chatInputStylesheet, chatResponsiveStylesheet]) {
       assert.equal(stylesheet.status, 200, 'split chat stylesheet should load');
       assert.equal(
@@ -261,6 +269,13 @@ async function main() {
       );
       assert.ok(stylesheet.headers.etag, 'split chat stylesheet should expose an ETag');
     }
+    assert.equal(chatWorkbenchStylesheet.status, 200, 'workbench stylesheet should load');
+    assert.equal(
+      chatWorkbenchStylesheet.headers['cache-control'],
+      'public, no-cache, max-age=0, must-revalidate',
+      'workbench stylesheet should use safe revalidation caching',
+    );
+    assert.ok(chatWorkbenchStylesheet.headers.etag, 'workbench stylesheet should expose an ETag');
     const combinedChatStyles = [
       chatBaseStylesheet.text,
       chatSidebarStylesheet.text,
@@ -284,6 +299,8 @@ async function main() {
     assert.match(combinedChatStyles, /\.input-resize-handle\s*\{[\s\S]*?margin:\s*0 calc\(var\(--chat-gutter\) \* -1\) 8px;/, 'resize handle should mirror the current chat gutter so it does not create horizontal overflow on mobile');
     assert.doesNotMatch(combinedChatStyles, /\.sidebar-overlay\.collapsed/, 'desktop sidebar should no longer render a collapsed state');
     assert.match(combinedChatStyles, /\.modal-backdrop\s*\{[\s\S]*?padding-left:\s*calc\(var\(--sidebar-width\) \+ 24px\);/, 'desktop modals should offset against the fixed-width sidebar');
+    assert.match(chatWorkbenchStylesheet.text, /\.operation-record-backdrop\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none;/, 'operation record backdrop should no longer dim or blur the main workspace');
+    assert.match(chatWorkbenchStylesheet.text, /\.operation-record-rail\s*\{[\s\S]*?background:\s*var\(--bg\);[\s\S]*?backdrop-filter:\s*none;/, 'operation record rail should render as an opaque side panel');
     assert.match(combinedChatStyles, /body\.keyboard-open \.messages/);
     assert.match(combinedChatStyles, /body\.keyboard-open \.input-area/);
     assert.doesNotMatch(combinedChatStyles, /--app-top-offset/);
@@ -360,6 +377,7 @@ async function main() {
     assert.ok(splitAsset.headers.etag, 'split asset should expose an ETag');
     assert.match(splitAsset.text, /const bootstrapStore = window\.MelodySyncBootstrap;/);
     assert.match(splitAsset.text, /const buildInfo = bootstrapStore\?\.getBuildInfo\?\.\(\) \|\| \{\};/);
+    assert.doesNotMatch(splitAsset.text, /forkSessionBtn|organizeSessionBtn/, 'bootstrap should not look up detached header controls');
 
     const sessionHttpHelpersAsset = await request(port, 'GET', '/chat/session-http-helpers.js');
     assert.equal(sessionHttpHelpersAsset.status, 200, 'session http helpers asset should load');
@@ -474,6 +492,7 @@ async function main() {
     assert.equal(toolingAsset.status, 200, 'tooling asset should load');
     assert.match(toolingAsset.text, /const modelResponseCache = new Map\(\);/);
     assert.match(toolingAsset.text, /async function fetchModelResponse\(/);
+    assert.doesNotMatch(toolingAsset.text, /syncForkButton|syncOrganizeSessionButton|forkCurrentSession|organizeCurrentSession/, 'tooling asset should not ship detached header-action handlers');
 
     const realtimeRenderAsset = await request(port, 'GET', '/chat/realtime-render.js');
     assert.equal(realtimeRenderAsset.status, 200, 'realtime render asset should load');
@@ -499,6 +518,23 @@ async function main() {
     assert.equal(hooksUiAsset.status, 200, 'hooks ui asset should load');
     assert.match(hooksUiAsset.text, /fetch\('\/api\/hooks'/);
     assert.match(hooksUiAsset.text, /document\.getElementById\('hooksPanelBody'\)/);
+    assert.match(hooksUiAsset.text, /eventDefinitions/);
+    assert.doesNotMatch(hooksUiAsset.text, /EVENT_LABELS/);
+
+    const nodeContractAsset = await request(port, 'GET', '/chat/workbench-node-contract.js');
+    assert.equal(nodeContractAsset.status, 200, 'workbench node contract asset should load');
+    assert.match(nodeContractAsset.text, /MelodySyncWorkbenchNodeContract/);
+    assert.match(nodeContractAsset.text, /NODE_KIND_DEFINITIONS/);
+
+    const operationRecordUiAsset = await request(port, 'GET', '/chat/workbench/operation-record-ui.js');
+    assert.equal(operationRecordUiAsset.status, 200, 'operation record ui asset should load');
+    assert.match(operationRecordUiAsset.text, /MelodySyncOperationRecordUi/);
+    assert.match(operationRecordUiAsset.text, /createController/);
+
+    const taskTrackerUiAsset = await request(port, 'GET', '/chat/workbench/task-tracker-ui.js');
+    assert.equal(taskTrackerUiAsset.status, 200, 'task tracker ui asset should load');
+    assert.match(taskTrackerUiAsset.text, /MelodySyncTaskTrackerUi/);
+    assert.match(taskTrackerUiAsset.text, /createTrackerRenderer/);
 
     const hooksApi = await request(port, 'GET', '/api/hooks');
     assert.equal(hooksApi.status, 200, 'hooks api should list registered hooks');
@@ -508,12 +544,20 @@ async function main() {
       ['session.created', 'run.started', 'run.completed', 'run.failed'],
       'hooks api should expose the supported lifecycle events',
     );
+    assert.deepEqual(
+      hooksApiJson.eventDefinitions?.map((definition) => definition.id),
+      ['session.created', 'run.started', 'run.completed', 'run.failed'],
+      'hooks api should expose the canonical lifecycle event definitions',
+    );
+    assert.equal(hooksApiJson.eventDefinitions?.[2]?.label, 'Run 完成后');
     const hookIds = hooksApiJson.hooks.map((hook) => hook.id);
     for (const expectedHookId of [
       'builtin.push-notification',
       'builtin.email-completion',
       'builtin.workbench-sync',
       'builtin.workbench-sync-on-fail',
+      'builtin.branch-candidates',
+      'builtin.session-naming',
     ]) {
       assert.ok(
         hookIds.includes(expectedHookId),
