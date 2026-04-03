@@ -22,6 +22,17 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     sourceModule: 'chat/hooks/resume-completion-targets-hook.mjs',
   }),
   createHookDefinition({
+    id: 'builtin.graph-context-bootstrap',
+    eventPattern: 'session.created',
+    label: '任务创建时注入节点上下文',
+    description: '创建任务后立即写入隐藏的 node/task-map 合同上下文，供首次执行读取。',
+    builtIn: true,
+    owner: 'hooks',
+    layer: 'lifecycle',
+    promptContextPolicy: 'continuity',
+    sourceModule: 'chat/hooks/graph-context-bootstrap-hook.mjs',
+  }),
+  createHookDefinition({
     id: 'builtin.push-notification',
     eventPattern: 'run.completed',
     label: '完成后推送通知',

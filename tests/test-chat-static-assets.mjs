@@ -1156,6 +1156,8 @@ async function main() {
     );
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.scope, 'instance');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.phase, 'startup');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.scope, 'session');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.phase, 'entry');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.scope, 'run');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.phase, 'closeout');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.scope, 'branch');
@@ -1164,6 +1166,9 @@ async function main() {
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.taskMapPlanPolicy, 'none');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.producesTaskMapPlan, false);
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.layer, 'delivery');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.layer, 'lifecycle');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.promptContextPolicy, 'continuity');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.producesPromptContext, true);
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.layer, 'lifecycle');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.taskMapPlanPolicy, 'augment-default');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.producesTaskMapPlan, true);
@@ -1171,6 +1176,7 @@ async function main() {
     for (const expectedHookId of [
       'builtin.first-boot-memory',
       'builtin.resume-completion-targets',
+      'builtin.graph-context-bootstrap',
       'builtin.push-notification',
       'builtin.email-completion',
       'builtin.branch-candidates',

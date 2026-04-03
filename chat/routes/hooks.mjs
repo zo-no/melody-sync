@@ -1,13 +1,15 @@
 import { readBody } from '../../lib/utils.mjs';
-import { HOOKS_FILE } from '../../lib/config.mjs';
+import { CUSTOM_HOOKS_FILE, HOOKS_FILE } from '../../lib/config.mjs';
 import { persistHookEnabledState } from '../hooks/runtime/settings-store.mjs';
 import {
   HOOK_LAYER_ORDER,
   HOOK_PHASE_ORDER,
+  HOOK_PROMPT_CONTEXT_POLICY_ORDER,
   HOOK_SCOPE_ORDER,
   HOOK_TASK_MAP_PLAN_POLICY_ORDER,
   listHookLayerDefinitions,
   listHookPhaseDefinitions,
+  listHookPromptContextPolicyDefinitions,
   listHookScopeDefinitions,
   listHookTaskMapPlanPolicyDefinitions,
   listHookUiReservedTruths,
@@ -32,6 +34,8 @@ export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) 
       scopeOrder: HOOK_SCOPE_ORDER,
       layerDefinitions: listHookLayerDefinitions(),
       layerOrder: HOOK_LAYER_ORDER,
+      promptContextPolicyDefinitions: listHookPromptContextPolicyDefinitions(),
+      promptContextPolicyOrder: HOOK_PROMPT_CONTEXT_POLICY_ORDER,
       taskMapPlanPolicyDefinitions: listHookTaskMapPlanPolicyDefinitions(),
       taskMapPlanPolicyOrder: HOOK_TASK_MAP_PLAN_POLICY_ORDER,
       uiTargetDefinitions: listHookUiTargetDefinitions(),
@@ -40,6 +44,7 @@ export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) 
       settings: {
         persistence: 'file',
         storagePath: HOOKS_FILE,
+        customDesignPath: CUSTOM_HOOKS_FILE,
         supportsEnableDisable: true,
       },
     });

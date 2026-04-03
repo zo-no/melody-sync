@@ -107,6 +107,7 @@ import {
 } from './session-task-card.mjs';
 import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
 import { registerSessionManagerBuiltinHooks } from './hooks/runtime/register-session-manager-hooks.mjs';
+import { appendGraphBootstrapPromptContext } from './workbench/graph-prompt-context.mjs';
 import { syncSessionContinuityFromSession } from './workbench-store.mjs';
 
 const MIME_EXTENSIONS = {
@@ -2681,6 +2682,7 @@ function ensureSessionManagerBuiltinHooksRegistered() {
   registerSessionManagerBuiltinHooks({
     appendEvents,
     isSessionAutoRenamePending,
+    loadHistory,
     listSessions,
     nowIso,
     triggerAutomaticSessionLabeling,
@@ -3061,14 +3063,20 @@ export async function createSession(folder, tool, name, extra = {}) {
     broadcastSessionsInvalidation();
   }
 
-  const enriched = enrichSessionMeta(created.session);
+  const enriched = await enrichSessionMeta(created.session);
   if (created.created) {
-    emitHook('session.created', {
+    await emitHook('session.created', {
       sessionId: enriched.id,
       session: enriched,
       manifest: null,
-    }).catch(() => {});
+    });
   }
+  await appendGraphBootstrapPromptContext({
+    sessionId: enriched.id,
+    session: enriched,
+    appendEvents,
+    loadHistory,
+  });
   return enriched;
 }
 

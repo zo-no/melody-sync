@@ -93,6 +93,37 @@ const HOOK_TASK_MAP_PLAN_POLICY_INDEX = new Map(
   HOOK_TASK_MAP_PLAN_POLICY_DEFINITIONS.map((definition) => [definition.id, definition]),
 );
 
+export const HOOK_PROMPT_CONTEXT_POLICY_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    id: 'none',
+    label: '不注入 Prompt',
+    description: '这个 hook 不直接给主 Agent 注入图谱或生命周期上下文。',
+  }),
+  Object.freeze({
+    id: 'pre-run',
+    label: '执行前注入',
+    description: '在当前 run 开始前，把 hook 生成的上下文片段注入主 Agent prompt。',
+  }),
+  Object.freeze({
+    id: 'continuity',
+    label: '连续性注入',
+    description: '在当前轮结束后写回隐藏连续性上下文，供后续 continuation 使用。',
+  }),
+  Object.freeze({
+    id: 'both',
+    label: '前后都注入',
+    description: '同时支持执行前 prompt 注入和结束后连续性注入。',
+  }),
+]);
+
+export const HOOK_PROMPT_CONTEXT_POLICY_ORDER = Object.freeze(
+  HOOK_PROMPT_CONTEXT_POLICY_DEFINITIONS.map((definition) => definition.id),
+);
+
+const HOOK_PROMPT_CONTEXT_POLICY_INDEX = new Map(
+  HOOK_PROMPT_CONTEXT_POLICY_DEFINITIONS.map((definition) => [definition.id, definition]),
+);
+
 export const HOOK_UI_TARGET_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: 'session_stream',
@@ -170,6 +201,15 @@ export function listHookTaskMapPlanPolicyDefinitions() {
   return HOOK_TASK_MAP_PLAN_POLICY_DEFINITIONS.map((definition) => ({ ...definition }));
 }
 
+export function normalizeHookPromptContextPolicy(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  return HOOK_PROMPT_CONTEXT_POLICY_INDEX.has(normalized) ? normalized : 'none';
+}
+
+export function listHookPromptContextPolicyDefinitions() {
+  return HOOK_PROMPT_CONTEXT_POLICY_DEFINITIONS.map((definition) => ({ ...definition }));
+}
+
 export function listHookUiTargetDefinitions() {
   return HOOK_UI_TARGET_DEFINITIONS.map((definition) => ({ ...definition }));
 }
@@ -210,6 +250,9 @@ export function createHookDefinition(definition = {}) {
     phase,
     taskMapPlanPolicy: normalizeHookTaskMapPlanPolicy(definition.taskMapPlanPolicy),
     producesTaskMapPlan: normalizeHookTaskMapPlanPolicy(definition.taskMapPlanPolicy) !== 'none',
+    promptContextPolicy: normalizeHookPromptContextPolicy(definition.promptContextPolicy),
+    producesPromptContext: normalizeHookPromptContextPolicy(definition.promptContextPolicy) !== 'none',
     sourceModule: normalizeText(definition.sourceModule),
+    enabledByDefault: definition.enabledByDefault !== false,
   });
 }

@@ -116,6 +116,7 @@ try {
   const EXPECTED_HOOKS = [
     'builtin.first-boot-memory',
     'builtin.resume-completion-targets',
+    'builtin.graph-context-bootstrap',
     'builtin.push-notification',
     'builtin.email-completion',
     'builtin.branch-candidates',
@@ -143,6 +144,13 @@ try {
   assert.equal(byId['builtin.resume-completion-targets'].eventPattern, 'instance.resume');
   assert.equal(byId['builtin.resume-completion-targets'].scope, 'instance');
   assert.equal(byId['builtin.resume-completion-targets'].phase, 'startup');
+  assert.equal(byId['builtin.graph-context-bootstrap'].eventPattern, 'session.created');
+  assert.equal(byId['builtin.graph-context-bootstrap'].scope, 'session');
+  assert.equal(byId['builtin.graph-context-bootstrap'].phase, 'entry');
+  assert.equal(byId['builtin.graph-context-bootstrap'].taskMapPlanPolicy, 'none');
+  assert.equal(byId['builtin.graph-context-bootstrap'].producesTaskMapPlan, false);
+  assert.equal(byId['builtin.graph-context-bootstrap'].promptContextPolicy, 'continuity');
+  assert.equal(byId['builtin.graph-context-bootstrap'].producesPromptContext, true);
   assert.equal(byId['builtin.branch-candidates'].eventPattern, 'branch.suggested');
   assert.equal(byId['builtin.branch-candidates'].scope, 'branch');
   assert.equal(byId['builtin.branch-candidates'].phase, 'closeout');
@@ -157,6 +165,8 @@ try {
   assert.equal(byId['builtin.first-boot-memory'].sourceModule, 'chat/hooks/first-boot-memory-hook.mjs');
   assert.equal(byId['builtin.resume-completion-targets'].owner, 'hooks');
   assert.equal(byId['builtin.resume-completion-targets'].sourceModule, 'chat/hooks/resume-completion-targets-hook.mjs');
+  assert.equal(byId['builtin.graph-context-bootstrap'].owner, 'hooks');
+  assert.equal(byId['builtin.graph-context-bootstrap'].sourceModule, 'chat/hooks/graph-context-bootstrap-hook.mjs');
   assert.equal(byId['builtin.push-notification'].owner, 'hooks');
   assert.equal(byId['builtin.push-notification'].sourceModule, 'chat/hooks/push-notification-hook.mjs');
   assert.equal(byId['builtin.branch-candidates'].owner, 'hooks');
@@ -164,7 +174,7 @@ try {
   assert.equal(byId['builtin.session-naming'].owner, 'hooks');
   assert.equal(byId['builtin.session-naming'].sourceModule, 'chat/hooks/session-naming-hook.mjs');
 
-  // All built-ins should be enabled by default
+  // All built-ins should be enabled by default.
   for (const h of hooks) {
     assert.equal(h.enabled, true, `Hook ${h.id} should be enabled by default`);
   }

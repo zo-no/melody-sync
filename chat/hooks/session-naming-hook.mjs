@@ -8,7 +8,7 @@ export function createSessionNamingHook({ isSessionAutoRenamePending, triggerAut
 
   return async function sessionNamingHook({ sessionId, session, manifest }) {
     if (manifest?.internalOperation) return;
-    if (!session || !isSessionAutoRenamePending(session)) return;
+    if (!session) return;
     await triggerAutomaticSessionLabeling(sessionId, session).catch((err) => {
       console.error(`[session-hooks] session-naming ${sessionId}: ${err.message}`);
     });

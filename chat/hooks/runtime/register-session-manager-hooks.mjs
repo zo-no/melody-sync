@@ -1,9 +1,11 @@
 import { registerHook } from './registry.mjs';
 import { getBuiltinHookDefinition } from '../builtin-hook-catalog.mjs';
 import { createBranchCandidatesHook } from '../branch-candidates-hook.mjs';
+import { createGraphContextBootstrapHook } from '../graph-context-bootstrap-hook.mjs';
 import { createResumeCompletionTargetsHook } from '../resume-completion-targets-hook.mjs';
 import { createSessionNamingHook } from '../session-naming-hook.mjs';
 import { syncBranchCandidateTaskMapPlan } from '../../workbench/task-map-plan-producers.mjs';
+import { appendGraphBootstrapPromptContext } from '../../workbench/graph-prompt-context.mjs';
 
 let registered = false;
 
@@ -29,6 +31,17 @@ export function registerSessionManagerBuiltinHooks(deps = {}) {
     'builtin.resume-completion-targets',
     createResumeCompletionTargetsHook({
       resumePendingCompletionTargets: deps.resumePendingCompletionTargets,
+    }),
+  );
+  registerCatalogHook(
+    'builtin.graph-context-bootstrap',
+    createGraphContextBootstrapHook({
+      appendGraphPromptContext: async ({ sessionId, session }) => appendGraphBootstrapPromptContext({
+        sessionId,
+        session,
+        appendEvents: deps.appendEvents,
+        loadHistory: deps.loadHistory,
+      }),
     }),
   );
   registerCatalogHook(
