@@ -57,7 +57,14 @@
           requiresSourceSession: definition.composition.requiresSourceSession !== false,
           defaultInteraction: trimText(definition.composition.defaultInteraction).toLowerCase(),
           defaultEdgeType: trimText(definition.composition.defaultEdgeType).toLowerCase(),
+          defaultViewType: trimText(definition.composition.defaultViewType).toLowerCase(),
           layoutVariant: trimText(definition.composition.layoutVariant).toLowerCase(),
+          capabilities: Array.isArray(definition.composition.capabilities)
+            ? definition.composition.capabilities.map((value) => trimText(value).toLowerCase()).filter(Boolean)
+            : [],
+          surfaceBindings: Array.isArray(definition.composition.surfaceBindings)
+            ? definition.composition.surfaceBindings.map((value) => trimText(value).toLowerCase()).filter(Boolean)
+            : [],
           countsAs: {
             sessionNode: definition?.composition?.countsAs?.sessionNode === true,
             branch: definition?.composition?.countsAs?.branch === true,

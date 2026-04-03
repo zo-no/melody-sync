@@ -94,7 +94,7 @@
 - `builtin.branch-candidates`
   - 文件：`chat/hooks/branch-candidates-hook.mjs`
   - 触发：`branch.suggested`
-  - 作用：把 branch candidate event 追加回会话历史
+  - 作用：把 branch candidate event 追加回会话历史，并同步写入 hook 生成的 `taskMapPlan` candidate overlay
 - `builtin.session-naming`
   - 文件：`chat/hooks/session-naming-hook.mjs`
   - 触发：`run.completed`
@@ -179,12 +179,16 @@
 - `chat/workbench/task-map-plans.mjs`
   - 持久化可选的 task-map plan overlay
   - 这层不是 workflow 真值，只负责保存“可替换/可增强默认地图”的图谱计划
+- `chat/workbench/task-map-plan-producers.mjs`
+  - 把当前核心 workflow 状态翻译成 hook/system 可写的 task-map plan
+  - 当前已经落地的 producer 是 `builtin.branch-candidates -> candidate overlay`
 - `chat/workbench/task-map-plan-contract.mjs`
   - 统一暴露 plan mode、source type、edge type、node composition 和允许产 plan 的 hook 白名单
   - 当前面向未来 hook / AI 生成图谱的入口，不直接参与渲染
 - `static/chat/workbench/task-map-plan.js`
   - 把 task-map plan 归一化并叠加到默认 continuity 投影上
   - 当前支持两种模式：`replace-default` 和 `augment-default`
+  - 当前 `augment-default` 也会按 node id 合并已有默认节点，所以 hook plan 可以给 continuity 默认节点补 `summary / surfaceBindings / view.type`
 - `static/chat/workbench/node-settings-model.js`
   - 把 node definitions payload 归一化成地图域可消费的设置模型
 - `static/chat/workbench/node-settings-ui.js`
@@ -241,12 +245,32 @@
 - `composition contract`
 - `shared node effects`
 - `optional taskMapPlan overlay`
+- `rich right-canvas view contract`
 
 但当前 `taskMapPlan` 仍然只是 overlay 层：
 
 - 没有 plan 时，继续回退到 continuity -> task-map projection
 - 有 plan 时，只替换或增强地图图谱，不接管 session / branchContext / taskCard 真值
 - 当前 hook 白名单里，只有 `builtin.branch-candidates` 具备产 plan 资格，而且策略是 `augment-default`
+
+### 当前 rich canvas 能力
+
+`taskMapPlan` 里的 node 现在可以声明：
+
+- `view.type`
+  - `flow-node`
+  - `markdown`
+  - `html`
+  - `iframe`
+- `view.width / view.height`
+- `view.renderMode`
+  - 当前 `html` 支持 `inline / iframe`
+
+当前规则是：
+
+- plan / AI 只声明要展示什么
+- renderer 负责无限画布里的尺寸、布局和嵌入方式
+- 默认 continuity 节点仍然走 `flow-node`
 
 ## 2.5 node 的两层含义
 

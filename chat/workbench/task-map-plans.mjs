@@ -1,7 +1,12 @@
 import { readFileSync } from 'fs';
 import { WORKBENCH_TASK_MAP_PLANS_FILE } from '../../lib/config.mjs';
 import { writeJsonAtomic } from '../fs-utils.mjs';
-import { isKnownNodeKind } from './node-definitions.mjs';
+import {
+  NODE_CAPABILITIES,
+  NODE_SURFACE_SLOTS,
+  NODE_VIEW_TYPES,
+  isKnownNodeKind,
+} from './node-definitions.mjs';
 import {
   canBuiltinHookProduceTaskMapPlan,
   getBuiltinHookDefinition,
@@ -11,6 +16,7 @@ import {
 const TASK_MAP_PLAN_MODES = Object.freeze(['replace-default', 'augment-default']);
 const TASK_MAP_EDGE_TYPES = Object.freeze(['structural', 'suggestion', 'completion', 'merge']);
 const TASK_MAP_PLAN_SOURCE_TYPES = Object.freeze(['manual', 'system', 'hook']);
+const TASK_MAP_HTML_RENDER_MODES = Object.freeze(['inline', 'iframe']);
 
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -29,6 +35,47 @@ function normalizeEdgeType(value) {
 function normalizePlanSourceType(value) {
   const normalized = trimText(value).toLowerCase();
   return TASK_MAP_PLAN_SOURCE_TYPES.includes(normalized) ? normalized : 'manual';
+}
+
+function normalizeAllowedTokenList(values, allowlist) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return [];
+  }
+  const normalized = values
+    .map((value) => trimText(value).toLowerCase())
+    .filter((value) => allowlist.includes(value));
+  return [...new Set(normalized)];
+}
+
+function normalizeDimension(value, { min = 120, max = 1280 } = {}) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  const normalized = Math.round(numeric);
+  if (normalized < min || normalized > max) return null;
+  return normalized;
+}
+
+function normalizeNodeViewType(value) {
+  const normalized = trimText(value).toLowerCase();
+  return NODE_VIEW_TYPES.includes(normalized) ? normalized : 'flow-node';
+}
+
+function normalizeHtmlRenderMode(value) {
+  const normalized = trimText(value).toLowerCase();
+  return TASK_MAP_HTML_RENDER_MODES.includes(normalized) ? normalized : 'iframe';
+}
+
+function normalizeTaskMapPlanNodeView(view = {}) {
+  if (!view || typeof view !== 'object' || Array.isArray(view)) return null;
+  const type = normalizeNodeViewType(view.type);
+  return {
+    type,
+    renderMode: type === 'html' ? normalizeHtmlRenderMode(view.renderMode) : '',
+    content: typeof view.content === 'string' ? view.content : '',
+    src: trimText(view.src),
+    width: normalizeDimension(view.width, { min: 180, max: 1440 }),
+    height: normalizeDimension(view.height, { min: 120, max: 1200 }),
+  };
 }
 
 function eventMatchesHookPattern(eventId, eventPattern) {
@@ -84,6 +131,9 @@ function normalizeTaskMapPlanNode(node = {}, { existingNodeIds = new Set() } = {
     parentNodeId: trimText(node.parentNodeId || node.parentId),
     status: trimText(node.status).toLowerCase(),
     lineRole: trimText(node.lineRole).toLowerCase(),
+    capabilities: normalizeAllowedTokenList(node.capabilities, NODE_CAPABILITIES),
+    surfaceBindings: normalizeAllowedTokenList(node.surfaceBindings, NODE_SURFACE_SLOTS),
+    view: normalizeTaskMapPlanNodeView(node.view),
   };
 }
 

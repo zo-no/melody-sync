@@ -59,6 +59,35 @@ const baseQuest = api.buildQuestFromGraphData({
 
 assert.ok(baseQuest, 'task map plan helper should build quest-shaped graph data');
 
+const baseQuestWithCandidate = api.buildQuestFromGraphData({
+  questId: 'quest:main-1',
+  rootSessionId: 'main-1',
+  title: '默认任务图',
+  nodes: [
+    {
+      id: 'session:main-1',
+      kind: 'main',
+      title: '主任务',
+      summary: '默认 continuity 投影',
+      sessionId: 'main-1',
+      sourceSessionId: 'main-1',
+      parentNodeId: null,
+      status: 'current',
+      lineRole: 'main',
+    },
+    {
+      id: 'candidate:main-1:review',
+      kind: 'candidate',
+      title: '补充复盘支线',
+      summary: '默认候选节点',
+      sourceSessionId: 'main-1',
+      parentNodeId: 'session:main-1',
+      status: 'candidate',
+      lineRole: 'candidate',
+    },
+  ],
+});
+
 const augmentPlan = api.normalizeTaskMapPlan({
   rootSessionId: 'main-1',
   mode: 'augment-default',
@@ -71,6 +100,14 @@ const augmentPlan = api.normalizeTaskMapPlan({
       sourceSessionId: 'main-1',
       parentId: 'session:main-1',
       status: 'candidate',
+      capabilities: ['create-branch', 'dismiss'],
+      surfaceBindings: ['task-map', 'composer-suggestions'],
+      view: {
+        type: 'markdown',
+        content: '## 复盘建议',
+        width: 420,
+        height: 280,
+      },
     },
   ],
   edges: [
@@ -84,6 +121,10 @@ const augmentPlan = api.normalizeTaskMapPlan({
 
 assert.equal(augmentPlan?.mode, 'augment-default');
 assert.equal(augmentPlan?.nodes[0]?.parentNodeId, 'session:main-1');
+assert.equal(augmentPlan?.nodes[0]?.view?.type, 'markdown');
+assert.equal(augmentPlan?.nodes[0]?.view?.width, 420);
+assert.deepEqual(toPlain(augmentPlan?.nodes[0]?.capabilities || []), ['create-branch', 'dismiss']);
+assert.deepEqual(toPlain(augmentPlan?.nodes[0]?.surfaceBindings || []), ['task-map', 'composer-suggestions']);
 
 const augmentedProjection = api.applyTaskMapPlansToProjection({
   projection: { mainQuests: [baseQuest] },
@@ -97,6 +138,11 @@ assert.equal(
   'augment mode should append new plan nodes onto the default projection',
 );
 assert.equal(
+  augmentedProjection.mainQuests[0]?.nodes.find((node) => node.id === 'candidate:main-1:review')?.view?.type,
+  'markdown',
+  'augment mode should preserve node rich-view declarations',
+);
+assert.equal(
   augmentedProjection.mainQuests[0]?.edges.find((edge) => edge.toNodeId === 'candidate:main-1:review')?.type,
   'suggestion',
   'augment mode should preserve explicit edge semantics',
@@ -105,6 +151,34 @@ assert.equal(
   augmentedProjection.mainQuests[0]?.counts?.candidateBranches,
   1,
   'augment mode should recalculate candidate counts from the merged graph',
+);
+
+const mergedProjection = api.applyTaskMapPlansToProjection({
+  projection: { mainQuests: [baseQuestWithCandidate] },
+  snapshot: { taskMapPlans: [augmentPlan] },
+});
+
+const mergedCandidateNode = mergedProjection.mainQuests[0]?.nodes.find((node) => node.id === 'candidate:main-1:review');
+assert.ok(mergedCandidateNode, 'augment mode should keep existing default nodes when the plan reuses the same node id');
+assert.equal(
+  mergedProjection.mainQuests[0]?.nodes.length,
+  2,
+  'augment mode should merge matching node ids instead of duplicating the default candidate node',
+);
+assert.equal(
+  mergedCandidateNode?.summary,
+  '建议拆成独立支线',
+  'augment mode should let the plan override summary metadata on an existing default node',
+);
+assert.equal(
+  mergedCandidateNode?.view?.type,
+  'markdown',
+  'augment mode should attach rich-view metadata onto an existing default node when ids match',
+);
+assert.deepEqual(
+  toPlain(mergedCandidateNode?.surfaceBindings || []),
+  ['task-map', 'composer-suggestions'],
+  'augment mode should merge surface bindings onto an existing default node when ids match',
 );
 
 const replaceProjection = api.applyTaskMapPlansToProjection({

@@ -10,15 +10,7 @@ import {
   trimText,
 } from './shared.mjs';
 
-const LOCAL_OBSIDIAN_PROJECT_DIR = join(
-  homedir(),
-  'Desktop',
-  'diary',
-  'diary',
-  '04-🧰projects',
-  '01-📂2-长期项目',
-  '2-3-MelodySync',
-);
+const LOCAL_OBSIDIAN_PROJECT_DIR = '/Users/kual/Desktop/diary/diary';
 
 function nowIso() {
   return new Date().toISOString();

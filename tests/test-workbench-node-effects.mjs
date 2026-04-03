@@ -31,6 +31,9 @@ assert.equal(typeof effectsApi.buildQuestNodeCounts, 'function');
 const mainEffect = effectsApi.getNodeKindEffect('main');
 assert.equal(mainEffect.layoutVariant, 'root');
 assert.equal(mainEffect.interaction, 'open-session');
+assert.deepEqual(JSON.parse(JSON.stringify(mainEffect.capabilities)), ['open-session']);
+assert.deepEqual(JSON.parse(JSON.stringify(mainEffect.surfaceBindings)), ['task-map']);
+assert.equal(mainEffect.defaultViewType, 'flow-node');
 assert.equal(mainEffect.countsAs.sessionNode, true);
 
 const branchEffect = effectsApi.getNodeKindEffect('branch');
@@ -43,6 +46,8 @@ assert.equal(candidateEffect.edgeVariant, 'suggestion');
 assert.equal(candidateEffect.interaction, 'create-branch');
 assert.equal(candidateEffect.trackAsCandidateChild, true);
 assert.equal(candidateEffect.defaultSummary, '建议拆成独立支线');
+assert.deepEqual(JSON.parse(JSON.stringify(candidateEffect.capabilities)), ['create-branch', 'dismiss']);
+assert.deepEqual(JSON.parse(JSON.stringify(candidateEffect.surfaceBindings)), ['task-map', 'composer-suggestions']);
 assert.equal(candidateEffect.countsAs.sessionNode, false);
 assert.equal(candidateEffect.countsAs.candidate, true);
 
@@ -58,6 +63,7 @@ const hydratedCandidate = effectsApi.withNodeKindEffect({
   title: '补充复盘支线',
 });
 assert.equal(hydratedCandidate.kindEffect.interaction, 'create-branch');
+assert.equal(effectsApi.getNodeView(hydratedCandidate).type, 'flow-node');
 
 assert.equal(
   effectsApi.shouldTrackCandidateChild(hydratedCandidate),
@@ -135,5 +141,21 @@ assert.equal(customEffect.interaction, 'none');
 assert.equal(customEffect.countsAs.sessionNode, false);
 assert.equal(customEffect.edgeVariant, 'completion');
 assert.equal(customEffect.countsAs.completedSummary, true);
+assert.deepEqual(JSON.parse(JSON.stringify(customEffect.surfaceBindings)), ['task-map']);
+
+const markdownView = bootstrapContext.MelodySyncWorkbenchNodeEffects.getNodeView({
+  id: 'review-node',
+  kind: 'review',
+  view: {
+    type: 'markdown',
+    content: '# 复盘',
+    width: 420,
+    height: 280,
+  },
+});
+assert.equal(markdownView.type, 'markdown');
+assert.equal(markdownView.content, '# 复盘');
+assert.equal(markdownView.width, 420);
+assert.equal(markdownView.height, 280);
 
 console.log('test-workbench-node-effects: ok');

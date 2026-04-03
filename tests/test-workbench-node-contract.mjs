@@ -25,7 +25,10 @@ assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_ROLES)), ['state', 'act
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_MERGE_POLICIES)), ['replace-latest', 'append']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_INTERACTIONS)), ['open-session', 'create-branch', 'none']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_EDGE_TYPES)), ['structural', 'suggestion', 'completion', 'merge']);
-assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_LAYOUT_VARIANTS)), ['root', 'default', 'compact']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_LAYOUT_VARIANTS)), ['root', 'default', 'compact', 'panel']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_CAPABILITIES)), ['open-session', 'create-branch', 'dismiss']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_SURFACE_SLOTS)), ['task-map', 'composer-suggestions']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_VIEW_TYPES)), ['flow-node', 'markdown', 'html', 'iframe']);
 
 const main = contract.getNodeKindDefinition('main');
 assert.equal(main?.lane, 'main');
@@ -43,6 +46,8 @@ assert.equal(candidate?.role, 'action');
 assert.equal(candidate?.derived, true);
 assert.equal(candidate?.composition?.defaultInteraction, 'create-branch');
 assert.equal(candidate?.composition?.layoutVariant, 'compact');
+assert.deepEqual(JSON.parse(JSON.stringify(candidate?.composition?.surfaceBindings || [])), ['task-map', 'composer-suggestions']);
+assert.equal(candidate?.composition?.defaultViewType, 'flow-node');
 
 const done = contract.getNodeKindDefinition('done');
 assert.equal(done?.role, 'summary');
@@ -64,7 +69,10 @@ const bootstrapContext = {
           nodeMergePolicies: ['replace-latest', 'append'],
           nodeInteractions: ['open-session', 'none'],
           nodeEdgeTypes: ['structural', 'completion'],
-          nodeLayoutVariants: ['root', 'default', 'compact'],
+          nodeLayoutVariants: ['root', 'default', 'compact', 'panel'],
+          nodeCapabilities: ['open-session', 'dismiss'],
+          nodeSurfaceSlots: ['task-map', 'composer-suggestions'],
+          nodeViewTypes: ['flow-node', 'markdown'],
           nodeKindDefinitions: [
             {
               id: 'main',
@@ -127,6 +135,11 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(bootstrapContract.NODE_INTERACTIONS)),
   ['open-session', 'none'],
   'bootstrap-backed node interactions should override the local fallback list',
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(bootstrapContract.NODE_VIEW_TYPES)),
+  ['flow-node', 'markdown'],
+  'bootstrap-backed node view types should override the local fallback list',
 );
 assert.equal(
   bootstrapContract.getNodeKindDefinition('review')?.label,

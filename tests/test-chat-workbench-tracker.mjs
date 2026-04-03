@@ -9,6 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'), 'utf8');
 const nodeEffectsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-effects.js'), 'utf8');
+const taskMapPlanSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-plan.js'), 'utf8');
 const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'), 'utf8');
 const questStateSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'quest-state.js'), 'utf8');
 const taskTrackerUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-tracker-ui.js'), 'utf8');
@@ -59,10 +60,11 @@ function makeClassList(initial = [], onChange = () => {}) {
   };
 }
 
-function makeElement(id = '') {
+function makeElement(tagName = 'div', id = '') {
   let className = '';
   const listeners = new Map();
   const element = {
+    tagName: String(tagName || 'div').toUpperCase(),
     id,
     hidden: false,
     textContent: '',
@@ -176,6 +178,11 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
       sessions,
       innerWidth,
       addEventListener() {},
+      marked: {
+        parse(value) {
+          return `<p>${String(value || '').trim()}</p>`;
+        },
+      },
       setTimeout(fn) {
         fn();
         return 1;
@@ -187,8 +194,11 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
         return elements.get(id) || null;
       },
       addEventListener() {},
-      createElement() {
-        return makeElement();
+      createElement(tagName = 'div') {
+        return makeElement(tagName);
+      },
+      createElementNS(_namespace, tagName = 'div') {
+        return makeElement(tagName);
       },
     },
     localStorage: {
@@ -235,7 +245,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
-  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${nodeEffectsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${nodeEffectsSource}\n${taskMapPlanSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'static/chat/workbench-ui.js',
   });
   await Promise.resolve();
@@ -264,6 +274,17 @@ function findAllByClass(node, className, results = []) {
   if (node.classList?.contains(className)) results.push(node);
   for (const child of Array.isArray(node.children) ? node.children : []) {
     findAllByClass(child, className, results);
+  }
+  return results;
+}
+
+function findAllByTagName(node, tagName, results = []) {
+  if (!node) return results;
+  if (String(node.tagName || '').toUpperCase() === String(tagName || '').toUpperCase()) {
+    results.push(node);
+  }
+  for (const child of Array.isArray(node.children) ? node.children : []) {
+    findAllByTagName(child, tagName, results);
   }
   return results;
 }
@@ -1037,6 +1058,118 @@ assert.equal(
     .some((node) => node.textContent === '对比特吕弗和戈达尔'),
   true,
   'operation record should show the current branch summary even before the branch has user messages',
+);
+
+const richCanvasSession = {
+  id: 'session-rich-canvas',
+  name: '右侧画布类型实验',
+  taskCard: {
+    lineRole: 'main',
+    goal: '右侧画布类型实验',
+    mainGoal: '右侧画布类型实验',
+    nextSteps: ['先验证 markdown/html/iframe 三种右侧展示'],
+  },
+};
+
+const { elements: richCanvasElements } = await runScenario({
+  currentSession: richCanvasSession,
+  sessions: [richCanvasSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-rich-canvas',
+        mainSession: richCanvasSession,
+        mainGoal: richCanvasSession.taskCard.mainGoal,
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    taskMapPlans: [
+      {
+        rootSessionId: 'session-rich-canvas',
+        mode: 'replace-default',
+        title: '右侧画布类型实验',
+        nodes: [
+          {
+            id: 'session:session-rich-canvas',
+            kind: 'main',
+            title: '任务总览',
+            sourceSessionId: 'session-rich-canvas',
+            parentNodeId: null,
+            status: 'active',
+            lineRole: 'main',
+          },
+          {
+            id: 'plan:markdown',
+            kind: 'candidate',
+            title: 'Markdown 视图',
+            sourceSessionId: 'session-rich-canvas',
+            parentNodeId: 'session:session-rich-canvas',
+            status: 'candidate',
+            lineRole: 'candidate',
+            view: {
+              type: 'markdown',
+              content: '## Markdown 内容',
+              width: 420,
+              height: 280,
+            },
+          },
+          {
+            id: 'plan:html',
+            kind: 'done',
+            title: 'HTML 视图',
+            sourceSessionId: 'session-rich-canvas',
+            parentNodeId: 'session:session-rich-canvas',
+            status: 'done',
+            lineRole: 'main',
+            view: {
+              type: 'html',
+              renderMode: 'inline',
+              content: '<strong>HTML 内容</strong>',
+              width: 420,
+              height: 280,
+            },
+          },
+          {
+            id: 'plan:iframe',
+            kind: 'done',
+            title: 'Iframe 视图',
+            sourceSessionId: 'session-rich-canvas',
+            parentNodeId: 'session:session-rich-canvas',
+            status: 'done',
+            lineRole: 'main',
+            view: {
+              type: 'iframe',
+              src: 'https://example.com/embed',
+              width: 420,
+              height: 300,
+            },
+          },
+        ],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+const richBoard = findFirstByClass(richCanvasElements.get('questTaskList'), 'quest-task-flow-shell');
+assert.equal(Boolean(richBoard), true, 'rich canvas quests should still render inside the same flow board surface');
+assert.equal(findAllByClass(richBoard, 'quest-task-flow-node-rich-markdown').length >= 1, true, 'rich canvas should render markdown nodes via the declared node view type');
+assert.equal(findAllByClass(richBoard, 'quest-task-flow-node-rich-html').length >= 1, true, 'rich canvas should render inline html nodes via the declared node view type');
+assert.equal(findAllByClass(richBoard, 'quest-task-flow-node-rich-iframe').length >= 1, true, 'rich canvas should render iframe nodes via the declared node view type');
+assert.equal(findAllByTagName(richBoard, 'IFRAME').length, 1, 'iframe node views should render a real iframe surface');
+assert.match(findFirstByClass(richBoard, 'quest-task-flow-node-rich-body')?.innerHTML || '', /Markdown 内容/);
+assert.match(
+  findAllByClass(richBoard, 'quest-task-flow-node-rich-body')
+    .map((node) => node.innerHTML || '')
+    .find((html) => /HTML 内容/.test(html)) || '',
+  /HTML 内容/,
 );
 
 console.log('test-chat-workbench-tracker: ok');

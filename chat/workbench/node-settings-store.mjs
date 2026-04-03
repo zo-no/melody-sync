@@ -7,7 +7,10 @@ const NODE_ROLES = Object.freeze(['state', 'action', 'summary']);
 const NODE_MERGE_POLICIES = Object.freeze(['replace-latest', 'append']);
 const NODE_INTERACTIONS = Object.freeze(['open-session', 'create-branch', 'none']);
 const NODE_EDGE_TYPES = Object.freeze(['structural', 'suggestion', 'completion', 'merge']);
-const NODE_LAYOUT_VARIANTS = Object.freeze(['root', 'default', 'compact']);
+const NODE_LAYOUT_VARIANTS = Object.freeze(['root', 'default', 'compact', 'panel']);
+const NODE_CAPABILITIES = Object.freeze(['open-session', 'create-branch', 'dismiss']);
+const NODE_SURFACE_SLOTS = Object.freeze(['task-map', 'composer-suggestions']);
+const NODE_VIEW_TYPES = Object.freeze(['flow-node', 'markdown', 'html', 'iframe']);
 const RESERVED_NODE_KIND_IDS = new Set(['main', 'branch', 'candidate', 'done']);
 
 function trimText(value) {
@@ -24,6 +27,16 @@ function normalizeNodeKindIdList(values, fallback) {
   const normalized = source
     .map((value) => trimText(value).toLowerCase())
     .filter((value) => /^[a-z][a-z0-9-]{0,47}$/.test(value));
+  return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
+}
+
+function normalizeAllowedTokenList(values, fallback, allowlist) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return [...fallback];
+  }
+  const normalized = values
+    .map((value) => trimText(value).toLowerCase())
+    .filter((value) => allowlist.includes(value));
   return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
 }
 
@@ -48,6 +61,9 @@ function normalizeCustomNodeComposition(definition = {}, { lane = 'side', role =
   const inferredInteraction = role === 'action' ? 'create-branch' : 'none';
   const inferredEdgeType = role === 'action' ? 'suggestion' : (role === 'summary' ? 'completion' : 'structural');
   const inferredLayout = role === 'state' ? (lane === 'main' ? 'root' : 'default') : 'compact';
+  const inferredCapabilities = inferredInteraction === 'create-branch'
+    ? ['create-branch']
+    : [];
   return {
     canBeRoot: composition.canBeRoot === true,
     allowedParentKinds: normalizeNodeKindIdList(
@@ -73,6 +89,21 @@ function normalizeCustomNodeComposition(definition = {}, { lane = 'side', role =
       composition.layoutVariant,
       inferredLayout,
       NODE_LAYOUT_VARIANTS,
+    ),
+    defaultViewType: normalizeToken(
+      composition.defaultViewType,
+      'flow-node',
+      NODE_VIEW_TYPES,
+    ),
+    capabilities: normalizeAllowedTokenList(
+      composition.capabilities,
+      inferredCapabilities,
+      NODE_CAPABILITIES,
+    ),
+    surfaceBindings: normalizeAllowedTokenList(
+      composition.surfaceBindings,
+      ['task-map'],
+      NODE_SURFACE_SLOTS,
     ),
     countsAs: {
       sessionNode: composition?.countsAs?.sessionNode === true,

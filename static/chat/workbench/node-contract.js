@@ -5,7 +5,10 @@
   const FALLBACK_NODE_MERGE_POLICIES = Object.freeze(["replace-latest", "append"]);
   const FALLBACK_NODE_INTERACTIONS = Object.freeze(["open-session", "create-branch", "none"]);
   const FALLBACK_NODE_EDGE_TYPES = Object.freeze(["structural", "suggestion", "completion", "merge"]);
-  const FALLBACK_NODE_LAYOUT_VARIANTS = Object.freeze(["root", "default", "compact"]);
+  const FALLBACK_NODE_LAYOUT_VARIANTS = Object.freeze(["root", "default", "compact", "panel"]);
+  const FALLBACK_NODE_CAPABILITIES = Object.freeze(["open-session", "create-branch", "dismiss"]);
+  const FALLBACK_NODE_SURFACE_SLOTS = Object.freeze(["task-map", "composer-suggestions"]);
+  const FALLBACK_NODE_VIEW_TYPES = Object.freeze(["flow-node", "markdown", "html", "iframe"]);
 
   function normalizeToken(value, fallback, allowlist) {
     const normalized = String(value || "").trim().toLowerCase();
@@ -19,6 +22,19 @@
     const normalized = values
       .map((value) => String(value || "").trim().toLowerCase())
       .filter(Boolean);
+    if (normalized.length === 0) {
+      return [...fallback];
+    }
+    return [...new Set(normalized)];
+  }
+
+  function normalizeAllowedTokenList(values, fallback, allowlist) {
+    if (!Array.isArray(values) || values.length === 0) {
+      return [...fallback];
+    }
+    const normalized = values
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter((value) => allowlist.includes(value));
     if (normalized.length === 0) {
       return [...fallback];
     }
@@ -65,6 +81,15 @@
   const NODE_LAYOUT_VARIANTS = Object.freeze(
     normalizeTokenList(bootstrapNodeContract.nodeLayoutVariants, FALLBACK_NODE_LAYOUT_VARIANTS),
   );
+  const NODE_CAPABILITIES = Object.freeze(
+    normalizeTokenList(bootstrapNodeContract.nodeCapabilities, FALLBACK_NODE_CAPABILITIES),
+  );
+  const NODE_SURFACE_SLOTS = Object.freeze(
+    normalizeTokenList(bootstrapNodeContract.nodeSurfaceSlots, FALLBACK_NODE_SURFACE_SLOTS),
+  );
+  const NODE_VIEW_TYPES = Object.freeze(
+    normalizeTokenList(bootstrapNodeContract.nodeViewTypes, FALLBACK_NODE_VIEW_TYPES),
+  );
 
   function defineNodeComposition(definition = {}, normalizedDefinition = {}) {
     const composition = definition?.composition && typeof definition.composition === "object"
@@ -91,10 +116,35 @@
         "structural",
         NODE_EDGE_TYPES,
       ),
+      defaultViewType: normalizeToken(
+        composition.defaultViewType,
+        "flow-node",
+        NODE_VIEW_TYPES,
+      ),
       layoutVariant: normalizeToken(
         composition.layoutVariant,
         normalizedDefinition.sessionBacked ? "default" : (normalizedDefinition.derived ? "compact" : "default"),
         NODE_LAYOUT_VARIANTS,
+      ),
+      capabilities: normalizeAllowedTokenList(
+        composition.capabilities,
+        normalizeToken(
+          composition.defaultInteraction,
+          normalizedDefinition.sessionBacked ? "open-session" : "none",
+          NODE_INTERACTIONS,
+        ) === "open-session"
+          ? ["open-session"]
+          : (normalizeToken(
+            composition.defaultInteraction,
+            normalizedDefinition.sessionBacked ? "open-session" : "none",
+            NODE_INTERACTIONS,
+          ) === "create-branch" ? ["create-branch"] : []),
+        NODE_CAPABILITIES,
+      ),
+      surfaceBindings: normalizeAllowedTokenList(
+        composition.surfaceBindings,
+        normalizedDefinition.id === "candidate" ? ["task-map", "composer-suggestions"] : ["task-map"],
+        NODE_SURFACE_SLOTS,
       ),
       countsAs: Object.freeze({
         sessionNode: composition?.countsAs?.sessionNode === true || normalizedDefinition.sessionBacked === true,
@@ -143,7 +193,10 @@
         requiresSourceSession: true,
         defaultInteraction: "open-session",
         defaultEdgeType: "structural",
+        defaultViewType: "flow-node",
         layoutVariant: "root",
+        capabilities: ["open-session"],
+        surfaceBindings: ["task-map"],
         countsAs: {
           sessionNode: true,
           branch: false,
@@ -168,7 +221,10 @@
         requiresSourceSession: true,
         defaultInteraction: "open-session",
         defaultEdgeType: "structural",
+        defaultViewType: "flow-node",
         layoutVariant: "default",
+        capabilities: ["open-session"],
+        surfaceBindings: ["task-map"],
         countsAs: {
           sessionNode: true,
           branch: true,
@@ -193,7 +249,10 @@
         requiresSourceSession: true,
         defaultInteraction: "create-branch",
         defaultEdgeType: "suggestion",
+        defaultViewType: "flow-node",
         layoutVariant: "compact",
+        capabilities: ["create-branch", "dismiss"],
+        surfaceBindings: ["task-map", "composer-suggestions"],
         countsAs: {
           sessionNode: false,
           branch: false,
@@ -218,7 +277,10 @@
         requiresSourceSession: true,
         defaultInteraction: "none",
         defaultEdgeType: "completion",
+        defaultViewType: "flow-node",
         layoutVariant: "compact",
+        capabilities: [],
+        surfaceBindings: ["task-map"],
         countsAs: {
           sessionNode: true,
           branch: false,
@@ -269,6 +331,9 @@
     NODE_INTERACTIONS,
     NODE_EDGE_TYPES,
     NODE_LAYOUT_VARIANTS,
+    NODE_CAPABILITIES,
+    NODE_SURFACE_SLOTS,
+    NODE_VIEW_TYPES,
     listNodeKindDefinitions,
     getNodeKindDefinition,
     isKnownNodeKind,

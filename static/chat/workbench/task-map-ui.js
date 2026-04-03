@@ -38,14 +38,28 @@
       return getNodeEffect(node)?.actionLabel || "开启支线";
     }
 
+    function getNodeView(node) {
+      return getNodeEffectsApi()?.getNodeView?.(node) || {
+        type: "flow-node",
+        renderMode: "",
+        content: "",
+        src: "",
+        width: null,
+        height: null,
+      };
+    }
+
     function getProjectedTaskFlowConfig() {
       const mobile = isMobileQuestTracker();
       return {
         nodeWidth: mobile ? 152 : 176,
         rootWidth: mobile ? 176 : 208,
+        panelWidth: mobile ? 276 : 360,
         nodeHeight: mobile ? 88 : 96,
         rootHeight: mobile ? 98 : 112,
         candidateHeight: mobile ? 108 : 120,
+        panelHeight: mobile ? 196 : 256,
+        iframeHeight: mobile ? 220 : 280,
         levelGap: mobile ? 98 : 116,
         siblingGap: mobile ? 18 : 20,
         paddingX: mobile ? 144 : 220,
@@ -62,10 +76,17 @@
     }
 
     function getProjectedTaskFlowNodeWidth(node, metrics) {
+      const nodeView = getNodeView(node);
+      if (Number.isFinite(nodeView?.width) && nodeView.width > 0) return nodeView.width;
+      if (nodeView?.type && nodeView.type !== "flow-node") return metrics.panelWidth;
       return node?.parentNodeId ? metrics.nodeWidth : metrics.rootWidth;
     }
 
     function getProjectedTaskFlowNodeHeight(node, metrics) {
+      const nodeView = getNodeView(node);
+      if (Number.isFinite(nodeView?.height) && nodeView.height > 0) return nodeView.height;
+      if (nodeView?.type === "iframe") return metrics.iframeHeight;
+      if (nodeView?.type && nodeView.type !== "flow-node") return metrics.panelHeight;
       if (!node?.parentNodeId) return metrics.rootHeight;
       if (getNodeLayoutVariant(node) === "compact") return metrics.candidateHeight;
       return metrics.nodeHeight;
@@ -188,6 +209,76 @@
         return clipText(node.summary || nodeEffect.fallbackSummary || nodeEffect.defaultSummary || "", 72);
       }
       return clipText(node.summary || nodeEffect?.fallbackSummary || "", 72);
+    }
+
+    function renderMarkdownContent(target, markdown) {
+      if (!target) return;
+      if (typeof windowRef?.renderMarkdownIntoNode === "function") {
+        windowRef.renderMarkdownIntoNode(target, markdown);
+        return;
+      }
+      if (typeof globalThis?.renderMarkdownIntoNode === "function") {
+        globalThis.renderMarkdownIntoNode(target, markdown);
+        return;
+      }
+      if (typeof windowRef?.marked?.parse === "function") {
+        target.innerHTML = windowRef.marked.parse(String(markdown || ""));
+        return;
+      }
+      target.textContent = String(markdown || "");
+    }
+
+    function createRichViewSurface(node) {
+      const view = getNodeView(node);
+      const shell = documentRef.createElement("div");
+      shell.className = `quest-task-flow-node-rich quest-task-flow-node-rich-${view.type}`;
+
+      if (view.type === "markdown") {
+        const body = documentRef.createElement("div");
+        body.className = "quest-task-flow-node-rich-body quest-task-flow-node-rich-markdown";
+        renderMarkdownContent(body, view.content || node.summary || "");
+        shell.appendChild(body);
+        return shell;
+      }
+
+      if (view.type === "html") {
+        if (view.renderMode === "inline") {
+          const body = documentRef.createElement("div");
+          body.className = "quest-task-flow-node-rich-body quest-task-flow-node-rich-html";
+          body.innerHTML = String(view.content || "");
+          shell.appendChild(body);
+          return shell;
+        }
+        const frame = documentRef.createElement("iframe");
+        frame.className = "quest-task-flow-node-rich-frame panzoom-exclude";
+        frame.setAttribute("title", String(node.title || "HTML 视图"));
+        frame.setAttribute("loading", "lazy");
+        frame.setAttribute("sandbox", "allow-same-origin allow-scripts");
+        if (view.src) {
+          frame.src = view.src;
+        } else {
+          frame.srcdoc = String(view.content || "");
+        }
+        shell.appendChild(frame);
+        return shell;
+      }
+
+      if (view.type === "iframe") {
+        const frame = documentRef.createElement("iframe");
+        frame.className = "quest-task-flow-node-rich-frame panzoom-exclude";
+        frame.setAttribute("title", String(node.title || "嵌入视图"));
+        frame.setAttribute("loading", "lazy");
+        frame.setAttribute("sandbox", "allow-same-origin allow-scripts");
+        if (view.src) {
+          frame.src = view.src;
+        } else {
+          frame.srcdoc = String(view.content || "");
+        }
+        shell.appendChild(frame);
+        return shell;
+      }
+
+      return shell;
     }
 
     function bindTaskFlowCanvasInteractions(scroll) {
@@ -452,14 +543,17 @@
         const node = entry.node;
         const nodeEffect = getNodeEffect(node);
         const nodeInteraction = getNodeInteraction(node);
+        const nodeView = getNodeView(node);
         const isCandidate = nodeInteraction === "create-branch";
         const isDone = nodeEffect?.metaVariant === "done";
-        const isNonInteractive = nodeInteraction !== "open-session";
+        const isRichView = nodeView.type !== "flow-node";
+        const isNonInteractive = nodeInteraction !== "open-session" || isRichView;
         const nodeEl = documentRef.createElement(isNonInteractive ? "div" : "button");
         if (nodeEl.type !== undefined && !isNonInteractive) {
           nodeEl.type = "button";
         }
         nodeEl.className = "quest-task-flow-node";
+        if (isRichView) nodeEl.classList.add("is-rich-view", `is-view-${nodeView.type}`);
         if (!node.parentNodeId) nodeEl.classList.add("is-root");
         if (isCandidate) nodeEl.classList.add("is-candidate");
         if (isDone) nodeEl.classList.add("is-done");
@@ -487,13 +581,17 @@
         titleEl.title = String(node.title || "").trim();
         nodeEl.appendChild(titleEl);
 
-        const summary = getProjectedTaskFlowNodeSummary(node, activeQuest);
-        if (summary) {
-          const summaryEl = documentRef.createElement("div");
-          summaryEl.className = "quest-task-flow-node-summary";
-          summaryEl.textContent = summary;
-          summaryEl.title = summary;
-          nodeEl.appendChild(summaryEl);
+        if (isRichView) {
+          nodeEl.appendChild(createRichViewSurface(node));
+        } else {
+          const summary = getProjectedTaskFlowNodeSummary(node, activeQuest);
+          if (summary) {
+            const summaryEl = documentRef.createElement("div");
+            summaryEl.className = "quest-task-flow-node-summary";
+            summaryEl.textContent = summary;
+            summaryEl.title = summary;
+            nodeEl.appendChild(summaryEl);
+          }
         }
 
         if (nodeInteraction === "create-branch") {

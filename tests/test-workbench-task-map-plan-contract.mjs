@@ -32,8 +32,12 @@ try {
   assert.deepEqual(payload.planModes, ['replace-default', 'augment-default']);
   assert.deepEqual(payload.edgeTypes, ['structural', 'suggestion', 'completion', 'merge']);
   assert.deepEqual(payload.sourceTypes, ['manual', 'system', 'hook']);
+  assert.deepEqual(payload.viewTypes, ['flow-node', 'markdown', 'html', 'iframe']);
+  assert.deepEqual(payload.surfaceSlots, ['task-map', 'composer-suggestions']);
+  assert.deepEqual(payload.capabilities, ['open-session', 'create-branch', 'dismiss']);
   assert.equal(payload.fallbackProjection, 'continuity');
   assert.equal(payload.settings?.supportsHookGeneratedPlans, true);
+  assert.equal(payload.settings?.supportsRichCanvasViews, true);
   assert.equal(
     payload.nodeKindDefinitions.some((definition) => definition.id === 'review-note'),
     true,

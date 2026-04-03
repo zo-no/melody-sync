@@ -33,6 +33,7 @@ import {
   resolveFsPath,
   resolveProjectObsidianPath,
 } from './workbench/exporters.mjs';
+import { readGeneralSettings } from './settings-store.mjs';
 import {
   loadWorkbenchState as loadState,
   saveWorkbenchState as saveState,
@@ -67,6 +68,11 @@ function WORKBENCH_QUEUE(scopeKey, fn) {
 }
 function nowIso() {
   return new Date().toISOString();
+}
+
+async function getDefaultObsidianPath() {
+  const settings = await readGeneralSettings();
+  return settings?.obsidianPath || '';
 }
 
 function createId(prefix) {
@@ -624,7 +630,7 @@ export async function createProject(payload = {}) {
       id: createId('proj'),
       title,
       brief: normalizeNullableText(payload.brief),
-      obsidianPath: await resolveProjectObsidianPath(payload.obsidianPath, title, { pathExists }),
+      obsidianPath: await resolveProjectObsidianPath(payload.obsidianPath || await getDefaultObsidianPath(), title, { pathExists }),
       status: normalizeNullableText(payload.status) || 'active',
       rootNodeId: '',
       createdAt: now,
@@ -1212,7 +1218,8 @@ export async function writeProjectToObsidian(projectId, payload = {}) {
     const treeMarkdown = buildProjectTreeMarkdown(project, nodes, branchContexts);
     const summaryMarkdown = summary.markdown;
     const skillsMarkdown = buildSkillsMarkdown(project, skills);
-    const targetPath = resolveFsPath(project.obsidianPath) || await resolveProjectObsidianPath('', project.title, { pathExists });
+    const targetPath = resolveFsPath(project.obsidianPath)
+      || await resolveProjectObsidianPath(await getDefaultObsidianPath(), project.title, { pathExists });
     const writtenFiles = [];
 
     if (extname(targetPath).toLowerCase() === '.md') {

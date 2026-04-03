@@ -8,6 +8,8 @@
   function freezeEffect(effect) {
     return Object.freeze({
       ...effect,
+      capabilities: Object.freeze(Array.isArray(effect?.capabilities) ? [...new Set(effect.capabilities)] : []),
+      surfaceBindings: Object.freeze(Array.isArray(effect?.surfaceBindings) ? [...new Set(effect.surfaceBindings)] : ["task-map"]),
       countsAs: Object.freeze({
         sessionNode: effect?.countsAs?.sessionNode === true,
         branch: effect?.countsAs?.branch === true,
@@ -27,6 +29,9 @@
       metaVariant: "root",
       defaultSummary: "",
       fallbackSummary: "",
+      defaultViewType: "flow-node",
+      capabilities: ["open-session"],
+      surfaceBindings: ["task-map"],
       countsAs: {
         sessionNode: true,
         branch: false,
@@ -43,6 +48,9 @@
       metaVariant: "branch-status",
       defaultSummary: "",
       fallbackSummary: "",
+      defaultViewType: "flow-node",
+      capabilities: ["open-session"],
+      surfaceBindings: ["task-map"],
       countsAs: {
         sessionNode: true,
         branch: true,
@@ -59,6 +67,9 @@
       metaVariant: "candidate",
       defaultSummary: "建议拆成独立支线",
       fallbackSummary: "适合单独展开",
+      defaultViewType: "flow-node",
+      capabilities: ["create-branch", "dismiss"],
+      surfaceBindings: ["task-map", "composer-suggestions"],
       countsAs: {
         sessionNode: false,
         branch: false,
@@ -75,6 +86,9 @@
       metaVariant: "done",
       defaultSummary: "",
       fallbackSummary: "",
+      defaultViewType: "flow-node",
+      capabilities: [],
+      surfaceBindings: ["task-map"],
       countsAs: {
         sessionNode: true,
         branch: false,
@@ -102,16 +116,25 @@
     const composition = definition?.composition && typeof definition.composition === "object"
       ? definition.composition
       : {};
+    const defaultViewType = trimText(composition.defaultViewType || "") || "flow-node";
+    const defaultInteraction = trimText(composition.defaultInteraction || "") || (sessionBacked ? "open-session" : "none");
     return {
       kind,
       layoutVariant: trimText(composition.layoutVariant || "") || (derived ? "compact" : "default"),
       edgeVariant: trimText(composition.defaultEdgeType || "") || "structural",
-      interaction: trimText(composition.defaultInteraction || "") || (sessionBacked ? "open-session" : "none"),
+      interaction: defaultInteraction,
       actionLabel: "",
       trackAsCandidateChild: false,
       metaVariant: sessionBacked ? "branch-status" : "",
       defaultSummary: "",
       fallbackSummary: "",
+      defaultViewType,
+      capabilities: Array.isArray(composition.capabilities)
+        ? composition.capabilities.map((value) => trimText(value).toLowerCase()).filter(Boolean)
+        : (defaultInteraction === "open-session" ? ["open-session"] : (defaultInteraction === "create-branch" ? ["create-branch"] : [])),
+      surfaceBindings: Array.isArray(composition.surfaceBindings)
+        ? composition.surfaceBindings.map((value) => trimText(value).toLowerCase()).filter(Boolean)
+        : (kind === "candidate" ? ["task-map", "composer-suggestions"] : ["task-map"]),
       countsAs: {
         sessionNode: composition?.countsAs?.sessionNode === true || sessionBacked,
         branch: composition?.countsAs?.branch === true,
@@ -161,6 +184,76 @@
 
   function shouldTrackCandidateChild(nodeOrKind) {
     return getNodeEffect(nodeOrKind)?.trackAsCandidateChild === true;
+  }
+
+  function normalizeAllowedTokenList(values, allowlist, fallback = []) {
+    if (!Array.isArray(values) || values.length === 0) return [...fallback];
+    const normalized = values
+      .map((value) => trimText(value).toLowerCase())
+      .filter((value) => allowlist.includes(value));
+    return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
+  }
+
+  function normalizeDimension(value, { min = 120, max = 1280 } = {}) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    const normalized = Math.round(numeric);
+    if (normalized < min || normalized > max) return null;
+    return normalized;
+  }
+
+  function normalizeNodeViewType(value) {
+    const normalized = trimText(value).toLowerCase();
+    return ["flow-node", "markdown", "html", "iframe"].includes(normalized)
+      ? normalized
+      : "flow-node";
+  }
+
+  function normalizeHtmlRenderMode(value) {
+    const normalized = trimText(value).toLowerCase();
+    return ["inline", "iframe"].includes(normalized)
+      ? normalized
+      : "iframe";
+  }
+
+  function getNodeCapabilities(nodeOrKind, definitionOverride = null) {
+    const effect = getNodeEffect(nodeOrKind, definitionOverride);
+    if (nodeOrKind && typeof nodeOrKind === "object") {
+      return normalizeAllowedTokenList(
+        nodeOrKind.capabilities,
+        ["open-session", "create-branch", "dismiss"],
+        effect?.capabilities || [],
+      );
+    }
+    return [...(effect?.capabilities || [])];
+  }
+
+  function getNodeSurfaceBindings(nodeOrKind, definitionOverride = null) {
+    const effect = getNodeEffect(nodeOrKind, definitionOverride);
+    if (nodeOrKind && typeof nodeOrKind === "object") {
+      return normalizeAllowedTokenList(
+        nodeOrKind.surfaceBindings,
+        ["task-map", "composer-suggestions"],
+        effect?.surfaceBindings || ["task-map"],
+      );
+    }
+    return [...(effect?.surfaceBindings || ["task-map"])];
+  }
+
+  function getNodeView(nodeOrKind, definitionOverride = null) {
+    const effect = getNodeEffect(nodeOrKind, definitionOverride);
+    const view = nodeOrKind && typeof nodeOrKind === "object" && nodeOrKind.view && typeof nodeOrKind.view === "object"
+      ? nodeOrKind.view
+      : null;
+    const type = normalizeNodeViewType(view?.type || effect?.defaultViewType || "flow-node");
+    return {
+      type,
+      renderMode: type === "html" ? normalizeHtmlRenderMode(view?.renderMode) : "",
+      content: typeof view?.content === "string" ? view.content : "",
+      src: trimText(view?.src),
+      width: normalizeDimension(view?.width, { min: 180, max: 1440 }),
+      height: normalizeDimension(view?.height, { min: 120, max: 1200 }),
+    };
   }
 
   function buildQuestNodeCounts(nodes = []) {
@@ -235,6 +328,9 @@
     getNodeEffect,
     withNodeKindEffect,
     shouldTrackCandidateChild,
+    getNodeCapabilities,
+    getNodeSurfaceBindings,
+    getNodeView,
     buildQuestNodeCounts,
     getNodeMetaLabel,
     getNodeSummaryText,

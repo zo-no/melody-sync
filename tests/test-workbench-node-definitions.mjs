@@ -4,10 +4,13 @@ import {
   NODE_KIND_DEFINITIONS,
   NODE_EDGE_TYPES,
   NODE_INTERACTIONS,
+  NODE_CAPABILITIES,
   NODE_LAYOUT_VARIANTS,
   NODE_LANES,
   NODE_MERGE_POLICIES,
   NODE_ROLES,
+  NODE_SURFACE_SLOTS,
+  NODE_VIEW_TYPES,
   createWorkbenchNodeDefinitionsPayload,
   getNodeKindDefinition,
   isKnownNodeKind,
@@ -19,7 +22,10 @@ assert.deepEqual(NODE_ROLES, ['state', 'action', 'summary']);
 assert.deepEqual(NODE_MERGE_POLICIES, ['replace-latest', 'append']);
 assert.deepEqual(NODE_INTERACTIONS, ['open-session', 'create-branch', 'none']);
 assert.deepEqual(NODE_EDGE_TYPES, ['structural', 'suggestion', 'completion', 'merge']);
-assert.deepEqual(NODE_LAYOUT_VARIANTS, ['root', 'default', 'compact']);
+assert.deepEqual(NODE_LAYOUT_VARIANTS, ['root', 'default', 'compact', 'panel']);
+assert.deepEqual(NODE_CAPABILITIES, ['open-session', 'create-branch', 'dismiss']);
+assert.deepEqual(NODE_SURFACE_SLOTS, ['task-map', 'composer-suggestions']);
+assert.deepEqual(NODE_VIEW_TYPES, ['flow-node', 'markdown', 'html', 'iframe']);
 assert.deepEqual(
   NODE_KIND_DEFINITIONS.map((definition) => definition.id),
   ['main', 'branch', 'candidate', 'done'],
@@ -31,6 +37,8 @@ assert.equal(getNodeKindDefinition('candidate')?.derived, true);
 assert.equal(getNodeKindDefinition('done')?.role, 'summary');
 assert.equal(getNodeKindDefinition('main')?.composition?.canBeRoot, true);
 assert.equal(getNodeKindDefinition('candidate')?.composition?.defaultInteraction, 'create-branch');
+assert.equal(getNodeKindDefinition('candidate')?.composition?.defaultViewType, 'flow-node');
+assert.deepEqual(getNodeKindDefinition('candidate')?.composition?.surfaceBindings, ['task-map', 'composer-suggestions']);
 assert.equal(getNodeKindDefinition('done')?.composition?.defaultEdgeType, 'completion');
 assert.equal(isKnownNodeKind('candidate'), true);
 assert.equal(isKnownNodeKind('review'), false);
@@ -53,7 +61,10 @@ assert.deepEqual(payload.nodeRoles, ['state', 'action', 'summary']);
 assert.deepEqual(payload.nodeMergePolicies, ['replace-latest', 'append']);
 assert.deepEqual(payload.nodeInteractions, ['open-session', 'create-branch', 'none']);
 assert.deepEqual(payload.nodeEdgeTypes, ['structural', 'suggestion', 'completion', 'merge']);
-assert.deepEqual(payload.nodeLayoutVariants, ['root', 'default', 'compact']);
+assert.deepEqual(payload.nodeLayoutVariants, ['root', 'default', 'compact', 'panel']);
+assert.deepEqual(payload.nodeCapabilities, ['open-session', 'create-branch', 'dismiss']);
+assert.deepEqual(payload.nodeSurfaceSlots, ['task-map', 'composer-suggestions']);
+assert.deepEqual(payload.nodeViewTypes, ['flow-node', 'markdown', 'html', 'iframe']);
 assert.equal(
   payload.nodeKindDefinitions.find((definition) => definition.id === 'branch')?.label,
   '子任务',

@@ -51,6 +51,7 @@ import { handleSessionReadRoutes } from './routes/session-read.mjs';
 import { handleSessionWriteRoutes } from './routes/session-write.mjs';
 import { handleWorkbenchRoutes } from './routes/workbench.mjs';
 import { handleHooksRoutes } from './routes/hooks.mjs';
+import { handleSettingsRoutes } from './routes/settings.mjs';
 import { handleSystemRoutes } from './router-system-routes.mjs';
 import { createWorkbenchNodeDefinitionsPayload } from './workbench/node-definitions.mjs';
 import {
@@ -786,6 +787,15 @@ export async function handleRequest(req, res) {
     pathname,
     authSession,
     requireSessionAccess,
+    writeJson,
+  })) {
+    return;
+  }
+
+  if (await handleSettingsRoutes({
+    req,
+    res,
+    pathname,
     writeJson,
   })) {
     return;

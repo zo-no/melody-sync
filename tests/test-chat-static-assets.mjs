@@ -647,8 +647,23 @@ async function main() {
     );
     assert.deepEqual(
       nodeDefinitionsJson.nodeLayoutVariants,
-      ['root', 'default', 'compact'],
+      ['root', 'default', 'compact', 'panel'],
       'workbench node definitions api should expose the current node layout variants',
+    );
+    assert.deepEqual(
+      nodeDefinitionsJson.nodeCapabilities,
+      ['open-session', 'create-branch', 'dismiss'],
+      'workbench node definitions api should expose the current node capabilities',
+    );
+    assert.deepEqual(
+      nodeDefinitionsJson.nodeSurfaceSlots,
+      ['task-map', 'composer-suggestions'],
+      'workbench node definitions api should expose the current node surface slots',
+    );
+    assert.deepEqual(
+      nodeDefinitionsJson.nodeViewTypes,
+      ['flow-node', 'markdown', 'html', 'iframe'],
+      'workbench node definitions api should expose the current node view types',
     );
     assert.equal(
       nodeDefinitionsJson.nodeKindDefinitions?.find((definition) => definition.id === 'candidate')?.role,

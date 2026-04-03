@@ -40,6 +40,36 @@
       : "manual";
   }
 
+  function normalizeAllowedTokenList(values, allowlist) {
+    if (!Array.isArray(values) || values.length === 0) return [];
+    const normalized = values
+      .map((value) => trimText(value).toLowerCase())
+      .filter((value) => allowlist.includes(value));
+    return [...new Set(normalized)];
+  }
+
+  function normalizeDimension(value, { min = 120, max = 1280 } = {}) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    const normalized = Math.round(numeric);
+    if (normalized < min || normalized > max) return null;
+    return normalized;
+  }
+
+  function normalizeNodeViewType(value) {
+    const normalized = trimText(value).toLowerCase();
+    return ["flow-node", "markdown", "html", "iframe"].includes(normalized)
+      ? normalized
+      : "flow-node";
+  }
+
+  function normalizeHtmlRenderMode(value) {
+    const normalized = trimText(value).toLowerCase();
+    return ["inline", "iframe"].includes(normalized)
+      ? normalized
+      : "iframe";
+  }
+
   function normalizeNodeStatus(value) {
     const normalized = trimText(value).toLowerCase();
     return normalized || "active";
@@ -49,6 +79,19 @@
     const contract = getNodeContract();
     if (contract?.isKnownNodeKind?.(kind)) return true;
     return ["main", "branch", "candidate", "done"].includes(trimText(kind).toLowerCase());
+  }
+
+  function normalizeNodeView(view = {}) {
+    if (!view || typeof view !== "object" || Array.isArray(view)) return null;
+    const type = normalizeNodeViewType(view.type);
+    return {
+      type,
+      renderMode: type === "html" ? normalizeHtmlRenderMode(view.renderMode) : "",
+      content: typeof view.content === "string" ? view.content : "",
+      src: trimText(view.src),
+      width: normalizeDimension(view.width, { min: 180, max: 1440 }),
+      height: normalizeDimension(view.height, { min: 120, max: 1200 }),
+    };
   }
 
   function withNodeKindEffect(node) {
@@ -86,6 +129,9 @@
       parentNodeId: trimText(node.parentNodeId || node.parentId),
       status: normalizeNodeStatus(node.status),
       lineRole: trimText(node.lineRole).toLowerCase(),
+      capabilities: normalizeAllowedTokenList(node.capabilities, ["open-session", "create-branch", "dismiss"]),
+      surfaceBindings: normalizeAllowedTokenList(node.surfaceBindings, ["task-map", "composer-suggestions"]),
+      view: normalizeNodeView(node.view),
     };
   }
 
@@ -297,6 +343,9 @@
         parentNodeId: node.parentNodeId,
         status: node.status,
         lineRole: node.lineRole,
+        capabilities: Array.isArray(node.capabilities) ? [...node.capabilities] : [],
+        surfaceBindings: Array.isArray(node.surfaceBindings) ? [...node.surfaceBindings] : [],
+        view: node.view ? cloneJson(node.view) : null,
       })),
       edges: (Array.isArray(quest.edges) ? quest.edges : []).map((edge) => ({
         id: edge.id,
@@ -310,11 +359,43 @@
   function mergePlanIntoQuest(existingQuest, plan) {
     const base = questToGraphData(existingQuest);
     const nodeIds = new Set(base.nodes.map((node) => node.id));
+    const nodeIndexById = new Map(base.nodes.map((node, index) => [node.id, index]));
     const edgeIds = new Set(base.edges.map((edge) => edge.id || `edge:${edge.fromNodeId}:${edge.toNodeId}`));
 
+    function mergePlanNode(existingNode, planNode) {
+      const nextNode = {
+        ...existingNode,
+        kind: trimText(planNode.kind) || existingNode.kind,
+        title: trimText(planNode.title) || existingNode.title,
+        summary: trimText(planNode.summary) || existingNode.summary,
+        sessionId: trimText(planNode.sessionId) || existingNode.sessionId,
+        sourceSessionId: trimText(planNode.sourceSessionId) || existingNode.sourceSessionId,
+        parentNodeId: trimText(planNode.parentNodeId) || existingNode.parentNodeId,
+        status: trimText(planNode.status) || existingNode.status,
+        lineRole: trimText(planNode.lineRole) || existingNode.lineRole,
+      };
+      if (Array.isArray(planNode.capabilities) && planNode.capabilities.length > 0) {
+        nextNode.capabilities = [...planNode.capabilities];
+      }
+      if (Array.isArray(planNode.surfaceBindings) && planNode.surfaceBindings.length > 0) {
+        nextNode.surfaceBindings = [...planNode.surfaceBindings];
+      }
+      if (planNode.view && typeof planNode.view === "object") {
+        nextNode.view = cloneJson(planNode.view);
+      }
+      return nextNode;
+    }
+
     for (const node of plan.nodes) {
-      if (nodeIds.has(node.id)) continue;
+      if (nodeIds.has(node.id)) {
+        const index = nodeIndexById.get(node.id);
+        if (Number.isInteger(index) && index >= 0) {
+          base.nodes[index] = mergePlanNode(base.nodes[index], node);
+        }
+        continue;
+      }
       nodeIds.add(node.id);
+      nodeIndexById.set(node.id, base.nodes.length);
       base.nodes.push(node);
     }
     for (const edge of plan.edges) {

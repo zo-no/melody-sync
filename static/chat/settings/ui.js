@@ -100,7 +100,7 @@
     }
   });
 
-  activeTabId = resolveActiveTabId('hooks');
+  activeTabId = resolveActiveTabId('general');
   syncTabs(activeTabId);
   close();
 

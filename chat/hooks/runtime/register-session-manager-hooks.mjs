@@ -3,6 +3,7 @@ import { getBuiltinHookDefinition } from '../builtin-hook-catalog.mjs';
 import { createBranchCandidatesHook } from '../branch-candidates-hook.mjs';
 import { createResumeCompletionTargetsHook } from '../resume-completion-targets-hook.mjs';
 import { createSessionNamingHook } from '../session-naming-hook.mjs';
+import { syncBranchCandidateTaskMapPlan } from '../../workbench/task-map-plan-producers.mjs';
 
 let registered = false;
 
@@ -17,6 +18,12 @@ function registerCatalogHook(hookId, hook) {
 export function registerSessionManagerBuiltinHooks(deps = {}) {
   if (registered) return;
   registered = true;
+  const listSessions = typeof deps.listSessions === 'function'
+    ? deps.listSessions
+    : (async () => []);
+  const nowIso = typeof deps.nowIso === 'function'
+    ? deps.nowIso
+    : (() => new Date().toISOString());
 
   registerCatalogHook(
     'builtin.resume-completion-targets',
@@ -26,7 +33,14 @@ export function registerSessionManagerBuiltinHooks(deps = {}) {
   );
   registerCatalogHook(
     'builtin.branch-candidates',
-    createBranchCandidatesHook({ appendEvents: deps.appendEvents }),
+    createBranchCandidatesHook({
+      appendEvents: deps.appendEvents,
+      syncBranchCandidateTaskMapPlan: async (context = {}) => syncBranchCandidateTaskMapPlan({
+        session: context.session,
+        sessions: await listSessions({ includeArchived: true }),
+        nowIso,
+      }),
+    }),
   );
   registerCatalogHook(
     'builtin.session-naming',

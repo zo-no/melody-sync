@@ -2643,6 +2643,8 @@ function ensureSessionManagerBuiltinHooksRegistered() {
   registerSessionManagerBuiltinHooks({
     appendEvents,
     isSessionAutoRenamePending,
+    listSessions,
+    nowIso,
     triggerAutomaticSessionLabeling,
     resumePendingCompletionTargets,
   });

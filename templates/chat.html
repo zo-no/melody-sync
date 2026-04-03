@@ -63,10 +63,26 @@
         <button class="hooks-panel-close" id="hooksOverlayClose" type="button" aria-label="关闭">✕</button>
       </div>
       <div class="hooks-panel-tabs" role="tablist" aria-label="设置分类">
-        <button class="hooks-panel-tab is-active" id="settingsTabHooks" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelHooks" data-settings-tab="hooks">Hooks</button>
+        <button class="hooks-panel-tab is-active" id="settingsTabGeneral" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelGeneral" data-settings-tab="general">通用</button>
+        <button class="hooks-panel-tab" id="settingsTabHooks" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelHooks" data-settings-tab="hooks">Hooks</button>
         <button class="hooks-panel-tab" id="settingsTabNodes" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelNodes" data-settings-tab="nodes">节点</button>
       </div>
       <div class="hooks-panel-body">
+        <section class="settings-tab-panel" id="settingsPanelGeneral" data-settings-panel="general" role="tabpanel">
+          <div id="generalSettingsPanelBody">
+            <div class="hooks-phase-section">
+              <div class="hooks-phase-header">
+                <div class="hooks-phase-heading">
+                  <div class="hooks-phase-title">通用设置</div>
+                  <div class="hooks-phase-desc">当前仅支持配置 Obsidian 导出根路径，用于所有新建项目的默认目标目录。</div>
+                </div>
+              </div>
+              <div class="hooks-event-card">
+                <div class="hooks-loading">加载中…</div>
+              </div>
+            </div>
+          </div>
+        </section>
         <section class="settings-tab-panel" id="settingsPanelHooks" data-settings-panel="hooks" role="tabpanel">
           <div id="hooksPanelBody">
             <div class="hooks-loading">加载中…</div>
@@ -231,6 +247,7 @@
 <script src="/chat/core/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/hooks/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/settings/general/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/node-settings-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/hooks/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/core/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>

@@ -64,18 +64,19 @@
 ```text
 生命周期事件
   -> 核心主流程更新 durable state
-  -> hook 编排会话事件 / 外部副作用
+  -> hook 编排会话事件 / 外部副作用 / 可选 graph plan
 
-durable state
+durable state + optional taskMapPlan
   -> node projection
   -> 地图 / 操作记录 / UI surface
 ```
 
 也就是说：
 
-- hook 不能成为地图 node 的真值来源
-- 关闭某个 hook 不应该让地图结构失真
-- node 只能从 `session / run / taskCard / branchContext / workbench continuity` 这些持久化状态投影
+- hook 不能成为 workflow durable state 的真值来源
+- 关闭某个 hook 不应该让核心 continuity 丢失
+- hook 可以补充 `taskMapPlan` 这种可替换/可增强的图谱表达层
+- node 仍然优先从 `session / run / taskCard / branchContext / workbench continuity` 这些持久化状态投影
 
 任务列表排序也适用同样的原则：
 
@@ -542,7 +543,25 @@ config/hooks/<hook-id>.json
 - frontend 会先生成 continuity 默认图，再由 `task-map-plan.js` 选择 `replace-default` 或 `augment-default`
 - 如果没有 plan，或者 plan 非法，前端继续回退到默认 continuity 投影
 
-### 7.5 新增一个 Node Kind 时应该改哪里
+### 7.5 右侧无限画布展示类型
+
+当前 `taskMapPlan` 的 node 已经可以直接声明右侧无限画布里的展示类型：
+
+- `flow-node`
+  - 当前默认节点卡片
+- `markdown`
+  - 交给 markdown renderer 渲染
+- `html`
+  - 支持 `inline` 或 `iframe` 两种嵌入方式
+- `iframe`
+  - 直接挂外部或本地嵌入地址
+
+这里的边界要固定：
+
+- hook / AI 决定 `view.type` 和内容
+- renderer 决定布局、尺寸和 iframe 容器
+- 不让 hook / AI 直接决定 DOM 结构或像素坐标
+### 7.6 新增一个 Node Kind 时应该改哪里
 
 目标是只动这几处：
 
@@ -555,7 +574,7 @@ config/hooks/<hook-id>.json
 
 node 的 schema、lane、role、mergePolicy 不应散落在 projection 或 UI 里重复定义。
 
-### 7.6 Node Instance
+### 7.7 Node Instance
 
 Node instance 是 projection 产物，格式也应固定：
 
