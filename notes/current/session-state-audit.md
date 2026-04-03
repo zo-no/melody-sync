@@ -173,9 +173,9 @@ This round fixes that route bug.
 
 Examples found during this audit:
 
-- `session-state-model.js` defines the current visual status model
+- `session/state-model.js` defines the current visual status model
 - `bootstrap.js` still wraps and partially duplicates some of the same concepts
-- `session-http.js` still contains a `maybeUpdateSessionUnreadState` hook, but there is no shipped implementation
+- `session/http.js` still contains a `maybeUpdateSessionUnreadState` hook, but there is no shipped implementation
 - non-smoke tests still describe older `send-failed` / unread behaviors that do not match the current shipped state model
 - `notes/current/core-domain-contract.md` still uses a broader run-lifecycle vocabulary (`queued`, `done`, `interrupted`, ...) than the actual `run.state` persistence layer
 

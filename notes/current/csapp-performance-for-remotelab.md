@@ -125,7 +125,7 @@ Relevant files:
 - `chat/history.mjs`
 - `chat/session-meta-store.mjs`
 - `chat/session-activity.mjs`
-- `static/chat/session-state-model.js`
+- `static/chat/session/state-model.js`
 
 CSAPP framing:
 

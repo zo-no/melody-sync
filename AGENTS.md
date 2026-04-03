@@ -57,7 +57,8 @@ Browser / mobile shell
 - [`static/chat/session-http.js`](static/chat/session-http.js): canonical session HTTP client
 - [`static/chat/realtime.js`](static/chat/realtime.js): WS invalidation / reconnect logic
 - [`static/chat/session-surface-ui.js`](static/chat/session-surface-ui.js): session detail rendering
-- [`static/chat/session-list-ui.js`](static/chat/session-list-ui.js): session list rendering
+- [`static/chat/session-list/ui.js`](static/chat/session-list/ui.js): session list rendering
+- [`static/chat/session-list/model.js`](static/chat/session-list/model.js): session list grouping, badges, and lightweight branch semantics
 - [`static/chat/sidebar-ui.js`](static/chat/sidebar-ui.js): sidebar interactions
 - [`static/chat/compose.js`](static/chat/compose.js): composer interactions
 - [`static/chat/workbench-ui.js`](static/chat/workbench-ui.js): task/workbench UI

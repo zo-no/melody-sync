@@ -1,9 +1,13 @@
 import { readBody } from '../../lib/utils.mjs';
 import { HOOKS_FILE } from '../../lib/config.mjs';
-import { persistHookEnabledState } from '../hooks/hook-settings-store.mjs';
+import { persistHookEnabledState } from '../hooks/runtime/settings-store.mjs';
 import {
   HOOK_LAYER_ORDER,
+  HOOK_PHASE_ORDER,
+  HOOK_SCOPE_ORDER,
   listHookLayerDefinitions,
+  listHookPhaseDefinitions,
+  listHookScopeDefinitions,
   listHookUiReservedTruths,
   listHookUiTargetDefinitions,
 } from '../hooks/hook-contract.mjs';
@@ -12,7 +16,7 @@ import {
   listHookEventDefinitions,
   listHooks,
   setHookEnabled,
-} from '../session-hook-registry.mjs';
+} from '../hooks/runtime/registry.mjs';
 
 export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) {
   // GET /api/hooks — list all registered hooks
@@ -20,6 +24,10 @@ export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) 
     writeJson(res, 200, {
       events: HOOK_EVENTS,
       eventDefinitions: listHookEventDefinitions(),
+      phaseDefinitions: listHookPhaseDefinitions(),
+      phaseOrder: HOOK_PHASE_ORDER,
+      scopeDefinitions: listHookScopeDefinitions(),
+      scopeOrder: HOOK_SCOPE_ORDER,
       layerDefinitions: listHookLayerDefinitions(),
       layerOrder: HOOK_LAYER_ORDER,
       uiTargetDefinitions: listHookUiTargetDefinitions(),

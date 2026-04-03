@@ -16,19 +16,23 @@ const filesToParse = [
   join(repoRoot, 'static', 'chat', 'bootstrap.js'),
   join(repoRoot, 'static', 'chat', 'bootstrap-session-catalog.js'),
   join(repoRoot, 'static', 'chat', 'layout-tooling.js'),
-  join(repoRoot, 'static', 'chat', 'tooling.js'),
-  join(repoRoot, 'static', 'chat', 'session-list-model.js'),
+  join(repoRoot, 'static', 'chat', 'session/tooling.js'),
+  join(repoRoot, 'static', 'chat', 'session-list', 'order-contract.js'),
+  join(repoRoot, 'static', 'chat', 'session-list', 'contract.js'),
+  join(repoRoot, 'static', 'chat', 'session-list', 'model.js'),
+  join(repoRoot, 'static', 'chat', 'session-list', 'ui.js'),
   join(repoRoot, 'static', 'chat', 'sidebar-ui.js'),
-  join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'),
-  join(repoRoot, 'static', 'chat', 'task-map-model.js'),
+  join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'),
+  join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'),
   join(repoRoot, 'static', 'chat', 'workbench', 'quest-state.js'),
   join(repoRoot, 'static', 'chat', 'workbench', 'task-tracker-ui.js'),
   join(repoRoot, 'static', 'chat', 'workbench', 'task-map-ui.js'),
   join(repoRoot, 'static', 'chat', 'workbench', 'task-list-ui.js'),
   join(repoRoot, 'static', 'chat', 'workbench', 'branch-actions.js'),
   join(repoRoot, 'static', 'chat', 'workbench', 'operation-record-ui.js'),
-  join(repoRoot, 'static', 'chat', 'hooks-ui.js'),
-  join(repoRoot, 'static', 'chat', 'compose.js'),
+  join(repoRoot, 'static', 'chat', 'settings', 'hooks', 'model.js'),
+  join(repoRoot, 'static', 'chat', 'settings/hooks/ui.js'),
+  join(repoRoot, 'static', 'chat', 'session/compose.js'),
 ];
 
 for (const filePath of filesToParse) {
@@ -325,9 +329,9 @@ const orderedFiles = [
   'bootstrap.js',
   'bootstrap-session-catalog.js',
   'layout-tooling.js',
-  'tooling.js',
+  'session/tooling.js',
   'sidebar-ui.js',
-  'compose.js',
+  'session/compose.js',
 ];
 
 for (const fileName of orderedFiles) {

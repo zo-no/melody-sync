@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sessionSurfaceSource = readFileSync(join(repoRoot, 'static', 'chat', 'session-surface-ui.js'), 'utf8');
-const sessionListSource = readFileSync(join(repoRoot, 'static', 'chat', 'session-list-ui.js'), 'utf8');
+const sessionSurfaceSource = readFileSync(join(repoRoot, 'static', 'chat', 'session/surface-ui.js'), 'utf8');
+const sessionListSource = readFileSync(join(repoRoot, 'static', 'chat', 'session-list', 'ui.js'), 'utf8');
 
 function extractFunctionSource(code, functionName) {
   const marker = `function ${functionName}`;
@@ -103,7 +103,7 @@ vm.runInNewContext(`
   ${buildSessionActionConfigsSource}
   globalThis.buildSessionActionConfigs = buildSessionActionConfigs;
 `, actionContext, {
-  filename: 'static/chat/session-surface-ui.js',
+  filename: 'static/chat/session/surface-ui.js',
 });
 
 assert.equal(
@@ -166,12 +166,26 @@ const renderContext = {
   },
 };
 renderContext.globalThis = renderContext;
+renderContext.appendSessionItems = (host, entries = [], options = {}) => {
+  for (const session of entries) {
+    if (!session?.id) continue;
+    const extraClassNames = [];
+    if (options.archived) extraClassNames.push('archived-item');
+    if (renderContext.isBranchTaskSession(session)) {
+      extraClassNames.push(options.archived ? 'is-archived-branch' : 'is-branch-session');
+    }
+    host.appendChild(renderContext.createActiveSessionItem(session, {
+      ...options,
+      extraClassName: extraClassNames.join(' '),
+    }));
+  }
+};
 
 vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, renderContext, {
-  filename: 'static/chat/session-list-ui.js',
+  filename: 'static/chat/session-list/ui.js',
 });
 
 renderContext.renderArchivedSection();
@@ -217,12 +231,15 @@ const loadingContext = {
   },
 };
 loadingContext.globalThis = loadingContext;
+loadingContext.appendSessionItems = () => {
+  throw new Error('appendSessionItems should not run while archived items are still loading');
+};
 
 vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, loadingContext, {
-  filename: 'static/chat/session-list-ui.js',
+  filename: 'static/chat/session-list/ui.js',
 });
 
 loadingContext.renderArchivedSection();
@@ -264,12 +281,15 @@ const emptyContext = {
   },
 };
 emptyContext.globalThis = emptyContext;
+emptyContext.appendSessionItems = () => {
+  throw new Error('appendSessionItems should not run when there are no archived tasks');
+};
 
 vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, emptyContext, {
-  filename: 'static/chat/session-list-ui.js',
+  filename: 'static/chat/session-list/ui.js',
 });
 
 emptyContext.renderArchivedSection();

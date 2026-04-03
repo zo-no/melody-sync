@@ -40,18 +40,18 @@
 - `static/chat/bootstrap.js`
 - `static/chat/bootstrap-data.js`
 - `static/chat/bootstrap-session-catalog.js`
-- `static/chat/session-http.js`
-- `static/chat/session-http-helpers.js`
-- `static/chat/session-http-list-state.js`
+- `static/chat/session/http.js`
+- `static/chat/session/http-helpers.js`
+- `static/chat/session/http-list-state.js`
 - `static/chat/realtime.js`
 - `static/chat/realtime-render.js`
-- `static/chat/session-surface-ui.js`
-- `static/chat/session-list-ui.js`
+- `static/chat/session/surface-ui.js`
+- `static/chat/session-list/ui.js`
 - `static/chat/sidebar-ui.js`
-- `static/chat/compose.js`
+- `static/chat/session/compose.js`
 - `static/chat/workbench-ui.js`
-- `static/chat/task-map-model.js`
-- `static/chat/hooks-ui.js`
+- `static/chat/workbench/task-map-model.js`
+- `static/chat/settings/hooks/ui.js`
 
 ### 基础支撑
 
@@ -111,10 +111,10 @@
 
 先 grep 再删，重点检查：
 
-- `chat/apps.mjs`
+- `chat/compat/apps.mjs`
 - `chat/router-public-routes.mjs`
 - `chat/router-system-routes.mjs`
-- `chat/session-meta-compat.mjs`
+- `chat/compat/session-meta-compat.mjs`
 
 这些文件不一定都该立刻删除，但它们属于“历史兼容 / 外围壳 / 非主链路由”的高概率裁剪区。
 

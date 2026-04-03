@@ -34,9 +34,9 @@
 
 当前已经补上的基础：
 
-- `static/chat/workbench-node-contract.js`
+- `static/chat/workbench/node-contract.js`
   - 统一维护 task map node kind 定义
-- `static/chat/task-map-model.js`
+- `static/chat/workbench/task-map-model.js`
   - 只负责从 session/workbench snapshot 派生 projection
 
 这里最重要的边界是：
@@ -78,7 +78,7 @@
   - 负责支线收束、挂起、回主线和 tracker 动作按钮
 - `static/chat/workbench/operation-record-ui.js`
   - 负责右侧操作记录面板交互
-- `static/chat/session-list-model.js`
+- `static/chat/session-list/model.js`
   - 负责左侧任务列表的分组和轻量支线标记，不再依赖 workbench 关系树
 
 现在剩下最值得继续拆的热点，主要回到了 continuity 写侧和 knowledge 这两块。
@@ -115,7 +115,7 @@
    - 当前还混了 quest state、snapshot 协调和各子模块接线
 2. `static/chat/`
    - 目录仍然偏平，不利于新 contributor 定位
-3. `static/chat/hooks-ui.js`
+3. `static/chat/settings/hooks/ui.js`
    - 还可以继续靠近 hooks contract，避免 UI 侧再次长出独立规则
 
 ### 建议先拆出的 frontend 模块
@@ -132,7 +132,7 @@
   - 只负责右侧操作记录面板
 - `static/chat/workbench/branch-actions.js`
   - 只负责结束、挂起、回主线等动作
-- `static/chat/session-list-model.js`
+- `static/chat/session-list/model.js`
   - 只负责左侧任务列表的 group / badge / light list semantics
 - `static/chat/workbench/task-map-model.js`
   - 保持纯 projection
@@ -177,16 +177,17 @@ chat/
 
 ```text
 static/chat/
-  core/
-    bootstrap.js
-    init.js
-    realtime.js
-  sessions/
-    session-http.js
-    session-list-ui.js
-    session-surface-ui.js
-  hooks/
-    hooks-ui.js
+  session/
+    state-model.js
+  session-list/
+    contract.js
+    order-contract.js
+    model.js
+    ui.js
+  settings/
+    hooks/
+      model.js
+      ui.js
   workbench/
     node-contract.js
     task-map-model.js
@@ -206,6 +207,10 @@ static/chat/
   - `chat/workbench/operation-records.mjs`
   - `chat/workbench/exporters.mjs`
 - frontend 已经有：
+  - `static/chat/session/state-model.js`
+  - `static/chat/settings/hooks/ui.js`
+  - `static/chat/workbench/node-contract.js`
+  - `static/chat/workbench/task-map-model.js`
   - `static/chat/workbench/quest-state.js`
   - `static/chat/workbench/task-tracker-ui.js`
   - `static/chat/workbench/task-map-ui.js`

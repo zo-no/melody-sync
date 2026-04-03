@@ -22,7 +22,7 @@ import {
 } from './history.mjs';
 import { messageEvent, statusEvent } from './normalizer.mjs';
 import { buildSourceRuntimePrompt } from './source-runtime-prompts.mjs';
-import { emit as emitHook } from './session-hook-registry.mjs';
+import { emit as emitHook } from './hooks/runtime/registry.mjs';
 import {
   buildSessionOrganizerPrompt,
   extractSessionOrganizerAssistantText,
@@ -96,7 +96,7 @@ import {
   resolveEffectiveAppId,
   resolveSessionSourceId,
   resolveSessionSourceName,
-} from './session-meta-compat.mjs';
+} from './compat/session-meta-compat.mjs';
 import { publishLocalFileAssetFromPath } from './file-assets.mjs';
 import { ensureDir, pathExists, removePath, statOrNull } from './fs-utils.mjs';
 import {
@@ -106,7 +106,7 @@ import {
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
 import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
-import { registerSessionManagerBuiltinHooks } from './hooks/register-session-manager-hooks.mjs';
+import { registerSessionManagerBuiltinHooks } from './hooks/runtime/register-session-manager-hooks.mjs';
 import { syncSessionContinuityFromSession } from './workbench-store.mjs';
 
 const MIME_EXTENSIONS = {

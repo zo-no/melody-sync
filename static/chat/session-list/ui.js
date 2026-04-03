@@ -63,7 +63,7 @@ function renderSessionList() {
 
     const header = document.createElement("div");
     header.className = "pinned-section-header";
-    header.innerHTML = `<span class="pinned-label">${esc(t("sidebar.pinned"))}</span><span class="folder-count">${pinnedClusters.length}</span>`;
+    header.innerHTML = `<span class="pinned-label">${esc(t("sidebar.pinned"))}</span><span class="folder-count">${pinnedSessions.length}</span>`;
 
     const items = document.createElement("div");
     items.className = "pinned-items";

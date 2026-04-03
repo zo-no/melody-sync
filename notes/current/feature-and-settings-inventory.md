@@ -61,9 +61,9 @@
 ### 当前主流程落点
 
 - 模板：`templates/chat.html`
-- Session 列表 UI：`static/chat/session-list-ui.js`
-- Session 行动作：`static/chat/session-surface-ui.js`
-- 发送/草稿/附件：`static/chat/compose.js`
+- Session 列表 UI：`static/chat/session-list/ui.js`
+- Session 行动作：`static/chat/session/surface-ui.js`
+- 发送/草稿/附件：`static/chat/session/compose.js`
 
 ## 3. 当前侧边工作流功能
 
@@ -87,8 +87,8 @@
 ### 当前落点
 
 - `static/chat/workbench-ui.js`
-- `static/chat/task-map-model.js`
-- `static/chat/workbench-node-contract.js`
+- `static/chat/workbench/task-map-model.js`
+- `static/chat/workbench/node-contract.js`
 - `chat/workbench-store.mjs`
 - `chat/routes/workbench.mjs`
 
@@ -113,7 +113,7 @@
 当前落点：
 
 - `templates/chat.html` 中 `hooksSettingsBtn`
-- `static/chat/hooks-ui.js`
+- `static/chat/settings/hooks/ui.js`
 - `chat/routes/hooks.mjs`
 
 ### 4.2 Runtime 偏好
@@ -142,7 +142,7 @@
 当前落点：
 
 - `templates/chat.html`
-- `static/chat/tooling.js`
+- `static/chat/session/tooling.js`
 - `lib/runtime-selection.mjs`
 - `chat/router.mjs` 的 `/api/runtime-selection`
 
@@ -231,7 +231,7 @@
 
 - `static/chat/bootstrap.js`
 - `static/chat/bootstrap-session-catalog.js`
-- `static/chat/compose.js`
+- `static/chat/session/compose.js`
 
 ### 6.2 delegate / fork 的表面定义还不干净
 

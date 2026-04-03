@@ -2,7 +2,7 @@
 /**
  * test-task-map-nodes.mjs
  *
- * Tests for task-map-model.js node generation:
+ * Tests for workbench/task-map-model.js node generation:
  *   - main node always present
  *   - goal node no longer exists
  *   - candidate nodes from taskCard.candidateBranches
@@ -20,19 +20,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
 const nodeContractSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'),
+  join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'),
   'utf8',
 );
 const source = readFileSync(
-  join(repoRoot, 'static', 'chat', 'task-map-model.js'),
+  join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'),
   'utf8',
 );
 
 const context = { console };
 context.globalThis = context;
 context.window = context;
-vm.runInNewContext(nodeContractSource, context, { filename: 'workbench-node-contract.js' });
-vm.runInNewContext(source, context, { filename: 'task-map-model.js' });
+vm.runInNewContext(nodeContractSource, context, { filename: 'workbench/node-contract.js' });
+vm.runInNewContext(source, context, { filename: 'workbench/task-map-model.js' });
 
 const { buildTaskMapProjection, NODE_KINDS } = context.MelodySyncTaskMapModel;
 assert.ok(buildTaskMapProjection, 'buildTaskMapProjection should be exposed');

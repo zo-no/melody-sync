@@ -24,12 +24,12 @@
 当前建议把两个扩展入口都固定成单一 contract 文件：
 
 - hooks contract：`chat/hooks/hook-contract.mjs`
-- node contract：`static/chat/workbench-node-contract.js`
+- node contract：`static/chat/workbench/node-contract.js`
 
 同时把 GTD 任务列表本身也固定成独立 contract，而不是让 hooks 或 node 间接拥有它：
 
-- session list contract：`static/chat/session-list-contract.js`
-- session list order contract：`static/chat/session-list-order-contract.js`
+- session list contract：`static/chat/session-list/contract.js`
+- session list order contract：`static/chat/session-list/order-contract.js`
 
 ## 2. 顶层原则
 
@@ -346,9 +346,9 @@ config/hooks/<hook-id>.json
 
 目标是只动这几处：
 
-1. `static/chat/workbench-node-contract.js`
+1. `static/chat/workbench/node-contract.js`
    - 加新的 node kind definition
-2. `static/chat/task-map-model.js`
+2. `static/chat/workbench/task-map-model.js`
    - 在 projection 里决定何时产出这种 node
 3. 对应 UI renderer
    - 只有当新 node 需要新的视觉表达时才改

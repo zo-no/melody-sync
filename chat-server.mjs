@@ -36,10 +36,10 @@ if (!delegatedToRelease) {
     import('./chat/ws.mjs'),
     import('./chat/session-manager.mjs'),
     import('./chat/fs-utils.mjs'),
-    import('./chat/hooks/register-builtin-hooks.mjs'),
-    import('./chat/session-hook-registry.mjs'),
+    import('./chat/hooks/runtime/register-builtins.mjs'),
+    import('./chat/hooks/runtime/registry.mjs'),
     import('./chat/hooks/first-boot-memory-hook.mjs'),
-    import('./chat/hooks/hook-settings-store.mjs'),
+    import('./chat/hooks/runtime/settings-store.mjs'),
   ]);
 
   for (const dir of [MEMORY_DIR, join(MEMORY_DIR, 'tasks')]) {

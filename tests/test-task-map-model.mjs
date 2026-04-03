@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'), 'utf8');
-const source = readFileSync(join(repoRoot, 'static', 'chat', 'task-map-model.js'), 'utf8');
+const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'), 'utf8');
+const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'), 'utf8');
 
 const context = {
   console,
@@ -16,10 +16,10 @@ const context = {
 };
 context.globalThis = context;
 vm.runInNewContext(nodeContractSource, context, {
-  filename: 'static/chat/workbench-node-contract.js',
+  filename: 'static/chat/workbench/node-contract.js',
 });
 vm.runInNewContext(source, context, {
-  filename: 'static/chat/task-map-model.js',
+  filename: 'static/chat/workbench/task-map-model.js',
 });
 
 const { buildTaskMapProjection, applyTaskMapMockPreset, NODE_KINDS } = context.window.MelodySyncTaskMapModel;

@@ -5,9 +5,9 @@
 当前与 hooks / node 相关的集中 contract 有三份：
 
 - hooks contract：`chat/hooks/hook-contract.mjs`
-- node contract：`static/chat/workbench-node-contract.js`
-- session list contract：`static/chat/session-list-contract.js`
-- session list order contract：`static/chat/session-list-order-contract.js`
+- node contract：`static/chat/workbench/node-contract.js`
+- session list contract：`static/chat/session-list/contract.js`
+- session list order contract：`static/chat/session-list/order-contract.js`
 
 如果你要看下一步目标架构，而不是当前实现快照，请同时阅读：
 
@@ -157,7 +157,7 @@
 
 ### task map 当前保留的 node kind
 
-- `static/chat/workbench-node-contract.js`
+- `static/chat/workbench/node-contract.js`
   - 统一维护前端 task map node kind contract 与 schema 默认值
 - `main`
   - 主任务根节点，对应主 session

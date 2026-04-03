@@ -60,8 +60,8 @@ MelodySync is now an owner-operated AI task workspace.
 - `bootstrap*.js`: boot data, session catalog, navigation, startup state
 - `session-http*.js`: HTTP fetch/update helpers and attach/refresh logic
 - `realtime*.js`: websocket lifecycle and live rendering
-- `tooling.js`: tool/model/thinking picker and session controls
-- `compose.js`: composer, attachments, queued follow-ups
+- `session/tooling.js`: tool/model/thinking picker and session controls
+- `session/compose.js`: composer, attachments, queued follow-ups
 - `workbench-ui.js`: task/workbench surface
 
 ## Core Domain Objects

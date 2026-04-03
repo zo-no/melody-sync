@@ -75,6 +75,40 @@ try {
     ],
     'HOOK_EVENT_DEFINITIONS should preserve the canonical event ordering',
   );
+  assert.deepEqual(
+    HOOK_EVENT_DEFINITIONS.map((definition) => definition.scope),
+    [
+      'instance',
+      'instance',
+      'instance',
+      'session',
+      'session',
+      'run',
+      'run',
+      'run',
+      'branch',
+      'branch',
+      'branch',
+    ],
+    'HOOK_EVENT_DEFINITIONS should expose the canonical lifecycle scopes',
+  );
+  assert.deepEqual(
+    HOOK_EVENT_DEFINITIONS.map((definition) => definition.phase),
+    [
+      'startup',
+      'startup',
+      'startup',
+      'entry',
+      'entry',
+      'execution',
+      'closeout',
+      'closeout',
+      'closeout',
+      'branch_followup',
+      'branch_followup',
+    ],
+    'HOOK_EVENT_DEFINITIONS should expose the canonical lifecycle phases',
+  );
 
   const hooks = listHooks();
   const hookIds = new Set(hooks.map((h) => h.id));
@@ -102,9 +136,17 @@ try {
   // Event pattern correctness
   const byId = Object.fromEntries(hooks.map((h) => [h.id, h]));
   assert.equal(byId['builtin.first-boot-memory'].eventPattern, 'instance.first_boot');
+  assert.equal(byId['builtin.first-boot-memory'].scope, 'instance');
+  assert.equal(byId['builtin.first-boot-memory'].phase, 'startup');
   assert.equal(byId['builtin.resume-completion-targets'].eventPattern, 'instance.resume');
+  assert.equal(byId['builtin.resume-completion-targets'].scope, 'instance');
+  assert.equal(byId['builtin.resume-completion-targets'].phase, 'startup');
   assert.equal(byId['builtin.branch-candidates'].eventPattern, 'branch.suggested');
+  assert.equal(byId['builtin.branch-candidates'].scope, 'branch');
+  assert.equal(byId['builtin.branch-candidates'].phase, 'closeout');
   assert.equal(byId['builtin.session-naming'].eventPattern, 'run.completed');
+  assert.equal(byId['builtin.session-naming'].scope, 'run');
+  assert.equal(byId['builtin.session-naming'].phase, 'closeout');
   assert.equal(byId['builtin.first-boot-memory'].owner, 'hooks');
   assert.equal(byId['builtin.first-boot-memory'].sourceModule, 'chat/hooks/first-boot-memory-hook.mjs');
   assert.equal(byId['builtin.resume-completion-targets'].owner, 'hooks');

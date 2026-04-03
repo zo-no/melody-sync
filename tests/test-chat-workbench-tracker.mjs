@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'), 'utf8');
-const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'task-map-model.js'), 'utf8');
+const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'), 'utf8');
+const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'), 'utf8');
 const questStateSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'quest-state.js'), 'utf8');
 const taskTrackerUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-tracker-ui.js'), 'utf8');
 const taskMapUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-map-ui.js'), 'utf8');

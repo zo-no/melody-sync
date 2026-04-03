@@ -178,18 +178,20 @@ async function main() {
     assert.deepEqual(bootstrap.auth, { role: 'owner' }, 'bootstrap payload should include owner auth');
     assert.match(page.text, /<script src="\/chat\/bootstrap\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/bootstrap-session-catalog\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session-http-helpers\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session-http-list-state\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session-http\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/session\/http-helpers\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/session\/http-list-state\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/session\/http\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/layout-tooling\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/tooling\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/session\/tooling\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/realtime\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/realtime-render\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session-surface-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session-list-model\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session-list-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/session\/surface-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/session-list\/model\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/session-list\/ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/sidebar-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/node-contract\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-model\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-tracker-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-map-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-list-ui\.js(?:\?v=[^"]*)?"/);
@@ -197,9 +199,10 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/workbench\/branch-actions\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/operation-record-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/compose\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/session\/compose\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/gestures\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/hooks-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/settings\/hooks\/model\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/settings\/hooks\/ui\.js(?:\?v=[^"]*)?"/);
     assert.doesNotMatch(page.text, /<script src="\/chat\/voice-input\.js(?:\?v=[^"]*)?"/);
 
     assert.match(page.text, /<script src="\/chat\/init\.js(?:\?v=[^"]*)?"/);
@@ -239,10 +242,10 @@ async function main() {
     assert.match(page.text, /id="taskMapDrawerBtn"/, 'chat page should ship the mobile task-map drawer toggle');
     assert.match(page.text, /id="taskMapDrawerBackdrop"/, 'chat page should ship the mobile task-map drawer backdrop');
     assert.match(page.text, /id="questTrackerStatus"/, 'chat page should render the task-status mount inside the task bar');
-    assert.match(page.text, /\/chat\/workbench-node-contract\.js\?v=/, 'chat page should load the shared workbench node contract');
-    assert.match(page.text, /\/chat\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
-    assert.match(page.text, /\/chat\/workbench-node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/task-map-model\.js\?v=/, 'chat page should load the node contract before the task-map projection model');
-    assert.match(page.text, /\/chat\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=/, 'chat page should load workbench UI helpers before the workbench runtime');
+    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=/, 'chat page should load the shared workbench node contract');
+    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
+    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the node contract before the task-map projection model');
+    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=/, 'chat page should load workbench UI helpers before the workbench runtime');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');
@@ -384,17 +387,17 @@ async function main() {
     assert.match(splitAsset.text, /const buildInfo = bootstrapStore\?\.getBuildInfo\?\.\(\) \|\| \{\};/);
     assert.doesNotMatch(splitAsset.text, /forkSessionBtn|organizeSessionBtn/, 'bootstrap should not look up detached header controls');
 
-    const sessionHttpHelpersAsset = await request(port, 'GET', '/chat/session-http-helpers.js');
+    const sessionHttpHelpersAsset = await request(port, 'GET', '/chat/session/http-helpers.js');
     assert.equal(sessionHttpHelpersAsset.status, 200, 'session http helpers asset should load');
     assert.match(sessionHttpHelpersAsset.text, /function enhanceRenderedContentLinks\(/);
     assert.match(sessionHttpHelpersAsset.text, /const SESSION_LIST_URL = "\/api\/sessions";/);
 
-    const sessionHttpListStateAsset = await request(port, 'GET', '/chat/session-http-list-state.js');
+    const sessionHttpListStateAsset = await request(port, 'GET', '/chat/session/http-list-state.js');
     assert.equal(sessionHttpListStateAsset.status, 200, 'session http list state asset should load');
     assert.match(sessionHttpListStateAsset.text, /function applySessionListState\(/);
     assert.match(sessionHttpListStateAsset.text, /function applyArchivedSessionListState\(/);
 
-    const sessionHttpAsset = await request(port, 'GET', '/chat/session-http.js');
+    const sessionHttpAsset = await request(port, 'GET', '/chat/session/http.js');
     assert.equal(sessionHttpAsset.status, 200, 'session http asset should load');
     const bootstrapCatalogAsset = await request(port, 'GET', '/chat/bootstrap-session-catalog.js');
     assert.equal(bootstrapCatalogAsset.status, 200, 'bootstrap session catalog asset should load');
@@ -425,7 +428,7 @@ async function main() {
       'versioned bootstrap session catalog asset should be immutable cache hits',
     );
 
-    const versionedSessionHttpHelpersAsset = await request(port, 'GET', '/chat/session-http-helpers.js?v=test-build');
+    const versionedSessionHttpHelpersAsset = await request(port, 'GET', '/chat/session/http-helpers.js?v=test-build');
     assert.equal(versionedSessionHttpHelpersAsset.status, 200, 'versioned session http helpers asset should load');
     assert.equal(
       versionedSessionHttpHelpersAsset.headers['cache-control'],
@@ -433,7 +436,7 @@ async function main() {
       'versioned session http helpers asset should be immutable cache hits',
     );
 
-    const versionedSessionHttpListStateAsset = await request(port, 'GET', '/chat/session-http-list-state.js?v=test-build');
+    const versionedSessionHttpListStateAsset = await request(port, 'GET', '/chat/session/http-list-state.js?v=test-build');
     assert.equal(versionedSessionHttpListStateAsset.status, 200, 'versioned session http list state asset should load');
     assert.equal(
       versionedSessionHttpListStateAsset.headers['cache-control'],
@@ -473,7 +476,7 @@ async function main() {
       'versioned split chat stylesheet should be immutable cache hits',
     );
 
-    const stateModelAsset = await request(port, 'GET', '/chat/session-state-model.js');
+    const stateModelAsset = await request(port, 'GET', '/chat/session/state-model.js');
     assert.equal(stateModelAsset.status, 200, 'session state model asset should load');
     assert.equal(
       stateModelAsset.headers['cache-control'],
@@ -483,7 +486,7 @@ async function main() {
     assert.ok(stateModelAsset.headers.etag, 'session state model asset should expose an ETag');
     assert.match(stateModelAsset.text, /MelodySyncSessionStateModel/);
 
-    const sessionListOrderContractAsset = await request(port, 'GET', '/chat/session-list-order-contract.js');
+    const sessionListOrderContractAsset = await request(port, 'GET', '/chat/session-list/order-contract.js');
     assert.equal(sessionListOrderContractAsset.status, 200, 'session list order contract asset should load');
     assert.match(sessionListOrderContractAsset.text, /SESSION_LIST_ORDER_SOURCE_DEFINITIONS/);
 
@@ -497,7 +500,7 @@ async function main() {
     assert.doesNotMatch(layoutToolingAsset.text, /window\.visualViewport\?\.addEventListener\("scroll"/);
     assert.match(layoutToolingAsset.text, /function focusComposer\(/);
 
-    const toolingAsset = await request(port, 'GET', '/chat/tooling.js');
+    const toolingAsset = await request(port, 'GET', '/chat/session/tooling.js');
     assert.equal(toolingAsset.status, 200, 'tooling asset should load');
     assert.match(toolingAsset.text, /const modelResponseCache = new Map\(\);/);
     assert.match(toolingAsset.text, /async function fetchModelResponse\(/);
@@ -512,40 +515,50 @@ async function main() {
     assert.equal(uiAsset.status, 200, 'ui asset should load');
     assert.match(uiAsset.text, /\/api\/media\//, 'ui asset should load persisted media attachments from the media route');
 
-    const sessionSurfaceUiAsset = await request(port, 'GET', '/chat/session-surface-ui.js');
+    const sessionSurfaceUiAsset = await request(port, 'GET', '/chat/session/surface-ui.js');
     assert.equal(sessionSurfaceUiAsset.status, 200, 'session surface ui asset should load');
     assert.match(sessionSurfaceUiAsset.text, /function createActiveSessionItem\(/);
     assert.match(sessionSurfaceUiAsset.text, /function buildSessionMetaParts\(/);
     assert.doesNotMatch(sessionSurfaceUiAsset.text, /function createTaskClusterNodes\(/, 'session surface ui should no longer embed sidebar task-tree rendering');
 
-    const sessionListModelAsset = await request(port, 'GET', '/chat/session-list-model.js');
+    const sessionListModelAsset = await request(port, 'GET', '/chat/session-list/model.js');
     assert.equal(sessionListModelAsset.status, 200, 'session list model asset should load');
     assert.match(sessionListModelAsset.text, /MelodySyncSessionListModel/);
     assert.match(sessionListModelAsset.text, /function getSessionGroupInfo\(/);
 
-    const sessionListContractAsset = await request(port, 'GET', '/chat/session-list-contract.js');
+    const sessionListContractAsset = await request(port, 'GET', '/chat/session-list/contract.js');
     assert.equal(sessionListContractAsset.status, 200, 'session list contract asset should load');
     assert.match(sessionListContractAsset.text, /MelodySyncSessionListContract/);
     assert.match(sessionListContractAsset.text, /SESSION_LIST_AI_MUTABLE_FIELD_DEFINITIONS/);
 
-    const sessionListUiAsset = await request(port, 'GET', '/chat/session-list-ui.js');
+    const sessionListUiAsset = await request(port, 'GET', '/chat/session-list/ui.js');
     assert.equal(sessionListUiAsset.status, 200, 'session list ui asset should load');
     assert.match(sessionListUiAsset.text, /function renderSessionList\(/);
     assert.match(sessionListUiAsset.text, /function attachSession\(/);
     assert.match(sessionListUiAsset.text, /focusComposer\(\{ preventScroll: true \}\)/);
     assert.doesNotMatch(sessionListUiAsset.text, /getSidebarTaskClusters/, 'session list ui should render from stable session list data instead of workbench task clusters');
 
-    const hooksUiAsset = await request(port, 'GET', '/chat/hooks-ui.js');
-    assert.equal(hooksUiAsset.status, 200, 'hooks ui asset should load');
-    assert.match(hooksUiAsset.text, /fetch\('\/api\/hooks'/);
-    assert.match(hooksUiAsset.text, /document\.getElementById\('hooksPanelBody'\)/);
-    assert.match(hooksUiAsset.text, /eventDefinitions/);
-    assert.doesNotMatch(hooksUiAsset.text, /EVENT_LABELS/);
+    const hooksModelAsset = await request(port, 'GET', '/chat/settings/hooks/model.js');
+    assert.equal(hooksModelAsset.status, 200, 'hooks settings model asset should load');
+    assert.match(hooksModelAsset.text, /MelodySyncHooksSettingsModel/);
+    assert.match(hooksModelAsset.text, /buildPhaseSections/);
 
-    const nodeContractAsset = await request(port, 'GET', '/chat/workbench-node-contract.js');
+    const hooksUiAsset = await request(port, 'GET', '/chat/settings/hooks/ui.js');
+    assert.equal(hooksUiAsset.status, 200, 'hooks ui asset should load');
+    assert.match(hooksUiAsset.text, /MelodySyncHooksSettingsModel/);
+    assert.match(hooksUiAsset.text, /document\.getElementById\('hooksPanelBody'\)/);
+    assert.match(hooksUiAsset.text, /hooks-phase-list/);
+    assert.match(hooksUiAsset.text, /hooks-flow-chart/);
+
+    const nodeContractAsset = await request(port, 'GET', '/chat/workbench/node-contract.js');
     assert.equal(nodeContractAsset.status, 200, 'workbench node contract asset should load');
     assert.match(nodeContractAsset.text, /MelodySyncWorkbenchNodeContract/);
     assert.match(nodeContractAsset.text, /NODE_KIND_DEFINITIONS/);
+
+    const taskMapModelAsset = await request(port, 'GET', '/chat/workbench/task-map-model.js');
+    assert.equal(taskMapModelAsset.status, 200, 'task map model asset should load');
+    assert.match(taskMapModelAsset.text, /MelodySyncTaskMapModel/);
+    assert.match(taskMapModelAsset.text, /function buildTaskMapProjection\(/);
 
     const operationRecordUiAsset = await request(port, 'GET', '/chat/workbench/operation-record-ui.js');
     assert.equal(operationRecordUiAsset.status, 200, 'operation record ui asset should load');
@@ -614,6 +627,26 @@ async function main() {
       ],
       'hooks api should expose the canonical lifecycle event definitions',
     );
+    assert.deepEqual(
+      hooksApiJson.phaseOrder,
+      ['startup', 'entry', 'execution', 'closeout', 'branch_followup'],
+      'hooks api should expose the canonical lifecycle phase order',
+    );
+    assert.deepEqual(
+      hooksApiJson.phaseDefinitions?.map((definition) => definition.id),
+      ['startup', 'entry', 'execution', 'closeout', 'branch_followup'],
+      'hooks api should expose lifecycle phase definitions for the settings panel',
+    );
+    assert.deepEqual(
+      hooksApiJson.scopeOrder,
+      ['instance', 'session', 'run', 'branch'],
+      'hooks api should expose the canonical lifecycle scope order',
+    );
+    assert.deepEqual(
+      hooksApiJson.scopeDefinitions?.map((definition) => definition.id),
+      ['instance', 'session', 'run', 'branch'],
+      'hooks api should expose lifecycle scope definitions for the settings panel',
+    );
     assert.equal(hooksApiJson.settings?.persistence, 'file');
     assert.match(hooksApiJson.settings?.storagePath || '', /hooks\.json$/);
     assert.deepEqual(
@@ -643,8 +676,26 @@ async function main() {
     );
     assert.equal(
       hooksApiJson.eventDefinitions?.find((definition) => definition.id === 'run.completed')?.label,
-      'Run 完成后',
+      '执行完成',
     );
+    assert.equal(
+      hooksApiJson.eventDefinitions?.find((definition) => definition.id === 'run.completed')?.phase,
+      'closeout',
+    );
+    assert.equal(
+      hooksApiJson.eventDefinitions?.find((definition) => definition.id === 'run.started')?.phase,
+      'execution',
+    );
+    assert.equal(
+      hooksApiJson.eventDefinitions?.find((definition) => definition.id === 'run.completed')?.scope,
+      'run',
+    );
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.scope, 'instance');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.phase, 'startup');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.scope, 'run');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.phase, 'closeout');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.scope, 'branch');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.phase, 'closeout');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.layer, 'boot');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.layer, 'delivery');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.layer, 'lifecycle');
@@ -672,7 +723,7 @@ async function main() {
     const settingsUiAsset = await request(port, 'GET', '/chat/settings-ui.js');
     assert.equal(settingsUiAsset.status, 404, 'removed settings ui asset should no longer be served');
 
-    const composeAsset = await request(port, 'GET', '/chat/compose.js');
+    const composeAsset = await request(port, 'GET', '/chat/session/compose.js');
     assert.equal(composeAsset.status, 200, 'compose asset should load');
     assert.match(composeAsset.text, /focusComposer\(\{ force: true, preventScroll: true \}\)/);
     assert.match(composeAsset.text, /window\.MelodySyncLayout\?\.subscribe/);
@@ -708,7 +759,7 @@ async function main() {
     const versionedSettingsUiAsset = await request(port, 'GET', '/chat/settings-ui.js?v=test-build');
     assert.equal(versionedSettingsUiAsset.status, 404, 'removed versioned settings ui asset should no longer be served');
 
-    const versionedSessionSurfaceUiAsset = await request(port, 'GET', '/chat/session-surface-ui.js?v=test-build');
+    const versionedSessionSurfaceUiAsset = await request(port, 'GET', '/chat/session/surface-ui.js?v=test-build');
     assert.equal(versionedSessionSurfaceUiAsset.status, 200, 'versioned session surface ui asset should load');
     assert.equal(
       versionedSessionSurfaceUiAsset.headers['cache-control'],

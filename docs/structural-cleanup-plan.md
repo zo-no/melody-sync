@@ -123,14 +123,14 @@ static/chat/
     socket.js
     render.js
   composer/
-    compose.js
+    session/compose.js
     attachments.js
   tooling/
-    tooling.js
+    session/tooling.js
     layout.js
   workbench/
     ui.js
-    task-map-model.js
+    workbench/task-map-model.js
   shared/
     icons.js
     http-helpers.js
@@ -180,7 +180,7 @@ Primary files:
 - `static/chat/sidebar-ui.js`
 - `static/chat/i18n.js`
 - `chat/router.mjs`
-- `chat/apps.mjs`
+- `chat/compat/apps.mjs`
 - `chat/users.mjs`
 - `lib/trigger-command.mjs`
 
@@ -228,7 +228,7 @@ Canonical frontend state buckets:
 Rules:
 
 - create grouped frontend folders before moving logic out of the flat `static/chat/` root
-- `static/chat/session-http.js` stays the canonical fetch/update path
+- `static/chat/session/http.js` stays the canonical fetch/update path
 - realtime code only invalidates or refreshes
 - deleted filters and settings must not linger in globals or translations
 

@@ -3110,112 +3110,12 @@ button.quest-task-flow-node {
 }
 
 .hooks-summary {
-  margin: 0 18px 12px;
-  padding: 14px 14px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
-}
-.hooks-summary-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
+  margin: 0 18px 10px;
 }
 .hooks-summary-desc {
-  margin-top: 4px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--text-secondary);
-}
-.hooks-summary-path {
-  margin-top: 10px;
-  font-size: 10px;
-  line-height: 1.4;
-  color: var(--text-muted);
-  word-break: break-all;
-}
-
-.hooks-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.hooks-summary-card {
-  padding: 10px 11px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  background: color-mix(in srgb, var(--bg) 76%, transparent);
-}
-
-.hooks-summary-card-label {
-  font-size: 10px;
-  line-height: 1.3;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.hooks-summary-card-value {
-  margin-top: 6px;
-  font-size: 20px;
-  line-height: 1.1;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.hooks-summary-card-note {
-  margin-top: 4px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--text-secondary);
-}
-
-.hooks-summary-block {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-}
-
-.hooks-summary-subtitle {
-  font-size: 11px;
-  line-height: 1.4;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.hooks-chip-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.hooks-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 9px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.2;
-  font-weight: 600;
-}
-
-.hooks-chip-muted {
-  border-style: dashed;
-  color: var(--text-muted);
-}
-
-.hooks-chip-danger {
-  border-color: color-mix(in srgb, var(--issue) 34%, var(--border));
-  background: color-mix(in srgb, var(--issue) 10%, transparent);
-  color: color-mix(in srgb, var(--issue) 72%, var(--text));
 }
 
 .hooks-loading,
@@ -3227,56 +3127,74 @@ button.quest-task-flow-node {
   text-align: center;
 }
 
-/* Section label — subtle, no uppercase */
-.hooks-layer {
-  margin-bottom: 14px;
+.hooks-phase-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
-.hooks-layer-header {
+
+.hooks-phase-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 18px;
+}
+
+.hooks-phase-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 18px 8px;
+  padding: 0 2px;
 }
-.hooks-layer-title {
+
+.hooks-phase-heading {
+  display: grid;
+  gap: 2px;
+}
+
+.hooks-phase-title {
   font-size: 12px;
-  font-weight: 700;
+  line-height: 1.4;
+  font-weight: 800;
   color: var(--text);
 }
-.hooks-layer-desc {
-  font-size: 11px;
+
+.hooks-phase-desc {
+  font-size: 12px;
   line-height: 1.45;
   color: var(--text-muted);
-  padding: 0;
 }
-.hooks-layer-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-end;
-}
-.hooks-layer-stat {
+
+.hooks-phase-count {
   display: inline-flex;
   align-items: center;
   min-height: 22px;
   padding: 0 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
   border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
   color: var(--text-secondary);
   font-size: 10px;
   line-height: 1.2;
   font-weight: 700;
 }
-.hooks-layer-stat-muted {
-  color: var(--text-muted);
+
+.hooks-event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+
 .hooks-event-card {
-  margin: 0 18px 10px;
-  padding: 12px 12px 6px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+  background: color-mix(in srgb, #ffffff 84%, var(--bg) 16%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 44%, transparent);
+}
+.hooks-event-card.is-empty {
+  background: color-mix(in srgb, #ffffff 78%, var(--bg) 22%);
 }
 .hooks-event-card-header {
   display: flex;
@@ -3284,11 +3202,15 @@ button.quest-task-flow-node {
   justify-content: space-between;
   gap: 12px;
 }
+.hooks-event-card-heading {
+  min-width: 0;
+}
 .hooks-event-card-title {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.4;
   font-weight: 700;
   color: var(--text);
+  word-break: break-word;
 }
 .hooks-event-card-count {
   display: inline-flex;
@@ -3303,11 +3225,30 @@ button.quest-task-flow-node {
   line-height: 1.2;
   font-weight: 700;
 }
+.hooks-event-card-count-muted {
+  color: var(--text-muted);
+  border-style: dashed;
+}
 .hooks-section-desc {
   font-size: 12px;
   line-height: 1.45;
   color: var(--text-muted);
-  padding: 4px 0 8px;
+  padding: 4px 0 0;
+}
+.hooks-event-body {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 48%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.hooks-event-empty {
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
 }
 
 /* Hook row */
@@ -3316,64 +3257,123 @@ button.quest-task-flow-node {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 9px 0;
-  transition: background 0.1s;
+  padding: 11px 0;
+  border: 0;
+  background: transparent;
 }
-.hooks-item:hover { background: transparent; }
-.hooks-item-disabled { opacity: 0.45; }
+.hooks-item + .hooks-item {
+  border-top: 1px solid color-mix(in srgb, var(--border) 54%, transparent);
+}
+.hooks-item-disabled { opacity: 0.55; }
 
 .hooks-item-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 .hooks-item-label {
   font-size: 13px;
-  font-weight: 500;
+  line-height: 1.4;
+  font-weight: 700;
   color: var(--text);
 }
 .hooks-item-desc {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.45;
   color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
 }
-.hooks-item-badge {
-  display: inline-block;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  background: var(--bg-tertiary);
-  color: var(--text-muted);
-  margin-top: 2px;
-  width: fit-content;
-  font-weight: 500;
-}
-.hooks-item-badge-muted {
-  background: transparent;
-  border: 1px solid var(--border);
-}
-.hooks-item-badge-success {
-  background: color-mix(in srgb, var(--success) 14%, transparent);
-  color: color-mix(in srgb, var(--success) 72%, var(--text));
-  border: 1px solid color-mix(in srgb, var(--success) 26%, var(--border));
-}
-.hooks-item-meta {
+
+.hooks-flow-chart {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  margin-top: 2px;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 18px 0;
+  padding: 14px 2px 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 54%, transparent);
 }
-.hooks-item-source {
-  font-size: 10px;
+
+.hooks-flow-chart-header {
+  display: grid;
+  gap: 4px;
+}
+
+.hooks-flow-chart-title {
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.hooks-flow-chart-desc {
+  font-size: 12px;
+  line-height: 1.45;
   color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+}
+
+.hooks-flow-track {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.hooks-flow-step {
+  flex: 0 0 214px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 0;
+}
+
+.hooks-flow-step-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.hooks-flow-step-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hooks-flow-step-title {
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.hooks-flow-step-desc {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.hooks-flow-step-events {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.hooks-flow-arrow {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  padding-top: 5px;
 }
 
 /* Toggle switch — uses accent color */
@@ -3418,12 +3418,12 @@ button.quest-task-flow-node {
     max-height: calc(100vh - 24px);
   }
 
-  .hooks-summary-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .hooks-event-card-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .hooks-layer-header,
-  .hooks-event-card-header {
+  .hooks-phase-header {
     flex-direction: column;
     align-items: flex-start;
   }

@@ -1,15 +1,15 @@
-import { registerBuiltinHooks } from './hooks/register-builtin-hooks.mjs';
+import { registerBuiltinHooks } from './hooks/runtime/register-builtins.mjs';
 
 registerBuiltinHooks();
 
 export {
   applyHookEnabledOverrides,
-  HOOK_EVENTS,
-  HOOK_EVENT_DEFINITIONS,
   emit,
   getHookEnabledOverrides,
+  HOOK_EVENT_DEFINITIONS,
+  HOOK_EVENTS,
   listHookEventDefinitions,
   listHooks,
   registerHook,
   setHookEnabled,
-} from './session-hook-registry.mjs';
+} from './hooks/runtime/registry.mjs';

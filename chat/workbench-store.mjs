@@ -43,7 +43,7 @@ import {
   pathExists,
   writeTextAtomic,
 } from './fs-utils.mjs';
-import { emit as emitHook } from './session-hook-registry.mjs';
+import { emit as emitHook } from './hooks/runtime/registry.mjs';
 
 export { getWorkbenchSnapshot, getWorkbenchTrackerSnapshot } from './workbench/continuity-store.mjs';
 export { getSessionOperationRecords } from './workbench/operation-records.mjs';

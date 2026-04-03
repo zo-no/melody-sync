@@ -8,14 +8,14 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const source = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench-node-contract.js'),
+  join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'),
   'utf8',
 );
 
 const context = { console };
 context.globalThis = context;
 context.window = context;
-vm.runInNewContext(source, context, { filename: 'workbench-node-contract.js' });
+vm.runInNewContext(source, context, { filename: 'workbench/node-contract.js' });
 
 const contract = context.MelodySyncWorkbenchNodeContract;
 assert.ok(contract, 'node contract should be exposed on globalThis');

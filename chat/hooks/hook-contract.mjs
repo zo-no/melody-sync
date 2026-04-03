@@ -1,6 +1,40 @@
+import {
+  HOOK_EVENT_DEFINITIONS,
+  getHookEventDefinition,
+  listHookEventDefinitions,
+} from './contract/events.mjs';
+import {
+  deriveHookScopeFromEventPattern,
+  HOOK_SCOPE_DEFINITIONS,
+  HOOK_SCOPE_ORDER,
+  listHookScopeDefinitions,
+  normalizeHookScope,
+} from './contract/scopes.mjs';
+import {
+  deriveHookPhaseFromEventId,
+  HOOK_PHASE_DEFINITIONS,
+  HOOK_PHASE_ORDER,
+  listHookPhaseDefinitions,
+  normalizeHookPhase,
+} from './contract/phases.mjs';
+
 function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
+
+export {
+  deriveHookScopeFromEventPattern,
+  HOOK_EVENT_DEFINITIONS,
+  HOOK_PHASE_DEFINITIONS,
+  HOOK_PHASE_ORDER,
+  HOOK_SCOPE_DEFINITIONS,
+  HOOK_SCOPE_ORDER,
+  listHookEventDefinitions,
+  listHookPhaseDefinitions,
+  listHookScopeDefinitions,
+  normalizeHookPhase,
+  normalizeHookScope,
+};
 
 export const HOOK_LAYER_DEFINITIONS = Object.freeze([
   Object.freeze({
@@ -92,68 +126,6 @@ export const HOOK_UI_RESERVED_TRUTHS = Object.freeze([
   }),
 ]);
 
-export const HOOK_EVENT_DEFINITIONS = Object.freeze([
-  Object.freeze({
-    id: 'instance.first_boot',
-    label: '实例首次启动',
-    description: '当前实例第一次启动且本地 memory/bootstrap 种子尚未初始化时。',
-  }),
-  Object.freeze({
-    id: 'instance.startup',
-    label: '实例启动后',
-    description: '服务启动完成、基础目录准备完毕之后。',
-  }),
-  Object.freeze({
-    id: 'instance.resume',
-    label: '实例恢复后',
-    description: '服务完成启动期恢复动作之后。',
-  }),
-  Object.freeze({
-    id: 'session.created',
-    label: 'Session 创建后',
-    description: '新 session 完成初始化并写入 metadata 之后。',
-  }),
-  Object.freeze({
-    id: 'session.first_user_message',
-    label: '首条用户消息记录后',
-    description: 'session 第一条真实用户消息进入历史之后。',
-  }),
-  Object.freeze({
-    id: 'run.started',
-    label: 'Run 启动后',
-    description: '新的 detached run 建立并进入执行流程之后。',
-  }),
-  Object.freeze({
-    id: 'run.completed',
-    label: 'Run 完成后',
-    description: 'Run 成功完成并且结果已经回写之后。',
-  }),
-  Object.freeze({
-    id: 'run.failed',
-    label: 'Run 失败/取消后',
-    description: 'Run 失败、终止或取消之后。',
-  }),
-  Object.freeze({
-    id: 'branch.suggested',
-    label: '建议单独处理话题后',
-    description: '检测到高置信上下文隔离话题，并产出候选支线生命周期事件之后。',
-  }),
-  Object.freeze({
-    id: 'branch.opened',
-    label: '支线开启后',
-    description: '新的支线 session/branch context 已持久化并进入处理状态之后。',
-  }),
-  Object.freeze({
-    id: 'branch.merged',
-    label: '支线带回主线后',
-    description: '支线结果已经回流到主线并写入 merge note 之后。',
-  }),
-]);
-
-const HOOK_EVENT_INDEX = new Map(
-  HOOK_EVENT_DEFINITIONS.map((definition) => [definition.id, definition]),
-);
-
 export function normalizeHookLayer(value) {
   const normalized = normalizeText(value).toLowerCase();
   return HOOK_LAYER_INDEX.has(normalized) ? normalized : 'other';
@@ -171,15 +143,6 @@ export function listHookUiReservedTruths() {
   return HOOK_UI_RESERVED_TRUTHS.map((definition) => ({ ...definition }));
 }
 
-export function listHookEventDefinitions() {
-  return HOOK_EVENT_DEFINITIONS.map((definition) => ({ ...definition }));
-}
-
-export function getHookEventDefinition(eventId) {
-  const definition = HOOK_EVENT_INDEX.get(normalizeText(eventId));
-  return definition ? { ...definition } : null;
-}
-
 export function createHookDefinition(definition = {}) {
   const id = normalizeText(definition.id);
   const eventPattern = normalizeText(definition.eventPattern);
@@ -189,6 +152,17 @@ export function createHookDefinition(definition = {}) {
   if (!eventPattern) {
     throw new Error(`Hook definition ${id} requires eventPattern`);
   }
+  const eventDefinition = getHookEventDefinition(eventPattern);
+  const scope = normalizeHookScope(
+    definition.scope
+    || eventDefinition?.scope
+    || deriveHookScopeFromEventPattern(eventPattern),
+  );
+  const phase = normalizeHookPhase(
+    definition.phase
+    || eventDefinition?.phase
+    || deriveHookPhaseFromEventId(eventPattern),
+  );
   return Object.freeze({
     id,
     eventPattern,
@@ -197,6 +171,8 @@ export function createHookDefinition(definition = {}) {
     builtIn: definition.builtIn === true,
     owner: normalizeText(definition.owner) || 'hooks',
     layer: normalizeHookLayer(definition.layer),
+    scope,
+    phase,
     sourceModule: normalizeText(definition.sourceModule),
   });
 }

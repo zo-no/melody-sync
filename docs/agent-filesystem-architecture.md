@@ -20,7 +20,7 @@ MelodySync 当前有三层文件系统：
 
 位置：
 
-- `/Users/kualshown/Desktop/melody-sync/`
+- `<repo-root>/`
 
 职责：
 
@@ -34,7 +34,7 @@ MelodySync 当前有三层文件系统：
 
 位置：
 
-- `/Users/kualshown/Desktop/melody-sync-instance/`
+- `<instance-root>/`
 
 职责：
 
@@ -47,7 +47,7 @@ MelodySync 当前有三层文件系统：
 
 位置：
 
-- `/Users/kualshown/Desktop/melody-sync-instance/memory/`
+- `<instance-root>/memory/`
 
 职责：
 
@@ -73,7 +73,9 @@ lib/
   config.mjs     实例根、config、memory 等路径定义
 
 static/chat/
-  ...            前端 session/workbench/task-map/task-list contract 与 UI
+  session-list/  任务列表 contract、排序 contract、model、UI
+  workbench/     任务地图、tracker、操作记录、支线动作 UI
+  ...            其余前端 bootstrap/session/composer/runtime 模块
 
 templates/
   chat.html      owner-facing 主页面
@@ -90,12 +92,12 @@ memory/
 
 和 agent 文件系统直接相关的关键文件：
 
-- `/Users/kualshown/Desktop/melody-sync/lib/config.mjs`
-- `/Users/kualshown/Desktop/melody-sync/chat/system-prompt.mjs`
-- `/Users/kualshown/Desktop/melody-sync/chat/hooks/first-boot-memory-hook.mjs`
-- `/Users/kualshown/Desktop/melody-sync/chat/history.mjs`
-- `/Users/kualshown/Desktop/melody-sync/chat/runs.mjs`
-- `/Users/kualshown/Desktop/melody-sync/chat/session-meta-store.mjs`
+- `lib/config.mjs`
+- `chat/system-prompt.mjs`
+- `chat/hooks/first-boot-memory-hook.mjs`
+- `chat/history.mjs`
+- `chat/runs.mjs`
+- `chat/session-meta-store.mjs`
 
 ---
 
@@ -103,7 +105,7 @@ memory/
 
 当前实例根：
 
-- `/Users/kualshown/Desktop/melody-sync-instance/`
+- `<instance-root>/`
 
 当前已存在的主要目录：
 
@@ -126,7 +128,7 @@ melody-sync-instance/
 
 来自：
 
-- `/Users/kualshown/Desktop/melody-sync/lib/config.mjs`
+- `lib/config.mjs`
 
 主要文件/目录：
 
@@ -174,7 +176,7 @@ melody-sync-instance/
 
 结构来自：
 
-- `/Users/kualshown/Desktop/melody-sync/chat/history.mjs`
+- `chat/history.mjs`
 
 每个 session 目录下通常有：
 
@@ -194,7 +196,7 @@ melody-sync-instance/
 
 结构来自：
 
-- `/Users/kualshown/Desktop/melody-sync/chat/runs.mjs`
+- `chat/runs.mjs`
 
 每个 run 目录下至少有：
 
@@ -209,7 +211,7 @@ melody-sync-instance/
 
 实现：
 
-- `/Users/kualshown/Desktop/melody-sync/chat/hooks/hook-settings-store.mjs`
+- `chat/hooks/hook-settings-store.mjs`
 
 当前只持久化：
 
@@ -255,13 +257,13 @@ melody-sync-instance/
 
 当前 memory 根：
 
-- `/Users/kualshown/Desktop/melody-sync-instance/memory/`
+- `<instance-root>/memory/`
 
 由：
 
-- `/Users/kualshown/Desktop/melody-sync/lib/config.mjs`
-- `/Users/kualshown/Desktop/melody-sync/chat/system-prompt.mjs`
-- `/Users/kualshown/Desktop/melody-sync/chat/hooks/first-boot-memory-hook.mjs`
+- `lib/config.mjs`
+- `chat/system-prompt.mjs`
+- `chat/hooks/first-boot-memory-hook.mjs`
 
 共同定义。
 
@@ -340,7 +342,7 @@ memory/
 
 仓库内还有一层：
 
-- `/Users/kualshown/Desktop/melody-sync/memory/`
+- `<repo-root>/memory/`
 
 当前主要是：
 
@@ -443,14 +445,14 @@ memory/
 
 如果后续开发者要理解“agent 文件系统”，我建议按这个顺序读：
 
-1. `/Users/kualshown/Desktop/melody-sync/lib/config.mjs`
-2. `/Users/kualshown/Desktop/melody-sync/chat/system-prompt.mjs`
-3. `/Users/kualshown/Desktop/melody-sync/chat/hooks/first-boot-memory-hook.mjs`
-4. `/Users/kualshown/Desktop/melody-sync/chat/history.mjs`
-5. `/Users/kualshown/Desktop/melody-sync/chat/runs.mjs`
-6. `/Users/kualshown/Desktop/melody-sync/docs/project-architecture.md`
-7. `/Users/kualshown/Desktop/melody-sync/docs/hooks-node-architecture.md`
-8. `/Users/kualshown/Desktop/melody-sync/notes/current/hooks-and-node-structure.md`
+1. `lib/config.mjs`
+2. `chat/system-prompt.mjs`
+3. `chat/hooks/first-boot-memory-hook.mjs`
+4. `chat/history.mjs`
+5. `chat/runs.mjs`
+6. `docs/project-architecture.md`
+7. `docs/hooks-node-architecture.md`
+8. `notes/current/hooks-and-node-structure.md`
 
 ---
 
