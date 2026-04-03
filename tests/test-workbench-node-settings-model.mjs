@@ -40,6 +40,7 @@ const normalized = model.normalizeNodeDefinitionsPayload({
         defaultInteraction: 'none',
         defaultEdgeType: 'completion',
         layoutVariant: 'compact',
+        taskCardBindings: ['summary'],
         countsAs: {
           sessionNode: false,
           branch: false,
@@ -56,6 +57,10 @@ assert.deepEqual(
   ['main', 'review-note'],
 );
 assert.equal(normalized.customNodeKinds[0]?.composition?.defaultEdgeType, 'completion');
+assert.deepEqual(
+  JSON.parse(JSON.stringify(normalized.customNodeKinds[0]?.composition?.taskCardBindings)),
+  ['summary'],
+);
 assert.equal(normalized.customNodeKinds[0]?.composition?.countsAs?.completedSummary, true);
 
 console.log('test-workbench-node-settings-model: ok');

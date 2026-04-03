@@ -2,6 +2,7 @@ import { listBuiltinHookDefinitions } from '../hooks/builtin-hook-catalog.mjs';
 import {
   NODE_CAPABILITIES,
   NODE_SURFACE_SLOTS,
+  NODE_TASK_CARD_BINDING_KEYS,
   NODE_VIEW_TYPES,
   listNodeKindDefinitions,
 } from './node-definitions.mjs';
@@ -33,6 +34,7 @@ export function createTaskMapPlanContractPayload() {
     viewTypes: [...NODE_VIEW_TYPES],
     surfaceSlots: [...NODE_SURFACE_SLOTS],
     capabilities: [...NODE_CAPABILITIES],
+    taskCardBindingKeys: [...NODE_TASK_CARD_BINDING_KEYS],
     fallbackProjection: 'continuity',
     nodeKindDefinitions: listNodeKindDefinitions(),
     planCapableHooks: listTaskMapPlanCapableHooks(),
@@ -40,6 +42,8 @@ export function createTaskMapPlanContractPayload() {
       supportsHookGeneratedPlans: true,
       supportsManualPlans: true,
       supportsSystemPlans: true,
+      supportsSessionScopedPlanWriteApi: true,
+      supportsSessionScopedGraphReadApi: true,
       supportsRichCanvasViews: true,
       fallbackProjection: 'continuity',
     },

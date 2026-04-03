@@ -9,6 +9,14 @@
   const FALLBACK_NODE_CAPABILITIES = Object.freeze(["open-session", "create-branch", "dismiss"]);
   const FALLBACK_NODE_SURFACE_SLOTS = Object.freeze(["task-map", "composer-suggestions"]);
   const FALLBACK_NODE_VIEW_TYPES = Object.freeze(["flow-node", "markdown", "html", "iframe"]);
+  const FALLBACK_NODE_TASK_CARD_BINDING_KEYS = Object.freeze([
+    "mainGoal",
+    "goal",
+    "candidateBranches",
+    "summary",
+    "checkpoint",
+    "nextSteps",
+  ]);
 
   function normalizeToken(value, fallback, allowlist) {
     const normalized = String(value || "").trim().toLowerCase();
@@ -20,7 +28,7 @@
       return [...fallback];
     }
     const normalized = values
-      .map((value) => String(value || "").trim().toLowerCase())
+      .map((value) => String(value || "").trim())
       .filter(Boolean);
     if (normalized.length === 0) {
       return [...fallback];
@@ -29,12 +37,16 @@
   }
 
   function normalizeAllowedTokenList(values, fallback, allowlist) {
+    const allowlistMap = new Map(
+      (Array.isArray(allowlist) ? allowlist : []).map((value) => [String(value || "").trim().toLowerCase(), value]),
+    );
     if (!Array.isArray(values) || values.length === 0) {
       return [...fallback];
     }
     const normalized = values
       .map((value) => String(value || "").trim().toLowerCase())
-      .filter((value) => allowlist.includes(value));
+      .filter((value) => allowlistMap.has(value))
+      .map((value) => allowlistMap.get(value));
     if (normalized.length === 0) {
       return [...fallback];
     }
@@ -89,6 +101,12 @@
   );
   const NODE_VIEW_TYPES = Object.freeze(
     normalizeTokenList(bootstrapNodeContract.nodeViewTypes, FALLBACK_NODE_VIEW_TYPES),
+  );
+  const NODE_TASK_CARD_BINDING_KEYS = Object.freeze(
+    normalizeTokenList(
+      bootstrapNodeContract.nodeTaskCardBindingKeys,
+      FALLBACK_NODE_TASK_CARD_BINDING_KEYS,
+    ),
   );
 
   function defineNodeComposition(definition = {}, normalizedDefinition = {}) {
@@ -146,6 +164,13 @@
         normalizedDefinition.id === "candidate" ? ["task-map", "composer-suggestions"] : ["task-map"],
         NODE_SURFACE_SLOTS,
       ),
+      taskCardBindings: normalizeAllowedTokenList(
+        composition.taskCardBindings,
+        normalizedDefinition.id === "candidate"
+          ? ["candidateBranches"]
+          : (normalizedDefinition.id === "main" ? ["mainGoal"] : (normalizedDefinition.id === "branch" ? ["goal"] : [])),
+        NODE_TASK_CARD_BINDING_KEYS,
+      ),
       countsAs: Object.freeze({
         sessionNode: composition?.countsAs?.sessionNode === true || normalizedDefinition.sessionBacked === true,
         branch: composition?.countsAs?.branch === true,
@@ -197,6 +222,7 @@
         layoutVariant: "root",
         capabilities: ["open-session"],
         surfaceBindings: ["task-map"],
+        taskCardBindings: ["mainGoal"],
         countsAs: {
           sessionNode: true,
           branch: false,
@@ -225,6 +251,7 @@
         layoutVariant: "default",
         capabilities: ["open-session"],
         surfaceBindings: ["task-map"],
+        taskCardBindings: ["goal"],
         countsAs: {
           sessionNode: true,
           branch: true,
@@ -253,6 +280,7 @@
         layoutVariant: "compact",
         capabilities: ["create-branch", "dismiss"],
         surfaceBindings: ["task-map", "composer-suggestions"],
+        taskCardBindings: ["candidateBranches"],
         countsAs: {
           sessionNode: false,
           branch: false,
@@ -281,6 +309,7 @@
         layoutVariant: "compact",
         capabilities: [],
         surfaceBindings: ["task-map"],
+        taskCardBindings: [],
         countsAs: {
           sessionNode: true,
           branch: false,
@@ -334,6 +363,7 @@
     NODE_CAPABILITIES,
     NODE_SURFACE_SLOTS,
     NODE_VIEW_TYPES,
+    NODE_TASK_CARD_BINDING_KEYS,
     listNodeKindDefinitions,
     getNodeKindDefinition,
     isKnownNodeKind,

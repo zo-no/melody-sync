@@ -16,6 +16,33 @@
     append: '追加保留',
   });
 
+  const INTERACTION_LABELS = Object.freeze({
+    'open-session': '打开任务',
+    'create-branch': '开启支线',
+    none: '只读展示',
+  });
+
+  const VIEW_TYPE_LABELS = Object.freeze({
+    'flow-node': '普通节点',
+    markdown: 'Markdown',
+    html: 'HTML',
+    iframe: 'iFrame',
+  });
+
+  const SURFACE_SLOT_LABELS = Object.freeze({
+    'task-map': '任务地图',
+    'composer-suggestions': '输入区建议',
+  });
+
+  const TASK_CARD_BINDING_LABELS = Object.freeze({
+    mainGoal: '主目标',
+    goal: '当前目标',
+    candidateBranches: '建议支线',
+    summary: '摘要',
+    checkpoint: '检查点',
+    nextSteps: '下一步',
+  });
+
   function trimText(value) {
     return typeof value === 'string' ? value.trim() : '';
   }
@@ -26,6 +53,16 @@
     }
     const normalized = values
       .map((value) => trimText(value).toLowerCase())
+      .filter(Boolean);
+    return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
+  }
+
+  function normalizeStringList(values, fallback) {
+    if (!Array.isArray(values) || values.length === 0) {
+      return [...fallback];
+    }
+    const normalized = values
+      .map((value) => trimText(value))
       .filter(Boolean);
     return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
   }
@@ -65,6 +102,9 @@
           surfaceBindings: Array.isArray(definition.composition.surfaceBindings)
             ? definition.composition.surfaceBindings.map((value) => trimText(value).toLowerCase()).filter(Boolean)
             : [],
+          taskCardBindings: Array.isArray(definition.composition.taskCardBindings)
+            ? definition.composition.taskCardBindings.map((value) => trimText(value)).filter(Boolean)
+            : [],
           countsAs: {
             sessionNode: definition?.composition?.countsAs?.sessionNode === true,
             branch: definition?.composition?.countsAs?.branch === true,
@@ -82,6 +122,22 @@
     const nodeMergePolicies = normalizeTokenList(
       data.nodeMergePolicies,
       ['replace-latest', 'append'],
+    );
+    const nodeInteractions = normalizeTokenList(
+      data.nodeInteractions,
+      ['open-session', 'create-branch', 'none'],
+    );
+    const nodeViewTypes = normalizeTokenList(
+      data.nodeViewTypes,
+      ['flow-node', 'markdown', 'html', 'iframe'],
+    );
+    const nodeSurfaceSlots = normalizeTokenList(
+      data.nodeSurfaceSlots,
+      ['task-map', 'composer-suggestions'],
+    );
+    const nodeTaskCardBindingKeys = normalizeStringList(
+      data.nodeTaskCardBindingKeys,
+      ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps'],
     );
     const nodeKindDefinitions = (Array.isArray(data.nodeKindDefinitions) ? data.nodeKindDefinitions : [])
       .map((definition) => normalizeNodeDefinition(definition))
@@ -101,6 +157,10 @@
       nodeLanes,
       nodeRoles,
       nodeMergePolicies,
+      nodeInteractions,
+      nodeViewTypes,
+      nodeSurfaceSlots,
+      nodeTaskCardBindingKeys,
       nodeKindDefinitions,
       builtInDefinitions,
       customNodeKinds,
@@ -116,6 +176,14 @@
       lane: trimText(definition?.lane).toLowerCase() || 'side',
       role: trimText(definition?.role).toLowerCase() || 'summary',
       mergePolicy: trimText(definition?.mergePolicy).toLowerCase() || 'replace-latest',
+      defaultInteraction: trimText(definition?.composition?.defaultInteraction).toLowerCase() || 'none',
+      defaultViewType: trimText(definition?.composition?.defaultViewType).toLowerCase() || 'flow-node',
+      surfaceBindings: Array.isArray(definition?.composition?.surfaceBindings)
+        ? definition.composition.surfaceBindings.map((value) => trimText(value).toLowerCase()).filter(Boolean)
+        : ['task-map'],
+      taskCardBindings: Array.isArray(definition?.composition?.taskCardBindings)
+        ? definition.composition.taskCardBindings.map((value) => trimText(value)).filter(Boolean)
+        : [],
     };
   }
 
@@ -129,6 +197,22 @@
 
   function getMergePolicyLabel(value) {
     return MERGE_POLICY_LABELS[trimText(value).toLowerCase()] || trimText(value) || '未知合并策略';
+  }
+
+  function getInteractionLabel(value) {
+    return INTERACTION_LABELS[trimText(value).toLowerCase()] || trimText(value) || '未知交互';
+  }
+
+  function getViewTypeLabel(value) {
+    return VIEW_TYPE_LABELS[trimText(value).toLowerCase()] || trimText(value) || '未知视图';
+  }
+
+  function getSurfaceSlotLabel(value) {
+    return SURFACE_SLOT_LABELS[trimText(value).toLowerCase()] || trimText(value) || '未知表面';
+  }
+
+  function getTaskCardBindingLabel(value) {
+    return TASK_CARD_BINDING_LABELS[trimText(value)] || trimText(value) || '未知回写';
   }
 
   function describeNodeKind(definition = {}) {
@@ -146,6 +230,10 @@
     getLaneLabel,
     getRoleLabel,
     getMergePolicyLabel,
+    getInteractionLabel,
+    getViewTypeLabel,
+    getSurfaceSlotLabel,
+    getTaskCardBindingLabel,
     describeNodeKind,
   });
 })();

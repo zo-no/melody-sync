@@ -3,7 +3,7 @@
 This directory contains the session-scoped frontend chain.
 
 - `tooling.js`: tool/model/thinking picker and session runtime-preference controls.
-- `compose.js`: composer, attachments, pending-send state, and queued follow-up submission flow.
+- `compose.js`: composer, attachments, pending-send state, queued follow-up submission flow, and workbench-fed suggestion entry rendering. It should read `composer-suggestions` through workbench surface projection instead of decoding task-map plans inline.
 - `http-helpers.js`: shared HTTP helpers for session fetch/update work.
 - `http-list-state.js`: session list refresh and list-state coordination layered on the HTTP client.
 - `http.js`: canonical session fetch/update path for the no-build frontend.

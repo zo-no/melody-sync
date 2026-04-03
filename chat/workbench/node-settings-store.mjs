@@ -11,6 +11,14 @@ const NODE_LAYOUT_VARIANTS = Object.freeze(['root', 'default', 'compact', 'panel
 const NODE_CAPABILITIES = Object.freeze(['open-session', 'create-branch', 'dismiss']);
 const NODE_SURFACE_SLOTS = Object.freeze(['task-map', 'composer-suggestions']);
 const NODE_VIEW_TYPES = Object.freeze(['flow-node', 'markdown', 'html', 'iframe']);
+const NODE_TASK_CARD_BINDING_KEYS = Object.freeze([
+  'mainGoal',
+  'goal',
+  'candidateBranches',
+  'summary',
+  'checkpoint',
+  'nextSteps',
+]);
 const RESERVED_NODE_KIND_IDS = new Set(['main', 'branch', 'candidate', 'done']);
 
 function trimText(value) {
@@ -31,12 +39,16 @@ function normalizeNodeKindIdList(values, fallback) {
 }
 
 function normalizeAllowedTokenList(values, fallback, allowlist) {
+  const allowlistMap = new Map(
+    (Array.isArray(allowlist) ? allowlist : []).map((value) => [trimText(value).toLowerCase(), value]),
+  );
   if (!Array.isArray(values) || values.length === 0) {
     return [...fallback];
   }
   const normalized = values
     .map((value) => trimText(value).toLowerCase())
-    .filter((value) => allowlist.includes(value));
+    .filter((value) => allowlistMap.has(value))
+    .map((value) => allowlistMap.get(value));
   return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
 }
 
@@ -104,6 +116,11 @@ function normalizeCustomNodeComposition(definition = {}, { lane = 'side', role =
       composition.surfaceBindings,
       ['task-map'],
       NODE_SURFACE_SLOTS,
+    ),
+    taskCardBindings: normalizeAllowedTokenList(
+      composition.taskCardBindings,
+      [],
+      NODE_TASK_CARD_BINDING_KEYS,
     ),
     countsAs: {
       sessionNode: composition?.countsAs?.sessionNode === true,

@@ -32,6 +32,16 @@
     `;
   }
 
+  function renderCheckboxOptions(values, selectedValues, labelFactory, name) {
+    const selected = new Set(Array.isArray(selectedValues) ? selectedValues : []);
+    return values.map((value) => `
+      <label class="task-map-node-checkbox">
+        <input type="checkbox" name="${escHtml(name)}" value="${escHtml(value)}"${selected.has(value) ? ' checked' : ''}>
+        <span>${escHtml(labelFactory(value))}</span>
+      </label>
+    `).join('');
+  }
+
   function renderSection({ title, count, emptyCopy, listHtml }) {
     return `
       <section class="task-map-node-section">
@@ -165,6 +175,11 @@
         const field = form?.elements?.namedItem?.(name);
         return typeof field?.value === 'string' ? field.value : '';
       };
+      const readCheckedValues = (name) => (
+        Array.from(form?.querySelectorAll?.(`input[name="${name}"]:checked`) || [])
+          .map((field) => typeof field?.value === 'string' ? field.value : '')
+          .filter(Boolean)
+      );
       return {
         id: readFieldValue('id'),
         label: readFieldValue('label'),
@@ -172,6 +187,12 @@
         lane: readFieldValue('lane'),
         role: readFieldValue('role'),
         mergePolicy: readFieldValue('mergePolicy'),
+        composition: {
+          defaultInteraction: readFieldValue('defaultInteraction'),
+          defaultViewType: readFieldValue('defaultViewType'),
+          surfaceBindings: readCheckedValues('surfaceBindings'),
+          taskCardBindings: readCheckedValues('taskCardBindings'),
+        },
       };
     }
 
@@ -247,6 +268,42 @@
                 </select>
               </label>
             </div>
+            <div class="task-map-node-form-grid">
+              <label class="task-map-node-field">
+                <span class="task-map-node-field-label">默认交互</span>
+                <select class="settings-inline-select" name="defaultInteraction">
+                  ${renderOptions(nodeData.nodeInteractions || ['open-session', 'create-branch', 'none'], defaults.defaultInteraction, model.getInteractionLabel)}
+                </select>
+              </label>
+              <label class="task-map-node-field">
+                <span class="task-map-node-field-label">默认视图</span>
+                <select class="settings-inline-select" name="defaultViewType">
+                  ${renderOptions(nodeData.nodeViewTypes || ['flow-node', 'markdown', 'html', 'iframe'], defaults.defaultViewType, model.getViewTypeLabel)}
+                </select>
+              </label>
+            </div>
+            <label class="task-map-node-field">
+              <span class="task-map-node-field-label">展示位置</span>
+              <div class="task-map-node-checkbox-group">
+                ${renderCheckboxOptions(
+                  nodeData.nodeSurfaceSlots || ['task-map', 'composer-suggestions'],
+                  defaults.surfaceBindings,
+                  model.getSurfaceSlotLabel,
+                  'surfaceBindings',
+                )}
+              </div>
+            </label>
+            <label class="task-map-node-field">
+              <span class="task-map-node-field-label">任务卡回写</span>
+              <div class="task-map-node-checkbox-group">
+                ${renderCheckboxOptions(
+                  nodeData.nodeTaskCardBindingKeys || ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps'],
+                  defaults.taskCardBindings,
+                  model.getTaskCardBindingLabel,
+                  'taskCardBindings',
+                )}
+              </div>
+            </label>
             ${formState.error ? `<div class="task-map-node-form-error">${escHtml(formState.error)}</div>` : ''}
             <div class="task-map-node-form-actions">
               <button class="new-session-btn secondary" type="button" data-action="reset-node-form">清空</button>

@@ -16,6 +16,14 @@ const nodeEffectsSource = readFileSync(
   join(repoRoot, 'static', 'chat', 'workbench', 'node-effects.js'),
   'utf8',
 );
+const nodeInstanceSource = readFileSync(
+  join(repoRoot, 'static', 'chat', 'workbench', 'node-instance.js'),
+  'utf8',
+);
+const graphModelSource = readFileSync(
+  join(repoRoot, 'static', 'chat', 'workbench', 'graph-model.js'),
+  'utf8',
+);
 const taskMapPlanSource = readFileSync(
   join(repoRoot, 'static', 'chat', 'workbench', 'task-map-plan.js'),
   'utf8',
@@ -27,12 +35,15 @@ context.window = context;
 
 vm.runInNewContext(nodeContractSource, context, { filename: 'workbench/node-contract.js' });
 vm.runInNewContext(nodeEffectsSource, context, { filename: 'workbench/node-effects.js' });
+vm.runInNewContext(nodeInstanceSource, context, { filename: 'workbench/node-instance.js' });
+vm.runInNewContext(graphModelSource, context, { filename: 'workbench/graph-model.js' });
 vm.runInNewContext(taskMapPlanSource, context, { filename: 'workbench/task-map-plan.js' });
 
 const api = context.MelodySyncTaskMapPlan;
 assert.ok(api, 'task map plan api should be exposed on globalThis');
 assert.equal(typeof api.normalizeTaskMapPlan, 'function');
 assert.equal(typeof api.applyTaskMapPlansToProjection, 'function');
+assert.equal(typeof api.collectSurfaceNodes, 'function');
 
 function toPlain(value) {
   return JSON.parse(JSON.stringify(value));
@@ -102,6 +113,7 @@ const augmentPlan = api.normalizeTaskMapPlan({
       status: 'candidate',
       capabilities: ['create-branch', 'dismiss'],
       surfaceBindings: ['task-map', 'composer-suggestions'],
+      taskCardBindings: ['candidateBranches'],
       view: {
         type: 'markdown',
         content: '## 复盘建议',
@@ -125,6 +137,7 @@ assert.equal(augmentPlan?.nodes[0]?.view?.type, 'markdown');
 assert.equal(augmentPlan?.nodes[0]?.view?.width, 420);
 assert.deepEqual(toPlain(augmentPlan?.nodes[0]?.capabilities || []), ['create-branch', 'dismiss']);
 assert.deepEqual(toPlain(augmentPlan?.nodes[0]?.surfaceBindings || []), ['task-map', 'composer-suggestions']);
+assert.deepEqual(toPlain(augmentPlan?.nodes[0]?.taskCardBindings || []), ['candidateBranches']);
 
 const augmentedProjection = api.applyTaskMapPlansToProjection({
   projection: { mainQuests: [baseQuest] },
@@ -180,6 +193,36 @@ assert.deepEqual(
   ['task-map', 'composer-suggestions'],
   'augment mode should merge surface bindings onto an existing default node when ids match',
 );
+assert.deepEqual(
+  toPlain(mergedCandidateNode?.taskCardBindings || []),
+  ['candidateBranches'],
+  'augment mode should preserve task-card binding metadata on merged node instances',
+);
+assert.equal(
+  mergedCandidateNode?.origin?.type,
+  'plan',
+  'augment mode should mark plan-enriched nodes with plan origin metadata',
+);
+assert.deepEqual(
+  toPlain(api.collectSurfaceNodes({
+    projection: mergedProjection,
+    rootSessionId: 'main-1',
+    sourceSessionId: 'main-1',
+    surfaceSlot: 'composer-suggestions',
+  }).map((node) => ({
+    id: node.id,
+    title: node.title,
+    summary: node.summary,
+  }))),
+  [
+    {
+      id: 'candidate:main-1:review',
+      title: '补充复盘支线',
+      summary: '建议拆成独立支线',
+    },
+  ],
+  'surface collection should expose merged plan-backed nodes for the matching session surface slot',
+);
 
 const replaceProjection = api.applyTaskMapPlansToProjection({
   projection: { mainQuests: [baseQuest] },
@@ -227,6 +270,11 @@ assert.equal(
   replaceProjection.mainQuests[0]?.currentNodeId,
   'plan:main-1:branch',
   'replace mode should honor the plan-selected active node inside the replaced quest',
+);
+assert.equal(
+  replaceProjection.mainQuests[0]?.nodes.find((node) => node.id === 'plan:main-1:branch')?.origin?.type,
+  'plan',
+  'replace mode should mark replacement nodes as plan-originated graph instances',
 );
 assert.deepEqual(
   toPlain(replaceProjection.mainQuests[0]?.edgeIds || []),

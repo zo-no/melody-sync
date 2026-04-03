@@ -10,6 +10,14 @@ const NODE_LAYOUT_VARIANTS = Object.freeze(['root', 'default', 'compact', 'panel
 const NODE_CAPABILITIES = Object.freeze(['open-session', 'create-branch', 'dismiss']);
 const NODE_SURFACE_SLOTS = Object.freeze(['task-map', 'composer-suggestions']);
 const NODE_VIEW_TYPES = Object.freeze(['flow-node', 'markdown', 'html', 'iframe']);
+const NODE_TASK_CARD_BINDING_KEYS = Object.freeze([
+  'mainGoal',
+  'goal',
+  'candidateBranches',
+  'summary',
+  'checkpoint',
+  'nextSteps',
+]);
 
 function normalizeToken(value, fallback, allowlist) {
   const normalized = String(value || '').trim().toLowerCase();
@@ -27,12 +35,16 @@ function normalizeTokenList(values, fallback, allowlist) {
 }
 
 function normalizeAllowedTokenList(values, fallback, allowlist) {
+  const allowlistMap = new Map(
+    (Array.isArray(allowlist) ? allowlist : []).map((value) => [String(value || '').trim().toLowerCase(), value]),
+  );
   if (!Array.isArray(values) || values.length === 0) {
     return [...fallback];
   }
   const normalized = values
     .map((value) => String(value || '').trim().toLowerCase())
-    .filter((value) => allowlist.includes(value));
+    .filter((value) => allowlistMap.has(value))
+    .map((value) => allowlistMap.get(value));
   return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
 }
 
@@ -74,6 +86,9 @@ function defineNodeComposition(definition = {}, normalizedDefinition = {}) {
   const inferredSurfaceBindings = normalizedDefinition.id === 'candidate'
     ? ['task-map', 'composer-suggestions']
     : ['task-map'];
+  const inferredTaskCardBindings = normalizedDefinition.id === 'candidate'
+    ? ['candidateBranches']
+    : (normalizedDefinition.id === 'main' ? ['mainGoal'] : (normalizedDefinition.id === 'branch' ? ['goal'] : []));
   return Object.freeze({
     canBeRoot: composition.canBeRoot === true,
     allowedParentKinds: normalizeNodeKindIdList(
@@ -98,6 +113,11 @@ function defineNodeComposition(definition = {}, normalizedDefinition = {}) {
       composition.surfaceBindings,
       inferredSurfaceBindings,
       NODE_SURFACE_SLOTS,
+    ),
+    taskCardBindings: normalizeAllowedTokenList(
+      composition.taskCardBindings,
+      inferredTaskCardBindings,
+      NODE_TASK_CARD_BINDING_KEYS,
     ),
     countsAs: Object.freeze({
       sessionNode: composition?.countsAs?.sessionNode === true || normalizedDefinition.sessionBacked === true,
@@ -160,6 +180,7 @@ const BUILTIN_NODE_KIND_DEFINITIONS = Object.freeze([
       layoutVariant: 'root',
       capabilities: ['open-session'],
       surfaceBindings: ['task-map'],
+      taskCardBindings: ['mainGoal'],
       countsAs: {
         sessionNode: true,
         branch: false,
@@ -191,6 +212,7 @@ const BUILTIN_NODE_KIND_DEFINITIONS = Object.freeze([
       layoutVariant: 'default',
       capabilities: ['open-session'],
       surfaceBindings: ['task-map'],
+      taskCardBindings: ['goal'],
       countsAs: {
         sessionNode: true,
         branch: true,
@@ -222,6 +244,7 @@ const BUILTIN_NODE_KIND_DEFINITIONS = Object.freeze([
       layoutVariant: 'compact',
       capabilities: ['create-branch', 'dismiss'],
       surfaceBindings: ['task-map', 'composer-suggestions'],
+      taskCardBindings: ['candidateBranches'],
       countsAs: {
         sessionNode: false,
         branch: false,
@@ -253,6 +276,7 @@ const BUILTIN_NODE_KIND_DEFINITIONS = Object.freeze([
       layoutVariant: 'compact',
       capabilities: [],
       surfaceBindings: ['task-map'],
+      taskCardBindings: [],
       countsAs: {
         sessionNode: true,
         branch: false,
@@ -286,6 +310,7 @@ export {
   NODE_CAPABILITIES,
   NODE_SURFACE_SLOTS,
   NODE_VIEW_TYPES,
+  NODE_TASK_CARD_BINDING_KEYS,
   NODE_KIND_DEFINITIONS,
   BUILTIN_NODE_KIND_DEFINITIONS,
 };
@@ -323,6 +348,7 @@ export function createWorkbenchNodeDefinitionsPayload() {
     nodeCapabilities: [...NODE_CAPABILITIES],
     nodeSurfaceSlots: [...NODE_SURFACE_SLOTS],
     nodeViewTypes: [...NODE_VIEW_TYPES],
+    nodeTaskCardBindingKeys: [...NODE_TASK_CARD_BINDING_KEYS],
     builtInNodeKinds: BUILTIN_NODE_KIND_DEFINITIONS.map((definition) => definition.id),
     customNodeKinds: (settings.customNodeKinds || []).map((definition) => ({ ...definition })),
     nodeKindDefinitions,

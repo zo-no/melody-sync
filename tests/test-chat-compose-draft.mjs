@@ -71,11 +71,64 @@ function makeEventTarget() {
   };
 }
 
+function createDomElement(tagName = 'div') {
+  const listeners = new Map();
+  let innerHtml = '';
+  const element = {
+    tagName: String(tagName).toUpperCase(),
+    style: {},
+    hidden: false,
+    disabled: false,
+    title: '',
+    textContent: '',
+    className: '',
+    type: '',
+    children: [],
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    },
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    dispatchEvent(event) {
+      const listener = listeners.get(event?.type);
+      if (typeof listener === 'function') {
+        listener.call(this, event);
+      }
+      return true;
+    },
+    click() {
+      return this.dispatchEvent({ type: 'click' });
+    },
+    focus() {},
+    remove() {},
+    setAttribute(name, value) {
+      this[name] = value;
+    },
+    classList: makeClassList(),
+  };
+  Object.defineProperty(element, 'innerHTML', {
+    get() {
+      return innerHtml;
+    },
+    set(value) {
+      innerHtml = String(value);
+      this.children = [];
+    },
+  });
+  return element;
+}
+
 function createContext({
   storageSeed = {},
   chromeHeight = 48,
   windowInnerHeight = 900,
   visualViewportHeight = null,
+  documentElements = {},
+  workbenchApi = null,
+  workbenchSurfaceProjectionApi = null,
+  taskMapPlanApi = null,
 } = {}) {
   const localStorage = new StorageMock();
   Object.entries(storageSeed).forEach(([key, value]) => {
@@ -83,12 +136,22 @@ function createContext({
   });
 
   const inputAreaClassList = makeClassList();
+  const msgInputListeners = new Map();
   const msgInput = {
     value: '',
     scrollHeight: 12,
     style: { height: '' },
     readOnly: false,
-    addEventListener() {},
+    addEventListener(type, listener) {
+      msgInputListeners.set(type, listener);
+    },
+    dispatchEvent(event) {
+      const listener = msgInputListeners.get(event?.type);
+      if (typeof listener === 'function') {
+        listener.call(this, event);
+      }
+      return true;
+    },
     focus() {},
     getBoundingClientRect() {
       return { height: parseFloat(this.style.height) || 72 };
@@ -110,18 +173,12 @@ function createContext({
     addEventListener() {},
     removeEventListener() {},
     getElementById(id) {
-      return null;
+      return Object.prototype.hasOwnProperty.call(documentElements, id)
+        ? documentElements[id]
+        : null;
     },
-    createElement() {
-      return {
-        appendChild() {},
-        remove() {},
-        className: '',
-        id: '',
-        textContent: '',
-        innerHTML: '',
-        style: {},
-      };
+    createElement(tagName) {
+      return createDomElement(tagName);
     },
   };
   const windowResizeListeners = [];
@@ -155,6 +212,15 @@ function createContext({
     },
   };
   windowTarget.MelodySyncLayout = remoteLabLayout;
+  if (workbenchApi) {
+    windowTarget.MelodySyncWorkbench = workbenchApi;
+  }
+  if (workbenchSurfaceProjectionApi) {
+    windowTarget.MelodySyncWorkbenchSurfaceProjection = workbenchSurfaceProjectionApi;
+  }
+  if (taskMapPlanApi) {
+    windowTarget.MelodySyncTaskMapPlan = taskMapPlanApi;
+  }
   const context = {
     console: consoleMock,
     msgInput,
@@ -232,6 +298,12 @@ function createContext({
       revokeObjectURL() {},
     },
     document,
+    Event: class Event {
+      constructor(type, init = {}) {
+        this.type = type;
+        this.bubbles = Boolean(init?.bubbles);
+      }
+    },
   };
   context.globalThis = context;
   return context;
@@ -431,5 +503,66 @@ assert.equal(failedSendContext.localStorage.getItem('draft_session-a'), null, 'p
 failedSendContext.restoreFailedSendState('session-a', 'retry this request', [], 'req_test');
 assert.equal(failedSendContext.msgInput.readOnly, false, 'failed sends should restore the composer input state');
 assert.equal(failedSendContext.localStorage.getItem('draft_session-a'), 'retry this request', 'failed sends should put the draft back into durable storage for retry');
+
+const suggestedQuestionsEl = createDomElement('div');
+const suggestionContext = createContext({
+  documentElements: {
+    suggestedQuestions: suggestedQuestionsEl,
+  },
+  workbenchSurfaceProjectionApi: {
+    buildComposerSuggestionEntries({ session }) {
+      if (
+        session?.id === 'main-1'
+        && session?.rootSessionId === 'main-1'
+      ) {
+        return [
+          {
+            id: 'candidate:main-1:review',
+            text: '从 plan 渲染的支线建议',
+            summary: 'plan surface 应该覆盖旧的 taskCard 候选列表',
+          },
+        ];
+      }
+      return [];
+    },
+  },
+});
+vm.runInNewContext(composeSource, suggestionContext, { filename: 'static/chat/session/compose.js' });
+suggestionContext.renderSuggestedQuestions({
+  id: 'main-1',
+  rootSessionId: 'main-1',
+  taskCard: {
+    candidateBranches: ['旧的 taskCard 候选'],
+  },
+});
+assert.equal(suggestedQuestionsEl.hidden, false, 'plan-backed suggestion surfaces should render when available');
+assert.equal(suggestedQuestionsEl.children.length, 1, 'plan-backed suggestion surfaces should replace the legacy taskCard fallback');
+assert.equal(suggestedQuestionsEl.children[0].textContent, '从 plan 渲染的支线建议');
+assert.equal(suggestedQuestionsEl.children[0].title, 'plan surface 应该覆盖旧的 taskCard 候选列表');
+suggestedQuestionsEl.children[0].click();
+assert.equal(suggestionContext.msgInput.value, '从 plan 渲染的支线建议', 'clicking a plan-backed suggestion should hydrate the composer draft');
+assert.equal(suggestedQuestionsEl.hidden, true, 'clicking a suggestion should hide the suggestion strip just like the legacy taskCard flow');
+
+const fallbackSuggestedQuestionsEl = createDomElement('div');
+const fallbackSuggestionContext = createContext({
+  documentElements: {
+    suggestedQuestions: fallbackSuggestedQuestionsEl,
+  },
+  workbenchSurfaceProjectionApi: {
+    buildComposerSuggestionEntries() {
+      return [];
+    },
+  },
+});
+vm.runInNewContext(composeSource, fallbackSuggestionContext, { filename: 'static/chat/session/compose.js' });
+fallbackSuggestionContext.renderSuggestedQuestions({
+  id: 'main-1',
+  rootSessionId: 'main-1',
+  taskCard: {
+    candidateBranches: ['继续走 taskCard 回退'],
+  },
+});
+assert.equal(fallbackSuggestedQuestionsEl.children.length, 1, 'legacy taskCard candidate branches should still render when no plan-backed surface nodes exist');
+assert.equal(fallbackSuggestedQuestionsEl.children[0].textContent, '继续走 taskCard 回退');
 
 console.log('test-chat-compose-draft: ok');

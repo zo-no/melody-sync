@@ -29,6 +29,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_LAYOUT_VARIANTS)), ['ro
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_CAPABILITIES)), ['open-session', 'create-branch', 'dismiss']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_SURFACE_SLOTS)), ['task-map', 'composer-suggestions']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_VIEW_TYPES)), ['flow-node', 'markdown', 'html', 'iframe']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_TASK_CARD_BINDING_KEYS)), ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps']);
 
 const main = contract.getNodeKindDefinition('main');
 assert.equal(main?.lane, 'main');
@@ -47,6 +48,7 @@ assert.equal(candidate?.derived, true);
 assert.equal(candidate?.composition?.defaultInteraction, 'create-branch');
 assert.equal(candidate?.composition?.layoutVariant, 'compact');
 assert.deepEqual(JSON.parse(JSON.stringify(candidate?.composition?.surfaceBindings || [])), ['task-map', 'composer-suggestions']);
+assert.deepEqual(JSON.parse(JSON.stringify(candidate?.composition?.taskCardBindings || [])), ['candidateBranches']);
 assert.equal(candidate?.composition?.defaultViewType, 'flow-node');
 
 const done = contract.getNodeKindDefinition('done');
@@ -73,6 +75,7 @@ const bootstrapContext = {
           nodeCapabilities: ['open-session', 'dismiss'],
           nodeSurfaceSlots: ['task-map', 'composer-suggestions'],
           nodeViewTypes: ['flow-node', 'markdown'],
+          nodeTaskCardBindingKeys: ['mainGoal', 'goal', 'reviewNotes'],
           nodeKindDefinitions: [
             {
               id: 'main',
@@ -140,6 +143,11 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(bootstrapContract.NODE_VIEW_TYPES)),
   ['flow-node', 'markdown'],
   'bootstrap-backed node view types should override the local fallback list',
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(bootstrapContract.NODE_TASK_CARD_BINDING_KEYS)),
+  ['mainGoal', 'goal', 'reviewNotes'],
+  'bootstrap-backed task-card binding keys should override the local fallback list',
 );
 assert.equal(
   bootstrapContract.getNodeKindDefinition('review')?.label,

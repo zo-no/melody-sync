@@ -27,6 +27,6 @@ export async function submitWorkbenchSessionMessage(sessionId, text, images, opt
   return submitHttpMessage(sessionId, text, images, options);
 }
 
-export async function updateWorkbenchSessionTaskCard(sessionId, taskCard) {
-  return updateSessionTaskCard(sessionId, taskCard);
+export async function updateWorkbenchSessionTaskCard(sessionId, taskCard, options = {}) {
+  return updateSessionTaskCard(sessionId, taskCard, options);
 }

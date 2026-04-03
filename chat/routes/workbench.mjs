@@ -7,6 +7,12 @@ import {
 } from '../workbench/node-settings-store.mjs';
 import { createTaskMapPlanContractPayload } from '../workbench/task-map-plan-contract.mjs';
 import {
+  deleteTaskMapPlanForSession,
+  listTaskMapPlansForSession,
+  saveTaskMapPlanForSession,
+} from '../workbench/task-map-plan-service.mjs';
+import { getTaskMapGraphForSession } from '../workbench/task-map-graph-service.mjs';
+import {
   createBranchFromSession,
   createBranchFromNode,
   createCaptureItem,
@@ -126,6 +132,59 @@ export async function handleWorkbenchRoutes({
       return true;
     }
 
+    if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'task-map-plans') {
+      const sessionId = parts[3];
+      if (!requireSessionAccess(res, authSession, sessionId)) return true;
+      try {
+        const result = await listTaskMapPlansForSession(sessionId);
+        writeJson(res, 200, {
+          rootSessionId: result.rootSessionId,
+          taskMapPlans: result.taskMapPlans,
+        });
+      } catch (error) {
+        writeJson(res, 400, { error: error.message || 'Failed to list task-map plans' });
+      }
+      return true;
+    }
+
+    if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'task-map-graph') {
+      const sessionId = parts[3];
+      if (!requireSessionAccess(res, authSession, sessionId)) return true;
+      try {
+        const result = await getTaskMapGraphForSession(sessionId);
+        writeJson(res, 200, {
+          rootSessionId: result.rootSessionId,
+          taskMapGraph: result.taskMapGraph,
+        });
+      } catch (error) {
+        writeJson(res, 400, { error: error.message || 'Failed to build task-map graph' });
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  if (pathname.startsWith('/api/workbench/') && req?.method === 'DELETE') {
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length === 6 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'task-map-plans') {
+      const sessionId = parts[3];
+      const planId = decodeURIComponent(parts[5]);
+      if (!requireSessionAccess(res, authSession, sessionId)) return true;
+      try {
+        const result = await deleteTaskMapPlanForSession(sessionId, planId);
+        writeJson(res, 200, {
+          deletedPlanId: result.deletedPlanId,
+          rootSessionId: result.rootSessionId,
+          taskMapPlans: result.taskMapPlans,
+          taskCardUpdates: result.taskCardUpdates,
+          snapshot: await getWorkbenchSnapshot(),
+        });
+      } catch (error) {
+        writeJson(res, 400, { error: error.message || 'Failed to delete task-map plan' });
+      }
+      return true;
+    }
     return false;
   }
 
@@ -197,6 +256,20 @@ export async function handleWorkbenchRoutes({
       writeJson(res, 201, {
         session: createClientSessionDetail(outcome.session),
         branchContext: outcome.branchContext,
+        snapshot: await getWorkbenchSnapshot(),
+      });
+      return true;
+    }
+
+    if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'task-map-plans') {
+      const sessionId = parts[3];
+      if (!requireSessionAccess(res, authSession, sessionId)) return true;
+      const result = await saveTaskMapPlanForSession(sessionId, payload);
+      writeJson(res, 201, {
+        taskMapPlan: result.taskMapPlan,
+        rootSessionId: result.rootSessionId,
+        taskMapPlans: result.taskMapPlans,
+        taskCardUpdates: result.taskCardUpdates,
         snapshot: await getWorkbenchSnapshot(),
       });
       return true;

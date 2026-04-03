@@ -94,7 +94,7 @@
 - `builtin.branch-candidates`
   - 文件：`chat/hooks/branch-candidates-hook.mjs`
   - 触发：`branch.suggested`
-  - 作用：把 branch candidate event 追加回会话历史，并同步写入 hook 生成的 `taskMapPlan` candidate overlay
+  - 作用：把 branch candidate event 追加回会话历史，并同步写入 hook 生成的 `taskMapPlan` candidate overlay，再通过 backend node-task-card sync 收口 `taskCard.candidateBranches`
 - `builtin.session-naming`
   - 文件：`chat/hooks/session-naming-hook.mjs`
   - 触发：`run.completed`
@@ -175,20 +175,64 @@
   - 当前已经包含 composition contract：root 能力、父子 kind 约束、默认交互、默认边类型、布局变体和统计口径
 - `static/chat/workbench/node-effects.js`
   - 统一维护 task map 当前内建 node 的公共语义
-  - 当前收口的效果包括：计数口径、compact 布局、候选边、开启支线动作、已收束徽标
+  - 当前收口的效果包括：计数口径、compact 布局、候选边、开启支线动作、已收束徽标、surfaceBindings、taskCardBindings 和默认 view.type
+- `static/chat/workbench/node-instance.js`
+  - 统一维护前端 graph node instance contract
+  - 当前负责把 `capabilities / surfaceBindings / taskCardBindings / origin / view` 收成稳定实例，避免 renderer、surface 和 capability 层各自拼 node payload
+- `static/chat/workbench/graph-model.js`
+  - 统一维护前端 task-map 的 graph node / edge collection 结构
+  - 当前同时服务默认 continuity 投影和 task-map plan overlay，避免两边各自拼匿名节点集合
+- `static/chat/workbench/node-capabilities.js`
+  - 把 node capability 变成显式执行层
+  - 当前负责把 `create-branch / open-session` 这类 node action 从 renderer 内联逻辑里抽出来
 - `chat/workbench/task-map-plans.mjs`
   - 持久化可选的 task-map plan overlay
   - 这层不是 workflow 真值，只负责保存“可替换/可增强默认地图”的图谱计划
 - `chat/workbench/task-map-plan-producers.mjs`
   - 把当前核心 workflow 状态翻译成 hook/system 可写的 task-map plan
   - 当前已经落地的 producer 是 `builtin.branch-candidates -> candidate overlay`
+- `chat/workbench/node-instance.mjs`
+  - 统一维护后端 graph node instance contract
+  - 当前负责把 producer / persisted plan node 收成稳定实例，避免 `task-map-plans.mjs` 和 producer 各自维护不同 node payload 语义
+- `chat/workbench/node-task-card.mjs`
+  - 统一维护后端 node -> taskCard patch helper
+  - 当前负责把 builtin candidate 和 custom node 在 backend side 汇总成稳定 patch，并明确 `plan/manual/hook > projection` 的标量字段优先级
+- `chat/workbench/node-task-card-sync.mjs`
+  - 统一维护 backend `taskMapPlan -> session.taskCard` 写回
+  - 当前先接在 `builtin.branch-candidates` 这条 hook 链上，用来让 candidate node 和 taskCard fallback 保持一致
 - `chat/workbench/task-map-plan-contract.mjs`
   - 统一暴露 plan mode、source type、edge type、node composition 和允许产 plan 的 hook 白名单
   - 当前面向未来 hook / AI 生成图谱的入口，不直接参与渲染
+- `chat/workbench/task-map-plan-service.mjs`
+  - 统一暴露 session-scoped manual/system plan 写入口
+  - 当前负责 root session 解析、source policy 限制、plan id 冲突保护，以及把 plan 写入统一接到 shared sync
+- `chat/workbench/task-map-plan-sync.mjs`
+  - 统一暴露 persisted plan set 的 shared sync
+  - 当前负责比较旧/新 plan 集合、收集 managed binding keys，并把 node patch 写回同一 root 下的所有 session
+- `chat/workbench/graph-model.mjs`
+  - 统一维护 backend graph node / edge collection 结构
+  - 当前同时服务默认 continuity 图和 task-map plan overlay，避免 backend 侧再拼第二套匿名 quest graph 结构
+- `chat/workbench/task-map-graph-service.mjs`
+  - 统一暴露 session-scoped canonical graph 读入口
+  - 当前负责把 `continuity -> default quest graph -> taskMapPlan overlay` 收成一个稳定 payload，供后续 AI/manual tooling 和调试读取
 - `static/chat/workbench/task-map-plan.js`
   - 把 task-map plan 归一化并叠加到默认 continuity 投影上
   - 当前支持两种模式：`replace-default` 和 `augment-default`
   - 当前 `augment-default` 也会按 node id 合并已有默认节点，所以 hook plan 可以给 continuity 默认节点补 `summary / surfaceBindings / view.type`
+  - 当前也会保留 node `origin`（`projection` vs `plan`）和 `taskCardBindings`，让后续 hook / AI graph plan 保持 provenance 和字段绑定能力
+  - 当前也提供 surface-node 收集能力，供 composer 等非地图表面优先读取 `composer-suggestions` 这类 node surface
+- `static/chat/workbench/surface-projection.js`
+  - 把 workbench graph 的 surfaceBindings 变成显式读侧选择器
+  - 当前先服务 composer suggestion surface，避免 session UI 直接认识 task-map plan 细节
+- `static/chat/workbench/task-map-clusters.js`
+  - 把 synthetic cluster 生成、branch child 排序和当前 branch lineage 解析从默认投影器里抽出来
+  - 当前负责默认 continuity 图的 quest source 准备
+- `static/chat/workbench/task-map-mock-presets.js`
+  - 把 cinema demo 这类 mock 图谱注入从默认投影器里抽出来
+  - 当前让 `task-map-model.js` 不再同时承担真实投影和 demo augment
+- `static/chat/workbench/node-rich-view-ui.js`
+  - 把 markdown / html / iframe 这类 rich node view 渲染从 task-map 总渲染器里抽出来
+  - 当前负责右侧无限画布类节点的安全嵌入和 markdown 回退渲染
 - `static/chat/workbench/node-settings-model.js`
   - 把 node definitions payload 归一化成地图域可消费的设置模型
 - `static/chat/workbench/node-settings-ui.js`
@@ -215,12 +259,36 @@
 
 - `main`
   - 给出当前主任务入口
+  - 当前默认绑定 `taskCard.mainGoal`
 - `branch`
   - 表示已经独立出去的真实执行线
+  - 当前默认绑定 `taskCard.goal`
 - `candidate`
   - 表示系统建议但尚未展开的下一条独立执行线
+  - 当前既可以投影到地图，也可以投影到底部 composer suggestion surface
+  - 当前默认绑定 `taskCard.candidateBranches`
 - `done`
   - 表示当前主任务下的现有支线已经全部收束
+
+## 2.5 当前正式 plan 写入口
+
+当前 `taskMapPlan` 已经不只存在于 builtin hook 内部，已经有正式的 session-scoped 写入口：
+
+- `GET /api/workbench/sessions/:id/task-map-plans`
+  - 读取当前 session 所属 root quest 的 plan 集合
+- `POST /api/workbench/sessions/:id/task-map-plans`
+  - 写入 `manual/system` source 的 plan
+  - 当前会自动限制 `rootSessionId`，并拒绝 `hook` source 直接通过 API 写入
+- `DELETE /api/workbench/sessions/:id/task-map-plans/:planId`
+  - 删除当前 root quest 下的 plan
+
+当前这条链已经具备的行为：
+
+- plan 写入会走 shared `task-map-plan-sync`
+- node `taskCardBindings` 会回写到对应 session 的 `taskCard`
+- managed `candidateBranches` 删除 plan 时会被清空
+- managed `mainGoal / summary` 这类标量字段会被保守保留，直到下一次显式替换
+- `branch-candidates` builtin hook 已经通过同一条共享链工作，不再有独立的 hook 专用 patch 流程
 
 ### node 不负责的事
 
@@ -234,8 +302,26 @@
 - `task-map-model.js`
   - 继续负责 continuity -> 地图节点投影
   - 当前已经显式产出 `nodes + edges`，其中 edge type 会标明 `structural / suggestion / completion`
+- `node-instance.js`
+  - 负责把 projection node / plan node 统一成稳定 graph node instance
+  - 当前 node instance 统一包含：
+    - `capabilities`
+    - `surfaceBindings`
+    - `taskCardBindings`
+    - `view`
+    - `origin`
+- `node-task-card.js`
+  - 负责把前端 graph node instance 汇总成 taskCard patch
+  - 当前和 backend `chat/workbench/node-task-card.mjs` 保持同一条优先级规则：`plan/manual/hook` 节点可以覆盖默认 projection 节点的标量绑定
+- `task-map-clusters.js`
+  - 负责 continuity quest source 的 synthetic cluster 和 branch lineage helper
+- `task-map-mock-presets.js`
+  - 负责 demo/mock 任务图 augment，而不是默认投影真值
+- `graph-model.js`
+  - 负责 graph node / edge instance 的构建、追加和 quest graph snapshot 归一化
 - `task-map-ui.js`
   - 继续负责树布局和渲染
+  - 当前已经把 rich node view 渲染委托给 `node-rich-view-ui.js`
 - `node-effects.js`
   - 作为两者之间共享的语义层，避免继续在 model / ui 里散落 `kind === "candidate"` 这类判断
 
@@ -243,6 +329,7 @@
 
 - `node kind catalog`
 - `composition contract`
+- `backend node-instance + task-card patch + task-card sync`
 - `shared node effects`
 - `optional taskMapPlan overlay`
 - `rich right-canvas view contract`

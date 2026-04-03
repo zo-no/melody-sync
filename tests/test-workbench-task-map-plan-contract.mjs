@@ -35,8 +35,11 @@ try {
   assert.deepEqual(payload.viewTypes, ['flow-node', 'markdown', 'html', 'iframe']);
   assert.deepEqual(payload.surfaceSlots, ['task-map', 'composer-suggestions']);
   assert.deepEqual(payload.capabilities, ['open-session', 'create-branch', 'dismiss']);
+  assert.deepEqual(payload.taskCardBindingKeys, ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps']);
   assert.equal(payload.fallbackProjection, 'continuity');
   assert.equal(payload.settings?.supportsHookGeneratedPlans, true);
+  assert.equal(payload.settings?.supportsSessionScopedPlanWriteApi, true);
+  assert.equal(payload.settings?.supportsSessionScopedGraphReadApi, true);
   assert.equal(payload.settings?.supportsRichCanvasViews, true);
   assert.equal(
     payload.nodeKindDefinitions.some((definition) => definition.id === 'review-note'),

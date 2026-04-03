@@ -82,13 +82,33 @@ const context = {
           nodeLanes: ['main', 'branch', 'side'],
           nodeRoles: ['state', 'action', 'summary'],
           nodeMergePolicies: ['replace-latest', 'append'],
+          nodeInteractions: ['open-session', 'create-branch', 'none'],
+          nodeViewTypes: ['flow-node', 'markdown', 'html', 'iframe'],
+          nodeSurfaceSlots: ['task-map', 'composer-suggestions'],
+          nodeTaskCardBindingKeys: ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps'],
           builtInNodeKinds: ['main', 'branch', 'candidate', 'done'],
           nodeKindDefinitions: [
             { id: 'main', label: '主任务', lane: 'main', role: 'state', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
             { id: 'branch', label: '子任务', lane: 'branch', role: 'state', mergePolicy: 'append', builtIn: true, editable: false, source: 'builtin' },
             { id: 'candidate', label: '建议子任务', lane: 'branch', role: 'action', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
             { id: 'done', label: '收束', lane: 'main', role: 'summary', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
-            { id: 'review-note', label: '复盘节点', description: '用于阶段复盘。', lane: 'side', role: 'summary', mergePolicy: 'append', builtIn: false, editable: true, source: 'custom' },
+            {
+              id: 'review-note',
+              label: '复盘节点',
+              description: '用于阶段复盘。',
+              lane: 'side',
+              role: 'summary',
+              mergePolicy: 'append',
+              builtIn: false,
+              editable: true,
+              source: 'custom',
+              composition: {
+                defaultInteraction: 'none',
+                defaultViewType: 'markdown',
+                surfaceBindings: ['task-map'],
+                taskCardBindings: ['summary'],
+              },
+            },
           ],
         };
       },
@@ -119,6 +139,9 @@ assert.match(bodyEl.innerHTML, /复盘节点/);
 assert.match(bodyEl.innerHTML, /<code class="task-map-node-id">review-note<\/code>/);
 assert.match(bodyEl.innerHTML, /新增自定义节点/);
 assert.match(bodyEl.innerHTML, /创建后不可修改/);
+assert.match(bodyEl.innerHTML, /默认视图/);
+assert.match(bodyEl.innerHTML, /展示位置/);
+assert.match(bodyEl.innerHTML, /任务卡回写/);
 assert.doesNotMatch(bodyEl.innerHTML, /settings-app-card/, 'node tab should not fall back to legacy app-card layout');
 assert.doesNotMatch(bodyEl.innerHTML, /系统内建 · 主泳道 · 状态节点/, 'node tab should no longer foreground internal node taxonomy in the list');
 assert.doesNotMatch(bodyEl.innerHTML, /系统 4 个 · 自定义 1 个/, 'node tab should not repeat a top-level summary count above the grouped sections');

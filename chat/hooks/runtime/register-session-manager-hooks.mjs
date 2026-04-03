@@ -35,11 +35,15 @@ export function registerSessionManagerBuiltinHooks(deps = {}) {
     'builtin.branch-candidates',
     createBranchCandidatesHook({
       appendEvents: deps.appendEvents,
-      syncBranchCandidateTaskMapPlan: async (context = {}) => syncBranchCandidateTaskMapPlan({
-        session: context.session,
-        sessions: await listSessions({ includeArchived: true }),
-        nowIso,
-      }),
+      syncBranchCandidateTaskMapPlan: async (context = {}) => {
+        const sessions = await listSessions({ includeArchived: true });
+        return syncBranchCandidateTaskMapPlan({
+          session: context.session,
+          sessions,
+          nowIso,
+          updateSessionTaskCard: deps.updateSessionTaskCard,
+        });
+      },
     }),
   );
   registerCatalogHook(

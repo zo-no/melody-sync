@@ -33,6 +33,7 @@ assert.equal(mainEffect.layoutVariant, 'root');
 assert.equal(mainEffect.interaction, 'open-session');
 assert.deepEqual(JSON.parse(JSON.stringify(mainEffect.capabilities)), ['open-session']);
 assert.deepEqual(JSON.parse(JSON.stringify(mainEffect.surfaceBindings)), ['task-map']);
+assert.deepEqual(JSON.parse(JSON.stringify(mainEffect.taskCardBindings)), ['mainGoal']);
 assert.equal(mainEffect.defaultViewType, 'flow-node');
 assert.equal(mainEffect.countsAs.sessionNode, true);
 
@@ -48,6 +49,7 @@ assert.equal(candidateEffect.trackAsCandidateChild, true);
 assert.equal(candidateEffect.defaultSummary, '建议拆成独立支线');
 assert.deepEqual(JSON.parse(JSON.stringify(candidateEffect.capabilities)), ['create-branch', 'dismiss']);
 assert.deepEqual(JSON.parse(JSON.stringify(candidateEffect.surfaceBindings)), ['task-map', 'composer-suggestions']);
+assert.deepEqual(JSON.parse(JSON.stringify(candidateEffect.taskCardBindings)), ['candidateBranches']);
 assert.equal(candidateEffect.countsAs.sessionNode, false);
 assert.equal(candidateEffect.countsAs.candidate, true);
 

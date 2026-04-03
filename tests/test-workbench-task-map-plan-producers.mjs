@@ -67,15 +67,38 @@ try {
     ['task-map', 'composer-suggestions'],
     'producer should carry candidate node surface bindings into the hook-generated plan',
   );
+  assert.deepEqual(
+    builtPlan.nodes[0].taskCardBindings,
+    ['candidateBranches'],
+    'producer should carry candidate node task-card bindings into the hook-generated plan',
+  );
 
+  const taskCardWrites = [];
   const persisted = await producers.syncBranchCandidateTaskMapPlan({
     session: sessions[0],
     sessions,
     nowIso: () => '2026-04-03T10:00:00.000Z',
+    updateSessionTaskCard: async (sessionId, nextTaskCard) => {
+      taskCardWrites.push({ sessionId, nextTaskCard });
+      return { id: sessionId, taskCard: nextTaskCard };
+    },
   });
   const persistedHookPlan = persisted.find((plan) => plan.source?.hookId === 'builtin.branch-candidates');
   assert.ok(persistedHookPlan, 'sync should persist the hook-generated branch-candidate plan');
   assert.equal(persistedHookPlan.nodes.length, 2);
+  assert.deepEqual(
+    taskCardWrites.map((entry) => ({
+      sessionId: entry.sessionId,
+      candidateBranches: entry.nextTaskCard?.candidateBranches || [],
+    })),
+    [
+      {
+        sessionId: 'main-1',
+        candidateBranches: ['补充复盘'],
+      },
+    ],
+    'sync should write back hook-generated candidate nodes into task cards when the managed candidate list changes',
+  );
 
   sessions[0] = {
     ...sessions[0],

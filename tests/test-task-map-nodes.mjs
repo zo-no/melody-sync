@@ -27,6 +27,22 @@ const nodeEffectsSource = readFileSync(
   join(repoRoot, 'static', 'chat', 'workbench/node-effects.js'),
   'utf8',
 );
+const nodeInstanceSource = readFileSync(
+  join(repoRoot, 'static', 'chat', 'workbench', 'node-instance.js'),
+  'utf8',
+);
+const graphModelSource = readFileSync(
+  join(repoRoot, 'static', 'chat', 'workbench', 'graph-model.js'),
+  'utf8',
+);
+const taskMapClustersSource = readFileSync(
+  join(repoRoot, 'static', 'chat', 'workbench', 'task-map-clusters.js'),
+  'utf8',
+);
+const taskMapMockPresetsSource = readFileSync(
+  join(repoRoot, 'static', 'chat', 'workbench', 'task-map-mock-presets.js'),
+  'utf8',
+);
 const source = readFileSync(
   join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'),
   'utf8',
@@ -37,6 +53,10 @@ context.globalThis = context;
 context.window = context;
 vm.runInNewContext(nodeContractSource, context, { filename: 'workbench/node-contract.js' });
 vm.runInNewContext(nodeEffectsSource, context, { filename: 'workbench/node-effects.js' });
+vm.runInNewContext(nodeInstanceSource, context, { filename: 'workbench/node-instance.js' });
+vm.runInNewContext(graphModelSource, context, { filename: 'workbench/graph-model.js' });
+vm.runInNewContext(taskMapClustersSource, context, { filename: 'workbench/task-map-clusters.js' });
+vm.runInNewContext(taskMapMockPresetsSource, context, { filename: 'workbench/task-map-mock-presets.js' });
 vm.runInNewContext(source, context, { filename: 'workbench/task-map-model.js' });
 
 const { buildTaskMapProjection, NODE_KINDS } = context.MelodySyncTaskMapModel;

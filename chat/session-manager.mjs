@@ -183,6 +183,20 @@ function normalizeSuppressedBranchTitles(value) {
   return next;
 }
 
+function normalizeSessionTaskCardManagedBindings(value) {
+  const source = Array.isArray(value) ? value : [];
+  const allowed = new Set(['mainGoal', 'goal', 'summary', 'candidateBranches', 'checkpoint', 'nextSteps']);
+  const normalized = [];
+  const seen = new Set();
+  for (const entry of source) {
+    const key = trimString(entry);
+    if (!key || !allowed.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(key);
+  }
+  return normalized;
+}
+
 function getConfiguredAutoCompactContextTokens() {
   return parsePositiveIntOrInfinity(process.env.REMOTELAB_LIVE_CONTEXT_COMPACT_TOKENS);
 }
@@ -1475,7 +1489,9 @@ async function enrichSessionMeta(meta, _options = {}) {
   const snapshot = await getHistorySnapshot(meta.id);
   const queuedCount = getFollowUpQueueCount(meta);
   const runActivity = await resolveSessionRunActivity(meta);
-  const taskCard = stabilizeSessionTaskCard(meta, meta.taskCard);
+  const taskCard = stabilizeSessionTaskCard(meta, meta.taskCard, {
+    managedBindingKeys: meta?.taskCardManagedBindings,
+  });
   const {
     followUpQueue,
     recentFollowUpRequestIds,
@@ -1484,6 +1500,7 @@ async function enrichSessionMeta(meta, _options = {}) {
     visitorId: _legacyVisitorId,
     visitorName: _legacyVisitorName,
     taskCard: _rawTaskCard,
+    taskCardManagedBindings: _taskCardManagedBindings,
     ...rest
   } = meta;
   const sourceId = resolveSessionSourceId(meta);
@@ -2366,8 +2383,19 @@ function getSessionParentSessionId(sessionMeta) {
     : '';
 }
 
-function stabilizeSessionTaskCard(sessionMeta, taskCard) {
-  const parsedTaskCard = normalizeSessionTaskCard(taskCard);
+function stabilizeSessionTaskCard(sessionMeta, taskCard, options = {}) {
+  const managedBindingKeys = new Set(
+    (Array.isArray(options?.managedBindingKeys) ? options.managedBindingKeys : [])
+      .map((value) => trimString(value))
+      .filter(Boolean),
+  );
+  const shouldPreserveManagedSummary = managedBindingKeys.has('summary');
+  const shouldPreserveManagedMainGoal = managedBindingKeys.has('mainGoal') || managedBindingKeys.has('goal');
+  const shouldPreserveManagedCandidateBranches = managedBindingKeys.has('candidateBranches');
+  const normalizeTaskCardOptions = shouldPreserveManagedCandidateBranches
+    ? { preserveCandidateBranches: true }
+    : undefined;
+  const parsedTaskCard = normalizeSessionTaskCard(taskCard, normalizeTaskCardOptions);
   if (!parsedTaskCard) return null;
 
   const currentTaskCard = normalizeSessionTaskCard(sessionMeta?.taskCard || null);
@@ -2376,34 +2404,44 @@ function stabilizeSessionTaskCard(sessionMeta, taskCard) {
 
   if (parsedTaskCard.lineRole !== 'branch' || !canPersistBranchRole) {
     const anchoredMainGoal = trimString(
-      currentTaskCard?.lineRole !== 'branch'
-        ? (currentTaskCard?.mainGoal || currentTaskCard?.goal || stableSessionTitle)
-        : stableSessionTitle,
+      shouldPreserveManagedMainGoal
+        ? (parsedTaskCard.mainGoal || parsedTaskCard.goal || currentTaskCard?.mainGoal || currentTaskCard?.goal || stableSessionTitle)
+        : (
+          currentTaskCard?.lineRole !== 'branch'
+            ? (currentTaskCard?.mainGoal || currentTaskCard?.goal || stableSessionTitle)
+            : stableSessionTitle
+        )
     ) || trimString(parsedTaskCard.mainGoal || parsedTaskCard.goal);
 
     return normalizeSessionTaskCard({
       ...parsedTaskCard,
-      summary: currentTaskCard?.summary || parsedTaskCard.summary,
+      summary: shouldPreserveManagedSummary
+        ? parsedTaskCard.summary
+        : (currentTaskCard?.summary || parsedTaskCard.summary),
       goal: anchoredMainGoal,
       mainGoal: anchoredMainGoal,
       lineRole: 'main',
       branchFrom: '',
       branchReason: '',
-    });
+    }, normalizeTaskCardOptions);
   }
 
   const anchoredParentGoal = trimString(
-    parsedTaskCard.mainGoal
-    || currentTaskCard?.mainGoal
-    || currentTaskCard?.goal
-    || stableSessionTitle,
+    shouldPreserveManagedMainGoal
+      ? (parsedTaskCard.mainGoal || currentTaskCard?.mainGoal || currentTaskCard?.goal || stableSessionTitle)
+      : (
+        parsedTaskCard.mainGoal
+        || currentTaskCard?.mainGoal
+        || currentTaskCard?.goal
+        || stableSessionTitle
+      ),
   ) || trimString(parsedTaskCard.branchFrom || parsedTaskCard.goal);
 
   return normalizeSessionTaskCard({
     ...parsedTaskCard,
     mainGoal: anchoredParentGoal,
     branchFrom: trimString(parsedTaskCard.branchFrom || anchoredParentGoal),
-  });
+  }, normalizeTaskCardOptions);
 }
 
 async function findLatestUserMessageSeqForRun(sessionId, run) {
@@ -2647,6 +2685,7 @@ function ensureSessionManagerBuiltinHooksRegistered() {
     nowIso,
     triggerAutomaticSessionLabeling,
     resumePendingCompletionTargets,
+    updateSessionTaskCard,
   });
 }
 
@@ -3235,11 +3274,19 @@ export async function updateSessionGrouping(id, patch = {}) {
   return enrichSessionMeta(result.meta);
 }
 
-export async function updateSessionTaskCard(id, taskCard) {
+export async function updateSessionTaskCard(id, taskCard, options = {}) {
   const result = await mutateSessionMeta(id, (session) => {
-    const nextTaskCard = stabilizeSessionTaskCard(session, taskCard);
-    const currentTaskCard = normalizeSessionTaskCard(session.taskCard);
-    if (JSON.stringify(currentTaskCard) === JSON.stringify(nextTaskCard)) {
+    const nextManagedBindings = normalizeSessionTaskCardManagedBindings(options?.managedBindingKeys);
+    const currentManagedBindings = normalizeSessionTaskCardManagedBindings(session.taskCardManagedBindings);
+    const currentTaskCard = stabilizeSessionTaskCard(session, session.taskCard, {
+      managedBindingKeys: currentManagedBindings,
+    });
+    const nextTaskCard = stabilizeSessionTaskCard(session, taskCard, {
+      ...options,
+      managedBindingKeys: nextManagedBindings,
+    });
+    const managedBindingsChanged = JSON.stringify(currentManagedBindings) !== JSON.stringify(nextManagedBindings);
+    if (JSON.stringify(currentTaskCard) === JSON.stringify(nextTaskCard) && !managedBindingsChanged) {
       return false;
     }
 
@@ -3247,6 +3294,12 @@ export async function updateSessionTaskCard(id, taskCard) {
       session.taskCard = nextTaskCard;
     } else if (session.taskCard) {
       delete session.taskCard;
+    }
+
+    if (nextManagedBindings.length > 0) {
+      session.taskCardManagedBindings = nextManagedBindings;
+    } else if (session.taskCardManagedBindings) {
+      delete session.taskCardManagedBindings;
     }
 
     session.updatedAt = nowIso();

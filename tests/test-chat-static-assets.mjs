@@ -202,10 +202,18 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/session-list\/sidebar-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/node-contract\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/node-effects\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/node-instance\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/graph-model\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/node-capabilities\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/node-task-card\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/node-settings-model\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-map-plan\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/surface-projection\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-clusters\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-mock-presets\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-map-model\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-tracker-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/node-rich-view-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-map-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/node-settings-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-list-ui\.js(?:\?v=[^"]*)?"/);
@@ -265,10 +273,13 @@ async function main() {
     assert.match(page.text, /id="questTrackerStatus"/, 'chat page should render the task-status mount inside the task bar');
     assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=/, 'chat page should load the shared workbench node contract');
     assert.match(page.text, /\/chat\/workbench\/node-effects\.js\?v=/, 'chat page should load the shared workbench node effects before task-map projection');
+    assert.match(page.text, /\/chat\/workbench\/node-instance\.js\?v=/, 'chat page should load the shared workbench node instance contract before graph/projection modules');
+    assert.match(page.text, /\/chat\/workbench\/graph-model\.js\?v=/, 'chat page should load the shared workbench graph model before plan/projection modules');
+    assert.match(page.text, /\/chat\/workbench\/node-task-card\.js\?v=/, 'chat page should load the shared workbench node-to-taskCard helpers before plan/projection modules');
     assert.match(page.text, /\/chat\/workbench\/task-map-plan\.js\?v=/, 'chat page should load the task-map plan overlay before the projection model');
     assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
-    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-effects\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-plan\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the node contract, node effects, node settings model, and task-map plan overlay before the task-map projection model');
-    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
+    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-effects\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-instance\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-capabilities\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-task-card\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-plan\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/surface-projection\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-clusters\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-mock-presets\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the graph contract, node-instance helpers, task-card helpers, plan helpers, and quest-source helpers before the task-map projection model');
+    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-rich-view-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');
@@ -591,6 +602,17 @@ async function main() {
     assert.match(nodeEffectsAsset.text, /function getNodeKindEffect/);
     assert.match(nodeEffectsAsset.text, /function buildQuestNodeCounts/);
 
+    const nodeInstanceAsset = await request(port, 'GET', '/chat/workbench/node-instance.js');
+    assert.equal(nodeInstanceAsset.status, 200, 'workbench node instance asset should load');
+    assert.match(nodeInstanceAsset.text, /MelodySyncWorkbenchNodeInstance/);
+    assert.match(nodeInstanceAsset.text, /function createNodeInstance/);
+    assert.match(nodeInstanceAsset.text, /function mergeNodeInstances/);
+
+    const nodeTaskCardAsset = await request(port, 'GET', '/chat/workbench/node-task-card.js');
+    assert.equal(nodeTaskCardAsset.status, 200, 'workbench node task-card asset should load');
+    assert.match(nodeTaskCardAsset.text, /MelodySyncWorkbenchNodeTaskCard/);
+    assert.match(nodeTaskCardAsset.text, /function buildTaskCardPatch/);
+
     const nodeSettingsModelAsset = await request(port, 'GET', '/chat/workbench/node-settings-model.js');
     assert.equal(nodeSettingsModelAsset.status, 200, 'workbench node settings model asset should load');
     assert.match(nodeSettingsModelAsset.text, /MelodySyncTaskMapNodeSettingsModel/);
@@ -600,6 +622,21 @@ async function main() {
     assert.equal(taskMapPlanAsset.status, 200, 'task map plan asset should load');
     assert.match(taskMapPlanAsset.text, /MelodySyncTaskMapPlan/);
     assert.match(taskMapPlanAsset.text, /function applyTaskMapPlansToProjection/);
+
+    const taskMapClustersAsset = await request(port, 'GET', '/chat/workbench/task-map-clusters.js');
+    assert.equal(taskMapClustersAsset.status, 200, 'task map clusters asset should load');
+    assert.match(taskMapClustersAsset.text, /MelodySyncTaskMapClusters/);
+    assert.match(taskMapClustersAsset.text, /function getClusterList/);
+
+    const taskMapMockPresetsAsset = await request(port, 'GET', '/chat/workbench/task-map-mock-presets.js');
+    assert.equal(taskMapMockPresetsAsset.status, 200, 'task map mock presets asset should load');
+    assert.match(taskMapMockPresetsAsset.text, /MelodySyncTaskMapMockPresets/);
+    assert.match(taskMapMockPresetsAsset.text, /function applyTaskMapMockPreset/);
+
+    const graphModelAsset = await request(port, 'GET', '/chat/workbench/graph-model.js');
+    assert.equal(graphModelAsset.status, 200, 'workbench graph model asset should load');
+    assert.match(graphModelAsset.text, /MelodySyncWorkbenchGraphModel/);
+    assert.match(graphModelAsset.text, /function createQuestGraphCollections/);
 
     const taskMapModelAsset = await request(port, 'GET', '/chat/workbench/task-map-model.js');
     assert.equal(taskMapModelAsset.status, 200, 'task map model asset should load');
@@ -665,6 +702,11 @@ async function main() {
       ['flow-node', 'markdown', 'html', 'iframe'],
       'workbench node definitions api should expose the current node view types',
     );
+    assert.deepEqual(
+      nodeDefinitionsJson.nodeTaskCardBindingKeys,
+      ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps'],
+      'workbench node definitions api should expose the task-card fields that nodes are allowed to bind back to',
+    );
     assert.equal(
       nodeDefinitionsJson.nodeKindDefinitions?.find((definition) => definition.id === 'candidate')?.role,
       'action',
@@ -674,6 +716,11 @@ async function main() {
       nodeDefinitionsJson.nodeKindDefinitions?.find((definition) => definition.id === 'candidate')?.composition?.defaultInteraction,
       'create-branch',
       'workbench node definitions api should expose composition rules for builtin kinds',
+    );
+    assert.deepEqual(
+      nodeDefinitionsJson.nodeKindDefinitions?.find((definition) => definition.id === 'candidate')?.composition?.taskCardBindings,
+      ['candidateBranches'],
+      'workbench node definitions api should expose task-card bindings for builtin node kinds',
     );
     assert.equal(
       nodeDefinitionsJson.settings?.supportsCustomNodeKinds,
@@ -699,6 +746,11 @@ async function main() {
       ['manual', 'system', 'hook'],
       'task-map-plan contract api should expose plan source types',
     );
+    assert.deepEqual(
+      taskMapPlanContractJson.taskCardBindingKeys,
+      ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps'],
+      'task-map-plan contract api should expose the task-card fields that node plans are allowed to bind back to',
+    );
     assert.equal(
       taskMapPlanContractJson.fallbackProjection,
       'continuity',
@@ -713,6 +765,162 @@ async function main() {
       taskMapPlanContractJson.planCapableHooks?.[0]?.taskMapPlanPolicy,
       'augment-default',
       'task-map-plan contract api should expose each producer hook policy',
+    );
+    assert.equal(
+      taskMapPlanContractJson.settings?.supportsSessionScopedPlanWriteApi,
+      true,
+      'task-map-plan contract api should advertise the formal session-scoped plan write entry',
+    );
+    assert.equal(
+      taskMapPlanContractJson.settings?.supportsSessionScopedGraphReadApi,
+      true,
+      'task-map-plan contract api should advertise the canonical session-scoped graph read entry',
+    );
+
+    const createdGoalPanelNodeDefinition = await request(port, 'POST', '/api/workbench/node-definitions', {
+      id: 'goal-panel',
+      label: '目标节点',
+      description: '用于表达当前阶段目标。',
+      lane: 'main',
+      role: 'summary',
+      mergePolicy: 'replace-latest',
+      composition: {
+        allowedParentKinds: ['main'],
+        allowedChildKinds: [],
+        requiresSourceSession: true,
+        defaultInteraction: 'none',
+        defaultEdgeType: 'completion',
+        defaultViewType: 'markdown',
+        layoutVariant: 'panel',
+        surfaceBindings: ['task-map'],
+        taskCardBindings: ['mainGoal', 'summary'],
+      },
+    });
+    assert.equal(createdGoalPanelNodeDefinition.status, 201, 'custom goal-panel node kind should be creatable over the workbench API');
+
+    const createdTaskMapPlan = await request(port, 'POST', `/api/workbench/sessions/${createdChatJson.session.id}/task-map-plans`, {
+      id: 'manual-plan:owner-chat:goal',
+      mode: 'augment-default',
+      source: { type: 'manual' },
+      nodes: [
+        {
+          id: `goal-panel:${createdChatJson.session.id}`,
+          kind: 'goal-panel',
+          title: '构建 node 驱动页面表达',
+          summary: '让目标节点和建议节点共用表达层',
+          sourceSessionId: createdChatJson.session.id,
+          parentNodeId: `session:${createdChatJson.session.id}`,
+          status: 'active',
+          lineRole: 'main',
+          taskCardBindings: ['mainGoal', 'summary'],
+          surfaceBindings: ['task-map'],
+          view: {
+            type: 'markdown',
+            content: '## 目标',
+          },
+        },
+        {
+          id: `candidate:${createdChatJson.session.id}:补充复盘`,
+          kind: 'candidate',
+          title: '补充复盘',
+          summary: '适合拆成独立支线继续推进',
+          sourceSessionId: createdChatJson.session.id,
+          parentNodeId: `session:${createdChatJson.session.id}`,
+          status: 'candidate',
+          lineRole: 'candidate',
+          taskCardBindings: ['candidateBranches'],
+          surfaceBindings: ['task-map', 'composer-suggestions'],
+        },
+      ],
+      edges: [
+        {
+          from: `session:${createdChatJson.session.id}`,
+          to: `candidate:${createdChatJson.session.id}:补充复盘`,
+          type: 'suggestion',
+        },
+      ],
+    });
+    assert.equal(createdTaskMapPlan.status, 201, 'session-scoped task-map plans should be writable over HTTP');
+    const createdTaskMapPlanJson = JSON.parse(createdTaskMapPlan.text);
+    assert.equal(
+      createdTaskMapPlanJson.taskMapPlan?.id,
+      'manual-plan:owner-chat:goal',
+      'session-scoped task-map plan writes should return the normalized saved plan',
+    );
+    assert.equal(
+      createdTaskMapPlanJson.snapshot?.taskMapPlans?.some((plan) => plan.id === 'manual-plan:owner-chat:goal'),
+      true,
+      'session-scoped task-map plan writes should flow into the workbench snapshot',
+    );
+
+    const listedTaskMapPlans = await request(port, 'GET', `/api/workbench/sessions/${createdChatJson.session.id}/task-map-plans`);
+    assert.equal(listedTaskMapPlans.status, 200, 'session-scoped task-map plans should be listable over HTTP');
+    const listedTaskMapPlansJson = JSON.parse(listedTaskMapPlans.text);
+    assert.deepEqual(
+      listedTaskMapPlansJson.taskMapPlans?.map((plan) => plan.id),
+      ['manual-plan:owner-chat:goal'],
+      'session-scoped task-map plan listing should resolve the current root quest plans',
+    );
+
+    const chatSessionAfterPlan = await request(port, 'GET', `/api/sessions/${createdChatJson.session.id}`);
+    assert.equal(chatSessionAfterPlan.status, 200, 'session detail should remain readable after task-map plan writes');
+    const chatSessionAfterPlanJson = JSON.parse(chatSessionAfterPlan.text);
+    assert.equal(
+      chatSessionAfterPlanJson.session?.taskCard?.mainGoal,
+      '构建 node 驱动页面表达',
+      'session-scoped task-map plan writes should sync scalar bindings back into the session task card',
+    );
+    assert.deepEqual(
+      chatSessionAfterPlanJson.session?.taskCard?.candidateBranches,
+      ['补充复盘'],
+      'session-scoped task-map plan writes should sync managed candidate arrays back into the session task card',
+    );
+
+    const taskMapGraph = await request(port, 'GET', `/api/workbench/sessions/${createdChatJson.session.id}/task-map-graph`);
+    assert.equal(taskMapGraph.status, 200, 'session-scoped task-map graph should be readable over HTTP');
+    const taskMapGraphJson = JSON.parse(taskMapGraph.text);
+    assert.equal(
+      taskMapGraphJson.rootSessionId,
+      createdChatJson.session.id,
+      'session-scoped task-map graph reads should resolve the current root quest',
+    );
+    assert.equal(
+      taskMapGraphJson.taskMapGraph?.nodes?.some((node) => node.id === `goal-panel:${createdChatJson.session.id}`),
+      true,
+      'session-scoped task-map graph reads should include manual/custom nodes from saved plans',
+    );
+    assert.equal(
+      taskMapGraphJson.taskMapGraph?.nodes?.some((node) => node.id === `candidate:${createdChatJson.session.id}:补充复盘`),
+      true,
+      'session-scoped task-map graph reads should include candidate nodes in the same canonical graph payload',
+    );
+    assert.equal(
+      taskMapGraphJson.taskMapGraph?.edges?.find((edge) => edge.toNodeId === `goal-panel:${createdChatJson.session.id}`)?.type,
+      'completion',
+      'session-scoped task-map graph reads should preserve custom node edge semantics',
+    );
+    assert.equal(
+      taskMapGraphJson.taskMapGraph?.edges?.find((edge) => edge.toNodeId === `candidate:${createdChatJson.session.id}:补充复盘`)?.type,
+      'suggestion',
+      'session-scoped task-map graph reads should preserve builtin candidate edge semantics',
+    );
+
+    const deletedTaskMapPlan = await request(port, 'DELETE', `/api/workbench/sessions/${createdChatJson.session.id}/task-map-plans/${encodeURIComponent('manual-plan:owner-chat:goal')}`);
+    assert.equal(deletedTaskMapPlan.status, 200, 'session-scoped task-map plans should be deletable over HTTP');
+    const deletedTaskMapPlanJson = JSON.parse(deletedTaskMapPlan.text);
+    assert.equal(
+      deletedTaskMapPlanJson.taskMapPlans?.length,
+      0,
+      'deleting a session-scoped task-map plan should remove it from the root plan set',
+    );
+
+    const chatSessionAfterPlanDelete = await request(port, 'GET', `/api/sessions/${createdChatJson.session.id}`);
+    assert.equal(chatSessionAfterPlanDelete.status, 200, 'session detail should remain readable after deleting task-map plans');
+    const chatSessionAfterPlanDeleteJson = JSON.parse(chatSessionAfterPlanDelete.text);
+    assert.deepEqual(
+      chatSessionAfterPlanDeleteJson.session?.taskCard?.candidateBranches,
+      [],
+      'deleting a session-scoped task-map plan should clear managed candidate arrays that no longer exist',
     );
 
     const createdNodeDefinition = await request(port, 'POST', '/api/workbench/node-definitions', {
@@ -754,6 +962,9 @@ async function main() {
       false,
       'deleted custom node kinds should be removed from the canonical payload',
     );
+
+    const deletedGoalPanelNodeDefinition = await request(port, 'DELETE', '/api/workbench/node-definitions/goal-panel');
+    assert.equal(deletedGoalPanelNodeDefinition.status, 200, 'goal-panel node kind should be removable after task-map plan API coverage');
 
     const operationRecordUiAsset = await request(port, 'GET', '/chat/workbench/operation-record-ui.js');
     assert.equal(operationRecordUiAsset.status, 200, 'operation record ui asset should load');

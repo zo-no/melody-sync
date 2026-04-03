@@ -611,11 +611,32 @@ switchTab(activeTab, { syncState: false });
 
 const suggestedQuestionsEl = document.getElementById("suggestedQuestions");
 
+function getWorkbenchSurfaceProjectionApi() {
+  return globalThis?.MelodySyncWorkbenchSurfaceProjection
+    || globalThis?.window?.MelodySyncWorkbenchSurfaceProjection
+    || null;
+}
+
+function listSuggestedQuestionEntries(session) {
+  const planEntries = getWorkbenchSurfaceProjectionApi()?.buildComposerSuggestionEntries?.({
+    session,
+  }) || [];
+  if (planEntries.length > 0) {
+    return planEntries;
+  }
+  const legacyCandidates = Array.isArray(session?.taskCard?.candidateBranches)
+    ? session.taskCard.candidateBranches.filter((entry) => typeof entry === "string" && entry.trim())
+    : [];
+  return legacyCandidates.map((text) => ({
+    id: "",
+    text,
+    summary: "",
+  }));
+}
+
 function renderSuggestedQuestions(session) {
   if (!suggestedQuestionsEl) return;
-  const candidates = Array.isArray(session?.taskCard?.candidateBranches)
-    ? session.taskCard.candidateBranches.filter((s) => typeof s === "string" && s.trim())
-    : [];
+  const candidates = listSuggestedQuestionEntries(session);
   const isRunning = Boolean(session?.activity?.run?.state === "running");
   const hasDraft = Boolean(msgInput?.value?.trim());
 
@@ -626,11 +647,15 @@ function renderSuggestedQuestions(session) {
   }
 
   suggestedQuestionsEl.innerHTML = "";
-  for (const text of candidates.slice(0, 3)) {
+  for (const candidate of candidates.slice(0, 3)) {
+    const text = candidate.text;
     const btn = document.createElement("button");
     btn.className = "suggested-question-btn";
     btn.textContent = text;
     btn.type = "button";
+    if (candidate.summary) {
+      btn.title = candidate.summary;
+    }
     btn.addEventListener("click", () => {
       if (!msgInput) return;
       msgInput.value = text;

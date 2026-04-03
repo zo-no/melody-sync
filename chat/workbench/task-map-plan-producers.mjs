@@ -1,5 +1,7 @@
 import { getNodeKindDefinition } from './node-definitions.mjs';
-import { persistTaskMapPlans, readTaskMapPlans } from './task-map-plans.mjs';
+import { createNodeInstance } from './node-instance.mjs';
+import { readTaskMapPlans } from './task-map-plans.mjs';
+import { persistTaskMapPlansWithSessionSync } from './task-map-plan-sync.mjs';
 
 const BRANCH_CANDIDATE_HOOK_ID = 'builtin.branch-candidates';
 const BRANCH_CANDIDATE_EVENT = 'branch.suggested';
@@ -155,7 +157,7 @@ function buildBranchCandidatePlanNodes(sessions = []) {
       if (suppressedKeys.has(candidateKey)) continue;
       if (existingChildKeys.has(candidateKey)) continue;
       seenCandidates.add(candidateKey);
-      nodes.push({
+      const candidateNode = createNodeInstance({
         id: `candidate:${sourceSessionId}:${slugify(normalizedTitle)}`,
         kind: 'candidate',
         title: normalizedTitle,
@@ -166,10 +168,13 @@ function buildBranchCandidatePlanNodes(sessions = []) {
         lineRole: 'candidate',
         capabilities: Array.isArray(composition.capabilities) ? [...composition.capabilities] : ['create-branch', 'dismiss'],
         surfaceBindings: Array.isArray(composition.surfaceBindings) ? [...composition.surfaceBindings] : ['task-map', 'composer-suggestions'],
+        taskCardBindings: Array.isArray(composition.taskCardBindings) ? [...composition.taskCardBindings] : ['candidateBranches'],
         view: {
           type: trimText(composition.defaultViewType || 'flow-node') || 'flow-node',
         },
       });
+      if (!candidateNode) continue;
+      nodes.push(candidateNode);
     }
   }
 
@@ -212,12 +217,13 @@ export async function syncBranchCandidateTaskMapPlan({
   session = null,
   sessions = [],
   nowIso = () => new Date().toISOString(),
+  updateSessionTaskCard = null,
 } = {}) {
   const rootSessionId = getSessionRootSessionId(session);
   if (!rootSessionId) return [];
 
-  const existingPlans = await readTaskMapPlans();
-  const nextPlans = existingPlans.filter((plan) => !isBranchCandidateHookPlan(plan, rootSessionId));
+  const previousTaskMapPlans = await readTaskMapPlans();
+  const nextPlans = previousTaskMapPlans.filter((plan) => !isBranchCandidateHookPlan(plan, rootSessionId));
   const nextPlan = buildBranchCandidateTaskMapPlan({
     rootSessionId,
     sessions,
@@ -226,7 +232,12 @@ export async function syncBranchCandidateTaskMapPlan({
   if (nextPlan) {
     nextPlans.push(nextPlan);
   }
-  return persistTaskMapPlans(nextPlans);
+  const result = await persistTaskMapPlansWithSessionSync({
+    plans: nextPlans,
+    sessions,
+    updateSessionTaskCard,
+  });
+  return result.nextTaskMapPlans;
 }
 
 export {

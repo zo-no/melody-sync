@@ -18,6 +18,20 @@
         || null;
     }
 
+    function getNodeCapabilitiesApi() {
+      return globalThis?.MelodySyncWorkbenchNodeCapabilities
+        || windowRef?.MelodySyncWorkbenchNodeCapabilities
+        || windowRef?.window?.MelodySyncWorkbenchNodeCapabilities
+        || null;
+    }
+
+    function getNodeRichViewUiApi() {
+      return globalThis?.MelodySyncWorkbenchNodeRichViewUi
+        || windowRef?.MelodySyncWorkbenchNodeRichViewUi
+        || windowRef?.window?.MelodySyncWorkbenchNodeRichViewUi
+        || null;
+    }
+
     function getNodeEffect(node) {
       return getNodeEffectsApi()?.getNodeEffect?.(node) || node?.kindEffect || null;
     }
@@ -26,8 +40,59 @@
       return getNodeEffect(node)?.layoutVariant || "default";
     }
 
-    function getNodeInteraction(node) {
-      return getNodeEffect(node)?.interaction || "none";
+    function createFallbackNodeActionController() {
+      return {
+        hasNodeCapability(node, capability) {
+          const normalizedCapability = String(capability || "").trim().toLowerCase();
+          if (!normalizedCapability) return false;
+          const capabilities = getNodeEffectsApi()?.getNodeCapabilities?.(node) || [];
+          return capabilities.includes(normalizedCapability);
+        },
+        resolvePrimaryAction(node, { isRichView = false, isDone = false } = {}) {
+          if (isRichView || isDone) return "none";
+          if (this.hasNodeCapability(node, "create-branch")) return "create-branch";
+          if (this.hasNodeCapability(node, "open-session") && node?.sessionId) return "open-session";
+          return "none";
+        },
+        isNodeDirectlyInteractive(node, options = {}) {
+          return this.resolvePrimaryAction(node, options) === "open-session";
+        },
+        async executePrimaryAction(node, { state = null, nodeMap = new Map(), isRichView = false, isDone = false } = {}) {
+          const action = this.resolvePrimaryAction(node, { isRichView, isDone });
+          if (action === "create-branch") {
+            const sourceSessionId = String(node?.sessionId || node?.sourceSessionId || "").trim();
+            if (!sourceSessionId) return false;
+            collapseTaskMapAfterAction?.({ render: false });
+            await enterBranchFromSession?.(sourceSessionId, node.title, {
+              branchReason: node?.parentNodeId
+                ? `从「${nodeMap.get(node.parentNodeId)?.title || "当前节点"}」继续拆出独立支线`
+                : "从当前任务拆出独立支线",
+              checkpointSummary: node.title,
+            });
+            return true;
+          }
+          if (action === "open-session" && node?.sessionId) {
+            const sessionRecord = getSessionRecord?.(node.sessionId) || state?.parentSession || state?.cluster?.mainSession || null;
+            collapseTaskMapAfterAction?.({ render: false });
+            attachSession?.(node.sessionId, sessionRecord);
+            return true;
+          }
+          return false;
+        },
+      };
+    }
+
+    function getNodeActionController() {
+      const api = getNodeCapabilitiesApi();
+      if (typeof api?.createController === "function") {
+        return api.createController({
+          collapseTaskMapAfterAction,
+          enterBranchFromSession,
+          getSessionRecord,
+          attachSession,
+        });
+      }
+      return createFallbackNodeActionController();
     }
 
     function getNodeEdgeVariant(node) {
@@ -209,76 +274,6 @@
         return clipText(node.summary || nodeEffect.fallbackSummary || nodeEffect.defaultSummary || "", 72);
       }
       return clipText(node.summary || nodeEffect?.fallbackSummary || "", 72);
-    }
-
-    function renderMarkdownContent(target, markdown) {
-      if (!target) return;
-      if (typeof windowRef?.renderMarkdownIntoNode === "function") {
-        windowRef.renderMarkdownIntoNode(target, markdown);
-        return;
-      }
-      if (typeof globalThis?.renderMarkdownIntoNode === "function") {
-        globalThis.renderMarkdownIntoNode(target, markdown);
-        return;
-      }
-      if (typeof windowRef?.marked?.parse === "function") {
-        target.innerHTML = windowRef.marked.parse(String(markdown || ""));
-        return;
-      }
-      target.textContent = String(markdown || "");
-    }
-
-    function createRichViewSurface(node) {
-      const view = getNodeView(node);
-      const shell = documentRef.createElement("div");
-      shell.className = `quest-task-flow-node-rich quest-task-flow-node-rich-${view.type}`;
-
-      if (view.type === "markdown") {
-        const body = documentRef.createElement("div");
-        body.className = "quest-task-flow-node-rich-body quest-task-flow-node-rich-markdown";
-        renderMarkdownContent(body, view.content || node.summary || "");
-        shell.appendChild(body);
-        return shell;
-      }
-
-      if (view.type === "html") {
-        if (view.renderMode === "inline") {
-          const body = documentRef.createElement("div");
-          body.className = "quest-task-flow-node-rich-body quest-task-flow-node-rich-html";
-          body.innerHTML = String(view.content || "");
-          shell.appendChild(body);
-          return shell;
-        }
-        const frame = documentRef.createElement("iframe");
-        frame.className = "quest-task-flow-node-rich-frame panzoom-exclude";
-        frame.setAttribute("title", String(node.title || "HTML 视图"));
-        frame.setAttribute("loading", "lazy");
-        frame.setAttribute("sandbox", "allow-same-origin allow-scripts");
-        if (view.src) {
-          frame.src = view.src;
-        } else {
-          frame.srcdoc = String(view.content || "");
-        }
-        shell.appendChild(frame);
-        return shell;
-      }
-
-      if (view.type === "iframe") {
-        const frame = documentRef.createElement("iframe");
-        frame.className = "quest-task-flow-node-rich-frame panzoom-exclude";
-        frame.setAttribute("title", String(node.title || "嵌入视图"));
-        frame.setAttribute("loading", "lazy");
-        frame.setAttribute("sandbox", "allow-same-origin allow-scripts");
-        if (view.src) {
-          frame.src = view.src;
-        } else {
-          frame.srcdoc = String(view.content || "");
-        }
-        shell.appendChild(frame);
-        return shell;
-      }
-
-      return shell;
     }
 
     function bindTaskFlowCanvasInteractions(scroll) {
@@ -511,13 +506,22 @@
       }
       canvas.appendChild(svg);
 
+      const nodeActionController = getNodeActionController();
+      const richViewRenderer = getNodeRichViewUiApi()?.createRenderer?.({ documentRef, windowRef }) || {
+        createRichViewSurface(node, nodeView = {}) {
+          const shell = documentRef.createElement("div");
+          const viewType = String(nodeView?.type || node?.view?.type || "flow-node").trim() || "flow-node";
+          shell.className = `quest-task-flow-node-rich quest-task-flow-node-rich-${viewType}`;
+          return shell;
+        },
+      };
+
       const createCandidateAction = (node) => {
         const actionBtn = documentRef.createElement("button");
         actionBtn.type = "button";
         actionBtn.className = "quest-branch-btn quest-branch-btn-primary quest-task-flow-node-action panzoom-exclude";
         actionBtn.textContent = getNodeActionLabel(node);
-        const sourceSessionId = String(node?.sessionId || node?.sourceSessionId || "").trim();
-        if (!sourceSessionId) {
+        if (!nodeActionController.hasNodeCapability(node, "create-branch")) {
           actionBtn.disabled = true;
           return actionBtn;
         }
@@ -525,12 +529,11 @@
           event.stopPropagation();
           actionBtn.disabled = true;
           try {
-            collapseTaskMapAfterAction?.({ render: false });
-            await enterBranchFromSession?.(sourceSessionId, node.title, {
-              branchReason: node?.parentNodeId
-                ? `从「${nodeMap.get(node.parentNodeId)?.title || "当前节点"}」继续拆出独立支线`
-                : "从当前任务拆出独立支线",
-              checkpointSummary: node.title,
+            await nodeActionController.executePrimaryAction(node, {
+              state,
+              nodeMap,
+              isRichView: false,
+              isDone: false,
             });
           } finally {
             actionBtn.disabled = false;
@@ -542,12 +545,12 @@
       for (const entry of entries) {
         const node = entry.node;
         const nodeEffect = getNodeEffect(node);
-        const nodeInteraction = getNodeInteraction(node);
         const nodeView = getNodeView(node);
-        const isCandidate = nodeInteraction === "create-branch";
         const isDone = nodeEffect?.metaVariant === "done";
         const isRichView = nodeView.type !== "flow-node";
-        const isNonInteractive = nodeInteraction !== "open-session" || isRichView;
+        const nodePrimaryAction = nodeActionController.resolvePrimaryAction(node, { isRichView, isDone });
+        const isCandidate = nodeActionController.hasNodeCapability(node, "create-branch");
+        const isNonInteractive = !nodeActionController.isNodeDirectlyInteractive(node, { isRichView, isDone });
         const nodeEl = documentRef.createElement(isNonInteractive ? "div" : "button");
         if (nodeEl.type !== undefined && !isNonInteractive) {
           nodeEl.type = "button";
@@ -582,7 +585,7 @@
         nodeEl.appendChild(titleEl);
 
         if (isRichView) {
-          nodeEl.appendChild(createRichViewSurface(node));
+          nodeEl.appendChild(richViewRenderer.createRichViewSurface(node, nodeView));
         } else {
           const summary = getProjectedTaskFlowNodeSummary(node, activeQuest);
           if (summary) {
@@ -594,15 +597,16 @@
           }
         }
 
-        if (nodeInteraction === "create-branch") {
+        if (nodePrimaryAction === "create-branch") {
           nodeEl.appendChild(createCandidateAction(node));
-        } else if (nodeInteraction === "open-session" && !isDone && node.sessionId) {
+        } else if (nodePrimaryAction === "open-session" && !isDone && node.sessionId) {
           nodeEl.addEventListener("click", () => {
-            const sessionRecord = getSessionRecord?.(node.sessionId) || state?.parentSession || state?.cluster?.mainSession || null;
-            if (typeof attachSession === "function") {
-              collapseTaskMapAfterAction?.({ render: false });
-              attachSession(node.sessionId, sessionRecord);
-            }
+            void nodeActionController.executePrimaryAction(node, {
+              state,
+              nodeMap,
+              isRichView,
+              isDone,
+            });
           });
         }
 

@@ -10,6 +10,7 @@ import {
   NODE_MERGE_POLICIES,
   NODE_ROLES,
   NODE_SURFACE_SLOTS,
+  NODE_TASK_CARD_BINDING_KEYS,
   NODE_VIEW_TYPES,
   createWorkbenchNodeDefinitionsPayload,
   getNodeKindDefinition,
@@ -26,6 +27,7 @@ assert.deepEqual(NODE_LAYOUT_VARIANTS, ['root', 'default', 'compact', 'panel']);
 assert.deepEqual(NODE_CAPABILITIES, ['open-session', 'create-branch', 'dismiss']);
 assert.deepEqual(NODE_SURFACE_SLOTS, ['task-map', 'composer-suggestions']);
 assert.deepEqual(NODE_VIEW_TYPES, ['flow-node', 'markdown', 'html', 'iframe']);
+assert.deepEqual(NODE_TASK_CARD_BINDING_KEYS, ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps']);
 assert.deepEqual(
   NODE_KIND_DEFINITIONS.map((definition) => definition.id),
   ['main', 'branch', 'candidate', 'done'],
@@ -39,6 +41,7 @@ assert.equal(getNodeKindDefinition('main')?.composition?.canBeRoot, true);
 assert.equal(getNodeKindDefinition('candidate')?.composition?.defaultInteraction, 'create-branch');
 assert.equal(getNodeKindDefinition('candidate')?.composition?.defaultViewType, 'flow-node');
 assert.deepEqual(getNodeKindDefinition('candidate')?.composition?.surfaceBindings, ['task-map', 'composer-suggestions']);
+assert.deepEqual(getNodeKindDefinition('candidate')?.composition?.taskCardBindings, ['candidateBranches']);
 assert.equal(getNodeKindDefinition('done')?.composition?.defaultEdgeType, 'completion');
 assert.equal(isKnownNodeKind('candidate'), true);
 assert.equal(isKnownNodeKind('review'), false);
@@ -65,6 +68,7 @@ assert.deepEqual(payload.nodeLayoutVariants, ['root', 'default', 'compact', 'pan
 assert.deepEqual(payload.nodeCapabilities, ['open-session', 'create-branch', 'dismiss']);
 assert.deepEqual(payload.nodeSurfaceSlots, ['task-map', 'composer-suggestions']);
 assert.deepEqual(payload.nodeViewTypes, ['flow-node', 'markdown', 'html', 'iframe']);
+assert.deepEqual(payload.nodeTaskCardBindingKeys, ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps']);
 assert.equal(
   payload.nodeKindDefinitions.find((definition) => definition.id === 'branch')?.label,
   '子任务',

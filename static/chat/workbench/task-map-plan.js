@@ -20,6 +20,18 @@
       || null;
   }
 
+  function getGraphModelApi() {
+    return globalThis?.MelodySyncWorkbenchGraphModel
+      || globalThis?.window?.MelodySyncWorkbenchGraphModel
+      || null;
+  }
+
+  function getNodeInstanceApi() {
+    return globalThis?.MelodySyncWorkbenchNodeInstance
+      || globalThis?.window?.MelodySyncWorkbenchNodeInstance
+      || null;
+  }
+
   function normalizePlanMode(value) {
     return trimText(value).toLowerCase() === "augment-default"
       ? "augment-default"
@@ -41,10 +53,14 @@
   }
 
   function normalizeAllowedTokenList(values, allowlist) {
+    const allowlistMap = new Map(
+      (Array.isArray(allowlist) ? allowlist : []).map((value) => [trimText(value).toLowerCase(), value]),
+    );
     if (!Array.isArray(values) || values.length === 0) return [];
     const normalized = values
       .map((value) => trimText(value).toLowerCase())
-      .filter((value) => allowlist.includes(value));
+      .filter((value) => allowlistMap.has(value))
+      .map((value) => allowlistMap.get(value));
     return [...new Set(normalized)];
   }
 
@@ -131,6 +147,10 @@
       lineRole: trimText(node.lineRole).toLowerCase(),
       capabilities: normalizeAllowedTokenList(node.capabilities, ["open-session", "create-branch", "dismiss"]),
       surfaceBindings: normalizeAllowedTokenList(node.surfaceBindings, ["task-map", "composer-suggestions"]),
+      taskCardBindings: normalizeAllowedTokenList(
+        node.taskCardBindings,
+        ["mainGoal", "goal", "candidateBranches", "summary", "checkpoint", "nextSteps"],
+      ),
       view: normalizeNodeView(node.view),
     };
   }
@@ -213,62 +233,38 @@
     activeNodeId = "",
     nodes = [],
     edges = [],
+    defaultNodeOrigin = null,
   } = {}) {
     const normalizedRootSessionId = trimText(rootSessionId);
     if (!normalizedRootSessionId || !Array.isArray(nodes) || nodes.length === 0) return null;
 
-    const nextNodes = [];
-    const nodeById = new Map();
+    const graphModel = getGraphModelApi();
+    const collections = graphModel?.createQuestGraphCollections?.({
+      questId: trimText(questId) || `quest:${normalizedRootSessionId}`,
+    });
+    if (!collections) return null;
+
     for (const node of nodes) {
-      const nextNode = withNodeKindEffect({
+      graphModel.appendGraphNode(collections, {
         childNodeIds: [],
         candidateNodeIds: [],
         isCurrent: false,
         isCurrentPath: false,
         depth: 0,
+        origin: node?.origin || defaultNodeOrigin || null,
         ...node,
-      });
-      nextNodes.push(nextNode);
-      nodeById.set(nextNode.id, nextNode);
-    }
-
-    const edgeById = new Map();
-    const nextEdges = [];
-    function appendEdge(edge) {
-      if (!edge?.fromNodeId || !edge?.toNodeId) return;
-      const edgeId = trimText(edge.id) || `edge:${edge.fromNodeId}:${edge.toNodeId}`;
-      if (edgeById.has(edgeId)) return;
-      const nextEdge = {
-        id: edgeId,
-        questId: trimText(questId) || `quest:${normalizedRootSessionId}`,
-        fromNodeId: edge.fromNodeId,
-        toNodeId: edge.toNodeId,
-        type: normalizeEdgeType(edge.type),
-      };
-      edgeById.set(edgeId, nextEdge);
-      nextEdges.push(nextEdge);
-    }
-
-    for (const node of nextNodes) {
-      if (!node?.parentNodeId) continue;
-      const parentNode = nodeById.get(node.parentNodeId);
-      if (!parentNode) continue;
-      parentNode.childNodeIds.push(node.id);
-      if (shouldTrackCandidateChild(node)) {
-        parentNode.candidateNodeIds.push(node.id);
-      }
-      appendEdge({
-        id: `edge:${parentNode.id}:${node.id}`,
-        fromNodeId: parentNode.id,
-        toNodeId: node.id,
-        type: node?.kindEffect?.edgeVariant || "structural",
       });
     }
 
     for (const edge of Array.isArray(edges) ? edges : []) {
-      appendEdge(edge);
+      graphModel.appendGraphEdge(collections, {
+        ...edge,
+        type: normalizeEdgeType(edge.type),
+      });
     }
 
+    const nextNodes = collections.nodes;
+    const nodeById = collections.nodeById;
     const rootNode = nodeById.get(`session:${normalizedRootSessionId}`)
       || nextNodes.find((node) => !trimText(node?.parentNodeId))
       || nextNodes.find((node) => node.kind === "main")
@@ -309,21 +305,16 @@
     const activeNode = nodeById.get(resolvedActiveNodeId) || rootNode;
     activeNode.isCurrent = true;
 
-    const questCounts = buildQuestNodeCounts(nextNodes);
-    return {
-      id: trimText(questId) || `quest:${normalizedRootSessionId}`,
+    return graphModel.buildQuestGraphSnapshot({
+      collections,
+      questId: trimText(questId) || `quest:${normalizedRootSessionId}`,
       rootSessionId: normalizedRootSessionId,
       title: trimText(title) || trimText(rootNode.title) || "当前任务",
       summary: trimText(summary) || trimText(rootNode.summary),
       currentNodeId: activeNode.id,
       currentNodeTitle: trimText(activeNode.title) || trimText(rootNode.title) || "当前任务",
       currentPathNodeIds,
-      nodeIds: nextNodes.map((node) => node.id),
-      edgeIds: nextEdges.map((edge) => edge.id),
-      nodes: nextNodes,
-      edges: nextEdges,
-      counts: questCounts,
-    };
+    });
   }
 
   function questToGraphData(quest = {}) {
@@ -345,7 +336,9 @@
         lineRole: node.lineRole,
         capabilities: Array.isArray(node.capabilities) ? [...node.capabilities] : [],
         surfaceBindings: Array.isArray(node.surfaceBindings) ? [...node.surfaceBindings] : [],
+        taskCardBindings: Array.isArray(node.taskCardBindings) ? [...node.taskCardBindings] : [],
         view: node.view ? cloneJson(node.view) : null,
+        origin: node.origin ? cloneJson(node.origin) : null,
       })),
       edges: (Array.isArray(quest.edges) ? quest.edges : []).map((edge) => ({
         id: edge.id,
@@ -363,6 +356,19 @@
     const edgeIds = new Set(base.edges.map((edge) => edge.id || `edge:${edge.fromNodeId}:${edge.toNodeId}`));
 
     function mergePlanNode(existingNode, planNode) {
+      const nodeInstanceApi = getNodeInstanceApi();
+      if (nodeInstanceApi?.mergeNodeInstances) {
+        return nodeInstanceApi.mergeNodeInstances(existingNode, {
+          ...planNode,
+          origin: {
+            type: "plan",
+            planId: plan.id,
+            sourceId: trimText(plan?.source?.hookId || plan?.source?.type || plan.id),
+            sourceLabel: trimText(plan?.source?.event || plan?.summary || plan?.title),
+            hookId: trimText(plan?.source?.hookId),
+          },
+        });
+      }
       const nextNode = {
         ...existingNode,
         kind: trimText(planNode.kind) || existingNode.kind,
@@ -380,9 +386,19 @@
       if (Array.isArray(planNode.surfaceBindings) && planNode.surfaceBindings.length > 0) {
         nextNode.surfaceBindings = [...planNode.surfaceBindings];
       }
+      if (Array.isArray(planNode.taskCardBindings) && planNode.taskCardBindings.length > 0) {
+        nextNode.taskCardBindings = [...planNode.taskCardBindings];
+      }
       if (planNode.view && typeof planNode.view === "object") {
         nextNode.view = cloneJson(planNode.view);
       }
+      nextNode.origin = {
+        type: "plan",
+        planId: plan.id,
+        sourceId: trimText(plan?.source?.hookId || plan?.source?.type || plan.id),
+        sourceLabel: trimText(plan?.source?.event || plan?.summary || plan?.title),
+        hookId: trimText(plan?.source?.hookId),
+      };
       return nextNode;
     }
 
@@ -396,7 +412,16 @@
       }
       nodeIds.add(node.id);
       nodeIndexById.set(node.id, base.nodes.length);
-      base.nodes.push(node);
+      base.nodes.push({
+        ...node,
+        origin: {
+          type: "plan",
+          planId: plan.id,
+          sourceId: trimText(plan?.source?.hookId || plan?.source?.type || plan.id),
+          sourceLabel: trimText(plan?.source?.event || plan?.summary || plan?.title),
+          hookId: trimText(plan?.source?.hookId),
+        },
+      });
     }
     for (const edge of plan.edges) {
       const edgeId = trimText(edge.id) || `edge:${edge.fromNodeId}:${edge.toNodeId}`;
@@ -411,6 +436,16 @@
       summary: trimText(plan.summary) || base.summary,
       activeNodeId: trimText(plan.activeNodeId) || base.activeNodeId,
     });
+  }
+
+  function buildPlanNodeOrigin(plan = {}) {
+    return {
+      type: "plan",
+      planId: trimText(plan?.id),
+      sourceId: trimText(plan?.source?.hookId || plan?.source?.type || plan?.id),
+      sourceLabel: trimText(plan?.source?.event || plan?.summary || plan?.title),
+      hookId: trimText(plan?.source?.hookId),
+    };
   }
 
   function applyTaskMapPlansToProjection({ projection = null, snapshot = null } = {}) {
@@ -430,7 +465,10 @@
       ));
       const nextQuest = plan.mode === "augment-default" && questIndex >= 0
         ? mergePlanIntoQuest(nextProjection.mainQuests[questIndex], plan)
-        : buildQuestFromGraphData(plan);
+        : buildQuestFromGraphData({
+          ...plan,
+          defaultNodeOrigin: buildPlanNodeOrigin(plan),
+        });
       if (!nextQuest) continue;
       if (questIndex >= 0) {
         nextProjection.mainQuests[questIndex] = nextQuest;
@@ -442,10 +480,77 @@
     return nextProjection;
   }
 
+  function collectSurfaceNodes({
+    projection = null,
+    rootSessionId = "",
+    sourceSessionId = "",
+    surfaceSlot = "",
+  } = {}) {
+    const normalizedSurfaceSlot = trimText(surfaceSlot).toLowerCase();
+    if (!projection || typeof projection !== "object" || !normalizedSurfaceSlot) return [];
+
+    const normalizedRootSessionId = trimText(rootSessionId);
+    const normalizedSourceSessionId = trimText(sourceSessionId);
+    const quests = Array.isArray(projection.mainQuests) ? projection.mainQuests : [];
+    const collectedNodes = [];
+    const seenNodeIds = new Set();
+
+    for (const quest of quests) {
+      if (
+        normalizedRootSessionId
+        && trimText(quest?.rootSessionId) !== normalizedRootSessionId
+      ) {
+        continue;
+      }
+      for (const node of Array.isArray(quest?.nodes) ? quest.nodes : []) {
+        const surfaceBindings = Array.isArray(node?.surfaceBindings)
+          ? node.surfaceBindings.map((value) => trimText(value).toLowerCase()).filter(Boolean)
+          : [];
+        const nodeInstanceApi = getNodeInstanceApi();
+        if (nodeInstanceApi?.hasSurfaceBinding) {
+          if (!nodeInstanceApi.hasSurfaceBinding(node, normalizedSurfaceSlot)) continue;
+        } else if (!surfaceBindings.includes(normalizedSurfaceSlot)) {
+          continue;
+        }
+        if (normalizedSourceSessionId) {
+          const candidateSourceSessionIds = [
+            trimText(node?.sourceSessionId),
+            trimText(node?.sessionId),
+          ].filter(Boolean);
+          if (
+            candidateSourceSessionIds.length > 0
+            && !candidateSourceSessionIds.includes(normalizedSourceSessionId)
+          ) {
+            continue;
+          }
+        }
+        if (seenNodeIds.has(node.id)) continue;
+        seenNodeIds.add(node.id);
+        if (nodeInstanceApi?.createNodeInstance) {
+          collectedNodes.push(nodeInstanceApi.createNodeInstance(node, {
+            questId: quest?.id,
+            origin: node?.origin || null,
+          }));
+        } else {
+          collectedNodes.push(withNodeKindEffect({
+            ...node,
+            capabilities: Array.isArray(node?.capabilities) ? [...node.capabilities] : [],
+            surfaceBindings: Array.isArray(node?.surfaceBindings) ? [...node.surfaceBindings] : [],
+            taskCardBindings: Array.isArray(node?.taskCardBindings) ? [...node.taskCardBindings] : [],
+            view: node?.view ? cloneJson(node.view) : null,
+          }));
+        }
+      }
+    }
+
+    return collectedNodes;
+  }
+
   window.MelodySyncTaskMapPlan = Object.freeze({
     normalizeTaskMapPlan,
     normalizeTaskMapPlans,
     buildQuestFromGraphData,
     applyTaskMapPlansToProjection,
+    collectSurfaceNodes,
   });
 })();

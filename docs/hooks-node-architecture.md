@@ -542,6 +542,11 @@ config/hooks/<hook-id>.json
 - backend 会在 `workbench snapshot` 里透出 `taskMapPlans`
 - frontend 会先生成 continuity 默认图，再由 `task-map-plan.js` 选择 `replace-default` 或 `augment-default`
 - 如果没有 plan，或者 plan 非法，前端继续回退到默认 continuity 投影
+- current backend 也已经有正式的 session-scoped 写入口：
+  - `GET /api/workbench/sessions/:id/task-map-plans`
+  - `POST /api/workbench/sessions/:id/task-map-plans`
+  - `DELETE /api/workbench/sessions/:id/task-map-plans/:planId`
+- 这条入口目前只允许 `manual/system` source，`hook` source 仍然必须走 hook producer + shared sync
 
 ### 7.5 右侧无限画布展示类型
 

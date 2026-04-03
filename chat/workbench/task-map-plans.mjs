@@ -4,9 +4,10 @@ import { writeJsonAtomic } from '../fs-utils.mjs';
 import {
   NODE_CAPABILITIES,
   NODE_SURFACE_SLOTS,
-  NODE_VIEW_TYPES,
+  NODE_TASK_CARD_BINDING_KEYS,
   isKnownNodeKind,
 } from './node-definitions.mjs';
+import { createNodeInstance } from './node-instance.mjs';
 import {
   canBuiltinHookProduceTaskMapPlan,
   getBuiltinHookDefinition,
@@ -16,8 +17,6 @@ import {
 const TASK_MAP_PLAN_MODES = Object.freeze(['replace-default', 'augment-default']);
 const TASK_MAP_EDGE_TYPES = Object.freeze(['structural', 'suggestion', 'completion', 'merge']);
 const TASK_MAP_PLAN_SOURCE_TYPES = Object.freeze(['manual', 'system', 'hook']);
-const TASK_MAP_HTML_RENDER_MODES = Object.freeze(['inline', 'iframe']);
-
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -38,44 +37,17 @@ function normalizePlanSourceType(value) {
 }
 
 function normalizeAllowedTokenList(values, allowlist) {
+  const allowlistMap = new Map(
+    (Array.isArray(allowlist) ? allowlist : []).map((value) => [trimText(value).toLowerCase(), value]),
+  );
   if (!Array.isArray(values) || values.length === 0) {
     return [];
   }
   const normalized = values
     .map((value) => trimText(value).toLowerCase())
-    .filter((value) => allowlist.includes(value));
+    .filter((value) => allowlistMap.has(value))
+    .map((value) => allowlistMap.get(value));
   return [...new Set(normalized)];
-}
-
-function normalizeDimension(value, { min = 120, max = 1280 } = {}) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return null;
-  const normalized = Math.round(numeric);
-  if (normalized < min || normalized > max) return null;
-  return normalized;
-}
-
-function normalizeNodeViewType(value) {
-  const normalized = trimText(value).toLowerCase();
-  return NODE_VIEW_TYPES.includes(normalized) ? normalized : 'flow-node';
-}
-
-function normalizeHtmlRenderMode(value) {
-  const normalized = trimText(value).toLowerCase();
-  return TASK_MAP_HTML_RENDER_MODES.includes(normalized) ? normalized : 'iframe';
-}
-
-function normalizeTaskMapPlanNodeView(view = {}) {
-  if (!view || typeof view !== 'object' || Array.isArray(view)) return null;
-  const type = normalizeNodeViewType(view.type);
-  return {
-    type,
-    renderMode: type === 'html' ? normalizeHtmlRenderMode(view.renderMode) : '',
-    content: typeof view.content === 'string' ? view.content : '',
-    src: trimText(view.src),
-    width: normalizeDimension(view.width, { min: 180, max: 1440 }),
-    height: normalizeDimension(view.height, { min: 120, max: 1200 }),
-  };
 }
 
 function eventMatchesHookPattern(eventId, eventPattern) {
@@ -121,19 +93,27 @@ function normalizeTaskMapPlanNode(node = {}, { existingNodeIds = new Set() } = {
   if (!id || existingNodeIds.has(id)) return null;
   const kind = trimText(node.kind).toLowerCase();
   if (!kind || !isKnownNodeKind(kind)) return null;
-  return {
-    id,
-    kind,
-    title: trimText(node.title || id),
-    summary: trimText(node.summary),
-    sessionId: trimText(node.sessionId),
-    sourceSessionId: trimText(node.sourceSessionId || node.sessionId),
-    parentNodeId: trimText(node.parentNodeId || node.parentId),
-    status: trimText(node.status).toLowerCase(),
-    lineRole: trimText(node.lineRole).toLowerCase(),
+  const normalizedNode = createNodeInstance({
+    ...node,
     capabilities: normalizeAllowedTokenList(node.capabilities, NODE_CAPABILITIES),
     surfaceBindings: normalizeAllowedTokenList(node.surfaceBindings, NODE_SURFACE_SLOTS),
-    view: normalizeTaskMapPlanNodeView(node.view),
+    taskCardBindings: normalizeAllowedTokenList(node.taskCardBindings, NODE_TASK_CARD_BINDING_KEYS),
+  });
+  if (!normalizedNode) return null;
+  return {
+    id: normalizedNode.id,
+    kind: normalizedNode.kind,
+    title: normalizedNode.title,
+    summary: normalizedNode.summary,
+    sessionId: normalizedNode.sessionId,
+    sourceSessionId: normalizedNode.sourceSessionId,
+    parentNodeId: normalizedNode.parentNodeId,
+    status: normalizedNode.status,
+    lineRole: normalizedNode.lineRole,
+    capabilities: [...normalizedNode.capabilities],
+    surfaceBindings: [...normalizedNode.surfaceBindings],
+    taskCardBindings: [...normalizedNode.taskCardBindings],
+    view: normalizedNode.view,
   };
 }
 

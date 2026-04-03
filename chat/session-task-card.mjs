@@ -241,7 +241,7 @@ function hasMeaningfulTaskCard(card) {
   );
 }
 
-export function normalizeSessionTaskCard(value) {
+export function normalizeSessionTaskCard(value, options = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
   const summary = clipText(value.summary || value.taskSummary || value.brief || '', MAX_TASK_CARD_TEXT_CHARS);
@@ -298,7 +298,9 @@ export function normalizeSessionTaskCard(value) {
     needsFromUser,
   };
 
-  normalized.candidateBranches = filterCandidateBranches(normalized, normalized.candidateBranches);
+  if (options?.preserveCandidateBranches !== true) {
+    normalized.candidateBranches = filterCandidateBranches(normalized, normalized.candidateBranches);
+  }
 
   return hasMeaningfulTaskCard(normalized) ? normalized : null;
 }

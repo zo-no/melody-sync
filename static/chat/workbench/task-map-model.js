@@ -54,6 +54,24 @@
       || null;
   }
 
+  function getGraphModelApi() {
+    return globalThis?.MelodySyncWorkbenchGraphModel
+      || globalThis?.window?.MelodySyncWorkbenchGraphModel
+      || null;
+  }
+
+  function getTaskMapClustersApi() {
+    return globalThis?.MelodySyncTaskMapClusters
+      || globalThis?.window?.MelodySyncTaskMapClusters
+      || null;
+  }
+
+  function getTaskMapMockPresetsApi() {
+    return globalThis?.MelodySyncTaskMapMockPresets
+      || globalThis?.window?.MelodySyncTaskMapMockPresets
+      || null;
+  }
+
   function getFallbackNodeKindEffect(kind) {
     switch (trimText(kind)) {
       case "main":
@@ -287,119 +305,6 @@
     );
   }
 
-  function createSessionOrderMap(sessions = []) {
-    return new Map(
-      (Array.isArray(sessions) ? sessions : [])
-        .filter((session) => session?.id)
-        .map((session, index) => [session.id, index]),
-    );
-  }
-
-  function createClusterKey(cluster) {
-    return trimText(cluster?.mainSessionId || cluster?.mainGoal || cluster?.mainSession?.name || "");
-  }
-
-  function buildSyntheticClusters(snapshot = {}, sessions = [], currentSessionId = "") {
-    const realClusters = Array.isArray(snapshot?.taskClusters) ? snapshot.taskClusters : [];
-    const sessionMap = createSessionMap(sessions);
-    const sessionOrderMap = createSessionOrderMap(sessions);
-    const consumedIds = new Set();
-    const consumedQuestKeys = new Set();
-    for (const cluster of realClusters) {
-      const clusterKey = createClusterKey(cluster);
-      if (clusterKey) consumedQuestKeys.add(clusterKey);
-      const mainSessionId = trimText(cluster?.mainSessionId || "");
-      if (mainSessionId) consumedIds.add(mainSessionId);
-      for (const branchSession of Array.isArray(cluster?.branchSessions) ? cluster.branchSessions : []) {
-        if (branchSession?.id) consumedIds.add(branchSession.id);
-      }
-    }
-
-    const branchChildren = new Map();
-    for (const session of Array.isArray(sessions) ? sessions : []) {
-      if (!session?.id || session?.archived) continue;
-      if (getLineRole(session) !== "branch") continue;
-      if (consumedIds.has(session.id)) continue;
-      const parentSessionId = trimText(session?.sourceContext?.parentSessionId || "");
-      if (!parentSessionId || !sessionMap.has(parentSessionId)) continue;
-      if (!branchChildren.has(parentSessionId)) {
-        branchChildren.set(parentSessionId, []);
-      }
-      branchChildren.get(parentSessionId).push(session);
-    }
-
-    function collectBranchSessions(parentSessionId, depth = 1, visited = new Set()) {
-      const children = [...(branchChildren.get(parentSessionId) || [])].sort((left, right) => {
-        const leftOrder = sessionOrderMap.get(left?.id) ?? Number.MAX_SAFE_INTEGER;
-        const rightOrder = sessionOrderMap.get(right?.id) ?? Number.MAX_SAFE_INTEGER;
-        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-
-        const leftCreated = getSessionCreatedTimestamp(left);
-        const rightCreated = getSessionCreatedTimestamp(right);
-        if (leftCreated !== rightCreated) return leftCreated - rightCreated;
-
-        return String(left?.id || "").localeCompare(String(right?.id || ""));
-      });
-      const results = [];
-      for (const child of children) {
-        if (!child?.id || visited.has(child.id)) continue;
-        visited.add(child.id);
-        results.push({
-          ...child,
-          _branchDepth: depth,
-          _branchParentSessionId: parentSessionId,
-          _branchStatus: getBranchStatus(child),
-        });
-        results.push(...collectBranchSessions(child.id, depth + 1, visited));
-      }
-      return results;
-    }
-
-    const clusters = [];
-    for (const session of Array.isArray(sessions) ? sessions : []) {
-      if (!session?.id || session?.archived) continue;
-      if (getLineRole(session) !== "main") continue;
-      if (consumedIds.has(session.id)) continue;
-      const questKey = trimText(session.id);
-      if (questKey && consumedQuestKeys.has(questKey)) continue;
-      clusters.push({
-        id: `synthetic:${session.id}`,
-        _isSynthetic: true,
-        mainSessionId: session.id,
-        mainSession: session,
-        mainGoal: trimText(session?.taskCard?.mainGoal || session?.taskCard?.goal || session?.name || "当前任务"),
-        currentBranchSessionId: "",
-        branchSessionIds: [],
-        branchSessions: collectBranchSessions(session.id),
-      });
-    }
-
-    return clusters;
-  }
-
-  function getClusterList(snapshot = {}, sessions = [], currentSessionId = "") {
-    const realClusters = Array.isArray(snapshot?.taskClusters) ? snapshot.taskClusters : [];
-    return [...realClusters, ...buildSyntheticClusters(snapshot, sessions, currentSessionId)];
-  }
-
-  function getBranchCurrentLineageSessionIds(cluster, currentBranchSessionId = "") {
-    const branchById = new Map(
-      (Array.isArray(cluster?.branchSessions) ? cluster.branchSessions : [])
-        .filter((entry) => entry?.id)
-        .map((entry) => [entry.id, entry]),
-    );
-    const rootSessionId = trimText(cluster?.mainSessionId || "");
-    const lineageIds = new Set();
-    let cursor = currentBranchSessionId ? (branchById.get(currentBranchSessionId) || null) : null;
-    while (cursor?.id && !lineageIds.has(cursor.id)) {
-      lineageIds.add(cursor.id);
-      const parentId = trimText(cursor?._branchParentSessionId || "");
-      if (!parentId || parentId === rootSessionId) break;
-      cursor = branchById.get(parentId) || null;
-    }
-    return lineageIds;
-  }
-
   function getCandidateKeysForSession(session) {
     return new Set([
       normalizeKey(getSessionTitle(session)),
@@ -410,23 +315,10 @@
     ].filter(Boolean));
   }
 
-  function sortChildSessions(childSessions, orderMap = new Map()) {
-    return [...childSessions].sort((left, right) => {
-      const leftOrder = orderMap.get(left?.id) ?? Number.MAX_SAFE_INTEGER;
-      const rightOrder = orderMap.get(right?.id) ?? Number.MAX_SAFE_INTEGER;
-      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-
-      const leftCreated = getSessionCreatedTimestamp(left);
-      const rightCreated = getSessionCreatedTimestamp(right);
-      if (leftCreated !== rightCreated) return leftCreated - rightCreated;
-
-      return String(left?.id || "").localeCompare(String(right?.id || ""));
-    });
-  }
-
   function buildTaskMapProjection({ snapshot = {}, sessions = [], currentSessionId = "", focusedSessionId = "" } = {}) {
     const sessionMap = createSessionMap(sessions);
-    const clusters = getClusterList(snapshot, sessions, currentSessionId);
+    const clusters = getTaskMapClustersApi()?.getClusterList?.(snapshot, sessions, currentSessionId)
+      || [];
     // Index branchContexts by sessionId for O(1) lookup
     const branchContextBySessionId = new Map(
       (Array.isArray(snapshot?.branchContexts) ? snapshot.branchContexts : [])
@@ -458,7 +350,8 @@
       const activeNodeId = resolvedActiveSessionId === rootSession.id
         ? rootNodeId
         : `session:${resolvedActiveSessionId}`;
-      const currentLineageIds = getBranchCurrentLineageSessionIds(cluster, resolvedCurrentBranchSessionId);
+      const currentLineageIds = getTaskMapClustersApi()?.getBranchCurrentLineageSessionIds?.(cluster, resolvedCurrentBranchSessionId)
+        || new Set();
       const branchSessions = Array.isArray(cluster?.branchSessions)
         ? cluster.branchSessions.filter((entry) => entry?.id)
         : [];
@@ -473,40 +366,51 @@
         childrenByParent.get(resolvedParentId).push(branchSession);
       }
       for (const [parentId, children] of childrenByParent.entries()) {
-        childrenByParent.set(parentId, sortChildSessions(children, branchOrderMap));
+        childrenByParent.set(parentId, getTaskMapClustersApi()?.sortChildSessions?.(children, branchOrderMap) || [...children]);
       }
 
-      const nodes = [];
-      const nodeById = new Map();
-      const edges = [];
+      const graphModel = getGraphModelApi();
+      const graphCollections = graphModel?.createQuestGraphCollections?.({ questId });
+      const nodes = graphCollections?.nodes || [];
+      const nodeById = graphCollections?.nodeById || new Map();
+      const edges = graphCollections?.edges || [];
 
       function addNode(node) {
-        const nextNode = withNodeKindEffect({
+        if (!graphCollections || !graphModel) {
+          const nextNode = withNodeKindEffect({
+            childNodeIds: [],
+            candidateNodeIds: [],
+            isCurrent: false,
+            isCurrentPath: false,
+            ...node,
+          });
+          nodes.push(nextNode);
+          nodeById.set(nextNode.id, nextNode);
+          if (nextNode.parentNodeId) {
+            const parentNode = nodeById.get(nextNode.parentNodeId);
+            if (parentNode) {
+              parentNode.childNodeIds.push(nextNode.id);
+              if (shouldTrackCandidateChild(nextNode)) {
+                parentNode.candidateNodeIds.push(nextNode.id);
+              }
+              edges.push({
+                id: `edge:${parentNode.id}:${nextNode.id}`,
+                questId,
+                fromNodeId: parentNode.id,
+                toNodeId: nextNode.id,
+                type: nextNode?.kindEffect?.edgeVariant || "structural",
+              });
+            }
+          }
+          return nextNode;
+        }
+        return graphModel.appendGraphNode(graphCollections, {
           childNodeIds: [],
           candidateNodeIds: [],
           isCurrent: false,
           isCurrentPath: false,
           ...node,
         });
-        nodes.push(nextNode);
-        nodeById.set(nextNode.id, nextNode);
-        if (nextNode.parentNodeId) {
-          const parentNode = nodeById.get(nextNode.parentNodeId);
-          if (parentNode) {
-            parentNode.childNodeIds.push(nextNode.id);
-            if (shouldTrackCandidateChild(nextNode)) {
-              parentNode.candidateNodeIds.push(nextNode.id);
-            }
-            edges.push({
-              id: `edge:${parentNode.id}:${nextNode.id}`,
-              questId,
-              fromNodeId: parentNode.id,
-              toNodeId: nextNode.id,
-              type: nextNode?.kindEffect?.edgeVariant || "structural",
-            });
-          }
-        }
-        return nextNode;
       }
 
       addNode({
@@ -623,22 +527,37 @@
         72,
       );
       const activeNode = nodeById.get(activeNodeId) || nodeById.get(rootNodeId) || null;
-      const questCounts = buildQuestNodeCounts(nodes);
-
-      quests.push({
-        id: questId,
-        rootSessionId: rootSession.id,
-        title: questTitle,
-        summary: getNodeSummary(rootSession),
-        currentNodeId: activeNode?.id || rootNodeId,
-        currentNodeTitle: activeNode?.title || getSessionTitle(rootSession),
-        currentPathNodeIds: nodes.filter((node) => node.isCurrent || node.isCurrentPath).map((node) => node.id),
-        nodeIds: nodes.map((node) => node.id),
-        edgeIds: edges.map((edge) => edge.id),
-        nodes,
-        edges,
-        counts: questCounts,
-      });
+      const currentPathNodeIds = nodes
+        .filter((node) => node.isCurrent || node.isCurrentPath)
+        .map((node) => node.id);
+      if (graphModel && graphCollections) {
+        quests.push(graphModel.buildQuestGraphSnapshot({
+          collections: graphCollections,
+          questId,
+          rootSessionId: rootSession.id,
+          title: questTitle,
+          summary: getNodeSummary(rootSession),
+          currentNodeId: activeNode?.id || rootNodeId,
+          currentNodeTitle: activeNode?.title || getSessionTitle(rootSession),
+          currentPathNodeIds,
+        }));
+      } else {
+        const questCounts = buildQuestNodeCounts(nodes);
+        quests.push({
+          id: questId,
+          rootSessionId: rootSession.id,
+          title: questTitle,
+          summary: getNodeSummary(rootSession),
+          currentNodeId: activeNode?.id || rootNodeId,
+          currentNodeTitle: activeNode?.title || getSessionTitle(rootSession),
+          currentPathNodeIds,
+          nodeIds: nodes.map((node) => node.id),
+          edgeIds: edges.map((edge) => edge.id),
+          nodes,
+          edges,
+          counts: questCounts,
+        });
+      }
     }
 
     const planAdjustedProjection = getTaskMapPlanApi()?.applyTaskMapPlansToProjection?.({
@@ -656,177 +575,8 @@
     };
   }
 
-  function normalizeMockPresetName(value) {
-    const normalized = normalizeKey(value);
-    if (!normalized) return "";
-    if (["demo", "branch-demo", "cinema", "movie", "movie-study"].includes(normalized)) {
-      return "cinema";
-    }
-    return "";
-  }
-
-  function recalculateQuestCounts(quest) {
-    quest.counts = {
-      ...quest.counts,
-      ...buildQuestNodeCounts(quest.nodes),
-    };
-  }
-
-  function applyCinemaMockPreset(projection) {
-    const cloned = cloneJson(projection);
-    const activeQuest = cloned?.mainQuests?.find((quest) => quest.id === cloned.activeMainQuestId)
-      || cloned?.mainQuests?.[0]
-      || null;
-    if (!activeQuest) return cloned;
-
-    if (activeQuest.nodes.some((node) => String(node?.id || "").startsWith("mock:cinema:"))) {
-      cloned.activeMainQuest = activeQuest;
-      cloned.activeNode = activeQuest.nodes.find((node) => node.id === cloned.activeNodeId) || cloned.activeNode || null;
-      return cloned;
-    }
-
-    const nodeById = new Map(activeQuest.nodes.filter((node) => node?.id).map((node) => [node.id, node]));
-    const rootNodeId = `session:${activeQuest.rootSessionId || ""}`;
-    const rootNode = nodeById.get(rootNodeId);
-    if (!rootNode) return cloned;
-
-    function appendNode(node) {
-      const nextNode = withNodeKindEffect({
-        childNodeIds: [],
-        candidateNodeIds: [],
-        isCurrent: false,
-        isCurrentPath: false,
-        ...node,
-      });
-      activeQuest.nodes.push(nextNode);
-      activeQuest.nodeIds.push(nextNode.id);
-      nodeById.set(nextNode.id, nextNode);
-      if (nextNode.parentNodeId) {
-        const parentNode = nodeById.get(nextNode.parentNodeId);
-        if (parentNode) {
-          parentNode.childNodeIds = Array.isArray(parentNode.childNodeIds) ? parentNode.childNodeIds : [];
-          parentNode.candidateNodeIds = Array.isArray(parentNode.candidateNodeIds) ? parentNode.candidateNodeIds : [];
-          parentNode.childNodeIds.push(nextNode.id);
-          if (shouldTrackCandidateChild(nextNode)) {
-            parentNode.candidateNodeIds.push(nextNode.id);
-          }
-        }
-      }
-      return nextNode;
-    }
-
-    appendNode({
-      id: "mock:cinema:branch:visual-style",
-      questId: activeQuest.id,
-      kind: "branch",
-      lineRole: "branch",
-      sessionId: "",
-      sourceSessionId: activeQuest.rootSessionId,
-      parentNodeId: rootNodeId,
-      depth: 1,
-      title: "视觉风格线",
-      summary: "单独研究风格谱系与代表作品",
-      status: "active",
-    });
-
-    appendNode({
-      id: "mock:cinema:branch:expressionism",
-      questId: activeQuest.id,
-      kind: "branch",
-      lineRole: "branch",
-      sessionId: "",
-      sourceSessionId: activeQuest.rootSessionId,
-      parentNodeId: "mock:cinema:branch:visual-style",
-      depth: 2,
-      title: "德国表现主义",
-      summary: "聚焦布景、光影和美术影响",
-      status: "parked",
-    });
-
-    appendNode({
-      id: "mock:cinema:branch:new-wave",
-      questId: activeQuest.id,
-      kind: "branch",
-      lineRole: "branch",
-      sessionId: "",
-      sourceSessionId: activeQuest.rootSessionId,
-      parentNodeId: "mock:cinema:branch:visual-style",
-      depth: 2,
-      title: "法国新浪潮",
-      summary: "拆作者论、跳切和代表导演",
-      status: "parked",
-    });
-
-    appendNode({
-      id: "mock:cinema:candidate:film-list",
-      questId: activeQuest.id,
-      kind: "candidate",
-      lineRole: "candidate",
-      sessionId: "",
-      sourceSessionId: activeQuest.rootSessionId,
-      parentNodeId: rootNodeId,
-      depth: 1,
-      title: "生成 12 周片单",
-      summary: "建议拆成独立支线",
-      status: "candidate",
-    });
-
-    appendNode({
-      id: "mock:cinema:candidate:asia-line",
-      questId: activeQuest.id,
-      kind: "candidate",
-      lineRole: "candidate",
-      sessionId: "",
-      sourceSessionId: activeQuest.rootSessionId,
-      parentNodeId: rootNodeId,
-      depth: 1,
-      title: "按亚洲线重排",
-      summary: "建议拆成独立支线",
-      status: "candidate",
-    });
-
-    appendNode({
-      id: "mock:cinema:candidate:noir",
-      questId: activeQuest.id,
-      kind: "candidate",
-      lineRole: "candidate",
-      sessionId: "",
-      sourceSessionId: activeQuest.rootSessionId,
-      parentNodeId: "mock:cinema:branch:visual-style",
-      depth: 2,
-      title: "黑色电影",
-      summary: "建议拆成独立支线",
-      status: "candidate",
-    });
-
-    recalculateQuestCounts(activeQuest);
-    activeQuest.edgeIds = Array.isArray(activeQuest.edgeIds) ? activeQuest.edgeIds : [];
-    activeQuest.edges = Array.isArray(activeQuest.edges) ? activeQuest.edges : [];
-    for (const node of activeQuest.nodes) {
-      if (!node?.parentNodeId) continue;
-      const edgeId = `edge:${node.parentNodeId}:${node.id}`;
-      if (activeQuest.edgeIds.includes(edgeId)) continue;
-      activeQuest.edgeIds.push(edgeId);
-      activeQuest.edges.push({
-        id: edgeId,
-        questId: activeQuest.id,
-        fromNodeId: node.parentNodeId,
-        toNodeId: node.id,
-        type: node?.kindEffect?.edgeVariant || "structural",
-      });
-    }
-    cloned.activeMainQuest = activeQuest;
-    cloned.activeNode = activeQuest.nodes.find((node) => node.id === cloned.activeNodeId) || cloned.activeNode || null;
-    return cloned;
-  }
-
   function applyTaskMapMockPreset(projection, preset) {
-    const normalizedPreset = normalizeMockPresetName(preset);
-    if (!normalizedPreset || !projection || typeof projection !== "object") return projection;
-    if (normalizedPreset === "cinema") {
-      return applyCinemaMockPreset(projection);
-    }
-    return projection;
+    return getTaskMapMockPresetsApi()?.applyTaskMapMockPreset?.(projection, preset) || projection;
   }
 
   window.MelodySyncTaskMapModel = {

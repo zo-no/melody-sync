@@ -10,6 +10,7 @@
       ...effect,
       capabilities: Object.freeze(Array.isArray(effect?.capabilities) ? [...new Set(effect.capabilities)] : []),
       surfaceBindings: Object.freeze(Array.isArray(effect?.surfaceBindings) ? [...new Set(effect.surfaceBindings)] : ["task-map"]),
+      taskCardBindings: Object.freeze(Array.isArray(effect?.taskCardBindings) ? [...new Set(effect.taskCardBindings)] : []),
       countsAs: Object.freeze({
         sessionNode: effect?.countsAs?.sessionNode === true,
         branch: effect?.countsAs?.branch === true,
@@ -32,6 +33,7 @@
       defaultViewType: "flow-node",
       capabilities: ["open-session"],
       surfaceBindings: ["task-map"],
+      taskCardBindings: ["mainGoal"],
       countsAs: {
         sessionNode: true,
         branch: false,
@@ -51,6 +53,7 @@
       defaultViewType: "flow-node",
       capabilities: ["open-session"],
       surfaceBindings: ["task-map"],
+      taskCardBindings: ["goal"],
       countsAs: {
         sessionNode: true,
         branch: true,
@@ -70,6 +73,7 @@
       defaultViewType: "flow-node",
       capabilities: ["create-branch", "dismiss"],
       surfaceBindings: ["task-map", "composer-suggestions"],
+      taskCardBindings: ["candidateBranches"],
       countsAs: {
         sessionNode: false,
         branch: false,
@@ -89,6 +93,7 @@
       defaultViewType: "flow-node",
       capabilities: [],
       surfaceBindings: ["task-map"],
+      taskCardBindings: [],
       countsAs: {
         sessionNode: true,
         branch: false,
@@ -135,6 +140,9 @@
       surfaceBindings: Array.isArray(composition.surfaceBindings)
         ? composition.surfaceBindings.map((value) => trimText(value).toLowerCase()).filter(Boolean)
         : (kind === "candidate" ? ["task-map", "composer-suggestions"] : ["task-map"]),
+      taskCardBindings: Array.isArray(composition.taskCardBindings)
+        ? composition.taskCardBindings.map((value) => trimText(value)).filter(Boolean)
+        : (kind === "candidate" ? ["candidateBranches"] : (kind === "main" ? ["mainGoal"] : (kind === "branch" ? ["goal"] : []))),
       countsAs: {
         sessionNode: composition?.countsAs?.sessionNode === true || sessionBacked,
         branch: composition?.countsAs?.branch === true,
@@ -187,10 +195,14 @@
   }
 
   function normalizeAllowedTokenList(values, allowlist, fallback = []) {
+    const allowlistMap = new Map(
+      (Array.isArray(allowlist) ? allowlist : []).map((value) => [trimText(value).toLowerCase(), value]),
+    );
     if (!Array.isArray(values) || values.length === 0) return [...fallback];
     const normalized = values
       .map((value) => trimText(value).toLowerCase())
-      .filter((value) => allowlist.includes(value));
+      .filter((value) => allowlistMap.has(value))
+      .map((value) => allowlistMap.get(value));
     return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
   }
 
@@ -238,6 +250,18 @@
       );
     }
     return [...(effect?.surfaceBindings || ["task-map"])];
+  }
+
+  function getNodeTaskCardBindings(nodeOrKind, definitionOverride = null) {
+    const effect = getNodeEffect(nodeOrKind, definitionOverride);
+    if (nodeOrKind && typeof nodeOrKind === "object") {
+      return normalizeAllowedTokenList(
+        nodeOrKind.taskCardBindings,
+        ["mainGoal", "goal", "candidateBranches", "summary", "checkpoint", "nextSteps"],
+        effect?.taskCardBindings || [],
+      );
+    }
+    return [...(effect?.taskCardBindings || [])];
   }
 
   function getNodeView(nodeOrKind, definitionOverride = null) {
@@ -330,6 +354,7 @@
     shouldTrackCandidateChild,
     getNodeCapabilities,
     getNodeSurfaceBindings,
+    getNodeTaskCardBindings,
     getNodeView,
     buildQuestNodeCounts,
     getNodeMetaLabel,
