@@ -47,7 +47,7 @@
 }
 
 .task-map-rail.has-node-canvas {
-  grid-template-rows: minmax(0, 1fr) minmax(220px, 42%);
+  grid-template-rows: minmax(0, 1fr) minmax(176px, 32%);
 }
 
 .task-map-rail[hidden] {

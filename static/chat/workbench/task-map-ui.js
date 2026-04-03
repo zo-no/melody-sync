@@ -127,12 +127,11 @@
       return {
         nodeWidth: mobile ? 152 : 176,
         rootWidth: mobile ? 176 : 208,
-        panelWidth: mobile ? 276 : 360,
+        richNodeWidth: mobile ? 166 : 192,
         nodeHeight: mobile ? 88 : 96,
         rootHeight: mobile ? 98 : 112,
         candidateHeight: mobile ? 108 : 120,
-        panelHeight: mobile ? 196 : 256,
-        iframeHeight: mobile ? 220 : 280,
+        richNodeHeight: mobile ? 108 : 124,
         levelGap: mobile ? 98 : 116,
         siblingGap: mobile ? 18 : 20,
         paddingX: mobile ? 144 : 220,
@@ -150,16 +149,13 @@
 
     function getProjectedTaskFlowNodeWidth(node, metrics) {
       const nodeView = getNodeView(node);
-      if (Number.isFinite(nodeView?.width) && nodeView.width > 0) return nodeView.width;
-      if (nodeView?.type && nodeView.type !== "flow-node") return metrics.panelWidth;
+      if (nodeView?.type && nodeView.type !== "flow-node") return metrics.richNodeWidth;
       return node?.parentNodeId ? metrics.nodeWidth : metrics.rootWidth;
     }
 
     function getProjectedTaskFlowNodeHeight(node, metrics) {
       const nodeView = getNodeView(node);
-      if (Number.isFinite(nodeView?.height) && nodeView.height > 0) return nodeView.height;
-      if (nodeView?.type === "iframe") return metrics.iframeHeight;
-      if (nodeView?.type && nodeView.type !== "flow-node") return metrics.panelHeight;
+      if (nodeView?.type && nodeView.type !== "flow-node") return metrics.richNodeHeight;
       if (!node?.parentNodeId) return metrics.rootHeight;
       if (getNodeLayoutVariant(node) === "compact") return metrics.candidateHeight;
       return metrics.nodeHeight;

@@ -15,6 +15,7 @@
   const taskCanvasTitleEl = document.getElementById("taskCanvasTitle");
   const taskCanvasSummaryEl = document.getElementById("taskCanvasSummary");
   const taskCanvasBodyEl = document.getElementById("taskCanvasBody");
+  const taskCanvasExpandBtn = document.getElementById("taskCanvasExpandBtn");
   const taskCanvasCloseBtn = document.getElementById("taskCanvasCloseBtn");
   const taskMapDrawerBtn = document.getElementById("taskMapDrawerBtn");
   const taskMapDrawerBackdrop = document.getElementById("taskMapDrawerBackdrop");
@@ -276,16 +277,20 @@
     renderDetail() {},
   };
   taskCanvasController = window.MelodySyncWorkbenchNodeCanvasUi?.createController?.({
+    railContainerEl: taskMapRail,
     railEl: taskCanvasPanel,
+    headerEl: taskCanvasPanel?.querySelector?.(".task-canvas-panel-header") || null,
     titleEl: taskCanvasTitleEl,
     summaryEl: taskCanvasSummaryEl,
     bodyEl: taskCanvasBodyEl,
+    expandBtn: taskCanvasExpandBtn,
     closeBtn: taskCanvasCloseBtn,
     onClose: () => clearTaskCanvasNode({ render: true }),
   }) || {
     renderNode() { return false; },
     clear() {},
     isOpen() { return false; },
+    isExpanded() { return false; },
     hasCanvasView: hasTaskCanvasView,
   };
   taskMapFlowRenderer = window.MelodySyncTaskMapUi?.createRenderer?.({

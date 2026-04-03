@@ -41,7 +41,7 @@ body::before {
 @media (min-width: 768px) {
   :root {
     --sidebar-width: 288px;
-    --task-map-width: clamp(360px, 28vw, 460px);
+    --task-map-width: clamp(320px, 24vw, 420px);
     --workspace-max-width: min(980px, 100%);
   }
 
@@ -193,7 +193,7 @@ body::before {
   }
 
   .task-map-rail.has-node-canvas {
-    grid-template-rows: minmax(0, 1fr) minmax(240px, 38%);
+    grid-template-rows: minmax(0, 1fr) minmax(184px, 30%);
   }
 
   .task-map-rail.is-collapsed .quest-task-list {
@@ -276,7 +276,7 @@ body::before {
 
 @media (min-width: 1280px) {
   :root {
-    --task-map-width: clamp(380px, 29vw, 520px);
+    --task-map-width: clamp(340px, 24vw, 456px);
   }
 }
 
@@ -571,7 +571,7 @@ body.workbench-has-session #emptyState {
   }
 
   .task-map-rail.has-node-canvas {
-    grid-template-rows: minmax(0, 1fr) minmax(220px, 34vh);
+    grid-template-rows: minmax(0, 1fr) minmax(160px, 28vh);
   }
 }
 

@@ -160,4 +160,18 @@ assert.equal(markdownView.content, '# 复盘');
 assert.equal(markdownView.width, 420);
 assert.equal(markdownView.height, 280);
 
+assert.equal(
+  bootstrapContext.MelodySyncWorkbenchNodeEffects.getNodeMetaLabel({
+    id: 'review-node',
+    kind: 'review',
+    parentNodeId: 'session:main-1',
+    view: {
+      type: 'markdown',
+      content: '# 复盘',
+    },
+  }),
+  '画布',
+  'custom rich-view nodes should expose a neutral canvas badge instead of falling back to branch status labels',
+);
+
 console.log('test-workbench-node-effects: ok');

@@ -57,6 +57,18 @@ function makeElement(tagName = 'div') {
     innerHTML: '',
     title: '',
     children: [],
+    style: {
+      _values: new Map(),
+      setProperty(name, value) {
+        this._values.set(name, String(value));
+      },
+      removeProperty(name) {
+        this._values.delete(name);
+      },
+      getPropertyValue(name) {
+        return this._values.get(name) || '';
+      },
+    },
     classList: makeClassList(),
     appendChild(child) {
       this.children.push(child);
@@ -66,11 +78,14 @@ function makeElement(tagName = 'div') {
       if (!listeners.has(type)) listeners.set(type, []);
       listeners.get(type).push(listener);
     },
-    click() {
-      const handlers = listeners.get('click') || [];
+    trigger(type, event = {}) {
+      const handlers = listeners.get(type) || [];
       for (const handler of handlers) {
-        handler({ preventDefault() {}, stopPropagation() {}, currentTarget: this, target: this });
+        handler(event);
       }
+    },
+    click() {
+      this.trigger('click', { preventDefault() {}, stopPropagation() {}, currentTarget: this, target: this });
     },
     setAttribute(name, value) {
       this[name] = String(value);
@@ -78,14 +93,32 @@ function makeElement(tagName = 'div') {
   };
 }
 
+function makeEventTarget() {
+  const listeners = new Map();
+  return {
+    addEventListener(type, listener) {
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type).push(listener);
+    },
+    trigger(type, event = {}) {
+      const handlers = listeners.get(type) || [];
+      for (const handler of handlers) {
+        handler(event);
+      }
+    },
+  };
+}
+
 const context = {
   console,
   document: {
+    ...makeEventTarget(),
     createElement(tagName) {
       return makeElement(tagName);
     },
   },
   window: {
+    ...makeEventTarget(),
     marked: {
       parse(value) {
         return `<p>${String(value || '').trim()}</p>`;
@@ -100,17 +133,23 @@ vm.runInNewContext(richViewSource, context, { filename: 'workbench/node-rich-vie
 vm.runInNewContext(canvasSource, context, { filename: 'workbench/node-canvas-ui.js' });
 
 const railEl = makeElement('section');
+const railContainerEl = makeElement('aside');
+const headerEl = makeElement('div');
 const titleEl = makeElement('div');
 const summaryEl = makeElement('div');
 const bodyEl = makeElement('div');
+const expandBtn = makeElement('button');
 const closeBtn = makeElement('button');
 let closed = 0;
 
 const controller = context.window.MelodySyncWorkbenchNodeCanvasUi.createController({
+  railContainerEl,
   railEl,
+  headerEl,
   titleEl,
   summaryEl,
   bodyEl,
+  expandBtn,
   closeBtn,
   documentRef: context.document,
   windowRef: context.window,
@@ -139,6 +178,25 @@ assert.equal(summaryEl.textContent, '让 rich view 真正显示在右侧 node ca
 assert.equal(bodyEl.children.length, 1);
 assert.equal(bodyEl.children[0].className, 'quest-task-flow-node-rich quest-task-flow-node-rich-markdown');
 assert.equal(bodyEl.children[0].children[0].innerHTML, '<p>## 目标节点</p>');
+
+expandBtn.click();
+assert.equal(controller.isExpanded(), true, 'expand button should switch the node canvas into expanded mode');
+assert.equal(railEl.classList.contains('is-expanded'), true);
+assert.equal(railContainerEl.classList.contains('is-canvas-expanded'), true);
+assert.equal(expandBtn.textContent, '收起');
+
+headerEl.trigger('mousedown', { clientX: 10, clientY: 20, target: headerEl });
+context.window.trigger('mousemove', { clientX: 46, clientY: 74 });
+context.window.trigger('mouseup', {});
+assert.equal(railEl.style.getPropertyValue('--task-canvas-drag-x'), '36px');
+assert.equal(railEl.style.getPropertyValue('--task-canvas-drag-y'), '54px');
+
+expandBtn.click();
+assert.equal(controller.isExpanded(), false, 'expand button should collapse the expanded node canvas back into the rail');
+assert.equal(railEl.classList.contains('is-expanded'), false);
+assert.equal(railContainerEl.classList.contains('is-canvas-expanded'), false);
+assert.equal(railEl.style.getPropertyValue('--task-canvas-drag-x'), '');
+assert.equal(railEl.style.getPropertyValue('--task-canvas-drag-y'), '');
 
 closeBtn.click();
 assert.equal(controller.isOpen(), false, 'closing should hide the node canvas rail');

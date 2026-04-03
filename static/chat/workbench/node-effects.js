@@ -123,6 +123,7 @@
       : {};
     const defaultViewType = trimText(composition.defaultViewType || "") || "flow-node";
     const defaultInteraction = trimText(composition.defaultInteraction || "") || (sessionBacked ? "open-session" : "none");
+    const isCanvasView = defaultViewType !== "flow-node";
     return {
       kind,
       layoutVariant: trimText(composition.layoutVariant || "") || (derived ? "compact" : "default"),
@@ -130,7 +131,7 @@
       interaction: defaultInteraction,
       actionLabel: "",
       trackAsCandidateChild: false,
-      metaVariant: sessionBacked ? "branch-status" : "",
+      metaVariant: sessionBacked ? "branch-status" : (isCanvasView ? "canvas-view" : ""),
       defaultSummary: "",
       fallbackSummary: "",
       defaultViewType,
@@ -317,11 +318,16 @@
     if (!trimText(node?.parentNodeId || "")) {
       return "进行中";
     }
+    if (getNodeView(node)?.type !== "flow-node") {
+      return "画布";
+    }
     switch (effect?.metaVariant) {
       case "candidate":
         return "可选";
       case "done":
         return "已收束";
+      case "canvas-view":
+        return "画布";
       case "branch-status":
         return trimText(getBranchStatusUi(node?.status)?.label || "") || "进行中";
       default:
