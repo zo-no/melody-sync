@@ -483,6 +483,10 @@ async function main() {
     assert.ok(stateModelAsset.headers.etag, 'session state model asset should expose an ETag');
     assert.match(stateModelAsset.text, /MelodySyncSessionStateModel/);
 
+    const sessionListOrderContractAsset = await request(port, 'GET', '/chat/session-list-order-contract.js');
+    assert.equal(sessionListOrderContractAsset.status, 200, 'session list order contract asset should load');
+    assert.match(sessionListOrderContractAsset.text, /SESSION_LIST_ORDER_SOURCE_DEFINITIONS/);
+
     const layoutToolingAsset = await request(port, 'GET', '/chat/layout-tooling.js');
     assert.equal(layoutToolingAsset.status, 200, 'layout tooling asset should load');
     assert.match(layoutToolingAsset.text, /document\.documentElement\.style\.setProperty\("--app-height"/);
@@ -518,6 +522,11 @@ async function main() {
     assert.equal(sessionListModelAsset.status, 200, 'session list model asset should load');
     assert.match(sessionListModelAsset.text, /MelodySyncSessionListModel/);
     assert.match(sessionListModelAsset.text, /function getSessionGroupInfo\(/);
+
+    const sessionListContractAsset = await request(port, 'GET', '/chat/session-list-contract.js');
+    assert.equal(sessionListContractAsset.status, 200, 'session list contract asset should load');
+    assert.match(sessionListContractAsset.text, /MelodySyncSessionListContract/);
+    assert.match(sessionListContractAsset.text, /SESSION_LIST_AI_MUTABLE_FIELD_DEFINITIONS/);
 
     const sessionListUiAsset = await request(port, 'GET', '/chat/session-list-ui.js');
     assert.equal(sessionListUiAsset.status, 200, 'session list ui asset should load');
@@ -573,21 +582,78 @@ async function main() {
     const hooksApiJson = JSON.parse(hooksApi.text);
     assert.deepEqual(
       hooksApiJson.events,
-      ['session.created', 'run.started', 'run.completed', 'run.failed'],
+      [
+        'instance.first_boot',
+        'instance.startup',
+        'instance.resume',
+        'session.created',
+        'session.first_user_message',
+        'run.started',
+        'run.completed',
+        'run.failed',
+        'branch.suggested',
+        'branch.opened',
+        'branch.merged',
+      ],
       'hooks api should expose the supported lifecycle events',
     );
     assert.deepEqual(
       hooksApiJson.eventDefinitions?.map((definition) => definition.id),
-      ['session.created', 'run.started', 'run.completed', 'run.failed'],
+      [
+        'instance.first_boot',
+        'instance.startup',
+        'instance.resume',
+        'session.created',
+        'session.first_user_message',
+        'run.started',
+        'run.completed',
+        'run.failed',
+        'branch.suggested',
+        'branch.opened',
+        'branch.merged',
+      ],
       'hooks api should expose the canonical lifecycle event definitions',
     );
-    assert.equal(hooksApiJson.eventDefinitions?.[2]?.label, 'Run 完成后');
+    assert.equal(hooksApiJson.settings?.persistence, 'file');
+    assert.match(hooksApiJson.settings?.storagePath || '', /hooks\.json$/);
+    assert.deepEqual(
+      hooksApiJson.layerOrder,
+      ['boot', 'lifecycle', 'delivery', 'other'],
+      'hooks api should expose the canonical hook layer order',
+    );
+    assert.deepEqual(
+      hooksApiJson.layerDefinitions?.map((definition) => definition.id),
+      ['boot', 'lifecycle', 'delivery', 'other'],
+      'hooks api should expose hook layer definitions for the settings UI',
+    );
+    assert.deepEqual(
+      hooksApiJson.uiTargetDefinitions?.map((definition) => definition.id),
+      [
+        'session_stream',
+        'task_status_strip',
+        'task_action_panel',
+        'task_map',
+        'task_list_rows',
+        'task_list_badges',
+        'composer_assist',
+        'workspace_notices',
+        'settings_panels',
+      ],
+      'hooks api should expose the full UI surface contract for the settings panel',
+    );
+    assert.equal(
+      hooksApiJson.eventDefinitions?.find((definition) => definition.id === 'run.completed')?.label,
+      'Run 完成后',
+    );
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.layer, 'boot');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.layer, 'delivery');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.layer, 'lifecycle');
     const hookIds = hooksApiJson.hooks.map((hook) => hook.id);
     for (const expectedHookId of [
+      'builtin.first-boot-memory',
+      'builtin.resume-completion-targets',
       'builtin.push-notification',
       'builtin.email-completion',
-      'builtin.workbench-sync',
-      'builtin.workbench-sync-on-fail',
       'builtin.branch-candidates',
       'builtin.session-naming',
     ]) {

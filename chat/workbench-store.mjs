@@ -43,6 +43,7 @@ import {
   pathExists,
   writeTextAtomic,
 } from './fs-utils.mjs';
+import { emit as emitHook } from './session-hook-registry.mjs';
 
 export { getWorkbenchSnapshot, getWorkbenchTrackerSnapshot } from './workbench/continuity-store.mjs';
 export { getSessionOperationRecords } from './workbench/operation-records.mjs';
@@ -853,8 +854,18 @@ export async function createBranchFromNode(nodeId, payload = {}) {
       });
     }
 
+    const resolvedBranchSession = seededBranchSession || await getWorkbenchSession(branchSession.id) || branchSession;
+    await emitHook('branch.opened', {
+      sessionId: resolvedBranchSession.id,
+      session: resolvedBranchSession,
+      parentSessionId: sourceSession.id,
+      parentSession: sourceSession,
+      branchContext,
+      manifest: null,
+    });
+
     return {
-      session: seededBranchSession || await getWorkbenchSession(branchSession.id) || branchSession,
+      session: resolvedBranchSession,
       branchContext,
     };
   });
@@ -966,8 +977,18 @@ export async function createBranchFromSession(sessionId, payload = {}) {
       branchFrom: parentNode.title,
     });
 
+    const resolvedBranchSession = seededBranchSession || await getWorkbenchSession(branchSession.id) || branchSession;
+    await emitHook('branch.opened', {
+      sessionId: resolvedBranchSession.id,
+      session: resolvedBranchSession,
+      parentSessionId: sourceSession.id,
+      parentSession: sourceSession,
+      branchContext,
+      manifest: null,
+    });
+
     return {
-      session: seededBranchSession || await getWorkbenchSession(branchSession.id) || branchSession,
+      session: resolvedBranchSession,
       branchContext,
     };
   });
@@ -1053,8 +1074,26 @@ export async function mergeBranchSessionBackToMain(sessionId, payload = {}) {
 
     await saveState(state);
 
+    const resolvedParentSession = await getWorkbenchSession(parentSessionId) || updatedParentSession;
+    await emitHook('branch.merged', {
+      sessionId: resolvedParentSession.id,
+      session: resolvedParentSession,
+      parentSessionId,
+      parentSession: resolvedParentSession,
+      branchSessionId: sessionId,
+      branchSession,
+      branchContext,
+      mergeNote: {
+        mergeType,
+        branchTitle,
+        broughtBack,
+        nextStep,
+      },
+      manifest: null,
+    });
+
     return {
-      parentSession: await getWorkbenchSession(parentSessionId) || updatedParentSession,
+      parentSession: resolvedParentSession,
       mergeNote: {
         mergeType,
         branchTitle,

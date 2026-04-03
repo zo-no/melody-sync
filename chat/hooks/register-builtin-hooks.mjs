@@ -1,8 +1,8 @@
 import { registerHook } from '../session-hook-registry.mjs';
 import { getBuiltinHookDefinition } from './builtin-hook-catalog.mjs';
+import { firstBootMemoryHook } from './first-boot-memory-hook.mjs';
 import { pushNotificationHook } from './push-notification-hook.mjs';
 import { emailCompletionHook } from './email-completion-hook.mjs';
-import { workbenchSyncHook } from './workbench-sync-hook.mjs';
 
 let builtinHooksRegistered = false;
 
@@ -18,8 +18,7 @@ export function registerBuiltinHooks() {
   if (builtinHooksRegistered) return;
   builtinHooksRegistered = true;
 
+  registerCatalogHook('builtin.first-boot-memory', firstBootMemoryHook);
   registerCatalogHook('builtin.push-notification', pushNotificationHook);
   registerCatalogHook('builtin.email-completion', emailCompletionHook);
-  registerCatalogHook('builtin.workbench-sync', workbenchSyncHook);
-  registerCatalogHook('builtin.workbench-sync-on-fail', workbenchSyncHook);
 }

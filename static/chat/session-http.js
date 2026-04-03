@@ -60,20 +60,43 @@ let sessionListOrganizerInFlight = null;
 let sessionListOrganizerLabelResetTimer = null;
 let initialInboxSessionPromise = null;
 
+function getSessionListContract() {
+  return window.MelodySyncSessionListContract || null;
+}
+
+function getSessionListOrganizerWritableFieldsText() {
+  return typeof getSessionListContract()?.buildTaskListOrganizerWritableFieldsText === "function"
+    ? getSessionListContract().buildTaskListOrganizerWritableFieldsText()
+    : "`name`, `group`, and `sidebarOrder`";
+}
+
+function getSessionListOrganizerReadonlyFieldsText() {
+  return typeof getSessionListContract()?.buildTaskListOrganizerReadonlyFieldsText === "function"
+    ? getSessionListContract().buildTaskListOrganizerReadonlyFieldsText()
+    : "`title`, `brief`, `existingGroup`, and `existingSidebarOrder`";
+}
+
+function getSessionListOrganizerGroupLabelsText() {
+  return typeof getSessionListContract()?.buildTaskListGroupStorageValuesText === "function"
+    ? getSessionListContract().buildTaskListGroupStorageValuesText()
+    : "收集箱, 长期任务, 短期任务, 知识库内容, 等待任务";
+}
+
 const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   "You are MelodySync's hidden session-list organizer.",
   "Your job is to organize the owner's non-archived MelodySync tasks into a simple GTD-style task list.",
-  "Do not rename sessions, delete them, change pin state, edit prompts, or ask the user follow-up questions.",
+  "Do not rename tasks casually, delete them, change pin state, edit prompts, or ask the user follow-up questions.",
   "Only update existing sessions by calling the owner-authenticated MelodySync API from this machine.",
   "Use `melodysync api GET /api/sessions` if you need to double-check current state.",
-  "Use `melodysync api PATCH /api/sessions/<sessionId> --body ...` to update `group` and `sidebarOrder`.",
-  "Only writable API fields for this task are `group` and `sidebarOrder`.",
-  "Never send read-only snapshot keys such as `title`, `brief`, `existingGroup`, `existingSidebarOrder`, `currentGroup`, or `currentSidebarOrder` in PATCH bodies.",
-  "Example PATCH body: {\"group\":\"短期任务\",\"sidebarOrder\":3}",
+  `Use \`melodysync api PATCH /api/sessions/<sessionId> --body ...\` to update ${getSessionListOrganizerWritableFieldsText()}.`,
+  `Only writable API fields for this task are ${getSessionListOrganizerWritableFieldsText()}.`,
+  `Never send read-only snapshot keys such as ${getSessionListOrganizerReadonlyFieldsText()}, \`currentGroup\`, or \`currentSidebarOrder\` in PATCH bodies.`,
+  'Rename only when the current task name is generic, stale, or clearly weaker than the metadata snapshot.',
+  'Example PATCH body: {"name":"电影史学习路线","group":"短期任务","sidebarOrder":3}',
   "If `melodysync` is unavailable in PATH, use `node \"$REMOTELAB_PROJECT_ROOT/cli.js\" api ...` instead.",
   "`sidebarOrder` must be a positive integer; smaller numbers sort first.",
   "Assign unique contiguous `sidebarOrder` values across the current non-archived sessions you organize.",
-  "Use only these exact groups: 收集箱, 长期任务, 短期任务, 知识库内容, 等待任务.",
+  `Use only these exact groups: ${getSessionListOrganizerGroupLabelsText()}.`,
   "Default unclear or newly created work to 收集箱; only move work out when the intent is obvious from the metadata snapshot.",
   "Return only a brief plain-text summary of the grouping strategy you applied.",
 ].join("\n");
@@ -227,10 +250,10 @@ function buildSessionListOrganizerTask(sessions) {
   };
   return [
     "Organize the current non-archived MelodySync task list using the provided metadata snapshot.",
-    "Classify tasks into 收集箱, 长期任务, 短期任务, 知识库内容, 等待任务, and improve sidebar ordering inside those groups.",
+    `Classify tasks into ${getSessionListOrganizerGroupLabelsText()}, improve sidebar ordering inside those groups, and rename tasks when the current title is weak.`,
     "Apply changes by calling the MelodySync API from this machine; do not merely suggest them.",
-    "Snapshot fields like `title`, `brief`, `existingGroup`, and `existingSidebarOrder` are read-only context.",
-    "When patching a session, send only `group` and `sidebarOrder` in the API body.",
+    `Snapshot fields like ${getSessionListOrganizerReadonlyFieldsText()} are read-only context.`,
+    `When patching a session, send only ${getSessionListOrganizerWritableFieldsText()} in the API body.`,
     "",
     "<session_list_organizer_input>",
     JSON.stringify(payload, null, 2),

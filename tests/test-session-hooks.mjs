@@ -23,7 +23,7 @@ process.env.HOME = tempHome;
 
 try {
   // Import hooks module first
-  const { listHooks, HOOK_EVENTS, HOOK_EVENT_DEFINITIONS } = await import(
+  const { listHooks, HOOK_EVENTS, HOOK_EVENT_DEFINITIONS, applyHookEnabledOverrides } = await import(
     pathToFileURL(join(repoRoot, 'chat/session-hooks.mjs')).href
   );
 
@@ -43,12 +43,36 @@ try {
   // Events catalogue
   assert.deepEqual(
     [...HOOK_EVENTS].sort(),
-    ['run.completed', 'run.failed', 'run.started', 'session.created'],
-    'HOOK_EVENTS should contain all 4 lifecycle events',
+    [
+      'branch.merged',
+      'branch.opened',
+      'branch.suggested',
+      'instance.first_boot',
+      'instance.resume',
+      'instance.startup',
+      'run.completed',
+      'run.failed',
+      'run.started',
+      'session.created',
+      'session.first_user_message',
+    ],
+    'HOOK_EVENTS should contain all supported lifecycle events',
   );
   assert.deepEqual(
     HOOK_EVENT_DEFINITIONS.map((definition) => definition.id),
-    ['session.created', 'run.started', 'run.completed', 'run.failed'],
+    [
+      'instance.first_boot',
+      'instance.startup',
+      'instance.resume',
+      'session.created',
+      'session.first_user_message',
+      'run.started',
+      'run.completed',
+      'run.failed',
+      'branch.suggested',
+      'branch.opened',
+      'branch.merged',
+    ],
     'HOOK_EVENT_DEFINITIONS should preserve the canonical event ordering',
   );
 
@@ -56,10 +80,10 @@ try {
   const hookIds = new Set(hooks.map((h) => h.id));
 
   const EXPECTED_HOOKS = [
+    'builtin.first-boot-memory',
+    'builtin.resume-completion-targets',
     'builtin.push-notification',
     'builtin.email-completion',
-    'builtin.workbench-sync',
-    'builtin.workbench-sync-on-fail',
     'builtin.branch-candidates',
     'builtin.session-naming',
   ];
@@ -77,19 +101,33 @@ try {
 
   // Event pattern correctness
   const byId = Object.fromEntries(hooks.map((h) => [h.id, h]));
-  assert.equal(byId['builtin.branch-candidates'].eventPattern, 'run.completed');
+  assert.equal(byId['builtin.first-boot-memory'].eventPattern, 'instance.first_boot');
+  assert.equal(byId['builtin.resume-completion-targets'].eventPattern, 'instance.resume');
+  assert.equal(byId['builtin.branch-candidates'].eventPattern, 'branch.suggested');
   assert.equal(byId['builtin.session-naming'].eventPattern, 'run.completed');
-  assert.equal(byId['builtin.workbench-sync'].eventPattern, 'run.completed');
-  assert.equal(byId['builtin.workbench-sync-on-fail'].eventPattern, 'run.failed');
+  assert.equal(byId['builtin.first-boot-memory'].owner, 'hooks');
+  assert.equal(byId['builtin.first-boot-memory'].sourceModule, 'chat/hooks/first-boot-memory-hook.mjs');
+  assert.equal(byId['builtin.resume-completion-targets'].owner, 'hooks');
+  assert.equal(byId['builtin.resume-completion-targets'].sourceModule, 'chat/hooks/resume-completion-targets-hook.mjs');
   assert.equal(byId['builtin.push-notification'].owner, 'hooks');
   assert.equal(byId['builtin.push-notification'].sourceModule, 'chat/hooks/push-notification-hook.mjs');
-  assert.equal(byId['builtin.branch-candidates'].owner, 'session-manager');
-  assert.equal(byId['builtin.branch-candidates'].sourceModule, 'chat/session-manager.mjs');
+  assert.equal(byId['builtin.branch-candidates'].owner, 'hooks');
+  assert.equal(byId['builtin.branch-candidates'].sourceModule, 'chat/hooks/branch-candidates-hook.mjs');
+  assert.equal(byId['builtin.session-naming'].owner, 'hooks');
+  assert.equal(byId['builtin.session-naming'].sourceModule, 'chat/hooks/session-naming-hook.mjs');
 
   // All built-ins should be enabled by default
   for (const h of hooks) {
     assert.equal(h.enabled, true, `Hook ${h.id} should be enabled by default`);
   }
+
+  applyHookEnabledOverrides({
+    'builtin.push-notification': false,
+    'builtin.resume-completion-targets': false,
+  });
+  const overriddenHooks = Object.fromEntries(listHooks().map((hook) => [hook.id, hook]));
+  assert.equal(overriddenHooks['builtin.push-notification']?.enabled, false, 'applyHookEnabledOverrides should update existing hook state');
+  assert.equal(overriddenHooks['builtin.resume-completion-targets']?.enabled, false, 'applyHookEnabledOverrides should also apply to session-manager hooks');
 
   killAll();
   console.log('test-session-hooks: ok');

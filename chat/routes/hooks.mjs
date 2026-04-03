@@ -1,4 +1,12 @@
 import { readBody } from '../../lib/utils.mjs';
+import { HOOKS_FILE } from '../../lib/config.mjs';
+import { persistHookEnabledState } from '../hooks/hook-settings-store.mjs';
+import {
+  HOOK_LAYER_ORDER,
+  listHookLayerDefinitions,
+  listHookUiReservedTruths,
+  listHookUiTargetDefinitions,
+} from '../hooks/hook-contract.mjs';
 import {
   HOOK_EVENTS,
   listHookEventDefinitions,
@@ -12,7 +20,16 @@ export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) 
     writeJson(res, 200, {
       events: HOOK_EVENTS,
       eventDefinitions: listHookEventDefinitions(),
+      layerDefinitions: listHookLayerDefinitions(),
+      layerOrder: HOOK_LAYER_ORDER,
+      uiTargetDefinitions: listHookUiTargetDefinitions(),
+      uiReservedTruths: listHookUiReservedTruths(),
       hooks: listHooks(),
+      settings: {
+        persistence: 'file',
+        storagePath: HOOKS_FILE,
+        supportsEnableDisable: true,
+      },
     });
     return true;
   }
@@ -41,6 +58,7 @@ export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) 
       writeJson(res, 404, { error: 'Hook not found' });
       return true;
     }
+    await persistHookEnabledState(hookId, body.enabled);
     writeJson(res, 200, { hooks: listHooks() });
     return true;
   }

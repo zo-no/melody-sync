@@ -72,7 +72,7 @@
 现在 workbench 已经收口到这几个概念：
 
 - 任务地图 node kind：`main`、`branch`、`candidate`、`done`
-- hooks：`push-notification`、`email-completion`、`workbench-sync`、`workbench-sync-on-fail`、`branch-candidates`、`session-naming`
+- hooks：`push-notification`、`email-completion`、`branch-candidates`、`session-naming`
 - 记录面板：`操作记录`
 
 已经确定退出主线的概念：

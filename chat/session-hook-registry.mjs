@@ -4,29 +4,12 @@
  * This module is intentionally business-free: it only knows how to register,
  * list, enable/disable, and emit lifecycle hooks.
  */
+import {
+  HOOK_EVENT_DEFINITIONS,
+  listHookEventDefinitions,
+} from './hooks/hook-contract.mjs';
 
-export const HOOK_EVENT_DEFINITIONS = Object.freeze([
-  Object.freeze({
-    id: 'session.created',
-    label: 'Session 创建后',
-    description: '新 session 完成初始化并写入 metadata 之后。',
-  }),
-  Object.freeze({
-    id: 'run.started',
-    label: 'Run 启动后',
-    description: '新的 detached run 建立并进入执行流程之后。',
-  }),
-  Object.freeze({
-    id: 'run.completed',
-    label: 'Run 完成后',
-    description: 'Run 成功完成并且结果已经回写之后。',
-  }),
-  Object.freeze({
-    id: 'run.failed',
-    label: 'Run 失败/取消后',
-    description: 'Run 失败、终止或取消之后。',
-  }),
-]);
+export { HOOK_EVENT_DEFINITIONS, listHookEventDefinitions };
 
 /**
  * All valid event names. Extend HOOK_EVENT_DEFINITIONS when adding new lifecycle points.
@@ -35,10 +18,6 @@ export const HOOK_EVENT_DEFINITIONS = Object.freeze([
 export const HOOK_EVENTS = Object.freeze(
   HOOK_EVENT_DEFINITIONS.map((definition) => definition.id),
 );
-
-export function listHookEventDefinitions() {
-  return HOOK_EVENT_DEFINITIONS.map((definition) => ({ ...definition }));
-}
 
 /**
  * @typedef {Object} BaseContext
@@ -54,6 +33,18 @@ export function listHookEventDefinitions() {
  * @type {Map<string, Array<{ fn: (ctx: BaseContext) => Promise<void>, meta: object }>>}
  */
 const registry = new Map();
+const enabledOverrides = new Map();
+
+function normalizeHookId(value) {
+  const normalized = String(value || '').trim();
+  return normalized || '';
+}
+
+function applyEnabledOverrideToEntry(entry) {
+  const hookId = normalizeHookId(entry?.meta?.id);
+  if (!hookId || !enabledOverrides.has(hookId)) return;
+  entry.meta.enabled = enabledOverrides.get(hookId) !== false;
+}
 
 export function registerHook(eventPattern, hook, meta = {}) {
   if (typeof hook !== 'function') return;
@@ -70,6 +61,7 @@ export function registerHook(eventPattern, hook, meta = {}) {
       enabled: meta.enabled !== false,
     },
   };
+  applyEnabledOverrideToEntry(entry);
   registry.get(eventPattern).push(entry);
 }
 
@@ -84,15 +76,44 @@ export function listHooks() {
 }
 
 export function setHookEnabled(hookId, enabled) {
+  const normalizedHookId = normalizeHookId(hookId);
+  if (!normalizedHookId) return false;
   for (const entries of registry.values()) {
     for (const entry of entries) {
-      if (entry.meta?.id === hookId) {
+      if (entry.meta?.id === normalizedHookId) {
         entry.meta.enabled = Boolean(enabled);
+        enabledOverrides.set(normalizedHookId, Boolean(enabled));
         return true;
       }
     }
   }
   return false;
+}
+
+export function applyHookEnabledOverrides(overrides = {}) {
+  const nextOverrides = new Map();
+  if (overrides && typeof overrides === 'object' && !Array.isArray(overrides)) {
+    for (const [hookId, enabled] of Object.entries(overrides)) {
+      const normalizedHookId = normalizeHookId(hookId);
+      if (!normalizedHookId) continue;
+      nextOverrides.set(normalizedHookId, enabled !== false);
+    }
+  }
+
+  enabledOverrides.clear();
+  for (const [hookId, enabled] of nextOverrides.entries()) {
+    enabledOverrides.set(hookId, enabled);
+  }
+
+  for (const entries of registry.values()) {
+    for (const entry of entries) {
+      applyEnabledOverrideToEntry(entry);
+    }
+  }
+}
+
+export function getHookEnabledOverrides() {
+  return Object.fromEntries(enabledOverrides.entries());
 }
 
 function collectHooks(event) {

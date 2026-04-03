@@ -27,6 +27,7 @@ async function main() {
     setSessionArchived,
     updateSessionTaskCard,
   } = await importFromRepo('chat/session-manager.mjs');
+  const { registerHook } = await importFromRepo('chat/session-hooks.mjs');
   const {
     createBranchFromSession,
     getWorkbenchSnapshot,
@@ -38,6 +39,31 @@ async function main() {
 
   const mainSession = await createSession(workdir, 'codex', '学习电影史', {});
   assert.ok(mainSession?.id, 'main session should be created');
+
+  const branchLifecycleEvents = [];
+  registerHook('branch.opened', async (ctx) => {
+    branchLifecycleEvents.push({
+      event: ctx.event,
+      sessionId: ctx.sessionId,
+      parentSessionId: ctx.parentSessionId,
+      branchTitle: ctx.branchContext?.goal || '',
+    });
+  }, {
+    id: 'test.branch-opened-capture',
+    label: 'test branch opened capture',
+  });
+  registerHook('branch.merged', async (ctx) => {
+    branchLifecycleEvents.push({
+      event: ctx.event,
+      sessionId: ctx.sessionId,
+      parentSessionId: ctx.parentSessionId,
+      branchTitle: ctx.mergeNote?.branchTitle || '',
+      broughtBack: ctx.mergeNote?.broughtBack || '',
+    });
+  }, {
+    id: 'test.branch-merged-capture',
+    label: 'test branch merged capture',
+  });
 
   const seededMain = await updateSessionTaskCard(mainSession.id, {
     goal: '学习电影史',
@@ -71,6 +97,16 @@ async function main() {
     branchSession.taskCard?.knownConclusions?.includes('目前已经划出古典、现代、当代三段'),
     true,
     'branch session should inherit concise mainline conclusions as carryover context',
+  );
+  assert.deepEqual(
+    branchLifecycleEvents[0],
+    {
+      event: 'branch.opened',
+      sessionId: branchSession.id,
+      parentSessionId: mainSession.id,
+      branchTitle: '表现主义',
+    },
+    'branch.opened hook should fire when a branch session is created',
   );
 
   const trackerSnapshot = await getWorkbenchTrackerSnapshot(branchSession.id);
@@ -109,6 +145,17 @@ async function main() {
     mergeOutcome?.mergeNote?.broughtBack,
     '已经明确表现主义的视觉语言，可以继续比较其他流派。',
     'merge should keep the explicit branch wrap-up summary supplied by the caller',
+  );
+  assert.deepEqual(
+    branchLifecycleEvents[1],
+    {
+      event: 'branch.merged',
+      sessionId: mainSession.id,
+      parentSessionId: mainSession.id,
+      branchTitle: '表现主义',
+      broughtBack: '已经明确表现主义的视觉语言，可以继续比较其他流派。',
+    },
+    'branch.merged hook should fire with the parent session as the visible target',
   );
 
   snapshot = await getWorkbenchSnapshot();

@@ -1,57 +1,65 @@
+import { createHookDefinition } from './hook-contract.mjs';
+
 const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
-  Object.freeze({
+  createHookDefinition({
+    id: 'builtin.first-boot-memory',
+    eventPattern: 'instance.first_boot',
+    label: '首次启动记忆初始化',
+    description: '实例首次启动时创建最小 memory/bootstrap 种子文件。',
+    builtIn: true,
+    owner: 'hooks',
+    layer: 'boot',
+    sourceModule: 'chat/hooks/first-boot-memory-hook.mjs',
+  }),
+  createHookDefinition({
+    id: 'builtin.resume-completion-targets',
+    eventPattern: 'instance.resume',
+    label: '恢复完成通知目标',
+    description: '实例启动恢复后重新挂起已完成 run 的 completion targets。',
+    builtIn: true,
+    owner: 'hooks',
+    layer: 'boot',
+    sourceModule: 'chat/hooks/resume-completion-targets-hook.mjs',
+  }),
+  createHookDefinition({
     id: 'builtin.push-notification',
     eventPattern: 'run.completed',
     label: '推送通知',
     description: 'Run 完成后发送推送通知',
     builtIn: true,
     owner: 'hooks',
+    layer: 'delivery',
     sourceModule: 'chat/hooks/push-notification-hook.mjs',
   }),
-  Object.freeze({
+  createHookDefinition({
     id: 'builtin.email-completion',
     eventPattern: 'run.completed',
     label: 'Email 通知',
     description: 'Run 完成后发送 email（需配置 completionTargets）',
     builtIn: true,
     owner: 'hooks',
+    layer: 'delivery',
     sourceModule: 'chat/hooks/email-completion-hook.mjs',
   }),
-  Object.freeze({
-    id: 'builtin.workbench-sync',
-    eventPattern: 'run.completed',
-    label: '地图同步',
-    description: 'Run 完成后将 taskCard 同步到任务地图',
-    builtIn: true,
-    owner: 'hooks',
-    sourceModule: 'chat/hooks/workbench-sync-hook.mjs',
-  }),
-  Object.freeze({
-    id: 'builtin.workbench-sync-on-fail',
-    eventPattern: 'run.failed',
-    label: '地图同步（失败时）',
-    description: 'Run 失败/取消时也同步地图状态',
-    builtIn: true,
-    owner: 'hooks',
-    sourceModule: 'chat/hooks/workbench-sync-hook.mjs',
-  }),
-  Object.freeze({
+  createHookDefinition({
     id: 'builtin.branch-candidates',
-    eventPattern: 'run.completed',
+    eventPattern: 'branch.suggested',
     label: '支线任务推荐',
-    description: 'Run 完成后将 AI 推荐的支线写入会话，显示在地图上',
+    description: '检测到需要单独处理的话题后，将候选支线写入会话生命周期事件。',
     builtIn: true,
-    owner: 'session-manager',
-    sourceModule: 'chat/session-manager.mjs',
+    owner: 'hooks',
+    layer: 'lifecycle',
+    sourceModule: 'chat/hooks/branch-candidates-hook.mjs',
   }),
-  Object.freeze({
+  createHookDefinition({
     id: 'builtin.session-naming',
     eventPattern: 'run.completed',
     label: 'Session 自动命名',
     description: '第一次 Run 完成后基于最后一轮对话生成标题和分组',
     builtIn: true,
-    owner: 'session-manager',
-    sourceModule: 'chat/session-manager.mjs',
+    owner: 'hooks',
+    layer: 'lifecycle',
+    sourceModule: 'chat/hooks/session-naming-hook.mjs',
   }),
 ]);
 

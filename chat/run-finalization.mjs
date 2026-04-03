@@ -1,3 +1,49 @@
+function buildRunTerminalStatusEvent(statusEvent, run) {
+  if (run?.state === 'cancelled') {
+    return {
+      ...statusEvent('cancelled'),
+      runId: run.id,
+      ...(run.requestId ? { requestId: run.requestId } : {}),
+    };
+  }
+  if (run?.state === 'failed' && run.failureReason) {
+    return {
+      ...statusEvent(`error: ${run.failureReason}`),
+      runId: run.id,
+      ...(run.requestId ? { requestId: run.requestId } : {}),
+    };
+  }
+  return null;
+}
+
+function clearCompactionPendingFlags(liveSessions, {
+  sessionId,
+  workerCompaction,
+  compactionTargetSessionId,
+} = {}) {
+  const live = liveSessions.get(sessionId);
+  const targetLive = workerCompaction && compactionTargetSessionId
+    ? liveSessions.get(compactionTargetSessionId)
+    : live;
+  if (targetLive) targetLive.pendingCompact = false;
+  if (live && live !== targetLive) live.pendingCompact = false;
+}
+
+async function syncContinuityProjection({
+  sessionId,
+  getSession,
+  syncSessionContinuityFromSession,
+  taskCard,
+} = {}) {
+  const sessionForContinuity = await getSession(sessionId);
+  if (!sessionForContinuity) return;
+  await syncSessionContinuityFromSession(sessionForContinuity, {
+    taskCard: taskCard || sessionForContinuity.taskCard || null,
+  }).catch((error) => {
+    console.error(`[workbench] continuity sync ${sessionId}: ${error.message}`);
+  });
+}
+
 export async function finalizeDetachedRunWithDeps(deps, {
   sessionId,
   run,
@@ -30,6 +76,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
     scheduleQueuedFollowUpDispatch,
     getFollowUpQueueCount,
     maybePublishRunResultAssets,
+    syncSessionContinuityFromSession,
     emitHook,
     normalizeSessionTaskCard,
     maybeAutoCompact,
@@ -58,34 +105,20 @@ export async function finalizeDetachedRunWithDeps(deps, {
     historyChanged = true;
   }
 
-  if (!sessionOrganizing && run.state === 'cancelled') {
-    const event = {
-      ...statusEvent('cancelled'),
-      runId: run.id,
-      ...(run.requestId ? { requestId: run.requestId } : {}),
-    };
-    await appendEvent(sessionId, event);
-    historyChanged = true;
-  } else if (!sessionOrganizing && run.state === 'failed' && run.failureReason) {
-    const event = {
-      ...statusEvent(`error: ${run.failureReason}`),
-      runId: run.id,
-      ...(run.requestId ? { requestId: run.requestId } : {}),
-    };
-    await appendEvent(sessionId, event);
+  const terminalStatusEvent = !sessionOrganizing
+    ? buildRunTerminalStatusEvent(statusEvent, run)
+    : null;
+  if (terminalStatusEvent) {
+    await appendEvent(sessionId, terminalStatusEvent);
     historyChanged = true;
   }
 
   if (compacting) {
-    const targetLive = workerCompaction && compactionTargetSessionId
-      ? liveSessions.get(compactionTargetSessionId)
-      : live;
-    if (targetLive) {
-      targetLive.pendingCompact = false;
-    }
-    if (live && live !== targetLive) {
-      live.pendingCompact = false;
-    }
+    clearCompactionPendingFlags(liveSessions, {
+      sessionId,
+      workerCompaction,
+      compactionTargetSessionId,
+    });
 
     if (workerCompaction && compactionTargetSessionId) {
       if (run.state === 'completed') {
@@ -166,6 +199,15 @@ export async function finalizeDetachedRunWithDeps(deps, {
     });
   }
 
+  if (!sessionOrganizing && !compacting) {
+    await syncContinuityProjection({
+      sessionId,
+      getSession,
+      syncSessionContinuityFromSession,
+      taskCard: stabilizedTaskCard,
+    });
+  }
+
   if (sessionOrganizing) {
     if (run.state === 'completed') {
       const organized = await finalizeSessionOrganizerRun(sessionId, finalizedRun, normalizedEvents);
@@ -195,18 +237,22 @@ export async function finalizeDetachedRunWithDeps(deps, {
   }
 
   const runEvent = finalizedRun.state === 'completed' ? 'run.completed' : 'run.failed';
+  const hookContext = {
+    sessionId,
+    session: latestSession,
+    run: finalizedRun,
+    events: finalizedEvents,
+    taskCard: latestTaskCard,
+    previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
+    branchCandidateEvents,
+    manifest,
+  };
+  if (branchCandidateEvents.length > 0) {
+    await emitHook('branch.suggested', hookContext);
+  }
   const [assetsPublished] = await Promise.all([
     maybePublishRunResultAssets(sessionId, finalizedRun, manifest, finalizedEvents),
-    emitHook(runEvent, {
-      sessionId,
-      session: latestSession,
-      run: finalizedRun,
-      events: finalizedEvents,
-      taskCard: latestTaskCard,
-      previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
-      branchCandidateEvents,
-      manifest,
-    }),
+    emitHook(runEvent, hookContext),
   ]);
   historyChanged = assetsPublished || historyChanged;
 

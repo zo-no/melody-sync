@@ -23,14 +23,16 @@
 1. `core-domain-contract.md`
 2. `core-domain-implementation-mapping.md`
 3. `hooks-and-node-structure.md`
-4. `feature-and-settings-inventory.md`
-5. `open-source-structure-map.md`
-6. `next-feature-cleanup-map.md`
-7. `session-first-workflow-surfaces.md`
-8. `product-surface-lifecycle.md`
-9. `session-run-closure-requirements.md`
-10. `core-domain-refactor-todo.md`
-11. `documentation-flywheel.md`
+4. `../docs/agent-filesystem-architecture.md`
+5. `../docs/hooks-node-architecture.md`
+6. `feature-and-settings-inventory.md`
+7. `open-source-structure-map.md`
+8. `next-feature-cleanup-map.md`
+9. `session-first-workflow-surfaces.md`
+10. `product-surface-lifecycle.md`
+11. `session-run-closure-requirements.md`
+12. `core-domain-refactor-todo.md`
+13. `documentation-flywheel.md`
 
 ### 各自作用与管理方式
 
@@ -46,6 +48,12 @@
 - `hooks-and-node-structure.md`
   - 当前 hooks、task map node、操作记录面板的最小结构说明
   - 管理方式：hooks、node kind 或操作记录面板发生收敛变化时同步更新
+- `../docs/agent-filesystem-architecture.md`
+  - 当前 repo/config/memory 三层文件系统，明确哪些是 agent 记忆面、哪些是运行真值
+  - 管理方式：实例根布局、memory 边界、history/runs/workbench 持久化职责变化时同步更新
+- `../docs/hooks-node-architecture.md`
+  - hooks + node 的目标架构、可配置 contract、AI-friendly 目录和迁移优先级
+  - 管理方式：当 hooks 生命周期范围、node definition 契约或配置策略变化时同步更新
 - `feature-and-settings-inventory.md`
   - 当前功能盘点表，明确哪些留在主流程、哪些属于设置、哪些是隐藏能力、哪些已经进入删除复核区
   - 管理方式：产品表面、设置边界或删除候选判断发生变化时同步更新
@@ -145,13 +153,15 @@
 1. `core-domain-contract.md`
 2. `core-domain-implementation-mapping.md`
 3. `hooks-and-node-structure.md`
-4. `feature-and-settings-inventory.md`
-5. `open-source-structure-map.md`
-6. `next-feature-cleanup-map.md`
-7. `session-first-workflow-surfaces.md`
-8. `core-domain-refactor-todo.md`
-9. `session-run-closure-requirements.md`
-10. `documentation-flywheel.md`
+4. `../docs/agent-filesystem-architecture.md`
+5. `../docs/hooks-node-architecture.md`
+6. `feature-and-settings-inventory.md`
+7. `open-source-structure-map.md`
+8. `next-feature-cleanup-map.md`
+9. `session-first-workflow-surfaces.md`
+10. `core-domain-refactor-todo.md`
+11. `session-run-closure-requirements.md`
+12. `documentation-flywheel.md`
 
 这样能先掌握：
 

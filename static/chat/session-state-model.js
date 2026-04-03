@@ -37,6 +37,7 @@
   const t = root.melodySyncT
     ? (key, vars) => root.melodySyncT(key, vars)
     : fallbackTranslate;
+  const sessionListOrderContract = root.MelodySyncSessionListOrderContract || null;
   const workflowPrioritySpecs = {
     high: {
       key: "high",
@@ -184,6 +185,9 @@
   }
 
   function normalizeSessionSidebarOrder(value) {
+    if (typeof sessionListOrderContract?.normalizeSessionSidebarOrder === "function") {
+      return sessionListOrderContract.normalizeSessionSidebarOrder(value);
+    }
     const parsed = typeof value === "number"
       ? value
       : Number.parseInt(String(value || "").trim(), 10);
@@ -191,6 +195,9 @@
   }
 
   function normalizeSessionLocalListOrder(value) {
+    if (typeof sessionListOrderContract?.normalizeSessionLocalListOrder === "function") {
+      return sessionListOrderContract.normalizeSessionLocalListOrder(value);
+    }
     const parsed = typeof value === "number"
       ? value
       : Number.parseInt(String(value || "").trim(), 10);
@@ -363,39 +370,49 @@
     return 3;
   }
 
+  function getSessionListOrderSnapshot(session) {
+    const sidebarOrder = normalizeSessionSidebarOrder(session?.sidebarOrder);
+    const localOrder = normalizeSessionLocalListOrder(session?._sessionListOrder);
+    return {
+      sidebarOrder,
+      hasSidebarOrder: sidebarOrder > 0,
+      localOrder,
+      hasLocalOrder: localOrder > 0,
+      attentionBand: getSessionAttentionBand(session),
+      workflowPriorityRank: getSessionWorkflowPriorityInfo(session)?.rank || 0,
+      pinRank: session?.pinned === true ? 1 : 0,
+      sortTime: getSessionSortTime(session),
+    };
+  }
+
   function compareSessionListSessions(a, b) {
-    const sidebarOrderA = normalizeSessionSidebarOrder(a?.sidebarOrder);
-    const sidebarOrderB = normalizeSessionSidebarOrder(b?.sidebarOrder);
-    const hasSidebarOrderA = sidebarOrderA > 0;
-    const hasSidebarOrderB = sidebarOrderB > 0;
-    if (hasSidebarOrderA && hasSidebarOrderB && sidebarOrderA !== sidebarOrderB) {
-      return sidebarOrderA - sidebarOrderB;
+    const orderA = getSessionListOrderSnapshot(a);
+    const orderB = getSessionListOrderSnapshot(b);
+
+    if (orderA.hasSidebarOrder && orderB.hasSidebarOrder && orderA.sidebarOrder !== orderB.sidebarOrder) {
+      return orderA.sidebarOrder - orderB.sidebarOrder;
     }
-    if (hasSidebarOrderA !== hasSidebarOrderB) {
-      return hasSidebarOrderA ? -1 : 1;
+    if (orderA.hasSidebarOrder !== orderB.hasSidebarOrder) {
+      return orderA.hasSidebarOrder ? -1 : 1;
     }
 
-    const localOrderA = normalizeSessionLocalListOrder(a?._sessionListOrder);
-    const localOrderB = normalizeSessionLocalListOrder(b?._sessionListOrder);
-    const hasLocalOrderA = localOrderA > 0;
-    const hasLocalOrderB = localOrderB > 0;
-    if (hasLocalOrderA && hasLocalOrderB && localOrderA !== localOrderB) {
-      return localOrderA - localOrderB;
+    if (orderA.hasLocalOrder && orderB.hasLocalOrder && orderA.localOrder !== orderB.localOrder) {
+      return orderA.localOrder - orderB.localOrder;
     }
-    if (hasLocalOrderA !== hasLocalOrderB) {
-      return hasLocalOrderA ? -1 : 1;
+    if (orderA.hasLocalOrder !== orderB.hasLocalOrder) {
+      return orderA.hasLocalOrder ? -1 : 1;
     }
 
-    const attentionBandDiff = getSessionAttentionBand(a) - getSessionAttentionBand(b);
+    const attentionBandDiff = orderA.attentionBand - orderB.attentionBand;
     if (attentionBandDiff) return attentionBandDiff;
 
-    const priorityDiff = (getSessionWorkflowPriorityInfo(b)?.rank || 0) - (getSessionWorkflowPriorityInfo(a)?.rank || 0);
+    const priorityDiff = orderB.workflowPriorityRank - orderA.workflowPriorityRank;
     if (priorityDiff) return priorityDiff;
 
-    const pinDiff = (b?.pinned === true ? 1 : 0) - (a?.pinned === true ? 1 : 0);
+    const pinDiff = orderB.pinRank - orderA.pinRank;
     if (pinDiff) return pinDiff;
 
-    return getSessionSortTime(b) - getSessionSortTime(a);
+    return orderB.sortTime - orderA.sortTime;
   }
 
   root.MelodySyncSessionStateModel = {
@@ -413,6 +430,10 @@
     getSessionReviewStatusInfo,
     isSessionCompleteAndReviewed,
     getSessionWorkflowPriorityInfo,
+    getSessionListOrderSnapshot,
+    listSessionOrderSourceDefinitions: typeof sessionListOrderContract?.listSessionOrderSourceDefinitions === "function"
+      ? sessionListOrderContract.listSessionOrderSourceDefinitions
+      : () => [],
     compareSessionListSessions,
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

@@ -22,7 +22,7 @@ import {
 } from './history.mjs';
 import { messageEvent, statusEvent } from './normalizer.mjs';
 import { buildSourceRuntimePrompt } from './source-runtime-prompts.mjs';
-import { emit as emitHook, registerHook } from './session-hook-registry.mjs';
+import { emit as emitHook } from './session-hook-registry.mjs';
 import {
   buildSessionOrganizerPrompt,
   extractSessionOrganizerAssistantText,
@@ -106,7 +106,8 @@ import {
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
 import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
-import { getBuiltinHookDefinition } from './hooks/builtin-hook-catalog.mjs';
+import { registerSessionManagerBuiltinHooks } from './hooks/register-session-manager-hooks.mjs';
+import { syncSessionContinuityFromSession } from './workbench-store.mjs';
 
 const MIME_EXTENSIONS = {
   'application/json': '.json',
@@ -2610,6 +2611,7 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     scheduleQueuedFollowUpDispatch,
     getFollowUpQueueCount,
     maybePublishRunResultAssets,
+    syncSessionContinuityFromSession,
     emitHook,
     normalizeSessionTaskCard,
     maybeAutoCompact,
@@ -2637,43 +2639,17 @@ async function syncDetachedRun(sessionId, runId) {
   return promise;
 }
 
-// Register session-manager-owned hooks here to avoid circular imports.
-// These hooks need access to session-manager internals.
-let sessionManagerHooksRegistered = false;
-
-function getSessionManagerHookDefinition(hookId) {
-  const definition = getBuiltinHookDefinition(hookId);
-  if (!definition) {
-    throw new Error(`Unknown session-manager hook definition: ${hookId}`);
-  }
-  return definition;
-}
-
-function registerSessionManagerHooks() {
-  if (sessionManagerHooksRegistered) return;
-  sessionManagerHooksRegistered = true;
-
-  // Branch candidate events: append branch suggestion events to session history.
-  registerHook('run.completed', async ({ sessionId, branchCandidateEvents }) => {
-    if (!Array.isArray(branchCandidateEvents) || branchCandidateEvents.length === 0) return;
-    await appendEvents(sessionId, branchCandidateEvents);
-    // No extra broadcast here — syncDetachedRunUnlocked already broadcasts
-    // after finalizeDetachedRun returns. An extra broadcast here would cause
-    // the frontend to fetch the session before the follow-up queue is flushed.
-  }, getSessionManagerHookDefinition('builtin.branch-candidates'));
-
-  // Session auto-naming: derive the final title/group after the first real user turn.
-  registerHook('run.completed', async ({ sessionId, session, manifest }) => {
-    if (manifest?.internalOperation) return;
-    if (!session || !isSessionAutoRenamePending(session)) return;
-    await triggerAutomaticSessionLabeling(sessionId, session).catch((err) => {
-      console.error(`[session-hooks] session-naming ${sessionId}: ${err.message}`);
-    });
-  }, getSessionManagerHookDefinition('builtin.session-naming'));
+function ensureSessionManagerBuiltinHooksRegistered() {
+  registerSessionManagerBuiltinHooks({
+    appendEvents,
+    isSessionAutoRenamePending,
+    triggerAutomaticSessionLabeling,
+    resumePendingCompletionTargets,
+  });
 }
 
 export async function startDetachedRunObservers() {
-  registerSessionManagerHooks();
+  ensureSessionManagerBuiltinHooksRegistered();
   for (const meta of await loadSessionsMeta()) {
     if (meta?.activeRunId) {
       const run = await syncDetachedRun(meta.id, meta.activeRunId) || await getRun(meta.activeRunId);
@@ -2686,7 +2662,11 @@ export async function startDetachedRunObservers() {
       scheduleQueuedFollowUpDispatch(meta.id);
     }
   }
-  await resumePendingCompletionTargets();
+  await emitHook('instance.resume', {
+    sessionId: '',
+    session: null,
+    manifest: null,
+  });
 }
 
 export async function listSessions({
@@ -2797,7 +2777,7 @@ export async function organizeSession(sessionId, options = {}) {
 }
 
 export async function createSession(folder, tool, name, extra = {}) {
-  registerSessionManagerHooks();
+  ensureSessionManagerBuiltinHooksRegistered();
   const externalTriggerId = typeof extra.externalTriggerId === 'string' ? extra.externalTriggerId.trim() : '';
   const {
     requestedAppId,
@@ -3511,7 +3491,7 @@ export async function updateSessionRuntimePreferences(id, patch = {}) {
 }
 
 export async function submitHttpMessage(sessionId, text, images, options = {}) {
-  registerSessionManagerHooks();
+  ensureSessionManagerBuiltinHooksRegistered();
   const requestId = typeof options.requestId === 'string' ? options.requestId.trim() : '';
   if (!requestId) {
     throw new Error('requestId is required');
@@ -3715,6 +3695,16 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
       ...(sourceContext ? { sourceContext } : {}),
     });
     await appendEvent(sessionId, userEvent);
+    if (!options.internalOperation && isFirstRecordedUserMessage) {
+      emitHook('session.first_user_message', {
+        sessionId,
+        session,
+        run,
+        userEvent,
+        recordedUserText,
+        manifest: null,
+      }).catch(() => {});
+    }
   }
 
   if (!options.internalOperation && isFirstRecordedUserMessage && isSessionAutoRenamePending(session)) {
@@ -3763,7 +3753,7 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
 }
 
 export async function sendMessage(sessionId, text, images, options = {}) {
-  registerSessionManagerHooks();
+  ensureSessionManagerBuiltinHooksRegistered();
   return submitHttpMessage(sessionId, text, images, {
     ...options,
     requestId: options.requestId || createInternalRequestId('compat'),

@@ -152,7 +152,6 @@ chat/
     register-builtin-hooks.mjs
     push-notification-hook.mjs
     email-completion-hook.mjs
-    workbench-sync-hook.mjs
   routes/
     hooks.mjs
     workbench.mjs

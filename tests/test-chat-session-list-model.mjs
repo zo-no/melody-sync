@@ -7,6 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
+const contractSource = readFileSync(join(repoRoot, 'static', 'chat', 'session-list-contract.js'), 'utf8');
 const source = readFileSync(join(repoRoot, 'static', 'chat', 'session-list-model.js'), 'utf8');
 
 const translations = {
@@ -26,6 +27,7 @@ const context = {
 context.globalThis = context;
 context.self = context;
 
+vm.runInNewContext(contractSource, context, { filename: 'static/chat/session-list-contract.js' });
 vm.runInNewContext(source, context, { filename: 'static/chat/session-list-model.js' });
 
 const model = context.MelodySyncSessionListModel;
@@ -34,6 +36,11 @@ assert.equal(
   model.getSessionGroupInfo({ group: '短期任务' }).key,
   'group:short-term',
   'session list model should normalize known task groups',
+);
+assert.equal(
+  model.resolveTaskListGroup('收件箱').storageValue,
+  '收集箱',
+  'session list model should delegate GTD aliases to the shared contract',
 );
 assert.equal(
   model.getSessionGroupInfo({ group: 'unknown bucket' }).label,

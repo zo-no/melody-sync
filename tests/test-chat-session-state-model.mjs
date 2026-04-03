@@ -11,10 +11,18 @@ const source = readFileSync(
   join(repoRoot, 'static', 'chat', 'session-state-model.js'),
   'utf8',
 );
+const orderContractSource = readFileSync(
+  join(repoRoot, 'static', 'chat', 'session-list-order-contract.js'),
+  'utf8',
+);
 
 const context = { console };
 context.globalThis = context;
 context.window = context;
+
+vm.runInNewContext(orderContractSource, context, {
+  filename: 'session-list-order-contract.js',
+});
 
 vm.runInNewContext(source, context, {
   filename: 'session-state-model.js',
@@ -149,6 +157,9 @@ const completeAndReviewed = makeSession({
 });
 assert.equal(model.isSessionCompleteAndReviewed(completeAndReviewed), true, 'completed sessions with no unseen updates should be de-emphasized');
 
+const orderSourceDefinitions = model.listSessionOrderSourceDefinitions();
+assert.ok(orderSourceDefinitions.some((entry) => entry.id === 'sidebar_order'), 'state model should expose the shared session list order contract');
+
 const runningUnreadCandidate = makeSession({
   lastEventAt: '2026-03-14T13:00:00.000Z',
   lastReviewedAt: '2026-03-14T12:00:00.000Z',
@@ -215,6 +226,32 @@ assert.ok(
     }),
   ) < 0,
   'unread completed work should sort ahead of currently running sessions',
+);
+
+assert.equal(
+  JSON.stringify(
+    model.getSessionListOrderSnapshot(
+      makeSession({
+        sidebarOrder: 2,
+        _sessionListOrder: 5,
+        pinned: true,
+        workflowPriority: 'high',
+        updatedAt: '2026-03-14T12:00:00.000Z',
+        lastReviewedAt: '2026-03-14T12:00:00.000Z',
+      }),
+    ),
+  ),
+  JSON.stringify({
+    sidebarOrder: 2,
+    hasSidebarOrder: true,
+    localOrder: 5,
+    hasLocalOrder: true,
+    attentionBand: 3,
+    workflowPriorityRank: 3,
+    pinRank: 1,
+    sortTime: Date.parse('2026-03-14T12:00:00.000Z'),
+  }),
+  'state model should expose a debuggable order snapshot built from the shared ordering contract',
 );
 
 assert.ok(
