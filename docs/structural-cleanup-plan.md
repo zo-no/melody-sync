@@ -175,10 +175,10 @@ Targets:
 Primary files:
 
 - `templates/chat.html`
-- `static/chat/bootstrap.js`
-- `static/chat/bootstrap-session-catalog.js`
-- `static/chat/sidebar-ui.js`
-- `static/chat/i18n.js`
+- `static/chat/core/bootstrap.js`
+- `static/chat/core/bootstrap-session-catalog.js`
+- `static/chat/session-list/sidebar-ui.js`
+- `static/chat/core/i18n.js`
 - `chat/router.mjs`
 - `chat/compat/apps.mjs`
 - `chat/users.mjs`

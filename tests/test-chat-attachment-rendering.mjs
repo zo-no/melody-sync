@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const uiSource = readFileSync(join(repoRoot, 'static', 'chat', 'ui.js'), 'utf8');
+const uiSource = readFileSync(join(repoRoot, 'static', 'chat', 'session', 'transcript-ui.js'), 'utf8');
 const chatTemplateSource = readFileSync(join(repoRoot, 'templates', 'chat.html'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
@@ -107,7 +107,7 @@ vm.runInNewContext(
     'globalThis.createComposerAttachmentPreviewNode = createComposerAttachmentPreviewNode;',
   ].join('\n\n'),
   context,
-  { filename: 'static/chat/ui.js' },
+  { filename: 'static/chat/session/transcript-ui.js' },
 );
 
 assert.match(

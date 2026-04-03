@@ -37,17 +37,17 @@
 
 - `templates/chat.html`
 - `static/chat.js`
-- `static/chat/bootstrap.js`
-- `static/chat/bootstrap-data.js`
-- `static/chat/bootstrap-session-catalog.js`
+- `static/chat/core/bootstrap.js`
+- `static/chat/core/bootstrap-data.js`
+- `static/chat/core/bootstrap-session-catalog.js`
 - `static/chat/session/http.js`
 - `static/chat/session/http-helpers.js`
 - `static/chat/session/http-list-state.js`
-- `static/chat/realtime.js`
-- `static/chat/realtime-render.js`
+- `static/chat/core/realtime.js`
+- `static/chat/core/realtime-render.js`
 - `static/chat/session/surface-ui.js`
 - `static/chat/session-list/ui.js`
-- `static/chat/sidebar-ui.js`
+- `static/chat/session-list/sidebar-ui.js`
 - `static/chat/session/compose.js`
 - `static/chat/workbench-ui.js`
 - `static/chat/workbench/task-map-model.js`

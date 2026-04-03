@@ -229,8 +229,8 @@
 
 主要落点：
 
-- `static/chat/bootstrap.js`
-- `static/chat/bootstrap-session-catalog.js`
+- `static/chat/core/bootstrap.js`
+- `static/chat/core/bootstrap-session-catalog.js`
 - `static/chat/session/compose.js`
 
 ### 6.2 delegate / fork 的表面定义还不干净

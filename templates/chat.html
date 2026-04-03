@@ -40,7 +40,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <h2>MelodySync</h2>
-        <button class="header-btn" id="hooksSettingsBtn" type="button" title="Hooks 设置" aria-label="Hooks 设置">⚙</button>
+        <button class="header-btn" id="hooksSettingsBtn" type="button" title="设置" aria-label="设置">⚙</button>
         <button class="header-btn" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
       </div>
       <div class="sidebar-tabs">
@@ -55,15 +55,28 @@
     </aside>
   </div>
 
-  <!-- Hooks settings overlay -->
-  <div class="hooks-overlay" id="hooksOverlay" hidden role="dialog" aria-modal="true" aria-label="Hooks 设置">
+  <!-- Settings overlay -->
+  <div class="hooks-overlay" id="hooksOverlay" hidden role="dialog" aria-modal="true" aria-label="设置">
     <div class="hooks-panel">
       <div class="hooks-panel-header">
-        <span class="hooks-panel-title">Hooks 设置</span>
+        <span class="hooks-panel-title">设置</span>
         <button class="hooks-panel-close" id="hooksOverlayClose" type="button" aria-label="关闭">✕</button>
       </div>
-      <div class="hooks-panel-body" id="hooksPanelBody">
-        <div class="hooks-loading">加载中…</div>
+      <div class="hooks-panel-tabs" role="tablist" aria-label="设置分类">
+        <button class="hooks-panel-tab is-active" id="settingsTabHooks" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelHooks" data-settings-tab="hooks">Hooks</button>
+        <button class="hooks-panel-tab" id="settingsTabNodes" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelNodes" data-settings-tab="nodes">节点</button>
+      </div>
+      <div class="hooks-panel-body">
+        <section class="settings-tab-panel" id="settingsPanelHooks" data-settings-panel="hooks" role="tabpanel">
+          <div id="hooksPanelBody">
+            <div class="hooks-loading">加载中…</div>
+          </div>
+        </section>
+        <section class="settings-tab-panel" id="settingsPanelNodes" data-settings-panel="nodes" role="tabpanel" hidden>
+          <div class="task-map-node-settings-panel-body" id="taskMapNodeSettingsBody">
+            <div class="task-map-node-settings-loading">加载中…</div>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -181,27 +194,28 @@
 {{BOOTSTRAP_SCRIPT_TAGS}}
 {{EXTRA_BOOTSTRAP_SCRIPTS}}
 <script src="/marked.min.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/i18n.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/i18n.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session-list/order-contract.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session/state-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/icons.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/app-state.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/bootstrap.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/bootstrap-session-catalog.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/icons.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/app-state.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/bootstrap.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/bootstrap-session-catalog.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session-list/contract.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session/http-helpers.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session/http-list-state.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session/http.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/layout-tooling.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/layout-tooling.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session/tooling.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/realtime.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/realtime-render.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/realtime.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/realtime-render.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/session/transcript-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session/surface-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session-list/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session-list/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/session-list/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/node-contract.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/workbench/node-settings-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/task-map-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/quest-state.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/task-tracker-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
@@ -212,9 +226,11 @@
 <script src="/chat/vendor/panzoom.min.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/session/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/settings/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/hooks/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/workbench/node-settings-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/hooks/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/core/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 </body>
 </html>

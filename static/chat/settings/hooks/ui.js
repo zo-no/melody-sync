@@ -2,12 +2,10 @@
 
 (function () {
   const hooksModel = window.MelodySyncHooksSettingsModel;
-  const overlay = document.getElementById('hooksOverlay');
-  const openBtn = document.getElementById('hooksSettingsBtn');
-  const closeBtn = document.getElementById('hooksOverlayClose');
   const body = document.getElementById('hooksPanelBody');
+  const settingsPanel = window.MelodySyncSettingsPanel;
 
-  if (!overlay || !openBtn || !body || !hooksModel) return;
+  if (!body || !hooksModel || !settingsPanel) return;
 
   // ── State ────────────────────────────────────────────────────────────────────
   let hooksData = null; // { events: string[], hooks: HookMeta[] }
@@ -148,24 +146,12 @@
       .replace(/"/g, '&quot;');
   }
 
-  // ── Open / close ─────────────────────────────────────────────────────────────
-  function openOverlay() {
-    overlay.hidden = false;
-    document.body.classList.add('hooks-overlay-open');
+  function showHooksSettings() {
     loadHooks();
   }
 
-  function closeOverlay() {
-    overlay.hidden = true;
-    document.body.classList.remove('hooks-overlay-open');
-  }
-
-  openBtn.addEventListener('click', openOverlay);
-  closeBtn?.addEventListener('click', closeOverlay);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeOverlay();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overlay.hidden) closeOverlay();
+  settingsPanel.registerTab({
+    id: 'hooks',
+    onShow: showHooksSettings,
   });
 })();

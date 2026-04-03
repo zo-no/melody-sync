@@ -7,12 +7,47 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
+const settingsUiSource = readFileSync(join(repoRoot, 'static/chat/settings/ui.js'), 'utf8');
 const hooksModelSource = readFileSync(join(repoRoot, 'static/chat/settings/hooks/model.js'), 'utf8');
 const hooksUiSource = readFileSync(join(repoRoot, 'static/chat/settings/hooks/ui.js'), 'utf8');
+
+function makeClassList() {
+  const tokens = new Set();
+  return {
+    add(...values) {
+      values.filter(Boolean).forEach((value) => tokens.add(value));
+    },
+    remove(...values) {
+      values.filter(Boolean).forEach((value) => tokens.delete(value));
+    },
+    toggle(value, force) {
+      if (force === true) {
+        tokens.add(value);
+        return true;
+      }
+      if (force === false) {
+        tokens.delete(value);
+        return false;
+      }
+      if (tokens.has(value)) {
+        tokens.delete(value);
+        return false;
+      }
+      tokens.add(value);
+      return true;
+    },
+    contains(value) {
+      return tokens.has(value);
+    },
+  };
+}
 
 function makeEventTarget() {
   const listeners = new Map();
   return {
+    hidden: false,
+    dataset: {},
+    classList: makeClassList(),
     addEventListener(type, listener) {
       if (!listeners.has(type)) listeners.set(type, []);
       listeners.get(type).push(listener);
@@ -26,22 +61,8 @@ function makeEventTarget() {
     click() {
       this.dispatchEvent({ type: 'click', target: this });
     },
-  };
-}
-
-function makeBody() {
-  const classes = new Set();
-  return {
-    classList: {
-      add(token) {
-        classes.add(token);
-      },
-      remove(token) {
-        classes.delete(token);
-      },
-      contains(token) {
-        return classes.has(token);
-      },
+    setAttribute(name, value) {
+      this[name] = value;
     },
   };
 }
@@ -81,7 +102,15 @@ const hooksOverlay = makeEventTarget();
 hooksOverlay.hidden = true;
 const hooksSettingsBtn = makeEventTarget();
 const hooksOverlayClose = makeEventTarget();
-const documentBody = makeBody();
+const settingsTabHooks = makeEventTarget();
+settingsTabHooks.dataset.settingsTab = 'hooks';
+const settingsTabNodes = makeEventTarget();
+settingsTabNodes.dataset.settingsTab = 'nodes';
+const settingsPanelHooks = makeEventTarget();
+settingsPanelHooks.dataset.settingsPanel = 'hooks';
+const settingsPanelNodes = makeEventTarget();
+settingsPanelNodes.dataset.settingsPanel = 'nodes';
+const documentBody = { classList: makeClassList() };
 
 const documentTarget = makeEventTarget();
 documentTarget.body = documentBody;
@@ -95,9 +124,26 @@ documentTarget.getElementById = function getElementById(id) {
       return hooksOverlayClose;
     case 'hooksPanelBody':
       return hooksPanelBody;
+    case 'settingsTabHooks':
+      return settingsTabHooks;
+    case 'settingsTabNodes':
+      return settingsTabNodes;
+    case 'settingsPanelHooks':
+      return settingsPanelHooks;
+    case 'settingsPanelNodes':
+      return settingsPanelNodes;
     default:
       return null;
   }
+};
+documentTarget.querySelectorAll = function querySelectorAll(selector) {
+  if (selector === '[data-settings-tab]') {
+    return [settingsTabHooks, settingsTabNodes];
+  }
+  if (selector === '[data-settings-panel]') {
+    return [settingsPanelHooks, settingsPanelNodes];
+  }
+  return [];
 };
 
 const fetchCalls = [];
@@ -110,18 +156,6 @@ const context = {
       ok: true,
       async json() {
         return {
-          settings: {
-            persistence: 'file',
-            storagePath: '/tmp/melody-sync/hooks.json',
-            supportsEnableDisable: true,
-          },
-          scopeDefinitions: [
-            { id: 'instance', label: '实例', description: '实例启动、首次初始化和恢复相关的生命周期工作。' },
-            { id: 'session', label: '任务', description: '任务建立和首次进入真实对话相关的生命周期工作。' },
-            { id: 'run', label: '单次执行', description: '单次执行的启动、完成和失败相关的生命周期工作。' },
-            { id: 'branch', label: '支线', description: '支线建议、开启和合并回主线相关的生命周期工作。' },
-          ],
-          scopeOrder: ['instance', 'session', 'run', 'branch'],
           phaseDefinitions: [
             { id: 'startup', label: '启动准备', description: '实例启动、首次初始化和恢复相关的闭环起点。' },
             { id: 'entry', label: '进入任务', description: '任务建立并首次进入真实对话的阶段。' },
@@ -130,28 +164,6 @@ const context = {
             { id: 'branch_followup', label: '支线处理与回流', description: '支线被打开后继续推进，并在合适时回流主线。' },
           ],
           phaseOrder: ['startup', 'entry', 'execution', 'closeout', 'branch_followup'],
-          layerDefinitions: [
-            { id: 'boot', label: 'Boot Hooks', description: '实例首次启动、启动恢复、运行环境初始化相关的 hooks。' },
-            { id: 'lifecycle', label: 'Lifecycle Hooks', description: '会话、Run、支线和完成闭环相关的生命周期派生处理。' },
-            { id: 'delivery', label: 'Delivery Hooks', description: '对外通知、邮件、回调等外部交付副作用。' },
-            { id: 'other', label: 'Other Hooks', description: '未归入标准生命周期层的 hooks。' },
-          ],
-          layerOrder: ['boot', 'lifecycle', 'delivery', 'other'],
-          uiTargetDefinitions: [
-            { id: 'session_stream', label: 'Session Stream', description: '在会话流中插入生命周期事件、提示卡和完成收据。' },
-            { id: 'task_status_strip', label: 'Task Status Strip', description: '更新顶部轻状态条中的提示性状态信息。' },
-            { id: 'task_action_panel', label: 'Task Action Panel', description: '更新输入区附近的行动建议和下一步提示。' },
-            { id: 'task_map', label: 'Task Map Surface', description: '给任务地图添加提示性覆盖信息、入口和状态提示，但不拥有 node 真值。' },
-            { id: 'task_list_rows', label: 'Task List Rows', description: '更新 GTD 任务列表中的任务名、分组标签和辅助文案，但不拥有顺序真值。' },
-            { id: 'task_list_badges', label: 'Task List Badges', description: '更新任务列表中的徽标、状态点和轻量提示。' },
-            { id: 'composer_assist', label: 'Composer Assist', description: '更新输入区附近的建议问句、快捷动作和补充上下文提示。' },
-            { id: 'workspace_notices', label: 'Workspace Notices', description: '在工作区插入阶段性提示、完成收据和全局 notice。' },
-            { id: 'settings_panels', label: 'Settings Panels', description: '在设置面板中展示 hook 能力、状态、解释和调试信息。' },
-          ],
-          uiReservedTruths: [
-            { id: 'task_list_order', description: '任务列表顺序由 session-list-order contract 独立管理，hook 不应直接拥有排序真值。' },
-            { id: 'task_map_nodes', description: '地图 node 投影由 durable state 驱动，hook 不应成为 node 真值来源。' },
-          ],
           events: [
             'instance.first_boot',
             'instance.startup',
@@ -184,9 +196,6 @@ const context = {
               eventPattern: 'instance.first_boot',
               label: '初始化工作记忆',
               description: '实例首次启动时创建最小协作记忆文件和目录。',
-              builtIn: true,
-              layer: 'boot',
-              sourceModule: 'chat/hooks/first-boot-memory-hook.mjs',
               enabled: true,
             },
             {
@@ -194,9 +203,6 @@ const context = {
               eventPattern: 'run.completed',
               label: '完成后推送通知',
               description: '任务执行完成后发送推送提醒。',
-              builtIn: true,
-              layer: 'delivery',
-              sourceModule: 'chat/hooks/push-notification-hook.mjs',
               enabled: true,
             },
             {
@@ -204,9 +210,6 @@ const context = {
               eventPattern: 'branch.suggested',
               label: '记录支线建议',
               description: '检测到适合独立处理的话题后，把建议支线写回会话记录。',
-              builtIn: true,
-              layer: 'lifecycle',
-              sourceModule: 'chat/hooks/branch-candidates-hook.mjs',
               enabled: true,
             },
           ],
@@ -219,6 +222,7 @@ const context = {
 context.window = context;
 context.globalThis = context;
 
+vm.runInNewContext(settingsUiSource, context, { filename: 'static/chat/settings/ui.js' });
 vm.runInNewContext(hooksModelSource, context, { filename: 'static/chat/settings/hooks/model.js' });
 vm.runInNewContext(hooksUiSource, context, { filename: 'static/chat/settings/hooks/ui.js' });
 
@@ -226,41 +230,34 @@ hooksSettingsBtn.click();
 await flushMicrotasks();
 await flushMicrotasks();
 
-assert.equal(hooksOverlay.hidden, false, 'hooks settings click should open the overlay');
-assert.equal(documentBody.classList.contains('hooks-overlay-open'), true, 'opening hooks settings should tag the body state');
-assert.deepEqual(fetchCalls, ['/api/hooks'], 'opening hooks settings should fetch the hooks metadata exactly once');
-assert.match(hooksPanelBody.innerHTML, /按完整闭环流程查看/, 'hooks settings should explain the phase-first lifecycle grouping');
-assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">启动准备<\/div>/, 'hooks settings should render the startup phase');
-assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">进入任务<\/div>/, 'hooks settings should render the entry phase');
-assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">本轮处理<\/div>/, 'hooks settings should render the execution phase');
-assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">收尾与分流<\/div>/, 'hooks settings should render the closeout phase');
-assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">支线处理与回流<\/div>/, 'hooks settings should render the branch follow-up phase');
-assert.match(hooksPanelBody.innerHTML, /生命周期流程/, 'hooks settings should render the lifecycle flowchart footer');
-assert.match(hooksPanelBody.innerHTML, /实例启动完成/, 'lifecycle flowchart should include startup events');
-assert.match(hooksPanelBody.innerHTML, /识别支线建议/, 'lifecycle flowchart should include closeout branch-suggestion events');
-assert.match(hooksPanelBody.innerHTML, /支线合并回主线/, 'lifecycle flowchart should include branch follow-up events');
-assert.match(hooksPanelBody.innerHTML, /实例首次启动-instance\.first_boot/, 'hooks settings should render lifecycle titles as chinese label plus event id');
-assert.match(hooksPanelBody.innerHTML, /实例启动完成-instance\.startup/, 'hooks settings should keep lifecycle sections even when no hooks are registered');
-assert.match(hooksPanelBody.innerHTML, /执行完成-run\.completed/, 'hooks settings should render the completed run lifecycle section');
-assert.match(hooksPanelBody.innerHTML, /识别支线建议-branch\.suggested/, 'hooks settings should render branch lifecycle sections');
-assert.match(hooksPanelBody.innerHTML, /支线合并回主线-branch\.merged/, 'hooks settings should render empty branch merge lifecycle sections too');
-assert.match(hooksPanelBody.innerHTML, /初始化工作记忆/, 'hooks settings should render registered hooks under their lifecycle');
-assert.match(hooksPanelBody.innerHTML, /完成后推送通知/, 'hooks settings should render delivery hooks under run.completed');
-assert.match(hooksPanelBody.innerHTML, /记录支线建议/, 'hooks settings should render branch suggestion hooks');
-assert.match(hooksPanelBody.innerHTML, /首次发送消息-session\.first_user_message/, 'hooks settings should show lifecycle titles even when there are no hooks yet');
-assert.match(hooksPanelBody.innerHTML, /当前该生命周期暂无已接入 Hook。/, 'hooks settings should explicitly show empty lifecycle sections');
-assert.match(hooksPanelBody.innerHTML, /未接入/, 'hooks settings should show a restrained empty-state badge for uncovered lifecycle nodes');
-assert.match(hooksPanelBody.innerHTML, /已接入 1 项/, 'hooks settings should render compact Chinese coverage counts');
-assert.doesNotMatch(hooksPanelBody.innerHTML, /<div class="hooks-summary-title">/, 'hooks settings should not repeat a summary title above the panel explanation');
-assert.doesNotMatch(hooksPanelBody.innerHTML, /Hooks 是生命周期自动化，不是项目真值/, 'hooks settings should no longer render the old architecture summary');
-assert.doesNotMatch(hooksPanelBody.innerHTML, /\/tmp\/melody-sync\/hooks\.json/, 'hooks settings should no longer surface storage-path details');
-assert.doesNotMatch(hooksPanelBody.innerHTML, /Boot Hooks|Delivery Hooks/, 'hooks settings should no longer group the UI by layer');
-assert.doesNotMatch(hooksPanelBody.innerHTML, /待接入生命周期/, 'hooks settings should no longer split uncovered events into a separate data section');
-assert.doesNotMatch(hooksPanelBody.innerHTML, /chat\/hooks\/first-boot-memory-hook\.mjs/, 'hooks settings should not show source module paths in the minimal panel');
-assert.doesNotMatch(hooksPanelBody.innerHTML, /Session Stream|Task List Rows|task_list_order/, 'hooks settings should not show UI surface or reserved-truth metadata in the minimal panel');
+assert.equal(hooksOverlay.hidden, false, 'settings button should open the shared overlay');
+assert.equal(documentBody.classList.contains('hooks-overlay-open'), true, 'opening settings should tag the body state');
+assert.deepEqual(fetchCalls, ['/api/hooks'], 'opening the hooks tab should fetch hooks metadata exactly once');
+assert.equal(settingsTabHooks.classList.contains('is-active'), true, 'hooks tab should be active by default');
+assert.equal(settingsPanelHooks.hidden, false, 'hooks panel should be visible by default');
+assert.equal(settingsPanelNodes.hidden, true, 'node panel should stay hidden until selected');
+assert.match(hooksPanelBody.innerHTML, /按完整闭环流程查看/, 'hooks tab should explain the phase-first lifecycle grouping');
+assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">启动准备<\/div>/, 'hooks tab should render the startup phase');
+assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">进入任务<\/div>/, 'hooks tab should render the entry phase');
+assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">本轮处理<\/div>/, 'hooks tab should render the execution phase');
+assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">收尾与分流<\/div>/, 'hooks tab should render the closeout phase');
+assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">支线处理与回流<\/div>/, 'hooks tab should render the branch follow-up phase');
+assert.match(hooksPanelBody.innerHTML, /生命周期流程/, 'hooks tab should render the lifecycle flowchart footer');
+assert.match(hooksPanelBody.innerHTML, /实例首次启动-instance\.first_boot/, 'hooks tab should render lifecycle titles as chinese label plus event id');
+assert.match(hooksPanelBody.innerHTML, /执行完成-run\.completed/, 'hooks tab should render the completed run lifecycle section');
+assert.match(hooksPanelBody.innerHTML, /识别支线建议-branch\.suggested/, 'hooks tab should render branch lifecycle sections');
+assert.match(hooksPanelBody.innerHTML, /初始化工作记忆/, 'hooks tab should render registered hooks under their lifecycle');
+assert.match(hooksPanelBody.innerHTML, /完成后推送通知/, 'hooks tab should render run-completed hooks');
+assert.match(hooksPanelBody.innerHTML, /记录支线建议/, 'hooks tab should render branch suggestion hooks');
+assert.match(hooksPanelBody.innerHTML, /当前该生命周期暂无已接入 Hook。/, 'hooks tab should explicitly show empty lifecycle sections');
+
+settingsTabNodes.click();
+assert.equal(settingsTabNodes.classList.contains('is-active'), true, 'settings shell should switch to the node tab');
+assert.equal(settingsPanelHooks.hidden, true, 'hooks panel should hide after switching tabs');
+assert.equal(settingsPanelNodes.hidden, false, 'node panel should become visible after switching tabs');
 
 hooksOverlayClose.click();
-assert.equal(hooksOverlay.hidden, true, 'close button should hide the hooks overlay');
+assert.equal(hooksOverlay.hidden, true, 'close button should hide the shared settings overlay');
 assert.equal(documentBody.classList.contains('hooks-overlay-open'), false, 'close button should clear the body state');
 
 console.log('test-chat-hooks-ui: ok');

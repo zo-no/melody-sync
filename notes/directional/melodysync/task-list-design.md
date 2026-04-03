@@ -293,7 +293,7 @@ MelodySync 的前台主对象不是 `session`，而是 `task`。
 - `static/chat/chat-sidebar.css`
 - `static/chat/workbench-ui.js`
 - `static/chat/session/http.js`
-- `static/chat/sidebar-ui.js`
+- `static/chat/session-list/sidebar-ui.js`
 
 阅读顺序建议：
 

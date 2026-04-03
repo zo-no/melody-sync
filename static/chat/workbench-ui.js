@@ -60,6 +60,10 @@
     return typeof window?.melodySyncT === "function" ? window.melodySyncT(key, vars) : key;
   }
 
+  function renderWorkbenchIcon(name, className = "") {
+    return window.MelodySyncIcons?.render(name, { className }) || "";
+  }
+
   function clipText(value, max = 120) {
     const text = String(value || "").replace(/\s+/g, " ").trim();
     if (!text) return "";
@@ -110,9 +114,11 @@
   }
 
   function renderChevronIcon(expanded, className = "") {
-    if (typeof renderUiIcon === "function") {
-      return renderUiIcon(expanded ? "chevron-down" : "chevron-right", className);
-    }
+    const icon = renderWorkbenchIcon(
+      expanded ? "chevron-down" : "chevron-right",
+      className,
+    );
+    if (icon) return icon;
     return expanded ? "▾" : "▸";
   }
 

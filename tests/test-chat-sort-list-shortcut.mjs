@@ -7,13 +7,13 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sidebarUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'sidebar-ui.js'), 'utf8');
+const sidebarUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'session-list', 'sidebar-ui.js'), 'utf8');
 const sessionHttpSource = readFileSync(join(repoRoot, 'static', 'chat', 'session/http.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
   const start = source.indexOf(marker);
-  assert.notEqual(start, -1, `${functionName} should exist in sidebar-ui.js`);
+  assert.notEqual(start, -1, `${functionName} should exist in session-list/sidebar-ui.js`);
   const paramsStart = source.indexOf('(', start);
   assert.notEqual(paramsStart, -1, `${functionName} should have parameters`);
   let paramsDepth = 0;
@@ -60,7 +60,7 @@ function createHarness({ organizeResult = true } = {}) {
   context.globalThis = context;
   vm.runInNewContext(`${createSortSessionListShortcutSource}
 globalThis.createSortSessionListShortcut = createSortSessionListShortcut;`, context, {
-    filename: 'static/chat/sidebar-ui.js',
+    filename: 'static/chat/session-list/sidebar-ui.js',
   });
   return { context, state };
 }

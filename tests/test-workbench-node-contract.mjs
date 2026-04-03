@@ -46,4 +46,72 @@ assert.equal(done?.sessionBacked, false);
 assert.equal(contract.isKnownNodeKind('main'), true);
 assert.equal(contract.isKnownNodeKind('unknown'), false);
 
+const bootstrapContext = {
+  console,
+  MelodySyncBootstrap: {
+    getBootstrap() {
+      return {
+        workbench: {
+          nodeLanes: ['main', 'branch', 'review'],
+          nodeRoles: ['state', 'action', 'summary'],
+          nodeMergePolicies: ['replace-latest', 'append'],
+          nodeKindDefinitions: [
+            {
+              id: 'main',
+              label: '主任务',
+              description: '主任务根节点，对应主 session。',
+              lane: 'main',
+              role: 'state',
+              sessionBacked: true,
+              derived: false,
+              mergePolicy: 'replace-latest',
+            },
+            {
+              id: 'review',
+              label: '复盘节点',
+              description: '用户配置后可挂接的复盘型节点。',
+              lane: 'review',
+              role: 'summary',
+              sessionBacked: false,
+              derived: true,
+              mergePolicy: 'append',
+            },
+          ],
+        },
+      };
+    },
+  },
+};
+bootstrapContext.globalThis = bootstrapContext;
+bootstrapContext.window = bootstrapContext;
+vm.runInNewContext(source, bootstrapContext, { filename: 'workbench/node-contract.js' });
+
+const bootstrapContract = bootstrapContext.MelodySyncWorkbenchNodeContract;
+assert.ok(bootstrapContract, 'bootstrap-backed node contract should be exposed on globalThis');
+assert.deepEqual(
+  JSON.parse(JSON.stringify(bootstrapContract.NODE_LANES)),
+  ['main', 'branch', 'review'],
+  'bootstrap-backed node lanes should override the local fallback',
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(bootstrapContract.NODE_KINDS)),
+  ['main', 'review'],
+  'bootstrap-backed node definitions should override the local fallback list',
+);
+assert.equal(
+  bootstrapContract.getNodeKindDefinition('review')?.label,
+  '复盘节点',
+  'bootstrap-backed node definitions should be queryable by kind',
+);
+assert.equal(
+  bootstrapContract.getNodeKindDefinition('review')?.mergePolicy,
+  'append',
+  'bootstrap-backed node definitions should retain their merge policy',
+);
+assert.equal(
+  bootstrapContract.isKnownNodeKind('review'),
+  true,
+  'bootstrap-backed node definitions should be recognized as known kinds',
+);
+
 console.log('test-workbench-node-contract: ok');

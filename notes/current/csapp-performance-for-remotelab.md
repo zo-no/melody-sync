@@ -62,7 +62,7 @@ Relevant files:
 
 - `chat/session-manager.mjs`
 - `chat/router.mjs`
-- `static/chat/realtime.js`
+- `static/chat/core/realtime.js`
 
 CSAPP framing:
 
@@ -73,7 +73,7 @@ CSAPP framing:
 Project mapping:
 
 - the Node server multiplexes requests, session refreshes, websocket invalidations, and filesystem work on one event loop
-- the browser reconnect loop in `static/chat/realtime.js` is intentionally simple because HTTP is the source of truth and WebSocket is only an invalidation hint
+- the browser reconnect loop in `static/chat/core/realtime.js` is intentionally simple because HTTP is the source of truth and WebSocket is only an invalidation hint
 - any synchronous CPU-heavy transform or oversized JSON materialization in the server can create head-of-line blocking
 
 Optimization implications:

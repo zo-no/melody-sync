@@ -234,7 +234,7 @@ GTD 分组是任务列表的组织视图，不是生命周期状态本身。
 - `static/chat/workbench-ui.js`
 - `static/chat/session/surface-ui.js`
 - `static/chat/session-list/ui.js`
-- `static/chat/realtime.js`
+- `static/chat/core/realtime.js`
 
 阅读顺序建议：
 

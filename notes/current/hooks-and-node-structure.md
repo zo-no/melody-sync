@@ -5,7 +5,8 @@
 当前与 hooks / node 相关的集中 contract 有三份：
 
 - hooks contract：`chat/hooks/hook-contract.mjs`
-- node contract：`static/chat/workbench/node-contract.js`
+- backend node definitions：`chat/workbench/node-definitions.mjs`
+- frontend node contract：`static/chat/workbench/node-contract.js`
 - session list contract：`static/chat/session-list/contract.js`
 - session list order contract：`static/chat/session-list/order-contract.js`
 
@@ -157,8 +158,18 @@
 
 ### task map 当前保留的 node kind
 
+- `chat/workbench/node-definitions.mjs`
+  - 统一维护当前 node kind / lane / role / mergePolicy 的 canonical exposure
+  - 通过 chat bootstrap 和 `GET /api/workbench/node-definitions` 透出给前端与后续配置面
+- `chat/workbench/node-settings-store.mjs`
+  - 维护用户新增的 custom node kind 持久化
+  - 当前只允许扩展自定义节点，不直接改写 builtin 节点
 - `static/chat/workbench/node-contract.js`
-  - 统一维护前端 task map node kind contract 与 schema 默认值
+  - 读取 backend 透出的 node definitions，并在前端做兜底校验与暴露
+- `static/chat/workbench/node-settings-model.js`
+  - 把 node definitions payload 归一化成地图域可消费的设置模型
+- `static/chat/workbench/node-settings-ui.js`
+  - 把 node 设置入口放在 task map rail 上，并用对称弹窗做编辑
 - `main`
   - 主任务根节点，对应主 session
 - `branch`
@@ -203,6 +214,10 @@
   - 是持久化工作台对象，来源于 `chat/workbench-store.mjs`
 - frontend task map 的 node kind
   - 是 `main / branch / candidate / done` 这组展示层投影
+- backend exposed node definitions
+  - 是当前 node 类型 contract 的透出层，供 bootstrap、API、前端 contract 和后续用户配置入口共享
+- persisted custom node settings
+  - 是用户新增 node kind 的配置层，当前通过共享设置弹窗里的“节点” tab 维护
 
 后面继续重构时，这两层不能混名为同一个概念。
 

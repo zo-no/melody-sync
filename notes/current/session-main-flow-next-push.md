@@ -62,7 +62,7 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 **Main files**
 
 - `templates/chat.html`
-- `static/chat/ui.js`
+- `static/chat/session/transcript-ui.js`
 - `static/chat/session/compose.js`
 - `static/chat/session/state-model.js`
 

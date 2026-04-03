@@ -13,8 +13,8 @@ assert.equal(
 );
 
 assert.equal(
-  appendQueryMarker('https://example.com/chat/ui.js', '_perf', 'abc123'),
-  'https://example.com/chat/ui.js?_perf=abc123'
+  appendQueryMarker('https://example.com/chat/session/transcript-ui.js', '_perf', 'abc123'),
+  'https://example.com/chat/session/transcript-ui.js?_perf=abc123'
 );
 
 assert.deepEqual(parseCloudflareTrace(`fl=abc123

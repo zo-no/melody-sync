@@ -8,6 +8,7 @@ This directory contains the session-scoped frontend chain.
 - `http-list-state.js`: session list refresh and list-state coordination layered on the HTTP client.
 - `http.js`: canonical session fetch/update path for the no-build frontend.
 - `state-model.js`: canonical session visual-state model used by the no-build frontend.
+- `transcript-ui.js`: transcript/message rendering, attachments, lazy event bodies, and inline branch suggestions.
 - `surface-ui.js`: attached-session rendering and session-row action helpers.
 
 Keep this directory focused on the attached session lifecycle. Do not move session-list grouping or workbench projections here.

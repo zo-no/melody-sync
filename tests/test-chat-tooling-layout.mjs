@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const responsiveSource = readFileSync(join(repoRoot, 'static/chat/layout-tooling.js'), 'utf8');
+const responsiveSource = readFileSync(join(repoRoot, 'static/chat/core/layout-tooling.js'), 'utf8');
 
 function makeClassList(initial = []) {
   const values = new Set(initial);
@@ -142,7 +142,7 @@ const mobileHarness = createContext({
   innerHeight: 812,
   visualHeight: 812,
 });
-vm.runInNewContext(responsiveSource, mobileHarness.context, { filename: 'static/chat/layout-tooling.js' });
+vm.runInNewContext(responsiveSource, mobileHarness.context, { filename: 'static/chat/core/layout-tooling.js' });
 
 assert.ok(mobileHarness.context.window.MelodySyncLayout, 'tooling should expose a single shared layout controller');
 
@@ -187,7 +187,7 @@ const desktopHarness = createContext({
   innerHeight: 900,
   visualHeight: 900,
 });
-vm.runInNewContext(responsiveSource, desktopHarness.context, { filename: 'static/chat/layout-tooling.js' });
+vm.runInNewContext(responsiveSource, desktopHarness.context, { filename: 'static/chat/core/layout-tooling.js' });
 desktopHarness.context.sidebarOverlay.classList.add('open');
 desktopHarness.context.sidebarOverlay.classList.add('collapsed');
 desktopHarness.context.initResponsiveLayout();

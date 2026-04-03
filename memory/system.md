@@ -56,7 +56,7 @@ Universal learnings and patterns that apply to all RemoteLab deployments, regard
 ### Similar UI Totals Often Have Separate Code Paths (2026-03-11)
 - In RemoteLab, session row counts, folder counts, archive counts, and app-filter totals can look like one product concept while still coming from different frontend functions.
 - When a screenshot reports a "count bug", first identify the exact UI surface and trace that specific DOM/data path; fixing an adjacent counter can create false confidence while the real bug remains.
-- For the session sidebar specifically, per-session row counts live in `static/chat/ui.js`, while the app-filter totals are computed separately in `static/chat/bootstrap.js`.
+- For the session sidebar specifically, per-session row counts live in `static/chat/session/transcript-ui.js`, while the app-filter totals are computed separately in `static/chat/core/bootstrap.js`.
 
 ### Template-Literal Prompt Edits Can Break Server Boot (2026-03-11)
 - `chat/system-prompt.mjs` builds a large template literal, so inserting raw backticks inside the embedded prompt text creates a syntax error that prevents `chat-server.mjs` from starting.

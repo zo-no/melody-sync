@@ -11,17 +11,17 @@ const repoRoot = dirname(__dirname);
 
 const filesToParse = [
   join(repoRoot, 'static', 'chat.js'),
-  join(repoRoot, 'static', 'chat', 'bootstrap-data.js'),
-  join(repoRoot, 'static', 'chat', 'i18n.js'),
-  join(repoRoot, 'static', 'chat', 'bootstrap.js'),
-  join(repoRoot, 'static', 'chat', 'bootstrap-session-catalog.js'),
-  join(repoRoot, 'static', 'chat', 'layout-tooling.js'),
+  join(repoRoot, 'static', 'chat', 'core', 'bootstrap-data.js'),
+  join(repoRoot, 'static', 'chat', 'core', 'i18n.js'),
+  join(repoRoot, 'static', 'chat', 'core', 'bootstrap.js'),
+  join(repoRoot, 'static', 'chat', 'core', 'bootstrap-session-catalog.js'),
+  join(repoRoot, 'static', 'chat', 'core', 'layout-tooling.js'),
   join(repoRoot, 'static', 'chat', 'session/tooling.js'),
   join(repoRoot, 'static', 'chat', 'session-list', 'order-contract.js'),
   join(repoRoot, 'static', 'chat', 'session-list', 'contract.js'),
   join(repoRoot, 'static', 'chat', 'session-list', 'model.js'),
   join(repoRoot, 'static', 'chat', 'session-list', 'ui.js'),
-  join(repoRoot, 'static', 'chat', 'sidebar-ui.js'),
+  join(repoRoot, 'static', 'chat', 'session-list', 'sidebar-ui.js'),
   join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'),
   join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'),
   join(repoRoot, 'static', 'chat', 'workbench', 'quest-state.js'),
@@ -324,13 +324,13 @@ context.window.crypto = context.crypto;
 context.window.getComputedStyle = context.getComputedStyle;
 
 const orderedFiles = [
-  'bootstrap-data.js',
-  'i18n.js',
-  'bootstrap.js',
-  'bootstrap-session-catalog.js',
-  'layout-tooling.js',
+  'core/bootstrap-data.js',
+  'core/i18n.js',
+  'core/bootstrap.js',
+  'core/bootstrap-session-catalog.js',
+  'core/layout-tooling.js',
   'session/tooling.js',
-  'sidebar-ui.js',
+  'session-list/sidebar-ui.js',
   'session/compose.js',
 ];
 

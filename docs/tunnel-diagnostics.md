@@ -20,7 +20,7 @@ Probe specific routes:
 npm run diag:tunnel -- \
   --path /api/sessions?view=refs \
   --path /api/models \
-  --path /chat/ui.js \
+  --path /chat/session/transcript-ui.js \
   --warm 3
 ```
 
@@ -49,7 +49,7 @@ npm run diag:tunnel -- --remote-base https://remotelab.example.com
 
 Useful rules of thumb:
 
-- If `/chat/ui.js` or another static file is slow remotely but fast locally, the bottleneck is outside the app.
+- If `/chat/session/transcript-ui.js` or another static file is slow remotely but fast locally, the bottleneck is outside the app.
 - If static `304` is still hundreds of milliseconds warm, Cloudflare path latency is dominating.
 - If `/api/*` local conditional requests already take tens of milliseconds, the current ETag path is also doing real work on the app before returning `304`.
 - If `/cdn-cgi/trace` says `loc=CN` but `colo=LAX`, this machine is crossing the Pacific just to reach Cloudflare. Tunnel requests then pay that distance twice: client → edge and edge → connector.

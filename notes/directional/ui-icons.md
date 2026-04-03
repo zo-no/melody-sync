@@ -14,7 +14,7 @@ RemoteLab now uses a small VS Code Codicons-derived subset for the high-friction
 The current implementation deliberately stays simple:
 
 - no full Codicons font or full icon package is loaded at runtime
-- only the icons currently used in the UI are shipped in `static/chat/icons.js`
+- only the icons currently used in the UI are shipped in `static/chat/core/icons.js`
 - the icon names stay aligned with Codicon names so future expansion can remain predictable
 
 ## Deferred TODO

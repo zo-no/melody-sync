@@ -57,12 +57,13 @@ MelodySync is now an owner-operated AI task workspace.
 
 `static/chat/`
 
-- `bootstrap*.js`: boot data, session catalog, navigation, startup state
-- `session-http*.js`: HTTP fetch/update helpers and attach/refresh logic
-- `realtime*.js`: websocket lifecycle and live rendering
-- `session/tooling.js`: tool/model/thinking picker and session controls
-- `session/compose.js`: composer, attachments, queued follow-ups
-- `workbench-ui.js`: task/workbench surface
+- `core/`: bootstrap payloads, app state, i18n/icons, layout, websocket invalidation, gestures, app init
+- `session/`: HTTP fetch/update helpers, derived session state, tooling, composer, transcript rendering, and attached session surface
+- `session-list/`: task-list contract, ordering contract, grouping model, sidebar list rendering, and sidebar shell behavior
+- `settings/hooks/`: hook settings lifecycle model plus browser entry UI
+- `workbench/`: task-map contract/model plus focused workbench renderers
+- `workbench-ui.js`: remaining top-level coordinator that still needs later extraction
+
 
 ## Core Domain Objects
 

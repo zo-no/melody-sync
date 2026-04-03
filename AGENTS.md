@@ -51,16 +51,20 @@ Browser / mobile shell
 
 - [`templates/chat.html`](templates/chat.html): main shell
 - [`static/chat.js`](static/chat.js): versioned loader
-- [`static/chat/bootstrap.js`](static/chat/bootstrap.js): bootstrap/runtime globals
-- [`static/chat/bootstrap-data.js`](static/chat/bootstrap-data.js): bootstrap payload helpers
-- [`static/chat/bootstrap-session-catalog.js`](static/chat/bootstrap-session-catalog.js): session/source/user catalog helpers
-- [`static/chat/session-http.js`](static/chat/session-http.js): canonical session HTTP client
-- [`static/chat/realtime.js`](static/chat/realtime.js): WS invalidation / reconnect logic
-- [`static/chat/session-surface-ui.js`](static/chat/session-surface-ui.js): session detail rendering
-- [`static/chat/session-list/ui.js`](static/chat/session-list/ui.js): session list rendering
+- [`static/chat/core/bootstrap.js`](static/chat/core/bootstrap.js): bootstrap/runtime globals
+- [`static/chat/core/bootstrap-data.js`](static/chat/core/bootstrap-data.js): bootstrap payload helpers
+- [`static/chat/core/bootstrap-session-catalog.js`](static/chat/core/bootstrap-session-catalog.js): session/source/user catalog helpers
+- [`static/chat/core/realtime.js`](static/chat/core/realtime.js): WS invalidation / reconnect logic
+- [`static/chat/core/realtime-render.js`](static/chat/core/realtime-render.js): transcript refresh/render helpers
+- [`static/chat/session/http.js`](static/chat/session/http.js): canonical session HTTP client
+- [`static/chat/session/tooling.js`](static/chat/session/tooling.js): runtime/tool/model controls
+- [`static/chat/session/compose.js`](static/chat/session/compose.js): composer interactions
+- [`static/chat/session/transcript-ui.js`](static/chat/session/transcript-ui.js): transcript/event rendering and attachment UI
+- [`static/chat/session/surface-ui.js`](static/chat/session/surface-ui.js): session detail rendering
+- [`static/chat/session/state-model.js`](static/chat/session/state-model.js): session derived state helpers
 - [`static/chat/session-list/model.js`](static/chat/session-list/model.js): session list grouping, badges, and lightweight branch semantics
-- [`static/chat/sidebar-ui.js`](static/chat/sidebar-ui.js): sidebar interactions
-- [`static/chat/compose.js`](static/chat/compose.js): composer interactions
+- [`static/chat/session-list/ui.js`](static/chat/session-list/ui.js): session list rendering
+- [`static/chat/session-list/sidebar-ui.js`](static/chat/session-list/sidebar-ui.js): sidebar interactions
 - [`static/chat/workbench-ui.js`](static/chat/workbench-ui.js): task/workbench UI
 
 ### Shared

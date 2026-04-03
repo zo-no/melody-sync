@@ -52,6 +52,7 @@ import { handleSessionWriteRoutes } from './routes/session-write.mjs';
 import { handleWorkbenchRoutes } from './routes/workbench.mjs';
 import { handleHooksRoutes } from './routes/hooks.mjs';
 import { handleSystemRoutes } from './router-system-routes.mjs';
+import { createWorkbenchNodeDefinitionsPayload } from './workbench/node-definitions.mjs';
 import {
   buildFileAssetDirectUrl,
   createFileAssetUploadIntent,
@@ -324,6 +325,7 @@ function buildChatPageBootstrap(authSession) {
   return {
     auth: buildAuthInfo(authSession),
     assetUploads: getFileAssetBootstrapConfig(),
+    workbench: createWorkbenchNodeDefinitionsPayload(),
   };
 }
 

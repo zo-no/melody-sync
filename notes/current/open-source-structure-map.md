@@ -177,13 +177,32 @@ chat/
 
 ```text
 static/chat/
+  core/
+    bootstrap-data.js
+    app-state.js
+    bootstrap.js
+    bootstrap-session-catalog.js
+    i18n.js
+    icons.js
+    layout-tooling.js
+    realtime.js
+    realtime-render.js
+    gestures.js
+    init.js
   session/
+    http-helpers.js
+    http-list-state.js
+    http.js
+    tooling.js
+    compose.js
+    surface-ui.js
     state-model.js
   session-list/
     contract.js
     order-contract.js
     model.js
     ui.js
+    sidebar-ui.js
   settings/
     hooks/
       model.js
@@ -207,7 +226,16 @@ static/chat/
   - `chat/workbench/operation-records.mjs`
   - `chat/workbench/exporters.mjs`
 - frontend 已经有：
+  - `static/chat/core/bootstrap.js`
+  - `static/chat/core/bootstrap-session-catalog.js`
+  - `static/chat/core/realtime.js`
+  - `static/chat/core/realtime-render.js`
   - `static/chat/session/state-model.js`
+  - `static/chat/session/http.js`
+  - `static/chat/session/tooling.js`
+  - `static/chat/session/compose.js`
+  - `static/chat/session/surface-ui.js`
+  - `static/chat/session-list/sidebar-ui.js`
   - `static/chat/settings/hooks/ui.js`
   - `static/chat/workbench/node-contract.js`
   - `static/chat/workbench/task-map-model.js`

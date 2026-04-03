@@ -142,7 +142,7 @@ async function main() {
   const seed = Date.now().toString(36);
   const frontendProbePath = join(repoRoot, 'static', 'chat', `__build_info_probe_${seed}.js`);
   const serviceProbePath = join(repoRoot, 'chat', `__service_build_probe_${seed}.mjs`);
-  const bootstrapSource = readFileSync(join(repoRoot, 'static', 'chat', 'bootstrap.js'), 'utf8');
+  const bootstrapSource = readFileSync(join(repoRoot, 'static', 'chat', 'core', 'bootstrap.js'), 'utf8');
   let server = null;
   let ws = null;
   let wsMessages = [];

@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const bootstrapSource = readFileSync(join(repoRoot, 'static', 'chat', 'bootstrap.js'), 'utf8');
+const bootstrapSource = readFileSync(join(repoRoot, 'static', 'chat', 'core', 'bootstrap.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -84,11 +84,11 @@ context.globalThis = context;
 vm.runInNewContext(
   `${updateFrontendRefreshUiSource}\nglobalThis.updateFrontendRefreshUi = updateFrontendRefreshUi;`,
   context,
-  { filename: 'static/chat/bootstrap.js' },
+  { filename: 'static/chat/core/bootstrap.js' },
 );
 
 context.updateFrontendRefreshUi();
-assert.equal(context.refreshFrontendBtn.hidden, false, 'refresh button should stay visible even when no update is pending');
+assert.equal(context.refreshFrontendBtn.hidden, true, 'refresh button should stay hidden when no update is pending');
 assert.equal(context.refreshFrontendBtn.title, '刷新到最新前端');
 assert.equal(context.refreshFrontendBtn.attributes.get('aria-label'), '刷新到最新前端');
 assert.equal(context.refreshFrontendBtn.classList.contains('ready'), false, 'refresh button should not be highlighted without a pending update');

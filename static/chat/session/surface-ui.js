@@ -2,6 +2,10 @@ function t(key, vars) {
   return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
+function renderSessionIcon(name, className = "") {
+  return window.MelodySyncIcons?.render(name, { className }) || "";
+}
+
 function esc(s) {
   const el = document.createElement("span");
   el.textContent = s;
@@ -280,12 +284,12 @@ function createActiveSessionItem(session, options = {}) {
   const actionConfigs = options.hideActions === true ? [] : buildSessionActionConfigs(session, options);
   const hideActions = actionConfigs.length === 0;
   const actionsHtml = actionConfigs.map((entry) => `
-      <button class="session-action-btn ${esc(entry.className || entry.key || "action")}" type="button" title="${esc(entry.label || "")}" aria-label="${esc(entry.label || "")}" data-id="${session.id}" data-action="${esc(entry.key || entry.action || "")}">${renderUiIcon(entry.icon || "close")}</button>
+      <button class="session-action-btn ${esc(entry.className || entry.key || "action")}" type="button" title="${esc(entry.label || "")}" aria-label="${esc(entry.label || "")}" data-id="${session.id}" data-action="${esc(entry.key || entry.action || "")}">${renderSessionIcon(entry.icon || "close")}</button>
     `).join("");
 
   div.innerHTML = `
     <div class="session-item-info">
-      <div class="session-item-name" title="${esc(displayTitle)}">${session.pinned ? `<span class="session-pin-badge" title="${esc(t("sidebar.pinned"))}">${renderUiIcon("pinned")}</span>` : ""}${esc(displayName)}</div>
+      <div class="session-item-name" title="${esc(displayTitle)}">${session.pinned ? `<span class="session-pin-badge" title="${esc(t("sidebar.pinned"))}">${renderSessionIcon("pinned")}</span>` : ""}${esc(displayName)}</div>
       ${metaHtml ? `<div class="session-item-meta">${metaHtml}</div>` : ""}
     </div>
     ${hideActions ? "" : `<div class="session-item-actions">${actionsHtml}</div>`}`;

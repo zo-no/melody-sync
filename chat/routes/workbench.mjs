@@ -1,6 +1,11 @@
 import { readBody } from '../../lib/utils.mjs';
 import { createSessionDetail } from '../session-api-shapes.mjs';
 import {
+  createCustomNodeKind,
+  deleteCustomNodeKind,
+  updateCustomNodeKind,
+} from '../workbench/node-settings-store.mjs';
+import {
   createBranchFromSession,
   createBranchFromNode,
   createCaptureItem,
@@ -17,9 +22,15 @@ import {
   setSessionReminderSnooze,
   writeProjectToObsidian,
 } from '../workbench-store.mjs';
+import { createWorkbenchNodeDefinitionsPayload } from '../workbench/node-definitions.mjs';
 
 function createClientSessionDetail(session) {
   return createSessionDetail(session);
+}
+
+async function readJsonBody(req, maxBytes = 65536) {
+  const raw = await readBody(req, maxBytes);
+  return raw ? JSON.parse(raw) : {};
 }
 
 export async function handleWorkbenchRoutes({
@@ -30,9 +41,60 @@ export async function handleWorkbenchRoutes({
   requireSessionAccess,
   writeJson,
 } = {}) {
+  if (pathname === '/api/workbench/node-definitions' && req?.method === 'GET') {
+    writeJson(res, 200, createWorkbenchNodeDefinitionsPayload());
+    return true;
+  }
+
   if (pathname === '/api/workbench' && req?.method === 'GET') {
     const snapshot = await getWorkbenchSnapshot();
     writeJson(res, 200, snapshot);
+    return true;
+  }
+
+  if (pathname === '/api/workbench/node-definitions' && req?.method === 'POST') {
+    let payload = {};
+    try {
+      payload = await readJsonBody(req, 16384);
+    } catch {
+      writeJson(res, 400, { error: 'Invalid request body' });
+      return true;
+    }
+    try {
+      await createCustomNodeKind(payload);
+      writeJson(res, 201, createWorkbenchNodeDefinitionsPayload());
+    } catch (error) {
+      writeJson(res, 400, { error: error.message || 'Failed to create custom node kind' });
+    }
+    return true;
+  }
+
+  if (pathname.startsWith('/api/workbench/node-definitions/') && req?.method === 'PATCH') {
+    const nodeKindId = decodeURIComponent(pathname.slice('/api/workbench/node-definitions/'.length));
+    let payload = {};
+    try {
+      payload = await readJsonBody(req, 16384);
+    } catch {
+      writeJson(res, 400, { error: 'Invalid request body' });
+      return true;
+    }
+    try {
+      await updateCustomNodeKind(nodeKindId, payload);
+      writeJson(res, 200, createWorkbenchNodeDefinitionsPayload());
+    } catch (error) {
+      writeJson(res, 400, { error: error.message || 'Failed to update custom node kind' });
+    }
+    return true;
+  }
+
+  if (pathname.startsWith('/api/workbench/node-definitions/') && req?.method === 'DELETE') {
+    const nodeKindId = decodeURIComponent(pathname.slice('/api/workbench/node-definitions/'.length));
+    try {
+      await deleteCustomNodeKind(nodeKindId);
+      writeJson(res, 200, createWorkbenchNodeDefinitionsPayload());
+    } catch (error) {
+      writeJson(res, 400, { error: error.message || 'Failed to delete custom node kind' });
+    }
     return true;
   }
 
@@ -68,8 +130,7 @@ export async function handleWorkbenchRoutes({
   const parts = pathname.split('/').filter(Boolean);
   let payload = {};
   try {
-    const raw = await readBody(req, 65536);
-    payload = raw ? JSON.parse(raw) : {};
+    payload = await readJsonBody(req, 65536);
   } catch {
     writeJson(res, 400, { error: 'Invalid request body' });
     return true;

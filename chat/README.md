@@ -12,7 +12,7 @@ Use this map before editing:
 - `hooks/contract/`: lifecycle scope and event definitions.
 - `hooks/runtime/`: hook registry, settings persistence, and builtin registration wiring.
 - `hooks/`: builtin metadata, focused handlers, and compatibility export surfaces.
-- `workbench/`: workbench persistence helpers and read-side projections.
+- `workbench/`: workbench persistence helpers, node settings, and read-side projections.
 - `workbench-store.mjs`: compatibility shell and orchestration entry for workbench behavior. Prefer moving new focused logic into `workbench/`.
 
 Edit rules:

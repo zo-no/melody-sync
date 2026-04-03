@@ -87,7 +87,7 @@ Read against these files:
 - `chat/session-manager.mjs`
 - `chat/runs.mjs`
 - `chat/ws.mjs`
-- `static/chat/realtime.js`
+- `static/chat/core/realtime.js`
 
 Practice task:
 

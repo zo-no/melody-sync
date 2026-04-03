@@ -33,7 +33,7 @@ Options:
 Defaults probe these paths:
   /api/sessions?view=refs
   /api/models
-  /chat/ui.js
+  /chat/session/transcript-ui.js
 `);
 }
 
@@ -91,7 +91,7 @@ function parseArgs(argv) {
     args.paths = [
       '/api/sessions?view=refs',
       '/api/models',
-      '/chat/ui.js',
+      '/chat/session/transcript-ui.js',
     ];
   }
 
