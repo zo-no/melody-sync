@@ -2898,6 +2898,91 @@ button.quest-task-flow-node {
   line-height: 1.45;
 }
 
+.quest-task-flow-node.is-canvas-selectable {
+  cursor: pointer;
+}
+
+.quest-task-flow-node.is-canvas-selected {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border-strong));
+  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.task-canvas-panel {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 14%, var(--border));
+  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+  box-shadow: 0 16px 36px color-mix(in srgb, #0b1520 10%, transparent);
+  overflow: hidden;
+}
+
+.task-canvas-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.task-canvas-panel-meta {
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.task-canvas-panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.task-canvas-panel-title {
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.task-canvas-panel-summary {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.task-canvas-panel-body {
+  min-height: 0;
+  overflow: auto;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+
+.task-canvas-panel-body .quest-task-flow-node-rich {
+  min-height: 100%;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.task-canvas-panel-body .quest-task-flow-node-rich-body {
+  min-height: 100%;
+}
+
 @media (max-width: 767px) {
   .quest-tracker {
     padding: 12px 12px 11px;
@@ -2914,6 +2999,11 @@ button.quest-task-flow-node {
 
   .quest-task-list.is-flow-board .quest-task-flow-scroll {
     background-size: 22px 22px;
+  }
+
+  .task-canvas-panel {
+    padding: 12px;
+    border-radius: 18px;
   }
 }
 
@@ -2978,7 +3068,8 @@ button.quest-task-flow-node {
   .quest-task-mindmap-chip,
   .quest-task-directory-row,
   .quest-task-map-tree .quest-task-directory-row,
-  .task-map-empty {
+  .task-map-empty,
+  .task-canvas-panel {
     background: rgba(255, 255, 255, 0.04);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
@@ -2986,10 +3077,21 @@ button.quest-task-flow-node {
   .quest-task-item.is-current,
   .quest-task-item.is-current-branch,
   .quest-task-flow-node.is-current,
+  .quest-task-flow-node.is-canvas-selected,
   .quest-task-mindmap-chip.is-current,
   .quest-task-map-tree .quest-task-directory-item.is-current-branch > .quest-task-directory-row {
     background: rgba(255, 255, 255, 0.08);
     box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+  }
+
+  .task-canvas-panel-body {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .task-canvas-panel-close {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #eef4fb;
   }
 
   .task-map-drawer-backdrop {

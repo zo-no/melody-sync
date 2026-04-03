@@ -97,6 +97,8 @@ try {
     ['task-map-clusters.js', loadFrontendModule('task-map-clusters.js')],
     ['task-map-mock-presets.js', loadFrontendModule('task-map-mock-presets.js')],
     ['task-map-model.js', loadFrontendModule('task-map-model.js')],
+    ['node-rich-view-ui.js', loadFrontendModule('node-rich-view-ui.js')],
+    ['node-canvas-ui.js', loadFrontendModule('node-canvas-ui.js')],
   ];
   for (const [filename, source] of moduleSources) {
     vm.runInNewContext(source, context, { filename: `workbench/${filename}` });
@@ -269,6 +271,49 @@ try {
       candidateBranches: ['补充复盘'],
     },
     'user flow should let builtin and custom nodes contribute to the same session task-card patch without touching renderer code',
+  );
+
+  function makeElement(tagName = 'div') {
+    return {
+      tagName: String(tagName || 'div').toUpperCase(),
+      hidden: false,
+      className: '',
+      textContent: '',
+      innerHTML: '',
+      children: [],
+      classList: {
+        add() {},
+        remove() {},
+        toggle() {},
+      },
+      appendChild(child) {
+        this.children.push(child);
+        return child;
+      },
+      addEventListener() {},
+      setAttribute(name, value) {
+        this[name] = String(value);
+      },
+    };
+  }
+
+  const nodeCanvasController = context.MelodySyncWorkbenchNodeCanvasUi.createController({
+    railEl: makeElement('section'),
+    titleEl: makeElement('div'),
+    summaryEl: makeElement('div'),
+    bodyEl: makeElement('div'),
+    closeBtn: makeElement('button'),
+    documentRef: {
+      createElement(tagName) {
+        return makeElement(tagName);
+      },
+    },
+    windowRef: context.window,
+  });
+  assert.equal(
+    nodeCanvasController.renderNode(customGoalNode),
+    true,
+    'user flow should let a custom rich-view node open the dedicated node canvas without changing renderer contracts',
   );
 
   const capabilityCalls = [];

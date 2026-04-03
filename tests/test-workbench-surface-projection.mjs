@@ -36,6 +36,31 @@ const surfaceProjectionSource = readFileSync(
 const context = { console };
 context.globalThis = context;
 context.window = context;
+const fetchCalls = [];
+context.fetchJsonOrRedirect = async (url) => {
+  fetchCalls.push(url);
+  return {
+    rootSessionId: 'main-1',
+    surfaceSlot: 'composer-suggestions',
+    entries: [
+      {
+        id: 'candidate:main-1:server',
+        text: '从 backend canonical surface 返回',
+        summary: 'surface cache 应该优先返回后端 slot payload',
+        capabilities: ['create-branch', 'dismiss'],
+        sourceSessionId: 'main-1',
+        taskCardBindings: ['candidateBranches'],
+        origin: {
+          type: 'plan',
+          planId: 'plan:server',
+          sourceId: 'manual',
+          sourceLabel: '',
+          hookId: '',
+        },
+      },
+    ],
+  };
+};
 
 vm.runInNewContext(nodeContractSource, context, { filename: 'workbench/node-contract.js' });
 vm.runInNewContext(nodeEffectsSource, context, { filename: 'workbench/node-effects.js' });
@@ -146,6 +171,63 @@ assert.deepEqual(
     },
   ],
   'surface projection should produce composer entries from merged candidate nodes',
+);
+
+const prefetchedEntries = await surfaceApi.prefetchSurfaceEntriesForSession({
+  session: { id: 'main-1', rootSessionId: 'main-1' },
+  surfaceSlot: 'composer-suggestions',
+  force: true,
+});
+assert.deepEqual(
+  JSON.parse(JSON.stringify(prefetchedEntries)),
+  [
+    {
+      id: 'candidate:main-1:server',
+      text: '从 backend canonical surface 返回',
+      summary: 'surface cache 应该优先返回后端 slot payload',
+      capabilities: ['create-branch', 'dismiss'],
+      sourceSessionId: 'main-1',
+      taskCardBindings: ['candidateBranches'],
+      origin: {
+        type: 'plan',
+        planId: 'plan:server',
+        sourceId: 'manual',
+        sourceLabel: '',
+        hookId: '',
+      },
+    },
+  ],
+  'surface projection should cache canonical backend surface entries when available',
+);
+assert.deepEqual(
+  fetchCalls,
+  ['/api/workbench/sessions/main-1/task-map-surfaces/composer-suggestions'],
+  'surface projection should read canonical surface entries from the session-scoped backend endpoint',
+);
+
+const cachedEntries = surfaceApi.buildComposerSuggestionEntries({
+  session: { id: 'main-1', rootSessionId: 'main-1' },
+});
+assert.deepEqual(
+  JSON.parse(JSON.stringify(cachedEntries)),
+  [
+    {
+      id: 'candidate:main-1:server',
+      text: '从 backend canonical surface 返回',
+      summary: 'surface cache 应该优先返回后端 slot payload',
+      capabilities: ['create-branch', 'dismiss'],
+      sourceSessionId: 'main-1',
+      taskCardBindings: ['candidateBranches'],
+      origin: {
+        type: 'plan',
+        planId: 'plan:server',
+        sourceId: 'manual',
+        sourceLabel: '',
+        hookId: '',
+      },
+    },
+  ],
+  'surface projection should prefer cached backend surface entries over local projection fallback after prefetch',
 );
 
 console.log('test-workbench-surface-projection: ok');

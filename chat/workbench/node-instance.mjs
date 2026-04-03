@@ -98,6 +98,35 @@ function resolveNodeSourceSessionId(node = {}) {
   return trimText(node?.sourceSessionId || node?.sessionId);
 }
 
+function hasSurfaceBinding(node = {}, surfaceSlot = '') {
+  const normalizedSurfaceSlot = trimText(surfaceSlot).toLowerCase();
+  if (!normalizedSurfaceSlot) return false;
+  const surfaceBindings = normalizeAllowedTokenList(
+    node?.surfaceBindings,
+    NODE_SURFACE_SLOTS,
+    [],
+  );
+  return surfaceBindings.includes(normalizedSurfaceSlot);
+}
+
+function buildComposerSuggestionEntry(node = {}) {
+  const nodeInstance = createNodeInstance(node, { origin: node?.origin || null });
+  if (!trimText(nodeInstance?.title)) return null;
+  return {
+    id: trimText(nodeInstance.id),
+    text: trimText(nodeInstance.title),
+    summary: trimText(nodeInstance.summary),
+    capabilities: Array.isArray(nodeInstance.capabilities) ? [...nodeInstance.capabilities] : [],
+    sourceSessionId: resolveNodeSourceSessionId(nodeInstance),
+    taskCardBindings: normalizeAllowedTokenList(
+      nodeInstance.taskCardBindings,
+      NODE_TASK_CARD_BINDING_KEYS,
+      [],
+    ),
+    origin: nodeInstance.origin ? { ...nodeInstance.origin } : null,
+  };
+}
+
 function createNodeInstance(node = {}, { questId = '', origin = null } = {}) {
   const kind = trimText(node?.kind).toLowerCase();
   const definition = getNodeKindDefinition(kind);
@@ -181,4 +210,6 @@ export {
   resolveNodeSourceSessionId,
   createNodeInstance,
   mergeNodeInstances,
+  hasSurfaceBinding,
+  buildComposerSuggestionEntry,
 };

@@ -10,6 +10,8 @@
     enterBranchFromSession = null,
     getSessionRecord = null,
     attachSession = null,
+    selectTaskCanvasNode = null,
+    getSelectedTaskCanvasNodeId = () => "",
   } = {}) {
     function getNodeEffectsApi() {
       return globalThis?.MelodySyncWorkbenchNodeEffects
@@ -22,13 +24,6 @@
       return globalThis?.MelodySyncWorkbenchNodeCapabilities
         || windowRef?.MelodySyncWorkbenchNodeCapabilities
         || windowRef?.window?.MelodySyncWorkbenchNodeCapabilities
-        || null;
-    }
-
-    function getNodeRichViewUiApi() {
-      return globalThis?.MelodySyncWorkbenchNodeRichViewUi
-        || windowRef?.MelodySyncWorkbenchNodeRichViewUi
-        || windowRef?.window?.MelodySyncWorkbenchNodeRichViewUi
         || null;
     }
 
@@ -112,6 +107,19 @@
         width: null,
         height: null,
       };
+    }
+
+    function getNodeViewLabel(nodeView = null) {
+      switch (String(nodeView?.type || "").trim().toLowerCase()) {
+        case "markdown":
+          return "在右侧画布查看 Markdown";
+        case "html":
+          return "在右侧画布查看 HTML";
+        case "iframe":
+          return "在右侧画布查看嵌入内容";
+        default:
+          return "在右侧画布查看内容";
+      }
     }
 
     function getProjectedTaskFlowConfig() {
@@ -507,14 +515,6 @@
       canvas.appendChild(svg);
 
       const nodeActionController = getNodeActionController();
-      const richViewRenderer = getNodeRichViewUiApi()?.createRenderer?.({ documentRef, windowRef }) || {
-        createRichViewSurface(node, nodeView = {}) {
-          const shell = documentRef.createElement("div");
-          const viewType = String(nodeView?.type || node?.view?.type || "flow-node").trim() || "flow-node";
-          shell.className = `quest-task-flow-node-rich quest-task-flow-node-rich-${viewType}`;
-          return shell;
-        },
-      };
 
       const createCandidateAction = (node) => {
         const actionBtn = documentRef.createElement("button");
@@ -551,12 +551,16 @@
         const nodePrimaryAction = nodeActionController.resolvePrimaryAction(node, { isRichView, isDone });
         const isCandidate = nodeActionController.hasNodeCapability(node, "create-branch");
         const isNonInteractive = !nodeActionController.isNodeDirectlyInteractive(node, { isRichView, isDone });
+        const isCanvasSelected = isRichView
+          && String(getSelectedTaskCanvasNodeId?.() || "").trim() === String(node?.id || "").trim();
         const nodeEl = documentRef.createElement(isNonInteractive ? "div" : "button");
         if (nodeEl.type !== undefined && !isNonInteractive) {
           nodeEl.type = "button";
         }
         nodeEl.className = "quest-task-flow-node";
         if (isRichView) nodeEl.classList.add("is-rich-view", `is-view-${nodeView.type}`);
+        if (isRichView) nodeEl.classList.add("is-canvas-selectable");
+        if (isCanvasSelected) nodeEl.classList.add("is-canvas-selected");
         if (!node.parentNodeId) nodeEl.classList.add("is-root");
         if (isCandidate) nodeEl.classList.add("is-candidate");
         if (isDone) nodeEl.classList.add("is-done");
@@ -584,17 +588,15 @@
         titleEl.title = String(node.title || "").trim();
         nodeEl.appendChild(titleEl);
 
-        if (isRichView) {
-          nodeEl.appendChild(richViewRenderer.createRichViewSurface(node, nodeView));
-        } else {
-          const summary = getProjectedTaskFlowNodeSummary(node, activeQuest);
-          if (summary) {
-            const summaryEl = documentRef.createElement("div");
-            summaryEl.className = "quest-task-flow-node-summary";
-            summaryEl.textContent = summary;
-            summaryEl.title = summary;
-            nodeEl.appendChild(summaryEl);
-          }
+        const summary = isRichView
+          ? (getProjectedTaskFlowNodeSummary(node, activeQuest) || getNodeViewLabel(nodeView))
+          : getProjectedTaskFlowNodeSummary(node, activeQuest);
+        if (summary) {
+          const summaryEl = documentRef.createElement("div");
+          summaryEl.className = "quest-task-flow-node-summary";
+          summaryEl.textContent = summary;
+          summaryEl.title = summary;
+          nodeEl.appendChild(summaryEl);
         }
 
         if (nodePrimaryAction === "create-branch") {
@@ -607,6 +609,10 @@
               isRichView,
               isDone,
             });
+          });
+        } else if (isRichView && typeof selectTaskCanvasNode === "function") {
+          nodeEl.addEventListener("click", () => {
+            selectTaskCanvasNode(node?.id || "", { render: true });
           });
         }
 

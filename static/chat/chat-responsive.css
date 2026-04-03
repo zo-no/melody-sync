@@ -192,6 +192,10 @@ body::before {
     -webkit-backdrop-filter: blur(18px);
   }
 
+  .task-map-rail.has-node-canvas {
+    grid-template-rows: minmax(0, 1fr) minmax(240px, 38%);
+  }
+
   .task-map-rail.is-collapsed .quest-task-list {
     opacity: 0;
     pointer-events: none;
@@ -564,6 +568,10 @@ body.workbench-has-session #emptyState {
 
   .task-map-rail.is-mobile-drawer {
     border: 0;
+  }
+
+  .task-map-rail.has-node-canvas {
+    grid-template-rows: minmax(0, 1fr) minmax(220px, 34vh);
   }
 }
 

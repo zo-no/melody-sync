@@ -16,6 +16,7 @@ Current split:
 - `task-map-plan-sync.mjs`: shared persisted-plan sync layer. It compares previous/next plan sets and writes managed node bindings back into every affected session under the same root.
 - `graph-model.mjs`: backend graph node/edge collection helpers shared by default continuity graph construction and plan overlay application.
 - `task-map-graph-service.mjs`: session-scoped canonical graph read entry. It resolves a session back to its root quest, builds the default continuity graph, then applies persisted plans on top.
+- `task-map-surface-service.mjs`: session-scoped canonical surface read entry. It projects graph nodes with `surfaceBindings` into stable slot payloads such as `composer-suggestions`.
 - `task-map-plan-producers.mjs`: focused workflow-to-plan producers; currently used by `builtin.branch-candidates` to write candidate-node overlays from hook lifecycle state.
 - `node-instance.mjs`: backend graph node-instance normalizer. It keeps plan nodes and future hook/AI-produced nodes on the same stable contract before persistence or downstream patching.
 - `node-task-card.mjs`: backend helper that derives session-scoped task-card patches from node instances, with plan/manual/hook nodes taking precedence over default projection nodes for scalar bindings.
@@ -32,6 +33,7 @@ Boundary rules:
 - Keep persisted task-map plans in `task-map-plans.mjs`; they are optional overlay data, not the durable workflow truth.
 - Keep formal session-scoped plan writes in `task-map-plan-service.mjs`; route handlers and future AI/manual writers should not hand-roll root resolution or source-policy checks.
 - Keep canonical session-scoped graph reads in `task-map-graph-service.mjs`; future AI/manual tooling should read the current quest graph there instead of rebuilding continuity + plan overlay ad hoc.
+- Keep canonical session-scoped surface reads in `task-map-surface-service.mjs`; slot consumers should read node-backed surfaces there instead of reimplementing graph selectors in feature-specific code.
 - Keep cross-plan writeback orchestration in `task-map-plan-sync.mjs`; producers should not open-code `read -> persist -> resync` loops.
 - Keep backend graph node/edge helpers centralized in `graph-model.mjs`; default continuity projection and plan overlay should share one graph shape.
 - Keep workflow-derived plan writers in focused producer files such as `task-map-plan-producers.mjs`, not inside hook handlers or `workbench-store`.

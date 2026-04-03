@@ -102,6 +102,15 @@
     <div class="task-manager-body">
       <aside class="task-map-rail" id="taskMapRail" hidden>
         <div class="quest-task-list" id="questTaskList" hidden></div>
+        <section class="task-canvas-panel" id="taskCanvasPanel" hidden aria-label="节点画布">
+          <div class="task-canvas-panel-header">
+            <div class="task-canvas-panel-meta">节点画布</div>
+            <button class="task-canvas-panel-close" id="taskCanvasCloseBtn" type="button" aria-label="关闭节点画布">✕</button>
+          </div>
+          <div class="task-canvas-panel-title" id="taskCanvasTitle"></div>
+          <div class="task-canvas-panel-summary" id="taskCanvasSummary" hidden></div>
+          <div class="task-canvas-panel-body" id="taskCanvasBody"></div>
+        </section>
       </aside>
 
       <section class="task-manager-main-column">
@@ -236,6 +245,7 @@
 <script src="/chat/workbench/graph-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/node-capabilities.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/node-task-card.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/workbench/graph-client.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/node-settings-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/task-map-plan.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/surface-projection.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
@@ -245,6 +255,7 @@
 <script src="/chat/workbench/quest-state.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/task-tracker-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/node-rich-view-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/workbench/node-canvas-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/task-map-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/task-list-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/branch-actions.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>

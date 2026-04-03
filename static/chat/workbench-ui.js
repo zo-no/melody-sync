@@ -11,6 +11,11 @@
   const trackerTimeEl = document.getElementById("questTrackerTime");
   const trackerTaskListEl = document.getElementById("questTaskList");
   const taskMapRail = document.getElementById("taskMapRail");
+  const taskCanvasPanel = document.getElementById("taskCanvasPanel");
+  const taskCanvasTitleEl = document.getElementById("taskCanvasTitle");
+  const taskCanvasSummaryEl = document.getElementById("taskCanvasSummary");
+  const taskCanvasBodyEl = document.getElementById("taskCanvasBody");
+  const taskCanvasCloseBtn = document.getElementById("taskCanvasCloseBtn");
   const taskMapDrawerBtn = document.getElementById("taskMapDrawerBtn");
   const taskMapDrawerBackdrop = document.getElementById("taskMapDrawerBackdrop");
   const trackerFooterEl = document.getElementById("questTrackerFooter");
@@ -38,11 +43,15 @@
     nodes: [],
     branchContexts: [],
     taskClusters: [],
+    taskMapGraph: null,
+    taskMapGraphSessionId: "",
     skills: [],
     summaries: [],
   };
   let refreshInFlight = null;
   let trackerRefreshInFlight = null;
+  let taskMapGraphRefreshInFlight = null;
+  let taskMapGraphRefreshSessionId = "";
   let fullSnapshotRefreshTimer = null;
   let taskMapExpanded = !isMobileQuestTracker();
   let lastTaskMapViewportMode = isMobileQuestTracker() ? "mobile" : "desktop";
@@ -52,9 +61,11 @@
   let trackerDetailExpanded = false;
   let taskMapFlowRenderer = null;
   let taskListController = null;
+  let taskCanvasController = null;
   let questStateSelector = null;
   let trackerRenderer = null;
   let operationRecordController = null;
+  let selectedTaskCanvasNodeId = "";
 
   function translate(key, vars) {
     return typeof window?.melodySyncT === "function" ? window.melodySyncT(key, vars) : key;
@@ -264,6 +275,19 @@
     getSecondaryDetail() { return ""; },
     renderDetail() {},
   };
+  taskCanvasController = window.MelodySyncWorkbenchNodeCanvasUi?.createController?.({
+    railEl: taskCanvasPanel,
+    titleEl: taskCanvasTitleEl,
+    summaryEl: taskCanvasSummaryEl,
+    bodyEl: taskCanvasBodyEl,
+    closeBtn: taskCanvasCloseBtn,
+    onClose: () => clearTaskCanvasNode({ render: true }),
+  }) || {
+    renderNode() { return false; },
+    clear() {},
+    isOpen() { return false; },
+    hasCanvasView: hasTaskCanvasView,
+  };
   taskMapFlowRenderer = window.MelodySyncTaskMapUi?.createRenderer?.({
     isMobileQuestTracker,
     clipText,
@@ -273,6 +297,8 @@
     enterBranchFromSession,
     getSessionRecord,
     attachSession,
+    selectTaskCanvasNode,
+    getSelectedTaskCanvasNodeId: () => selectedTaskCanvasNodeId,
   }) || {
     renderFlowBoard() {
       const empty = document.createElement("div");
@@ -343,6 +369,10 @@
     return normalizeSessionId(getCurrentSessionSafe()?.id || "");
   }
 
+  function getGraphClientApi() {
+    return window?.MelodySyncWorkbenchGraphClient || null;
+  }
+
   function getFocusedSessionId() {
     const normalizedFocused = normalizeSessionId(focusedSessionId);
     if (normalizedFocused) {
@@ -357,6 +387,69 @@
     if (!sessionId) return null;
     return getSessionRecord(sessionId)
       || (getCurrentSessionSafe()?.id === sessionId ? getCurrentSessionSafe() : null);
+  }
+
+  function normalizeTaskMapNodeId(value) {
+    return String(value || "").trim();
+  }
+
+  function getNodeView(node) {
+    return window?.MelodySyncWorkbenchNodeEffects?.getNodeView?.(node) || node?.view || { type: "flow-node" };
+  }
+
+  function hasTaskCanvasView(node) {
+    return normalizeTaskMapNodeId(getNodeView(node)?.type).toLowerCase() !== "flow-node";
+  }
+
+  function resolveTaskCanvasNode(projection) {
+    const quests = Array.isArray(projection?.mainQuests) ? projection.mainQuests : [];
+    const activeQuest = projection?.activeMainQuest || quests[0] || null;
+    const allNodes = quests.flatMap((quest) => Array.isArray(quest?.nodes) ? quest.nodes : []);
+    if ((!activeQuest || !Array.isArray(activeQuest?.nodes)) && allNodes.length === 0) {
+      selectedTaskCanvasNodeId = "";
+      return null;
+    }
+    const candidateNodes = Array.isArray(activeQuest?.nodes) ? activeQuest.nodes : allNodes;
+    const nodeMap = new Map(candidateNodes.map((node) => [normalizeTaskMapNodeId(node?.id), node]));
+    const selectedNode = nodeMap.get(normalizeTaskMapNodeId(selectedTaskCanvasNodeId)) || null;
+    if (selectedNode && hasTaskCanvasView(selectedNode)) {
+      return selectedNode;
+    }
+
+    const currentRichNode = candidateNodes.find((node) => node?.isCurrent && hasTaskCanvasView(node))
+      || candidateNodes.find((node) => node?.isCurrentPath && hasTaskCanvasView(node))
+      || candidateNodes.find((node) => hasTaskCanvasView(node))
+      || allNodes.find((node) => hasTaskCanvasView(node))
+      || null;
+    selectedTaskCanvasNodeId = normalizeTaskMapNodeId(currentRichNode?.id || "");
+    return currentRichNode;
+  }
+
+  function selectTaskCanvasNode(nodeId, options = {}) {
+    selectedTaskCanvasNodeId = normalizeTaskMapNodeId(nodeId);
+    if (options.render !== false) {
+      renderTracker();
+    }
+    return selectedTaskCanvasNodeId;
+  }
+
+  function clearTaskCanvasNode(options = {}) {
+    selectedTaskCanvasNodeId = "";
+    if (options.render !== false) {
+      renderTracker();
+    }
+  }
+
+  function renderTaskCanvas(projection) {
+    const activeNode = resolveTaskCanvasNode(projection);
+    const shouldShowCanvas = Boolean(activeNode && hasTaskCanvasView(activeNode));
+    taskMapRail?.classList?.toggle?.("has-node-canvas", shouldShowCanvas);
+    if (!taskCanvasController) return;
+    if (!shouldShowCanvas) {
+      taskCanvasController.clear();
+      return;
+    }
+    taskCanvasController.renderNode(activeNode);
   }
 
   function getClusterBranchSessionIds(cluster) {
@@ -454,19 +547,59 @@
   }
 
   function getTaskMapProjection() {
-    if (typeof window?.MelodySyncTaskMapModel?.buildTaskMapProjection !== "function") {
-      return null;
+    const targetSessionId = getFocusedSessionId() || getCurrentSessionIdSafe();
+    const graphClient = getGraphClientApi();
+    const canonicalProjection = (
+      snapshot?.taskMapGraph
+      && typeof snapshot.taskMapGraph === "object"
+      && normalizeSessionId(snapshot?.taskMapGraphSessionId || "") === normalizeSessionId(targetSessionId)
+      && typeof graphClient?.buildProjectionFromTaskMapGraph === "function"
+    )
+      ? graphClient.buildProjectionFromTaskMapGraph(snapshot.taskMapGraph)
+      : null;
+    let projection = canonicalProjection;
+    if (!projection) {
+      if (typeof window?.MelodySyncTaskMapModel?.buildTaskMapProjection !== "function") {
+        return null;
+      }
+      projection = window.MelodySyncTaskMapModel.buildTaskMapProjection({
+        snapshot,
+        sessions: getSessionRecords(),
+        currentSessionId: getCurrentSessionIdSafe(),
+        focusedSessionId: getFocusedSessionId(),
+      });
     }
-    const projection = window.MelodySyncTaskMapModel.buildTaskMapProjection({
-      snapshot,
-      sessions: getSessionRecords(),
-      currentSessionId: getCurrentSessionIdSafe(),
-      focusedSessionId: getFocusedSessionId(),
-    });
     if (typeof window?.MelodySyncTaskMapModel?.applyTaskMapMockPreset === "function") {
       return window.MelodySyncTaskMapModel.applyTaskMapMockPreset(projection, getTaskMapMockPreset());
     }
     return projection;
+  }
+
+  function getWorkbenchSurfaceProjectionApi() {
+    return window?.MelodySyncWorkbenchSurfaceProjection || null;
+  }
+
+  async function refreshComposerSuggestionSurface(session = null, { force = false } = {}) {
+    const targetSession = session?.id ? session : getCurrentSessionSafe();
+    if (!targetSession?.id) return [];
+    const surfaceApi = getWorkbenchSurfaceProjectionApi();
+    if (typeof surfaceApi?.prefetchSurfaceEntriesForSession !== "function") return [];
+    try {
+      const entries = await surfaceApi.prefetchSurfaceEntriesForSession({
+        session: targetSession,
+        surfaceSlot: "composer-suggestions",
+        force,
+      });
+      if (
+        typeof window.renderSuggestedQuestions === "function"
+        && getCurrentSessionSafe()?.id === targetSession.id
+      ) {
+        window.renderSuggestedQuestions(getCurrentSessionSafe() || targetSession);
+      }
+      return Array.isArray(entries) ? entries : [];
+    } catch {
+      return [];
+    }
   }
 
   function getSessionRecords() {
@@ -681,6 +814,8 @@
       tracker.hidden = true;
       if (taskMapRail) taskMapRail.hidden = true;
       if (trackerTaskListEl) trackerTaskListEl.hidden = true;
+      taskMapRail?.classList?.remove?.("has-node-canvas");
+      taskCanvasController?.clear?.();
       syncTaskMapDrawerUi(false);
       syncQuestEmptyState(state);
       return;
@@ -719,6 +854,7 @@
     ));
     branchActionController?.syncTrackerButtons(state);
     taskListController?.render(state);
+    renderTaskCanvas(getTaskMapProjection());
     renderTrackerDetail(state.session?.taskCard);
   }
 
@@ -738,6 +874,49 @@
     if (Array.isArray(patch.taskClusters)) {
       snapshot.taskClusters = patch.taskClusters;
     }
+    if (Array.isArray(patch.taskMapPlans)) {
+      snapshot.taskMapPlans = patch.taskMapPlans;
+    }
+    if (patch.taskMapGraph && typeof patch.taskMapGraph === "object") {
+      snapshot.taskMapGraph = patch.taskMapGraph;
+    }
+    if (typeof patch.taskMapGraphSessionId === "string") {
+      snapshot.taskMapGraphSessionId = patch.taskMapGraphSessionId;
+    }
+  }
+
+  async function refreshTaskMapGraph(sessionIdOverride = "", { force = false } = {}) {
+    const targetSessionId = normalizeSessionId(sessionIdOverride || getFocusedSessionId() || getCurrentSessionIdSafe());
+    const graphClient = getGraphClientApi();
+    if (!targetSessionId || typeof graphClient?.fetchTaskMapGraphForSession !== "function") return null;
+    if (
+      !force
+      && snapshot?.taskMapGraph
+      && normalizeSessionId(snapshot?.taskMapGraphSessionId || "") === targetSessionId
+    ) {
+      return snapshot.taskMapGraph;
+    }
+    if (
+      taskMapGraphRefreshInFlight
+      && normalizeSessionId(taskMapGraphRefreshSessionId) === targetSessionId
+    ) {
+      return taskMapGraphRefreshInFlight;
+    }
+    taskMapGraphRefreshSessionId = targetSessionId;
+    taskMapGraphRefreshInFlight = (async () => {
+      try {
+        const response = await graphClient.fetchTaskMapGraphForSession(targetSessionId);
+        if (response?.taskMapGraph && typeof response.taskMapGraph === "object") {
+          snapshot.taskMapGraph = response.taskMapGraph;
+          snapshot.taskMapGraphSessionId = targetSessionId;
+        }
+      } catch {
+      } finally {
+        taskMapGraphRefreshInFlight = null;
+      }
+      return snapshot.taskMapGraph || null;
+    })();
+    return taskMapGraphRefreshInFlight;
   }
 
   async function refreshTrackerSnapshot(sessionIdOverride = "") {
@@ -753,8 +932,10 @@
         const trackerSnapshot = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(targetSessionId)}/tracker`);
         mergeSnapshotPatch(trackerSnapshot);
       } catch {}
+      await refreshTaskMapGraph(targetSessionId, { force: true });
       renderTracker();
       renderPathPanel();
+      void refreshComposerSuggestionSurface(getSessionRecord(targetSessionId) || getCurrentSessionSafe(), { force: true });
       trackerRefreshInFlight = null;
       return snapshot;
     })();
@@ -773,12 +954,16 @@
           nodes: [],
           branchContexts: [],
           taskClusters: [],
+          taskMapGraph: null,
+          taskMapGraphSessionId: "",
           skills: [],
           summaries: [],
         };
       }
+      await refreshTaskMapGraph(getFocusedSessionId() || getCurrentSessionIdSafe(), { force: false });
       renderTracker();
       renderPathPanel();
+      void refreshComposerSuggestionSurface(getCurrentSessionSafe(), { force: true });
       refreshInFlight = null;
       return snapshot;
     })();
@@ -973,9 +1158,16 @@
   document.addEventListener("melodysync:session-change", (event) => {
     const nextFocusedSessionId = normalizeSessionId(event?.detail?.session?.id || "");
     collapseTaskMapAfterAction({ render: false });
+    selectedTaskCanvasNodeId = "";
+    snapshot.taskMapGraph = null;
+    snapshot.taskMapGraphSessionId = "";
     if (nextFocusedSessionId) {
       setFocusedSessionId(nextFocusedSessionId, { render: false });
     }
+    getWorkbenchSurfaceProjectionApi()?.invalidateSurfaceEntriesForSession?.({
+      session: event?.detail?.session || getCurrentSessionSafe(),
+      surfaceSlot: "composer-suggestions",
+    });
     taskListController?.invalidate?.();
     renderTracker();
     void refreshTrackerSnapshot(nextFocusedSessionId);
@@ -1112,12 +1304,15 @@
     closeTaskMapDrawer: () => setTaskMapDrawerExpanded(false),
     toggleTaskMapDrawer: () => setTaskMapDrawerExpanded(!isTaskMapExpanded()),
     isTaskMapDrawerOpen: isMobileTaskMapDrawerOpen,
+    selectTaskCanvasNode,
+    clearTaskCanvasNode,
     openOperationRecord: () => operationRecordController.setOpen(true),
     closeOperationRecord: () => operationRecordController.setOpen(false),
     refreshOperationRecord: () => operationRecordController.refreshIfOpen(),
   };
 
   renderTracker();
+  void refreshComposerSuggestionSurface(getCurrentSessionSafe(), { force: true });
   if (typeof window.requestIdleCallback === "function") {
     window.requestIdleCallback(() => {
       void refreshTrackerSnapshot();

@@ -44,6 +44,7 @@ export function createTaskMapPlanContractPayload() {
       supportsSystemPlans: true,
       supportsSessionScopedPlanWriteApi: true,
       supportsSessionScopedGraphReadApi: true,
+      supportsSessionScopedSurfaceReadApi: true,
       supportsRichCanvasViews: true,
       fallbackProjection: 'continuity',
     },

@@ -11,6 +11,7 @@ const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbe
 const nodeEffectsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-effects.js'), 'utf8');
 const nodeInstanceSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'node-instance.js'), 'utf8');
 const graphModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'graph-model.js'), 'utf8');
+const graphClientSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'graph-client.js'), 'utf8');
 const taskMapPlanSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-plan.js'), 'utf8');
 const taskMapClustersSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-map-clusters.js'), 'utf8');
 const taskMapMockPresetsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-map-mock-presets.js'), 'utf8');
@@ -18,6 +19,7 @@ const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbe
 const questStateSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'quest-state.js'), 'utf8');
 const taskTrackerUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-tracker-ui.js'), 'utf8');
 const nodeRichViewUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'node-rich-view-ui.js'), 'utf8');
+const nodeCanvasUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'node-canvas-ui.js'), 'utf8');
 const taskMapUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-map-ui.js'), 'utf8');
 const taskListUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-list-ui.js'), 'utf8');
 const branchActionsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'branch-actions.js'), 'utf8');
@@ -152,6 +154,11 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
     'questTrackerFooter',
     'questTaskList',
     'taskMapRail',
+    'taskCanvasPanel',
+    'taskCanvasTitle',
+    'taskCanvasSummary',
+    'taskCanvasBody',
+    'taskCanvasCloseBtn',
     'taskMapDrawerBtn',
     'taskMapDrawerBackdrop',
     'questTrackerActions',
@@ -250,11 +257,10 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
-  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'static/chat/workbench-ui.js',
   });
-  await Promise.resolve();
-  await Promise.resolve();
+  await flushAsync(8);
   return { elements, fetchCalls, fetchLog, attachCalls, workbench: context.window.MelodySyncWorkbench };
 }
 
@@ -385,6 +391,7 @@ assert.equal(Boolean(findFirstByClass(mainElements.get('questTaskList'), 'quest-
 assert.deepEqual(mainFetchCalls, [
   '/api/workbench/sessions/session-main/tracker',
   '/api/workbench',
+  '/api/workbench/sessions/session-main/task-map-graph',
 ], 'tracker should fetch the lightweight session tracker snapshot before the full workbench snapshot');
 findAllByClass(mainElements.get('questTaskList'), 'quest-task-flow-node')
   .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === '表现主义')
@@ -572,6 +579,7 @@ assert.equal(branchElements.get('questTrackerBackBtn').hidden, true, 'active bra
 assert.deepEqual(branchFetchCalls, [
   '/api/workbench/sessions/session-branch/tracker',
   '/api/workbench',
+  '/api/workbench/sessions/session-branch/task-map-graph',
 ], 'branch tracker should also prefer the lightweight tracker payload before the full workbench snapshot');
 assert.equal(branchElements.get('questTrackerStatus').hidden, false, 'mobile branch tracker should render the task status inside the task bar');
 assert.equal(branchElements.get('taskMapDrawerBtn').hidden, false, 'mobile branch tracker should expose the header task-map drawer toggle');
@@ -1165,16 +1173,25 @@ const { elements: richCanvasElements } = await runScenario({
 
 const richBoard = findFirstByClass(richCanvasElements.get('questTaskList'), 'quest-task-flow-shell');
 assert.equal(Boolean(richBoard), true, 'rich canvas quests should still render inside the same flow board surface');
-assert.equal(findAllByClass(richBoard, 'quest-task-flow-node-rich-markdown').length >= 1, true, 'rich canvas should render markdown nodes via the declared node view type');
-assert.equal(findAllByClass(richBoard, 'quest-task-flow-node-rich-html').length >= 1, true, 'rich canvas should render inline html nodes via the declared node view type');
-assert.equal(findAllByClass(richBoard, 'quest-task-flow-node-rich-iframe').length >= 1, true, 'rich canvas should render iframe nodes via the declared node view type');
-assert.equal(findAllByTagName(richBoard, 'IFRAME').length, 1, 'iframe node views should render a real iframe surface');
-assert.match(findFirstByClass(richBoard, 'quest-task-flow-node-rich-body')?.innerHTML || '', /Markdown 内容/);
+assert.equal(findAllByClass(richBoard, 'quest-task-flow-node-rich-body').length, 0, 'rich view content should no longer render inline inside the flow node surface');
+assert.equal(richCanvasElements.get('taskCanvasPanel').hidden, false, 'rich canvas quests should open the dedicated node canvas rail');
+assert.equal(richCanvasElements.get('taskMapRail').classList.contains('has-node-canvas'), true, 'task map rail should expose node canvas layout when a rich view node is selected');
+assert.equal(findAllByClass(richCanvasElements.get('taskCanvasBody'), 'quest-task-flow-node-rich-markdown').length >= 1, true, 'node canvas should render markdown nodes via the declared node view type');
+assert.match(richCanvasElements.get('taskCanvasTitle').textContent, /Markdown 视图/);
+assert.match(findFirstByClass(richCanvasElements.get('taskCanvasBody'), 'quest-task-flow-node-rich-body')?.innerHTML || '', /Markdown 内容/);
+findAllByClass(richBoard, 'quest-task-flow-node')
+  .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === 'HTML 视图')
+  ?.click();
+assert.equal(findAllByClass(richCanvasElements.get('taskCanvasBody'), 'quest-task-flow-node-rich-html').length >= 1, true, 'clicking a rich-view node should swap the node canvas to the selected html view');
 assert.match(
-  findAllByClass(richBoard, 'quest-task-flow-node-rich-body')
+  findAllByClass(richCanvasElements.get('taskCanvasBody'), 'quest-task-flow-node-rich-body')
     .map((node) => node.innerHTML || '')
     .find((html) => /HTML 内容/.test(html)) || '',
   /HTML 内容/,
 );
+findAllByClass(richBoard, 'quest-task-flow-node')
+  .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === 'Iframe 视图')
+  ?.click();
+assert.equal(findAllByTagName(richCanvasElements.get('taskCanvasBody'), 'IFRAME').length, 1, 'iframe node views should render a real iframe surface inside the node canvas rail');
 
 console.log('test-chat-workbench-tracker: ok');

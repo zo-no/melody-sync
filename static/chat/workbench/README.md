@@ -8,6 +8,7 @@ Files by role:
 - `node-effects.js`: shared node semantics for task-map projection and rendering, including counts, interaction, edge, surface, capability, and view-type rules.
 - `node-instance.js`: stable graph node-instance contract. It normalizes capabilities, surface bindings, task-card bindings, view metadata, and origin metadata before nodes hit any renderer or surface consumer.
 - `graph-model.js`: shared graph node/edge collection helpers used by both default continuity projection and task-map-plan overlays.
+- `graph-client.js`: canonical backend quest-graph client. It reads `/api/workbench/sessions/:id/task-map-graph` and normalizes that payload back into the frontend projection shape.
 - `node-capabilities.js`: capability helpers plus a workbench action controller so renderer code can execute node actions without hardcoding branch/session mutations inline.
 - `node-settings-model.js`: node-definition payload normalization plus lane/role/merge-policy labels for the node-settings tab.
 - `task-map-plan.js`: optional graph-plan overlay that can replace or augment the default continuity projection without touching renderer code; augment mode now also merges matching node ids so hook-generated plans can enrich default nodes instead of duplicating them, and surface-node selectors can reuse the merged graph in non-map UI like composer suggestions.
@@ -19,6 +20,7 @@ Files by role:
 - `quest-state.js`: session/workbench snapshot selectors and derived view state.
 - `task-tracker-ui.js`: top tracker rendering.
 - `node-rich-view-ui.js`: focused rich-view renderer for markdown/html/iframe node surfaces inside the task map.
+- `node-canvas-ui.js`: dedicated right-rail node canvas renderer. It owns the selected rich-view node surface so `view.type` no longer has to be rendered inline inside graph nodes.
 - `task-map-ui.js`: task-map rendering and interaction.
 - `node-settings-ui.js`: task-map node settings tab content mounted inside the shared settings overlay.
 - `task-list-ui.js`: workbench-side task list rendering.
@@ -33,8 +35,9 @@ Design rules:
 - Keep node behavior centralized in `node-effects.js`; avoid adding new `kind === ...` branches directly in `task-map-model.js` or `task-map-ui.js`.
 - Keep graph node-instance shape centralized in `node-instance.js`; avoid letting `task-map-model.js`, `task-map-plan.js`, `surface-projection.js`, and `node-capabilities.js` drift into separate node payload formats.
 - Keep graph node/edge collection shape centralized in `graph-model.js`; avoid letting `task-map-model.js` and `task-map-plan.js` drift into separate quest graph formats.
+- Keep canonical graph reads centralized in `graph-client.js`; `workbench-ui.js` should prefer the backend graph payload before falling back to local continuity reconstruction.
 - Keep quest-source helpers in `task-map-clusters.js` and mock/demo graph injection in `task-map-mock-presets.js`; `task-map-model.js` should stay focused on default continuity projection.
-- Treat `view.type` as the right-canvas rendering contract. The renderer decides layout and safe embedding; plans decide what to show.
+- Treat `view.type` as the right-rail node-canvas contract. The canvas renderer decides safe embedding; task-map nodes only provide structure, selection, and capability entry points.
 - Keep optional graph overrides centralized in `task-map-plan.js`; default continuity projection should stay available as the fallback path.
 - Treat hook-generated `taskMapPlan` overlays as node metadata enrichers first. If a hook wants to enrich an existing default node, reuse the same node id and let the plan merge path attach summary/view/surface metadata.
 - Treat `taskCardBindings` as contract metadata first. They describe which task-card fields a node is allowed to bind back to; they should not be applied ad hoc inside render code.
@@ -43,6 +46,7 @@ Design rules:
 - Treat `/api/workbench/task-map-plan-contract` as the canonical backend contract for future hook/AI graph planning inputs.
 - Treat `GET/POST/DELETE /api/workbench/sessions/:id/task-map-plans` as the formal session-scoped plan entry. UI and future AI/manual tooling should write plan metadata there instead of patching workbench state files directly.
 - Treat `GET /api/workbench/sessions/:id/task-map-graph` as the canonical backend quest-graph read entry. Consumers that need the current graph should read that payload instead of reconstructing continuity + plan overlay on their own.
+- Treat `GET /api/workbench/sessions/:id/task-map-surfaces/:slot` as the canonical backend surface read entry. Slot consumers should prefer that payload when they do not need the whole graph.
 - Keep node settings owned by the workbench domain even though they render inside the shared settings overlay.
 - Put new visual rendering into a focused `*-ui.js` module.
 - Put derived state in selectors like `quest-state.js`, not inline in render code.

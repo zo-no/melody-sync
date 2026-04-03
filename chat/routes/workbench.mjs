@@ -12,6 +12,7 @@ import {
   saveTaskMapPlanForSession,
 } from '../workbench/task-map-plan-service.mjs';
 import { getTaskMapGraphForSession } from '../workbench/task-map-graph-service.mjs';
+import { getTaskMapSurfaceForSession } from '../workbench/task-map-surface-service.mjs';
 import {
   createBranchFromSession,
   createBranchFromNode,
@@ -158,6 +159,24 @@ export async function handleWorkbenchRoutes({
         });
       } catch (error) {
         writeJson(res, 400, { error: error.message || 'Failed to build task-map graph' });
+      }
+      return true;
+    }
+
+    if (parts.length === 6 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'task-map-surfaces') {
+      const sessionId = parts[3];
+      const surfaceSlot = decodeURIComponent(parts[5]);
+      if (!requireSessionAccess(res, authSession, sessionId)) return true;
+      try {
+        const result = await getTaskMapSurfaceForSession(sessionId, surfaceSlot);
+        writeJson(res, 200, {
+          rootSessionId: result.rootSessionId,
+          surfaceSlot: result.surfaceSlot,
+          surfaceNodes: result.surfaceNodes,
+          entries: result.entries,
+        });
+      } catch (error) {
+        writeJson(res, 400, { error: error.message || 'Failed to build task-map surface' });
       }
       return true;
     }

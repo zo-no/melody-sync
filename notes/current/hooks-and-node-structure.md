@@ -182,6 +182,9 @@
 - `static/chat/workbench/graph-model.js`
   - 统一维护前端 task-map 的 graph node / edge collection 结构
   - 当前同时服务默认 continuity 投影和 task-map plan overlay，避免两边各自拼匿名节点集合
+- `static/chat/workbench/graph-client.js`
+  - 统一维护前端 canonical graph 读侧
+  - 当前负责读取 backend `task-map-graph`，并优先把正式 graph payload 还原成前端 projection；拿不到时再回退到本地 continuity 投影
 - `static/chat/workbench/node-capabilities.js`
   - 把 node capability 变成显式执行层
   - 当前负责把 `create-branch / open-session` 这类 node action 从 renderer 内联逻辑里抽出来
@@ -215,6 +218,9 @@
 - `chat/workbench/task-map-graph-service.mjs`
   - 统一暴露 session-scoped canonical graph 读入口
   - 当前负责把 `continuity -> default quest graph -> taskMapPlan overlay` 收成一个稳定 payload，供后续 AI/manual tooling 和调试读取
+- `chat/workbench/task-map-surface-service.mjs`
+  - 统一暴露 session-scoped canonical surface 读入口
+  - 当前负责把 graph node 的 `surfaceBindings` 投影成稳定 slot payload，先服务 `composer-suggestions`
 - `static/chat/workbench/task-map-plan.js`
   - 把 task-map plan 归一化并叠加到默认 continuity 投影上
   - 当前支持两种模式：`replace-default` 和 `augment-default`
@@ -231,8 +237,11 @@
   - 把 cinema demo 这类 mock 图谱注入从默认投影器里抽出来
   - 当前让 `task-map-model.js` 不再同时承担真实投影和 demo augment
 - `static/chat/workbench/node-rich-view-ui.js`
-  - 把 markdown / html / iframe 这类 rich node view 渲染从 task-map 总渲染器里抽出来
-  - 当前负责右侧无限画布类节点的安全嵌入和 markdown 回退渲染
+  - 把 markdown / html / iframe 这类 rich node view 渲染从 workbench 总控里抽出来
+  - 当前负责 node canvas 的安全嵌入和 markdown 回退渲染
+- `static/chat/workbench/node-canvas-ui.js`
+  - 把右侧 node canvas 收成独立 UI 层
+  - 当前负责把选中的 rich-view node 渲染到 taskMapRail 下半部分，而不是继续把内容直接塞进 flow node 本体
 - `static/chat/workbench/node-settings-model.js`
   - 把 node definitions payload 归一化成地图域可消费的设置模型
 - `static/chat/workbench/node-settings-ui.js`

@@ -268,6 +268,8 @@ async function main() {
     assert.doesNotMatch(page.text, /id="taskMapNodeSettingsBtn"/, 'chat page should no longer ship a separate map-rail node settings trigger');
     assert.doesNotMatch(page.text, /id="taskMapNodeSettingsOverlay"/, 'chat page should no longer ship a separate node settings overlay');
     assert.match(page.text, /id="questTaskList"/, 'chat page should ship the task-map mount');
+    assert.match(page.text, /id="taskCanvasPanel"/, 'chat page should ship the dedicated node canvas panel inside the task-map rail');
+    assert.match(page.text, /id="taskCanvasBody"/, 'chat page should ship the dedicated node canvas body mount');
     assert.match(page.text, /id="taskMapDrawerBtn"/, 'chat page should ship the mobile task-map drawer toggle');
     assert.match(page.text, /id="taskMapDrawerBackdrop"/, 'chat page should ship the mobile task-map drawer backdrop');
     assert.match(page.text, /id="questTrackerStatus"/, 'chat page should render the task-status mount inside the task bar');
@@ -275,11 +277,12 @@ async function main() {
     assert.match(page.text, /\/chat\/workbench\/node-effects\.js\?v=/, 'chat page should load the shared workbench node effects before task-map projection');
     assert.match(page.text, /\/chat\/workbench\/node-instance\.js\?v=/, 'chat page should load the shared workbench node instance contract before graph/projection modules');
     assert.match(page.text, /\/chat\/workbench\/graph-model\.js\?v=/, 'chat page should load the shared workbench graph model before plan/projection modules');
+    assert.match(page.text, /\/chat\/workbench\/graph-client\.js\?v=/, 'chat page should load the shared workbench graph client before the workbench runtime');
     assert.match(page.text, /\/chat\/workbench\/node-task-card\.js\?v=/, 'chat page should load the shared workbench node-to-taskCard helpers before plan/projection modules');
     assert.match(page.text, /\/chat\/workbench\/task-map-plan\.js\?v=/, 'chat page should load the task-map plan overlay before the projection model');
     assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
-    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-effects\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-instance\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-capabilities\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-task-card\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-plan\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/surface-projection\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-clusters\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-mock-presets\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the graph contract, node-instance helpers, task-card helpers, plan helpers, and quest-source helpers before the task-map projection model');
-    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-rich-view-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
+    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-effects\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-instance\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-capabilities\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-task-card\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-client\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-plan\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/surface-projection\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-clusters\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-mock-presets\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the graph contract, graph client, node-instance helpers, task-card helpers, plan helpers, and quest-source helpers before the task-map projection model');
+    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-rich-view-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-canvas-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');
@@ -776,6 +779,11 @@ async function main() {
       true,
       'task-map-plan contract api should advertise the canonical session-scoped graph read entry',
     );
+    assert.equal(
+      taskMapPlanContractJson.settings?.supportsSessionScopedSurfaceReadApi,
+      true,
+      'task-map-plan contract api should advertise the canonical session-scoped surface read entry',
+    );
 
     const createdGoalPanelNodeDefinition = await request(port, 'POST', '/api/workbench/node-definitions', {
       id: 'goal-panel',
@@ -905,6 +913,36 @@ async function main() {
       'session-scoped task-map graph reads should preserve builtin candidate edge semantics',
     );
 
+    const taskMapSurface = await request(
+      port,
+      'GET',
+      `/api/workbench/sessions/${createdChatJson.session.id}/task-map-surfaces/${encodeURIComponent('composer-suggestions')}`,
+    );
+    assert.equal(taskMapSurface.status, 200, 'session-scoped task-map surfaces should be readable over HTTP');
+    const taskMapSurfaceJson = JSON.parse(taskMapSurface.text);
+    assert.equal(taskMapSurfaceJson.surfaceSlot, 'composer-suggestions');
+    assert.deepEqual(
+      taskMapSurfaceJson.entries,
+      [
+        {
+          id: `candidate:${createdChatJson.session.id}:补充复盘`,
+          text: '补充复盘',
+          summary: '适合拆成独立支线继续推进',
+          capabilities: ['create-branch', 'dismiss'],
+          sourceSessionId: createdChatJson.session.id,
+          taskCardBindings: ['candidateBranches'],
+          origin: {
+            type: 'plan',
+            sourceId: 'manual',
+            sourceLabel: '',
+            hookId: '',
+            planId: 'manual-plan:owner-chat:goal',
+          },
+        },
+      ],
+      'session-scoped task-map surfaces should expose composer entries from the canonical graph surface layer',
+    );
+
     const deletedTaskMapPlan = await request(port, 'DELETE', `/api/workbench/sessions/${createdChatJson.session.id}/task-map-plans/${encodeURIComponent('manual-plan:owner-chat:goal')}`);
     assert.equal(deletedTaskMapPlan.status, 200, 'session-scoped task-map plans should be deletable over HTTP');
     const deletedTaskMapPlanJson = JSON.parse(deletedTaskMapPlan.text);
@@ -975,6 +1013,16 @@ async function main() {
     assert.equal(taskTrackerUiAsset.status, 200, 'task tracker ui asset should load');
     assert.match(taskTrackerUiAsset.text, /MelodySyncTaskTrackerUi/);
     assert.match(taskTrackerUiAsset.text, /createTrackerRenderer/);
+
+    const graphClientAsset = await request(port, 'GET', '/chat/workbench/graph-client.js');
+    assert.equal(graphClientAsset.status, 200, 'graph client asset should load');
+    assert.match(graphClientAsset.text, /MelodySyncWorkbenchGraphClient/);
+    assert.match(graphClientAsset.text, /buildProjectionFromTaskMapGraph/);
+
+    const nodeCanvasUiAsset = await request(port, 'GET', '/chat/workbench/node-canvas-ui.js');
+    assert.equal(nodeCanvasUiAsset.status, 200, 'node canvas ui asset should load');
+    assert.match(nodeCanvasUiAsset.text, /MelodySyncWorkbenchNodeCanvasUi/);
+    assert.match(nodeCanvasUiAsset.text, /createController/);
 
     const taskMapUiAsset = await request(port, 'GET', '/chat/workbench/task-map-ui.js');
     assert.equal(taskMapUiAsset.status, 200, 'task map ui asset should load');

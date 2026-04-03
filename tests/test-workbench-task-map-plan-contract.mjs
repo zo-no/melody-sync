@@ -40,6 +40,7 @@ try {
   assert.equal(payload.settings?.supportsHookGeneratedPlans, true);
   assert.equal(payload.settings?.supportsSessionScopedPlanWriteApi, true);
   assert.equal(payload.settings?.supportsSessionScopedGraphReadApi, true);
+  assert.equal(payload.settings?.supportsSessionScopedSurfaceReadApi, true);
   assert.equal(payload.settings?.supportsRichCanvasViews, true);
   assert.equal(
     payload.nodeKindDefinitions.some((definition) => definition.id === 'review-note'),
