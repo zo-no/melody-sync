@@ -666,6 +666,40 @@ async function main() {
       'workbench node definitions api should describe custom-node support',
     );
 
+    const taskMapPlanContractApi = await request(port, 'GET', '/api/workbench/task-map-plan-contract');
+    assert.equal(taskMapPlanContractApi.status, 200, 'task-map-plan contract api should expose machine-readable planning metadata');
+    const taskMapPlanContractJson = JSON.parse(taskMapPlanContractApi.text);
+    assert.deepEqual(
+      taskMapPlanContractJson.planModes,
+      ['replace-default', 'augment-default'],
+      'task-map-plan contract api should expose plan modes',
+    );
+    assert.deepEqual(
+      taskMapPlanContractJson.edgeTypes,
+      ['structural', 'suggestion', 'completion', 'merge'],
+      'task-map-plan contract api should expose edge types',
+    );
+    assert.deepEqual(
+      taskMapPlanContractJson.sourceTypes,
+      ['manual', 'system', 'hook'],
+      'task-map-plan contract api should expose plan source types',
+    );
+    assert.equal(
+      taskMapPlanContractJson.fallbackProjection,
+      'continuity',
+      'task-map-plan contract api should declare continuity as the fallback graph source',
+    );
+    assert.equal(
+      taskMapPlanContractJson.planCapableHooks?.[0]?.id,
+      'builtin.branch-candidates',
+      'task-map-plan contract api should expose the current hook whitelist for graph-plan producers',
+    );
+    assert.equal(
+      taskMapPlanContractJson.planCapableHooks?.[0]?.taskMapPlanPolicy,
+      'augment-default',
+      'task-map-plan contract api should expose each producer hook policy',
+    );
+
     const createdNodeDefinition = await request(port, 'POST', '/api/workbench/node-definitions', {
       id: 'review-note',
       label: '复盘节点',

@@ -24,6 +24,7 @@ Design rules:
 - Treat `chat/workbench/node-definitions.mjs` as the canonical current node source; `node-contract.js` should read bootstrap/API-fed definitions and keep a safe fallback for isolated tests.
 - Keep node behavior centralized in `node-effects.js`; avoid adding new `kind === ...` branches directly in `task-map-model.js` or `task-map-ui.js`.
 - Keep optional graph overrides centralized in `task-map-plan.js`; default continuity projection should stay available as the fallback path.
+- Treat `/api/workbench/task-map-plan-contract` as the canonical backend contract for future hook/AI graph planning inputs.
 - Keep node settings owned by the workbench domain even though they render inside the shared settings overlay.
 - Put new visual rendering into a focused `*-ui.js` module.
 - Put derived state in selectors like `quest-state.js`, not inline in render code.

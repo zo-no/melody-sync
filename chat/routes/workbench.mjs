@@ -5,6 +5,7 @@ import {
   deleteCustomNodeKind,
   updateCustomNodeKind,
 } from '../workbench/node-settings-store.mjs';
+import { createTaskMapPlanContractPayload } from '../workbench/task-map-plan-contract.mjs';
 import {
   createBranchFromSession,
   createBranchFromNode,
@@ -43,6 +44,11 @@ export async function handleWorkbenchRoutes({
 } = {}) {
   if (pathname === '/api/workbench/node-definitions' && req?.method === 'GET') {
     writeJson(res, 200, createWorkbenchNodeDefinitionsPayload());
+    return true;
+  }
+
+  if (pathname === '/api/workbench/task-map-plan-contract' && req?.method === 'GET') {
+    writeJson(res, 200, createTaskMapPlanContractPayload());
     return true;
   }
 

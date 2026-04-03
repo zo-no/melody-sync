@@ -10,6 +10,7 @@ Current split:
 - `exporters.mjs`: markdown, summary, obsidian, and other export-oriented output.
 - `node-definitions.mjs`: canonical current node-kind exposure for bootstrap and HTTP clients.
 - `node-settings-store.mjs`: persisted custom node-kind settings layered on top of the builtin node contract, including future-facing composition metadata.
+- `task-map-plan-contract.mjs`: machine-readable contract for future hook/AI graph planning, including plan-capable hooks, node kinds, source types, and fallback behavior.
 - `task-map-plans.mjs`: persisted optional task-map plan overlays that can replace or augment the default continuity projection.
 - `shared.mjs`: normalization helpers shared across workbench modules.
 
@@ -19,5 +20,6 @@ Boundary rules:
 - Prefer adding new focused modules here rather than growing `chat/workbench-store.mjs`.
 - Keep the current node-kind source of truth in `node-definitions.mjs`; frontend projection reads it through chat bootstrap and `/api/workbench/node-definitions`.
 - Keep persisted custom node-kind editing in `node-settings-store.mjs`; do not mix it into task-map projection code.
+- Keep plan-generation metadata centralized in `task-map-plan-contract.mjs`; future hook/AI producers should read this contract instead of reassembling node + hook metadata ad hoc.
 - Keep persisted task-map plans in `task-map-plans.mjs`; they are optional overlay data, not the durable workflow truth.
 - Keep task-map projection logic in `static/chat/workbench/task-map-model.js`, not in backend store modules.

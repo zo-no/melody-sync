@@ -415,6 +415,7 @@ config/hooks/<hook-id>.json
 当前主线还新增了一层可选 overlay：
 
 - `chat/workbench/task-map-plans.mjs`
+- `chat/workbench/task-map-plan-contract.mjs`
 - `static/chat/workbench/task-map-plan.js`
 
 这层的作用不是替代 continuity，而是把“默认 continuity 图”和“未来 hook / AI 规划图”明确分开。
@@ -514,6 +515,26 @@ config/hooks/<hook-id>.json
 - 当前默认地图能力
 - 未来 hook/AI 的可扩展地图能力
 - renderer 的统一性
+
+为了避免未来 hook / AI 端自己重新拼装 node 和 hook metadata，建议同时暴露一个 machine-readable contract payload，至少包含：
+
+- `planModes`
+- `edgeTypes`
+- `sourceTypes`
+- `fallbackProjection`
+- `nodeKindDefinitions`
+- `planCapableHooks`
+
+当前主线已经有对应落点：
+
+- `chat/workbench/task-map-plan-contract.mjs`
+- `GET /api/workbench/task-map-plan-contract`
+
+当前白名单策略也已经落地：
+
+- 不是所有 hook 都能产 plan
+- 当前只有 `builtin.branch-candidates` 被标记为 `augment-default`
+- 不支持产 plan 的 hook 即使手动写入 plan source，也会在持久化层被拒绝
 
 当前主线已经有一个最小落地版本：
 
