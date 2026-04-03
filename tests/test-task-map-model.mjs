@@ -8,6 +8,8 @@ import vm from 'vm';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'), 'utf8');
+const nodeEffectsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-effects.js'), 'utf8');
+const taskMapPlanSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-plan.js'), 'utf8');
 const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'), 'utf8');
 
 const context = {
@@ -17,6 +19,12 @@ const context = {
 context.globalThis = context;
 vm.runInNewContext(nodeContractSource, context, {
   filename: 'static/chat/workbench/node-contract.js',
+});
+vm.runInNewContext(nodeEffectsSource, context, {
+  filename: 'static/chat/workbench/node-effects.js',
+});
+vm.runInNewContext(taskMapPlanSource, context, {
+  filename: 'static/chat/workbench/task-map-plan.js',
 });
 vm.runInNewContext(source, context, {
   filename: 'static/chat/workbench/task-map-model.js',
@@ -184,6 +192,11 @@ const candidateNode = movieQuest.nodes.find((node) => node.id === 'candidate:mai
 assert.ok(candidateNode, 'unrealized candidate branches should be surfaced as candidate nodes');
 assert.equal(candidateNode.kind, 'candidate', 'candidate nodes should keep a dedicated node kind');
 assert.equal(candidateNode.parentNodeId, 'session:main-1', 'root-level candidates should stay attached to the main quest root');
+assert.equal(
+  movieQuest.edges.find((edge) => edge.toNodeId === 'candidate:main-1:黑色电影')?.type,
+  'suggestion',
+  'candidate nodes should carry explicit suggestion edges in the projection',
+);
 
 const switchedProjection = buildTaskMapProjection({
   snapshot: {
@@ -236,6 +249,93 @@ assert.deepEqual(
   toPlain(switchedRootNode.childNodeIds),
   toPlain(rootNode.childNodeIds),
   'switching to another branch should not reshuffle sibling order under the same parent node',
+);
+
+const mergedProjection = buildTaskMapProjection({
+  snapshot: {
+    taskClusters: [
+      {
+        mainSessionId: 'main-1',
+        mainSession,
+        mainGoal: '学习电影史',
+        currentBranchSessionId: '',
+        branchSessionIds: ['branch-1'],
+        branchSessions: [
+          {
+            ...branchSession,
+            _branchDepth: 1,
+            _branchParentSessionId: 'main-1',
+            _branchStatus: 'merged',
+          },
+        ],
+      },
+    ],
+  },
+  sessions: [mainSession, branchSession],
+  currentSessionId: 'main-1',
+});
+const mergedQuest = mergedProjection.mainQuests.find((quest) => quest.rootSessionId === 'main-1');
+assert.equal(
+  mergedQuest.edges.find((edge) => edge.toNodeId === 'done:main-1')?.type,
+  'completion',
+  'done nodes should carry explicit completion edges in the projection',
+);
+
+const augmentedProjection = buildTaskMapProjection({
+  snapshot: {
+    taskClusters: [
+      {
+        mainSessionId: 'main-1',
+        mainSession,
+        mainGoal: '学习电影史',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    taskMapPlans: [
+      {
+        rootSessionId: 'main-1',
+        mode: 'augment-default',
+        nodes: [
+          {
+            id: 'candidate:main-1:补充复盘',
+            kind: 'candidate',
+            title: '补充复盘',
+            summary: '建议拆成独立支线',
+            sourceSessionId: 'main-1',
+            parentNodeId: 'session:main-1',
+            status: 'candidate',
+          },
+        ],
+        edges: [
+          {
+            from: 'session:main-1',
+            to: 'candidate:main-1:补充复盘',
+            type: 'suggestion',
+          },
+        ],
+      },
+    ],
+  },
+  sessions: [mainSession],
+  currentSessionId: 'main-1',
+});
+const augmentedQuest = augmentedProjection.mainQuests.find((quest) => quest.rootSessionId === 'main-1');
+assert.equal(
+  augmentedQuest.nodes.some((node) => node.id === 'candidate:main-1:补充复盘'),
+  true,
+  'task map plans should be able to augment the default continuity quest with extra nodes',
+);
+assert.equal(
+  augmentedQuest.edges.find((edge) => edge.toNodeId === 'candidate:main-1:补充复盘')?.type,
+  'suggestion',
+  'task map plans should preserve explicit edge semantics after projection',
+);
+assert.equal(
+  augmentedQuest.counts.candidateBranches,
+  4,
+  'task map plan augmentation should be reflected in quest counts together with default candidates',
 );
 
 const focusedProjection = buildTaskMapProjection({

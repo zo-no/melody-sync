@@ -8,6 +8,7 @@ import vm from 'vm';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'), 'utf8');
+const nodeEffectsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-effects.js'), 'utf8');
 const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'), 'utf8');
 const questStateSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'quest-state.js'), 'utf8');
 const taskTrackerUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-tracker-ui.js'), 'utf8');
@@ -234,7 +235,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
-  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${nodeEffectsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'static/chat/workbench-ui.js',
   });
   await Promise.resolve();

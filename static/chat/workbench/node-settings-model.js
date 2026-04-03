@@ -45,6 +45,27 @@
       builtIn: definition.builtIn === true,
       editable: definition.editable === true,
       source: trimText(definition.source || (definition.builtIn ? 'builtin' : 'custom')) || 'custom',
+      composition: definition?.composition && typeof definition.composition === 'object'
+        ? {
+          canBeRoot: definition.composition.canBeRoot === true,
+          allowedParentKinds: Array.isArray(definition.composition.allowedParentKinds)
+            ? definition.composition.allowedParentKinds.map((value) => trimText(value).toLowerCase()).filter(Boolean)
+            : [],
+          allowedChildKinds: Array.isArray(definition.composition.allowedChildKinds)
+            ? definition.composition.allowedChildKinds.map((value) => trimText(value).toLowerCase()).filter(Boolean)
+            : [],
+          requiresSourceSession: definition.composition.requiresSourceSession !== false,
+          defaultInteraction: trimText(definition.composition.defaultInteraction).toLowerCase(),
+          defaultEdgeType: trimText(definition.composition.defaultEdgeType).toLowerCase(),
+          layoutVariant: trimText(definition.composition.layoutVariant).toLowerCase(),
+          countsAs: {
+            sessionNode: definition?.composition?.countsAs?.sessionNode === true,
+            branch: definition?.composition?.countsAs?.branch === true,
+            candidate: definition?.composition?.countsAs?.candidate === true,
+            completedSummary: definition?.composition?.countsAs?.completedSummary === true,
+          },
+        }
+        : null,
     };
   }
 

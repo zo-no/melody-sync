@@ -14,6 +14,11 @@
 
 - `../../docs/hooks-node-architecture.md`
 
+其中和后续“AI 组合 node / 画线”直接相关的目标段落是：
+
+- `Node Composition Contract`
+- `TaskMapPlan Contract`
+
 ## 1. 当前 hooks 结构
 
 ### 注册入口
@@ -159,13 +164,24 @@
 ### task map 当前保留的 node kind
 
 - `chat/workbench/node-definitions.mjs`
-  - 统一维护当前 node kind / lane / role / mergePolicy 的 canonical exposure
+  - 统一维护当前 node kind / lane / role / mergePolicy / composition 的 canonical exposure
   - 通过 chat bootstrap 和 `GET /api/workbench/node-definitions` 透出给前端与后续配置面
 - `chat/workbench/node-settings-store.mjs`
   - 维护用户新增的 custom node kind 持久化
   - 当前只允许扩展自定义节点，不直接改写 builtin 节点
+  - 当前也允许 custom node kind 保留 composition metadata，但设置 UI 还没有把这层完全开放出来
 - `static/chat/workbench/node-contract.js`
   - 读取 backend 透出的 node definitions，并在前端做兜底校验与暴露
+  - 当前已经包含 composition contract：root 能力、父子 kind 约束、默认交互、默认边类型、布局变体和统计口径
+- `static/chat/workbench/node-effects.js`
+  - 统一维护 task map 当前内建 node 的公共语义
+  - 当前收口的效果包括：计数口径、compact 布局、候选边、开启支线动作、已收束徽标
+- `chat/workbench/task-map-plans.mjs`
+  - 持久化可选的 task-map plan overlay
+  - 这层不是 workflow 真值，只负责保存“可替换/可增强默认地图”的图谱计划
+- `static/chat/workbench/task-map-plan.js`
+  - 把 task-map plan 归一化并叠加到默认 continuity 投影上
+  - 当前支持两种模式：`replace-default` 和 `augment-default`
 - `static/chat/workbench/node-settings-model.js`
   - 把 node definitions payload 归一化成地图域可消费的设置模型
 - `static/chat/workbench/node-settings-ui.js`
@@ -205,6 +221,28 @@
 - 不负责替代 taskCard / branchContext
 - 不负责表达单独的“目标对象”
 - 不负责替代 backend workbench 的持久化 `nodes`
+
+### 当前 task map 的 node effect 层
+
+- `task-map-model.js`
+  - 继续负责 continuity -> 地图节点投影
+  - 当前已经显式产出 `nodes + edges`，其中 edge type 会标明 `structural / suggestion / completion`
+- `task-map-ui.js`
+  - 继续负责树布局和渲染
+- `node-effects.js`
+  - 作为两者之间共享的语义层，避免继续在 model / ui 里散落 `kind === "candidate"` 这类判断
+
+这意味着当前主线已经从“只暴露 node kind”前进到：
+
+- `node kind catalog`
+- `composition contract`
+- `shared node effects`
+- `optional taskMapPlan overlay`
+
+但当前 `taskMapPlan` 仍然只是 overlay 层：
+
+- 没有 plan 时，继续回退到 continuity -> task-map projection
+- 有 plan 时，只替换或增强地图图谱，不接管 session / branchContext / taskCard 真值
 
 ## 2.5 node 的两层含义
 

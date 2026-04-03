@@ -23,6 +23,10 @@ const nodeContractSource = readFileSync(
   join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'),
   'utf8',
 );
+const nodeEffectsSource = readFileSync(
+  join(repoRoot, 'static', 'chat', 'workbench/node-effects.js'),
+  'utf8',
+);
 const source = readFileSync(
   join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'),
   'utf8',
@@ -32,6 +36,7 @@ const context = { console };
 context.globalThis = context;
 context.window = context;
 vm.runInNewContext(nodeContractSource, context, { filename: 'workbench/node-contract.js' });
+vm.runInNewContext(nodeEffectsSource, context, { filename: 'workbench/node-effects.js' });
 vm.runInNewContext(source, context, { filename: 'workbench/task-map-model.js' });
 
 const { buildTaskMapProjection, NODE_KINDS } = context.MelodySyncTaskMapModel;

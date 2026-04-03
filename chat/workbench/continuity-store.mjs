@@ -149,6 +149,7 @@ export function buildWorkbenchSnapshot(state, sessions = []) {
     projects: sortByUpdatedDesc(state.projects || []),
     nodes: sortByCreatedAsc(state.nodes || []),
     branchContexts: sortByUpdatedDesc(state.branchContexts || []),
+    taskMapPlans: sortByUpdatedDesc(state.taskMapPlans || []),
     taskClusters: buildTaskClusters(state, sessions),
     skills: sortByUpdatedDesc(state.skills || []),
     summaries: sortByUpdatedDesc(state.summaries || []),
@@ -183,6 +184,16 @@ export async function getWorkbenchTrackerSnapshot(sessionId) {
     branchContexts: sortByUpdatedDesc((state.branchContexts || []).filter((entry) => (
       relevantSessionIds.has(normalizeNullableText(entry?.sessionId))
     ))),
+    taskMapPlans: sortByUpdatedDesc((state.taskMapPlans || []).filter((plan) => {
+      if (relevantSessionIds.has(normalizeNullableText(plan?.rootSessionId))) return true;
+      if (normalizeNullableText(plan?.activeNodeId) && relevantSessionIds.has(normalizeNullableText(plan.activeNodeId.replace(/^session:/, '')))) {
+        return true;
+      }
+      return (Array.isArray(plan?.nodes) ? plan.nodes : []).some((node) => (
+        relevantSessionIds.has(normalizeNullableText(node?.sessionId))
+        || relevantSessionIds.has(normalizeNullableText(node?.sourceSessionId))
+      ));
+    })),
     taskClusters: cluster ? [cluster] : [],
   };
 }

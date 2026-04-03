@@ -5,6 +5,9 @@ import { writeJsonAtomic } from '../fs-utils.mjs';
 const NODE_LANES = Object.freeze(['main', 'branch', 'side']);
 const NODE_ROLES = Object.freeze(['state', 'action', 'summary']);
 const NODE_MERGE_POLICIES = Object.freeze(['replace-latest', 'append']);
+const NODE_INTERACTIONS = Object.freeze(['open-session', 'create-branch', 'none']);
+const NODE_EDGE_TYPES = Object.freeze(['structural', 'suggestion', 'completion', 'merge']);
+const NODE_LAYOUT_VARIANTS = Object.freeze(['root', 'default', 'compact']);
 const RESERVED_NODE_KIND_IDS = new Set(['main', 'branch', 'candidate', 'done']);
 
 function trimText(value) {
@@ -14,6 +17,14 @@ function trimText(value) {
 function normalizeToken(value, fallback, allowlist) {
   const normalized = trimText(value).toLowerCase();
   return allowlist.includes(normalized) ? normalized : fallback;
+}
+
+function normalizeNodeKindIdList(values, fallback) {
+  const source = Array.isArray(values) ? values : fallback;
+  const normalized = source
+    .map((value) => trimText(value).toLowerCase())
+    .filter((value) => /^[a-z][a-z0-9-]{0,47}$/.test(value));
+  return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
 }
 
 function normalizeNodeKindId(value) {
@@ -28,6 +39,48 @@ function normalizeNodeKindId(value) {
     return '';
   }
   return normalized;
+}
+
+function normalizeCustomNodeComposition(definition = {}, { lane = 'side', role = 'summary' } = {}) {
+  const composition = definition?.composition && typeof definition.composition === 'object'
+    ? definition.composition
+    : {};
+  const inferredInteraction = role === 'action' ? 'create-branch' : 'none';
+  const inferredEdgeType = role === 'action' ? 'suggestion' : (role === 'summary' ? 'completion' : 'structural');
+  const inferredLayout = role === 'state' ? (lane === 'main' ? 'root' : 'default') : 'compact';
+  return {
+    canBeRoot: composition.canBeRoot === true,
+    allowedParentKinds: normalizeNodeKindIdList(
+      composition.allowedParentKinds,
+      ['main', 'branch'],
+    ),
+    allowedChildKinds: normalizeNodeKindIdList(
+      composition.allowedChildKinds,
+      role === 'state' ? ['branch', 'candidate', 'done'] : [],
+    ),
+    requiresSourceSession: composition.requiresSourceSession !== false,
+    defaultInteraction: normalizeToken(
+      composition.defaultInteraction,
+      inferredInteraction,
+      NODE_INTERACTIONS,
+    ),
+    defaultEdgeType: normalizeToken(
+      composition.defaultEdgeType,
+      inferredEdgeType,
+      NODE_EDGE_TYPES,
+    ),
+    layoutVariant: normalizeToken(
+      composition.layoutVariant,
+      inferredLayout,
+      NODE_LAYOUT_VARIANTS,
+    ),
+    countsAs: {
+      sessionNode: composition?.countsAs?.sessionNode === true,
+      branch: composition?.countsAs?.branch === true,
+      candidate: composition?.countsAs?.candidate === true,
+      completedSummary: composition?.countsAs?.completedSummary === true,
+    },
+  };
 }
 
 function normalizeCustomNodeKind(definition = {}, { existingIds = new Set() } = {}) {
@@ -45,18 +98,21 @@ function normalizeCustomNodeKind(definition = {}, { existingIds = new Set() } = 
   if (!label) {
     throw new Error('node kind label is required');
   }
+  const lane = normalizeToken(definition.lane, 'side', NODE_LANES);
+  const role = normalizeToken(definition.role, 'summary', NODE_ROLES);
   return {
     id,
     label,
     description: trimText(definition.description),
-    lane: normalizeToken(definition.lane, 'side', NODE_LANES),
-    role: normalizeToken(definition.role, 'summary', NODE_ROLES),
+    lane,
+    role,
     sessionBacked: false,
     derived: true,
     mergePolicy: normalizeToken(definition.mergePolicy, 'replace-latest', NODE_MERGE_POLICIES),
     builtIn: false,
     editable: true,
     source: 'custom',
+    composition: normalizeCustomNodeComposition(definition, { lane, role }),
   };
 }
 

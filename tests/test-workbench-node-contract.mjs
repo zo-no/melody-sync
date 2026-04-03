@@ -23,6 +23,9 @@ assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_KINDS)), ['main', 'bran
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_LANES)), ['main', 'branch', 'side']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_ROLES)), ['state', 'action', 'summary']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_MERGE_POLICIES)), ['replace-latest', 'append']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_INTERACTIONS)), ['open-session', 'create-branch', 'none']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_EDGE_TYPES)), ['structural', 'suggestion', 'completion', 'merge']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_LAYOUT_VARIANTS)), ['root', 'default', 'compact']);
 
 const main = contract.getNodeKindDefinition('main');
 assert.equal(main?.lane, 'main');
@@ -38,10 +41,14 @@ const candidate = contract.getNodeKindDefinition('candidate');
 assert.equal(candidate?.lane, 'branch');
 assert.equal(candidate?.role, 'action');
 assert.equal(candidate?.derived, true);
+assert.equal(candidate?.composition?.defaultInteraction, 'create-branch');
+assert.equal(candidate?.composition?.layoutVariant, 'compact');
 
 const done = contract.getNodeKindDefinition('done');
 assert.equal(done?.role, 'summary');
 assert.equal(done?.sessionBacked, false);
+assert.equal(done?.composition?.defaultEdgeType, 'completion');
+assert.equal(done?.composition?.countsAs?.completedSummary, true);
 
 assert.equal(contract.isKnownNodeKind('main'), true);
 assert.equal(contract.isKnownNodeKind('unknown'), false);
@@ -55,6 +62,9 @@ const bootstrapContext = {
           nodeLanes: ['main', 'branch', 'review'],
           nodeRoles: ['state', 'action', 'summary'],
           nodeMergePolicies: ['replace-latest', 'append'],
+          nodeInteractions: ['open-session', 'none'],
+          nodeEdgeTypes: ['structural', 'completion'],
+          nodeLayoutVariants: ['root', 'default', 'compact'],
           nodeKindDefinitions: [
             {
               id: 'main',
@@ -75,6 +85,21 @@ const bootstrapContext = {
               sessionBacked: false,
               derived: true,
               mergePolicy: 'append',
+              composition: {
+                canBeRoot: false,
+                allowedParentKinds: ['main', 'review'],
+                allowedChildKinds: [],
+                requiresSourceSession: true,
+                defaultInteraction: 'none',
+                defaultEdgeType: 'completion',
+                layoutVariant: 'compact',
+                countsAs: {
+                  sessionNode: false,
+                  branch: false,
+                  candidate: false,
+                  completedSummary: true,
+                },
+              },
             },
           ],
         },
@@ -98,6 +123,11 @@ assert.deepEqual(
   ['main', 'review'],
   'bootstrap-backed node definitions should override the local fallback list',
 );
+assert.deepEqual(
+  JSON.parse(JSON.stringify(bootstrapContract.NODE_INTERACTIONS)),
+  ['open-session', 'none'],
+  'bootstrap-backed node interactions should override the local fallback list',
+);
 assert.equal(
   bootstrapContract.getNodeKindDefinition('review')?.label,
   '复盘节点',
@@ -107,6 +137,11 @@ assert.equal(
   bootstrapContract.getNodeKindDefinition('review')?.mergePolicy,
   'append',
   'bootstrap-backed node definitions should retain their merge policy',
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(bootstrapContract.getNodeKindDefinition('review')?.composition?.allowedParentKinds)),
+  ['main', 'review'],
+  'bootstrap-backed composition rules should be preserved',
 );
 assert.equal(
   bootstrapContract.isKnownNodeKind('review'),

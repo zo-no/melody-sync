@@ -67,6 +67,32 @@ const HOOK_LAYER_INDEX = new Map(
   HOOK_LAYER_DEFINITIONS.map((definition) => [definition.id, definition]),
 );
 
+export const HOOK_TASK_MAP_PLAN_POLICY_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    id: 'none',
+    label: '不产地图计划',
+    description: '这个 hook 不应直接生成 taskMapPlan，地图继续走默认 continuity 投影。',
+  }),
+  Object.freeze({
+    id: 'augment-default',
+    label: '增强默认地图',
+    description: '这个 hook 可以在默认 continuity 地图上补充节点和边，但不能整张替换。',
+  }),
+  Object.freeze({
+    id: 'replace-default',
+    label: '替换默认地图',
+    description: '这个 hook 可以完整提供 taskMapPlan，并替换默认 continuity 地图。',
+  }),
+]);
+
+export const HOOK_TASK_MAP_PLAN_POLICY_ORDER = Object.freeze(
+  HOOK_TASK_MAP_PLAN_POLICY_DEFINITIONS.map((definition) => definition.id),
+);
+
+const HOOK_TASK_MAP_PLAN_POLICY_INDEX = new Map(
+  HOOK_TASK_MAP_PLAN_POLICY_DEFINITIONS.map((definition) => [definition.id, definition]),
+);
+
 export const HOOK_UI_TARGET_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: 'session_stream',
@@ -135,6 +161,15 @@ export function listHookLayerDefinitions() {
   return HOOK_LAYER_DEFINITIONS.map((definition) => ({ ...definition }));
 }
 
+export function normalizeHookTaskMapPlanPolicy(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  return HOOK_TASK_MAP_PLAN_POLICY_INDEX.has(normalized) ? normalized : 'none';
+}
+
+export function listHookTaskMapPlanPolicyDefinitions() {
+  return HOOK_TASK_MAP_PLAN_POLICY_DEFINITIONS.map((definition) => ({ ...definition }));
+}
+
 export function listHookUiTargetDefinitions() {
   return HOOK_UI_TARGET_DEFINITIONS.map((definition) => ({ ...definition }));
 }
@@ -173,6 +208,8 @@ export function createHookDefinition(definition = {}) {
     layer: normalizeHookLayer(definition.layer),
     scope,
     phase,
+    taskMapPlanPolicy: normalizeHookTaskMapPlanPolicy(definition.taskMapPlanPolicy),
+    producesTaskMapPlan: normalizeHookTaskMapPlanPolicy(definition.taskMapPlanPolicy) !== 'none',
     sourceModule: normalizeText(definition.sourceModule),
   });
 }

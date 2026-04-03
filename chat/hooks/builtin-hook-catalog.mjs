@@ -49,6 +49,7 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     builtIn: true,
     owner: 'hooks',
     layer: 'lifecycle',
+    taskMapPlanPolicy: 'augment-default',
     sourceModule: 'chat/hooks/branch-candidates-hook.mjs',
   }),
   createHookDefinition({
@@ -74,4 +75,12 @@ export function listBuiltinHookDefinitions() {
 export function getBuiltinHookDefinition(hookId) {
   const definition = BUILTIN_HOOK_DEFINITION_INDEX.get(String(hookId || '').trim());
   return definition ? { ...definition } : null;
+}
+
+export function getBuiltinHookTaskMapPlanPolicy(hookId) {
+  return getBuiltinHookDefinition(hookId)?.taskMapPlanPolicy || 'none';
+}
+
+export function canBuiltinHookProduceTaskMapPlan(hookId) {
+  return getBuiltinHookTaskMapPlanPolicy(hookId) !== 'none';
 }

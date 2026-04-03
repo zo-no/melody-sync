@@ -42,6 +42,143 @@
   const NODE_KIND_DEFINITIONS = getNodeKindDefinitions();
   const NODE_KINDS = Object.freeze(NODE_KIND_DEFINITIONS.map((definition) => definition.id));
 
+  function getNodeEffectsApi() {
+    return globalThis?.MelodySyncWorkbenchNodeEffects
+      || globalThis?.window?.MelodySyncWorkbenchNodeEffects
+      || null;
+  }
+
+  function getTaskMapPlanApi() {
+    return globalThis?.MelodySyncTaskMapPlan
+      || globalThis?.window?.MelodySyncTaskMapPlan
+      || null;
+  }
+
+  function getFallbackNodeKindEffect(kind) {
+    switch (trimText(kind)) {
+      case "main":
+        return {
+          layoutVariant: "root",
+          edgeVariant: "structural",
+          interaction: "open-session",
+          trackAsCandidateChild: false,
+          defaultSummary: "",
+          countsAs: { sessionNode: true, branch: false, candidate: false },
+        };
+      case "branch":
+        return {
+          layoutVariant: "default",
+          edgeVariant: "structural",
+          interaction: "open-session",
+          trackAsCandidateChild: false,
+          defaultSummary: "",
+          countsAs: { sessionNode: true, branch: true, candidate: false },
+        };
+      case "candidate":
+        return {
+          layoutVariant: "compact",
+          edgeVariant: "suggestion",
+          interaction: "create-branch",
+          trackAsCandidateChild: true,
+          defaultSummary: "建议拆成独立支线",
+          countsAs: { sessionNode: false, branch: false, candidate: true },
+        };
+      case "done":
+        return {
+          layoutVariant: "compact",
+          edgeVariant: "completion",
+          interaction: "none",
+          trackAsCandidateChild: false,
+          defaultSummary: "",
+          countsAs: { sessionNode: true, branch: false, candidate: false },
+        };
+      default:
+        return {
+          layoutVariant: "default",
+          edgeVariant: "structural",
+          interaction: "none",
+          trackAsCandidateChild: false,
+          defaultSummary: "",
+          countsAs: { sessionNode: false, branch: false, candidate: false },
+        };
+    }
+  }
+
+  function getNodeKindEffect(kind) {
+    const effect = getNodeEffectsApi()?.getNodeKindEffect?.(kind);
+    return effect || getFallbackNodeKindEffect(kind);
+  }
+
+  function withNodeKindEffect(node) {
+    const nextNode = getNodeEffectsApi()?.withNodeKindEffect?.(node);
+    if (nextNode && typeof nextNode === "object") return nextNode;
+    return {
+      ...node,
+      kindEffect: getNodeKindEffect(node?.kind),
+    };
+  }
+
+  function shouldTrackCandidateChild(node) {
+    const tracked = getNodeEffectsApi()?.shouldTrackCandidateChild?.(node);
+    if (typeof tracked === "boolean") return tracked;
+    return getNodeKindEffect(node?.kind)?.trackAsCandidateChild === true;
+  }
+
+  function countsAsBranch(node) {
+    return node?.kindEffect?.countsAs?.branch === true
+      || getNodeKindEffect(node?.kind)?.countsAs?.branch === true;
+  }
+
+  function buildQuestNodeCounts(nodes = []) {
+    const counts = getNodeEffectsApi()?.buildQuestNodeCounts?.(nodes);
+    if (counts && typeof counts === "object") {
+      return counts;
+    }
+    const realNodes = nodes.filter((node) => getNodeKindEffect(node?.kind)?.countsAs?.sessionNode === true);
+    const branchNodes = realNodes.filter((node) => countsAsBranch(node));
+    return {
+      sessionNodes: realNodes.length,
+      activeBranches: branchNodes.filter((node) => node.status === "active").length,
+      parkedBranches: branchNodes.filter((node) => node.status === "parked").length,
+      completedBranches: branchNodes.filter((node) => ["resolved", "merged"].includes(node.status)).length,
+      candidateBranches: nodes.filter((node) => getNodeKindEffect(node?.kind)?.countsAs?.candidate === true).length,
+    };
+  }
+
+  function resolveActiveQuestSelection({
+    quests = [],
+    currentSessionId = "",
+    focusedSessionId = "",
+  } = {}) {
+    const preferredSessionIds = [trimText(focusedSessionId), trimText(currentSessionId)].filter(Boolean);
+    const preferredNodeId = preferredSessionIds
+      .map((sessionId) => {
+        const sessionNodeId = `session:${sessionId}`;
+        const matchedQuest = quests.find((quest) => Array.isArray(quest?.nodeIds) && quest.nodeIds.includes(sessionNodeId));
+        if (matchedQuest) return sessionNodeId;
+        const matchedNode = quests.flatMap((quest) => Array.isArray(quest?.nodes) ? quest.nodes : []).find((node) => (
+          trimText(node?.sessionId) === sessionId
+        ));
+        return matchedNode?.id || "";
+      })
+      .find(Boolean) || "";
+    const activeQuest = (preferredNodeId
+      ? quests.find((quest) => Array.isArray(quest?.nodeIds) && quest.nodeIds.includes(preferredNodeId))
+      : null)
+      || quests.find((quest) => quest.currentNodeId === `session:${currentSessionId}`)
+      || quests[0]
+      || null;
+    const activeNode = activeQuest
+      ? activeQuest.nodes.find((node) => node.id === (preferredNodeId && activeQuest.nodeIds.includes(preferredNodeId) ? preferredNodeId : activeQuest.currentNodeId)) || null
+      : null;
+    return {
+      activeMainQuestId: activeQuest?.id || "",
+      activeNodeId: activeNode?.id || "",
+      activeMainQuest: activeQuest,
+      activeNode,
+    };
+  }
+
   function cloneJson(value) {
     if (value === null || value === undefined) return value;
     return JSON.parse(JSON.stringify(value));
@@ -341,24 +478,32 @@
 
       const nodes = [];
       const nodeById = new Map();
+      const edges = [];
 
       function addNode(node) {
-        const nextNode = {
+        const nextNode = withNodeKindEffect({
           childNodeIds: [],
           candidateNodeIds: [],
           isCurrent: false,
           isCurrentPath: false,
           ...node,
-        };
+        });
         nodes.push(nextNode);
         nodeById.set(nextNode.id, nextNode);
         if (nextNode.parentNodeId) {
           const parentNode = nodeById.get(nextNode.parentNodeId);
           if (parentNode) {
             parentNode.childNodeIds.push(nextNode.id);
-            if (nextNode.kind === "candidate") {
+            if (shouldTrackCandidateChild(nextNode)) {
               parentNode.candidateNodeIds.push(nextNode.id);
             }
+            edges.push({
+              id: `edge:${parentNode.id}:${nextNode.id}`,
+              questId,
+              fromNodeId: parentNode.id,
+              toNodeId: nextNode.id,
+              type: nextNode?.kindEffect?.edgeVariant || "structural",
+            });
           }
         }
         return nextNode;
@@ -398,6 +543,7 @@
           const candidateKey = normalizeKey(normalizedTitle);
           if (!candidateKey || seenCandidates.has(candidateKey) || existingChildKeys.has(candidateKey)) continue;
           seenCandidates.add(candidateKey);
+          const candidateEffect = getNodeKindEffect("candidate");
           addNode({
             id: `candidate:${parentSession.id}:${slugify(normalizedTitle)}`,
             questId,
@@ -408,7 +554,7 @@
             parentNodeId,
             depth,
             title: normalizedTitle,
-            summary: "建议拆成独立支线",
+            summary: candidateEffect.defaultSummary || "建议拆成独立支线",
             status: "candidate",
           });
         }
@@ -453,7 +599,7 @@
       // Requires at least one branch to exist — no branches means the task hasn't split yet.
       {
         const directBranches = childrenByParent.get(rootSession.id) || [];
-        const allBranchNodes = nodes.filter((n) => n.kind === "branch");
+        const allBranchNodes = nodes.filter((node) => countsAsBranch(node));
         const hasOpenBranches = allBranchNodes.some((n) => n.status === "active" || n.status === "parked");
         if (directBranches.length > 0 && allBranchNodes.length > 0 && !hasOpenBranches) {
           addNode({
@@ -472,17 +618,12 @@
         }
       }
 
-      const realNodes = nodes.filter((node) => node.kind !== "candidate");
-      const branchNodes = realNodes.filter((node) => node.kind === "branch");
       const questTitle = clipText(
         trimText(rootSession?.name || cluster?.mainGoal || rootSession?.taskCard?.mainGoal || rootSession?.taskCard?.goal || "当前任务"),
         72,
       );
       const activeNode = nodeById.get(activeNodeId) || nodeById.get(rootNodeId) || null;
-      const completedBranchCount = branchNodes.filter((node) => ["resolved", "merged"].includes(node.status)).length;
-      const parkedBranchCount = branchNodes.filter((node) => node.status === "parked").length;
-      const activeBranchCount = branchNodes.filter((node) => node.status === "active").length;
-      const candidateBranchCount = nodes.filter((node) => node.kind === "candidate").length;
+      const questCounts = buildQuestNodeCounts(nodes);
 
       quests.push({
         id: questId,
@@ -493,36 +634,25 @@
         currentNodeTitle: activeNode?.title || getSessionTitle(rootSession),
         currentPathNodeIds: nodes.filter((node) => node.isCurrent || node.isCurrentPath).map((node) => node.id),
         nodeIds: nodes.map((node) => node.id),
+        edgeIds: edges.map((edge) => edge.id),
         nodes,
-        counts: {
-          sessionNodes: realNodes.length,
-          activeBranches: activeBranchCount,
-          parkedBranches: parkedBranchCount,
-          completedBranches: completedBranchCount,
-          candidateBranches: candidateBranchCount,
-        },
+        edges,
+        counts: questCounts,
       });
     }
 
-    const preferredNodeId = preferredSessionIds
-      .map((sessionId) => `session:${sessionId}`)
-      .find((nodeId) => quests.some((quest) => Array.isArray(quest?.nodeIds) && quest.nodeIds.includes(nodeId))) || "";
-    const activeQuest = (preferredNodeId
-      ? quests.find((quest) => Array.isArray(quest?.nodeIds) && quest.nodeIds.includes(preferredNodeId))
-      : null)
-      || quests.find((quest) => quest.currentNodeId === `session:${currentSessionId}`)
-      || quests[0]
-      || null;
-    const activeNode = activeQuest
-      ? activeQuest.nodes.find((node) => node.id === (preferredNodeId && activeQuest.nodeIds.includes(preferredNodeId) ? preferredNodeId : activeQuest.currentNodeId)) || null
-      : null;
+    const planAdjustedProjection = getTaskMapPlanApi()?.applyTaskMapPlansToProjection?.({
+      projection: { mainQuests: quests },
+      snapshot,
+    }) || { mainQuests: quests };
 
     return {
-      mainQuests: quests,
-      activeMainQuestId: activeQuest?.id || "",
-      activeNodeId: activeNode?.id || "",
-      activeMainQuest: activeQuest,
-      activeNode,
+      mainQuests: planAdjustedProjection.mainQuests || quests,
+      ...resolveActiveQuestSelection({
+        quests: planAdjustedProjection.mainQuests || quests,
+        currentSessionId,
+        focusedSessionId,
+      }),
     };
   }
 
@@ -536,15 +666,9 @@
   }
 
   function recalculateQuestCounts(quest) {
-    const realNodes = quest.nodes.filter((node) => node.kind !== "candidate");
-    const branchNodes = realNodes.filter((node) => node.kind === "branch");
     quest.counts = {
       ...quest.counts,
-      sessionNodes: realNodes.length,
-      activeBranches: branchNodes.filter((node) => node.status === "active").length,
-      parkedBranches: branchNodes.filter((node) => node.status === "parked").length,
-      completedBranches: branchNodes.filter((node) => ["resolved", "merged"].includes(node.status)).length,
-      candidateBranches: quest.nodes.filter((node) => node.kind === "candidate").length,
+      ...buildQuestNodeCounts(quest.nodes),
     };
   }
 
@@ -567,13 +691,13 @@
     if (!rootNode) return cloned;
 
     function appendNode(node) {
-      const nextNode = {
+      const nextNode = withNodeKindEffect({
         childNodeIds: [],
         candidateNodeIds: [],
         isCurrent: false,
         isCurrentPath: false,
         ...node,
-      };
+      });
       activeQuest.nodes.push(nextNode);
       activeQuest.nodeIds.push(nextNode.id);
       nodeById.set(nextNode.id, nextNode);
@@ -583,7 +707,7 @@
           parentNode.childNodeIds = Array.isArray(parentNode.childNodeIds) ? parentNode.childNodeIds : [];
           parentNode.candidateNodeIds = Array.isArray(parentNode.candidateNodeIds) ? parentNode.candidateNodeIds : [];
           parentNode.childNodeIds.push(nextNode.id);
-          if (nextNode.kind === "candidate") {
+          if (shouldTrackCandidateChild(nextNode)) {
             parentNode.candidateNodeIds.push(nextNode.id);
           }
         }
@@ -676,6 +800,21 @@
     });
 
     recalculateQuestCounts(activeQuest);
+    activeQuest.edgeIds = Array.isArray(activeQuest.edgeIds) ? activeQuest.edgeIds : [];
+    activeQuest.edges = Array.isArray(activeQuest.edges) ? activeQuest.edges : [];
+    for (const node of activeQuest.nodes) {
+      if (!node?.parentNodeId) continue;
+      const edgeId = `edge:${node.parentNodeId}:${node.id}`;
+      if (activeQuest.edgeIds.includes(edgeId)) continue;
+      activeQuest.edgeIds.push(edgeId);
+      activeQuest.edges.push({
+        id: edgeId,
+        questId: activeQuest.id,
+        fromNodeId: node.parentNodeId,
+        toNodeId: node.id,
+        type: node?.kindEffect?.edgeVariant || "structural",
+      });
+    }
     cloned.activeMainQuest = activeQuest;
     cloned.activeNode = activeQuest.nodes.find((node) => node.id === cloned.activeNodeId) || cloned.activeNode || null;
     return cloned;

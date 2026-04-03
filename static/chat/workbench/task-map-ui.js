@@ -11,6 +11,33 @@
     getSessionRecord = null,
     attachSession = null,
   } = {}) {
+    function getNodeEffectsApi() {
+      return globalThis?.MelodySyncWorkbenchNodeEffects
+        || windowRef?.MelodySyncWorkbenchNodeEffects
+        || windowRef?.window?.MelodySyncWorkbenchNodeEffects
+        || null;
+    }
+
+    function getNodeEffect(node) {
+      return getNodeEffectsApi()?.getNodeEffect?.(node) || node?.kindEffect || null;
+    }
+
+    function getNodeLayoutVariant(node) {
+      return getNodeEffect(node)?.layoutVariant || "default";
+    }
+
+    function getNodeInteraction(node) {
+      return getNodeEffect(node)?.interaction || "none";
+    }
+
+    function getNodeEdgeVariant(node) {
+      return getNodeEffect(node)?.edgeVariant || "structural";
+    }
+
+    function getNodeActionLabel(node) {
+      return getNodeEffect(node)?.actionLabel || "开启支线";
+    }
+
     function getProjectedTaskFlowConfig() {
       const mobile = isMobileQuestTracker();
       return {
@@ -40,7 +67,7 @@
 
     function getProjectedTaskFlowNodeHeight(node, metrics) {
       if (!node?.parentNodeId) return metrics.rootHeight;
-      if (node?.kind === "candidate" || node?.kind === "done") return metrics.candidateHeight;
+      if (getNodeLayoutVariant(node) === "compact") return metrics.candidateHeight;
       return metrics.nodeHeight;
     }
 
@@ -101,18 +128,19 @@
       return results;
     }
 
-    function collectProjectedTaskFlowEdges(tree, results = []) {
+    function collectProjectedTaskFlowEdges(tree, edgeByTargetNodeId = new Map(), results = []) {
       if (!tree) return results;
       for (const child of tree.children) {
+        const edge = edgeByTargetNodeId.get(child.node?.id) || null;
         results.push({
           fromX: tree.x + tree.nodeWidth / 2,
           fromY: tree.y + tree.nodeHeight,
           toX: child.x + child.nodeWidth / 2,
           toY: child.y,
           current: child.node?.isCurrent === true || child.node?.isCurrentPath === true,
-          candidate: child.node?.kind === "candidate",
+          variant: edge?.type || getNodeEdgeVariant(child.node),
         });
-        collectProjectedTaskFlowEdges(child, results);
+        collectProjectedTaskFlowEdges(child, edgeByTargetNodeId, results);
       }
       return results;
     }
@@ -133,14 +161,20 @@
     }
 
     function getProjectedTaskFlowNodeMeta(node) {
-      if (node.kind === "candidate") return "可选";
-      if (node.kind === "done") return "已收束";
+      const nodeEffect = getNodeEffect(node);
+      const label = getNodeEffectsApi()?.getNodeMetaLabel?.(node, { getBranchStatusUi });
+      if (label) return label;
       if (!node?.parentNodeId) return "进行中";
+      if (nodeEffect?.metaVariant === "candidate") return "可选";
+      if (nodeEffect?.metaVariant === "done") return "已收束";
       return getBranchStatusUi(node.status).label;
     }
 
     function getProjectedTaskFlowNodeSummary(node, activeQuest) {
+      const summary = getNodeEffectsApi()?.getNodeSummaryText?.(node, activeQuest, { clipText });
+      if (typeof summary === "string") return summary;
       if (!node) return "";
+      const nodeEffect = getNodeEffect(node);
       if (!node.parentNodeId) {
         const rootSummary = clipText(node.summary || activeQuest?.summary || "", 72);
         if (rootSummary) return rootSummary;
@@ -150,10 +184,10 @@
         }
         return "";
       }
-      if (node.kind === "candidate") {
-        return clipText(node.summary || "适合单独展开", 72);
+      if (nodeEffect?.interaction === "create-branch") {
+        return clipText(node.summary || nodeEffect.fallbackSummary || nodeEffect.defaultSummary || "", 72);
       }
-      return clipText(node.summary || "", 72);
+      return clipText(node.summary || nodeEffect?.fallbackSummary || "", 72);
     }
 
     function bindTaskFlowCanvasInteractions(scroll) {
@@ -342,7 +376,12 @@
       positionProjectedTaskFlowTree(tree, metrics.paddingX, metrics.paddingY, metrics);
 
       const entries = flattenProjectedTaskFlowTree(tree, []);
-      const edges = collectProjectedTaskFlowEdges(tree, []);
+      const edgeByTargetNodeId = new Map(
+        (Array.isArray(activeQuest?.edges) ? activeQuest.edges : [])
+          .filter((edge) => edge?.toNodeId)
+          .map((edge) => [edge.toNodeId, edge]),
+      );
+      const edges = collectProjectedTaskFlowEdges(tree, edgeByTargetNodeId, []);
       const canvasWidth = Math.max(metrics.rootWidth + metrics.paddingX * 2, ...entries.map((entry) => entry.x + entry.nodeWidth + metrics.paddingX));
       const canvasHeight = Math.max(metrics.rootHeight + metrics.paddingY * 2, ...entries.map((entry) => entry.y + entry.nodeHeight + metrics.paddingY));
 
@@ -373,9 +412,9 @@
         const midY = edge.fromY + ((edge.toY - edge.fromY) * 0.48);
         if (typeof path.setAttribute === "function") {
           path.setAttribute("d", `M ${edge.fromX} ${edge.fromY} V ${midY} H ${edge.toX} V ${edge.toY}`);
-          path.setAttribute("class", `quest-task-flow-edge${edge.current ? " is-current" : ""}${edge.candidate ? " is-candidate" : ""}`);
+          path.setAttribute("class", `quest-task-flow-edge${edge.current ? " is-current" : ""}${edge.variant === "suggestion" ? " is-candidate" : ""}`);
         } else {
-          path.className = `quest-task-flow-edge${edge.current ? " is-current" : ""}${edge.candidate ? " is-candidate" : ""}`;
+          path.className = `quest-task-flow-edge${edge.current ? " is-current" : ""}${edge.variant === "suggestion" ? " is-candidate" : ""}`;
         }
         svg.appendChild(path);
       }
@@ -385,7 +424,7 @@
         const actionBtn = documentRef.createElement("button");
         actionBtn.type = "button";
         actionBtn.className = "quest-branch-btn quest-branch-btn-primary quest-task-flow-node-action panzoom-exclude";
-        actionBtn.textContent = "开启支线";
+        actionBtn.textContent = getNodeActionLabel(node);
         const sourceSessionId = String(node?.sessionId || node?.sourceSessionId || "").trim();
         if (!sourceSessionId) {
           actionBtn.disabled = true;
@@ -411,9 +450,11 @@
 
       for (const entry of entries) {
         const node = entry.node;
-        const isCandidate = node.kind === "candidate";
-        const isDone = node.kind === "done";
-        const isNonInteractive = isCandidate || isDone;
+        const nodeEffect = getNodeEffect(node);
+        const nodeInteraction = getNodeInteraction(node);
+        const isCandidate = nodeInteraction === "create-branch";
+        const isDone = nodeEffect?.metaVariant === "done";
+        const isNonInteractive = nodeInteraction !== "open-session";
         const nodeEl = documentRef.createElement(isNonInteractive ? "div" : "button");
         if (nodeEl.type !== undefined && !isNonInteractive) {
           nodeEl.type = "button";
@@ -442,7 +483,7 @@
 
         const titleEl = documentRef.createElement("div");
         titleEl.className = "quest-task-flow-node-title";
-        titleEl.textContent = clipText(node.title || "当前任务", isCandidate ? 22 : 28);
+        titleEl.textContent = clipText(node.title || "当前任务", getNodeLayoutVariant(node) === "compact" ? 22 : 28);
         titleEl.title = String(node.title || "").trim();
         nodeEl.appendChild(titleEl);
 
@@ -455,9 +496,9 @@
           nodeEl.appendChild(summaryEl);
         }
 
-        if (isCandidate) {
+        if (nodeInteraction === "create-branch") {
           nodeEl.appendChild(createCandidateAction(node));
-        } else if (!isDone && node.sessionId) {
+        } else if (nodeInteraction === "open-session" && !isDone && node.sessionId) {
           nodeEl.addEventListener("click", () => {
             const sessionRecord = getSessionRecord?.(node.sessionId) || state?.parentSession || state?.cluster?.mainSession || null;
             if (typeof attachSession === "function") {

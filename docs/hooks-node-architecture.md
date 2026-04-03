@@ -342,7 +342,186 @@ config/hooks/<hook-id>.json
 - `derived`
 - `mergePolicy`
 
-### 7.4 新增一个 Node Kind 时应该改哪里
+### 7.3 Node Composition Contract
+
+如果后面要让 hook / AI 能稳定地“自己拼 node”，只透出 node kind 还不够。
+
+还必须给它一层 machine-readable 的组合规则，让系统知道：
+
+- 这个 kind 能不能做 root
+- 这个 kind 可以挂在哪些父节点下面
+- 这个 kind 默认能产出哪些子节点
+- 这个 kind 是否必须绑定真实 session
+- 这个 kind 的默认交互是什么
+
+最小 contract 建议固定成：
+
+```json
+{
+  "id": "candidate",
+  "label": "建议子任务",
+  "description": "系统建议但尚未真正展开的下一条执行线。",
+  "lane": "branch",
+  "role": "action",
+  "sessionBacked": false,
+  "derived": true,
+  "mergePolicy": "replace-latest",
+  "composition": {
+    "canBeRoot": false,
+    "allowedParentKinds": ["main", "branch"],
+    "allowedChildKinds": [],
+    "requiresSourceSession": true,
+    "defaultInteraction": "create-branch",
+    "defaultEdgeType": "suggestion",
+    "layoutVariant": "compact",
+    "countsAs": {
+      "sessionNode": false,
+      "branch": false,
+      "candidate": true,
+      "completed": false
+    }
+  }
+}
+```
+
+推荐先固定这些规则字段：
+
+- `canBeRoot`
+- `allowedParentKinds`
+- `allowedChildKinds`
+- `requiresSourceSession`
+- `defaultInteraction`
+  - `open-session` / `create-branch` / `none`
+- `defaultEdgeType`
+  - `structural` / `suggestion` / `completion` / `merge`
+- `layoutVariant`
+  - `root` / `default` / `compact`
+- `countsAs`
+  - 控制是否计入 branch / candidate / completed 等地图统计
+
+目标不是一次把所有表达力做满，而是先把当前内建 kind 的隐式行为显式化。
+
+当前主线已经有一个更轻的过渡层：
+
+- `static/chat/workbench/node-effects.js`
+
+它先把 `main / branch / candidate / done` 的计数、交互、边类型和 compact 布局规则收口成共享语义，再由 `task-map-model.js` 和 `task-map-ui.js` 共同消费。
+
+当前主线也已经开始把 composition 规则直接透出到 node contract：
+
+- `chat/workbench/node-definitions.mjs`
+- `static/chat/workbench/node-contract.js`
+
+当前主线还新增了一层可选 overlay：
+
+- `chat/workbench/task-map-plans.mjs`
+- `static/chat/workbench/task-map-plan.js`
+
+这层的作用不是替代 continuity，而是把“默认 continuity 图”和“未来 hook / AI 规划图”明确分开。
+
+这一步的意义是：
+
+- 先停止在 model / ui 里散落 `kind === ...` 判断
+- 不改当前 continuity 投影能力
+- 让当前默认投影已经能显式携带 edge 语义，而不是只在 renderer 里临时推断
+- 为后续 `TaskMapPlan` 和 AI 组合 node 留出稳定落点
+
+### 7.4 TaskMapPlan Contract
+
+目标上不建议让 hook 或 AI 直接产最终 DOM，也不建议让它直接碰像素坐标。
+
+更合理的是增加一层 `taskMapPlan`：
+
+- hook / AI 负责产出“这张图上应该有什么”
+- renderer 负责“怎么把它画出来”
+- 没有 `taskMapPlan` 时继续回退到当前 continuity 投影
+
+最小结构建议：
+
+```json
+{
+  "version": 1,
+  "quests": [
+    {
+      "id": "quest:sess_main",
+      "rootSessionId": "sess_main",
+      "title": "整理 hooks 和 node 架构",
+      "summary": "当前主任务",
+      "activeNodeId": "session:sess_branch_1",
+      "mode": "replace-default",
+      "source": {
+        "type": "hook",
+        "hookId": "builtin.branch-candidates",
+        "event": "branch.suggested",
+        "generatedAt": "2026-04-03T09:00:00.000Z"
+      },
+      "nodes": [
+        {
+          "id": "session:sess_main",
+          "kind": "main",
+          "title": "整理 hooks 和 node 架构",
+          "summary": "当前主任务",
+          "parentId": null,
+          "sourceSessionId": "sess_main",
+          "state": "active"
+        },
+        {
+          "id": "candidate:sess_main:graph-plan",
+          "kind": "candidate",
+          "title": "设计 graph plan",
+          "summary": "建议拆成独立支线",
+          "parentId": "session:sess_main",
+          "sourceSessionId": "sess_main",
+          "state": "candidate"
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge:1",
+          "from": "session:sess_main",
+          "to": "candidate:sess_main:graph-plan",
+          "type": "suggestion"
+        }
+      ]
+    }
+  ]
+}
+```
+
+约束建议：
+
+- `kind` 必须来自 node definition registry
+- `nodes` 决定“图里有什么”
+- `edges` 决定“它们怎么连”
+- 不允许 hook / AI 提供坐标、样式 class、DOM 结构
+- `mode`
+  - `replace-default`
+  - `augment-default`
+
+建议 renderer 最终遵守：
+
+```text
+有 taskMapPlan
+  -> 先校验 plan
+  -> 再按 plan 渲染
+
+无 taskMapPlan
+  -> 回退到 continuity -> task-map projection
+```
+
+这样做能同时保住：
+
+- 当前默认地图能力
+- 未来 hook/AI 的可扩展地图能力
+- renderer 的统一性
+
+当前主线已经有一个最小落地版本：
+
+- backend 会在 `workbench snapshot` 里透出 `taskMapPlans`
+- frontend 会先生成 continuity 默认图，再由 `task-map-plan.js` 选择 `replace-default` 或 `augment-default`
+- 如果没有 plan，或者 plan 非法，前端继续回退到默认 continuity 投影
+
+### 7.5 新增一个 Node Kind 时应该改哪里
 
 目标是只动这几处：
 
@@ -355,7 +534,7 @@ config/hooks/<hook-id>.json
 
 node 的 schema、lane、role、mergePolicy 不应散落在 projection 或 UI 里重复定义。
 
-### 7.3 Node Instance
+### 7.6 Node Instance
 
 Node instance 是 projection 产物，格式也应固定：
 
@@ -378,6 +557,7 @@ Node instance 是 projection 产物，格式也应固定：
 
 - `kind` 来自 definition registry
 - `instance` 只装内容，不定义 schema
+- `instance` 可以来自默认 continuity projection，也可以来自 future `taskMapPlan`
 
 ## 8. 推荐的最小 Node Kinds
 

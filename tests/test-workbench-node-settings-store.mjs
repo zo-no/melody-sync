@@ -26,6 +26,21 @@ try {
     lane: 'side',
     role: 'summary',
     mergePolicy: 'append',
+    composition: {
+      canBeRoot: false,
+      allowedParentKinds: ['main', 'review-note'],
+      allowedChildKinds: [],
+      requiresSourceSession: true,
+      defaultInteraction: 'none',
+      defaultEdgeType: 'completion',
+      layoutVariant: 'compact',
+      countsAs: {
+        sessionNode: false,
+        branch: false,
+        candidate: false,
+        completedSummary: true,
+      },
+    },
   });
 
   let settings = await storeModule.readWorkbenchNodeSettings();
@@ -38,6 +53,17 @@ try {
     true,
     'custom node kinds should be exposed by the canonical workbench payload',
   );
+  assert.deepEqual(
+    settings.customNodeKinds[0]?.composition?.allowedParentKinds,
+    ['main', 'review-note'],
+  );
+  assert.equal(
+    definitionsModule.createWorkbenchNodeDefinitionsPayload()
+      .nodeKindDefinitions
+      .find((definition) => definition.id === 'review-note')?.composition?.defaultEdgeType,
+    'completion',
+    'custom node kinds should preserve composition metadata in the canonical payload',
+  );
 
   await storeModule.updateCustomNodeKind('review-note', {
     label: '阶段复盘',
@@ -45,6 +71,21 @@ try {
     lane: 'branch',
     role: 'action',
     mergePolicy: 'replace-latest',
+    composition: {
+      canBeRoot: false,
+      allowedParentKinds: ['main', 'branch'],
+      allowedChildKinds: [],
+      requiresSourceSession: true,
+      defaultInteraction: 'create-branch',
+      defaultEdgeType: 'suggestion',
+      layoutVariant: 'compact',
+      countsAs: {
+        sessionNode: false,
+        branch: false,
+        candidate: true,
+        completedSummary: false,
+      },
+    },
   });
 
   settings = await storeModule.readWorkbenchNodeSettings();
@@ -52,6 +93,8 @@ try {
   assert.equal(settings.customNodeKinds[0]?.lane, 'branch');
   assert.equal(settings.customNodeKinds[0]?.role, 'action');
   assert.equal(settings.customNodeKinds[0]?.mergePolicy, 'replace-latest');
+  assert.equal(settings.customNodeKinds[0]?.composition?.defaultInteraction, 'create-branch');
+  assert.equal(settings.customNodeKinds[0]?.composition?.countsAs?.candidate, true);
 
   await storeModule.deleteCustomNodeKind('review-note');
 

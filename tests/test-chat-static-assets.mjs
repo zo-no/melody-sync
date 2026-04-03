@@ -201,7 +201,9 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/session-list\/ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/session-list\/sidebar-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/node-contract\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/node-effects\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/node-settings-model\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-plan\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-map-model\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-tracker-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-map-ui\.js(?:\?v=[^"]*)?"/);
@@ -262,8 +264,10 @@ async function main() {
     assert.match(page.text, /id="taskMapDrawerBackdrop"/, 'chat page should ship the mobile task-map drawer backdrop');
     assert.match(page.text, /id="questTrackerStatus"/, 'chat page should render the task-status mount inside the task bar');
     assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=/, 'chat page should load the shared workbench node contract');
+    assert.match(page.text, /\/chat\/workbench\/node-effects\.js\?v=/, 'chat page should load the shared workbench node effects before task-map projection');
+    assert.match(page.text, /\/chat\/workbench\/task-map-plan\.js\?v=/, 'chat page should load the task-map plan overlay before the projection model');
     assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
-    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the node contract and node settings model before the task-map projection model');
+    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-effects\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-plan\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the node contract, node effects, node settings model, and task-map plan overlay before the task-map projection model');
     assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
@@ -581,10 +585,21 @@ async function main() {
     assert.match(nodeContractAsset.text, /NODE_KIND_DEFINITIONS/);
     assert.match(nodeContractAsset.text, /readBootstrapNodeContract/, 'node contract should read bootstrap-backed node definitions');
 
+    const nodeEffectsAsset = await request(port, 'GET', '/chat/workbench/node-effects.js');
+    assert.equal(nodeEffectsAsset.status, 200, 'workbench node effects asset should load');
+    assert.match(nodeEffectsAsset.text, /MelodySyncWorkbenchNodeEffects/);
+    assert.match(nodeEffectsAsset.text, /function getNodeKindEffect/);
+    assert.match(nodeEffectsAsset.text, /function buildQuestNodeCounts/);
+
     const nodeSettingsModelAsset = await request(port, 'GET', '/chat/workbench/node-settings-model.js');
     assert.equal(nodeSettingsModelAsset.status, 200, 'workbench node settings model asset should load');
     assert.match(nodeSettingsModelAsset.text, /MelodySyncTaskMapNodeSettingsModel/);
     assert.match(nodeSettingsModelAsset.text, /describeNodeKind/);
+
+    const taskMapPlanAsset = await request(port, 'GET', '/chat/workbench/task-map-plan.js');
+    assert.equal(taskMapPlanAsset.status, 200, 'task map plan asset should load');
+    assert.match(taskMapPlanAsset.text, /MelodySyncTaskMapPlan/);
+    assert.match(taskMapPlanAsset.text, /function applyTaskMapPlansToProjection/);
 
     const taskMapModelAsset = await request(port, 'GET', '/chat/workbench/task-map-model.js');
     assert.equal(taskMapModelAsset.status, 200, 'task map model asset should load');
@@ -620,10 +635,30 @@ async function main() {
       ['replace-latest', 'append'],
       'workbench node definitions api should expose the current node merge policies',
     );
+    assert.deepEqual(
+      nodeDefinitionsJson.nodeInteractions,
+      ['open-session', 'create-branch', 'none'],
+      'workbench node definitions api should expose the current node interactions',
+    );
+    assert.deepEqual(
+      nodeDefinitionsJson.nodeEdgeTypes,
+      ['structural', 'suggestion', 'completion', 'merge'],
+      'workbench node definitions api should expose the current node edge types',
+    );
+    assert.deepEqual(
+      nodeDefinitionsJson.nodeLayoutVariants,
+      ['root', 'default', 'compact'],
+      'workbench node definitions api should expose the current node layout variants',
+    );
     assert.equal(
       nodeDefinitionsJson.nodeKindDefinitions?.find((definition) => definition.id === 'candidate')?.role,
       'action',
       'workbench node definitions api should expose canonical node-kind metadata',
+    );
+    assert.equal(
+      nodeDefinitionsJson.nodeKindDefinitions?.find((definition) => definition.id === 'candidate')?.composition?.defaultInteraction,
+      'create-branch',
+      'workbench node definitions api should expose composition rules for builtin kinds',
     );
     assert.equal(
       nodeDefinitionsJson.settings?.supportsCustomNodeKinds,
@@ -771,6 +806,16 @@ async function main() {
       'hooks api should expose hook layer definitions for the settings UI',
     );
     assert.deepEqual(
+      hooksApiJson.taskMapPlanPolicyOrder,
+      ['none', 'augment-default', 'replace-default'],
+      'hooks api should expose the canonical task-map plan policy order',
+    );
+    assert.deepEqual(
+      hooksApiJson.taskMapPlanPolicyDefinitions?.map((definition) => definition.id),
+      ['none', 'augment-default', 'replace-default'],
+      'hooks api should expose task-map plan policy definitions for architecture-aware clients',
+    );
+    assert.deepEqual(
       hooksApiJson.uiTargetDefinitions?.map((definition) => definition.id),
       [
         'session_stream',
@@ -808,8 +853,12 @@ async function main() {
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.scope, 'branch');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.phase, 'closeout');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.layer, 'boot');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.taskMapPlanPolicy, 'none');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.producesTaskMapPlan, false);
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.layer, 'delivery');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.layer, 'lifecycle');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.taskMapPlanPolicy, 'augment-default');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.producesTaskMapPlan, true);
     const hookIds = hooksApiJson.hooks.map((hook) => hook.id);
     for (const expectedHookId of [
       'builtin.first-boot-memory',

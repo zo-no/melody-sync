@@ -3,6 +3,9 @@
   const FALLBACK_NODE_LANES = Object.freeze(["main", "branch", "side"]);
   const FALLBACK_NODE_ROLES = Object.freeze(["state", "action", "summary"]);
   const FALLBACK_NODE_MERGE_POLICIES = Object.freeze(["replace-latest", "append"]);
+  const FALLBACK_NODE_INTERACTIONS = Object.freeze(["open-session", "create-branch", "none"]);
+  const FALLBACK_NODE_EDGE_TYPES = Object.freeze(["structural", "suggestion", "completion", "merge"]);
+  const FALLBACK_NODE_LAYOUT_VARIANTS = Object.freeze(["root", "default", "compact"]);
 
   function normalizeToken(value, fallback, allowlist) {
     const normalized = String(value || "").trim().toLowerCase();
@@ -20,6 +23,14 @@
       return [...fallback];
     }
     return [...new Set(normalized)];
+  }
+
+  function normalizeNodeKindIdList(values, fallback) {
+    const source = Array.isArray(values) ? values : fallback;
+    const normalized = source
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter((value) => /^[a-z][a-z0-9-]{0,47}$/.test(value));
+    return normalized.length > 0 ? [...new Set(normalized)] : [...fallback];
   }
 
   function readBootstrapNodeContract() {
@@ -45,13 +56,61 @@
       FALLBACK_NODE_MERGE_POLICIES,
     ),
   );
+  const NODE_INTERACTIONS = Object.freeze(
+    normalizeTokenList(bootstrapNodeContract.nodeInteractions, FALLBACK_NODE_INTERACTIONS),
+  );
+  const NODE_EDGE_TYPES = Object.freeze(
+    normalizeTokenList(bootstrapNodeContract.nodeEdgeTypes, FALLBACK_NODE_EDGE_TYPES),
+  );
+  const NODE_LAYOUT_VARIANTS = Object.freeze(
+    normalizeTokenList(bootstrapNodeContract.nodeLayoutVariants, FALLBACK_NODE_LAYOUT_VARIANTS),
+  );
+
+  function defineNodeComposition(definition = {}, normalizedDefinition = {}) {
+    const composition = definition?.composition && typeof definition.composition === "object"
+      ? definition.composition
+      : {};
+    return Object.freeze({
+      canBeRoot: composition.canBeRoot === true,
+      allowedParentKinds: normalizeNodeKindIdList(
+        composition.allowedParentKinds,
+        normalizedDefinition.sessionBacked ? ["main", "branch"] : ["main", "branch"],
+      ),
+      allowedChildKinds: normalizeNodeKindIdList(
+        composition.allowedChildKinds,
+        normalizedDefinition.sessionBacked ? ["branch", "candidate", "done"] : [],
+      ),
+      requiresSourceSession: composition.requiresSourceSession !== false,
+      defaultInteraction: normalizeToken(
+        composition.defaultInteraction,
+        normalizedDefinition.sessionBacked ? "open-session" : "none",
+        NODE_INTERACTIONS,
+      ),
+      defaultEdgeType: normalizeToken(
+        composition.defaultEdgeType,
+        "structural",
+        NODE_EDGE_TYPES,
+      ),
+      layoutVariant: normalizeToken(
+        composition.layoutVariant,
+        normalizedDefinition.sessionBacked ? "default" : (normalizedDefinition.derived ? "compact" : "default"),
+        NODE_LAYOUT_VARIANTS,
+      ),
+      countsAs: Object.freeze({
+        sessionNode: composition?.countsAs?.sessionNode === true || normalizedDefinition.sessionBacked === true,
+        branch: composition?.countsAs?.branch === true,
+        candidate: composition?.countsAs?.candidate === true,
+        completedSummary: composition?.countsAs?.completedSummary === true,
+      }),
+    });
+  }
 
   function defineNodeKind(definition = {}) {
     const id = String(definition.id || "").trim();
     if (!id) {
       throw new Error("Node kind definition requires id");
     }
-    return Object.freeze({
+    const normalizedDefinition = {
       id,
       label: String(definition.label || id).trim(),
       description: String(definition.description || "").trim(),
@@ -60,6 +119,10 @@
       sessionBacked: definition.sessionBacked === true,
       derived: definition.derived === true,
       mergePolicy: normalizeToken(definition.mergePolicy, "replace-latest", NODE_MERGE_POLICIES),
+    };
+    return Object.freeze({
+      ...normalizedDefinition,
+      composition: defineNodeComposition(definition, normalizedDefinition),
     });
   }
 
@@ -73,6 +136,21 @@
       sessionBacked: true,
       derived: false,
       mergePolicy: "replace-latest",
+      composition: {
+        canBeRoot: true,
+        allowedParentKinds: [],
+        allowedChildKinds: ["branch", "candidate", "done"],
+        requiresSourceSession: true,
+        defaultInteraction: "open-session",
+        defaultEdgeType: "structural",
+        layoutVariant: "root",
+        countsAs: {
+          sessionNode: true,
+          branch: false,
+          candidate: false,
+          completedSummary: false,
+        },
+      },
     }),
     defineNodeKind({
       id: "branch",
@@ -83,6 +161,21 @@
       sessionBacked: true,
       derived: false,
       mergePolicy: "append",
+      composition: {
+        canBeRoot: false,
+        allowedParentKinds: ["main", "branch"],
+        allowedChildKinds: ["branch", "candidate", "done"],
+        requiresSourceSession: true,
+        defaultInteraction: "open-session",
+        defaultEdgeType: "structural",
+        layoutVariant: "default",
+        countsAs: {
+          sessionNode: true,
+          branch: true,
+          candidate: false,
+          completedSummary: false,
+        },
+      },
     }),
     defineNodeKind({
       id: "candidate",
@@ -93,6 +186,21 @@
       sessionBacked: false,
       derived: true,
       mergePolicy: "replace-latest",
+      composition: {
+        canBeRoot: false,
+        allowedParentKinds: ["main", "branch"],
+        allowedChildKinds: [],
+        requiresSourceSession: true,
+        defaultInteraction: "create-branch",
+        defaultEdgeType: "suggestion",
+        layoutVariant: "compact",
+        countsAs: {
+          sessionNode: false,
+          branch: false,
+          candidate: true,
+          completedSummary: false,
+        },
+      },
     }),
     defineNodeKind({
       id: "done",
@@ -103,6 +211,21 @@
       sessionBacked: false,
       derived: true,
       mergePolicy: "replace-latest",
+      composition: {
+        canBeRoot: false,
+        allowedParentKinds: ["main", "branch"],
+        allowedChildKinds: [],
+        requiresSourceSession: true,
+        defaultInteraction: "none",
+        defaultEdgeType: "completion",
+        layoutVariant: "compact",
+        countsAs: {
+          sessionNode: true,
+          branch: false,
+          candidate: false,
+          completedSummary: true,
+        },
+      },
     }),
   ]);
 
@@ -143,6 +266,9 @@
     NODE_LANES,
     NODE_ROLES,
     NODE_MERGE_POLICIES,
+    NODE_INTERACTIONS,
+    NODE_EDGE_TYPES,
+    NODE_LAYOUT_VARIANTS,
     listNodeKindDefinitions,
     getNodeKindDefinition,
     isKnownNodeKind,
