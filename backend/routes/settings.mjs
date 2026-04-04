@@ -3,6 +3,9 @@ import {
   persistEmailSettings,
   readEmailSettings,
 } from '../email-settings-store.mjs';
+import { createHookSettingsPayload, updateHookEnabledState } from '../settings/hooks.mjs';
+import { createNodeSetting, createNodeSettingsPayload, deleteNodeSetting, updateNodeSetting } from '../settings/nodes.mjs';
+import { listSettingsSectionDefinitions } from '../settings/registry.mjs';
 import {
   readGeneralSettings,
   persistGeneralSettings,
@@ -14,12 +17,22 @@ import {
 
 export async function handleSettingsRoutes({ req, res, pathname, writeJson, scheduleConfigReload } = {}) {
   const isSettingsRoute = pathname === '/api/settings' || pathname === '/api/settings/';
+  const isSettingsCatalogRoute = pathname === '/api/settings/catalog' || pathname === '/api/settings/catalog/';
   const isEmailSettingsRoute = pathname === '/api/settings/email' || pathname === '/api/settings/email/';
   const isVoiceSettingsRoute = pathname === '/api/settings/voice' || pathname === '/api/settings/voice/';
+  const isHookSettingsRoute = pathname === '/api/settings/hooks' || pathname === '/api/settings/hooks/';
+  const isNodeSettingsRoute = pathname === '/api/settings/nodes' || pathname === '/api/settings/nodes/';
 
   if (isSettingsRoute && req?.method === 'GET') {
     const settings = await readGeneralSettings();
     writeJson(res, 200, settings);
+    return true;
+  }
+
+  if (isSettingsCatalogRoute && req?.method === 'GET') {
+    writeJson(res, 200, {
+      sections: listSettingsSectionDefinitions(),
+    });
     return true;
   }
 
@@ -32,6 +45,16 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
   if (isVoiceSettingsRoute && req?.method === 'GET') {
     const settings = await readVoiceSettings();
     writeJson(res, 200, settings);
+    return true;
+  }
+
+  if (isHookSettingsRoute && req?.method === 'GET') {
+    writeJson(res, 200, createHookSettingsPayload());
+    return true;
+  }
+
+  if (isNodeSettingsRoute && req?.method === 'GET') {
+    writeJson(res, 200, createNodeSettingsPayload());
     return true;
   }
 
@@ -97,6 +120,78 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
       return true;
     } catch (error) {
       writeJson(res, 400, { error: error.message || 'Failed to update voice settings' });
+      return true;
+    }
+  }
+
+  if (pathname.startsWith('/api/settings/hooks/') && req?.method === 'PATCH') {
+    const hookId = decodeURIComponent(pathname.slice('/api/settings/hooks/'.length));
+    let payload = {};
+    try {
+      const raw = await readBody(req, 4096);
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      writeJson(res, 400, { error: 'Invalid request body' });
+      return true;
+    }
+    try {
+      const next = await updateHookEnabledState(hookId, payload?.enabled);
+      writeJson(res, 200, next);
+      return true;
+    } catch (error) {
+      const message = error?.message || 'Failed to update hook settings';
+      writeJson(res, message === 'Hook not found' ? 404 : 400, { error: message });
+      return true;
+    }
+  }
+
+  if (isNodeSettingsRoute && req?.method === 'POST') {
+    let payload = {};
+    try {
+      const raw = await readBody(req, 16384);
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      writeJson(res, 400, { error: 'Invalid request body' });
+      return true;
+    }
+    try {
+      const next = await createNodeSetting(payload);
+      writeJson(res, 201, next);
+      return true;
+    } catch (error) {
+      writeJson(res, 400, { error: error.message || 'Failed to create node setting' });
+      return true;
+    }
+  }
+
+  if (pathname.startsWith('/api/settings/nodes/') && req?.method === 'PATCH') {
+    const nodeKindId = decodeURIComponent(pathname.slice('/api/settings/nodes/'.length));
+    let payload = {};
+    try {
+      const raw = await readBody(req, 16384);
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      writeJson(res, 400, { error: 'Invalid request body' });
+      return true;
+    }
+    try {
+      const next = await updateNodeSetting(nodeKindId, payload);
+      writeJson(res, 200, next);
+      return true;
+    } catch (error) {
+      writeJson(res, 400, { error: error.message || 'Failed to update node setting' });
+      return true;
+    }
+  }
+
+  if (pathname.startsWith('/api/settings/nodes/') && req?.method === 'DELETE') {
+    const nodeKindId = decodeURIComponent(pathname.slice('/api/settings/nodes/'.length));
+    try {
+      const next = await deleteNodeSetting(nodeKindId);
+      writeJson(res, 200, next);
+      return true;
+    } catch (error) {
+      writeJson(res, 400, { error: error.message || 'Failed to delete node setting' });
       return true;
     }
   }

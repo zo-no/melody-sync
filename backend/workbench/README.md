@@ -34,7 +34,7 @@ Boundary rules:
 - Keep branch lifecycle and continuity-sync logic in `branch-lifecycle.mjs`; `index.mjs` should mostly re-export or wire domain modules together.
 - Keep shared workbench serialization in `queues.mjs`; avoid recreating ad hoc per-file queue maps.
 - Keep capture/project/node/summary CRUD in `project-records.mjs`; `index.mjs` should stay focused on continuity and branch orchestration.
-- Keep the current node-kind source of truth in `node-definitions.mjs`; frontend projection reads it through chat bootstrap and `/api/workbench/node-definitions`.
+- Keep the current node-kind source of truth in `node-definitions.mjs`; frontend projection reads it through chat bootstrap and the settings-domain `/api/settings/nodes` surface.
 - Keep persisted custom node-kind editing in `node-settings-store.mjs`; do not mix it into task-map projection code.
 - Keep plan-generation metadata centralized in `task-map-plan-contract.mjs`; future hook/AI producers should read this contract instead of reassembling node + hook metadata ad hoc.
 - Keep persisted task-map plans in `task-map-plans.mjs`; they are optional overlay data, not the durable workflow truth.

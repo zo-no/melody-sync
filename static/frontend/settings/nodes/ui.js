@@ -78,7 +78,7 @@
     };
 
     async function fetchNodeDefinitions() {
-      const response = await global.fetch('/api/workbench/node-definitions', {
+      const response = await global.fetch('/api/settings/nodes', {
         credentials: 'same-origin',
       });
       if (!response.ok) {
@@ -122,8 +122,8 @@
         const targetId = formState.editingId;
         const response = await global.fetch(
           targetId
-            ? `/api/workbench/node-definitions/${encodeURIComponent(targetId)}`
-            : '/api/workbench/node-definitions',
+            ? `/api/settings/nodes/${encodeURIComponent(targetId)}`
+            : '/api/settings/nodes',
           {
             method: targetId ? 'PATCH' : 'POST',
             credentials: 'same-origin',
@@ -151,7 +151,7 @@
         : true;
       if (!confirmed) return;
       try {
-        const response = await global.fetch(`/api/workbench/node-definitions/${encodeURIComponent(nodeId)}`, {
+        const response = await global.fetch(`/api/settings/nodes/${encodeURIComponent(nodeId)}`, {
           method: 'DELETE',
           credentials: 'same-origin',
         });
@@ -373,3 +373,4 @@
     createController,
   });
 })(window);
+

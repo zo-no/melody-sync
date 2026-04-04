@@ -1,57 +1,14 @@
 import { readBody } from '../../lib/utils.mjs';
-import { CUSTOM_HOOKS_FILE, HOOKS_FILE } from '../../lib/config.mjs';
-import { persistHookEnabledState } from '../hooks/runtime/settings-store.mjs';
-import {
-  HOOK_LAYER_ORDER,
-  HOOK_PHASE_ORDER,
-  HOOK_PROMPT_CONTEXT_POLICY_ORDER,
-  HOOK_SCOPE_ORDER,
-  HOOK_TASK_MAP_PLAN_POLICY_ORDER,
-  listHookLayerDefinitions,
-  listHookPhaseDefinitions,
-  listHookPromptContextPolicyDefinitions,
-  listHookScopeDefinitions,
-  listHookTaskMapPlanPolicyDefinitions,
-  listHookUiReservedTruths,
-  listHookUiTargetDefinitions,
-} from '../hooks/hook-contract.mjs';
-import {
-  HOOK_EVENTS,
-  listHookEventDefinitions,
-  listHooks,
-  setHookEnabled,
-} from '../hooks/runtime/registry.mjs';
+import { createHookSettingsPayload, updateHookEnabledState } from '../settings/hooks.mjs';
 
 export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) {
-  // GET /api/hooks — list all registered hooks
+  // Legacy alias. The canonical owner-facing settings surface is /api/settings/hooks.
   if (pathname === '/api/hooks' && req?.method === 'GET') {
-    writeJson(res, 200, {
-      events: HOOK_EVENTS,
-      eventDefinitions: listHookEventDefinitions(),
-      phaseDefinitions: listHookPhaseDefinitions(),
-      phaseOrder: HOOK_PHASE_ORDER,
-      scopeDefinitions: listHookScopeDefinitions(),
-      scopeOrder: HOOK_SCOPE_ORDER,
-      layerDefinitions: listHookLayerDefinitions(),
-      layerOrder: HOOK_LAYER_ORDER,
-      promptContextPolicyDefinitions: listHookPromptContextPolicyDefinitions(),
-      promptContextPolicyOrder: HOOK_PROMPT_CONTEXT_POLICY_ORDER,
-      taskMapPlanPolicyDefinitions: listHookTaskMapPlanPolicyDefinitions(),
-      taskMapPlanPolicyOrder: HOOK_TASK_MAP_PLAN_POLICY_ORDER,
-      uiTargetDefinitions: listHookUiTargetDefinitions(),
-      uiReservedTruths: listHookUiReservedTruths(),
-      hooks: listHooks(),
-      settings: {
-        persistence: 'file',
-        storagePath: HOOKS_FILE,
-        customDesignPath: CUSTOM_HOOKS_FILE,
-        supportsEnableDisable: true,
-      },
-    });
+    writeJson(res, 200, createHookSettingsPayload());
     return true;
   }
 
-  // PATCH /api/hooks/:id — enable or disable a hook
+  // Legacy alias. The canonical owner-facing settings surface is /api/settings/hooks/:id.
   if (pathname.startsWith('/api/hooks/') && req?.method === 'PATCH') {
     const hookId = decodeURIComponent(pathname.slice('/api/hooks/'.length));
     if (!hookId) {
@@ -70,14 +27,14 @@ export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) 
       writeJson(res, 400, { error: 'enabled (boolean) is required' });
       return true;
     }
-    const found = setHookEnabled(hookId, body.enabled);
-    if (!found) {
-      writeJson(res, 404, { error: 'Hook not found' });
+    try {
+      writeJson(res, 200, await updateHookEnabledState(hookId, body.enabled));
+      return true;
+    } catch (error) {
+      const message = error?.message || 'Failed to update hook settings';
+      writeJson(res, message === 'Hook not found' ? 404 : 400, { error: message });
       return true;
     }
-    await persistHookEnabledState(hookId, body.enabled);
-    writeJson(res, 200, { hooks: listHooks() });
-    return true;
   }
 
   return false;

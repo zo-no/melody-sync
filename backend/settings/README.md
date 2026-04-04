@@ -1,0 +1,13 @@
+# Settings Backend Map
+
+This directory owns the canonical settings-domain helpers that power the shared settings overlay.
+
+- `registry.mjs`: machine-readable list of settings sections shown in the UI.
+- `hooks.mjs`: canonical hooks settings payload and enable/disable updates for the Hooks tab.
+- `nodes.mjs`: canonical node-kind settings payload and CRUD helpers for the Nodes tab.
+
+Rules:
+
+- Keep `/api/settings*` as the canonical settings surface for owner-facing configuration.
+- Domain logic can stay in `hooks/`, `workbench/`, or other feature folders, but settings-facing payloads should be adapted here.
+- Do not leak raw feature-domain route shapes into the shared settings UI when a settings-specific projection can keep the contract clearer.

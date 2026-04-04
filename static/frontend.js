@@ -31,7 +31,7 @@
     "/chat/workbench/node-capabilities.js",
     "/chat/workbench/node-task-card.js",
     "/chat/workbench/graph-client.js",
-    "/chat/workbench/node-settings-model.js",
+    "/chat/settings/nodes/model.js",
     "/chat/workbench/task-map-plan.js",
     "/chat/workbench/surface-projection.js",
     "/chat/workbench/task-map-clusters.js",
@@ -52,7 +52,7 @@
     "/chat/settings/hooks/model.js",
     "/chat/settings/general/ui.js",
     "/chat/settings/voice/ui.js",
-    "/chat/workbench/node-settings-ui.js",
+    "/chat/settings/nodes/ui.js",
     "/chat/settings/hooks/ui.js",
     "/chat/core/init.js",
   ];

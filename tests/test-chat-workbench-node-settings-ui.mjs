@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const modelSource = readFileSync(join(repoRoot, 'static/frontend/workbench/node-settings-model.js'), 'utf8');
-const uiSource = readFileSync(join(repoRoot, 'static/frontend/workbench/node-settings-ui.js'), 'utf8');
+const modelSource = readFileSync(join(repoRoot, 'static/frontend/settings/nodes/model.js'), 'utf8');
+const uiSource = readFileSync(join(repoRoot, 'static/frontend/settings/nodes/ui.js'), 'utf8');
 
 function makeClassList() {
   const tokens = new Set();
@@ -119,8 +119,8 @@ const context = {
 context.globalThis = context;
 context.window = context;
 
-vm.runInNewContext(modelSource, context, { filename: 'static/frontend/workbench/node-settings-model.js' });
-vm.runInNewContext(uiSource, context, { filename: 'static/frontend/workbench/node-settings-ui.js' });
+vm.runInNewContext(modelSource, context, { filename: 'static/frontend/settings/nodes/model.js' });
+vm.runInNewContext(uiSource, context, { filename: 'static/frontend/settings/nodes/ui.js' });
 
 const controller = context.MelodySyncTaskMapNodeSettingsUi.createController({
   bodyEl,
@@ -130,7 +130,7 @@ controller.activate();
 await flushMicrotasks();
 await flushMicrotasks();
 
-assert.deepEqual(fetchCalls, ['/api/workbench/node-definitions']);
+assert.deepEqual(fetchCalls, ['/api/settings/nodes']);
 assert.match(bodyEl.innerHTML, /系统节点/);
 assert.match(bodyEl.innerHTML, /自定义节点/);
 assert.match(bodyEl.innerHTML, /主任务/);

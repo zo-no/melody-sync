@@ -166,7 +166,7 @@ await flushMicrotasks();
 await flushMicrotasks();
 
 assert.equal(hooksOverlay.hidden, false, 'settings button should open the shared overlay');
-assert.deepEqual(fetchCalls, ['/api/settings'], 'opening settings should fetch general settings once');
+assert.deepEqual(fetchCalls, ['/api/settings/catalog', '/api/settings'], 'opening settings should fetch the catalog and general settings once');
 assert.equal(settingsTabGeneral.classList.contains('is-active'), true, 'general tab should be active by default');
 assert.equal(settingsPanelGeneral.hidden, false, 'general panel should be visible by default');
 assert.match(generalPanelBody.innerHTML, /应用路径/, 'general settings should expose the editable application path field');

@@ -206,7 +206,7 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/workbench\/graph-model\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/node-capabilities\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/node-task-card\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/node-settings-model\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/settings\/nodes\/model\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-map-plan\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/surface-projection\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-map-clusters\.js(?:\?v=[^"]*)?"/);
@@ -215,7 +215,7 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/workbench\/task-tracker-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/node-rich-view-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-map-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/node-settings-ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/settings\/nodes\/ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/task-list-ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/quest-state\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/workbench\/branch-actions\.js(?:\?v=[^"]*)?"/);
@@ -288,8 +288,8 @@ async function main() {
     assert.match(page.text, /\/chat\/workbench\/node-task-card\.js\?v=/, 'chat page should load the shared workbench node-to-taskCard helpers before plan/projection modules');
     assert.match(page.text, /\/chat\/workbench\/task-map-plan\.js\?v=/, 'chat page should load the task-map plan overlay before the projection model');
     assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
-    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-effects\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-instance\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-capabilities\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-task-card\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-client\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-plan\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/surface-projection\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-clusters\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-mock-presets\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the graph contract, graph client, node-instance helpers, task-card helpers, plan helpers, and quest-source helpers before the task-map projection model');
-    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-rich-view-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-canvas-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/controller\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/general\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/email\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
+    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-effects\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-instance\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-capabilities\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-task-card\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-client\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/nodes\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-plan\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/surface-projection\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-clusters\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-mock-presets\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the graph contract, graph client, node-instance helpers, task-card helpers, plan helpers, and quest-source helpers before the task-map projection model');
+    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-rich-view-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-canvas-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/controller\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/general\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/email\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/nodes\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');
@@ -633,8 +633,8 @@ async function main() {
     assert.match(nodeTaskCardAsset.text, /MelodySyncWorkbenchNodeTaskCard/);
     assert.match(nodeTaskCardAsset.text, /function buildTaskCardPatch/);
 
-    const nodeSettingsModelAsset = await request(port, 'GET', '/chat/workbench/node-settings-model.js');
-    assert.equal(nodeSettingsModelAsset.status, 200, 'workbench node settings model asset should load');
+    const nodeSettingsModelAsset = await request(port, 'GET', '/chat/settings/nodes/model.js');
+    assert.equal(nodeSettingsModelAsset.status, 200, 'settings node settings model asset should load');
     assert.match(nodeSettingsModelAsset.text, /MelodySyncTaskMapNodeSettingsModel/);
     assert.match(nodeSettingsModelAsset.text, /describeNodeKind/);
 
@@ -663,14 +663,23 @@ async function main() {
     assert.match(taskMapModelAsset.text, /MelodySyncTaskMapModel/);
     assert.match(taskMapModelAsset.text, /function buildTaskMapProjection\(/);
 
-    const nodeSettingsUiAsset = await request(port, 'GET', '/chat/workbench/node-settings-ui.js');
-    assert.equal(nodeSettingsUiAsset.status, 200, 'workbench node settings ui asset should load');
+    const nodeSettingsUiAsset = await request(port, 'GET', '/chat/settings/nodes/ui.js');
+    assert.equal(nodeSettingsUiAsset.status, 200, 'settings node settings ui asset should load');
     assert.match(nodeSettingsUiAsset.text, /MelodySyncTaskMapNodeSettingsUi/);
     assert.match(nodeSettingsUiAsset.text, /MelodySyncSettingsPanel/);
     assert.match(nodeSettingsUiAsset.text, /自定义节点/);
 
-    const nodeDefinitionsApi = await request(port, 'GET', '/api/workbench/node-definitions');
-    assert.equal(nodeDefinitionsApi.status, 200, 'workbench node definitions api should expose current node metadata');
+    const settingsCatalogApi = await request(port, 'GET', '/api/settings/catalog');
+    assert.equal(settingsCatalogApi.status, 200, 'settings catalog api should expose the shared settings sections');
+    const settingsCatalogJson = JSON.parse(settingsCatalogApi.text);
+    assert.deepEqual(
+      settingsCatalogJson.sections?.map((section) => section.id),
+      ['general', 'email', 'voice', 'hooks', 'nodes'],
+      'settings catalog api should expose the current settings tabs',
+    );
+
+    const nodeDefinitionsApi = await request(port, 'GET', '/api/settings/nodes');
+    assert.equal(nodeDefinitionsApi.status, 200, 'settings nodes api should expose current node metadata');
     const nodeDefinitionsJson = JSON.parse(nodeDefinitionsApi.text);
     assert.deepEqual(
       nodeDefinitionsJson.nodeKinds,
@@ -802,7 +811,7 @@ async function main() {
       'task-map-plan contract api should advertise the canonical session-scoped surface read entry',
     );
 
-    const createdGoalPanelNodeDefinition = await request(port, 'POST', '/api/workbench/node-definitions', {
+    const createdGoalPanelNodeDefinition = await request(port, 'POST', '/api/settings/nodes', {
       id: 'goal-panel',
       label: '目标节点',
       description: '用于表达当前阶段目标。',
@@ -821,7 +830,7 @@ async function main() {
         taskCardBindings: ['mainGoal', 'summary'],
       },
     });
-    assert.equal(createdGoalPanelNodeDefinition.status, 201, 'custom goal-panel node kind should be creatable over the workbench API');
+    assert.equal(createdGoalPanelNodeDefinition.status, 201, 'custom goal-panel node kind should be creatable over the settings API');
 
     const createdTaskMapPlan = await request(port, 'POST', `/api/workbench/sessions/${createdChatJson.session.id}/task-map-plans`, {
       id: 'manual-plan:owner-chat:goal',
@@ -978,7 +987,7 @@ async function main() {
       'deleting a session-scoped task-map plan should clear managed candidate arrays that no longer exist',
     );
 
-    const createdNodeDefinition = await request(port, 'POST', '/api/workbench/node-definitions', {
+    const createdNodeDefinition = await request(port, 'POST', '/api/settings/nodes', {
       id: 'review-note',
       label: '复盘节点',
       description: '用于阶段复盘。',
@@ -986,7 +995,7 @@ async function main() {
       role: 'summary',
       mergePolicy: 'append',
     });
-    assert.equal(createdNodeDefinition.status, 201, 'workbench node definitions api should create custom node kinds');
+    assert.equal(createdNodeDefinition.status, 201, 'settings nodes api should create custom node kinds');
     const createdNodeJson = JSON.parse(createdNodeDefinition.text);
     assert.equal(
       createdNodeJson.nodeKindDefinitions?.find((definition) => definition.id === 'review-note')?.label,
@@ -994,14 +1003,14 @@ async function main() {
       'created custom node kinds should appear in the canonical payload',
     );
 
-    const patchedNodeDefinition = await request(port, 'PATCH', '/api/workbench/node-definitions/review-note', {
+    const patchedNodeDefinition = await request(port, 'PATCH', '/api/settings/nodes/review-note', {
       label: '阶段复盘',
       description: '用于阶段性复盘。',
       lane: 'branch',
       role: 'action',
       mergePolicy: 'replace-latest',
     });
-    assert.equal(patchedNodeDefinition.status, 200, 'workbench node definitions api should update custom node kinds');
+    assert.equal(patchedNodeDefinition.status, 200, 'settings nodes api should update custom node kinds');
     const patchedNodeJson = JSON.parse(patchedNodeDefinition.text);
     assert.equal(
       patchedNodeJson.nodeKindDefinitions?.find((definition) => definition.id === 'review-note')?.role,
@@ -1009,8 +1018,8 @@ async function main() {
       'updated custom node kinds should keep the edited role',
     );
 
-    const deletedNodeDefinition = await request(port, 'DELETE', '/api/workbench/node-definitions/review-note');
-    assert.equal(deletedNodeDefinition.status, 200, 'workbench node definitions api should delete custom node kinds');
+    const deletedNodeDefinition = await request(port, 'DELETE', '/api/settings/nodes/review-note');
+    assert.equal(deletedNodeDefinition.status, 200, 'settings nodes api should delete custom node kinds');
     const deletedNodeJson = JSON.parse(deletedNodeDefinition.text);
     assert.equal(
       deletedNodeJson.nodeKindDefinitions?.some((definition) => definition.id === 'review-note'),
@@ -1018,7 +1027,7 @@ async function main() {
       'deleted custom node kinds should be removed from the canonical payload',
     );
 
-    const deletedGoalPanelNodeDefinition = await request(port, 'DELETE', '/api/workbench/node-definitions/goal-panel');
+    const deletedGoalPanelNodeDefinition = await request(port, 'DELETE', '/api/settings/nodes/goal-panel');
     assert.equal(deletedGoalPanelNodeDefinition.status, 200, 'goal-panel node kind should be removable after task-map plan API coverage');
 
     const operationRecordUiAsset = await request(port, 'GET', '/chat/workbench/operation-record-ui.js');
@@ -1061,8 +1070,8 @@ async function main() {
     assert.match(branchActionsAsset.text, /MelodySyncBranchActions/);
     assert.match(branchActionsAsset.text, /createController/);
 
-    const hooksApi = await request(port, 'GET', '/api/hooks');
-    assert.equal(hooksApi.status, 200, 'hooks api should list registered hooks');
+    const hooksApi = await request(port, 'GET', '/api/settings/hooks');
+    assert.equal(hooksApi.status, 200, 'settings hooks api should list registered hooks');
     const hooksApiJson = JSON.parse(hooksApi.text);
     assert.deepEqual(
       hooksApiJson.events,

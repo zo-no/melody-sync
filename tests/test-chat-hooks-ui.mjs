@@ -236,7 +236,7 @@ await flushMicrotasks();
 
 assert.equal(hooksOverlay.hidden, false, 'settings button should open the shared overlay');
 assert.equal(documentBody.classList.contains('hooks-overlay-open'), true, 'opening settings should tag the body state');
-assert.deepEqual(fetchCalls, ['/api/hooks'], 'opening the hooks tab should fetch hooks metadata exactly once');
+assert.deepEqual(fetchCalls, ['/api/settings/catalog', '/api/settings/hooks'], 'opening the hooks tab should fetch the catalog and hooks metadata exactly once');
 assert.equal(settingsTabHooks.classList.contains('is-active'), true, 'hooks tab should be active by default');
 assert.equal(settingsPanelHooks.hidden, false, 'hooks panel should be visible by default');
 assert.equal(settingsPanelNodes.hidden, true, 'node panel should stay hidden until selected');

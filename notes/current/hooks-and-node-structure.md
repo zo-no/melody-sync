@@ -165,7 +165,7 @@
 
 - `backend/workbench/node-definitions.mjs`
   - 统一维护当前 node kind / lane / role / mergePolicy / composition 的 canonical exposure
-  - 通过 chat bootstrap 和 `GET /api/workbench/node-definitions` 透出给前端与后续配置面
+  - 通过 chat bootstrap 和 `GET /api/settings/nodes` 透出给前端与后续配置面
 - `backend/workbench/node-settings-store.mjs`
   - 维护用户新增的 custom node kind 持久化
   - 当前只允许扩展自定义节点，不直接改写 builtin 节点
@@ -242,9 +242,9 @@
 - `static/frontend/workbench/node-canvas-ui.js`
   - 把右侧 node canvas 收成独立 UI 层
   - 当前负责把选中的 rich-view node 渲染到 taskMapRail 下半部分，而不是继续把内容直接塞进 flow node 本体
-- `static/frontend/workbench/node-settings-model.js`
+- `static/frontend/settings/nodes/model.js`
   - 把 node definitions payload 归一化成地图域可消费的设置模型
-- `static/frontend/workbench/node-settings-ui.js`
+- `static/frontend/settings/nodes/ui.js`
   - 把 node 设置入口放在 task map rail 上，并用对称弹窗做编辑
 - `main`
   - 主任务根节点，对应主 session

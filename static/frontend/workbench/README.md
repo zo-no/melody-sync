@@ -10,7 +10,6 @@ Files by role:
 - `graph-model.js`: shared graph node/edge collection helpers used by both default continuity projection and task-map-plan overlays.
 - `graph-client.js`: canonical backend quest-graph client. It reads `/api/workbench/sessions/:id/task-map-graph` and normalizes that payload back into the frontend projection shape.
 - `node-capabilities.js`: capability helpers plus a workbench action controller so renderer code can execute node actions without hardcoding branch/session mutations inline.
-- `node-settings-model.js`: node-definition payload normalization plus lane/role/merge-policy labels for the node-settings tab.
 - `task-map-plan.js`: optional graph-plan overlay that can replace or augment the default continuity projection without touching renderer code; augment mode now also merges matching node ids so hook-generated plans can enrich default nodes instead of duplicating them, and surface-node selectors can reuse the merged graph in non-map UI like composer suggestions.
 - `surface-projection.js`: workbench-owned selectors that project node surfaces into non-map UI slots such as composer suggestions without leaking graph-plan details into session modules.
 - `node-task-card.js`: frontend helper that folds node-instance metadata into deterministic task-card patches, with plan/manual/hook nodes overriding projection nodes for scalar bindings.
@@ -22,7 +21,6 @@ Files by role:
 - `node-rich-view-ui.js`: focused rich-view renderer for markdown/html/iframe node surfaces inside the task map.
 - `node-canvas-ui.js`: dedicated right-rail node canvas renderer. It owns the selected rich-view node surface so `view.type` no longer has to be rendered inline inside graph nodes.
 - `task-map-ui.js`: task-map rendering and interaction.
-- `node-settings-ui.js`: task-map node settings tab content mounted inside the shared settings overlay.
 - `task-list-ui.js`: workbench-side task list rendering.
 - `branch-actions.js`: branch lifecycle buttons and action binding.
 - `operation-record-ui.js`: right-rail operation-record rendering and open/close control.
@@ -47,6 +45,6 @@ Design rules:
 - Treat `GET/POST/DELETE /api/workbench/sessions/:id/task-map-plans` as the formal session-scoped plan entry. UI and future AI/manual tooling should write plan metadata there instead of patching workbench state files directly.
 - Treat `GET /api/workbench/sessions/:id/task-map-graph` as the canonical backend quest-graph read entry. Consumers that need the current graph should read that payload instead of reconstructing continuity + plan overlay on their own.
 - Treat `GET /api/workbench/sessions/:id/task-map-surfaces/:slot` as the canonical backend surface read entry. Slot consumers should prefer that payload when they do not need the whole graph.
-- Keep node settings owned by the workbench domain even though they render inside the shared settings overlay.
+- Keep runtime node rendering logic here; owner-facing node settings now live in `static/frontend/settings/nodes/`.
 - Put new visual rendering into a focused `*-ui.js` module.
 - Put derived state in selectors like `quest-state.js`, not inline in render code.

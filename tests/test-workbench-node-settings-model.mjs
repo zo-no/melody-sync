@@ -8,14 +8,14 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const source = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-settings-model.js'),
+  join(repoRoot, 'static', 'frontend', 'settings', 'nodes', 'model.js'),
   'utf8',
 );
 
 const context = { console };
 context.globalThis = context;
 context.window = context;
-vm.runInNewContext(source, context, { filename: 'workbench/node-settings-model.js' });
+vm.runInNewContext(source, context, { filename: 'settings/nodes/model.js' });
 
 const model = context.MelodySyncTaskMapNodeSettingsModel;
 assert.ok(model, 'node settings model should be exposed on globalThis');

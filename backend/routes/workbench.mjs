@@ -49,6 +49,7 @@ export async function handleWorkbenchRoutes({
   requireSessionAccess,
   writeJson,
 } = {}) {
+  // Legacy alias. The owner-facing settings surface now reads /api/settings/nodes.
   if (pathname === '/api/workbench/node-definitions' && req?.method === 'GET') {
     writeJson(res, 200, createWorkbenchNodeDefinitionsPayload());
     return true;
@@ -65,6 +66,7 @@ export async function handleWorkbenchRoutes({
     return true;
   }
 
+  // Legacy alias. The owner-facing settings surface now writes /api/settings/nodes.
   if (pathname === '/api/workbench/node-definitions' && req?.method === 'POST') {
     let payload = {};
     try {
@@ -82,6 +84,7 @@ export async function handleWorkbenchRoutes({
     return true;
   }
 
+  // Legacy alias. The owner-facing settings surface now writes /api/settings/nodes/:id.
   if (pathname.startsWith('/api/workbench/node-definitions/') && req?.method === 'PATCH') {
     const nodeKindId = decodeURIComponent(pathname.slice('/api/workbench/node-definitions/'.length));
     let payload = {};
@@ -100,6 +103,7 @@ export async function handleWorkbenchRoutes({
     return true;
   }
 
+  // Legacy alias. The owner-facing settings surface now writes /api/settings/nodes/:id.
   if (pathname.startsWith('/api/workbench/node-definitions/') && req?.method === 'DELETE') {
     const nodeKindId = decodeURIComponent(pathname.slice('/api/workbench/node-definitions/'.length));
     try {

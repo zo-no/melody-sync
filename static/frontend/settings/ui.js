@@ -11,19 +11,56 @@
   }
 
   const tabRegistry = new Map();
+  let catalogLoaded = false;
   let activeTabId = '';
 
-  function getAvailableTabIds() {
+  async function ensureCatalogLoaded() {
+    if (catalogLoaded !== false) return;
+    catalogLoaded = true;
+    try {
+      const response = await global.fetch?.('/api/settings/catalog', {
+        credentials: 'same-origin',
+      });
+      if (!response?.ok) return;
+      const payload = await response.json().catch(() => null);
+      const supportedIds = new Set(
+        (Array.isArray(payload?.sections) ? payload.sections : [])
+          .map((entry) => String(entry?.id || '').trim())
+          .filter(Boolean),
+      );
+      if (supportedIds.size === 0) return;
+      tabButtonEls.forEach((buttonEl) => {
+        const tabId = String(buttonEl.dataset.settingsTab || '').trim();
+        buttonEl.hidden = !supportedIds.has(tabId);
+      });
+      panelEls.forEach((panelEl) => {
+        const panelId = String(panelEl.dataset.settingsPanel || '').trim();
+        if (!supportedIds.has(panelId)) {
+          panelEl.hidden = true;
+        }
+      });
+      syncTabs(activeTabId);
+    } catch {}
+  }
+
+  function getVisibleTabIds() {
     return tabButtonEls
       .filter((buttonEl) => buttonEl.hidden !== true)
       .map((buttonEl) => String(buttonEl.dataset.settingsTab || '').trim())
       .filter(Boolean);
   }
 
+  function getAvailableTabIds() {
+    const visibleTabIds = getVisibleTabIds();
+    const registeredVisibleTabIds = visibleTabIds.filter((tabId) => tabRegistry.has(tabId));
+    return registeredVisibleTabIds.length > 0 ? registeredVisibleTabIds : visibleTabIds;
+  }
+
   function resolveActiveTabId(nextTabId) {
     const requestedId = String(nextTabId || '').trim();
     const availableTabIds = getAvailableTabIds();
-    if (requestedId && availableTabIds.includes(requestedId)) {
+    const visibleTabIds = getVisibleTabIds();
+    if (requestedId && visibleTabIds.includes(requestedId)) {
       return requestedId;
     }
     if (activeTabId && availableTabIds.includes(activeTabId)) {
@@ -75,6 +112,7 @@
   }
 
   openButtonEl.addEventListener('click', () => {
+    void ensureCatalogLoaded();
     open();
   });
 

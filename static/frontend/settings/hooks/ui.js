@@ -14,7 +14,7 @@
   async function loadHooks() {
     body.innerHTML = '<div class="hooks-loading">加载中…</div>';
     try {
-      const res = await fetch('/api/hooks', { credentials: 'same-origin' });
+      const res = await fetch('/api/settings/hooks', { credentials: 'same-origin' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       hooksData = await res.json();
       render();
@@ -25,7 +25,7 @@
 
   async function patchHook(hookId, enabled) {
     try {
-      const res = await fetch(`/api/hooks/${encodeURIComponent(hookId)}`, {
+      const res = await fetch(`/api/settings/hooks/${encodeURIComponent(hookId)}`, {
         method: 'PATCH',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
