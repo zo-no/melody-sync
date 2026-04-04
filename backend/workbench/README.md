@@ -4,6 +4,9 @@ This directory contains focused workbench backend modules.
 
 Current split:
 
+- `index.mjs`: thin workbench domain entry; re-exports continuity/branch orchestration and wraps project-record operations.
+- `branch-lifecycle.mjs`: branch creation, merge-back, status changes, reminder snooze, and continuity sync.
+- `queues.mjs`: shared serial queue coordinator for workbench writes.
 - `state-store.mjs`: load/save workbench durable state.
 - `continuity-store.mjs`: mainline/branch continuity and task-cluster projections.
 - `operation-records.mjs`: operation-record projection for the right rail.
@@ -28,6 +31,8 @@ Boundary rules:
 
 - Keep persistence and projection separate.
 - Prefer adding new focused modules here rather than growing `backend/workbench/index.mjs`.
+- Keep branch lifecycle and continuity-sync logic in `branch-lifecycle.mjs`; `index.mjs` should mostly re-export or wire domain modules together.
+- Keep shared workbench serialization in `queues.mjs`; avoid recreating ad hoc per-file queue maps.
 - Keep capture/project/node/summary CRUD in `project-records.mjs`; `index.mjs` should stay focused on continuity and branch orchestration.
 - Keep the current node-kind source of truth in `node-definitions.mjs`; frontend projection reads it through chat bootstrap and `/api/workbench/node-definitions`.
 - Keep persisted custom node-kind editing in `node-settings-store.mjs`; do not mix it into task-map projection code.
