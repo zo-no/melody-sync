@@ -150,9 +150,7 @@ If I later want external access, point me to `EXTERNAL_ACCESS.md` and recommend 
 
 If you want the full local setup contract and the human-only checkpoints, use `docs/setup.md`. For external access, use [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md).
 
-For **Tencent Cloud reverse-proxying (Nginx / CLB)**, also check:
-
-- `docs/tencentcloud-reverse-proxy.md`
+For **Tencent Cloud reverse-proxying (Nginx / CLB)**, use the same reverse-proxy section in [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md).
 
 ### What you'll have when done
 

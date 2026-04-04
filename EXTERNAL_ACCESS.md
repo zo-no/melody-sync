@@ -34,6 +34,8 @@ Use this when:
 - you want a stable public URL
 - you want TLS terminated by Nginx or Caddy
 
+Tencent Cloud Nginx and CLB deployments are the same pattern. Treat Tencent Cloud as an infrastructure variant of this reverse-proxy path rather than a separate MelodySync setup mode.
+
 ### Recommended shape
 
 ```text

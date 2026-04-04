@@ -149,9 +149,7 @@ MelodySync 在几个点上是刻意有立场的：
 
 如果你想看完整的本地配置契约和人工节点说明，请直接看 `docs/setup.md`。如果你想看外网访问方式，请看 [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md)。
 
-如果你是腾讯云机器上的 Nginx/CLB 反代，请直接看：
-
-- `docs/tencentcloud-reverse-proxy.md`
+如果你是在腾讯云机器上做 Nginx/CLB 反代，也直接按 [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md) 里的服务器反代方案走，不再单独维护一份腾讯云专用说明。
 
 ### 配置完成后你会得到什么
 
