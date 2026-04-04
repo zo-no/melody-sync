@@ -197,10 +197,27 @@ function extractTrailingTaskCardJsonBounds(content) {
   const trimmedEnd = text.trimEnd();
   if (!trimmedEnd || !trimmedEnd.endsWith('}')) return null;
 
+  const trailingFenceCount = (value, upto) => {
+    const prefix = String(value || '').slice(0, upto);
+    return (prefix.match(/```/g) || []).length;
+  };
+  const insideFencedCodeBlock = (value, index) => (trailingFenceCount(value, index) % 2) === 1;
+  const prefixLooksLikeMetadataBoundary = (prefix) => {
+    if (!prefix) return true;
+    if (/(?:^|\n\s*\n)\s*$/.test(prefix)) return true;
+    const trimmedPrefix = prefix.trimEnd();
+    if (!trimmedPrefix) return true;
+    return /[。！？!?.,，:：;；、…"'”’)\]）】》」』>]+$/.test(trimmedPrefix);
+  };
+
   let startIndex = trimmedEnd.lastIndexOf('{');
   while (startIndex !== -1) {
+    if (insideFencedCodeBlock(trimmedEnd, startIndex)) {
+      startIndex = trimmedEnd.lastIndexOf('{', startIndex - 1);
+      continue;
+    }
     const prefix = trimmedEnd.slice(0, startIndex);
-    if (!prefix || /(?:^|\n\s*\n)\s*$/.test(prefix)) {
+    if (prefixLooksLikeMetadataBoundary(prefix)) {
       const candidate = trimmedEnd.slice(startIndex);
       const parsed = parseJsonObjectText(candidate);
       if (looksLikeTaskCardObject(parsed)) {
@@ -350,9 +367,10 @@ export function buildTaskCardPromptBlock(taskCard, options = {}) {
 
   return [
     currentCardBlock,
-    'After every user-facing reply, append exactly one final <task_card> JSON block at the very end of the reply.',
-    'Keep the normal answer natural and user-facing. Put the <task_card> block after that answer so the client can update the session task bar and branch recommendations.',
-    'Use literal closing tags exactly as </task_card>. Do not escape the slash as <\\/task_card>.',
+    'After every user-facing reply, append exactly one final hidden <private><task_card> JSON block at the very end of the reply.',
+    'Keep the normal answer natural and user-facing. Put the hidden task-card block after that answer so the client can update the session task bar and branch recommendations without leaking raw JSON into the visible reply.',
+    'Never append raw task-card JSON directly to the visible prose body.',
+    'Use literal closing tags exactly as </task_card> and </private>. Do not escape the slash as <\\/task_card> or <\\/private>.',
     'The <task_card> JSON must use these keys: mode, summary, goal, mainGoal, lineRole, branchFrom, branchReason, checkpoint, candidateBranches, knownConclusions, memory.',
     fixedTaskTitle
       ? 'For main-line turns, keep goal and mainGoal anchored to the fixed session task title unless the user explicitly redefines the whole task.'

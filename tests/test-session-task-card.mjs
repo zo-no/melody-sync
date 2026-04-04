@@ -84,14 +84,39 @@ assert.equal(
   'trailing task-card JSON should also be removed from the visible assistant prose',
 );
 
+assert.equal(
+  stripTaskCardFromAssistantContent(
+    '为什么有时候在绘画的后面会拼接？{"mode":"main","summary":"建立长稳隧道","goal":"把现在的端口用云服务器代理出来并长期运行"}',
+  ),
+  '为什么有时候在绘画的后面会拼接？',
+  'trailing task-card JSON should still be removed when it is appended directly after visible punctuation',
+);
+
+assert.equal(
+  stripTaskCardFromAssistantContent([
+    '这是一个给用户看的 JSON 示例：',
+    '```json',
+    '{"mode":"main","summary":"示例摘要","goal":"示例目标"}',
+    '```',
+  ].join('\n')),
+  [
+    '这是一个给用户看的 JSON 示例：',
+    '```json',
+    '{"mode":"main","summary":"示例摘要","goal":"示例目标"}',
+    '```',
+  ].join('\n'),
+  'task-card stripping should not eat user-facing fenced JSON examples',
+);
+
 const promptBlock = buildTaskCardPromptBlock(parsed);
 assert.match(promptBlock, /Current carried task card/);
 assert.match(promptBlock, /Execution mode: task/);
 assert.match(promptBlock, /Raw materials:/);
 assert.match(promptBlock, /weekly\.xlsx/);
 assert.match(promptBlock, /Durable user memory:/);
-assert.match(promptBlock, /append exactly one final <task_card> JSON block/i);
-assert.match(promptBlock, /Do not escape the slash as <\\\/task_card>/);
+assert.match(promptBlock, /append exactly one final hidden <private><task_card> JSON block/i);
+assert.match(promptBlock, /Never append raw task-card JSON directly to the visible prose body/i);
+assert.match(promptBlock, /Do not escape the slash as <\\\/task_card> or <\\\/private>/);
 assert.match(promptBlock, /task-bar subtitle rather than a full sentence description/);
 assert.match(promptBlock, /no more than 10 Chinese characters/i);
 assert.match(promptBlock, /Prefer a compact verb \+ object form/);
