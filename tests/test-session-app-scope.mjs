@@ -15,6 +15,9 @@ mkdirSync(workspace, { recursive: true });
 const sessionManager = await import(
   pathToFileURL(join(repoRoot, 'chat', 'session-manager.mjs')).href
 );
+const config = await import(
+  pathToFileURL(join(repoRoot, 'lib', 'config.mjs')).href
+);
 
 const {
   createSession,
@@ -23,7 +26,7 @@ const {
   listSessions,
 } = sessionManager;
 
-const sessionsPath = join(tempHome, '.config', 'remotelab', 'chat-sessions.json');
+const sessionsPath = config.CHAT_SESSIONS_FILE;
 
 function readSessionsFile() {
   return JSON.parse(readFileSync(sessionsPath, 'utf8'));
