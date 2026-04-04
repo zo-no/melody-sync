@@ -1,5 +1,5 @@
 import { homedir } from 'os';
-import { CHAT_PORT, MEMORY_DIR, SYSTEM_MEMORY_DIR } from '../lib/config.mjs';
+import { CHAT_PORT, MELODYSYNC_AGENTS_FILE, MEMORY_DIR, SYSTEM_MEMORY_DIR } from '../lib/config.mjs';
 import { join } from 'path';
 import { pathExists } from './fs-utils.mjs';
 import { MANAGER_RUNTIME_BOUNDARY_SECTION } from './runtime-policy.mjs';
@@ -34,15 +34,17 @@ export async function buildSystemContext(options = {}) {
   const projectsPath = displayPath(PROJECTS_MD, home);
   const skillsPath = displayPath(SKILLS_MD, home);
   const tasksPath = displayPath(TASKS_DIR, home);
+  const agentsFilePath = displayPath(MELODYSYNC_AGENTS_FILE, home);
   const memoryDirPath = displayPath(MEMORY_DIR, home);
   const systemMemoryDirPath = displayPath(SYSTEM_MEMORY_DIR, home);
   const systemMemoryFilePath = displayPath(SYSTEM_MEMORY_FILE, home);
   const currentSessionId = typeof options?.sessionId === 'string' ? options.sessionId.trim() : '';
-  const [hasBootstrap, hasGlobal, hasProjects, hasSkills] = await Promise.all([
+  const [hasBootstrap, hasGlobal, hasProjects, hasSkills, hasAgentsFile] = await Promise.all([
     pathExists(BOOTSTRAP_MD),
     pathExists(GLOBAL_MD),
     pathExists(PROJECTS_MD),
     pathExists(SKILLS_MD),
+    pathExists(MELODYSYNC_AGENTS_FILE),
   ]);
   const isFirstTime = !hasBootstrap && !hasGlobal;
 
@@ -58,12 +60,14 @@ MelodySync memory can be large, but only a small subset should be active in any 
 
 ### Startup Assembly Principles
 Startup context should stay pointer-sized. Its job is orientation and default boundaries, not loading the whole tree up front:
+- Read ${agentsFilePath} first when it exists. It is the user-editable local agent boundary for MelodySync data and, when the storage root is a knowledge base, the authority for what parts of that workspace are in scope.
 - Read ${bootstrapPath} first when it exists. It is the small startup index.
 - If bootstrap.md does not exist yet, use ${globalPath} as a temporary fallback and keep the read lightweight.
 - Consult ${skillsPath} only when capability selection or reusable workflows are relevant.
 - Use ${projectsPath} only to identify repo pointers or project scope.
 - Do NOT open ${tasksPath}/ or deep project docs until the current task is clear.
 - Do NOT load ${systemMemoryFilePath} wholesale at startup. Open it only when shared platform learnings or memory maintenance are relevant.
+- Use ${agentsFilePath} to decide whether the active managed scope is only MelodySync program data or the broader configured local workspace. If the AGENTS file does not explicitly expand scope, default to MelodySync program data first.
 
 ### Runtime Assembly
 The runtime assembler should keep the active stack small:
@@ -143,6 +147,7 @@ Location: ${memoryDirPath}/
 This is your personal knowledge about this specific machine, this specific user, and your working relationship. It never leaves this computer.
 
 - ${bootstrapPath} — Tiny startup index: machine basics, collaboration defaults, key directories, and high-level project pointers. Read this first when present.
+- ${agentsFilePath} — User-editable agent boundary and local data policy for MelodySync's own files. Read this first when present.
 - ${projectsPath} — Project pointer catalog: repo paths, short summaries, and trigger phrases. Use only to identify task scope.
 - ${skillsPath} — Index of available skills/capabilities you've built. Load entries on demand.
 - ${tasksPath}/ — Detailed task notes. Open only after the task scope is confirmed or strongly implied.
@@ -206,6 +211,13 @@ This machine has ${globalPath} but no ${bootstrapPath} yet.
 - Do NOT treat global.md as mandatory startup context for every conversation.
 - At a natural breakpoint, backfill bootstrap.md with only the small startup index.
 - Create projects.md when recurring repos or task families need a lightweight pointer catalog.`;
+  }
+
+  if (!hasAgentsFile) {
+    context += `
+
+## MelodySync Agent Guide Missing
+If this machine uses a dedicated MelodySync local data root, create ${agentsFilePath} as the user-editable boundary file that tells the agent which MelodySync files to read by default and, when needed, how the broader local workspace should be managed.`;
   }
 
   if (!hasProjects && (hasBootstrap || hasGlobal)) {

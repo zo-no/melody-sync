@@ -31,14 +31,18 @@ This document lists the current shipped MelodySync feature surface after App tem
 
 ## Durable Data Layout
 
+Default layout:
+
+- if `obsidianPath` is configured, MelodySync treats it as the local data root and stores app state under a hidden `.melodysync/` directory; if the root already contains `00-🤖agent/`, MelodySync prefers `00-🤖agent/.melodysync/`
+- otherwise it falls back to the legacy home-local config + memory layout
+
 | Path | Purpose |
 | --- | --- |
-| `auth.json` | Owner auth config |
-| `tools.json` | Tool catalog |
-| `chat-sessions.json` | Session metadata |
-| `chat-history/` | Per-session event store |
-| `chat-runs/` | Per-run status and manifests |
-| `assets/` | Uploaded/generated assets |
+| `config/` | Owner auth config, runtime settings, push config, tool catalog |
+| `memory/` | Bootstrap/project/skills/task memory |
+| `sessions/` | Session metadata, event store, runs, assets |
+| `hooks/` | Hook enable state and custom hook design file |
+| `workbench/` | Node settings, plans, branch contexts, summaries |
 
 ## Notes
 

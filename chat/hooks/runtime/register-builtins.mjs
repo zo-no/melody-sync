@@ -11,13 +11,15 @@ function registerCatalogHook(hookId, hook) {
   if (!definition) {
     throw new Error(`Unknown built-in hook definition: ${hookId}`);
   }
-  registerHook(definition.eventPattern, hook, definition);
+  registerHook(definition.eventPattern, hook, {
+    ...definition,
+    enabled: definition.enabledByDefault !== false,
+  });
 }
 
 export function registerBuiltinHooks() {
   if (builtinHooksRegistered) return;
   builtinHooksRegistered = true;
-
   registerCatalogHook('builtin.first-boot-memory', firstBootMemoryHook);
   registerCatalogHook('builtin.push-notification', pushNotificationHook);
   registerCatalogHook('builtin.email-completion', emailCompletionHook);

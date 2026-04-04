@@ -29,7 +29,7 @@ if (shouldUseActiveRelease()) {
 
 if (!delegatedToRelease) {
   const http = await import('http');
-  const [{ CHAT_PORT, CHAT_BIND_HOST, SECURE_COOKIES, MEMORY_DIR }, { handleRequest }, apiRequestLog, ws, sessionManager, { ensureDir }, { registerBuiltinHooks }, { emit: emitHook }, { isFirstBootMemoryState }, { loadPersistedHookSettings }] = await Promise.all([
+  const [{ CHAT_PORT, CHAT_BIND_HOST, SECURE_COOKIES, MEMORY_DIR }, { handleRequest }, apiRequestLog, ws, sessionManager, { ensureDir }, { registerBuiltinHooks }, { registerCustomHooks }, { emit: emitHook }, { isFirstBootMemoryState }, { loadPersistedHookSettings }] = await Promise.all([
     import('./lib/config.mjs'),
     import('./chat/router.mjs'),
     import('./chat/api-request-log.mjs'),
@@ -37,6 +37,7 @@ if (!delegatedToRelease) {
     import('./chat/session-manager.mjs'),
     import('./chat/fs-utils.mjs'),
     import('./chat/hooks/runtime/register-builtins.mjs'),
+    import('./chat/hooks/runtime/register-custom-hooks.mjs'),
     import('./chat/hooks/runtime/registry.mjs'),
     import('./chat/hooks/first-boot-memory-hook.mjs'),
     import('./chat/hooks/runtime/settings-store.mjs'),
@@ -48,6 +49,7 @@ if (!delegatedToRelease) {
 
   await apiRequestLog.initApiRequestLog();
   registerBuiltinHooks();
+  await registerCustomHooks();
   await loadPersistedHookSettings();
   await emitHook('instance.startup', {
     sessionId: '',

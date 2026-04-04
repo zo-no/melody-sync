@@ -1,6 +1,8 @@
 import { registerBuiltinHooks } from './hooks/runtime/register-builtins.mjs';
+import { registerCustomHooks } from './hooks/runtime/register-custom-hooks.mjs';
 
 registerBuiltinHooks();
+await registerCustomHooks();
 
 export {
   applyHookEnabledOverrides,

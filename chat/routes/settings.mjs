@@ -16,7 +16,7 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson } = {
   if (isSettingsRoute && req?.method === 'PATCH') {
     let payload = {};
     try {
-      const raw = await readBody(req, 4096);
+      const raw = await readBody(req, 128 * 1024);
       payload = raw ? JSON.parse(raw) : {};
     } catch {
       writeJson(res, 400, { error: 'Invalid request body' });

@@ -43,7 +43,7 @@
   // ── Render ───────────────────────────────────────────────────────────────────
   function render() {
     if (!hooksData) return;
-    const { hooks } = hooksData;
+    const { hooks, settings } = hooksData;
     const eventIndex = hooksModel.createEventHookIndex(hooks);
     const phaseSections = hooksModel.buildPhaseSections(hooksData).map((phaseEntry) => {
       const eventSections = phaseEntry.events.map((definition) => {
@@ -112,9 +112,17 @@
       </div>
     `).join('<div class="hooks-flow-arrow" aria-hidden="true">→</div>');
 
+    const customHookNote = settings?.customDesignPath
+      ? `<div class="hooks-summary-desc">自定义脚本 Hook 设计文件：<code>${escHtml(settings.customDesignPath)}</code></div>`
+      : '';
+    const storageNote = settings?.storagePath
+      ? `<div class="hooks-summary-desc">启停状态文件：<code>${escHtml(settings.storagePath)}</code></div>`
+      : '';
     const intro = `
       <div class="hooks-summary">
         <div class="hooks-summary-desc">按完整闭环流程查看，只显示当前生命周期节点下已经接入的 Hook。</div>
+        ${customHookNote}
+        ${storageNote}
       </div>`;
 
     const flowchart = `

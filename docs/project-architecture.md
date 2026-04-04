@@ -145,16 +145,20 @@ Persistence:
 
 ## Persistence Layout
 
-Default root: `~/.config/remotelab/`
+Default runtime behavior:
 
-- `auth.json` — owner auth config
-- `tools.json` — tool catalog
-- `chat-sessions.json` — session metadata
-- `chat-history/` — per-session event and body storage
-- `chat-runs/` — per-run state and manifests
-- `assets/` — uploaded/generated files
+- if `general-settings.json` has `obsidianPath`, MelodySync treats it as the local data root and stores app state under a hidden `.melodysync/` directory; if the root already contains `00-🤖agent/`, MelodySync prefers `00-🤖agent/.melodysync/`
+- if no storage root is configured, MelodySync falls back to the legacy home-local layout (`~/.config/melody-sync` plus `~/.melody-sync/memory`)
+- isolated instances can still override this via `REMOTELAB_INSTANCE_ROOT`, `REMOTELAB_CONFIG_DIR`, and `REMOTELAB_MEMORY_DIR`
 
-An isolated instance can override this via `REMOTELAB_INSTANCE_ROOT`, `REMOTELAB_CONFIG_DIR`, and `REMOTELAB_MEMORY_DIR`.
+Vault-backed app root shape:
+
+- `config/` — auth, sessions cookie store, runtime selection, push config, general settings
+- `memory/` — bootstrap/project/skills/task memory
+- `sessions/` — session metadata, history, runs, images, file assets
+- `hooks/` — hook enable state and custom hook definitions
+- `workbench/` — node settings, plans, branch contexts, summaries
+- `logs/` — runtime logs
 
 ## Current Constraints
 

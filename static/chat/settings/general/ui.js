@@ -5,9 +5,6 @@
   if (!body || !settingsPanel) return;
 
   let loaded = null;
-  let pending = false;
-  let error = '';
-  let savedMessage = '';
 
   function escHtml(value) {
     return String(value || '')
@@ -27,89 +24,65 @@
         throw new Error(`HTTP ${response.status}`);
       }
       loaded = await response.json();
-      savedMessage = '';
       render();
     } catch (err) {
       body.innerHTML = `<div class="hooks-error">加载失败：${escHtml(err.message)}</div>`;
     }
   }
 
-  async function saveSettings(formData) {
-    if (pending) return;
-    pending = true;
-    error = '';
-    savedMessage = '';
-    render();
-    try {
-      const response = await global.fetch('/api/settings', {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.error || `HTTP ${response.status}`);
-      }
-      loaded = data || loaded;
-      savedMessage = '已保存';
-      pending = false;
-      render();
-    } catch (err) {
-      error = err.message || '保存失败';
-      pending = false;
-      render();
-    }
-  }
-
-  function getPathInputValue(form) {
-    const field = form?.elements?.namedItem?.('obsidianPath');
-    return typeof field?.value === 'string' ? field.value.trim() : '';
-  }
-
   function render() {
     if (!loaded) return;
-    const value = loaded.obsidianPath || '';
-    const hasError = error ? `<div class="hooks-error">保存失败：${escHtml(error)}</div>` : '';
-    const note = savedMessage ? `<div class="hooks-summary"><div class="hooks-summary-desc">${escHtml(savedMessage)}</div></div>` : '';
-    const valueEscaped = escHtml(value);
+    const value = loaded.storageRootPath || loaded.obsidianPath || '';
+    const appRoot = loaded.appRoot || '';
+    const customHooksPath = loaded.customHooksPath || '';
+    const storagePath = loaded.storagePath || '';
+    const agentsPath = loaded.agentsPath || '';
+    const agentsContent = loaded.agentsContent || '';
+    const agentsContentEscaped = escHtml(agentsContent);
+    const metaRows = [
+      value ? `<div class="hooks-summary-desc"><strong>本地数据根路径：</strong><code>${escHtml(value)}</code></div>` : '',
+      appRoot ? `<div class="hooks-summary-desc"><strong>应用目录：</strong><code>${escHtml(appRoot)}</code></div>` : '',
+      storagePath ? `<div class="hooks-summary-desc"><strong>后端设置文件：</strong><code>${escHtml(storagePath)}</code></div>` : '',
+      agentsPath ? `<div class="hooks-summary-desc"><strong>Agent 说明文件：</strong><code>${escHtml(agentsPath)}</code></div>` : '',
+      customHooksPath ? `<div class="hooks-summary-desc"><strong>自定义 Hook 设计文件：</strong><code>${escHtml(customHooksPath)}</code></div>` : '',
+    ].filter(Boolean).join('');
+    const patchExample = `PATCH /api/settings\n{\n  "obsidianPath": "${escHtml(value || '/Users/xxx/diary/diary')}",\n  "agentsPath": "${escHtml(agentsPath || '/Users/xxx/diary/diary/00-🤖agent/AGENTS.md')}"\n}`;
     body.innerHTML = `
       <div class="hooks-phase-section">
         <div class="hooks-phase-header">
           <div class="hooks-phase-heading">
             <div class="hooks-phase-title">通用设置</div>
-            <div class="hooks-phase-desc">当前仅提供 Obsidian 导出目录配置，可作为所有项目的默认目标路径。</div>
+            <div class="hooks-phase-desc">前端只展示当前后端配置，不直接修改。程序数据会默认收敛到配置好的本地数据根路径下的 <code>.melodysync</code> 应用目录里。</div>
           </div>
         </div>
         <div class="hooks-event-card">
-          <form class="general-settings-form" data-form="general-settings" style="display:flex;flex-direction:column;gap:10px;padding:12px 0;">
-            <label class="task-map-node-field" style="display:flex;flex-direction:column;gap:6px">
-              <span class="hooks-panel-title" style="font-size:13px">Obsidian 根路径</span>
-              <input class="settings-inline-input" name="obsidianPath" value="${valueEscaped}" placeholder="/Users/xxx/diary/diary">
-            </label>
-            ${hasError || ''}
-            ${note || ''}
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <button class="new-session-btn" type="submit" ${pending ? 'disabled' : ''}>${pending ? '保存中…' : '保存'}</button>
-              <button class="new-session-btn secondary" type="button" data-action="reset-general-form" ${pending ? 'disabled' : ''}>清空（恢复默认）</button>
+          <div style="display:flex;flex-direction:column;gap:10px;padding:12px 0;">
+            <div class="hooks-summary">
+              <div class="hooks-summary-desc"><strong>配置方式：</strong>修改请调用 <code>PATCH /api/settings</code>，或直接更新后端设置文件。</div>
             </div>
-          </form>
+            <div class="task-map-node-section">
+              <div class="task-map-node-section-title">当前配置</div>
+              <div class="hooks-summary">${metaRows}</div>
+            </div>
+            <div class="task-map-node-section">
+              <div class="task-map-node-section-title">修改入口</div>
+              <div class="hooks-summary">
+                <div class="hooks-summary-desc"><strong>接口：</strong><code>PATCH /api/settings</code></div>
+                <div class="hooks-summary-desc"><strong>说明：</strong>后端配置文件是真值，网页仅做展示。你可以通过 API 请求修改路径与 AGENTS 文件位置。</div>
+              </div>
+              <pre class="hooks-empty-note" style="white-space:pre-wrap;">${patchExample}</pre>
+            </div>
+            <div class="task-map-node-section">
+              <div class="task-map-node-section-title">AGENTS.md</div>
+              <div class="hooks-summary">
+                <div class="hooks-summary-desc"><strong>当前内容：</strong>这里只读展示当前后端已加载的 AGENTS.md。</div>
+              </div>
+              <pre class="hooks-empty-note" style="white-space:pre-wrap;max-height:320px;overflow:auto;">${agentsContentEscaped}</pre>
+            </div>
+          </div>
         </div>
       </div>
     `;
-
-    body.querySelector('[data-form="general-settings"]')?.addEventListener('submit', (event) => {
-      event.preventDefault?.();
-      const form = event.currentTarget;
-      saveSettings({ obsidianPath: getPathInputValue(form) });
-    });
-
-    body.querySelector('[data-action="reset-general-form"]')?.addEventListener('click', () => {
-      if (pending) return;
-      saveSettings({ obsidianPath: '' });
-    });
-
-    pending = false;
   }
 
   function showGeneralSettings() {

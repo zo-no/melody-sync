@@ -48,6 +48,9 @@ assert.match(context, /Prefer doing the next reasonable, reversible step over de
 assert.match(context, /Pause only for a real blocker: an explicitly requested stop\/wait, missing credentials or external information you cannot obtain yourself, a destructive or irreversible action without clear authorization, or a decision that only the user can make/);
 assert.match(context, /Do not treat the absence of micro-instructions as a blocker; execution-layer decisions are part of your job/);
 assert.match(context, /MelodySync self-hosting development/);
+assert.match(context, /Read .*AGENTS\.md first when it exists/, 'system prompt should point the agent at the user-editable MelodySync AGENTS file');
+assert.match(context, /Use .*AGENTS\.md to decide whether the active managed scope is only MelodySync program data or the broader configured local workspace/, 'system prompt should treat AGENTS as the authority for workspace scope');
+assert.match(context, /MelodySync Agent Guide Missing/, 'system prompt should mention the missing AGENTS guide when it is absent');
 assert.match(context, /~\/instance-data\/memory\//);
 assert.doesNotMatch(context, /~\/\.remotelab\/memory\//);
 
