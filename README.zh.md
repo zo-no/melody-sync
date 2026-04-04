@@ -263,6 +263,34 @@ melodysync --help               显示帮助
 - 如果没有配置自定义应用目录，则继续回退到下面的机器本地默认路径。
 - 当前设备配置文件位于 `~/.config/melody-sync/general-settings.json`。
 
+最小可用结构：
+
+```text
+~/.config/melody-sync/general-settings.json
+
+<appRoot>/
+  AGENTS.md
+  config/
+    auth.json
+    general-settings.json
+  memory/
+    bootstrap.md
+    projects.md
+    skills.md
+  sessions/
+    chat-sessions.json
+    history/
+    runs/
+  hooks/
+    custom-hooks.json
+  workbench/
+  logs/
+```
+
+- `~/.config/melody-sync/general-settings.json` 只属于当前这台机器
+- `<appRoot>/` 才是 MelodySync 真正的应用目录
+- 如果你把应用目录放进同步盘，需要同步的是 `<appRoot>/`；每台机器仍然保留自己的“当前设备配置文件”
+
 | 路径 | 内容 |
 |------|------|
 | `~/.melodysync/config/auth.json` | 访问 token + 密码哈希 |

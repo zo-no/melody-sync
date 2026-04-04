@@ -80,8 +80,6 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           appRoot: getNamedField(form, 'appRoot').trim(),
-          agentsPath: getNamedField(form, 'agentsPath').trim(),
-          agentsContent: getNamedField(form, 'agentsContent'),
         }),
       });
       const next = await response.json().catch(() => null);
@@ -110,7 +108,6 @@
     const storagePath = loaded.storagePath || '';
     const bootstrapStoragePath = loaded.bootstrapStoragePath || '';
     const agentsPath = loaded.agentsPath || '';
-    const agentsContent = loaded.agentsContent || '';
     const statusRow = error
       ? `<div class="hooks-error">保存失败：${escHtml(error)}</div>`
       : (success ? `<div class="hooks-summary"><div class="hooks-summary-desc">${escHtml(success)}</div></div>` : '');
@@ -130,19 +127,12 @@
                 <span class="hooks-panel-title" style="font-size:13px">应用路径</span>
                 <input class="settings-inline-input" name="appRoot" value="${escHtml(appRoot)}" placeholder="/Users/xxx/diary/diary/00-🤖agent">
               </label>
-              <label class="task-map-node-field" style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
-                <span class="hooks-panel-title" style="font-size:13px">说明文件</span>
-                <input class="settings-inline-input" name="agentsPath" value="${escHtml(agentsPath)}" placeholder="/Users/xxx/diary/diary/00-🤖agent/AGENTS.md">
-              </label>
               <div class="hooks-summary" style="margin-top:10px">
                 ${appRoot ? `<div class="hooks-summary-desc"><strong>应用目录：</strong><code>${escHtml(appRoot)}</code></div>` : ''}
                 ${storagePath ? `<div class="hooks-summary-desc"><strong>后端配置文件：</strong><code>${escHtml(storagePath)}</code></div>` : ''}
                 ${bootstrapStoragePath ? `<div class="hooks-summary-desc"><strong>当前设备配置文件：</strong><code>${escHtml(bootstrapStoragePath)}</code></div>` : ''}
+                ${agentsPath ? `<div class="hooks-summary-desc"><strong>说明文件：</strong><code>${escHtml(agentsPath)}</code></div>` : ''}
               </div>
-            </div>
-            <div class="task-map-node-section">
-              <div class="task-map-node-section-title">Agent 说明文件</div>
-              <textarea class="settings-inline-textarea" name="agentsContent" style="min-height:320px;resize:vertical">${escHtml(agentsContent)}</textarea>
             </div>
             ${statusRow}
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">

@@ -268,6 +268,34 @@ These are the default paths when no custom app root is configured.
 - If no custom app root is configured, MelodySync falls back to the machine-local paths below.
 - The current device config file lives at `~/.config/melody-sync/general-settings.json`.
 
+Minimum usable layout:
+
+```text
+~/.config/melody-sync/general-settings.json
+
+<appRoot>/
+  AGENTS.md
+  config/
+    auth.json
+    general-settings.json
+  memory/
+    bootstrap.md
+    projects.md
+    skills.md
+  sessions/
+    chat-sessions.json
+    history/
+    runs/
+  hooks/
+    custom-hooks.json
+  workbench/
+  logs/
+```
+
+- `~/.config/melody-sync/general-settings.json` belongs to the current machine only
+- `<appRoot>/` is the actual MelodySync application directory
+- if you use a synced folder, sync `<appRoot>/`; each machine still keeps its own current device config file
+
 | Path | Contents |
 |------|----------|
 | `~/.melodysync/config/auth.json` | Access token + password hash |

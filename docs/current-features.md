@@ -34,7 +34,7 @@ This document lists the current shipped MelodySync feature surface after App tem
 Default layout:
 
 - if `appRoot` is configured, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
-- otherwise it falls back to the legacy home-local config + memory layout
+- otherwise it uses the machine-local default app root at `~/.melodysync`
 
 | Path | Purpose |
 | --- | --- |

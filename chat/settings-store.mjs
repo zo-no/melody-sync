@@ -13,8 +13,6 @@ import {
   buildMelodySyncPaths,
   resolveMelodySyncDefaultAgentsPath,
   resolveMelodySyncAppRoot,
-  resolveMelodySyncLegacyVaultRoot,
-  resolveMelodySyncLegacyVisibleVaultRoot,
 } from '../lib/config.mjs';
 import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from './fs-utils.mjs';
 
@@ -38,36 +36,21 @@ function normalizeGeneralSettings(value = {}) {
   const nextAppRootPath = normalizeAppRootPath(
     value?.appRoot || value?.appRootPath || value?.app?.root,
   );
-  const rawAgentsPath = normalizeAppRootPath(value?.agentsPath || value?.agentPath || value?.agents?.path);
-  const defaultAgentsPath = nextAppRootPath
-    ? `${resolveMelodySyncAppRoot(nextAppRootPath)}/${MELODYSYNC_AGENTS_FILENAME}`
-    : '';
-  const legacyHiddenAgentsPath = nextAppRootPath
-    ? `${resolveMelodySyncLegacyVaultRoot(nextAppRootPath)}/${MELODYSYNC_AGENTS_FILENAME}`
-    : '';
-  const legacyVisibleAgentsPath = nextAppRootPath
-    ? `${resolveMelodySyncLegacyVisibleVaultRoot(nextAppRootPath)}/${MELODYSYNC_AGENTS_FILENAME}`
-    : '';
-  const agentsPath = rawAgentsPath === defaultAgentsPath
-    || rawAgentsPath === legacyHiddenAgentsPath
-    || rawAgentsPath === legacyVisibleAgentsPath
-    ? ''
-    : rawAgentsPath;
   return {
     appRoot: nextAppRootPath,
-    agentsPath,
   };
 }
 
 function deriveGeneralSettingsMetadata(settings = {}) {
   const normalizedSettings = normalizeGeneralSettings(settings);
-  const { appRoot, agentsPath } = normalizedSettings;
+  const { appRoot } = normalizedSettings;
   const configuredAppRootPath = normalizeAppRootPath(appRoot);
   const resolvedAppRoot = configuredAppRootPath
     ? resolveMelodySyncAppRoot(configuredAppRootPath)
     : (MELODYSYNC_APP_ROOT || DEFAULT_MELODYSYNC_APP_ROOT);
-  const defaultAgentsPath = resolvedAppRoot ? resolveMelodySyncDefaultAgentsPath(resolvedAppRoot) : MELODYSYNC_AGENTS_FILE;
-  const resolvedAgentsPath = agentsPath || defaultAgentsPath;
+  const resolvedAgentsPath = resolvedAppRoot
+    ? resolveMelodySyncDefaultAgentsPath(resolvedAppRoot)
+    : MELODYSYNC_AGENTS_FILE;
   if (!resolvedAppRoot) {
     return {
       configuredAppRootPath,
@@ -97,6 +80,22 @@ async function readAgentsContent(path) {
   }
 }
 
+async function ensureAgentsFile(path) {
+  if (await readAgentsContent(path)) return;
+  await ensureDir(dirname(path));
+  await writeTextAtomic(path, buildDefaultAgentsContent());
+}
+
+async function ensureHooksFile(path) {
+  try {
+    await readFile(path, 'utf8');
+    return;
+  } catch {
+    await ensureDir(dirname(path));
+    await writeTextAtomic(path, '[]\n');
+  }
+}
+
 async function isDirectoryPath(path) {
   if (!path) return false;
   try {
@@ -117,7 +116,6 @@ export async function readGeneralSettings() {
   return {
     ...normalized,
     ...metadata,
-    agentsContent: await readAgentsContent(metadata.agentsPath),
   };
 }
 
@@ -138,21 +136,34 @@ export async function persistGeneralSettings(payload = {}) {
   await ensureDir(paths.sessionsDir);
   await ensureDir(paths.workbenchDir);
   await ensureDir(paths.memoryDir);
+  await ensureDir(paths.logsDir);
+  await ensureDir(resolve(paths.memoryDir, 'tasks'));
   await writeJsonAtomic(paths.generalSettingsFile, normalized);
-
-  const nextAgentsContent = typeof payload?.agentsContent === 'string'
-    ? payload.agentsContent
-    : await readAgentsContent(metadata.agentsPath);
-  await ensureDir(dirname(metadata.agentsPath));
-  await writeTextAtomic(
-    metadata.agentsPath,
-    nextAgentsContent || buildDefaultAgentsContent(),
-  );
+  await ensureAgentsFile(metadata.agentsPath);
+  await ensureHooksFile(paths.customHooksFile);
 
   return {
     ...normalized,
     ...metadata,
-    agentsContent: nextAgentsContent || buildDefaultAgentsContent(),
+  };
+}
+
+export async function ensureGeneralSettingsRuntimeFiles() {
+  const current = await readGeneralSettings();
+  const metadata = deriveGeneralSettingsMetadata(current);
+  const paths = buildMelodySyncPaths(metadata.appRoot, { agentsFile: metadata.agentsPath });
+  await ensureDir(paths.configDir);
+  await ensureDir(paths.hooksDir);
+  await ensureDir(paths.sessionsDir);
+  await ensureDir(paths.workbenchDir);
+  await ensureDir(paths.memoryDir);
+  await ensureDir(paths.logsDir);
+  await ensureDir(resolve(paths.memoryDir, 'tasks'));
+  await ensureAgentsFile(metadata.agentsPath);
+  await ensureHooksFile(paths.customHooksFile);
+  return {
+    ...current,
+    ...metadata,
   };
 }
 

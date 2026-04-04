@@ -45,7 +45,7 @@ If multiple tools are installed and the user has no strong preference, prefer `C
 
 MelodySync has two layers of local config:
 
-1. **Bootstrap pointer**
+1. **Current device config file**
    - machine-local file: `~/.config/melody-sync/general-settings.json`
    - its job is only to tell MelodySync where the app root lives
 
@@ -64,6 +64,38 @@ Important:
 
 - Do **not** create an extra nested `.melodysync/` under a custom app root.
 - If the app root is synced by Obsidian or another tool, each machine still needs its **own** local device config file so the service can find that synced directory on that machine.
+
+## Minimal file layout
+
+Once MelodySync is set up, the minimum usable layout is:
+
+```text
+~/.config/melody-sync/general-settings.json
+
+<appRoot>/
+  AGENTS.md
+  config/
+    auth.json
+    general-settings.json
+  memory/
+    bootstrap.md
+    projects.md
+    skills.md
+  sessions/
+    chat-sessions.json
+    history/
+    runs/
+  hooks/
+    custom-hooks.json
+  workbench/
+  logs/
+```
+
+How to read this:
+
+- `~/.config/melody-sync/general-settings.json` belongs to the current machine only
+- `<appRoot>/` is the actual MelodySync application directory
+- if you want cross-machine continuity, sync `<appRoot>/`; each machine still keeps its own local device config file
 
 ## Runtime configuration principle
 
@@ -103,7 +135,7 @@ The AI should do the rest inside the conversation:
 | Surface | Expected state |
 | --- | --- |
 | Primary chat service | boot-managed owner service on `http://127.0.0.1:7760` |
-| Bootstrap pointer | `~/.config/melody-sync/general-settings.json` points to the correct app root when a custom path is used |
+| Current device config file | `~/.config/melody-sync/general-settings.json` points to the correct app root when a custom path is used |
 | App root auth | `<app-root>/config/auth.json` exists and the token is known to the user |
 | Defaults | new-session tool/model/effort defaults match the user's stated preference |
 

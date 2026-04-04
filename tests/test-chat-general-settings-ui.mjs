@@ -149,7 +149,6 @@ const context = {
           bootstrapStoragePath: '/Users/test/.config/melody-sync/general-settings.json',
           customHooksPath: '/Users/test/vault/hooks/custom-hooks.json',
           agentsPath: '/Users/test/vault/00-🤖agent/AGENTS.md',
-          agentsContent: '# MelodySync AGENTS\n',
         };
       },
     };
@@ -171,15 +170,15 @@ assert.deepEqual(fetchCalls, ['/api/settings'], 'opening settings should fetch g
 assert.equal(settingsTabGeneral.classList.contains('is-active'), true, 'general tab should be active by default');
 assert.equal(settingsPanelGeneral.hidden, false, 'general panel should be visible by default');
 assert.match(generalPanelBody.innerHTML, /应用路径/, 'general settings should expose the editable application path field');
-assert.match(generalPanelBody.innerHTML, /说明文件/, 'general settings should expose the editable agents path field');
+assert.match(generalPanelBody.innerHTML, /说明文件/, 'general settings should expose the agents file path');
 assert.match(generalPanelBody.innerHTML, /<input[^>]+name="appRoot"[^>]+value="\/Users\/test\/vault"/, 'general settings should render the app root as an editable input');
-assert.match(generalPanelBody.innerHTML, /<input[^>]+name="agentsPath"[^>]+value="\/Users\/test\/vault\/00-🤖agent\/AGENTS\.md"/, 'general settings should render the agents file path as an editable input');
 assert.match(generalPanelBody.innerHTML, /应用目录：<\/strong><code>\/Users\/test\/vault<\/code>/, 'general settings should still show the resolved app root');
 assert.match(generalPanelBody.innerHTML, /后端配置文件：<\/strong><code>\/Users\/test\/vault\/config\/general-settings\.json<\/code>/, 'general settings should show the backend config file path');
 assert.match(generalPanelBody.innerHTML, /当前设备配置文件：<\/strong><code>\/Users\/test\/\.config\/melody-sync\/general-settings\.json<\/code>/, 'general settings should show the local device config file');
-assert.match(generalPanelBody.innerHTML, /<textarea[^>]+name="agentsContent"/, 'general settings should expose the editable AGENTS textarea');
+assert.match(generalPanelBody.innerHTML, /说明文件：<\/strong><code>\/Users\/test\/vault\/00-🤖agent\/AGENTS\.md<\/code>/, 'general settings should show the local AGENTS file path');
+assert.doesNotMatch(generalPanelBody.innerHTML, /name="agentsPath"/, 'general settings should not render the agents path as an editable input');
+assert.doesNotMatch(generalPanelBody.innerHTML, /name="agentsContent"/, 'general settings should not expose an editable AGENTS textarea');
 assert.match(generalPanelBody.innerHTML, /保存/, 'general settings should expose a save button');
 assert.match(generalPanelBody.innerHTML, /重新加载/, 'general settings should expose a reload button');
-assert.doesNotMatch(generalPanelBody.innerHTML, /网页仅做展示/, 'general settings should no longer be read-only');
 
 console.log('test-chat-general-settings-ui: ok');
