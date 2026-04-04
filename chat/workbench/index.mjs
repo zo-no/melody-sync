@@ -1,5 +1,3 @@
-import { randomUUID } from 'crypto';
-import { extname, join } from 'path';
 import {
   createWorkbenchSession,
   getWorkbenchSession,
@@ -11,14 +9,14 @@ import { appendEvent, getHistorySnapshot } from '../history.mjs';
 import { messageEvent, statusEvent } from '../normalizer.mjs';
 import { normalizeSessionTaskCard } from '../session-task-card.mjs';
 import {
+  createWorkbenchId,
   dedupeTexts,
-  normalizeNodeState,
-  normalizeNodeType,
+  nowIso,
   normalizeLineRole,
   normalizeBranchContextStatus,
+  normalizeNodeState,
+  normalizeNodeType,
   normalizeNullableText,
-  sortByCreatedAsc,
-  sortByUpdatedDesc,
   trimText,
 } from './shared.mjs';
 import {
@@ -26,12 +24,6 @@ import {
 } from './continuity-store.mjs';
 import {
   buildBranchSeedPrompt,
-  buildProjectSummaryMarkdown,
-  buildProjectTreeMarkdown,
-  buildSingleProjectDocument,
-  buildSkillsMarkdown,
-  resolveFsPath,
-  resolveProjectObsidianPath,
 } from './exporters.mjs';
 import { readGeneralSettings } from '../settings-store.mjs';
 import {
@@ -45,6 +37,17 @@ import {
   writeTextAtomic,
 } from '../fs-utils.mjs';
 import { emit as emitHook } from '../hooks/runtime/registry.mjs';
+import {
+  createCaptureItemRecord,
+  createNodeRecord,
+  createProjectRecord,
+  createProjectSummaryRecord,
+  getNodeById,
+  getProjectById,
+  getProjectByScopeKey,
+  promoteCaptureItemRecord,
+  writeProjectRecordToObsidian,
+} from './project-records.mjs';
 
 export { getWorkbenchSnapshot, getWorkbenchTrackerSnapshot } from './continuity-store.mjs';
 export { getSessionOperationRecords } from './operation-records.mjs';
@@ -66,23 +69,10 @@ function WORKBENCH_QUEUE(scopeKey, fn) {
   }
   return _workbenchQueues.get(key)(fn);
 }
-function nowIso() {
-  return new Date().toISOString();
-}
 
 async function getDefaultObsidianPath() {
   const settings = await readGeneralSettings();
   return settings?.appRoot || '';
-}
-
-function createId(prefix) {
-  return `${prefix}_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
-}
-
-function deriveCaptureTitle(text) {
-  const compact = String(text || '').replace(/\s+/g, ' ').trim();
-  if (!compact) return 'Untitled capture';
-  return compact.slice(0, 72);
 }
 
 function getRecordedParentSessionId(session, context = null) {
@@ -94,41 +84,6 @@ function getRecordedParentSessionId(session, context = null) {
 
 function getSessionClusterLineRole(session, context = null) {
   return getRecordedParentSessionId(session, context) ? 'branch' : 'main';
-}
-
-function getProjectById(state, projectId) {
-  return (state.projects || []).find((entry) => entry.id === projectId) || null;
-}
-
-function getNodeById(state, nodeId) {
-  return (state.nodes || []).find((entry) => entry.id === nodeId) || null;
-}
-
-function getSummaryById(state, summaryId) {
-  return (state.summaries || []).find((entry) => entry.id === summaryId) || null;
-}
-
-function getProjectNodes(state, projectId) {
-  return sortByCreatedAsc((state.nodes || []).filter((entry) => entry.projectId === projectId));
-}
-
-function getProjectBranchContexts(state, projectId) {
-  const projectNodeIds = new Set(getProjectNodes(state, projectId).map((entry) => entry.id));
-  return sortByUpdatedDesc((state.branchContexts || []).filter((entry) => projectNodeIds.has(entry.nodeId)));
-}
-
-function getProjectSkills(state, projectId) {
-  const projectNodeIds = new Set(getProjectNodes(state, projectId).map((entry) => entry.id));
-  return sortByUpdatedDesc((state.skills || []).filter((entry) => {
-    const evidence = Array.isArray(entry?.evidenceNodeIds) ? entry.evidenceNodeIds : [];
-    return evidence.some((nodeId) => projectNodeIds.has(nodeId));
-  }));
-}
-
-function getProjectByScopeKey(state, scopeKey) {
-  const normalized = normalizeNullableText(scopeKey);
-  if (!normalized) return null;
-  return (state.projects || []).find((entry) => normalizeNullableText(entry.scopeKey) === normalized) || null;
 }
 
 function getActiveSessionContext(state, sessionId) {
@@ -328,7 +283,7 @@ function upsertProject(state, session, taskCard, now) {
   const brief = normalizeNullableText(taskCard?.summary || session?.description || '');
   if (!project) {
     project = {
-      id: createId('proj'),
+      id: createWorkbenchId('proj'),
       scopeKey,
       title,
       brief,
@@ -362,7 +317,7 @@ function upsertNode(state, payload = {}) {
     ? state.nodes.findIndex((entry) => entry.id === nodeId)
     : -1;
   const nextNode = {
-    id: nodeId || createId('node'),
+    id: nodeId || createWorkbenchId('node'),
     projectId: normalizeNullableText(payload.projectId),
     parentId: normalizeNullableText(payload.parentId),
     title: normalizeNullableText(payload.title) || 'Untitled task',
@@ -396,7 +351,7 @@ function upsertSessionContext(state, payload = {}) {
   ));
   const existing = existingIndex !== -1 ? state.branchContexts[existingIndex] : null;
   const nextContext = {
-    id: existing?.id || createId('branch'),
+    id: existing?.id || createWorkbenchId('branch'),
     projectId: normalizeNullableText(payload.projectId),
     nodeId: normalizeNullableText(payload.nodeId),
     mainNodeId: normalizeNullableText(payload.mainNodeId),
@@ -592,164 +547,25 @@ export async function setSessionReminderSnooze(sessionId, payload = {}) {
 }
 
 export async function createCaptureItem(payload = {}) {
-  return WORKBENCH_QUEUE(async () => {
-    const text = normalizeNullableText(payload.text);
-    if (!text) {
-      throw new Error('text is required');
-    }
-    const now = nowIso();
-    const state = await loadState();
-    const captureItem = {
-      id: createId('cap'),
-      sourceSessionId: normalizeNullableText(payload.sourceSessionId),
-      sourceMessageSeq: Number.isInteger(payload.sourceMessageSeq) && payload.sourceMessageSeq > 0
-        ? payload.sourceMessageSeq
-        : null,
-      text,
-      title: normalizeNullableText(payload.title) || deriveCaptureTitle(text),
-      kind: normalizeNodeType(payload.kind),
-      status: 'inbox',
-      createdAt: now,
-      updatedAt: now,
-    };
-    state.captureItems.push(captureItem);
-    await saveState(state);
-    return captureItem;
-  });
+  return createCaptureItemRecord({ queue: WORKBENCH_QUEUE, loadState, saveState }, payload);
 }
 
 export async function createProject(payload = {}) {
-  return WORKBENCH_QUEUE(async () => {
-    const title = normalizeNullableText(payload.title);
-    if (!title) {
-      throw new Error('title is required');
-    }
-    const now = nowIso();
-    const state = await loadState();
-    const project = {
-      id: createId('proj'),
-      title,
-      brief: normalizeNullableText(payload.brief),
-      obsidianPath: await resolveProjectObsidianPath(payload.obsidianPath || await getDefaultObsidianPath(), title, { pathExists }),
-      status: normalizeNullableText(payload.status) || 'active',
-      rootNodeId: '',
-      createdAt: now,
-      updatedAt: now,
-    };
-    state.projects.push(project);
-    await saveState(state);
-    return project;
-  });
+  return createProjectRecord({
+    queue: WORKBENCH_QUEUE,
+    loadState,
+    saveState,
+    pathExists,
+    getDefaultObsidianPath,
+  }, payload);
 }
 
 export async function createNode(payload = {}) {
-  return WORKBENCH_QUEUE(async () => {
-    const projectId = normalizeNullableText(payload.projectId);
-    const title = normalizeNullableText(payload.title);
-    if (!projectId) {
-      throw new Error('projectId is required');
-    }
-    if (!title) {
-      throw new Error('title is required');
-    }
-    const state = await loadState();
-    const project = getProjectById(state, projectId);
-    if (!project) {
-      throw new Error('Project not found');
-    }
-    const parentId = normalizeNullableText(payload.parentId);
-    if (parentId) {
-      const parentNode = getNodeById(state, parentId);
-      if (!parentNode || parentNode.projectId !== projectId) {
-        throw new Error('Parent node not found');
-      }
-    }
-    const now = nowIso();
-    const node = {
-      id: createId('node'),
-      projectId,
-      parentId,
-      title,
-      type: normalizeNodeType(payload.type),
-      summary: normalizeNullableText(payload.summary),
-      sourceCaptureIds: Array.isArray(payload.sourceCaptureIds)
-        ? payload.sourceCaptureIds.filter((entry) => typeof entry === 'string' && entry.trim())
-        : [],
-      state: normalizeNodeState(payload.state),
-      nextAction: normalizeNullableText(payload.nextAction),
-      createdAt: now,
-      updatedAt: now,
-    };
-    state.nodes.push(node);
-    const projectIndex = state.projects.findIndex((entry) => entry.id === projectId);
-    if (projectIndex !== -1) {
-      const nextProject = { ...state.projects[projectIndex], updatedAt: now };
-      if (!nextProject.rootNodeId && !parentId) {
-        nextProject.rootNodeId = node.id;
-      }
-      state.projects[projectIndex] = nextProject;
-    }
-    await saveState(state);
-    return node;
-  });
+  return createNodeRecord({ queue: WORKBENCH_QUEUE, loadState, saveState }, payload);
 }
 
 export async function promoteCaptureItem(captureId, payload = {}) {
-  return WORKBENCH_QUEUE(async () => {
-    const state = await loadState();
-    const captureIndex = state.captureItems.findIndex((entry) => entry.id === captureId);
-    if (captureIndex === -1) {
-      throw new Error('Capture item not found');
-    }
-    const capture = state.captureItems[captureIndex];
-    const projectId = normalizeNullableText(payload.projectId);
-    const project = getProjectById(state, projectId);
-    if (!project) {
-      throw new Error('Project not found');
-    }
-    const parentId = normalizeNullableText(payload.parentId);
-    if (parentId) {
-      const parentNode = getNodeById(state, parentId);
-      if (!parentNode || parentNode.projectId !== projectId) {
-        throw new Error('Parent node not found');
-      }
-    }
-    const now = nowIso();
-    const node = {
-      id: createId('node'),
-      projectId,
-      parentId,
-      title: normalizeNullableText(payload.title) || capture.title || deriveCaptureTitle(capture.text),
-      type: normalizeNodeType(payload.type || capture.kind),
-      summary: normalizeNullableText(payload.summary) || capture.text,
-      sourceCaptureIds: [capture.id],
-      state: normalizeNodeState(payload.state),
-      nextAction: normalizeNullableText(payload.nextAction),
-      createdAt: now,
-      updatedAt: now,
-    };
-    state.nodes.push(node);
-    state.captureItems[captureIndex] = {
-      ...capture,
-      status: 'filed',
-      projectId,
-      promotedNodeId: node.id,
-      updatedAt: now,
-    };
-    const projectIndex = state.projects.findIndex((entry) => entry.id === projectId);
-    if (projectIndex !== -1) {
-      const nextProject = { ...state.projects[projectIndex], updatedAt: now };
-      if (!nextProject.rootNodeId && !parentId) {
-        nextProject.rootNodeId = node.id;
-      }
-      state.projects[projectIndex] = nextProject;
-    }
-    await saveState(state);
-    return {
-      captureItem: state.captureItems[captureIndex],
-      node,
-    };
-  });
+  return promoteCaptureItemRecord({ queue: WORKBENCH_QUEUE, loadState, saveState }, captureId, payload);
 }
 
 export async function createBranchFromNode(nodeId, payload = {}) {
@@ -812,7 +628,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
 
     const now = nowIso();
     const branchContext = {
-      id: createId('branch'),
+      id: createWorkbenchId('branch'),
       projectId: project.id,
       nodeId: node.id,
       mainNodeId: project.rootNodeId || node.id,
@@ -853,7 +669,7 @@ export async function createBranchFromNode(nodeId, payload = {}) {
 
     if (payload.seedMessage !== false) {
       await submitWorkbenchSessionMessage(branchSession.id, buildBranchSeedPrompt({ project, node, goal, carryover }), [], {
-        requestId: createId('branch_seed'),
+        requestId: createWorkbenchId('branch_seed'),
         ...(sourceSession.model ? { model: sourceSession.model } : {}),
         ...(sourceSession.effort ? { effort: sourceSession.effort } : {}),
         ...(sourceSession.thinking === true ? { thinking: true } : {}),
@@ -943,7 +759,7 @@ export async function createBranchFromSession(sessionId, payload = {}) {
 
     const sourceSnap = await getHistorySnapshot(sourceSession.id);
     const branchContext = {
-      id: createId('branch'),
+      id: createWorkbenchId('branch'),
       projectId: project.id,
       nodeId: parentNode.id,
       mainNodeId: activeContext.mainNodeId || project.rootNodeId || parentNode.id,
@@ -1155,105 +971,17 @@ export async function setBranchCandidateSuppressed(sessionId, branchTitle, suppr
 }
 
 export async function createProjectSummary(projectId) {
-  return WORKBENCH_QUEUE(async () => {
-    const state = await loadState();
-    const project = getProjectById(state, projectId);
-    if (!project) {
-      throw new Error('Project not found');
-    }
-    const nodes = getProjectNodes(state, projectId);
-    const branchContexts = getProjectBranchContexts(state, projectId);
-    const markdown = buildProjectSummaryMarkdown(project, nodes, branchContexts);
-    const now = nowIso();
-    const summary = {
-      id: createId('summary'),
-      projectId,
-      title: `${project.title}｜阶段总结`,
-      markdown,
-      createdAt: now,
-      updatedAt: now,
-    };
-    state.summaries.push(summary);
-    const projectIndex = state.projects.findIndex((entry) => entry.id === projectId);
-    if (projectIndex !== -1) {
-      state.projects[projectIndex] = {
-        ...state.projects[projectIndex],
-        updatedAt: now,
-      };
-    }
-    await saveState(state);
-    return summary;
-  });
+  return createProjectSummaryRecord({ queue: WORKBENCH_QUEUE, loadState, saveState }, projectId);
 }
 
 export async function writeProjectToObsidian(projectId, payload = {}) {
-  return WORKBENCH_QUEUE(async () => {
-    const state = await loadState();
-    const project = getProjectById(state, projectId);
-    if (!project) {
-      throw new Error('Project not found');
-    }
-
-    let summary = getSummaryById(state, normalizeNullableText(payload.summaryId));
-    if (!summary) {
-      const latestSummary = sortByUpdatedDesc((state.summaries || []).filter((entry) => entry.projectId === projectId))[0] || null;
-      summary = latestSummary;
-    }
-    if (!summary) {
-      const now = nowIso();
-      summary = {
-        id: createId('summary'),
-        projectId,
-        title: `${project.title}｜阶段总结`,
-        markdown: buildProjectSummaryMarkdown(project, getProjectNodes(state, projectId), getProjectBranchContexts(state, projectId)),
-        createdAt: now,
-        updatedAt: now,
-      };
-      state.summaries.push(summary);
-    }
-
-    const nodes = getProjectNodes(state, projectId);
-    const branchContexts = getProjectBranchContexts(state, projectId);
-    const skills = getProjectSkills(state, projectId);
-    const treeMarkdown = buildProjectTreeMarkdown(project, nodes, branchContexts);
-    const summaryMarkdown = summary.markdown;
-    const skillsMarkdown = buildSkillsMarkdown(project, skills);
-    const targetPath = resolveFsPath(project.obsidianPath)
-      || await resolveProjectObsidianPath(await getDefaultObsidianPath(), project.title, { pathExists });
-    const writtenFiles = [];
-
-    if (extname(targetPath).toLowerCase() === '.md') {
-      const document = buildSingleProjectDocument(project, treeMarkdown, summaryMarkdown, skillsMarkdown);
-      await writeTextAtomic(targetPath, document);
-      writtenFiles.push(targetPath);
-    } else {
-      await ensureDir(targetPath);
-      const treePath = join(targetPath, 'TREE.md');
-      const summaryPath = join(targetPath, 'SUMMARY.md');
-      const skillsPath = join(targetPath, 'SKILLS.md');
-      await Promise.all([
-        writeTextAtomic(treePath, treeMarkdown),
-        writeTextAtomic(summaryPath, summaryMarkdown),
-        writeTextAtomic(skillsPath, skillsMarkdown),
-      ]);
-      writtenFiles.push(treePath, summaryPath, skillsPath);
-    }
-
-    const projectIndex = state.projects.findIndex((entry) => entry.id === projectId);
-    if (projectIndex !== -1) {
-      state.projects[projectIndex] = {
-        ...state.projects[projectIndex],
-        obsidianPath: targetPath,
-        updatedAt: nowIso(),
-      };
-    }
-    await saveState(state);
-
-    return {
-      project: getProjectById(state, projectId),
-      summary,
-      targetPath,
-      writtenFiles,
-    };
-  });
+  return writeProjectRecordToObsidian({
+    queue: WORKBENCH_QUEUE,
+    loadState,
+    saveState,
+    pathExists,
+    ensureDir,
+    writeTextAtomic,
+    getDefaultObsidianPath,
+  }, projectId, payload);
 }

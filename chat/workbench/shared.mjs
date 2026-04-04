@@ -1,5 +1,21 @@
+import { randomUUID } from 'crypto';
+
 export function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+export function nowIso() {
+  return new Date().toISOString();
+}
+
+export function createWorkbenchId(prefix) {
+  return `${prefix}_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+}
+
+export function deriveCaptureTitle(text) {
+  const compact = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!compact) return 'Untitled capture';
+  return compact.slice(0, 72);
 }
 
 export function normalizeNullableText(value) {

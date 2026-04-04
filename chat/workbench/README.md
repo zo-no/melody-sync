@@ -8,6 +8,7 @@ Current split:
 - `continuity-store.mjs`: mainline/branch continuity and task-cluster projections.
 - `operation-records.mjs`: operation-record projection for the right rail.
 - `exporters.mjs`: markdown, summary, obsidian, and other export-oriented output.
+- `project-records.mjs`: capture/project/node/summary/obsidian write operations that do not belong in branch-lifecycle orchestration.
 - `node-definitions.mjs`: canonical current node-kind exposure for bootstrap and HTTP clients, including composition metadata such as capabilities, surface bindings, and default right-canvas view types.
 - `node-settings-store.mjs`: persisted custom node-kind settings layered on top of the builtin node contract, including future-facing composition metadata.
 - `task-map-plan-contract.mjs`: machine-readable contract for future hook/AI graph planning, including plan-capable hooks, node kinds, source types, right-canvas view types, and fallback behavior.
@@ -27,6 +28,7 @@ Boundary rules:
 
 - Keep persistence and projection separate.
 - Prefer adding new focused modules here rather than growing `chat/workbench/index.mjs`.
+- Keep capture/project/node/summary CRUD in `project-records.mjs`; `index.mjs` should stay focused on continuity and branch orchestration.
 - Keep the current node-kind source of truth in `node-definitions.mjs`; frontend projection reads it through chat bootstrap and `/api/workbench/node-definitions`.
 - Keep persisted custom node-kind editing in `node-settings-store.mjs`; do not mix it into task-map projection code.
 - Keep plan-generation metadata centralized in `task-map-plan-contract.mjs`; future hook/AI producers should read this contract instead of reassembling node + hook metadata ad hoc.

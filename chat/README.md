@@ -14,7 +14,7 @@ Use this map before editing:
 - `hooks/index.mjs`: canonical hook entry surface for bootstrap/runtime callers.
 - `hooks/`: builtin metadata, focused handlers, and compatibility export surfaces.
 - `workbench/`: workbench persistence helpers, node settings, and read-side projections.
-- `workbench/index.mjs`: canonical workbench entry for orchestration layered on focused `workbench/` modules.
+- `workbench/index.mjs`: canonical workbench entry for continuity and branch orchestration layered on focused `workbench/` modules.
 
 Edit rules:
 
