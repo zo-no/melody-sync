@@ -19,16 +19,7 @@ It does not care much whether the control surface is a phone, tablet, or desktop
 If the demo makes sense, do not keep reading. Open a fresh terminal on the host machine, start Codex, Claude Code, or another coding agent, and paste this:
 
 ```text
-I want to set up MelodySync on this machine so I can hand repetitive digital work to AI from any device and let it automate the work on a real computer.
-
-Network mode: [cloudflare | tailscale]
-
-# For Cloudflare mode:
-My domain: [YOUR_DOMAIN]
-Subdomain I want to use: [SUBDOMAIN]
-
-# For Tailscale mode:
-(No extra config needed — the host machine and the client devices I want to use are on the same tailnet.)
+I want to set up MelodySync locally on this machine so I can hand repetitive digital work to AI and use it right away.
 
 Use the setup contract at `https://raw.githubusercontent.com/zo-no/melody-sync/main/docs/setup.md` as the source of truth.
 Do not assume the repo is already cloned. If `~/code/melody-sync` does not exist yet, fetch that contract, clone `https://github.com/zo-no/melody-sync.git` yourself, and continue.
@@ -37,9 +28,10 @@ Before you start work, collect every missing piece of context in one message so 
 Do every step you can automatically.
 After my reply, continue autonomously and only stop for real [HUMAN] steps, approvals, or final completion.
 When you stop, tell me exactly what I need to do and how you'll verify it after I reply.
+If I later want external access, point me to `EXTERNAL_ACCESS.md` and recommend the best fit among reverse proxy, Cloudflare Tunnel, and Tailscale.
 ```
 
-Need the longer version first? Jump to [Setup details](#setup-details) or open `docs/setup.md`.
+Need the longer version first? Jump to [Setup details](#setup-details), open `docs/setup.md`, or read [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md) for external access options.
 
 ---
 
@@ -129,7 +121,7 @@ MelodySync is opinionated in a few ways:
 
 ### Setup details
 
-The fastest path is still to paste a setup prompt into Codex, Claude Code, or another capable coding agent on the machine that will host MelodySync. It can handle almost everything automatically and stop only for truly manual steps such as Cloudflare login when that mode is in play.
+The fastest path is still to paste a setup prompt into Codex, Claude Code, or another capable coding agent on the machine that will host MelodySync. It can handle almost everything automatically and stop only for real machine-auth, package-manager, or final verification steps.
 
 Configuration and feature-rollout docs in this repo are model-first and prompt-first: the human copies a prompt into their own AI coding agent, the agent gathers the needed context up front in as few rounds as possible, and the rest of the work stays inside that conversation except for explicit `[HUMAN]` steps.
 
@@ -139,23 +131,12 @@ The best pattern is one early handoff: the agent asks for everything it needs in
 - **macOS**: Homebrew installed + Node.js 18+
 - **Linux**: Node.js 18+
 - At least one AI tool installed (`codex`, `claude`, `cline`, or a compatible local tool)
-- **Network** (pick one):
-  - **Cloudflare Tunnel**: a domain pointed at Cloudflare ([free account](https://cloudflare.com), domain ~$1–12/yr from Namecheap or Porkbun)
-  - **Tailscale**: [free for personal use](https://tailscale.com) — install on the host machine and any client device you want to use, join the same tailnet, no domain needed
+- Optional later: choose an external access method from [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md) if you want internet or private-network access beyond the host machine
 
 **Open a fresh terminal on the host machine, start Codex or another coding agent, and paste this:**
 
 ```text
-I want to set up MelodySync on this machine so I can control AI workers from any device and keep long-running AI work organized.
-
-Network mode: [cloudflare | tailscale]
-
-# For Cloudflare mode:
-My domain: [YOUR_DOMAIN]
-Subdomain I want to use: [SUBDOMAIN]
-
-# For Tailscale mode:
-(No extra config needed — the host machine and the client devices I want to use are on the same tailnet.)
+I want to set up MelodySync locally on this machine so I can control AI workers and keep long-running AI work organized.
 
 Use the setup contract at `https://raw.githubusercontent.com/zo-no/melody-sync/main/docs/setup.md` as the source of truth.
 Do not assume the repo is already cloned. If `~/code/melody-sync` does not exist yet, fetch that contract, clone `https://github.com/zo-no/melody-sync.git` yourself, and continue.
@@ -164,9 +145,10 @@ Before you start work, collect every missing piece of context in one message so 
 Do every step you can automatically.
 After my reply, continue autonomously and only stop for real [HUMAN] steps, approvals, or final completion.
 When you stop, tell me exactly what I need to do and how you'll verify it after I reply.
+If I later want external access, point me to `EXTERNAL_ACCESS.md` and recommend the best fit among reverse proxy, Cloudflare Tunnel, and Tailscale.
 ```
 
-If you want the full setup contract and the human-only checkpoints, use `docs/setup.md`.
+If you want the full local setup contract and the human-only checkpoints, use `docs/setup.md`. For external access, use [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md).
 
 For **Tencent Cloud reverse-proxying (Nginx / CLB)**, also check:
 
@@ -174,9 +156,9 @@ For **Tencent Cloud reverse-proxying (Nginx / CLB)**, also check:
 
 ### What you'll have when done
 
-Open your MelodySync URL on the device you want to use:
-- **Cloudflare**: `https://[subdomain].[domain]/?token=YOUR_TOKEN`
-- **Tailscale**: `http://[hostname].[tailnet].ts.net:7760/?token=YOUR_TOKEN`
+Open MelodySync locally first:
+- **Local**: `http://127.0.0.1:7760/?token=YOUR_TOKEN`
+- **External access later**: choose reverse proxy, Cloudflare Tunnel, or Tailscale from [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md)
 
 ![Dashboard](docs/new-dashboard.png)
 
@@ -187,7 +169,7 @@ Open your MelodySync URL on the device you want to use:
 
 ### Daily usage
 
-Once set up, the service can auto-start on boot (macOS LaunchAgent / Linux systemd). Open the URL from phone or desktop and work from there.
+Once set up, the service can auto-start on boot (macOS LaunchAgent / Linux systemd). Open the local URL directly, or add external access later with [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md).
 
 ```bash
 melodysync start
@@ -201,11 +183,11 @@ melodysync restart chat
 If you are refreshing yourself after several architecture iterations, use this reading order:
 
 1. `README.md` / `README.zh.md` — product overview, setup path, daily operations
-2. `docs/project-architecture.md` — current shipped architecture and code map
-3. `docs/README.md` — documentation taxonomy and sync rules
-4. `notes/current/core-domain-contract.md` — current domain/refactor baseline
-5. `notes/README.md` — note buckets and cleanup policy
-6. focused guides such as `docs/setup.md`, `docs/external-message-protocol.md`, `docs/current-features.md`, and `docs/feishu-bot-setup.md`
+2. `docs/setup.md` — local setup contract
+3. `EXTERNAL_ACCESS.md` — reverse proxy / Cloudflare Tunnel / Tailscale access tutorial
+4. `docs/project-architecture.md` — current shipped architecture and code map
+5. `docs/README.md` — documentation taxonomy and sync rules
+6. `notes/current/core-domain-contract.md` — current domain/refactor baseline
 
 ---
 
@@ -218,13 +200,13 @@ MelodySync’s shipped architecture is now centered on a stable chat control pla
 | `chat-server.mjs` | `7760` | Primary chat/control plane for production use |
 
 ```
-Browser / client surface               Browser / client surface
-   │                                      │
-   ▼                                      ▼
-Cloudflare Tunnel                    Tailscale (VPN)
-   │                                      │
-   ▼                                      ▼
-chat-server.mjs (:7760)             chat-server.mjs (:7760)
+Browser / client surface
+   │
+   ▼
+operator-managed local access or ingress
+   │
+   ▼
+chat-server.mjs (:7760)
    │
    ├── HTTP control plane
    ├── auth + policy
@@ -254,7 +236,7 @@ For the canonical contract that external channels should follow, read `docs/exte
 melodysync setup                Run interactive setup wizard
 melodysync start                Start all services
 melodysync stop                 Stop all services
-melodysync restart [service]    Restart: chat | tunnel | all
+melodysync restart [service]    Restart: chat | all
 melodysync release              Run tests, snapshot the runtime, restart, and health-check the active release
 melodysync guest-instance       Create isolated guest instances with separate config + memory
 melodysync chat                 Run chat server in foreground (debug)
@@ -263,7 +245,7 @@ melodysync set-password         Set username & password login
 melodysync --help               Show help
 ```
 
-For quick isolated sandboxes on the same machine, use `melodysync guest-instance create <name>`. It provisions a separate `REMOTELAB_INSTANCE_ROOT`, a dedicated launchd service, and an optional Cloudflare hostname without mixing chat history or memory into the owner's main instance. If the agent mailbox is initialized, `create` and `show` also print the default inbound mailbox for that instance, such as `rowan+trial4@example.com` or `trial4@example.com`, depending on the mailbox identity's `instanceAddressMode`.
+For quick isolated sandboxes on the same machine, use `melodysync guest-instance create <name>`. It provisions a separate `REMOTELAB_INSTANCE_ROOT` and a dedicated service without mixing chat history or memory into the owner's main instance. Network exposure for any extra instance is still operator-managed outside MelodySync.
 
 Production updates should go through `melodysync release` rather than live-editing the running `7760` surface. The release command snapshots the shipped runtime, restarts only after the test gate passes, and automatically restores the previous active release if the health check fails.
 
@@ -272,9 +254,9 @@ Production updates should go through `melodysync release` rather than live-editi
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CHAT_PORT` | `7760` | Chat server port |
-| `CHAT_BIND_HOST` | `127.0.0.1` | Host to bind the chat server (`127.0.0.1` for Cloudflare/local only, `0.0.0.0` for Tailscale or LAN access) |
+| `CHAT_BIND_HOST` | `127.0.0.1` | Host to bind the chat server; keep `127.0.0.1` for local or same-machine reverse proxy access, use `0.0.0.0` only when your operator-managed ingress needs it |
 | `SESSION_EXPIRY` | `86400000` | Cookie lifetime in ms (24h) |
-| `SECURE_COOKIES` | `1` | Set `0` for Tailscale or local HTTP access (no HTTPS) |
+| `SECURE_COOKIES` | `1` | Set `0` only for plain HTTP access such as local development or private-network access without HTTPS |
 | `REMOTELAB_INSTANCE_ROOT` | unset | Optional isolated data root for an additional instance; defaults to `<root>/config` + `<root>/memory` when set |
 | `REMOTELAB_CONFIG_DIR` | legacy `~/.config/melody-sync` fallback | Optional runtime data/config override for auth, sessions, runs, apps, push, and provider-managed homes |
 | `REMOTELAB_MEMORY_DIR` | legacy `~/.melody-sync/memory` fallback | Optional user-memory override for pointer-first startup files |
@@ -297,9 +279,7 @@ These are the default paths when no custom app root is configured.
 | `~/.melodysync/sessions/runs/` | Durable run manifests, spool output, and final results |
 | `~/.melodysync/memory/` | Private machine-specific memory used for pointer-first startup |
 | `~/Library/Logs/chat-server.log` | Chat server stdout **(macOS)** |
-| `~/Library/Logs/cloudflared.log` | Tunnel stdout **(macOS)** |
 | `~/.local/share/melody-sync/logs/chat-server.log` | Chat server stdout **(Linux)** |
-| `~/.local/share/melody-sync/logs/cloudflared.log` | Tunnel stdout **(Linux)** |
 
 ## Storage growth and manual cleanup
 
@@ -318,13 +298,12 @@ These are the default paths when no custom app root is configured.
 
 ## Security
 
-- **Cloudflare mode**: HTTPS via Cloudflare (TLS at the edge, localhost HTTP on the machine); services bind to `127.0.0.1` only
-- **Tailscale mode**: traffic encrypted by Tailscale's WireGuard mesh; services bind to `0.0.0.0` (all interfaces), so the port is also reachable from LAN/WAN — on untrusted networks, configure a firewall to restrict port `7760` to the Tailscale subnet (e.g. `100.64.0.0/10`)
 - `256`-bit random access token with timing-safe comparison
 - optional scrypt-hashed password login
-- `HttpOnly` + `Secure` + `SameSite=Strict` auth cookies (`Secure` disabled in Tailscale mode)
+- `HttpOnly` + `Secure` + `SameSite=Strict` auth cookies
 - per-IP rate limiting with exponential backoff on failed login
-- default: services bind to `127.0.0.1` only — no direct external exposure; set `CHAT_BIND_HOST=0.0.0.0` for LAN access
+- default: services bind to `127.0.0.1` only — no direct external exposure
+- if you need external access, use an operator-managed reverse proxy, Cloudflare Tunnel, or Tailscale as described in [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md)
 - CSP headers with nonce-based script allowlist
 
 ## Troubleshooting
@@ -340,14 +319,6 @@ journalctl --user -u melodysync-chat -n 50
 tail -50 ~/.local/share/melody-sync/logs/chat-server.error.log
 ```
 
-**DNS not resolving yet**
-
-Wait `5–30` minutes after setup, then verify:
-
-```bash
-dig SUBDOMAIN.DOMAIN +short
-```
-
 **Port already in use**
 
 ```bash
@@ -358,7 +329,6 @@ lsof -i :7760
 
 ```bash
 melodysync restart chat
-melodysync restart tunnel
 ```
 
 ---

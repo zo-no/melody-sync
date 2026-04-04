@@ -27,10 +27,10 @@ function printHelp() {
   console.log(`melodysync v${pkg.version}
 
 Usage:
-  melodysync setup                    Run interactive setup
+  melodysync setup                    Run local interactive setup
   melodysync start                    Start all services
   melodysync stop                     Stop all services
-  melodysync restart [service]        Restart services (chat|tunnel|all)
+  melodysync restart [service]        Restart services (chat|all)
   melodysync release                  Create, gate, and activate a release snapshot
   melodysync guest-instance           Create isolated guest instances on this machine
   melodysync chat                     Run chat server in foreground

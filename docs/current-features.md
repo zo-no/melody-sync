@@ -16,7 +16,7 @@ This document lists the current shipped MelodySync feature surface after App tem
 | Session organization | Auto title, grouping, sidebar sorting helpers, flat task list | Sidebar stays a grouped work list; task structure lives in the map/tracker |
 | UI | Phone + desktop web UI, reconnect refresh, build update prompt | No frontend build step required |
 | Integrations | External message protocol, Feishu/email/GitHub style connectors, remote capability monitor | These create or enrich sessions through the core session API |
-| Deployment | Local self-hosting, Cloudflare Tunnel, Tailscale, guest instances | Instance root can be isolated per runtime |
+| Deployment | Local self-hosting and guest instances | External access is operator-managed and documented separately |
 
 ## Removed Features
 

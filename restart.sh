@@ -1,19 +1,18 @@
 #!/bin/bash
-# Restart one or all MelodySync services.
+# Restart MelodySync local services.
 # Usage:
-#   restart.sh          — restart all services
-#   restart.sh chat     — restart only chat-server
-#   restart.sh tunnel   — restart only cloudflared
+#   restart.sh        — restart chat-server
+#   restart.sh chat   — restart chat-server
+#   restart.sh all    — restart all MelodySync-managed services (currently same as chat)
 
 set -e
 
-SERVICE="${1:-all}"
+SERVICE="${1:-chat}"
 
-# Detect OS
 if [[ "$(uname)" == "Darwin" ]]; then
-    OS_TYPE="macos"
+  OS_TYPE="macos"
 else
-    OS_TYPE="linux"
+  OS_TYPE="linux"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -65,7 +64,6 @@ set_proxy_env() {
   done
 }
 
-# ── macOS: launchctl ──────────────────────────────────────────────────────────
 restart_launchd() {
   local label="$1"
   local plist="$HOME/Library/LaunchAgents/${label}.plist"
@@ -86,10 +84,6 @@ restart_launchd() {
   fi
 }
 
-sync_chatserver_proxy_env
-set_proxy_env
-
-# ── Linux: systemd --user ─────────────────────────────────────────────────────
 restart_systemd() {
   local unit="$1"
   local name="$2"
@@ -104,7 +98,6 @@ restart_systemd() {
     echo "  $name: failed to restart (check: journalctl --user -u ${unit})"
 }
 
-# ── Dispatch ──────────────────────────────────────────────────────────────────
 restart_service() {
   local name="$1"
   local launchd_label="$2"
@@ -117,23 +110,17 @@ restart_service() {
   fi
 }
 
+sync_chatserver_proxy_env
+set_proxy_env
+
 case "$SERVICE" in
-  chat)
+  chat|all)
     echo "Restarting chat-server..."
     restart_service "chat-server" "com.melodysync.chat" "melodysync-chat"
     ;;
-  tunnel)
-    echo "Restarting cloudflared..."
-    restart_service "cloudflared" "com.melodysync.tunnel" "melodysync-tunnel"
-    ;;
-  all)
-    echo "Restarting all services..."
-    restart_service "chat-server" "com.melodysync.chat"  "melodysync-chat"
-    restart_service "cloudflared" "com.melodysync.tunnel" "melodysync-tunnel"
-    ;;
   *)
     echo "Unknown service: $SERVICE"
-    echo "Usage: restart.sh [chat|tunnel|all]"
+    echo "Usage: restart.sh [chat|all]"
     exit 1
     ;;
 esac
