@@ -28,10 +28,9 @@ Before you start work, collect every missing piece of context in one message so 
 Do every step you can automatically.
 After my reply, continue autonomously and only stop for real [HUMAN] steps, approvals, or final completion.
 When you stop, tell me exactly what I need to do and how you'll verify it after I reply.
-If I later want external access, point me to `EXTERNAL_ACCESS.md` and recommend the best fit among reverse proxy, Cloudflare Tunnel, and Tailscale.
 ```
 
-Need the longer version first? Jump to [Setup details](#setup-details), open `docs/setup.md`, or read [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md) for external access options.
+Need the longer version first? Jump to [Setup details](#setup-details) or open `docs/setup.md`.
 
 ---
 
@@ -131,7 +130,6 @@ The best pattern is one early handoff: the agent asks for everything it needs in
 - **macOS**: Homebrew installed + Node.js 18+
 - **Linux**: Node.js 18+
 - At least one AI tool installed (`codex`, `claude`, `cline`, or a compatible local tool)
-- Optional later: choose an external access method from [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md) if you want internet or private-network access beyond the host machine
 
 **Open a fresh terminal on the host machine, start Codex or another coding agent, and paste this:**
 
@@ -145,18 +143,14 @@ Before you start work, collect every missing piece of context in one message so 
 Do every step you can automatically.
 After my reply, continue autonomously and only stop for real [HUMAN] steps, approvals, or final completion.
 When you stop, tell me exactly what I need to do and how you'll verify it after I reply.
-If I later want external access, point me to `EXTERNAL_ACCESS.md` and recommend the best fit among reverse proxy, Cloudflare Tunnel, and Tailscale.
 ```
 
-If you want the full local setup contract and the human-only checkpoints, use `docs/setup.md`. For external access, use [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md).
-
-For **Tencent Cloud reverse-proxying (Nginx / CLB)**, use the same reverse-proxy section in [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md).
+If you want the full local setup contract and the human-only checkpoints, use `docs/setup.md`.
 
 ### What you'll have when done
 
 Open MelodySync locally first:
 - **Local**: `http://127.0.0.1:7760/?token=YOUR_TOKEN`
-- **External access later**: choose reverse proxy, Cloudflare Tunnel, or Tailscale from [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md)
 
 ![Dashboard](docs/new-dashboard.png)
 
@@ -167,7 +161,7 @@ Open MelodySync locally first:
 
 ### Daily usage
 
-Once set up, the service can auto-start on boot (macOS LaunchAgent / Linux systemd). Open the local URL directly, or add external access later with [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md).
+Once set up, the service can auto-start on boot (macOS LaunchAgent / Linux systemd). Open the local URL directly.
 
 ```bash
 melodysync start
@@ -182,10 +176,9 @@ If you are refreshing yourself after several architecture iterations, use this r
 
 1. `README.md` / `README.zh.md` — product overview, setup path, daily operations
 2. `docs/setup.md` — local setup contract
-3. `EXTERNAL_ACCESS.md` — reverse proxy / Cloudflare Tunnel / Tailscale access tutorial
-4. `docs/project-architecture.md` — current shipped architecture and code map
-5. `docs/README.md` — documentation taxonomy and sync rules
-6. `notes/current/core-domain-contract.md` — current domain/refactor baseline
+3. `docs/project-architecture.md` — current shipped architecture and code map
+4. `docs/README.md` — documentation taxonomy and sync rules
+5. `notes/current/core-domain-contract.md` — current domain/refactor baseline
 
 ---
 
@@ -243,7 +236,7 @@ melodysync set-password         Set username & password login
 melodysync --help               Show help
 ```
 
-For quick isolated sandboxes on the same machine, use `melodysync guest-instance create <name>`. It provisions a separate `REMOTELAB_INSTANCE_ROOT` and a dedicated service without mixing chat history or memory into the owner's main instance. Network exposure for any extra instance is still operator-managed outside MelodySync.
+For quick isolated sandboxes on the same machine, use `melodysync guest-instance create <name>`. It provisions a separate `REMOTELAB_INSTANCE_ROOT` and a dedicated local service without mixing chat history or memory into the owner's main instance.
 
 Production updates should go through `melodysync release` rather than live-editing the running `7760` surface. The release command snapshots the shipped runtime, restarts only after the test gate passes, and automatically restores the previous active release if the health check fails.
 
@@ -329,7 +322,7 @@ Minimum usable layout:
 - `HttpOnly` + `Secure` + `SameSite=Strict` auth cookies
 - per-IP rate limiting with exponential backoff on failed login
 - default: services bind to `127.0.0.1` only — no direct external exposure
-- if you need external access, use an operator-managed reverse proxy, Cloudflare Tunnel, or Tailscale as described in [`EXTERNAL_ACCESS.md`](EXTERNAL_ACCESS.md)
+- if you need network exposure later, keep it outside MelodySync itself and use your own operator-managed ingress
 - CSP headers with nonce-based script allowlist
 
 ## Troubleshooting

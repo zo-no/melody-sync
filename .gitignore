@@ -34,8 +34,3 @@ credentials.txt
 
 # Node
 node_modules/
-
-# Cloudflare worker local config
-cloudflare/email-worker/wrangler.jsonc
-cloudflare/**/.wrangler/
-cloudflare/**/.dev.vars*

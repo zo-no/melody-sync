@@ -3,7 +3,7 @@
 This document is the setup contract for an AI coding agent running on the target machine.
 The canonical public copy is `https://raw.githubusercontent.com/zo-no/melody-sync/main/docs/setup.md`, so the setup flow can start from a clean terminal even before the repo exists locally.
 
-This contract is intentionally local-first. External exposure is handled separately in `EXTERNAL_ACCESS.md`.
+This contract is intentionally local-first.
 
 The human's job should stay small:
 
@@ -24,7 +24,6 @@ Before doing work, collect every missing input in one message so I can answer on
 Do every automatable step yourself.
 After my reply, continue autonomously until a true `[HUMAN]` step or final completion.
 When you stop, tell me the exact action I need to take and how you'll verify it after I reply.
-If I later want external access, point me to `EXTERNAL_ACCESS.md`.
 ```
 
 ## One-round input handoff
@@ -128,7 +127,7 @@ The AI should do the rest inside the conversation:
 - ensure the selected app root contains the standard MelodySync directories
 - persist or seed the chosen tool/model/effort defaults for new sessions
 - validate the local service and final access URL before handing back control
-- if the user asks for external access later, route them to `EXTERNAL_ACCESS.md` rather than implementing network ingress inside MelodySync setup
+- if the user asks for network exposure later, keep that outside MelodySync setup itself
 
 ## Target state
 

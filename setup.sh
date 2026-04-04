@@ -52,7 +52,6 @@ fi
 print_header "MelodySync Local Setup (${OS_TYPE})"
 
 echo "This script installs MelodySync as a local service on this machine."
-echo "External access is documented separately in EXTERNAL_ACCESS.md."
 echo ""
 echo "Current user: $CURRENT_USER"
 echo "Home directory: $USER_HOME"
@@ -211,8 +210,6 @@ Start services: $SCRIPT_DIR/start.sh
 Stop services:  $SCRIPT_DIR/stop.sh
 
 # External access:
-See $SCRIPT_DIR/EXTERNAL_ACCESS.md
-
 # KEEP THIS FILE SECURE!
 EOF
 chmod 600 "$SCRIPT_DIR/credentials.txt"
@@ -270,8 +267,5 @@ echo "Management commands:"
 echo "  Start: $SCRIPT_DIR/start.sh"
 echo "  Stop:  $SCRIPT_DIR/stop.sh"
 echo "  Logs:  $SCRIPT_DIR/logs.sh"
-echo ""
-echo "If you want external access, follow:"
-echo "  $SCRIPT_DIR/EXTERNAL_ACCESS.md"
 echo ""
 print_success "Setup completed successfully!"

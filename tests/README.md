@@ -10,7 +10,6 @@ Scenario-style validation scripts now live in this directory instead of the repo
 High-value smoke scripts:
 
 - `tests/test-session-naming.mjs`
-- `tests/test-cloudflared-config.mjs`
 - `tests/test-history-index-contract.mjs`
 - `tests/test-session-route-utils.mjs`
 - `tests/test-session-external-trigger-refresh.mjs`
