@@ -33,14 +33,14 @@ This document lists the current shipped MelodySync feature surface after App tem
 
 Default layout:
 
-- if `obsidianPath` is configured, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
+- if `appRoot` is configured, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
 - otherwise it falls back to the legacy home-local config + memory layout
 
 | Path | Purpose |
 | --- | --- |
 | `config/` | Owner auth config, runtime settings, push config, tool catalog |
 | `memory/` | Bootstrap/project/skills/task memory |
-| `sessions/` | Session metadata, event store, runs, assets |
+| `sessions/` | Machine-readable session storage: `chat-sessions.json`, derived `SESSIONS.md`, append-only `history/`, durable `runs/`, and uploaded assets |
 | `hooks/` | Hook enable state and custom hook design file |
 | `workbench/` | Node settings, plans, branch contexts, summaries |
 

@@ -147,7 +147,7 @@ Persistence:
 
 Default runtime behavior:
 
-- if `general-settings.json` has `obsidianPath`, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
+- if `general-settings.json` has `appRoot`, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
 - if no storage root is configured, MelodySync falls back to the legacy home-local layout (`~/.config/melody-sync` plus `~/.melody-sync/memory`)
 - isolated instances can still override this via `REMOTELAB_INSTANCE_ROOT`, `REMOTELAB_CONFIG_DIR`, and `REMOTELAB_MEMORY_DIR`
 
@@ -155,7 +155,12 @@ Vault-backed app root shape:
 
 - `config/` — auth, sessions cookie store, runtime selection, push config, general settings
 - `memory/` — bootstrap/project/skills/task memory
-- `sessions/` — session metadata, history, runs, images, file assets
+- `sessions/` — machine-readable session storage:
+  - `chat-sessions.json` for the current session catalog
+  - `SESSIONS.md` for the human-readable session index derived from that catalog
+  - `history/<sessionId>/` for append-only session events and deferred bodies
+  - `runs/<runId>/` for durable run manifests, spool output, and results
+  - `images/`, `file-assets/`, `file-assets-cache/` for uploaded assets
 - `hooks/` — hook enable state and custom hook definitions
 - `workbench/` — node settings, plans, branch contexts, summaries
 - `logs/` — runtime logs

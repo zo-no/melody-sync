@@ -19,14 +19,14 @@ import {
 import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from './fs-utils.mjs';
 
 const DEFAULT_SETTINGS = Object.freeze({
-  obsidianPath: '',
+  appRoot: '',
 });
 
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function normalizeObsidianPath(value) {
+function normalizeAppRootPath(value) {
   const trimmed = trimText(value);
   if (!trimmed) return '';
   if (trimmed === '~') return homedir();
@@ -35,18 +35,18 @@ function normalizeObsidianPath(value) {
 }
 
 function normalizeGeneralSettings(value = {}) {
-  const nextStorageRootPath = normalizeObsidianPath(
-    value?.storageRootPath || value?.storageRoot?.path,
-  ) || normalizeObsidianPath(value?.obsidianPath || value?.obsidian?.path);
-  const rawAgentsPath = normalizeObsidianPath(value?.agentsPath || value?.agentPath || value?.agents?.path);
-  const defaultAgentsPath = nextStorageRootPath
-    ? `${resolveMelodySyncAppRoot(nextStorageRootPath)}/${MELODYSYNC_AGENTS_FILENAME}`
+  const nextAppRootPath = normalizeAppRootPath(
+    value?.appRoot || value?.appRootPath || value?.app?.root,
+  );
+  const rawAgentsPath = normalizeAppRootPath(value?.agentsPath || value?.agentPath || value?.agents?.path);
+  const defaultAgentsPath = nextAppRootPath
+    ? `${resolveMelodySyncAppRoot(nextAppRootPath)}/${MELODYSYNC_AGENTS_FILENAME}`
     : '';
-  const legacyHiddenAgentsPath = nextStorageRootPath
-    ? `${resolveMelodySyncLegacyVaultRoot(nextStorageRootPath)}/${MELODYSYNC_AGENTS_FILENAME}`
+  const legacyHiddenAgentsPath = nextAppRootPath
+    ? `${resolveMelodySyncLegacyVaultRoot(nextAppRootPath)}/${MELODYSYNC_AGENTS_FILENAME}`
     : '';
-  const legacyVisibleAgentsPath = nextStorageRootPath
-    ? `${resolveMelodySyncLegacyVisibleVaultRoot(nextStorageRootPath)}/${MELODYSYNC_AGENTS_FILENAME}`
+  const legacyVisibleAgentsPath = nextAppRootPath
+    ? `${resolveMelodySyncLegacyVisibleVaultRoot(nextAppRootPath)}/${MELODYSYNC_AGENTS_FILENAME}`
     : '';
   const agentsPath = rawAgentsPath === defaultAgentsPath
     || rawAgentsPath === legacyHiddenAgentsPath
@@ -54,24 +54,23 @@ function normalizeGeneralSettings(value = {}) {
     ? ''
     : rawAgentsPath;
   return {
-    obsidianPath: nextStorageRootPath,
+    appRoot: nextAppRootPath,
     agentsPath,
   };
 }
 
 function deriveGeneralSettingsMetadata(settings = {}) {
   const normalizedSettings = normalizeGeneralSettings(settings);
-  const { obsidianPath, agentsPath } = normalizedSettings;
-  const configuredStorageRootPath = normalizeObsidianPath(obsidianPath);
-  const appRoot = configuredStorageRootPath
-    ? resolveMelodySyncAppRoot(configuredStorageRootPath)
+  const { appRoot, agentsPath } = normalizedSettings;
+  const configuredAppRootPath = normalizeAppRootPath(appRoot);
+  const resolvedAppRoot = configuredAppRootPath
+    ? resolveMelodySyncAppRoot(configuredAppRootPath)
     : (MELODYSYNC_APP_ROOT || DEFAULT_MELODYSYNC_APP_ROOT);
-  const defaultAgentsPath = appRoot ? resolveMelodySyncDefaultAgentsPath(appRoot) : MELODYSYNC_AGENTS_FILE;
+  const defaultAgentsPath = resolvedAppRoot ? resolveMelodySyncDefaultAgentsPath(resolvedAppRoot) : MELODYSYNC_AGENTS_FILE;
   const resolvedAgentsPath = agentsPath || defaultAgentsPath;
-  if (!appRoot) {
+  if (!resolvedAppRoot) {
     return {
-      configuredStorageRootPath,
-      storageRootPath: '',
+      configuredAppRootPath,
       appRoot: '',
       storagePath: GENERAL_SETTINGS_FILE,
       bootstrapStoragePath: GENERAL_SETTINGS_BOOTSTRAP_FILE,
@@ -79,11 +78,10 @@ function deriveGeneralSettingsMetadata(settings = {}) {
       agentsPath: resolvedAgentsPath,
     };
   }
-  const paths = buildMelodySyncPaths(appRoot, { agentsFile: resolvedAgentsPath });
+  const paths = buildMelodySyncPaths(resolvedAppRoot, { agentsFile: resolvedAgentsPath });
   return {
-    configuredStorageRootPath,
-    storageRootPath: appRoot,
-    appRoot,
+    configuredAppRootPath,
+    appRoot: resolvedAppRoot,
     storagePath: paths.generalSettingsFile,
     bootstrapStoragePath: GENERAL_SETTINGS_BOOTSTRAP_FILE,
     customHooksPath: paths.customHooksFile,
@@ -125,10 +123,10 @@ export async function readGeneralSettings() {
 
 export async function persistGeneralSettings(payload = {}) {
   const normalized = normalizeGeneralSettings(payload);
-  if (normalized.obsidianPath && !(await isDirectoryPath(normalized.obsidianPath))) {
-    await ensureDir(normalized.obsidianPath);
-    if (!(await isDirectoryPath(normalized.obsidianPath))) {
-      throw new Error('本地数据根路径不存在或不是目录');
+  if (normalized.appRoot && !(await isDirectoryPath(normalized.appRoot))) {
+    await ensureDir(normalized.appRoot);
+    if (!(await isDirectoryPath(normalized.appRoot))) {
+      throw new Error('应用路径不存在或不是目录');
     }
   }
   await writeJsonAtomic(GENERAL_SETTINGS_BOOTSTRAP_FILE, normalized);
@@ -161,7 +159,7 @@ export async function persistGeneralSettings(payload = {}) {
 export function exposeGeneralSettingsDefaults() {
   const metadata = deriveGeneralSettingsMetadata(DEFAULT_SETTINGS);
   return {
-    obsidianPath: DEFAULT_SETTINGS.obsidianPath,
+    appRoot: DEFAULT_SETTINGS.appRoot,
     ...metadata,
   };
 }

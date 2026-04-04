@@ -31,9 +31,8 @@ mkdirSync(secondAppRoot, { recursive: true });
 try {
   const settingsModule = await import(pathToFileURL(join(repoRoot, 'chat/settings-store.mjs')).href);
 
-  const first = await settingsModule.persistGeneralSettings({ obsidianPath: firstAppRoot });
-  assert.equal(first.configuredStorageRootPath, firstAppRoot);
-  assert.equal(first.storageRootPath, firstAppRoot);
+  const first = await settingsModule.persistGeneralSettings({ appRoot: firstAppRoot });
+  assert.equal(first.configuredAppRootPath, firstAppRoot);
   assert.equal(first.appRoot, firstAppRoot);
   assert.equal(first.storagePath, join(firstAppRoot, 'config', 'general-settings.json'));
   assert.equal(first.bootstrapStoragePath, join(legacyConfigDir, 'general-settings.json'));
@@ -41,26 +40,24 @@ try {
   assert.equal(first.agentsPath, join(firstAppRoot, 'AGENTS.md'));
   assert.equal(existsSync(first.storagePath), true);
 
-  const second = await settingsModule.persistGeneralSettings({ obsidianPath: secondAppRoot });
-  assert.equal(second.configuredStorageRootPath, secondAppRoot);
-  assert.equal(second.storageRootPath, secondAppRoot);
+  const second = await settingsModule.persistGeneralSettings({ appRoot: secondAppRoot });
+  assert.equal(second.configuredAppRootPath, secondAppRoot);
   assert.equal(second.appRoot, secondAppRoot);
   assert.equal(second.storagePath, join(secondAppRoot, 'config', 'general-settings.json'));
   assert.equal(second.customHooksPath, join(secondAppRoot, 'hooks', 'custom-hooks.json'));
   assert.equal(second.agentsPath, join(secondAppRoot, 'AGENTS.md'));
   assert.equal(
-    JSON.parse(readFileSync(second.bootstrapStoragePath, 'utf8')).obsidianPath,
+    JSON.parse(readFileSync(second.bootstrapStoragePath, 'utf8')).appRoot,
     secondAppRoot,
     'bootstrap settings should always point at the latest configured path',
   );
   assert.equal(
-    JSON.parse(readFileSync(second.storagePath, 'utf8')).obsidianPath,
+    JSON.parse(readFileSync(second.storagePath, 'utf8')).appRoot,
     secondAppRoot,
     'canonical settings should be written into the selected app root',
   );
   const current = await settingsModule.readGeneralSettings();
-  assert.equal(current.configuredStorageRootPath, secondAppRoot);
-  assert.equal(current.storageRootPath, secondAppRoot);
+  assert.equal(current.configuredAppRootPath, secondAppRoot);
   assert.equal(current.appRoot, secondAppRoot);
   assert.equal(current.customHooksPath, join(secondAppRoot, 'hooks', 'custom-hooks.json'));
   assert.equal(current.agentsPath, join(secondAppRoot, 'AGENTS.md'));

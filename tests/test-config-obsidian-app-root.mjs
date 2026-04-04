@@ -35,7 +35,7 @@ mkdirSync(legacyMemoryDir, { recursive: true });
 
 writeFileSync(
   join(legacyConfigDir, 'general-settings.json'),
-  JSON.stringify({ obsidianPath: preferredAgentDir }, null, 2),
+  JSON.stringify({ appRoot: preferredAgentDir }, null, 2),
   'utf8',
 );
 writeFileSync(

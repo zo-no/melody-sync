@@ -72,7 +72,7 @@ function nowIso() {
 
 async function getDefaultObsidianPath() {
   const settings = await readGeneralSettings();
-  return settings?.obsidianPath || '';
+  return settings?.appRoot || '';
 }
 
 function createId(prefix) {

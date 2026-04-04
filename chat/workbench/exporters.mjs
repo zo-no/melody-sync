@@ -161,7 +161,7 @@ export function buildProjectTreeMarkdown(project, nodes, branchContexts) {
     trimText(project.brief) || '暂无项目简介。',
     '',
     `- 项目状态：${project.status || 'active'}`,
-    `- Obsidian 路径：${project.obsidianPath}`,
+    `- 项目路径：${project.obsidianPath}`,
     '',
     '## Tree',
     '',

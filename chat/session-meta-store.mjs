@@ -1,11 +1,12 @@
 import { dirname } from 'path';
-import { CHAT_SESSIONS_FILE } from '../lib/config.mjs';
+import { CHAT_SESSIONS_FILE, CHAT_SESSIONS_INDEX_FILE } from '../lib/config.mjs';
 import {
   createSerialTaskQueue,
   ensureDir,
   readJson,
   statOrNull,
   writeJsonAtomic,
+  writeTextAtomic,
 } from './fs-utils.mjs';
 import {
   normalizeSessionWorkflowPriority,
@@ -13,6 +14,7 @@ import {
 } from './session-workflow-state.mjs';
 import { normalizeSessionAgreements } from './session-agreements.mjs';
 import { normalizeSessionTaskCard } from './session-task-card.mjs';
+import { buildSessionsIndexMarkdown } from './session-list-index.mjs';
 
 let sessionsMetaCache = null;
 let sessionsMetaCacheMtimeMs = null;
@@ -161,6 +163,7 @@ async function saveSessionsMetaUnlocked(list) {
   const dir = dirname(CHAT_SESSIONS_FILE);
   await ensureDir(dir);
   await writeJsonAtomic(CHAT_SESSIONS_FILE, list);
+  await writeTextAtomic(CHAT_SESSIONS_INDEX_FILE, buildSessionsIndexMarkdown(list));
   sessionsMetaCache = list;
   sessionsMetaCacheMtimeMs = (await statOrNull(CHAT_SESSIONS_FILE))?.mtimeMs ?? null;
 }
@@ -185,6 +188,9 @@ export async function loadSessionsMeta() {
     await saveSessionsMetaUnlocked(sessionsMetaCache);
   } else {
     sessionsMetaCacheMtimeMs = mtimeMs;
+    if (!(await statOrNull(CHAT_SESSIONS_INDEX_FILE))) {
+      await writeTextAtomic(CHAT_SESSIONS_INDEX_FILE, buildSessionsIndexMarkdown(sessionsMetaCache));
+    }
   }
   return sessionsMetaCache;
 }

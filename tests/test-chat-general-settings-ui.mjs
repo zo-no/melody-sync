@@ -144,8 +144,6 @@ const context = {
       ok: true,
       async json() {
         return {
-          obsidianPath: '/Users/test/vault',
-          storageRootPath: '/Users/test/vault',
           appRoot: '/Users/test/vault',
           storagePath: '/Users/test/vault/config/general-settings.json',
           bootstrapStoragePath: '/Users/test/.config/melody-sync/general-settings.json',
@@ -174,12 +172,11 @@ assert.equal(settingsTabGeneral.classList.contains('is-active'), true, 'general 
 assert.equal(settingsPanelGeneral.hidden, false, 'general panel should be visible by default');
 assert.match(generalPanelBody.innerHTML, /应用路径/, 'general settings should expose the editable application path field');
 assert.match(generalPanelBody.innerHTML, /说明文件/, 'general settings should expose the editable agents path field');
-assert.match(generalPanelBody.innerHTML, /<input[^>]+name="storageRootPath"[^>]+value="\/Users\/test\/vault"/, 'general settings should render the storage root as an editable input');
+assert.match(generalPanelBody.innerHTML, /<input[^>]+name="appRoot"[^>]+value="\/Users\/test\/vault"/, 'general settings should render the app root as an editable input');
 assert.match(generalPanelBody.innerHTML, /<input[^>]+name="agentsPath"[^>]+value="\/Users\/test\/vault\/00-🤖agent\/AGENTS\.md"/, 'general settings should render the agents file path as an editable input');
 assert.match(generalPanelBody.innerHTML, /应用目录：<\/strong><code>\/Users\/test\/vault<\/code>/, 'general settings should still show the resolved app root');
 assert.match(generalPanelBody.innerHTML, /后端配置文件：<\/strong><code>\/Users\/test\/vault\/config\/general-settings\.json<\/code>/, 'general settings should show the backend config file path');
-assert.match(generalPanelBody.innerHTML, /启动指针：<\/strong><code>\/Users\/test\/\.config\/melody-sync\/general-settings\.json<\/code>/, 'general settings should show the local bootstrap pointer file');
-assert.match(generalPanelBody.innerHTML, /跨机器时，目标机器也需要写这个指针文件。/, 'general settings should explain the cross-machine bootstrap requirement');
+assert.match(generalPanelBody.innerHTML, /当前设备配置文件：<\/strong><code>\/Users\/test\/\.config\/melody-sync\/general-settings\.json<\/code>/, 'general settings should show the local device config file');
 assert.match(generalPanelBody.innerHTML, /<textarea[^>]+name="agentsContent"/, 'general settings should expose the editable AGENTS textarea');
 assert.match(generalPanelBody.innerHTML, /保存/, 'general settings should expose a save button');
 assert.match(generalPanelBody.innerHTML, /重新加载/, 'general settings should expose a reload button');

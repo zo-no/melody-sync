@@ -264,9 +264,9 @@ Production updates should go through `melodysync release` rather than live-editi
 
 These are the default paths when no custom app root is configured.
 
-- If `general-settings.json` includes `obsidianPath`, MelodySync treats it as the direct app root.
+- If `general-settings.json` includes `appRoot`, MelodySync treats it as the direct app root.
 - If no custom app root is configured, MelodySync falls back to the machine-local paths below.
-- The bootstrap pointer file itself lives at `~/.config/melody-sync/general-settings.json`.
+- The current device config file lives at `~/.config/melody-sync/general-settings.json`.
 
 | Path | Contents |
 |------|----------|

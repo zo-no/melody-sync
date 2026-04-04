@@ -24,7 +24,7 @@ mkdirSync(configDir, { recursive: true });
 mkdirSync(join(vaultPath, 'hooks'), { recursive: true });
 writeFileSync(
   join(configDir, 'general-settings.json'),
-  JSON.stringify({ obsidianPath: vaultPath }, null, 2),
+  JSON.stringify({ appRoot: vaultPath }, null, 2),
   'utf8',
 );
 writeFileSync(
@@ -35,7 +35,7 @@ writeFileSync(
       eventPattern: 'instance.startup',
       label: '打开 Obsidian',
       description: '测试用自定义本地脚本 hook。',
-      shellCommand: `printf '%s' \"$MELODYSYNC_OBSIDIAN_PATH\" > \"${outputPath}\"`,
+      shellCommand: `printf '%s' \"$MELODYSYNC_APP_ROOT\" > \"${outputPath}\"`,
       runInBackground: false,
     },
   ], null, 2),

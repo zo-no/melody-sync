@@ -4,7 +4,7 @@ import {
   persistGeneralSettings,
 } from '../settings-store.mjs';
 
-export async function handleSettingsRoutes({ req, res, pathname, writeJson } = {}) {
+export async function handleSettingsRoutes({ req, res, pathname, writeJson, scheduleConfigReload } = {}) {
   const isSettingsRoute = pathname === '/api/settings' || pathname === '/api/settings/';
 
   if (isSettingsRoute && req?.method === 'GET') {
@@ -23,8 +23,17 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson } = {
       return true;
     }
     try {
+      const current = await readGeneralSettings();
       const next = await persistGeneralSettings(payload);
-      writeJson(res, 200, next);
+      const appRootChanged = !!(current?.appRoot && next?.appRoot && current.appRoot !== next.appRoot);
+      const restartScheduled = appRootChanged && typeof scheduleConfigReload === 'function'
+        ? scheduleConfigReload()
+        : false;
+      writeJson(res, 200, {
+        ...next,
+        reloadRequired: appRootChanged,
+        reloadScheduled: restartScheduled,
+      });
       return true;
     } catch (error) {
       writeJson(res, 400, { error: error.message || 'Failed to update settings' });

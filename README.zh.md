@@ -259,9 +259,9 @@ melodysync --help               显示帮助
 
 下面这些是未配置自定义应用目录时的默认路径。
 
-- 如果 `general-settings.json` 里配置了 `obsidianPath`，MelodySync 会把它当作直接应用目录。
+- 如果 `general-settings.json` 里配置了 `appRoot`，MelodySync 会把它当作直接应用目录。
 - 如果没有配置自定义应用目录，则继续回退到下面的机器本地默认路径。
-- 启动指针文件本身位于 `~/.config/melody-sync/general-settings.json`。
+- 当前设备配置文件位于 `~/.config/melody-sync/general-settings.json`。
 
 | 路径 | 内容 |
 |------|------|

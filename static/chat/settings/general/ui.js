@@ -40,6 +40,33 @@
     return typeof field?.value === 'string' ? field.value : '';
   }
 
+  function scheduleReloadAfterConfigSwitch() {
+    let attempts = 0;
+    const maxAttempts = 12;
+    const delayMs = 600;
+
+    async function poll() {
+      attempts += 1;
+      try {
+        const response = await global.fetch('/api/settings', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (response.ok) {
+          global.location?.reload?.();
+          return;
+        }
+      } catch {
+        // Keep polling until the restarted service becomes reachable.
+      }
+      if (attempts < maxAttempts) {
+        global.setTimeout?.(poll, delayMs);
+      }
+    }
+
+    global.setTimeout?.(poll, delayMs);
+  }
+
   async function saveSettings(form) {
     if (pending || !form) return;
     pending = true;
@@ -52,7 +79,7 @@
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          obsidianPath: getNamedField(form, 'storageRootPath').trim(),
+          appRoot: getNamedField(form, 'appRoot').trim(),
           agentsPath: getNamedField(form, 'agentsPath').trim(),
           agentsContent: getNamedField(form, 'agentsContent'),
         }),
@@ -62,9 +89,14 @@
         throw new Error(next?.error || `HTTP ${response.status}`);
       }
       loaded = next || loaded;
-      success = '已保存';
+      success = next?.reloadRequired
+        ? (next?.reloadScheduled ? '已保存，服务正在重新加载新应用目录。' : '已保存，请重启服务以加载新应用目录。')
+        : '已保存';
       pending = false;
       render();
+      if (next?.reloadRequired && next?.reloadScheduled) {
+        scheduleReloadAfterConfigSwitch();
+      }
     } catch (err) {
       pending = false;
       error = err?.message || '保存失败';
@@ -74,7 +106,6 @@
 
   function render() {
     if (!loaded) return;
-    const value = loaded.storageRootPath || loaded.obsidianPath || '';
     const appRoot = loaded.appRoot || '';
     const storagePath = loaded.storagePath || '';
     const bootstrapStoragePath = loaded.bootstrapStoragePath || '';
@@ -88,7 +119,7 @@
         <div class="hooks-phase-header">
           <div class="hooks-phase-heading">
             <div class="hooks-phase-title">通用设置</div>
-            <div class="hooks-phase-desc">路径配置会写回后端配置文件，Agent 按这里的路径去读写本地数据。</div>
+            <div class="hooks-phase-desc">应用路径决定当前服务从哪里读取和写入本地数据。</div>
           </div>
         </div>
         <div class="hooks-event-card">
@@ -97,7 +128,7 @@
               <div class="task-map-node-section-title">路径</div>
               <label class="task-map-node-field" style="display:flex;flex-direction:column;gap:6px">
                 <span class="hooks-panel-title" style="font-size:13px">应用路径</span>
-                <input class="settings-inline-input" name="storageRootPath" value="${escHtml(value)}" placeholder="/Users/xxx/diary/diary">
+                <input class="settings-inline-input" name="appRoot" value="${escHtml(appRoot)}" placeholder="/Users/xxx/diary/diary/00-🤖agent">
               </label>
               <label class="task-map-node-field" style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
                 <span class="hooks-panel-title" style="font-size:13px">说明文件</span>
@@ -106,8 +137,7 @@
               <div class="hooks-summary" style="margin-top:10px">
                 ${appRoot ? `<div class="hooks-summary-desc"><strong>应用目录：</strong><code>${escHtml(appRoot)}</code></div>` : ''}
                 ${storagePath ? `<div class="hooks-summary-desc"><strong>后端配置文件：</strong><code>${escHtml(storagePath)}</code></div>` : ''}
-                ${bootstrapStoragePath ? `<div class="hooks-summary-desc"><strong>启动指针：</strong><code>${escHtml(bootstrapStoragePath)}</code></div>` : ''}
-                ${bootstrapStoragePath ? `<div class="hooks-summary-desc">跨机器时，目标机器也需要写这个指针文件。</div>` : ''}
+                ${bootstrapStoragePath ? `<div class="hooks-summary-desc"><strong>当前设备配置文件：</strong><code>${escHtml(bootstrapStoragePath)}</code></div>` : ''}
               </div>
             </div>
             <div class="task-map-node-section">

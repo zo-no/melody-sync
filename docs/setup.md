@@ -51,7 +51,7 @@ MelodySync has two layers of local config:
 
 2. **App root**
    - default when unset: `~/.melodysync`
-   - if `general-settings.json` contains `obsidianPath`, MelodySync treats that value as the **direct app root**
+   - if `general-settings.json` contains `appRoot`, MelodySync treats that value as the **direct app root**
    - MelodySync stores its own durable data directly under that app root using:
      - `config/`
      - `memory/`
@@ -63,7 +63,7 @@ MelodySync has two layers of local config:
 Important:
 
 - Do **not** create an extra nested `.melodysync/` under a custom app root.
-- If the app root is synced by Obsidian or another tool, each machine still needs its **own** local bootstrap pointer file so the service can find that synced directory on that machine.
+- If the app root is synced by Obsidian or another tool, each machine still needs its **own** local device config file so the service can find that synced directory on that machine.
 
 ## Runtime configuration principle
 
@@ -120,7 +120,7 @@ But the second machine still needs:
 ## Done means
 
 - the local logs show the chat server is listening on `7760`
-- the bootstrap pointer and app root resolve to the intended storage directory
+- the current device config file and app root resolve to the intended storage directory
 - the app root contains `config/ memory/ sessions/ hooks/ workbench/ logs/`
 - the AI returns the final local URL as `http://127.0.0.1:7760/?token=...`
 - the human confirms the browser can open MelodySync successfully

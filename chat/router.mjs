@@ -4,7 +4,7 @@ import { homedir } from 'os';
 import { join, resolve, dirname, basename, extname, relative, isAbsolute, sep } from 'path';
 import { parse as parseUrl, fileURLToPath } from 'url';
 import { createHash } from 'crypto';
-import { execFileSync } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
 import { CHAT_IMAGES_DIR } from '../lib/config.mjs';
 import {
   getAuthSession, refreshAuthSession,
@@ -87,6 +87,31 @@ const pageBuildRoots = [
 let cachedPageBuildInfo = null;
 const frontendBuildWatchers = [];
 let frontendBuildInvalidationTimer = null;
+let configReloadScheduled = false;
+
+function scheduleConfigReload() {
+  if (configReloadScheduled) return true;
+  configReloadScheduled = true;
+  if (!process.env.XPC_SERVICE_NAME) {
+    const restartEnv = {
+      ...process.env,
+      MELODYSYNC_RESTART_NODE: process.execPath,
+      MELODYSYNC_RESTART_ENTRY: process.argv[1] || join(__dirname, '..', 'chat-server.mjs'),
+    };
+    const child = spawn('/bin/sh', ['-lc', 'sleep 0.4; exec "$MELODYSYNC_RESTART_NODE" "$MELODYSYNC_RESTART_ENTRY"'], {
+      cwd: process.cwd(),
+      env: restartEnv,
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+  }
+  const timer = setTimeout(() => {
+    process.kill(process.pid, 'SIGTERM');
+  }, 150);
+  timer.unref?.();
+  return true;
+}
 
 async function listSessionsForClient(options = {}) {
   const sessions = await listSessions(options);
@@ -797,6 +822,7 @@ export async function handleRequest(req, res) {
     res,
     pathname,
     writeJson,
+    scheduleConfigReload,
   })) {
     return;
   }

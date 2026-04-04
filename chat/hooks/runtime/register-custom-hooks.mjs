@@ -3,7 +3,6 @@ import { spawn } from 'child_process';
 import {
   CUSTOM_HOOKS_FILE,
   MELODYSYNC_APP_ROOT,
-  OBSIDIAN_VAULT_DIR,
 } from '../../../lib/config.mjs';
 import { readJson } from '../../fs-utils.mjs';
 import { createHookDefinition } from '../hook-contract.mjs';
@@ -53,9 +52,8 @@ function buildHookEnv(ctx, spec) {
     MELODYSYNC_SESSION_ID: normalizeText(ctx?.sessionId || session?.id),
     MELODYSYNC_SESSION_LABEL: normalizeText(session?.label || session?.title),
     MELODYSYNC_RUN_ID: normalizeText(manifest?.id || manifest?.runId),
-    MELODYSYNC_STORAGE_ROOT: normalizeText(OBSIDIAN_VAULT_DIR),
     MELODYSYNC_APP_ROOT: normalizeText(MELODYSYNC_APP_ROOT),
-    MELODYSYNC_OBSIDIAN_PATH: normalizeText(OBSIDIAN_VAULT_DIR),
+    MELODYSYNC_STORAGE_ROOT: normalizeText(MELODYSYNC_APP_ROOT),
   };
 }
 
