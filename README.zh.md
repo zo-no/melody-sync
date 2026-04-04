@@ -167,6 +167,10 @@ MelodySync 在几个点上是刻意有立场的：
 
 如果你想看完整的配置契约和人工节点说明，请直接看 `docs/setup.md`。
 
+如果你是腾讯云机器上的 Nginx/CLB 反代，请直接看：
+
+- `docs/tencentcloud-reverse-proxy.md`
+
 ### 配置完成后你会得到什么
 
 在你想使用的设备上打开 MelodySync 地址：
@@ -268,21 +272,25 @@ melodysync --help               显示帮助
 | `SESSION_EXPIRY` | `86400000` | Cookie 有效期（毫秒，24h） |
 | `SECURE_COOKIES` | `1` | Tailscale 或本地 HTTP 访问时设为 `0`（无 HTTPS） |
 | `REMOTELAB_INSTANCE_ROOT` | 未设置 | 可选的额外实例数据根目录；设置后默认使用 `<root>/config` + `<root>/memory` |
-| `REMOTELAB_CONFIG_DIR` | `~/.config/melody-sync` | 可选的运行时数据/配置目录覆盖，包含 auth、sessions、runs、apps、push、provider runtime home |
-| `REMOTELAB_MEMORY_DIR` | `~/.melody-sync/memory` | 可选的用户 memory 目录覆盖，供 pointer-first 启动使用 |
+| `REMOTELAB_CONFIG_DIR` | 兼容回退 `~/.config/melody-sync` | 可选的运行时数据/配置目录覆盖，包含 auth、sessions、runs、apps、push、provider runtime home |
+| `REMOTELAB_MEMORY_DIR` | 兼容回退 `~/.melody-sync/memory` | 可选的用户 memory 目录覆盖，供 pointer-first 启动使用 |
 
 ## 常用文件位置
 
-下面这些是未设置实例覆盖变量时的默认路径。
+下面这些是未配置自定义应用目录时的默认路径。
+
+- 如果 `general-settings.json` 里配置了 `obsidianPath`，MelodySync 会把它当作直接应用目录。
+- 如果没有配置自定义应用目录，则继续回退到下面的机器本地默认路径。
+- 启动指针文件本身位于 `~/.config/melody-sync/general-settings.json`。
 
 | 路径 | 内容 |
 |------|------|
-| `~/.config/melody-sync/auth.json` | 访问 token + 密码哈希 |
-| `~/.config/melody-sync/auth-sessions.json` | Owner 登录会话 |
-| `~/.config/melody-sync/chat-sessions.json` | Chat 会话元数据 |
-| `~/.config/melody-sync/chat-history/` | 每个会话的事件存储（`meta.json`、`context.json`、`events/*.json`、`bodies/*.txt`） |
-| `~/.config/melody-sync/chat-runs/` | 持久化 run manifest、spool 输出和最终结果 |
-| `~/.melody-sync/memory/` | pointer-first 启动时使用的机器私有 memory |
+| `~/.melodysync/config/auth.json` | 访问 token + 密码哈希 |
+| `~/.melodysync/config/auth-sessions.json` | Owner 登录会话 |
+| `~/.melodysync/sessions/chat-sessions.json` | Chat 会话元数据 |
+| `~/.melodysync/sessions/history/` | 每个会话的事件存储（`meta.json`、`context.json`、`events/*.json`、`bodies/*.txt`） |
+| `~/.melodysync/sessions/runs/` | 持久化 run manifest、spool 输出和最终结果 |
+| `~/.melodysync/memory/` | pointer-first 启动时使用的机器私有 memory |
 | `~/Library/Logs/chat-server.log` | Chat server 标准输出 **(macOS)** |
 | `~/Library/Logs/cloudflared.log` | Tunnel 标准输出 **(macOS)** |
 | `~/.local/share/melody-sync/logs/chat-server.log` | Chat server 标准输出 **(Linux)** |
@@ -304,7 +312,7 @@ melodysync --help               显示帮助
 
 - `scripts/chat-instance.sh` 现在除了旧的 `--home` 模式，也支持 `--instance-root`、`--config-dir`、`--memory-dir`。
 - 如果你想让第二实例继续复用当前机器的 provider 登录状态、但把 MelodySync 自己的数据和 memory 完全隔离，优先用 `--instance-root`。
-- 示例：`scripts/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melody-sync/instances/companion --secure-cookies 1`
+- 示例：`scripts/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melodysync/instances/companion --secure-cookies 1`
 
 ## 故障排查
 

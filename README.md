@@ -168,6 +168,10 @@ When you stop, tell me exactly what I need to do and how you'll verify it after 
 
 If you want the full setup contract and the human-only checkpoints, use `docs/setup.md`.
 
+For **Tencent Cloud reverse-proxying (Nginx / CLB)**, also check:
+
+- `docs/tencentcloud-reverse-proxy.md`
+
 ### What you'll have when done
 
 Open your MelodySync URL on the device you want to use:
@@ -272,22 +276,26 @@ Production updates should go through `melodysync release` rather than live-editi
 | `SESSION_EXPIRY` | `86400000` | Cookie lifetime in ms (24h) |
 | `SECURE_COOKIES` | `1` | Set `0` for Tailscale or local HTTP access (no HTTPS) |
 | `REMOTELAB_INSTANCE_ROOT` | unset | Optional isolated data root for an additional instance; defaults to `<root>/config` + `<root>/memory` when set |
-| `REMOTELAB_CONFIG_DIR` | `~/.config/melody-sync` | Optional runtime data/config override for auth, sessions, runs, apps, push, and provider-managed homes |
-| `REMOTELAB_MEMORY_DIR` | `~/.melody-sync/memory` | Optional user-memory override for pointer-first startup files |
+| `REMOTELAB_CONFIG_DIR` | legacy `~/.config/melody-sync` fallback | Optional runtime data/config override for auth, sessions, runs, apps, push, and provider-managed homes |
+| `REMOTELAB_MEMORY_DIR` | legacy `~/.melody-sync/memory` fallback | Optional user-memory override for pointer-first startup files |
 | `REMOTELAB_LIVE_CONTEXT_COMPACT_TOKENS` | `window overflow` | Optional auto-compact override in live-context tokens; unset = compact only after live context exceeds 100% of a known context window, `Inf` = disable |
 
 ## Common file locations
 
-These are the default paths when no instance overrides are set.
+These are the default paths when no custom app root is configured.
+
+- If `general-settings.json` includes `obsidianPath`, MelodySync treats it as the direct app root.
+- If no custom app root is configured, MelodySync falls back to the machine-local paths below.
+- The bootstrap pointer file itself lives at `~/.config/melody-sync/general-settings.json`.
 
 | Path | Contents |
 |------|----------|
-| `~/.config/melody-sync/auth.json` | Access token + password hash |
-| `~/.config/melody-sync/auth-sessions.json` | Owner auth sessions |
-| `~/.config/melody-sync/chat-sessions.json` | Chat session metadata |
-| `~/.config/melody-sync/chat-history/` | Per-session event store (`meta.json`, `context.json`, `events/*.json`, `bodies/*.txt`) |
-| `~/.config/melody-sync/chat-runs/` | Durable run manifests, spool output, and final results |
-| `~/.melody-sync/memory/` | Private machine-specific memory used for pointer-first startup |
+| `~/.melodysync/config/auth.json` | Access token + password hash |
+| `~/.melodysync/config/auth-sessions.json` | Owner auth sessions |
+| `~/.melodysync/sessions/chat-sessions.json` | Chat session metadata |
+| `~/.melodysync/sessions/history/` | Per-session event store (`meta.json`, `context.json`, `events/*.json`, `bodies/*.txt`) |
+| `~/.melodysync/sessions/runs/` | Durable run manifests, spool output, and final results |
+| `~/.melodysync/memory/` | Private machine-specific memory used for pointer-first startup |
 | `~/Library/Logs/chat-server.log` | Chat server stdout **(macOS)** |
 | `~/Library/Logs/cloudflared.log` | Tunnel stdout **(macOS)** |
 | `~/.local/share/melody-sync/logs/chat-server.log` | Chat server stdout **(Linux)** |
@@ -300,13 +308,13 @@ These are the default paths when no instance overrides are set.
 - On long-lived installs, storage can grow materially, especially if you keep long conversations, large tool outputs, heavy reasoning traces, or generated artifacts.
 - MelodySync does **not** automatically delete old data and does **not** currently ship a one-click cleanup feature. This is intentional: keeping user data is safer than guessing what is safe to remove.
 - If you want to reclaim disk space, periodically review old archived sessions and prune them manually from the terminal, or ask an AI operator to help you clean them up carefully.
-- In practice, most storage growth lives under `~/.config/melody-sync/chat-history/` and `~/.config/melody-sync/chat-runs/`.
+- In practice, most storage growth lives under `~/.melodysync/sessions/history/` and `~/.melodysync/sessions/runs/`.
 
 ## Ad-hoc extra instances
 
 - `scripts/chat-instance.sh` now supports `--instance-root`, `--config-dir`, and `--memory-dir` in addition to the older `--home` mode.
 - Use `--instance-root` when you want a second instance to keep the same machine `HOME` (so provider auth keeps working) while isolating MelodySync's own runtime data and memory.
-- Example: `scripts/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melody-sync/instances/companion --secure-cookies 1`
+- Example: `scripts/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melodysync/instances/companion --secure-cookies 1`
 
 ## Security
 
