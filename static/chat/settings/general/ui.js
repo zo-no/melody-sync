@@ -77,6 +77,7 @@
     const value = loaded.storageRootPath || loaded.obsidianPath || '';
     const appRoot = loaded.appRoot || '';
     const storagePath = loaded.storagePath || '';
+    const bootstrapStoragePath = loaded.bootstrapStoragePath || '';
     const agentsPath = loaded.agentsPath || '';
     const agentsContent = loaded.agentsContent || '';
     const statusRow = error
@@ -105,6 +106,8 @@
               <div class="hooks-summary" style="margin-top:10px">
                 ${appRoot ? `<div class="hooks-summary-desc"><strong>应用目录：</strong><code>${escHtml(appRoot)}</code></div>` : ''}
                 ${storagePath ? `<div class="hooks-summary-desc"><strong>后端配置文件：</strong><code>${escHtml(storagePath)}</code></div>` : ''}
+                ${bootstrapStoragePath ? `<div class="hooks-summary-desc"><strong>启动指针：</strong><code>${escHtml(bootstrapStoragePath)}</code></div>` : ''}
+                ${bootstrapStoragePath ? `<div class="hooks-summary-desc">跨机器时，目标机器也需要写这个指针文件。</div>` : ''}
               </div>
             </div>
             <div class="task-map-node-section">
