@@ -80,8 +80,6 @@ For setup, deployment, connector, and feature-rollout docs, assume the operator 
 
 ### Focused Integrations
 
-- `cloudflare-email-worker.md` — model-first Cloudflare Email Worker deployment contract
-- `feishu-bot-setup.md` — model-first operator + console contract for the RemoteLab Feishu connector
 - `github-auto-triage.md` — model-first GitHub intake and auto-reply rollout contract
 - `remote-capability-monitor.md` — remote-agent capability monitoring backed by the core session API
 - `tunnel-diagnostics.md` — Cloudflare Tunnel latency probe workflow for separating app cost from edge/tunnel cost

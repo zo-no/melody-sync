@@ -90,30 +90,6 @@ assert.doesNotMatch(splitPrompt, /Routing principle for this turn/);
 assert.match(splitPrompt, /User message:/);
 assert.match(splitPrompt, /append exactly one final <task_card> JSON block/i);
 
-const feishuSourcePrompt = await buildPrompt(
-  'session-test-3',
-  {
-    ...baseSession,
-    sourceId: 'feishu',
-    sourceName: 'Feishu',
-    sourceContext: {
-      chatType: 'group',
-    },
-  },
-  '帮我看一下这个仓库的问题。',
-  'codex',
-  'codex',
-  null,
-  { skipSessionContinuation: true },
-);
-
-assert.match(feishuSourcePrompt, /Source\/runtime instructions \(backend-owned for this session source\):/);
-assert.match(feishuSourcePrompt, /same local workspace agent you would be in MelodySync chat/);
-assert.match(feishuSourcePrompt, /Do not collapse action requests into a one-line acknowledgement/);
-assert.match(feishuSourcePrompt, /Do not include emoji characters, emoticons, or sticker aliases/);
-assert.match(feishuSourcePrompt, /source-context/);
-assert.match(feishuSourcePrompt, /This session maps to a group chat/);
-
 const observerSourcePrompt = await buildPrompt(
   'session-test-4',
   {

@@ -261,7 +261,10 @@ async function main() {
     assert.doesNotMatch(page.text, /id="organizeSessionBtn"/, 'chat page should not ship detached organize header controls');
     assert.match(page.text, /id="taskMapRail"/, 'chat page should ship the dedicated middle-column task map rail');
     assert.match(page.text, /id="hooksSettingsBtn"/, 'chat page should ship the shared settings trigger in the sidebar header');
+    assert.match(page.text, /id="settingsTabEmail"/, 'chat page should ship the email tab inside the shared settings overlay');
     assert.match(page.text, /id="settingsTabHooks"/, 'chat page should ship the hooks tab inside the shared settings overlay');
+    assert.match(page.text, /id="settingsPanelEmail"/, 'chat page should ship the email settings panel mount inside the shared settings overlay');
+    assert.match(page.text, /id="emailSettingsPanelBody"/, 'chat page should ship the email settings body mount inside the shared settings overlay');
     assert.match(page.text, /id="settingsTabNodes"/, 'chat page should ship the node tab inside the shared settings overlay');
     assert.match(page.text, /id="settingsPanelNodes"/, 'chat page should ship the node settings panel mount inside the shared settings overlay');
     assert.match(page.text, /id="taskMapNodeSettingsBody"/, 'chat page should ship the node settings body mount inside the shared settings overlay');
@@ -282,7 +285,7 @@ async function main() {
     assert.match(page.text, /\/chat\/workbench\/task-map-plan\.js\?v=/, 'chat page should load the task-map plan overlay before the projection model');
     assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
     assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-effects\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-instance\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-capabilities\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-task-card\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-client\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-plan\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/surface-projection\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-clusters\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-mock-presets\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the graph contract, graph client, node-instance helpers, task-card helpers, plan helpers, and quest-source helpers before the task-map projection model');
-    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-rich-view-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-canvas-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/controller\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
+    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-rich-view-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-canvas-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/controller\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/general\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/email\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-settings-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');
@@ -592,6 +595,11 @@ async function main() {
     assert.equal(settingsUiAsset.status, 200, 'shared settings ui asset should load');
     assert.match(settingsUiAsset.text, /MelodySyncSettingsPanel/);
     assert.match(settingsUiAsset.text, /data-settings-tab/);
+
+    const emailSettingsUiAsset = await request(port, 'GET', '/chat/settings/email/ui.js');
+    assert.equal(emailSettingsUiAsset.status, 200, 'email settings ui asset should load');
+    assert.match(emailSettingsUiAsset.text, /emailSettingsPanelBody/);
+    assert.match(emailSettingsUiAsset.text, /\/api\/settings\/email/);
 
     const nodeContractAsset = await request(port, 'GET', '/chat/workbench/node-contract.js');
     assert.equal(nodeContractAsset.status, 200, 'workbench node contract asset should load');

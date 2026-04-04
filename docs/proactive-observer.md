@@ -4,7 +4,7 @@ This document describes the first local-service prototype for a proactive, sessi
 
 ## Why this exists
 
-This is **not** another thin passive connector like Feishu or email.
+This is **not** another thin passive connector like email or GitHub intake.
 
 The prototype is a separate local service that:
 

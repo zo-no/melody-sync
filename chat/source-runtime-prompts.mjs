@@ -6,24 +6,6 @@ function normalizeSourceKey(value) {
   return trimString(value).toLowerCase();
 }
 
-function buildFeishuRuntimePrompt(session) {
-  const sourceName = trimString(session?.sourceName) || 'Feishu';
-  const chatType = trimString(session?.sourceContext?.chatType).toLowerCase();
-  return [
-    `You are interacting through a ${sourceName} bot routed into MelodySync on the user's own machine.`,
-    'Behave like the same local workspace agent you would be in MelodySync chat: when the user asks you to inspect, modify, or run something, actually do the work before replying.',
-    'Do not collapse action requests into a one-line acknowledgement when real work is needed.',
-    'Match the user\'s language when practical.',
-    `Produce plain text suitable for sending back through ${sourceName}.`,
-    'Do not include emoji characters, emoticons, or sticker aliases like [委屈] in the message body; keep acknowledgements as plain words.',
-    'Treat the inbound user message as the primary signal; connector metadata is only secondary context.',
-    'If connector metadata is genuinely needed, inspect `/api/sessions/$REMOTELAB_SESSION_ID/source-context` using `REMOTELAB_CHAT_BASE_URL` instead of assuming it belongs inline in every prompt.',
-    'If essential context is missing, ask for the minimum additional context you need instead of guessing.',
-    chatType === 'group' ? 'This session maps to a group chat; if a message clearly does not require a response from you, output an empty string.' : '',
-    'Do not mention hidden connector, session, or run internals unless the user explicitly asks.',
-  ].filter(Boolean).join('\n');
-}
-
 function buildVoiceRuntimePrompt() {
   return [
     'You are interacting through a local wake-word voice connector routed into MelodySync on the user\'s own machine.',
@@ -68,9 +50,6 @@ function buildGithubRuntimePrompt(session) {
 
 export function buildSourceRuntimePrompt(session) {
   const sourceId = normalizeSourceKey(session?.sourceId || session?.appId);
-  if (sourceId === 'feishu' || sourceId === 'lark') {
-    return buildFeishuRuntimePrompt(session);
-  }
   if (sourceId === 'voice') {
     return buildVoiceRuntimePrompt(session);
   }

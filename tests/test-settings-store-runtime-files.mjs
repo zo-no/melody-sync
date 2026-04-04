@@ -32,6 +32,7 @@ try {
   assert.equal(runtime.appRoot, appRoot);
   assert.equal(runtime.agentsPath, join(appRoot, 'AGENTS.md'));
   assert.equal(existsSync(join(appRoot, 'config')), true);
+  assert.equal(existsSync(join(appRoot, 'email')), true);
   assert.equal(existsSync(join(appRoot, 'memory')), true);
   assert.equal(existsSync(join(appRoot, 'memory', 'tasks')), true);
   assert.equal(existsSync(join(appRoot, 'sessions')), true);

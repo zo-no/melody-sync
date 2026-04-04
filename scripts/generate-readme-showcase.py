@@ -16,7 +16,7 @@ CANVAS_SIZE = (2400, 1440)
 BACKGROUND = (244, 247, 252)
 TITLE = "Desktop · Mobile · Bot / Connector"
 SUBTITLE = "One AI workbench across every surface"
-BOTTOM_LABEL = "Phone · Desktop · Feishu / Bot"
+BOTTOM_LABEL = "Phone · Desktop · Connector"
 TITLE_FONT = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
 BODY_FONT = "/System/Library/Fonts/Helvetica.ttc"
 

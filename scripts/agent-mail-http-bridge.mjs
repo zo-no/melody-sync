@@ -2,14 +2,19 @@
 
 import { createServer } from 'http';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { homedir } from 'os';
 import { join } from 'path';
-import { ingestRawMessage, loadBridge, mailboxPaths, summarizeQueueItem } from '../lib/agent-mailbox.mjs';
+import {
+  DEFAULT_ROOT_DIR,
+  ingestRawMessage,
+  loadBridge,
+  mailboxPaths,
+  summarizeQueueItem,
+} from '../lib/agent-mailbox.mjs';
 import { matchesWebhookToken, normalizeIp } from '../lib/agent-mail-http-bridge.mjs';
 
 const HOST = process.env.AGENT_MAILBOX_HOST || '127.0.0.1';
 const PORT = Number.parseInt(process.env.AGENT_MAILBOX_PORT || '7694', 10);
-const ROOT_DIR = process.env.AGENT_MAILBOX_ROOT || join(homedir(), '.config', 'remotelab', 'agent-mailbox');
+const ROOT_DIR = process.env.AGENT_MAILBOX_ROOT || DEFAULT_ROOT_DIR;
 const WEBHOOKS_DIR = join(ROOT_DIR, 'webhooks');
 const EVENTS_FILE = join(ROOT_DIR, 'bridge-events.jsonl');
 const MAX_BODY_BYTES = 12 * 1024 * 1024;

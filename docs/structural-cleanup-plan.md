@@ -95,7 +95,6 @@ chat/
     branching.mjs
     summaries.mjs
   integrations/
-    feishu/
     github/
     email/
     voice/

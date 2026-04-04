@@ -12,7 +12,7 @@ It does not care much whether the control surface is a phone, tablet, or desktop
 
 > Current baseline: `v0.3` — an owner-first session runtime, durable on-disk history, executor adapters, and a no-build web UI that works across phone and desktop.
 
-> Reach the same system from desktop, phone, and integration surfaces like Feishu or email-driven flows.
+> Reach the same system from desktop, phone, and optional integration surfaces without changing the core session workflow.
 
 ## Quick install
 

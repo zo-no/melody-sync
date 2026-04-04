@@ -315,7 +315,7 @@ Expected outcome:
 
 This connector does not require a new core runtime model.
 
-It follows the same contract as Feishu, GitHub, and other external connectors:
+It follows the same contract as GitHub, email, and other external connectors:
 
 1. authenticate to RemoteLab
 2. create or reuse a session

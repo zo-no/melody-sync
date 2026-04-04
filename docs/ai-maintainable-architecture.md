@@ -225,7 +225,6 @@ melody-sync/
 │   └── job-dispatcher.mjs
 ├── integrations/
 │   ├── tools/
-│   ├── feishu/
 │   ├── voice/
 │   ├── github/
 │   └── mail/
@@ -412,7 +411,7 @@ Important rule:
 
 ### Phase 4: Integration isolation
 
-- move Feishu, voice, mail, GitHub, and similar helpers under `integrations/`
+- move voice, mail, GitHub, and similar helpers under `integrations/`
 - keep shipped core independent from operator-specific adapters
 
 ## What this buys AI maintenance

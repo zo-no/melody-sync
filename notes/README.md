@@ -49,7 +49,6 @@ A note may temporarily stay at the `notes/` root if it is still an active resear
 Current exceptions:
 
 - `message-transport-architecture.md` — still referenced by ongoing design threads and left in place for path stability
-- `feishu-bot-connector.md` — intentionally left untouched while Feishu research is still in motion
 
 ## Promotion And Trimming Rule
 

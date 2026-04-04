@@ -133,12 +133,10 @@
 
 这些文档是当前 repo 中仍保留的专项设计，但不属于当前主线：
 
-- `feishu-dynamic-access-plan.md`
 - `ai-era-hard-skills-roadmap.md`
 
 ### 当前作用
 
-- `feishu-dynamic-access-plan.md` 是 Feishu connector 方向的专项方案
 - `ai-era-hard-skills-roadmap.md` 更像团队/个人成长路线，不是产品设计主文档
 
 ### 管理方式

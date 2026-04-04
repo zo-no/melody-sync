@@ -15,7 +15,7 @@ This document lists the current shipped MelodySync feature surface after App tem
 | Runtime preferences | Tool, model, effort, thinking | Stored per session |
 | Session organization | Auto title, grouping, sidebar sorting helpers, flat task list | Sidebar stays a grouped work list; task structure lives in the map/tracker |
 | UI | Phone + desktop web UI, reconnect refresh, build update prompt | No frontend build step required |
-| Integrations | External message protocol, Feishu/email/GitHub style connectors, remote capability monitor | These create or enrich sessions through the core session API |
+| Integrations | External message protocol, email/GitHub style connectors, remote capability monitor | These create or enrich sessions through the core session API |
 | Deployment | Local self-hosting and guest instances | External access is operator-managed and documented separately |
 
 ## Removed Features

@@ -57,6 +57,7 @@ function deriveGeneralSettingsMetadata(settings = {}) {
       appRoot: '',
       storagePath: GENERAL_SETTINGS_FILE,
       bootstrapStoragePath: GENERAL_SETTINGS_BOOTSTRAP_FILE,
+      emailPath: '',
       customHooksPath: CUSTOM_HOOKS_FILE,
       agentsPath: resolvedAgentsPath,
     };
@@ -67,6 +68,7 @@ function deriveGeneralSettingsMetadata(settings = {}) {
     appRoot: resolvedAppRoot,
     storagePath: paths.generalSettingsFile,
     bootstrapStoragePath: GENERAL_SETTINGS_BOOTSTRAP_FILE,
+    emailPath: paths.emailDir,
     customHooksPath: paths.customHooksFile,
     agentsPath: resolvedAgentsPath,
   };
@@ -132,6 +134,7 @@ export async function persistGeneralSettings(payload = {}) {
   const metadata = deriveGeneralSettingsMetadata(normalized);
   const paths = buildMelodySyncPaths(metadata.appRoot, { agentsFile: metadata.agentsPath });
   await ensureDir(paths.configDir);
+  await ensureDir(paths.emailDir);
   await ensureDir(paths.hooksDir);
   await ensureDir(paths.sessionsDir);
   await ensureDir(paths.workbenchDir);
@@ -153,6 +156,7 @@ export async function ensureGeneralSettingsRuntimeFiles() {
   const metadata = deriveGeneralSettingsMetadata(current);
   const paths = buildMelodySyncPaths(metadata.appRoot, { agentsFile: metadata.agentsPath });
   await ensureDir(paths.configDir);
+  await ensureDir(paths.emailDir);
   await ensureDir(paths.hooksDir);
   await ensureDir(paths.sessionsDir);
   await ensureDir(paths.workbenchDir);

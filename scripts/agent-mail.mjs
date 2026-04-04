@@ -95,7 +95,6 @@ function printUsage() {
   node scripts/agent-mail.mjs approve <id> [--reviewer <name>] [--root <dir>]
   node scripts/agent-mail.mjs outbound status [--root <dir>]
   node scripts/agent-mail.mjs outbound configure-apple-mail [--account <name-or-email>] [--root <dir>]
-  node scripts/agent-mail.mjs outbound configure-cloudflare-worker [--worker-base-url <url>] [--from <email>] [--worker-token <token>] [--worker-token-env <ENV>] [--root <dir>]
   node scripts/agent-mail.mjs automation status [--root <dir>]
   node scripts/agent-mail.mjs automation configure [--enabled <true|false>] [--allowlist-auto-approve <true|false>] [--auto-approve-reviewer <name>] [--chat-base-url <url>] [--auth-file <path>] [--delivery-mode <reply_email|session_only>] [--folder <dir>] [--tool <tool>] [--group <name>] [--description <text>] [--system-prompt <text>] [--model <name>] [--effort <level>] [--thinking <true|false>] [--root <dir>]
 
@@ -105,9 +104,8 @@ Examples:
   node scripts/agent-mail.mjs queue review
   node scripts/agent-mail.mjs approve mail_123 --reviewer operator
   node scripts/agent-mail.mjs outbound configure-apple-mail --account Google
-  node scripts/agent-mail.mjs outbound configure-cloudflare-worker --from agent@example.com --worker-base-url https://remotelab-email-worker.example.workers.dev
-  node scripts/agent-mail.mjs automation configure --allowlist-auto-approve true --chat-base-url http://127.0.0.1:7690
-  node scripts/agent-mail.mjs automation configure --delivery-mode session_only --chat-base-url http://127.0.0.1:7701 --auth-file ~/.remotelab/instances/trial6/config/auth.json`);
+  node scripts/agent-mail.mjs automation configure --allowlist-auto-approve true --chat-base-url http://127.0.0.1:7760
+  node scripts/agent-mail.mjs automation configure --delivery-mode session_only --chat-base-url http://127.0.0.1:7760 --auth-file ~/vault/00-🤖agent/config/auth.json`);
 }
 
 function printJson(value) {
@@ -225,22 +223,7 @@ async function main() {
       return;
     }
 
-    if (action === 'configure-cloudflare-worker') {
-      const current = loadOutboundConfig(rootDir);
-      saveOutboundConfig(rootDir, {
-        ...current,
-        provider: 'cloudflare_worker',
-        workerBaseUrl: optionValue(options, 'worker-base-url', current.workerBaseUrl),
-        from: optionValue(options, 'from', current.from),
-        workerToken: optionValue(options, 'worker-token', current.workerToken),
-        workerTokenEnv: optionValue(options, 'worker-token-env', current.workerTokenEnv),
-      });
-      console.log(`Updated outbound config at ${mailboxPaths(rootDir).outboundFile}`);
-      printJson(getMailboxStatus(rootDir).outbound);
-      return;
-    }
-
-    throw new Error('outbound requires a subcommand: status | configure-apple-mail | configure-cloudflare-worker');
+    throw new Error('outbound requires a subcommand: status | configure-apple-mail');
   }
 
   if (command === 'automation') {

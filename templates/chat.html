@@ -64,6 +64,7 @@
       </div>
       <div class="hooks-panel-tabs" role="tablist" aria-label="设置分类">
         <button class="hooks-panel-tab is-active" id="settingsTabGeneral" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelGeneral" data-settings-tab="general">通用</button>
+        <button class="hooks-panel-tab" id="settingsTabEmail" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelEmail" data-settings-tab="email">Email</button>
         <button class="hooks-panel-tab" id="settingsTabHooks" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelHooks" data-settings-tab="hooks">Hooks</button>
         <button class="hooks-panel-tab" id="settingsTabNodes" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelNodes" data-settings-tab="nodes">节点</button>
       </div>
@@ -74,7 +75,22 @@
               <div class="hooks-phase-header">
                 <div class="hooks-phase-heading">
                   <div class="hooks-phase-title">通用设置</div>
-                  <div class="hooks-phase-desc">当前仅支持配置 Obsidian 导出根路径，用于所有新建项目的默认目标目录。</div>
+                  <div class="hooks-phase-desc">应用路径决定当前服务从哪里读取和写入本地数据。</div>
+                </div>
+              </div>
+              <div class="hooks-event-card">
+                <div class="hooks-loading">加载中…</div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="settings-tab-panel" id="settingsPanelEmail" data-settings-panel="email" role="tabpanel" hidden>
+          <div id="emailSettingsPanelBody">
+            <div class="hooks-phase-section">
+              <div class="hooks-phase-header">
+                <div class="hooks-phase-heading">
+                  <div class="hooks-phase-title">Email 设置</div>
+                  <div class="hooks-phase-desc">管理邮箱身份、发送方式和自动化处理规则。</div>
                 </div>
               </div>
               <div class="hooks-event-card">
@@ -270,6 +286,7 @@
 <script src="/chat/settings/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/hooks/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/general/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/settings/email/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/node-settings-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/hooks/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/core/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
