@@ -11,7 +11,7 @@ Files by role:
 - `register-builtin-hooks.mjs` and `register-session-manager-hooks.mjs`: compatibility wrappers over `runtime/`.
 - `*-hook.mjs`: focused hook handlers or factories. Keep them short and testable.
 - `hook-settings-store.mjs`: compatibility wrapper over `runtime/settings-store.mjs`.
-- custom hook design file: the runtime can also load JSON-defined local shell hooks from the current MelodySync app root, typically `<storage-root>/.melodysync/hooks/custom-hooks.json` or `<storage-root>/00-🤖agent/.melodysync/hooks/custom-hooks.json` when that workspace exists (or `custom-hooks.json` under explicit config overrides).
+- custom hook design file: the runtime can also load JSON-defined local shell hooks from the current MelodySync app root, typically `<app-root>/hooks/custom-hooks.json` (or `custom-hooks.json` under explicit config overrides).
 
 When adding or changing a hook:
 

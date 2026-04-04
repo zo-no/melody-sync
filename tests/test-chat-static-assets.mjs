@@ -151,7 +151,7 @@ async function stopServer(server) {
 
 async function main() {
   const { home } = setupTempHome();
-  const sessionsFile = join(home, '.config', 'remotelab', 'auth-sessions.json');
+  const sessionsFile = join(home, '.melodysync', 'config', 'auth-sessions.json');
   const port = randomPort();
   const server = await startServer({ home, port });
 
@@ -1102,7 +1102,7 @@ async function main() {
       'hooks api should expose lifecycle scope definitions for the settings panel',
     );
     assert.equal(hooksApiJson.settings?.persistence, 'file');
-    assert.match(hooksApiJson.settings?.storagePath || '', /hooks\.json$/);
+    assert.match(hooksApiJson.settings?.storagePath || '', /hooks\/settings\.json$/);
     assert.deepEqual(
       hooksApiJson.layerOrder,
       ['boot', 'lifecycle', 'delivery', 'other'],

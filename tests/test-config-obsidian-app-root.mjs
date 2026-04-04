@@ -18,13 +18,12 @@ delete process.env.REMOTELAB_OBSIDIAN_PATH;
 
 const legacyConfigDir = join(tempHome, '.config', 'melody-sync');
 const vaultPath = join(tempHome, 'vault');
-const legacyVaultRoot = join(vaultPath, '.melody-sync');
-const legacyVisibleVaultRoot = join(vaultPath, '00-agents', 'melody-sync');
-const legacyVaultConfigDir = join(legacyVaultRoot, 'config');
-const legacyVaultHooksDir = join(legacyVaultRoot, 'hooks');
-const legacyVaultSessionsDir = join(legacyVaultRoot, 'sessions');
-const legacyMemoryDir = join(legacyVaultRoot, 'memory');
 const preferredAgentDir = join(vaultPath, '00-🤖agent');
+const legacyNestedAppRoot = join(preferredAgentDir, '.melodysync');
+const legacyVaultConfigDir = join(legacyNestedAppRoot, 'config');
+const legacyVaultHooksDir = join(legacyNestedAppRoot, 'hooks');
+const legacyVaultSessionsDir = join(legacyNestedAppRoot, 'sessions');
+const legacyMemoryDir = join(legacyNestedAppRoot, 'memory');
 
 mkdirSync(legacyConfigDir, { recursive: true });
 mkdirSync(vaultPath, { recursive: true });
@@ -33,11 +32,10 @@ mkdirSync(legacyVaultConfigDir, { recursive: true });
 mkdirSync(legacyVaultHooksDir, { recursive: true });
 mkdirSync(legacyVaultSessionsDir, { recursive: true });
 mkdirSync(legacyMemoryDir, { recursive: true });
-mkdirSync(join(legacyVisibleVaultRoot, 'hooks'), { recursive: true });
 
 writeFileSync(
   join(legacyConfigDir, 'general-settings.json'),
-  JSON.stringify({ obsidianPath: vaultPath }, null, 2),
+  JSON.stringify({ obsidianPath: preferredAgentDir }, null, 2),
   'utf8',
 );
 writeFileSync(
@@ -56,16 +54,16 @@ try {
   const config = await import(pathToFileURL(join(repoRoot, 'lib/config.mjs')).href);
 
   assert.equal(config.USE_OBSIDIAN_VAULT_STORAGE, true);
-  assert.equal(config.OBSIDIAN_VAULT_DIR, vaultPath);
-  assert.equal(config.MELODYSYNC_APP_ROOT, join(vaultPath, '00-🤖agent', '.melodysync'));
-  assert.equal(config.CONFIG_DIR, join(vaultPath, '00-🤖agent', '.melodysync', 'config'));
-  assert.equal(config.MEMORY_DIR, join(vaultPath, '00-🤖agent', '.melodysync', 'memory'));
-  assert.equal(config.HOOKS_FILE, join(vaultPath, '00-🤖agent', '.melodysync', 'hooks', 'settings.json'));
-  assert.equal(config.CHAT_SESSIONS_FILE, join(vaultPath, '00-🤖agent', '.melodysync', 'sessions', 'chat-sessions.json'));
-  assert.equal(config.CUSTOM_HOOKS_FILE, join(vaultPath, '00-🤖agent', '.melodysync', 'hooks', 'custom-hooks.json'));
-  assert.equal(config.MELODYSYNC_AGENTS_FILE, join(vaultPath, '00-🤖agent', 'AGENTS.md'));
+  assert.equal(config.OBSIDIAN_VAULT_DIR, preferredAgentDir);
+  assert.equal(config.MELODYSYNC_APP_ROOT, preferredAgentDir);
+  assert.equal(config.CONFIG_DIR, join(preferredAgentDir, 'config'));
+  assert.equal(config.MEMORY_DIR, join(preferredAgentDir, 'memory'));
+  assert.equal(config.HOOKS_FILE, join(preferredAgentDir, 'hooks', 'settings.json'));
+  assert.equal(config.CHAT_SESSIONS_FILE, join(preferredAgentDir, 'sessions', 'chat-sessions.json'));
+  assert.equal(config.CUSTOM_HOOKS_FILE, join(preferredAgentDir, 'hooks', 'custom-hooks.json'));
+  assert.equal(config.MELODYSYNC_AGENTS_FILE, join(preferredAgentDir, 'AGENTS.md'));
 
-  assert.equal(existsSync(join(vaultPath, '00-🤖agent', '.melodysync', 'README.md')), true, 'app root README should be scaffolded');
+  assert.equal(existsSync(join(preferredAgentDir, 'README.md')), true, 'app root README should be scaffolded');
   assert.equal(existsSync(config.MELODYSYNC_AGENTS_FILE), true, 'agents guide scaffold should exist');
   assert.equal(existsSync(config.CUSTOM_HOOKS_FILE), true, 'custom hooks scaffold should exist');
   assert.deepEqual(

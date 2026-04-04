@@ -33,7 +33,7 @@ This document lists the current shipped MelodySync feature surface after App tem
 
 Default layout:
 
-- if `obsidianPath` is configured, MelodySync treats it as the local data root and stores app state under a hidden `.melodysync/` directory; if the root already contains `00-🤖agent/`, MelodySync prefers `00-🤖agent/.melodysync/`
+- if `obsidianPath` is configured, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
 - otherwise it falls back to the legacy home-local config + memory layout
 
 | Path | Purpose |

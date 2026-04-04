@@ -17,18 +17,18 @@ delete process.env.REMOTELAB_OBSIDIAN_VAULT_DIR;
 delete process.env.REMOTELAB_OBSIDIAN_PATH;
 
 const configDir = join(tempHome, '.config', 'melody-sync');
-const vaultPath = join(tempHome, 'vault');
+const vaultPath = join(tempHome, 'vault', '00-🤖agent');
 const outputPath = join(tempHome, 'hook-output.txt');
 
 mkdirSync(configDir, { recursive: true });
-mkdirSync(vaultPath, { recursive: true });
+mkdirSync(join(vaultPath, 'hooks'), { recursive: true });
 writeFileSync(
   join(configDir, 'general-settings.json'),
   JSON.stringify({ obsidianPath: vaultPath }, null, 2),
   'utf8',
 );
 writeFileSync(
-  join(configDir, 'custom-hooks.json'),
+  join(vaultPath, 'hooks', 'custom-hooks.json'),
   JSON.stringify([
     {
       id: 'custom.open-obsidian-script',

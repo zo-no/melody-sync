@@ -146,9 +146,9 @@ const context = {
         return {
           obsidianPath: '/Users/test/vault',
           storageRootPath: '/Users/test/vault',
-          appRoot: '/Users/test/vault/00-🤖agent/.melodysync',
-          storagePath: '/Users/test/vault/00-🤖agent/.melodysync/config/general-settings.json',
-          customHooksPath: '/Users/test/vault/00-🤖agent/.melodysync/hooks/custom-hooks.json',
+          appRoot: '/Users/test/vault',
+          storagePath: '/Users/test/vault/config/general-settings.json',
+          customHooksPath: '/Users/test/vault/hooks/custom-hooks.json',
           agentsPath: '/Users/test/vault/00-🤖agent/AGENTS.md',
           agentsContent: '# MelodySync AGENTS\n',
         };
@@ -171,14 +171,15 @@ assert.equal(hooksOverlay.hidden, false, 'settings button should open the shared
 assert.deepEqual(fetchCalls, ['/api/settings'], 'opening settings should fetch general settings once');
 assert.equal(settingsTabGeneral.classList.contains('is-active'), true, 'general tab should be active by default');
 assert.equal(settingsPanelGeneral.hidden, false, 'general panel should be visible by default');
-assert.match(generalPanelBody.innerHTML, /本地数据根路径/, 'general settings should describe the storage root, not a hard obsidian binding');
-assert.match(generalPanelBody.innerHTML, /应用目录：<\/strong><code>\/Users\/test\/vault\/00-🤖agent\/\.melodysync<\/code>/, 'general settings should expose the MelodySync app root');
-assert.match(generalPanelBody.innerHTML, /自定义 Hook 设计文件：<\/strong><code>\/Users\/test\/vault\/00-🤖agent\/\.melodysync\/hooks\/custom-hooks\.json<\/code>/, 'general settings should expose the custom hook design file');
-assert.match(generalPanelBody.innerHTML, /Agent 说明文件：<\/strong><code>\/Users\/test\/vault\/00-🤖agent\/AGENTS\.md<\/code>/, 'general settings should expose the agents file path');
-assert.match(generalPanelBody.innerHTML, /PATCH \/api\/settings/, 'general settings should show the API write entry');
-assert.match(generalPanelBody.innerHTML, /网页仅做展示/, 'general settings should explain that frontend is read-only');
-assert.match(generalPanelBody.innerHTML, /当前内容：<\/strong>这里只读展示当前后端已加载的 AGENTS\.md。/, 'general settings should present AGENTS content as read-only');
-assert.doesNotMatch(generalPanelBody.innerHTML, /保存设置/, 'general settings should not expose save buttons in the frontend');
-assert.doesNotMatch(generalPanelBody.innerHTML, /<input[^>]+name="obsidianPath"/, 'general settings should not expose editable path inputs');
+assert.match(generalPanelBody.innerHTML, /应用路径/, 'general settings should expose the editable application path field');
+assert.match(generalPanelBody.innerHTML, /说明文件/, 'general settings should expose the editable agents path field');
+assert.match(generalPanelBody.innerHTML, /<input[^>]+name="storageRootPath"[^>]+value="\/Users\/test\/vault"/, 'general settings should render the storage root as an editable input');
+assert.match(generalPanelBody.innerHTML, /<input[^>]+name="agentsPath"[^>]+value="\/Users\/test\/vault\/00-🤖agent\/AGENTS\.md"/, 'general settings should render the agents file path as an editable input');
+assert.match(generalPanelBody.innerHTML, /应用目录：<\/strong><code>\/Users\/test\/vault<\/code>/, 'general settings should still show the resolved app root');
+assert.match(generalPanelBody.innerHTML, /后端配置文件：<\/strong><code>\/Users\/test\/vault\/config\/general-settings\.json<\/code>/, 'general settings should show the backend config file path');
+assert.match(generalPanelBody.innerHTML, /<textarea[^>]+name="agentsContent"/, 'general settings should expose the editable AGENTS textarea');
+assert.match(generalPanelBody.innerHTML, /保存/, 'general settings should expose a save button');
+assert.match(generalPanelBody.innerHTML, /重新加载/, 'general settings should expose a reload button');
+assert.doesNotMatch(generalPanelBody.innerHTML, /网页仅做展示/, 'general settings should no longer be read-only');
 
 console.log('test-chat-general-settings-ui: ok');

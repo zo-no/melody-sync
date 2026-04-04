@@ -19,46 +19,51 @@ delete process.env.REMOTELAB_OBSIDIAN_PATH;
 const legacyConfigDir = join(tempHome, '.config', 'melody-sync');
 const firstVault = join(tempHome, 'vault-a');
 const secondVault = join(tempHome, 'vault-b');
+const firstAppRoot = join(firstVault, '00-🤖agent');
+const secondAppRoot = join(secondVault, '00-🤖agent');
 
 mkdirSync(legacyConfigDir, { recursive: true });
 mkdirSync(firstVault, { recursive: true });
 mkdirSync(secondVault, { recursive: true });
-mkdirSync(join(firstVault, '00-🤖agent'), { recursive: true });
-mkdirSync(join(secondVault, '00-🤖agent'), { recursive: true });
+mkdirSync(firstAppRoot, { recursive: true });
+mkdirSync(secondAppRoot, { recursive: true });
 
 try {
   const settingsModule = await import(pathToFileURL(join(repoRoot, 'chat/settings-store.mjs')).href);
 
-  const first = await settingsModule.persistGeneralSettings({ obsidianPath: firstVault });
-  assert.equal(first.storageRootPath, firstVault);
-  assert.equal(first.appRoot, join(firstVault, '00-🤖agent', '.melodysync'));
-  assert.equal(first.storagePath, join(firstVault, '00-🤖agent', '.melodysync', 'config', 'general-settings.json'));
+  const first = await settingsModule.persistGeneralSettings({ obsidianPath: firstAppRoot });
+  assert.equal(first.configuredStorageRootPath, firstAppRoot);
+  assert.equal(first.storageRootPath, firstAppRoot);
+  assert.equal(first.appRoot, firstAppRoot);
+  assert.equal(first.storagePath, join(firstAppRoot, 'config', 'general-settings.json'));
   assert.equal(first.bootstrapStoragePath, join(legacyConfigDir, 'general-settings.json'));
-  assert.equal(first.customHooksPath, join(firstVault, '00-🤖agent', '.melodysync', 'hooks', 'custom-hooks.json'));
-  assert.equal(first.agentsPath, join(firstVault, '00-🤖agent', 'AGENTS.md'));
+  assert.equal(first.customHooksPath, join(firstAppRoot, 'hooks', 'custom-hooks.json'));
+  assert.equal(first.agentsPath, join(firstAppRoot, 'AGENTS.md'));
   assert.equal(existsSync(first.storagePath), true);
 
-  const second = await settingsModule.persistGeneralSettings({ obsidianPath: secondVault });
-  assert.equal(second.storageRootPath, secondVault);
-  assert.equal(second.appRoot, join(secondVault, '00-🤖agent', '.melodysync'));
-  assert.equal(second.storagePath, join(secondVault, '00-🤖agent', '.melodysync', 'config', 'general-settings.json'));
-  assert.equal(second.customHooksPath, join(secondVault, '00-🤖agent', '.melodysync', 'hooks', 'custom-hooks.json'));
-  assert.equal(second.agentsPath, join(secondVault, '00-🤖agent', 'AGENTS.md'));
+  const second = await settingsModule.persistGeneralSettings({ obsidianPath: secondAppRoot });
+  assert.equal(second.configuredStorageRootPath, secondAppRoot);
+  assert.equal(second.storageRootPath, secondAppRoot);
+  assert.equal(second.appRoot, secondAppRoot);
+  assert.equal(second.storagePath, join(secondAppRoot, 'config', 'general-settings.json'));
+  assert.equal(second.customHooksPath, join(secondAppRoot, 'hooks', 'custom-hooks.json'));
+  assert.equal(second.agentsPath, join(secondAppRoot, 'AGENTS.md'));
   assert.equal(
     JSON.parse(readFileSync(second.bootstrapStoragePath, 'utf8')).obsidianPath,
-    secondVault,
+    secondAppRoot,
     'bootstrap settings should always point at the latest configured path',
   );
   assert.equal(
     JSON.parse(readFileSync(second.storagePath, 'utf8')).obsidianPath,
-    secondVault,
+    secondAppRoot,
     'canonical settings should be written into the selected app root',
   );
   const current = await settingsModule.readGeneralSettings();
-  assert.equal(current.storageRootPath, secondVault);
-  assert.equal(current.appRoot, join(secondVault, '00-🤖agent', '.melodysync'));
-  assert.equal(current.customHooksPath, join(secondVault, '00-🤖agent', '.melodysync', 'hooks', 'custom-hooks.json'));
-  assert.equal(current.agentsPath, join(secondVault, '00-🤖agent', 'AGENTS.md'));
+  assert.equal(current.configuredStorageRootPath, secondAppRoot);
+  assert.equal(current.storageRootPath, secondAppRoot);
+  assert.equal(current.appRoot, secondAppRoot);
+  assert.equal(current.customHooksPath, join(secondAppRoot, 'hooks', 'custom-hooks.json'));
+  assert.equal(current.agentsPath, join(secondAppRoot, 'AGENTS.md'));
 
   console.log('test-settings-store-obsidian-path: ok');
 } finally {

@@ -191,8 +191,8 @@ const context = {
             { id: 'branch.merged', scope: 'branch', phase: 'branch_followup', label: '支线合并回主线', description: '支线结果已经回流主线并写入合并记录之后。' },
           ],
           settings: {
-            storagePath: '/Users/test/vault/00-🤖agent/.melodysync/hooks/settings.json',
-            customDesignPath: '/Users/test/vault/00-🤖agent/.melodysync/hooks/custom-hooks.json',
+            storagePath: '/Users/test/vault/00-🤖agent/hooks/settings.json',
+            customDesignPath: '/Users/test/vault/00-🤖agent/hooks/custom-hooks.json',
           },
           hooks: [
             {
@@ -241,8 +241,8 @@ assert.equal(settingsTabHooks.classList.contains('is-active'), true, 'hooks tab 
 assert.equal(settingsPanelHooks.hidden, false, 'hooks panel should be visible by default');
 assert.equal(settingsPanelNodes.hidden, true, 'node panel should stay hidden until selected');
 assert.match(hooksPanelBody.innerHTML, /按完整闭环流程查看/, 'hooks tab should explain the phase-first lifecycle grouping');
-assert.match(hooksPanelBody.innerHTML, /自定义脚本 Hook 设计文件：<code>\/Users\/test\/vault\/00-🤖agent\/\.melodysync\/hooks\/custom-hooks\.json<\/code>/, 'hooks tab should expose the custom hook design file path');
-assert.match(hooksPanelBody.innerHTML, /启停状态文件：<code>\/Users\/test\/vault\/00-🤖agent\/\.melodysync\/hooks\/settings\.json<\/code>/, 'hooks tab should expose the persisted hook state path');
+assert.match(hooksPanelBody.innerHTML, /自定义脚本 Hook 设计文件：<code>\/Users\/test\/vault\/00-🤖agent\/hooks\/custom-hooks\.json<\/code>/, 'hooks tab should expose the custom hook design file path');
+assert.match(hooksPanelBody.innerHTML, /启停状态文件：<code>\/Users\/test\/vault\/00-🤖agent\/hooks\/settings\.json<\/code>/, 'hooks tab should expose the persisted hook state path');
 assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">启动准备<\/div>/, 'hooks tab should render the startup phase');
 assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">进入任务<\/div>/, 'hooks tab should render the entry phase');
 assert.match(hooksPanelBody.innerHTML, /<div class="hooks-phase-title">本轮处理<\/div>/, 'hooks tab should render the execution phase');
