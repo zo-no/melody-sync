@@ -16,6 +16,7 @@ async function runShellCommand(command, options = {}) {
         ...(options.env || {}),
       },
       stdio: ['pipe', 'pipe', 'pipe'],
+      detached: true,
     })
 
     let stdout = ''
@@ -36,7 +37,14 @@ async function runShellCommand(command, options = {}) {
 
     if (options.timeoutMs > 0) {
       timeoutHandle = setTimeout(() => {
-        child.kill('SIGTERM')
+        try {
+          process.kill(-child.pid, 'SIGTERM')
+        } catch {}
+        setTimeout(() => {
+          try {
+            process.kill(-child.pid, 'SIGKILL')
+          } catch {}
+        }, 1000).unref?.()
         settle(new Error(`Command timed out after ${options.timeoutMs}ms: ${normalizedCommand}`))
       }, options.timeoutMs)
     }
@@ -70,7 +78,7 @@ async function runShellCommand(command, options = {}) {
   })
 }
 
-async function runSay(text, ttsConfig) {
+async function runSay(text, ttsConfig, options = {}) {
   if (!trimString(text)) return
   await new Promise((resolvePromise, rejectPromise) => {
     const args = []
@@ -85,6 +93,11 @@ async function runSay(text, ttsConfig) {
     const child = spawn('say', args, {
       stdio: ['ignore', 'ignore', 'pipe'],
     })
+    if (typeof options.onSpawn === 'function') {
+      try {
+        options.onSpawn(child)
+      } catch {}
+    }
 
     let stderr = ''
     let settled = false
@@ -116,6 +129,10 @@ async function runSay(text, ttsConfig) {
     })
     child.on('close', (code, signal) => {
       if (settled) return
+      if (options.allowInterrupt === true && ['SIGTERM', 'SIGINT'].includes(signal || '')) {
+        settle(null)
+        return
+      }
       if (code !== 0) {
         settle(new Error(`say failed (${code}${signal ? `/${signal}` : ''}): ${trimString(stderr) || 'unknown error'}`))
         return

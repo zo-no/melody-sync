@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'timers/promises'
 import { AUTH_FILE } from '../lib/config.mjs'
 import { selectAssistantReplyEvent, stripHiddenBlocks } from '../lib/reply-selection.mjs'
 
-const RUN_POLL_INTERVAL_MS = 1500
+const RUN_POLL_INTERVAL_MS = 300
 const RUN_POLL_TIMEOUT_MS = 10 * 60 * 1000
 
 function trimString(value) {
@@ -23,6 +23,12 @@ function sanitizeIdPart(value, fallback = 'default') {
     .replace(/-{2,}/g, '-')
     .replace(/^-+|-+$/g, '')
   return normalized || fallback
+}
+
+function clipSessionLabel(value, max = 48) {
+  const normalized = trimString(value).replace(/\s+/g, ' ')
+  if (!normalized) return ''
+  return normalized.length > max ? `${normalized.slice(0, max - 1).trimEnd()}…` : normalized
 }
 
 function buildExternalTriggerId(summary, config = {}) {
@@ -43,12 +49,16 @@ function buildRequestId(summary, config = {}) {
 
 function buildSessionName(config, summary) {
   if (trimString(config.sessionName)) return config.sessionName
-  return trimString(summary?.roomName || config.roomName || summary?.connectorId || config.connectorId)
+  const sourceLabel = trimString(config.appName) || 'Voice'
+  const anchor = trimString(summary?.transcript)
+    || trimString(summary?.roomName || config.roomName || summary?.connectorId || config.connectorId)
+    || 'voice session'
+  return clipSessionLabel(`${sourceLabel} · ${anchor}`)
 }
 
 function buildSessionDescription(config, summary) {
   if (trimString(config.description)) return config.description
-  const parts = ['Wake-word voice connector']
+  const parts = ['Voice session']
   const roomName = trimString(summary?.roomName || config.roomName)
   const wakeWord = trimString(summary?.wakeWord || config.wake?.keyword)
   if (roomName) parts.push(`room ${roomName}`)

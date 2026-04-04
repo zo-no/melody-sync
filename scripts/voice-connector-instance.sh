@@ -38,6 +38,7 @@ CONFIG_PATH="${VOICE_CONNECTOR_CONFIG_PATH:-$CONFIG_DIR/config.json}"
 PID_FILE="${VOICE_CONNECTOR_PID_FILE:-$CONFIG_DIR/connector.pid}"
 LOG_PATH="${VOICE_CONNECTOR_LOG_PATH:-$CONFIG_DIR/logs/connector.log}"
 LAUNCHER_PATH="${VOICE_CONNECTOR_LAUNCHER_PATH:-$CONFIG_DIR/start-connector-terminal.sh}"
+TERMINAL_PROXY_PATH="${VOICE_CONNECTOR_TERMINAL_PROXY_PATH:-/tmp/melodysync-voice-start.sh}"
 
 mkdir -p "$CONFIG_DIR" "$(dirname -- "$LOG_PATH")"
 
@@ -96,21 +97,29 @@ start_instance_terminal() {
   cat > "$LAUNCHER_PATH" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-cd $(printf '%q' "$ROOT_DIR")
-echo \$\$ > $(printf '%q' "$PID_FILE")
+cd "$ROOT_DIR"
+echo \$\$ > "$PID_FILE"
 exec env \
-  PATH=$(printf '%q' "$PATH") \
-  HOME=$(printf '%q' "$HOME") \
-  USER=$(printf '%q' "${USER:-}") \
-  SHELL=$(printf '%q' "${SHELL:-/bin/bash}") \
-  $(printf '%q' "$NODE_BIN") scripts/voice-connector.mjs --config $(printf '%q' "$CONFIG_PATH") >> $(printf '%q' "$LOG_PATH") 2>&1
+  PATH="$PATH" \
+  HOME="$HOME" \
+  USER="${USER:-}" \
+  SHELL="${SHELL:-/bin/bash}" \
+  "$NODE_BIN" scripts/voice-connector.mjs --config "$CONFIG_PATH" >> "$LOG_PATH" 2>&1
 EOF
   chmod +x "$LAUNCHER_PATH"
 
-  osascript <<APPLESCRIPT >/dev/null
+  cat > "$TERMINAL_PROXY_PATH" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "$LAUNCHER_PATH"
+EOF
+  chmod +x "$TERMINAL_PROXY_PATH"
+
+  VOICE_CONNECTOR_TERMINAL_LAUNCHER="$TERMINAL_PROXY_PATH" osascript <<'APPLESCRIPT' >/dev/null
+set launcherPath to system attribute "VOICE_CONNECTOR_TERMINAL_LAUNCHER"
 tell application "Terminal"
   activate
-  do script "bash $(printf '%q' "$LAUNCHER_PATH")"
+  do script "bash " & quoted form of launcherPath
 end tell
 APPLESCRIPT
 }
@@ -119,21 +128,29 @@ start_instance_bootstrap() {
   cat > "$LAUNCHER_PATH" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-cd $(printf '%q' "$ROOT_DIR")
+cd "$ROOT_DIR"
 nohup env \
-  PATH=$(printf '%q' "$PATH") \
-  HOME=$(printf '%q' "$HOME") \
-  USER=$(printf '%q' "${USER:-}") \
-  SHELL=$(printf '%q' "${SHELL:-/bin/bash}") \
-  $(printf '%q' "$NODE_BIN") scripts/voice-connector.mjs --config $(printf '%q' "$CONFIG_PATH") >> $(printf '%q' "$LOG_PATH") 2>&1 < /dev/null &
-echo \$! > $(printf '%q' "$PID_FILE")
+  PATH="$PATH" \
+  HOME="$HOME" \
+  USER="${USER:-}" \
+  SHELL="${SHELL:-/bin/bash}" \
+  "$NODE_BIN" scripts/voice-connector.mjs --config "$CONFIG_PATH" >> "$LOG_PATH" 2>&1 < /dev/null &
+echo \$! > "$PID_FILE"
 exit 0
 EOF
   chmod +x "$LAUNCHER_PATH"
 
-  osascript <<APPLESCRIPT >/dev/null
+  cat > "$TERMINAL_PROXY_PATH" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "$LAUNCHER_PATH"
+EOF
+  chmod +x "$TERMINAL_PROXY_PATH"
+
+  VOICE_CONNECTOR_TERMINAL_LAUNCHER="$TERMINAL_PROXY_PATH" osascript <<'APPLESCRIPT' >/dev/null
+set launcherPath to system attribute "VOICE_CONNECTOR_TERMINAL_LAUNCHER"
 tell application "Terminal"
-  set bootstrapTab to do script "bash $(printf '%q' "$LAUNCHER_PATH")"
+  set bootstrapTab to do script "bash " & quoted form of launcherPath
   repeat 20 times
     delay 0.2
     try

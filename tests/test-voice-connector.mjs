@@ -2,7 +2,7 @@
 import assert from 'assert/strict'
 import http from 'http'
 import { mkdtemp, writeFile } from 'fs/promises'
-import { tmpdir } from 'os'
+import { homedir, tmpdir } from 'os'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 
@@ -60,6 +60,22 @@ await writeFile(tempConfigPath, `${JSON.stringify({
 }, null, 2)}\n`, 'utf8')
 const explicitEmptyPromptConfig = await loadConfig(tempConfigPath)
 assert.equal(explicitEmptyPromptConfig.systemPrompt, '')
+
+await writeFile(tempConfigPath, `${JSON.stringify({
+  connectorId: 'living-room-speaker',
+  roomName: 'Living Room',
+  chatBaseUrl: 'http://127.0.0.1:7690',
+  sessionFolder: '/definitely/missing/remotelab/voice-folder',
+  wake: {
+    mode: 'stdin',
+    keyword: 'Hey Rowan',
+  },
+  tts: {
+    enabled: false,
+  },
+}, null, 2)}\n`, 'utf8')
+const missingFolderConfig = await loadConfig(tempConfigPath)
+assert.equal(missingFolderConfig.sessionFolder, homedir())
 
 await writeFile(tempConfigPath, `${JSON.stringify({
   connectorId: 'living-room-speaker',
@@ -198,7 +214,8 @@ try {
   assert.equal(createPayload?.systemPrompt, '')
   assert.equal(createPayload?.group, 'Voice')
   assert.equal(createPayload?.externalTriggerId, 'voice:living-room-speaker')
-  assert.match(createPayload?.description || '', /Wake-word voice connector/i)
+  assert.match(createPayload?.name || '', /^Voice · /)
+  assert.match(createPayload?.description || '', /Voice session/i)
 
   assert.match(submitPayload?.requestId || '', /^voice:living-room-speaker:wake_1$/)
   assert.equal(submitPayload?.tool, 'codex')

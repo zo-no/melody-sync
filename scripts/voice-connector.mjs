@@ -44,6 +44,81 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+function playAudioCue(audioPath) {
+  const normalizedPath = trimString(audioPath)
+  if (!normalizedPath || process.platform !== 'darwin') return
+  const child = spawn('/usr/bin/afplay', [normalizedPath], {
+    stdio: ['ignore', 'ignore', 'pipe'],
+  })
+  let stderr = ''
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk.toString()
+  })
+  child.on('close', (code, signal) => {
+    if (code === 0) return
+    console.warn(`[voice-connector] cue failed (${code}${signal ? `/${signal}` : ''}): ${trimString(stderr) || normalizedPath}`)
+  })
+}
+
+function trackActiveSpeech(runtime, child) {
+  if (!runtime || !child) return
+  runtime.activeSpeechChild = child
+  child.on('close', () => {
+    if (runtime.activeSpeechChild === child) {
+      runtime.activeSpeechChild = null
+    }
+  })
+}
+
+function cancelActiveSpeech(runtime, reason = '') {
+  const child = runtime?.activeSpeechChild
+  if (!child) return false
+  runtime.activeSpeechChild = null
+  try {
+    child.kill('SIGTERM')
+  } catch {}
+  if (reason) {
+    console.log(`[voice-connector] speech interrupted (${reason})`)
+  }
+  return true
+}
+
+async function playTranscriptAck(runtime, summary) {
+  const ackText = trimString(
+    runtime?.config?.capture?.env?.VOICE_RECEIVED_ACK_TEXT
+      || runtime?.config?.capture?.env?.REMOTELAB_VOICE_RECEIVED_ACK_TEXT
+      || ''
+  )
+  if (ackText) {
+    if (runtime.config.tts.mode === 'say') {
+      await runSay(ackText, runtime.config.tts, {
+        allowInterrupt: true,
+        onSpawn: (child) => trackActiveSpeech(runtime, child),
+      })
+      return
+    }
+    if (runtime.config.tts.mode === 'command') {
+      await runShellCommand(runtime.config.tts.command, {
+        env: {
+          ...runtime.config.tts.env,
+          ...buildProcessEnv(runtime, summary, { replyText: ackText }),
+        },
+        stdin: ackText,
+        timeoutMs: runtime.config.tts.timeoutMs,
+      })
+      return
+    }
+  }
+
+  const cuePath = trimString(
+    runtime?.config?.capture?.env?.VOICE_RECEIVED_SOUND_PATH
+      || runtime?.config?.capture?.env?.REMOTELAB_VOICE_RECEIVED_SOUND_PATH
+      || ''
+  )
+  if (!cuePath) return
+  playAudioCue(cuePath)
+}
+
 
 function printUsage(exitCode) {
   const output = exitCode === 0 ? console.log : console.error
@@ -212,6 +287,7 @@ function createRuntimeContext(config, storagePaths = null) {
     processing: false,
     queue: Promise.resolve(),
     wakeProcess: null,
+    activeSpeechChild: null,
     shuttingDown: false,
     readOwnerToken,
     loginWithToken,
@@ -306,7 +382,10 @@ async function resolveTranscript(runtime, summary) {
 async function speakReply(runtime, replyText, summary) {
   if (!runtime.config.tts.enabled || !trimString(replyText)) return
   if (runtime.config.tts.mode === 'say') {
-    await runSay(replyText, runtime.config.tts)
+    await runSay(replyText, runtime.config.tts, {
+      allowInterrupt: true,
+      onSpawn: (child) => trackActiveSpeech(runtime, child),
+    })
     return
   }
   if (runtime.config.tts.mode === 'command') {
@@ -366,8 +445,13 @@ async function processVoiceTurn(runtime, rawSummary, options = {}) {
       transcript,
       audioPath: turn.audioPath,
     })
-
-    const reply = await generateRemoteLabReply(runtime, turn)
+    const replyPromise = generateRemoteLabReply(runtime, turn)
+    try {
+      await playTranscriptAck(runtime, turn)
+    } catch (error) {
+      console.warn('[voice-connector] transcript ack failed:', error?.message || error)
+    }
+    const reply = await replyPromise
     await logConnectorEvent(runtime, 'reply_ready', {
       eventId: turn.eventId,
       sessionId: reply.sessionId,
@@ -445,6 +529,7 @@ async function runStdinLoop(runtime, options = {}) {
   for await (const line of reader) {
     const transcript = normalizeMultilineText(line)
     if (!transcript) continue
+    cancelActiveSpeech(runtime, 'stdin_input')
     try {
       const result = await enqueueVoiceTurn(runtime, {
         source: 'stdin',
@@ -488,6 +573,7 @@ async function runWakeLoop(runtime, options = {}) {
   for await (const line of stdoutReader) {
     const normalized = trimString(line)
     if (!normalized) continue
+    cancelActiveSpeech(runtime, 'wake_detected')
     try {
       const result = await enqueueVoiceTurn(runtime, normalized, options)
       if (result.replyText) {

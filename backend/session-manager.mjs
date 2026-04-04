@@ -113,6 +113,13 @@ import {
   parseTaskCardFromAssistantContent,
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
+import {
+  buildPersistentDigest,
+  buildPersistentRunMessage,
+  computeNextRecurringRunAt,
+  normalizeSessionPersistent,
+  resolvePersistentRunRuntime,
+} from './session-persistent.mjs';
 import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
 import { registerSessionManagerBuiltinHooks } from './hooks/runtime/register-session-manager-hooks.mjs';
 import { appendGraphBootstrapPromptContext } from './workbench/graph-prompt-context.mjs';
@@ -133,6 +140,9 @@ const DEFAULT_AUTO_COMPACT_CONTEXT_WINDOW_PERCENT = 100;
 const FOLLOW_UP_FLUSH_DELAY_MS = 1500;
 const MAX_RECENT_FOLLOW_UP_REQUEST_IDS = 100;
 const OBSERVED_RUN_POLL_INTERVAL_MS = 250;
+const RESULT_FILE_MAX_ATTACHMENTS = 4;
+const RESULT_FILE_COMMAND_OUTPUT_FLAGS = new Set(['-o', '--output', '--out', '--export']);
+const STARTUP_SYNC_DEBUG = process.env.REMOTELAB_STARTUP_SYNC_DEBUG === '1';
 const {
   getFollowUpQueue,
   getFollowUpQueueCount,
@@ -671,7 +681,7 @@ function scheduleObservedRunSync(runId, delayMs = 40) {
   }
 }
 
-function observeDetachedRun(sessionId, runId) {
+function observeDetachedRun(sessionId, runId, { initialSync = true } = {}) {
   if (!runId) return false;
   const existing = observedRuns.get(runId);
   if (existing) {
@@ -699,7 +709,9 @@ function observeDetachedRun(sessionId, runId) {
       poller.unref();
     }
     observedRuns.set(runId, { sessionId, watcher, timer: null, poller });
-    scheduleObservedRunSync(runId, 0);
+    if (initialSync) {
+      scheduleObservedRunSync(runId, 0);
+    }
     return true;
   } catch (error) {
     console.error(`[runs] failed to observe ${runId}: ${error.message}`);
@@ -743,6 +755,9 @@ async function collectNormalizedRunEvents(run, manifest) {
   });
   const { adapter } = runtimeInvocation;
   const spoolRecords = await readRunSpoolRecords(run.id);
+  if (STARTUP_SYNC_DEBUG) {
+    console.log(`[startup-sync] spool loaded runId=${run.id} records=${spoolRecords.length}`);
+  }
   const normalizedEvents = [];
   let stdoutLineCount = 0;
   let lastRecordTimestamp = null;
@@ -830,6 +845,9 @@ async function buildSessionTimelineEvents(sessionId, options = {}) {
 }
 
 async function syncDetachedRunUnlocked(sessionId, runId) {
+  if (STARTUP_SYNC_DEBUG) {
+    console.log(`[startup-sync] start runId=${runId} session=${sessionId}`);
+  }
   let run = await getRun(runId);
   if (!run) {
     stopObservedRun(runId);
@@ -837,12 +855,18 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
   }
   const manifest = await getRunManifest(runId);
   if (!manifest) return run;
+  if (STARTUP_SYNC_DEBUG) {
+    console.log(`[startup-sync] manifest loaded runId=${runId}`);
+  }
 
   let historyChanged = false;
   let sessionChanged = false;
 
   const projection = await collectNormalizedRunEvents(run, manifest);
   const normalizedEvents = projection.normalizedEvents;
+  if (STARTUP_SYNC_DEBUG) {
+    console.log(`[startup-sync] projection done runId=${runId} events=${normalizedEvents.length}`);
+  }
   const latestUsage = [...normalizedEvents].reverse().find((event) => event.type === 'usage');
   const contextInputTokens = Number.isInteger(latestUsage?.contextTokens)
     ? latestUsage.contextTokens
@@ -910,10 +934,16 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
   }
 
   if (isTerminalRunState(run.state) && !run.finalizedAt) {
+    if (STARTUP_SYNC_DEBUG) {
+      console.log(`[startup-sync] finalize start runId=${runId}`);
+    }
     const finalized = await finalizeDetachedRun(sessionId, run, manifest, normalizedEvents);
     historyChanged = historyChanged || finalized.historyChanged;
     sessionChanged = sessionChanged || finalized.sessionChanged;
     run = await getRun(runId) || run;
+    if (STARTUP_SYNC_DEBUG) {
+      console.log(`[startup-sync] finalize done runId=${runId}`);
+    }
   }
 
   if (historyChanged || sessionChanged) {
@@ -2260,14 +2290,53 @@ function ensureSessionManagerBuiltinHooksRegistered() {
 
 export async function startDetachedRunObservers() {
   ensureSessionManagerBuiltinHooksRegistered();
-  for (const meta of await loadSessionsMeta()) {
-    if (meta?.activeRunId) {
-      const run = await syncDetachedRun(meta.id, meta.activeRunId) || await getRun(meta.activeRunId);
-      if (run && !isTerminalRunState(run.state)) {
-        observeDetachedRun(meta.id, meta.activeRunId);
+  console.log('startup: startDetachedRunObservers enter');
+  const sessionMetaList = await loadSessionsMeta();
+  console.log(`startup: startDetachedRunObservers loaded ${sessionMetaList.length} sessions`);
+  for (const meta of sessionMetaList) {
+    const sessionId = trimString(meta?.id);
+    const runId = trimString(meta?.activeRunId);
+    if (!sessionId || !runId) {
+      continue;
+    }
+
+    const startTs = Date.now();
+    let run = await getRun(runId);
+
+    if (run && !isTerminalRunState(run.state)) {
+      observeDetachedRun(sessionId, runId, { initialSync: false });
+      console.log(`Startup observed active detached run for session ${sessionId} (run ${runId})`);
+      continue;
+    }
+
+    if (run && isTerminalRunState(run.state)) {
+      if (!run.finalizedAt) {
+        void syncDetachedRun(sessionId, runId).finally(() => {
+          if (STARTUP_SYNC_DEBUG) {
+            console.log(`Startup finalize-sync for completed run ${runId} in session ${sessionId} completed in ${Date.now() - startTs}ms`);
+          }
+        }).catch((error) => {
+          console.error(`Failed to sync completed detached run for session ${sessionId} (run ${runId}): ${error.message}`);
+        });
+        if (getFollowUpQueueCount(meta) > 0) {
+          scheduleQueuedFollowUpDispatch(sessionId);
+        }
         continue;
       }
+      if (getFollowUpQueueCount(meta) > 0) {
+        scheduleQueuedFollowUpDispatch(sessionId);
+      }
+      continue;
     }
+
+    void syncDetachedRun(sessionId, runId).finally(() => {
+      if (STARTUP_SYNC_DEBUG) {
+        console.log(`Startup sync for session ${sessionId} completed in ${Date.now() - startTs}ms`);
+      }
+    }).catch((error) => {
+      console.error(`Failed to sync detached run for session ${sessionId} (run ${runId}): ${error.message}`);
+    });
+
     if (getFollowUpQueueCount(meta) > 0) {
       scheduleQueuedFollowUpDispatch(meta.id);
     }
@@ -2407,12 +2476,18 @@ export async function createSession(folder, tool, name, extra = {}) {
   const requestedEffort = typeof extra.effort === 'string' ? extra.effort.trim() : '';
   const hasRequestedThinking = Object.prototype.hasOwnProperty.call(extra, 'thinking');
   const requestedThinking = extra.thinking === true;
+  const requestedPersistent = Object.prototype.hasOwnProperty.call(extra, 'persistent') && extra.persistent
+    ? extra.persistent
+    : null;
   const hasRequestedSourceContext = Object.prototype.hasOwnProperty.call(extra, 'sourceContext');
   const requestedSourceContext = normalizeSourceContext(extra.sourceContext);
   const hasRequestedActiveAgreements = Object.prototype.hasOwnProperty.call(extra, 'activeAgreements');
   const requestedActiveAgreements = hasRequestedActiveAgreements
     ? normalizeSessionAgreements(extra.activeAgreements || [])
     : [];
+  const normalizedPersistent = requestedPersistent && typeof requestedPersistent === 'object' && !Array.isArray(requestedPersistent)
+    ? normalizeSessionPersistent(requestedPersistent)
+    : null;
   const requestedInitialNaming = resolveInitialSessionName(name, {
     group: requestedGroup,
     appName: requestedAppName,
@@ -2619,6 +2694,9 @@ export async function createSession(folder, tool, name, extra = {}) {
     if (completionTargets.length > 0) session.completionTargets = completionTargets;
     if (hasRequestedActiveAgreements && requestedActiveAgreements.length > 0) {
       session.activeAgreements = requestedActiveAgreements;
+    }
+    if (normalizedPersistent) {
+      session.persistent = normalizedPersistent;
     }
 
     metas.push(session);
@@ -2886,6 +2964,248 @@ export async function updateSessionTaskCard(id, taskCard, options = {}) {
     broadcastSessionInvalidation(id);
   }
   return enrichSessionMeta(result.meta);
+}
+
+function mergeObjectShape(current, patch) {
+  const currentValue = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
+  const patchValue = patch && typeof patch === 'object' && !Array.isArray(patch) ? patch : {};
+  return { ...currentValue, ...patchValue };
+}
+
+function getPersistentSessionGroup(kind = '') {
+  const normalizedKind = typeof kind === 'string' ? kind.trim().toLowerCase() : '';
+  if (normalizedKind === 'skill') return '快捷按钮';
+  if (normalizedKind === 'recurring_task') return '长期任务';
+  return '';
+}
+
+async function buildSessionPersistentDigest(sessionId, session) {
+  const history = await loadHistory(sessionId, { includeBodies: false }).catch(() => []);
+  return buildPersistentDigest(session, history);
+}
+
+function buildSessionPersistentPatch(currentPersistent, patch = {}) {
+  const currentRuntimePolicy = currentPersistent?.runtimePolicy && typeof currentPersistent.runtimePolicy === 'object'
+    ? currentPersistent.runtimePolicy
+    : {};
+  const patchRuntimePolicy = patch?.runtimePolicy && typeof patch.runtimePolicy === 'object'
+    ? patch.runtimePolicy
+    : {};
+  return {
+    ...(currentPersistent && typeof currentPersistent === 'object' ? currentPersistent : {}),
+    ...(patch && typeof patch === 'object' ? patch : {}),
+    digest: mergeObjectShape(currentPersistent?.digest, patch?.digest),
+    execution: mergeObjectShape(currentPersistent?.execution, patch?.execution),
+    recurring: mergeObjectShape(currentPersistent?.recurring, patch?.recurring || patch?.schedule),
+    skill: mergeObjectShape(currentPersistent?.skill, patch?.skill),
+    runtimePolicy: {
+      ...currentRuntimePolicy,
+      ...patchRuntimePolicy,
+      manual: mergeObjectShape(currentRuntimePolicy?.manual, patchRuntimePolicy?.manual),
+      schedule: mergeObjectShape(currentRuntimePolicy?.schedule, patchRuntimePolicy?.schedule),
+    },
+  };
+}
+
+export async function updateSessionPersistent(id, persistent, options = {}) {
+  const currentSession = await getSession(id, { includeQueuedMessages: true });
+  if (!currentSession) return null;
+
+  const defaultDigest = options.rebuildDigest === true
+    ? await buildSessionPersistentDigest(id, currentSession)
+    : (currentSession?.persistent?.digest || await buildSessionPersistentDigest(id, currentSession));
+  const recomputeNextRunAt = options.recomputeNextRunAt === true
+    || Boolean(persistent?.recurring)
+    || Boolean(persistent?.schedule);
+  const nextPersistent = persistent === null
+    ? null
+    : normalizeSessionPersistent(
+      buildSessionPersistentPatch(currentSession?.persistent, persistent),
+      {
+        defaultDigest,
+        defaultRuntime: currentSession,
+        recomputeNextRunAt,
+        referenceTime: options.referenceTime || new Date(),
+        defaultTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+        now: nowIso(),
+      },
+    );
+
+  const result = await mutateSessionMeta(id, (session) => {
+    const currentNormalized = normalizeSessionPersistent(session.persistent || null, {
+      defaultDigest,
+      defaultRuntime: session,
+      defaultTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    });
+    const nextGroup = nextPersistent ? getPersistentSessionGroup(nextPersistent.kind) : '';
+    const shouldClearPersistentGroup = !nextPersistent && (session.group === '长期任务' || session.group === '快捷按钮');
+    if (
+      JSON.stringify(currentNormalized) === JSON.stringify(nextPersistent)
+      && (!nextGroup || session.group === nextGroup)
+      && !shouldClearPersistentGroup
+    ) {
+      return false;
+    }
+    if (nextPersistent) {
+      session.persistent = nextPersistent;
+      if (nextGroup && session.group !== nextGroup) {
+        session.group = nextGroup;
+      }
+    } else if (session.persistent) {
+      delete session.persistent;
+      if (session.group === '长期任务' || session.group === '快捷按钮') {
+        delete session.group;
+      }
+    }
+    session.updatedAt = nowIso();
+    return true;
+  });
+
+  if (!result.meta) return null;
+  if (result.changed) {
+    broadcastSessionInvalidation(id);
+  }
+  return enrichSessionMeta(result.meta);
+}
+
+export async function promoteSessionToPersistent(id, payload = {}) {
+  const session = await getSession(id, { includeQueuedMessages: true });
+  if (!session) return null;
+  if (session.archived === true) {
+    throw new Error('Archived sessions cannot become persistent items');
+  }
+  if (isSessionRunning(session) || getSessionQueueCount(session) > 0) {
+    throw new Error('Session is busy');
+  }
+
+  const defaultDigest = await buildSessionPersistentDigest(id, session);
+  const nextPersistent = normalizeSessionPersistent({
+    ...(session?.persistent && typeof session.persistent === 'object' ? session.persistent : {}),
+    ...(payload && typeof payload === 'object' ? payload : {}),
+    kind: payload?.kind || payload?.type,
+    digest: mergeObjectShape(defaultDigest, payload?.digest),
+    execution: mergeObjectShape(session?.persistent?.execution, payload?.execution),
+    recurring: mergeObjectShape(session?.persistent?.recurring, payload?.recurring || payload?.schedule),
+    skill: mergeObjectShape(session?.persistent?.skill, payload?.skill),
+    runtimePolicy: {
+      ...(session?.persistent?.runtimePolicy && typeof session.persistent.runtimePolicy === 'object'
+        ? session.persistent.runtimePolicy
+        : {}),
+      ...(payload?.runtimePolicy && typeof payload.runtimePolicy === 'object'
+        ? payload.runtimePolicy
+        : {}),
+    },
+    promotedAt: session?.persistent?.promotedAt || nowIso(),
+    updatedAt: nowIso(),
+    state: payload?.state || session?.persistent?.state || 'active',
+  }, {
+    defaultDigest,
+    defaultRuntime: session,
+    recomputeNextRunAt: true,
+    referenceTime: new Date(),
+    defaultTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    now: nowIso(),
+  });
+
+  if (!nextPersistent) {
+    throw new Error('Invalid persistent configuration');
+  }
+
+  const nextName = String(nextPersistent?.digest?.title || session?.name || '').trim() || '未命名长期项';
+  const nextGroup = getPersistentSessionGroup(nextPersistent.kind);
+  const persistentSession = await createSession(
+    session.folder,
+    session.tool || '',
+    nextName,
+    {
+      group: nextGroup,
+      description: String(nextPersistent?.digest?.summary || '').trim(),
+      appId: session.appId || '',
+      appName: session.appName || '',
+      sourceId: session.sourceId || '',
+      sourceName: session.sourceName || '',
+      userId: session.userId || '',
+      userName: session.userName || '',
+      systemPrompt: session.systemPrompt || '',
+      model: session.model || '',
+      effort: session.effort || '',
+      thinking: session.thinking === true,
+      activeAgreements: session.activeAgreements || [],
+      sourceContext: session.sourceContext || null,
+      workflowState: session.workflowState || '',
+      workflowPriority: session.workflowPriority || '',
+      forkedFromSessionId: session.id,
+      forkedFromSeq: session.latestSeq || 0,
+      rootSessionId: session.rootSessionId || session.id,
+      persistent: nextPersistent,
+    },
+  );
+
+  if (!persistentSession) return null;
+  return persistentSession;
+}
+
+export async function runSessionPersistent(id, options = {}) {
+  const session = await getSession(id, { includeQueuedMessages: true });
+  if (!session) return null;
+  const persistent = normalizeSessionPersistent(session?.persistent || null, {
+    defaultDigest: await buildSessionPersistentDigest(id, session),
+    defaultRuntime: session,
+    defaultTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+  });
+  if (!persistent) {
+    throw new Error('Session is not a persistent item');
+  }
+  if (session.archived === true) {
+    throw new Error('Archived sessions cannot be executed');
+  }
+  if (persistent.kind === 'recurring_task' && persistent.state !== 'active' && options.triggerKind === 'schedule') {
+    throw new Error('Recurring task is paused');
+  }
+  if (isSessionRunning(session) || getSessionQueueCount(session) > 0) {
+    throw new Error('Session is busy');
+  }
+
+  const triggerKind = String(options.triggerKind || '').trim().toLowerCase() === 'schedule' ? 'schedule' : 'manual';
+  const runtime = resolvePersistentRunRuntime(session, persistent, {
+    triggerKind,
+    runtime: options.runtime,
+  });
+  const text = buildPersistentRunMessage(session, persistent, { triggerKind, runPrompt: options.runPrompt || '' });
+  const outcome = await submitHttpMessage(id, text, [], {
+    requestId: createInternalRequestId(triggerKind === 'schedule' ? 'persistent_schedule' : 'persistent_run'),
+    queueIfBusy: false,
+    scheduledTriggerId: triggerKind === 'schedule' ? `persistent:${id}` : '',
+    ...(runtime?.tool ? { tool: runtime.tool } : {}),
+    ...(runtime?.model ? { model: runtime.model } : {}),
+    ...(runtime?.effort ? { effort: runtime.effort } : {}),
+    thinking: runtime?.thinking === true,
+  });
+  const referenceTime = new Date();
+  await updateSessionPersistent(id, {
+    execution: {
+      ...(persistent.execution || {}),
+      lastTriggerAt: referenceTime.toISOString(),
+      lastTriggerKind: triggerKind,
+    },
+    ...(persistent.kind === 'recurring_task'
+      ? {
+          recurring: {
+            ...(persistent.recurring || {}),
+            lastRunAt: referenceTime.toISOString(),
+            nextRunAt: computeNextRecurringRunAt(persistent.recurring || {}, referenceTime),
+          },
+        }
+      : {
+          skill: {
+            ...(persistent.skill || {}),
+            lastUsedAt: referenceTime.toISOString(),
+          },
+        }),
+  }, {
+    referenceTime,
+  }).catch(() => {});
+  return outcome;
 }
 
 export async function setSessionBranchCandidateSuppressed(id, branchTitle, suppressed = true) {
