@@ -29,7 +29,7 @@ import {
   setBranchSessionStatus,
   setSessionReminderSnooze,
   writeProjectToObsidian,
-} from '../workbench-store.mjs';
+} from '../workbench/index.mjs';
 import { createWorkbenchNodeDefinitionsPayload } from '../workbench/node-definitions.mjs';
 
 function createClientSessionDetail(session) {

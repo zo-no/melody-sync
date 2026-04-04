@@ -26,7 +26,7 @@ async function main() {
   const {
     getWorkbenchSnapshot,
     syncSessionContinuityFromSession,
-  } = await importFromRepo('chat/workbench-store.mjs');
+  } = await importFromRepo('chat/workbench/index.mjs');
   const {
     mutateSessionMeta,
   } = await importFromRepo('chat/session-meta-store.mjs');

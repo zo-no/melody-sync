@@ -373,7 +373,7 @@
 这里要明确区分两类 node：
 
 - backend workbench state 里的 `nodes`
-  - 是持久化工作台对象，来源于 `chat/workbench-store.mjs`
+  - 是持久化工作台对象，来源于 `chat/workbench/index.mjs`
 - frontend task map 的 node kind
   - 是 `main / branch / candidate / done` 这组展示层投影
 - backend exposed node definitions

@@ -26,7 +26,7 @@ Current split:
 Boundary rules:
 
 - Keep persistence and projection separate.
-- Prefer adding new focused modules here rather than growing `chat/workbench-store.mjs`.
+- Prefer adding new focused modules here rather than growing `chat/workbench/index.mjs`.
 - Keep the current node-kind source of truth in `node-definitions.mjs`; frontend projection reads it through chat bootstrap and `/api/workbench/node-definitions`.
 - Keep persisted custom node-kind editing in `node-settings-store.mjs`; do not mix it into task-map projection code.
 - Keep plan-generation metadata centralized in `task-map-plan-contract.mjs`; future hook/AI producers should read this contract instead of reassembling node + hook metadata ad hoc.

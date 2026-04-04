@@ -35,7 +35,7 @@ async function main() {
     mergeBranchSessionBackToMain,
     setBranchSessionStatus,
     syncSessionContinuityFromSession,
-  } = await importFromRepo('chat/workbench-store.mjs');
+  } = await importFromRepo('chat/workbench/index.mjs');
 
   const mainSession = await createSession(workdir, 'codex', '学习电影史', {});
   assert.ok(mainSession?.id, 'main session should be created');

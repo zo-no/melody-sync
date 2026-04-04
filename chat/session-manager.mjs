@@ -108,7 +108,7 @@ import {
 import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
 import { registerSessionManagerBuiltinHooks } from './hooks/runtime/register-session-manager-hooks.mjs';
 import { appendGraphBootstrapPromptContext } from './workbench/graph-prompt-context.mjs';
-import { syncSessionContinuityFromSession } from './workbench-store.mjs';
+import { syncSessionContinuityFromSession } from './workbench/index.mjs';
 
 const MIME_EXTENSIONS = {
   'application/json': '.json',

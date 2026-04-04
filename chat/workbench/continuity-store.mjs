@@ -1,4 +1,4 @@
-import { listWorkbenchSessions } from '../workbench-session-ports.mjs';
+import { listWorkbenchSessions } from './session-ports.mjs';
 import { createSessionListItem } from '../session-api-shapes.mjs';
 import { loadWorkbenchState } from './state-store.mjs';
 import {

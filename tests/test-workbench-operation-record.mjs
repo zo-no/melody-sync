@@ -35,7 +35,7 @@ async function main() {
     createBranchFromSession,
     getSessionOperationRecords,
     syncSessionContinuityFromSession,
-  } = await importFromRepo('chat/workbench-store.mjs');
+  } = await importFromRepo('chat/workbench/index.mjs');
   const {
     WORKBENCH_BRANCH_CONTEXTS_FILE,
   } = await importFromRepo('lib/config.mjs');

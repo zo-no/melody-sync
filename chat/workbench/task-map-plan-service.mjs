@@ -2,7 +2,7 @@ import {
   getWorkbenchSession,
   listWorkbenchSessions,
   updateWorkbenchSessionTaskCard,
-} from '../workbench-session-ports.mjs';
+} from './session-ports.mjs';
 import { trimText } from './shared.mjs';
 import { normalizeTaskMapPlan, readTaskMapPlans } from './task-map-plans.mjs';
 import { persistTaskMapPlansWithSessionSync } from './task-map-plan-sync.mjs';

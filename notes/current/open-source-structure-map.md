@@ -50,7 +50,7 @@
 
 ### 3. workbench-store 还太胖
 
-`chat/workbench-store.mjs` 现在仍然同时承担：
+`chat/workbench/index.mjs` 现在仍然同时承担：
 
 - capture/project/node 持久化
 - branch continuity
@@ -87,7 +87,7 @@
 
 ### 后端优先级
 
-1. `chat/workbench-store.mjs`
+1. `chat/workbench/index.mjs`
    - 先拆成 4 个责任文件最值
 2. `chat/session-manager.mjs`
    - 继续把 run finalize 后的派生动作往 hooks / finalize helpers 外移
@@ -246,7 +246,7 @@ static/chat/
   - `static/chat/workbench/branch-actions.js`
   - `static/chat/workbench/operation-record-ui.js`
 - 旧入口仍然保留：
-  - `chat/workbench-store.mjs`
+  - `chat/workbench/index.mjs`
   - `static/chat/workbench/controller.js`
 
 这样做的目的不是保留双份实现，而是先让目录边界出现，再继续把剩余责任从旧入口往下搬。
@@ -271,7 +271,7 @@ static/chat/
 ## 5. 如果准备删旧上新，建议顺序
 
 1. 先把 contract 和 state/store 边界补齐
-2. 再拆 `workbench-store.mjs` 和 `workbench/controller.js`
+2. 再拆 `workbench/index.mjs` 和 `workbench/controller.js`
 3. 再删外围功能和历史兼容残留
 4. 最后再考虑大规模移动目录
 

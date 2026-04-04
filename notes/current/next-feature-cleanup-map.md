@@ -31,7 +31,7 @@
 - `chat/provider-runtime-monitor.mjs`
 - `chat/session-meta-store.mjs`
 - `chat/session-api-shapes.mjs`
-- `chat/workbench-store.mjs`
+- `chat/workbench/index.mjs`
 
 ### 前端主链
 
@@ -154,7 +154,7 @@
 ### 第 4 步：最后再拆大文件
 
 - `chat/session-manager.mjs`
-- `chat/workbench-store.mjs`
+- `chat/workbench/index.mjs`
 - `static/chat/workbench/controller.js`
 
 这一步应该在“功能残留删干净”后再做，否则只是在给旧逻辑换目录。

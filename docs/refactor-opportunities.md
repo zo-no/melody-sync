@@ -54,7 +54,7 @@ const rawEvents = await Promise.all(seqs.map(seq => loadStoredEvent(sessionId, s
 
 ### P1 — `getSessionOperationRecords` 在循环里串行 loadHistory
 
-**文件**：`chat/workbench-store.mjs:1740`
+**文件**：`chat/workbench/index.mjs`（当前对应 `operation-records.mjs` / `index.mjs` 组合）
 
 **现状**：
 ```javascript
@@ -101,7 +101,7 @@ queueSessionCompletionTargets(...)     → 触发通知
 
 ### P2 — WORKBENCH_QUEUE 是全局单一队列
 
-**文件**：`chat/workbench-store.mjs:34`
+**文件**：`chat/workbench/index.mjs`
 
 **现状**：
 ```javascript
@@ -151,7 +151,7 @@ const prepared = await getOrPrepareForkContext(
 
 ### P3 — `syncSessionContinuityFromSession` 每次 AI 响应后全量重算
 
-**文件**：`chat/workbench-store.mjs:1002`
+**文件**：`chat/workbench/index.mjs`（当前 continuity 同步主入口）
 
 **现状**：每次 Run 完成后调用，内部执行：
 - `loadState()`（读 6 个 JSON 文件）

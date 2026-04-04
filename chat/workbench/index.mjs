@@ -6,10 +6,10 @@ import {
   setWorkbenchSessionBranchCandidateSuppressed,
   submitWorkbenchSessionMessage,
   updateWorkbenchSessionTaskCard,
-} from './workbench-session-ports.mjs';
-import { appendEvent, getHistorySnapshot } from './history.mjs';
-import { messageEvent, statusEvent } from './normalizer.mjs';
-import { normalizeSessionTaskCard } from './session-task-card.mjs';
+} from './session-ports.mjs';
+import { appendEvent, getHistorySnapshot } from '../history.mjs';
+import { messageEvent, statusEvent } from '../normalizer.mjs';
+import { normalizeSessionTaskCard } from '../session-task-card.mjs';
 import {
   dedupeTexts,
   normalizeNodeState,
@@ -20,10 +20,10 @@ import {
   sortByCreatedAsc,
   sortByUpdatedDesc,
   trimText,
-} from './workbench/shared.mjs';
+} from './shared.mjs';
 import {
   getLatestBranchContextEntry,
-} from './workbench/continuity-store.mjs';
+} from './continuity-store.mjs';
 import {
   buildBranchSeedPrompt,
   buildProjectSummaryMarkdown,
@@ -32,22 +32,22 @@ import {
   buildSkillsMarkdown,
   resolveFsPath,
   resolveProjectObsidianPath,
-} from './workbench/exporters.mjs';
-import { readGeneralSettings } from './settings-store.mjs';
+} from './exporters.mjs';
+import { readGeneralSettings } from '../settings-store.mjs';
 import {
   loadWorkbenchState as loadState,
   saveWorkbenchState as saveState,
-} from './workbench/state-store.mjs';
+} from './state-store.mjs';
 import {
   createSerialTaskQueue,
   ensureDir,
   pathExists,
   writeTextAtomic,
-} from './fs-utils.mjs';
-import { emit as emitHook } from './hooks/runtime/registry.mjs';
+} from '../fs-utils.mjs';
+import { emit as emitHook } from '../hooks/runtime/registry.mjs';
 
-export { getWorkbenchSnapshot, getWorkbenchTrackerSnapshot } from './workbench/continuity-store.mjs';
-export { getSessionOperationRecords } from './workbench/operation-records.mjs';
+export { getWorkbenchSnapshot, getWorkbenchTrackerSnapshot } from './continuity-store.mjs';
+export { getSessionOperationRecords } from './operation-records.mjs';
 
 // Per-scope serial queues prevent cross-session write contention while still
 // serializing writes within the same project/session scope.

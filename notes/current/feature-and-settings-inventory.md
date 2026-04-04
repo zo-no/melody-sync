@@ -89,7 +89,7 @@
 - `static/chat/workbench/controller.js`
 - `static/chat/workbench/task-map-model.js`
 - `static/chat/workbench/node-contract.js`
-- `chat/workbench-store.mjs`
+- `chat/workbench/index.mjs`
 - `chat/routes/workbench.mjs`
 
 ## 4. 现在就适合归到设置的功能

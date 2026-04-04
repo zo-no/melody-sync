@@ -5,7 +5,7 @@ import {
   setSessionBranchCandidateSuppressed,
   submitHttpMessage,
   updateSessionTaskCard,
-} from './session-manager.mjs';
+} from '../session-manager.mjs';
 
 export async function createWorkbenchSession(folder, tool, name, extra = {}) {
   return createSession(folder, tool, name, extra);

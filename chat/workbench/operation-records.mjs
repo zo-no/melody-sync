@@ -1,5 +1,5 @@
 import { loadHistory } from '../history.mjs';
-import { getWorkbenchSession, listWorkbenchSessions } from '../workbench-session-ports.mjs';
+import { getWorkbenchSession, listWorkbenchSessions } from './session-ports.mjs';
 import { loadWorkbenchState } from './state-store.mjs';
 import {
   normalizeBranchContextStatus,

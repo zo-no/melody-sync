@@ -45,7 +45,7 @@ Browser / mobile shell
 - [`chat/history.mjs`](chat/history.mjs): append-only event store
 - [`chat/session-meta-store.mjs`](chat/session-meta-store.mjs): session metadata persistence
 - [`chat/session-api-shapes.mjs`](chat/session-api-shapes.mjs): API projection helpers
-- [`chat/workbench-store.mjs`](chat/workbench-store.mjs): task/workbench state layered on sessions
+- [`chat/workbench/index.mjs`](chat/workbench/index.mjs): task/workbench domain entry layered on sessions
 
 ### Frontend
 
@@ -78,12 +78,15 @@ Browser / mobile shell
 
 Important files under the active instance root:
 
-- `auth.json`
-- `chat-sessions.json`
-- `chat-history/`
-- `chat-runs/`
-- `assets/`
-- `tools.json`
+- `AGENTS.md`
+- `config/`
+- `memory/`
+- `sessions/chat-sessions.json`
+- `sessions/history/`
+- `sessions/runs/`
+- `hooks/custom-hooks.json`
+- `workbench/`
+- `logs/`
 
 ## Working Rules
 

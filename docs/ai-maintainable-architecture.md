@@ -42,7 +42,7 @@ The main chat lifecycle is spread across large files that each carry multiple do
 
 - `chat/session-manager.mjs`
 - `chat/router.mjs`
-- `chat/workbench-store.mjs`
+- `chat/workbench/index.mjs`
 
 This raises blast radius. A small change to one feature often requires understanding session state, run orchestration, persistence, background suggestions, and UI contracts at the same time.
 

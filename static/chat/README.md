@@ -10,8 +10,7 @@ Read this before moving code:
 - `session-list/`: left sidebar task-list contract, ordering contract, list model, list UI, and sidebar shell interactions.
 - `settings/`: shared settings overlay shell plus tab-specific settings surfaces such as `hooks/`.
 - `workbench/`: node contract, node settings tab/model, task-map model, tracker, quest-state selectors, operation-record rail, and branch action UI.
-- Root-level files should now be explicit runtime leftovers only:
-  - `__static_probe_*.js`: static-serving probe artifact
+- Root-level files should now be limited to shared stylesheets and this directory map.
 
 Prefer adding new files inside a domain directory instead of reviving the root.
 
