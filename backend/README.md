@@ -8,6 +8,7 @@ Use this map before editing:
 - `routes/`: request/response adapters. Route files should not grow durable state logic.
 - `settings/`: canonical settings-domain adapters that shape owner-facing `general`, `email`, `voice`, `hooks`, and `nodes` payloads for the shared settings overlay.
 - `session-manager.mjs`: session and run orchestration. Prefer extracting helpers instead of adding more inline lifecycle branches.
+- `result-assets.mjs`: result-file discovery and attachment publishing helpers used by run finalization and follow-up flows.
 - `history.mjs`, `runs.mjs`, `session-meta-store.mjs`: durable truth for session events, run manifests, and session metadata.
 - `compat/`: passive compatibility shims such as legacy app/source metadata normalization.
 - `hooks/contract/`: lifecycle scope and event definitions.
