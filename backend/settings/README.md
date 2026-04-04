@@ -3,6 +3,9 @@
 This directory owns the canonical settings-domain helpers that power the shared settings overlay.
 
 - `registry.mjs`: machine-readable list of settings sections shown in the UI.
+- `general.mjs`: canonical app-root settings payload and persistence helpers for the General tab.
+- `email.mjs`: canonical email settings payload and persistence helpers for the Email tab.
+- `voice.mjs`: canonical voice settings payload and persistence helpers for the Voice tab.
 - `hooks.mjs`: canonical hooks settings payload and enable/disable updates for the Hooks tab.
 - `nodes.mjs`: canonical node-kind settings payload and CRUD helpers for the Nodes tab.
 

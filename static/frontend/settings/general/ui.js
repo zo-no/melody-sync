@@ -1,8 +1,9 @@
 (function generalSettingsUiModule(global) {
   const body = global.document?.getElementById?.('generalSettingsPanelBody');
   const settingsPanel = global.MelodySyncSettingsPanel;
+  const settingsModel = global.MelodySyncGeneralSettingsModel;
 
-  if (!body || !settingsPanel) return;
+  if (!body || !settingsPanel || !settingsModel) return;
 
   let loaded = null;
   let pending = false;
@@ -20,13 +21,7 @@
   async function fetchSettings() {
     body.innerHTML = '<div class="hooks-loading">加载中…</div>';
     try {
-      const response = await global.fetch('/api/settings', {
-        credentials: 'same-origin',
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      loaded = await response.json();
+      loaded = await settingsModel.fetchSettings();
       pending = false;
       error = '';
       render();
@@ -39,34 +34,6 @@
     const field = form?.elements?.namedItem?.(name);
     return typeof field?.value === 'string' ? field.value : '';
   }
-
-  function scheduleReloadAfterConfigSwitch() {
-    let attempts = 0;
-    const maxAttempts = 12;
-    const delayMs = 600;
-
-    async function poll() {
-      attempts += 1;
-      try {
-        const response = await global.fetch('/api/settings', {
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
-        if (response.ok) {
-          global.location?.reload?.();
-          return;
-        }
-      } catch {
-        // Keep polling until the restarted service becomes reachable.
-      }
-      if (attempts < maxAttempts) {
-        global.setTimeout?.(poll, delayMs);
-      }
-    }
-
-    global.setTimeout?.(poll, delayMs);
-  }
-
   async function saveSettings(form) {
     if (pending || !form) return;
     pending = true;
@@ -74,18 +41,9 @@
     success = '';
     render();
     try {
-      const response = await global.fetch('/api/settings', {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appRoot: getNamedField(form, 'appRoot').trim(),
-        }),
+      const next = await settingsModel.saveSettings({
+        appRoot: getNamedField(form, 'appRoot').trim(),
       });
-      const next = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(next?.error || `HTTP ${response.status}`);
-      }
       loaded = next || loaded;
       success = next?.reloadRequired
         ? (next?.reloadScheduled ? '已保存，服务正在重新加载新应用目录。' : '已保存，请重启服务以加载新应用目录。')
@@ -93,7 +51,7 @@
       pending = false;
       render();
       if (next?.reloadRequired && next?.reloadScheduled) {
-        scheduleReloadAfterConfigSwitch();
+        settingsModel.scheduleReloadAfterConfigSwitch();
       }
     } catch (err) {
       pending = false;

@@ -600,15 +600,30 @@ async function main() {
     assert.match(settingsUiAsset.text, /MelodySyncSettingsPanel/);
     assert.match(settingsUiAsset.text, /data-settings-tab/);
 
+    const generalSettingsModelAsset = await request(port, 'GET', '/chat/settings/general/model.js');
+    assert.equal(generalSettingsModelAsset.status, 200, 'general settings model asset should load');
+    assert.match(generalSettingsModelAsset.text, /MelodySyncGeneralSettingsModel/);
+    assert.match(generalSettingsModelAsset.text, /scheduleReloadAfterConfigSwitch/);
+
+    const emailSettingsModelAsset = await request(port, 'GET', '/chat/settings/email/model.js');
+    assert.equal(emailSettingsModelAsset.status, 200, 'email settings model asset should load');
+    assert.match(emailSettingsModelAsset.text, /MelodySyncEmailSettingsModel/);
+    assert.match(emailSettingsModelAsset.text, /\/api\/settings\/email/);
+
+    const voiceSettingsModelAsset = await request(port, 'GET', '/chat/settings/voice/model.js');
+    assert.equal(voiceSettingsModelAsset.status, 200, 'voice settings model asset should load');
+    assert.match(voiceSettingsModelAsset.text, /MelodySyncVoiceSettingsModel/);
+    assert.match(voiceSettingsModelAsset.text, /\/api\/settings\/voice/);
+
     const emailSettingsUiAsset = await request(port, 'GET', '/chat/settings/email/ui.js');
     assert.equal(emailSettingsUiAsset.status, 200, 'email settings ui asset should load');
     assert.match(emailSettingsUiAsset.text, /emailSettingsPanelBody/);
-    assert.match(emailSettingsUiAsset.text, /\/api\/settings\/email/);
+    assert.match(emailSettingsUiAsset.text, /MelodySyncEmailSettingsModel/);
 
     const voiceSettingsUiAsset = await request(port, 'GET', '/chat/settings/voice/ui.js');
     assert.equal(voiceSettingsUiAsset.status, 200, 'voice settings ui asset should load');
     assert.match(voiceSettingsUiAsset.text, /voiceSettingsPanelBody/);
-    assert.match(voiceSettingsUiAsset.text, /\/api\/settings\/voice/);
+    assert.match(voiceSettingsUiAsset.text, /MelodySyncVoiceSettingsModel/);
 
     const nodeContractAsset = await request(port, 'GET', '/chat/workbench/node-contract.js');
     assert.equal(nodeContractAsset.status, 200, 'workbench node contract asset should load');

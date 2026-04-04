@@ -3,7 +3,7 @@
 This directory owns the shared settings overlay shell plus tab-specific settings surfaces.
 
 - `ui.js`: shared settings overlay, open/close behavior, and top-tab switching between settings domains.
-- `general/`, `email/`, `voice/`: owner-facing settings tabs for app root, email, and voice.
+- `general/`, `email/`, `voice/`: owner-facing settings tabs for app root, email, and voice, each split into `model.js` and `ui.js`.
 - `hooks/`: hooks lifecycle model plus the hooks tab content renderer.
 - `nodes/`: node-kind settings tab content and normalization helpers.
 

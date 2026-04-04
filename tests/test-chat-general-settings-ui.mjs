@@ -8,6 +8,7 @@ import vm from 'vm';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const settingsUiSource = readFileSync(join(repoRoot, 'static/frontend/settings/ui.js'), 'utf8');
+const generalModelSource = readFileSync(join(repoRoot, 'static/frontend/settings/general/model.js'), 'utf8');
 const generalUiSource = readFileSync(join(repoRoot, 'static/frontend/settings/general/ui.js'), 'utf8');
 
 function makeClassList() {
@@ -159,6 +160,7 @@ context.window = context;
 context.globalThis = context;
 
 vm.runInNewContext(settingsUiSource, context, { filename: 'static/frontend/settings/ui.js' });
+vm.runInNewContext(generalModelSource, context, { filename: 'static/frontend/settings/general/model.js' });
 vm.runInNewContext(generalUiSource, context, { filename: 'static/frontend/settings/general/ui.js' });
 
 hooksSettingsBtn.click();

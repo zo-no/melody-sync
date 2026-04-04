@@ -1,8 +1,9 @@
 (function emailSettingsUiModule(global) {
   const body = global.document?.getElementById?.('emailSettingsPanelBody');
   const settingsPanel = global.MelodySyncSettingsPanel;
+  const settingsModel = global.MelodySyncEmailSettingsModel;
 
-  if (!body || !settingsPanel) return;
+  if (!body || !settingsPanel || !settingsModel) return;
 
   let loaded = null;
   let pending = false;
@@ -48,13 +49,7 @@
   async function fetchSettings() {
     body.innerHTML = '<div class="hooks-loading">加载中…</div>';
     try {
-      const response = await global.fetch('/api/settings/email', {
-        credentials: 'same-origin',
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      loaded = await response.json();
+      loaded = await settingsModel.fetchSettings();
       pending = false;
       error = '';
       render();
@@ -70,41 +65,32 @@
     success = '';
     render();
     try {
-      const response = await global.fetch('/api/settings/email', {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identity: {
-            name: getFieldValue(form, 'identityName').trim(),
-            localPart: getFieldValue(form, 'identityLocalPart').trim(),
-            domain: getFieldValue(form, 'identityDomain').trim(),
-            description: getFieldValue(form, 'identityDescription').trim(),
-            instanceAddressMode: getFieldValue(form, 'identityInstanceAddressMode').trim(),
-          },
-          allowlist: {
-            allowedEmails: splitTextareaList(getFieldValue(form, 'allowEmails')),
-            allowedDomains: splitTextareaList(getFieldValue(form, 'allowDomains')),
-          },
-          outbound: {
-            provider: getFieldValue(form, 'outboundProvider').trim(),
-            account: getFieldValue(form, 'outboundAccount').trim(),
-            from: getFieldValue(form, 'outboundFrom').trim(),
-          },
-          automation: {
-            enabled: getCheckboxValue(form, 'automationEnabled'),
-            allowlistAutoApprove: getCheckboxValue(form, 'allowlistAutoApprove'),
-            autoApproveReviewer: getFieldValue(form, 'autoApproveReviewer').trim(),
-            chatBaseUrl: getFieldValue(form, 'automationChatBaseUrl').trim(),
-            authFile: getFieldValue(form, 'automationAuthFile').trim(),
-            deliveryMode: getFieldValue(form, 'automationDeliveryMode').trim(),
-          },
-        }),
+      const next = await settingsModel.saveSettings({
+        identity: {
+          name: getFieldValue(form, 'identityName').trim(),
+          localPart: getFieldValue(form, 'identityLocalPart').trim(),
+          domain: getFieldValue(form, 'identityDomain').trim(),
+          description: getFieldValue(form, 'identityDescription').trim(),
+          instanceAddressMode: getFieldValue(form, 'identityInstanceAddressMode').trim(),
+        },
+        allowlist: {
+          allowedEmails: splitTextareaList(getFieldValue(form, 'allowEmails')),
+          allowedDomains: splitTextareaList(getFieldValue(form, 'allowDomains')),
+        },
+        outbound: {
+          provider: getFieldValue(form, 'outboundProvider').trim(),
+          account: getFieldValue(form, 'outboundAccount').trim(),
+          from: getFieldValue(form, 'outboundFrom').trim(),
+        },
+        automation: {
+          enabled: getCheckboxValue(form, 'automationEnabled'),
+          allowlistAutoApprove: getCheckboxValue(form, 'allowlistAutoApprove'),
+          autoApproveReviewer: getFieldValue(form, 'autoApproveReviewer').trim(),
+          chatBaseUrl: getFieldValue(form, 'automationChatBaseUrl').trim(),
+          authFile: getFieldValue(form, 'automationAuthFile').trim(),
+          deliveryMode: getFieldValue(form, 'automationDeliveryMode').trim(),
+        },
       });
-      const next = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(next?.error || `HTTP ${response.status}`);
-      }
       loaded = next || loaded;
       pending = false;
       success = '已保存';

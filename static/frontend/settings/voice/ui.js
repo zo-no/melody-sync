@@ -1,8 +1,9 @@
 (function voiceSettingsUiModule(global) {
   const body = global.document?.getElementById?.('voiceSettingsPanelBody');
   const settingsPanel = global.MelodySyncSettingsPanel;
+  const settingsModel = global.MelodySyncVoiceSettingsModel;
 
-  if (!body || !settingsPanel) return;
+  if (!body || !settingsPanel || !settingsModel) return;
 
   let loaded = null;
   let pending = false;
@@ -47,13 +48,7 @@
   async function fetchSettings() {
     body.innerHTML = '<div class="hooks-loading">加载中…</div>';
     try {
-      const response = await global.fetch('/api/settings/voice', {
-        credentials: 'same-origin',
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      loaded = await response.json();
+      loaded = await settingsModel.fetchSettings();
       pending = false;
       error = '';
       render();
@@ -69,20 +64,11 @@
     success = '';
     render();
     try {
-      const response = await global.fetch('/api/settings/voice', {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: getFieldValue(form, 'mode').trim(),
-          wakePhrase: getFieldValue(form, 'wakePhrase').trim(),
-          ttsEnabled: getCheckboxValue(form, 'ttsEnabled'),
-        }),
+      const next = await settingsModel.saveSettings({
+        mode: getFieldValue(form, 'mode').trim(),
+        wakePhrase: getFieldValue(form, 'wakePhrase').trim(),
+        ttsEnabled: getCheckboxValue(form, 'ttsEnabled'),
       });
-      const next = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(next?.error || `HTTP ${response.status}`);
-      }
       loaded = next || loaded;
       pending = false;
       success = '已保存';

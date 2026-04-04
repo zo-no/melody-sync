@@ -1,19 +1,19 @@
 import { readBody } from '../../lib/utils.mjs';
 import {
-  persistEmailSettings,
-  readEmailSettings,
-} from '../email-settings-store.mjs';
+  persistEmailSettingsPayload,
+  readEmailSettingsPayload,
+} from '../settings/email.mjs';
+import {
+  persistGeneralSettingsPayload,
+  readGeneralSettingsPayload,
+} from '../settings/general.mjs';
 import { createHookSettingsPayload, updateHookEnabledState } from '../settings/hooks.mjs';
 import { createNodeSetting, createNodeSettingsPayload, deleteNodeSetting, updateNodeSetting } from '../settings/nodes.mjs';
 import { listSettingsSectionDefinitions } from '../settings/registry.mjs';
 import {
-  readGeneralSettings,
-  persistGeneralSettings,
-} from '../settings-store.mjs';
-import {
-  persistVoiceSettings,
-  readVoiceSettings,
-} from '../voice-settings-store.mjs';
+  persistVoiceSettingsPayload,
+  readVoiceSettingsPayload,
+} from '../settings/voice.mjs';
 
 export async function handleSettingsRoutes({ req, res, pathname, writeJson, scheduleConfigReload } = {}) {
   const isSettingsRoute = pathname === '/api/settings' || pathname === '/api/settings/';
@@ -24,7 +24,7 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
   const isNodeSettingsRoute = pathname === '/api/settings/nodes' || pathname === '/api/settings/nodes/';
 
   if (isSettingsRoute && req?.method === 'GET') {
-    const settings = await readGeneralSettings();
+    const settings = await readGeneralSettingsPayload();
     writeJson(res, 200, settings);
     return true;
   }
@@ -37,13 +37,13 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
   }
 
   if (isEmailSettingsRoute && req?.method === 'GET') {
-    const settings = await readEmailSettings();
+    const settings = await readEmailSettingsPayload();
     writeJson(res, 200, settings);
     return true;
   }
 
   if (isVoiceSettingsRoute && req?.method === 'GET') {
-    const settings = await readVoiceSettings();
+    const settings = await readVoiceSettingsPayload();
     writeJson(res, 200, settings);
     return true;
   }
@@ -68,8 +68,8 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
       return true;
     }
     try {
-      const current = await readGeneralSettings();
-      const next = await persistGeneralSettings(payload);
+      const current = await readGeneralSettingsPayload();
+      const next = await persistGeneralSettingsPayload(payload);
       const appRootChanged = !!(current?.appRoot && next?.appRoot && current.appRoot !== next.appRoot);
       const restartScheduled = appRootChanged && typeof scheduleConfigReload === 'function'
         ? scheduleConfigReload()
@@ -96,7 +96,7 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
       return true;
     }
     try {
-      const next = await persistEmailSettings(payload);
+      const next = await persistEmailSettingsPayload(payload);
       writeJson(res, 200, next);
       return true;
     } catch (error) {
@@ -115,7 +115,7 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
       return true;
     }
     try {
-      const next = await persistVoiceSettings(payload);
+      const next = await persistVoiceSettingsPayload(payload);
       writeJson(res, 200, next);
       return true;
     } catch (error) {
