@@ -912,8 +912,21 @@
   padding: 6px 8px 6px 11px;
 }
 
+.persistent-dock-body .session-item-name {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .persistent-dock-body .session-item .session-item-meta {
   font-size: 10px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
 }
 
 /* ---- Autocomplete suggestions ---- */
