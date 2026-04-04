@@ -27,7 +27,7 @@ async function main() {
     setSessionArchived,
     updateSessionTaskCard,
   } = await importFromRepo('chat/session-manager.mjs');
-  const { registerHook } = await importFromRepo('chat/session-hooks.mjs');
+  const { registerHook } = await importFromRepo('chat/hooks/index.mjs');
   const {
     createBranchFromSession,
     getWorkbenchSnapshot,

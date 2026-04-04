@@ -62,7 +62,7 @@ MelodySync is now an owner-operated AI task workspace.
 - `session-list/`: task-list contract, ordering contract, grouping model, sidebar list rendering, and sidebar shell behavior
 - `settings/hooks/`: hook settings lifecycle model plus browser entry UI
 - `workbench/`: task-map contract/model plus focused workbench renderers
-- `workbench-ui.js`: remaining top-level coordinator that still needs later extraction
+- `workbench/controller.js`: workbench-side coordinator that wires graph, surfaces, and node canvas
 
 
 ## Core Domain Objects

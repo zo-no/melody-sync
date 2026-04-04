@@ -17,7 +17,7 @@ writeFileSync(
 process.env.HOME = tempHome;
 
 try {
-  const hooksModule = await import(pathToFileURL(join(repoRoot, 'chat/session-hooks.mjs')).href);
+  const hooksModule = await import(pathToFileURL(join(repoRoot, 'chat/hooks/index.mjs')).href);
   const { registerSessionManagerBuiltinHooks } = await import(
     pathToFileURL(join(repoRoot, 'chat/hooks/register-session-manager-hooks.mjs')).href
   );

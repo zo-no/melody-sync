@@ -23,11 +23,11 @@
 
 ### 注册入口
 
-- `chat/session-hooks.mjs`
+- `chat/hooks/index.mjs`
   - 只负责初始化并导出 hooks registry
 - `chat/hooks/hook-contract.mjs`
   - 统一维护 hooks 的 layer/event contract
-- `chat/session-hook-registry.mjs`
+- `chat/hooks/registry.mjs`
   - 维护事件定义、注册、启停和 emit
 - `chat/hooks/builtin-hook-catalog.mjs`
   - 统一维护所有内建 hook 的 metadata contract

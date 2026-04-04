@@ -86,7 +86,7 @@
 
 ### 当前落点
 
-- `static/chat/workbench-ui.js`
+- `static/chat/workbench/controller.js`
 - `static/chat/workbench/task-map-model.js`
 - `static/chat/workbench/node-contract.js`
 - `chat/workbench-store.mjs`

@@ -45,7 +45,7 @@
     "/chat/workbench/task-list-ui.js",
     "/chat/workbench/branch-actions.js",
     "/chat/workbench/operation-record-ui.js",
-    "/chat/workbench-ui.js",
+    "/chat/workbench/controller.js",
     "/chat/session/compose.js",
     "/chat/core/gestures.js",
     "/chat/settings/ui.js",

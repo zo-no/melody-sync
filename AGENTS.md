@@ -65,7 +65,7 @@ Browser / mobile shell
 - [`static/chat/session-list/model.js`](static/chat/session-list/model.js): session list grouping, badges, and lightweight branch semantics
 - [`static/chat/session-list/ui.js`](static/chat/session-list/ui.js): session list rendering
 - [`static/chat/session-list/sidebar-ui.js`](static/chat/session-list/sidebar-ui.js): sidebar interactions
-- [`static/chat/workbench-ui.js`](static/chat/workbench-ui.js): task/workbench UI
+- [`static/chat/workbench/controller.js`](static/chat/workbench/controller.js): workbench coordinator
 
 ### Shared
 

@@ -1,5 +1,5 @@
-import { registerBuiltinHooks } from './hooks/runtime/register-builtins.mjs';
-import { registerCustomHooks } from './hooks/runtime/register-custom-hooks.mjs';
+import { registerBuiltinHooks } from './runtime/register-builtins.mjs';
+import { registerCustomHooks } from './runtime/register-custom-hooks.mjs';
 
 registerBuiltinHooks();
 await registerCustomHooks();
@@ -14,4 +14,4 @@ export {
   listHooks,
   registerHook,
   setHookEnabled,
-} from './hooks/runtime/registry.mjs';
+} from './runtime/registry.mjs';

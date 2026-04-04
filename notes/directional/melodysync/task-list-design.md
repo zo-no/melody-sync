@@ -291,7 +291,7 @@ MelodySync 的前台主对象不是 `session`，而是 `task`。
 - `static/chat/session/surface-ui.js`
 - `static/chat/session-list/ui.js`
 - `static/chat/chat-sidebar.css`
-- `static/chat/workbench-ui.js`
+- `static/chat/workbench/controller.js`
 - `static/chat/session/http.js`
 - `static/chat/session-list/sidebar-ui.js`
 
@@ -299,6 +299,6 @@ MelodySync 的前台主对象不是 `session`，而是 `task`。
 
 1. `session/surface-ui.js`
 2. `session-list/ui.js`
-3. `workbench-ui.js`
+3. `workbench/controller.js`
 4. `chat-sidebar.css`
 5. `session/http.js`

@@ -11,6 +11,7 @@ Use this map before editing:
 - `compat/`: passive compatibility shims such as legacy app/source metadata normalization.
 - `hooks/contract/`: lifecycle scope and event definitions.
 - `hooks/runtime/`: hook registry, settings persistence, and builtin registration wiring.
+- `hooks/index.mjs`: canonical hook entry surface for bootstrap/runtime callers.
 - `hooks/`: builtin metadata, focused handlers, and compatibility export surfaces.
 - `workbench/`: workbench persistence helpers, node settings, and read-side projections.
 - `workbench-store.mjs`: compatibility shell and orchestration entry for workbench behavior. Prefer moving new focused logic into `workbench/`.

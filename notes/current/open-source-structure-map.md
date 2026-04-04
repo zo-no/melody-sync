@@ -10,7 +10,7 @@
 
 当前已经补上的基础：
 
-- `chat/session-hook-registry.mjs`
+- `chat/hooks/registry.mjs`
   - 统一维护 hooks event contract
 - `chat/hooks/builtin-hook-catalog.mjs`
   - 统一维护所有内建 hook 的定义信息
@@ -111,7 +111,7 @@
 
 ### 前端优先级
 
-1. `static/chat/workbench-ui.js`
+1. `static/chat/workbench/controller.js`
    - 当前还混了 quest state、snapshot 协调和各子模块接线
 2. `static/chat/`
    - 目录仍然偏平，不利于新 contributor 定位
@@ -247,7 +247,7 @@ static/chat/
   - `static/chat/workbench/operation-record-ui.js`
 - 旧入口仍然保留：
   - `chat/workbench-store.mjs`
-  - `static/chat/workbench-ui.js`
+  - `static/chat/workbench/controller.js`
 
 这样做的目的不是保留双份实现，而是先让目录边界出现，再继续把剩余责任从旧入口往下搬。
 
@@ -271,7 +271,7 @@ static/chat/
 ## 5. 如果准备删旧上新，建议顺序
 
 1. 先把 contract 和 state/store 边界补齐
-2. 再拆 `workbench-store.mjs` 和 `workbench-ui.js`
+2. 再拆 `workbench-store.mjs` 和 `workbench/controller.js`
 3. 再删外围功能和历史兼容残留
 4. 最后再考虑大规模移动目录
 

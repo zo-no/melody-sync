@@ -231,7 +231,7 @@ GTD 分组是任务列表的组织视图，不是生命周期状态本身。
 - `chat/router.mjs`
 - `chat/session-manager.mjs`
 - `chat/history.mjs`
-- `static/chat/workbench-ui.js`
+- `static/chat/workbench/controller.js`
 - `static/chat/session/surface-ui.js`
 - `static/chat/session-list/ui.js`
 - `static/chat/core/realtime.js`
@@ -241,6 +241,6 @@ GTD 分组是任务列表的组织视图，不是生命周期状态本身。
 1. `workbench-store.mjs`
 2. `router.mjs`
 3. `session-manager.mjs`
-4. `workbench-ui.js`
+4. `workbench/controller.js`
 5. `session/surface-ui.js`
 6. `session-list/ui.js`

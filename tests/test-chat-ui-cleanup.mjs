@@ -14,7 +14,7 @@ const sources = {
   input: readFileSync(join(repoRoot, 'static/chat/chat-input.css'), 'utf8'),
   responsive: readFileSync(join(repoRoot, 'static/chat/chat-responsive.css'), 'utf8'),
   base: readFileSync(join(repoRoot, 'static/chat/chat-base.css'), 'utf8'),
-  workbenchUI: readFileSync(join(repoRoot, 'static/chat/workbench-ui.js'), 'utf8'),
+  workbenchUI: readFileSync(join(repoRoot, 'static/chat/workbench/controller.js'), 'utf8'),
 };
 
 assert.ok(!/Flat visual cleanup|Flat high-contrast|Flat UI cleanup|Flat responsive cleanup|UI cleanup high-contrast/.test(sources.base + sources.messages + sources.input + sources.workbench + sources.sidebar + sources.responsive), 'legacy one-off flat cleanup blocks should be removed');

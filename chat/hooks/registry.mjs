@@ -8,4 +8,4 @@ export {
   listHooks,
   registerHook,
   setHookEnabled,
-} from './hooks/runtime/registry.mjs';
+} from './runtime/registry.mjs';

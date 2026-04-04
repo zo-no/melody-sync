@@ -49,7 +49,7 @@
 - `static/chat/session-list/ui.js`
 - `static/chat/session-list/sidebar-ui.js`
 - `static/chat/session/compose.js`
-- `static/chat/workbench-ui.js`
+- `static/chat/workbench/controller.js`
 - `static/chat/workbench/task-map-model.js`
 - `static/chat/settings/hooks/ui.js`
 
@@ -155,7 +155,7 @@
 
 - `chat/session-manager.mjs`
 - `chat/workbench-store.mjs`
-- `static/chat/workbench-ui.js`
+- `static/chat/workbench/controller.js`
 
 这一步应该在“功能残留删干净”后再做，否则只是在给旧逻辑换目录。
 

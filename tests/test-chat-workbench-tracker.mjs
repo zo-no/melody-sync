@@ -24,7 +24,7 @@ const taskMapUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench
 const taskListUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-list-ui.js'), 'utf8');
 const branchActionsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'branch-actions.js'), 'utf8');
 const operationRecordUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'operation-record-ui.js'), 'utf8');
-const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-ui.js'), 'utf8');
+const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'controller.js'), 'utf8');
 
 function makeClassList(initial = [], onChange = () => {}) {
   const values = new Set(initial);
@@ -258,7 +258,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
   await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
-    filename: 'static/chat/workbench-ui.js',
+    filename: 'static/chat/workbench/controller.js',
   });
   await flushAsync(8);
   return { elements, fetchCalls, fetchLog, attachCalls, workbench: context.window.MelodySyncWorkbench };

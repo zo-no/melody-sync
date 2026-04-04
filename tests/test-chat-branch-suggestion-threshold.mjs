@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench-ui.js'), 'utf8');
+const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'controller.js'), 'utf8');
 
 function extractFunctionSource(code, functionName) {
   const marker = `function ${functionName}`;
@@ -123,7 +123,7 @@ context.globalThis = context;
 vm.runInNewContext(
   `${createBranchSuggestionItemSource}\nglobalThis.createBranchSuggestionItem = createBranchSuggestionItem;`,
   context,
-  { filename: 'static/chat/workbench-ui.js' },
+  { filename: 'static/chat/workbench/controller.js' },
 );
 
 const suppressedAuto = context.createBranchSuggestionItem({

@@ -24,7 +24,7 @@ process.env.HOME = tempHome;
 try {
   // Import hooks module first
   const { listHooks, HOOK_EVENTS, HOOK_EVENT_DEFINITIONS, applyHookEnabledOverrides } = await import(
-    pathToFileURL(join(repoRoot, 'chat/session-hooks.mjs')).href
+    pathToFileURL(join(repoRoot, 'chat/hooks/index.mjs')).href
   );
 
   // Import session-manager — this registers module-level code but not

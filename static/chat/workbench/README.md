@@ -29,13 +29,13 @@ Files by role:
 
 Design rules:
 
-- `workbench-ui.js` should stay a coordinator, not absorb renderer details again.
+- `controller.js` should stay a coordinator, not absorb renderer details again.
 - Keep contracts and projection close to the workbench UI that consumes them.
 - Treat `chat/workbench/node-definitions.mjs` as the canonical current node source; `node-contract.js` should read bootstrap/API-fed definitions and keep a safe fallback for isolated tests.
 - Keep node behavior centralized in `node-effects.js`; avoid adding new `kind === ...` branches directly in `task-map-model.js` or `task-map-ui.js`.
 - Keep graph node-instance shape centralized in `node-instance.js`; avoid letting `task-map-model.js`, `task-map-plan.js`, `surface-projection.js`, and `node-capabilities.js` drift into separate node payload formats.
 - Keep graph node/edge collection shape centralized in `graph-model.js`; avoid letting `task-map-model.js` and `task-map-plan.js` drift into separate quest graph formats.
-- Keep canonical graph reads centralized in `graph-client.js`; `workbench-ui.js` should prefer the backend graph payload before falling back to local continuity reconstruction.
+- Keep canonical graph reads centralized in `graph-client.js`; `controller.js` should prefer the backend graph payload before falling back to local continuity reconstruction.
 - Keep quest-source helpers in `task-map-clusters.js` and mock/demo graph injection in `task-map-mock-presets.js`; `task-map-model.js` should stay focused on default continuity projection.
 - Treat `view.type` as the right-rail node-canvas contract. The canvas renderer decides safe embedding; task-map nodes only provide structure, selection, and capability entry points.
 - Keep optional graph overrides centralized in `task-map-plan.js`; default continuity projection should stay available as the fallback path.
