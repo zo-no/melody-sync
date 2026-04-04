@@ -4,7 +4,7 @@ import assert from 'assert/strict';
 const {
   prepareSessionContinuationBody,
   buildSessionContinuationContextFromBody,
-} = await import('../chat/session-continuation.mjs');
+} = await import('../backend/session-continuation.mjs');
 
 const defaultContext = buildSessionContinuationContextFromBody('[User]\ncontinue');
 assert.match(defaultContext, /MelodySync session continuity handoff for this existing conversation/);

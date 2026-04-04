@@ -13,10 +13,10 @@ process.env.HOME = tempHome;
 
 try {
   const nodeSettingsStore = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/node-settings-store.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/node-settings-store.mjs')).href
   );
   const contractModule = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/task-map-plan-contract.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/task-map-plan-contract.mjs')).href
   );
 
   await nodeSettingsStore.createCustomNodeKind({

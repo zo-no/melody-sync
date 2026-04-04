@@ -10,11 +10,11 @@
 
 当前已经补上的基础：
 
-- `chat/hooks/registry.mjs`
+- `backend/hooks/registry.mjs`
   - 统一维护 hooks event contract
-- `chat/hooks/builtin-hook-catalog.mjs`
+- `backend/hooks/builtin-hook-catalog.mjs`
   - 统一维护所有内建 hook 的定义信息
-- `chat/routes/hooks.mjs`
+- `backend/routes/hooks.mjs`
   - 对外暴露 hooks 列表和 event definitions
 
 这一步解决的是“多处各写一份 label / id / eventPattern”的问题。
@@ -34,9 +34,9 @@
 
 当前已经补上的基础：
 
-- `static/chat/workbench/node-contract.js`
+- `static/frontend/workbench/node-contract.js`
   - 统一维护 task map node kind 定义
-- `static/chat/workbench/task-map-model.js`
+- `static/frontend/workbench/task-map-model.js`
   - 只负责从 session/workbench snapshot 派生 projection
 
 这里最重要的边界是：
@@ -50,7 +50,7 @@
 
 ### 3. workbench-store 还太胖
 
-`chat/workbench/index.mjs` 现在仍然同时承担：
+`backend/workbench/index.mjs` 现在仍然同时承担：
 
 - capture/project/node 持久化
 - branch continuity
@@ -58,27 +58,27 @@
 
 但第一刀已经落地：
 
-- `chat/workbench/state-store.mjs`
+- `backend/workbench/state-store.mjs`
   - 负责 workbench 持久化状态读写
-- `chat/workbench/operation-records.mjs`
+- `backend/workbench/operation-records.mjs`
   - 负责操作记录投影
-- `chat/workbench/continuity-store.mjs`
+- `backend/workbench/continuity-store.mjs`
   - 负责 continuity / taskClusters 的读侧投影
-- `chat/workbench/exporters.mjs`
+- `backend/workbench/exporters.mjs`
   - 负责 summary / markdown / obsidian export / branch seed prompt
-- `static/chat/workbench/task-tracker-ui.js`
+- `static/frontend/workbench/task-tracker-ui.js`
   - 负责顶部 tracker 的标题、状态、详情渲染
-- `static/chat/workbench/quest-state.js`
+- `static/frontend/workbench/quest-state.js`
   - 负责 quest state / cluster / context / lineage 派生
-- `static/chat/workbench/task-map-ui.js`
+- `static/frontend/workbench/task-map-ui.js`
   - 负责 flow-board 任务地图渲染
-- `static/chat/workbench/task-list-ui.js`
+- `static/frontend/workbench/task-list-ui.js`
   - 负责任务列表 / 树视图渲染和展开状态
-- `static/chat/workbench/branch-actions.js`
+- `static/frontend/workbench/branch-actions.js`
   - 负责支线收束、挂起、回主线和 tracker 动作按钮
-- `static/chat/workbench/operation-record-ui.js`
+- `static/frontend/workbench/operation-record-ui.js`
   - 负责右侧操作记录面板交互
-- `static/chat/session-list/model.js`
+- `static/frontend/session-list/model.js`
   - 负责左侧任务列表的分组和轻量支线标记，不再依赖 workbench 关系树
 
 现在剩下最值得继续拆的热点，主要回到了 continuity 写侧和 knowledge 这两块。
@@ -87,56 +87,56 @@
 
 ### 后端优先级
 
-1. `chat/workbench/index.mjs`
+1. `backend/workbench/index.mjs`
    - 先拆成 4 个责任文件最值
-2. `chat/session-manager.mjs`
+2. `backend/session-manager.mjs`
    - 继续把 run finalize 后的派生动作往 hooks / finalize helpers 外移
-3. `chat/router.mjs`
+3. `backend/router.mjs`
    - 继续薄化，只保留路由拼装
 
 ### 建议先拆出的 backend 模块
 
-- `chat/workbench/state-store.mjs`
+- `backend/workbench/state-store.mjs`
   - 只负责 load/save workbench 持久化状态
-- `chat/workbench/continuity-store.mjs`
+- `backend/workbench/continuity-store.mjs`
   - 只负责 branchContexts、taskClusters、session continuity
-- `chat/workbench/operation-records.mjs`
+- `backend/workbench/operation-records.mjs`
   - 只负责操作记录投影和 session 历史拼接
-- `chat/workbench/knowledge-store.mjs`
+- `backend/workbench/knowledge-store.mjs`
   - 只负责 capture/projects/nodes/summaries
-- `chat/workbench/exporters.mjs`
+- `backend/workbench/exporters.mjs`
   - 只负责 obsidian/export 一类外围输出
 
 这样拆的好处是：以后删除外围功能时，不会动到 continuity 和 operation record 这两个主骨架。
 
 ### 前端优先级
 
-1. `static/chat/workbench/controller.js`
+1. `static/frontend/workbench/controller.js`
    - 当前还混了 quest state、snapshot 协调和各子模块接线
-2. `static/chat/`
+2. `static/frontend/`
    - 目录仍然偏平，不利于新 contributor 定位
-3. `static/chat/settings/hooks/ui.js`
+3. `static/frontend/settings/hooks/ui.js`
    - 还可以继续靠近 hooks contract，避免 UI 侧再次长出独立规则
 
 ### 建议先拆出的 frontend 模块
 
-- `static/chat/workbench/task-map-ui.js`
+- `static/frontend/workbench/task-map-ui.js`
   - 只负责地图渲染和交互
-- `static/chat/workbench/quest-state.js`
+- `static/frontend/workbench/quest-state.js`
   - 只负责 session/snapshot 到 quest state 的 selector 派生
-- `static/chat/workbench/task-list-ui.js`
+- `static/frontend/workbench/task-list-ui.js`
   - 只负责任务列表 / 树视图渲染
-- `static/chat/workbench/task-tracker-ui.js`
+- `static/frontend/workbench/task-tracker-ui.js`
   - 只负责顶部 tracker
-- `static/chat/workbench/operation-record-ui.js`
+- `static/frontend/workbench/operation-record-ui.js`
   - 只负责右侧操作记录面板
-- `static/chat/workbench/branch-actions.js`
+- `static/frontend/workbench/branch-actions.js`
   - 只负责结束、挂起、回主线等动作
-- `static/chat/session-list/model.js`
+- `static/frontend/session-list/model.js`
   - 只负责左侧任务列表的 group / badge / light list semantics
-- `static/chat/workbench/task-map-model.js`
+- `static/frontend/workbench/task-map-model.js`
   - 保持纯 projection
-- `static/chat/workbench/node-contract.js`
+- `static/frontend/workbench/node-contract.js`
   - 保持纯契约
 
 ## 3. 推荐目录形态
@@ -146,7 +146,7 @@
 ### backend
 
 ```text
-chat/
+backend/
   hooks/
     builtin-hook-catalog.mjs
     register-builtin-hooks.mjs
@@ -176,7 +176,7 @@ chat/
 ### frontend
 
 ```text
-static/chat/
+static/frontend/
   core/
     bootstrap-data.js
     app-state.js
@@ -221,33 +221,33 @@ static/chat/
 ### 当前已经落地的第一步
 
 - backend 已经有：
-  - `chat/workbench/state-store.mjs`
-  - `chat/workbench/continuity-store.mjs`
-  - `chat/workbench/operation-records.mjs`
-  - `chat/workbench/exporters.mjs`
+  - `backend/workbench/state-store.mjs`
+  - `backend/workbench/continuity-store.mjs`
+  - `backend/workbench/operation-records.mjs`
+  - `backend/workbench/exporters.mjs`
 - frontend 已经有：
-  - `static/chat/core/bootstrap.js`
-  - `static/chat/core/bootstrap-session-catalog.js`
-  - `static/chat/core/realtime.js`
-  - `static/chat/core/realtime-render.js`
-  - `static/chat/session/state-model.js`
-  - `static/chat/session/http.js`
-  - `static/chat/session/tooling.js`
-  - `static/chat/session/compose.js`
-  - `static/chat/session/surface-ui.js`
-  - `static/chat/session-list/sidebar-ui.js`
-  - `static/chat/settings/hooks/ui.js`
-  - `static/chat/workbench/node-contract.js`
-  - `static/chat/workbench/task-map-model.js`
-  - `static/chat/workbench/quest-state.js`
-  - `static/chat/workbench/task-tracker-ui.js`
-  - `static/chat/workbench/task-map-ui.js`
-  - `static/chat/workbench/task-list-ui.js`
-  - `static/chat/workbench/branch-actions.js`
-  - `static/chat/workbench/operation-record-ui.js`
+  - `static/frontend/core/bootstrap.js`
+  - `static/frontend/core/bootstrap-session-catalog.js`
+  - `static/frontend/core/realtime.js`
+  - `static/frontend/core/realtime-render.js`
+  - `static/frontend/session/state-model.js`
+  - `static/frontend/session/http.js`
+  - `static/frontend/session/tooling.js`
+  - `static/frontend/session/compose.js`
+  - `static/frontend/session/surface-ui.js`
+  - `static/frontend/session-list/sidebar-ui.js`
+  - `static/frontend/settings/hooks/ui.js`
+  - `static/frontend/workbench/node-contract.js`
+  - `static/frontend/workbench/task-map-model.js`
+  - `static/frontend/workbench/quest-state.js`
+  - `static/frontend/workbench/task-tracker-ui.js`
+  - `static/frontend/workbench/task-map-ui.js`
+  - `static/frontend/workbench/task-list-ui.js`
+  - `static/frontend/workbench/branch-actions.js`
+  - `static/frontend/workbench/operation-record-ui.js`
 - 旧入口仍然保留：
-  - `chat/workbench/index.mjs`
-  - `static/chat/workbench/controller.js`
+  - `backend/workbench/index.mjs`
+  - `static/frontend/workbench/controller.js`
 
 这样做的目的不是保留双份实现，而是先让目录边界出现，再继续把剩余责任从旧入口往下搬。
 

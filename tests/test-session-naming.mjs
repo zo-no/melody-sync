@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { normalizeGeneratedSessionTitle } from './chat/session-naming.mjs';
+import { normalizeGeneratedSessionTitle } from '../backend/session-naming.mjs';
 
 assert.equal(
   normalizeGeneratedSessionTitle('RemoteLab Rename Flow', 'RemoteLab'),

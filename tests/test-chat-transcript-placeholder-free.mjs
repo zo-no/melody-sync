@@ -6,9 +6,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const uiSource = readFileSync(join(repoRoot, 'static', 'chat', 'session', 'transcript-ui.js'), 'utf8');
-const realtimeSource = readFileSync(join(repoRoot, 'static', 'chat', 'core', 'realtime.js'), 'utf8');
-const realtimeRenderSource = readFileSync(join(repoRoot, 'static', 'chat', 'core', 'realtime-render.js'), 'utf8');
+const uiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session', 'transcript-ui.js'), 'utf8');
+const realtimeSource = readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'realtime.js'), 'utf8');
+const realtimeRenderSource = readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'realtime-render.js'), 'utf8');
 
 for (const snippet of [
   'Load message…',

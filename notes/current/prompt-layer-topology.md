@@ -124,8 +124,8 @@ Turn-level reminders still matter, but they should stay light. They should reinf
 
 ## Current implementation implications
 
-- `chat/runtime-policy.mjs` should express boundary, ownership, and principle-first defaults.
-- `chat/system-prompt.mjs` should describe the seed layer, context topology, routing posture, and selective memory activation.
-- `chat/session-continuation.mjs` should frame handoff as continuity for the active workstream.
-- `chat/session-manager.mjs` should keep turn activation compact and principle-first.
-- `chat/session-routing.mjs` should reinforce bounded-work / bounded-context routing.
+- `backend/runtime-policy.mjs` should express boundary, ownership, and principle-first defaults.
+- `backend/system-prompt.mjs` should describe the seed layer, context topology, routing posture, and selective memory activation.
+- `backend/session-continuation.mjs` should frame handoff as continuity for the active workstream.
+- `backend/session-manager.mjs` should keep turn activation compact and principle-first.
+- `backend/session-routing.mjs` should reinforce bounded-work / bounded-context routing.

@@ -111,7 +111,7 @@ async function main() {
   const { home } = setupTempHome();
   const port = randomPort();
   const probeName = `__static_probe_${Date.now().toString(36)}.js`;
-  const probePath = join(repoRoot, 'static', 'chat', probeName);
+  const probePath = join(repoRoot, 'static', 'frontend', probeName);
   writeFileSync(probePath, 'window.__REMOTELAB_STATIC_PROBE__ = true;\n', 'utf8');
 
   const server = await startServer({ home, port });

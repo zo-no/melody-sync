@@ -3,7 +3,7 @@
 _Started: 2026-03-04_
 
 > Status: directional note for post-request-response interaction design.
-> For the current shipped chat/runtime baseline, use `docs/project-architecture.md`.
+> For the current shipped backend/runtime baseline, use `docs/project-architecture.md`.
 > For the current domain baseline, use `notes/current/core-domain-contract.md`.
 
 ---

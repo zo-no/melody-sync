@@ -3,15 +3,43 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 ACTION="${1:-start}"
-CONFIG_DIR="$HOME/.config/remotelab/voice-connector"
-CONFIG_PATH="$CONFIG_DIR/config.json"
-PID_FILE="$CONFIG_DIR/connector.pid"
-LOG_PATH="$CONFIG_DIR/connector.log"
-LAUNCHER_PATH="$CONFIG_DIR/start-connector-terminal.sh"
 NODE_BIN="${NODE_BIN:-$(command -v node)}"
 START_MODE="${VOICE_CONNECTOR_START_MODE:-auto}"
 
-mkdir -p "$CONFIG_DIR"
+resolve_voice_dir() {
+  "$NODE_BIN" --input-type=module <<'NODE'
+import { homedir } from 'os';
+import { join, resolve } from 'path';
+import { readFileSync } from 'fs';
+
+const bootstrapPath = join(homedir(), '.config', 'melody-sync', 'general-settings.json');
+let appRoot = join(homedir(), '.melodysync');
+
+try {
+  const payload = JSON.parse(readFileSync(bootstrapPath, 'utf8'));
+  const raw = typeof payload?.appRoot === 'string' ? payload.appRoot.trim() : '';
+  if (raw) {
+    if (raw === '~') {
+      appRoot = homedir();
+    } else if (raw.startsWith('~/')) {
+      appRoot = join(homedir(), raw.slice(2));
+    } else {
+      appRoot = resolve(raw);
+    }
+  }
+} catch {}
+
+process.stdout.write(join(appRoot, 'voice'));
+NODE
+}
+
+CONFIG_DIR="${VOICE_CONNECTOR_DIR:-$(resolve_voice_dir)}"
+CONFIG_PATH="${VOICE_CONNECTOR_CONFIG_PATH:-$CONFIG_DIR/config.json}"
+PID_FILE="${VOICE_CONNECTOR_PID_FILE:-$CONFIG_DIR/connector.pid}"
+LOG_PATH="${VOICE_CONNECTOR_LOG_PATH:-$CONFIG_DIR/logs/connector.log}"
+LAUNCHER_PATH="${VOICE_CONNECTOR_LAUNCHER_PATH:-$CONFIG_DIR/start-connector-terminal.sh}"
+
+mkdir -p "$CONFIG_DIR" "$(dirname -- "$LOG_PATH")"
 
 running_pid() {
   if [[ ! -f "$PID_FILE" ]]; then

@@ -9,7 +9,7 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     builtIn: true,
     owner: 'hooks',
     layer: 'boot',
-    sourceModule: 'chat/hooks/first-boot-memory-hook.mjs',
+    sourceModule: 'backend/hooks/first-boot-memory-hook.mjs',
   }),
   createHookDefinition({
     id: 'builtin.resume-completion-targets',
@@ -19,7 +19,7 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     builtIn: true,
     owner: 'hooks',
     layer: 'boot',
-    sourceModule: 'chat/hooks/resume-completion-targets-hook.mjs',
+    sourceModule: 'backend/hooks/resume-completion-targets-hook.mjs',
   }),
   createHookDefinition({
     id: 'builtin.graph-context-bootstrap',
@@ -30,7 +30,7 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     owner: 'hooks',
     layer: 'lifecycle',
     promptContextPolicy: 'continuity',
-    sourceModule: 'chat/hooks/graph-context-bootstrap-hook.mjs',
+    sourceModule: 'backend/hooks/graph-context-bootstrap-hook.mjs',
   }),
   createHookDefinition({
     id: 'builtin.push-notification',
@@ -40,7 +40,7 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     builtIn: true,
     owner: 'hooks',
     layer: 'delivery',
-    sourceModule: 'chat/hooks/push-notification-hook.mjs',
+    sourceModule: 'backend/hooks/push-notification-hook.mjs',
   }),
   createHookDefinition({
     id: 'builtin.email-completion',
@@ -50,7 +50,7 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     builtIn: true,
     owner: 'hooks',
     layer: 'delivery',
-    sourceModule: 'chat/hooks/email-completion-hook.mjs',
+    sourceModule: 'backend/hooks/email-completion-hook.mjs',
   }),
   createHookDefinition({
     id: 'builtin.branch-candidates',
@@ -61,7 +61,7 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     owner: 'hooks',
     layer: 'lifecycle',
     taskMapPlanPolicy: 'augment-default',
-    sourceModule: 'chat/hooks/branch-candidates-hook.mjs',
+    sourceModule: 'backend/hooks/branch-candidates-hook.mjs',
   }),
   createHookDefinition({
     id: 'builtin.session-naming',
@@ -71,7 +71,7 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     builtIn: true,
     owner: 'hooks',
     layer: 'lifecycle',
-    sourceModule: 'chat/hooks/session-naming-hook.mjs',
+    sourceModule: 'backend/hooks/session-naming-hook.mjs',
   }),
 ]);
 

@@ -69,7 +69,7 @@ Target principle:
 Target backend shape:
 
 ```text
-chat/
+backend/
   routes/
     auth.mjs
     sessions.mjs
@@ -106,7 +106,7 @@ chat/
 Target frontend shape:
 
 ```text
-static/chat/
+static/frontend/
   core/
     bootstrap.js
     init.js
@@ -174,13 +174,13 @@ Targets:
 Primary files:
 
 - `templates/chat.html`
-- `static/chat/core/bootstrap.js`
-- `static/chat/core/bootstrap-session-catalog.js`
-- `static/chat/session-list/sidebar-ui.js`
-- `static/chat/core/i18n.js`
-- `chat/router.mjs`
-- `chat/compat/apps.mjs`
-- `chat/users.mjs`
+- `static/frontend/core/bootstrap.js`
+- `static/frontend/core/bootstrap-session-catalog.js`
+- `static/frontend/session-list/sidebar-ui.js`
+- `static/frontend/core/i18n.js`
+- `backend/router.mjs`
+- `backend/compat/apps.mjs`
+- `backend/users.mjs`
 - `lib/trigger-command.mjs`
 
 Exit criteria:
@@ -194,9 +194,9 @@ Purpose: split large backend modules by responsibility while preserving API beha
 
 Targets:
 
-- create the target `chat/routes/`, `chat/sessions/`, `chat/runs/`, and `chat/workbench/` folders
-- split `chat/session-manager.mjs`
-- thin `chat/router.mjs` into focused route registrars
+- create the target `backend/routes/`, `backend/sessions/`, `backend/runs/`, and `backend/workbench/` folders
+- split `backend/session-manager.mjs`
+- thin `backend/router.mjs` into focused route registrars
 - isolate workbench logic behind a narrower facade
 
 Suggested split:
@@ -226,8 +226,8 @@ Canonical frontend state buckets:
 
 Rules:
 
-- create grouped frontend folders before moving logic out of the flat `static/chat/` root
-- `static/chat/session/http.js` stays the canonical fetch/update path
+- create grouped frontend folders before moving logic out of the flat `static/frontend/` root
+- `static/frontend/session/http.js` stays the canonical fetch/update path
 - realtime code only invalidates or refreshes
 - deleted filters and settings must not linger in globals or translations
 

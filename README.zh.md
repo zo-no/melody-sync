@@ -211,7 +211,7 @@ chat-server.mjs (:7760)
 - 浏览器状态始终要回收敛到 HTTP 读取结果
 - WebSocket 是无效化通道，不是规范消息通道
 - 之所以能在控制面重启后恢复活跃工作，是因为真正的状态在磁盘上
-- 开发 MelodySync 自身时，`7760` 就是唯一默认 chat/control plane；现在依赖干净重启后的恢复能力，而不是常驻第二个验证服务
+- 开发 MelodySync 自身时，`7760` 就是唯一默认 backend/control plane；现在依赖干净重启后的恢复能力，而不是常驻第二个验证服务
 
 完整代码地图和流程拆解请看 `docs/project-architecture.md`。
 

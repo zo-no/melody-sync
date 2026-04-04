@@ -9,23 +9,23 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
 const nodeContractSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'node-contract.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'node-contract.js'),
   'utf8',
 );
 const nodeEffectsSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'node-effects.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'node-effects.js'),
   'utf8',
 );
 const nodeInstanceSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'node-instance.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'node-instance.js'),
   'utf8',
 );
 const graphModelSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'graph-model.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'graph-model.js'),
   'utf8',
 );
 const taskMapPlanSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'task-map-plan.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-plan.js'),
   'utf8',
 );
 

@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const modelSource = readFileSync(join(repoRoot, 'static/chat/workbench/node-settings-model.js'), 'utf8');
-const uiSource = readFileSync(join(repoRoot, 'static/chat/workbench/node-settings-ui.js'), 'utf8');
+const modelSource = readFileSync(join(repoRoot, 'static/frontend/workbench/node-settings-model.js'), 'utf8');
+const uiSource = readFileSync(join(repoRoot, 'static/frontend/workbench/node-settings-ui.js'), 'utf8');
 
 function makeClassList() {
   const tokens = new Set();
@@ -119,8 +119,8 @@ const context = {
 context.globalThis = context;
 context.window = context;
 
-vm.runInNewContext(modelSource, context, { filename: 'static/chat/workbench/node-settings-model.js' });
-vm.runInNewContext(uiSource, context, { filename: 'static/chat/workbench/node-settings-ui.js' });
+vm.runInNewContext(modelSource, context, { filename: 'static/frontend/workbench/node-settings-model.js' });
+vm.runInNewContext(uiSource, context, { filename: 'static/frontend/workbench/node-settings-ui.js' });
 
 const controller = context.MelodySyncTaskMapNodeSettingsUi.createController({
   bodyEl,

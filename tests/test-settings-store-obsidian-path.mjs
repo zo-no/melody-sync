@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -29,7 +29,7 @@ mkdirSync(firstAppRoot, { recursive: true });
 mkdirSync(secondAppRoot, { recursive: true });
 
 try {
-  const settingsModule = await import(pathToFileURL(join(repoRoot, 'chat/settings-store.mjs')).href);
+  const settingsModule = await import(pathToFileURL(join(repoRoot, 'backend/settings-store.mjs')).href);
 
   const first = await settingsModule.persistGeneralSettings({ appRoot: firstAppRoot });
   assert.equal(first.configuredAppRootPath, firstAppRoot);
@@ -52,9 +52,18 @@ try {
     'bootstrap settings should always point at the latest configured path',
   );
   assert.equal(
-    JSON.parse(readFileSync(second.storagePath, 'utf8')).appRoot,
-    secondAppRoot,
-    'canonical settings should be written into the selected app root',
+    JSON.stringify(JSON.parse(readFileSync(second.storagePath, 'utf8'))),
+    JSON.stringify({}),
+    'app-local settings should not persist machine-specific app root pointers',
+  );
+
+  writeFileSync(
+    second.storagePath,
+    JSON.stringify({
+      appRoot: '/Users/other-machine/Shared/Vault/00-🤖agent',
+      agentsPath: '/Users/other-machine/Shared/Vault/00-🤖agent/AGENTS.md',
+    }, null, 2),
+    'utf8',
   );
   const current = await settingsModule.readGeneralSettings();
   assert.equal(current.configuredAppRootPath, secondAppRoot);

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
 
-import { createSessionNamingHook } from '../chat/hooks/session-naming-hook.mjs';
+import { createSessionNamingHook } from '../backend/hooks/session-naming-hook.mjs';
 
 const calls = [];
 const hook = createSessionNamingHook({

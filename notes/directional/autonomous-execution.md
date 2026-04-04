@@ -2,7 +2,7 @@
 
 > 状态：P2（长期演进），已确认方向，尚未启动实现。
 > 记录于 2026-03-06。
-> 当前 shipped chat/runtime 基线请先看 `docs/project-architecture.md`。
+> 当前 shipped backend/runtime 基线请先看 `docs/project-architecture.md`。
 > `notes/message-transport-architecture.md` 保留 transport/runtime 背景，这份文档继续只描述 autonomy 的更高层产品方向。
 
 ---

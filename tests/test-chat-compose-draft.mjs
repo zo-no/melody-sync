@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const composeSource = readFileSync(join(repoRoot, 'static/chat/session/compose.js'), 'utf8');
+const composeSource = readFileSync(join(repoRoot, 'static/frontend/session/compose.js'), 'utf8');
 
 class StorageMock {
   constructor() {
@@ -310,7 +310,7 @@ function createContext({
 }
 
 const context = createContext();
-vm.runInNewContext(composeSource, context, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, context, { filename: 'static/frontend/session/compose.js' });
 
 assert.equal(context.msgInput.style.height, '72px', 'composer should default to a 3-line height');
 assert.equal(context.layoutSubscribers.length, 1, 'composer should subscribe to the shared layout controller');
@@ -346,7 +346,7 @@ context.restoreDraft();
 assert.equal(context.msgInput.value, '', 'no attached session should present an empty composer');
 
 const manualContext = createContext();
-vm.runInNewContext(composeSource, manualContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, manualContext, { filename: 'static/frontend/session/compose.js' });
 manualContext.setManualInputHeight(220);
 assert.equal(manualContext.msgInput.style.height, '220px', 'manual resize should write to the textarea height directly');
 assert.equal(manualContext.localStorage.getItem('msgInputHeight'), '220', 'manual resize should persist textarea height');
@@ -361,7 +361,7 @@ const legacyContext = createContext({
     inputAreaHeight: '240',
   },
 });
-vm.runInNewContext(composeSource, legacyContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, legacyContext, { filename: 'static/frontend/session/compose.js' });
 assert.equal(legacyContext.msgInput.style.height, '192px', 'legacy container height should migrate into a textarea height');
 assert.equal(legacyContext.localStorage.getItem('msgInputHeight'), '192', 'legacy height should be migrated into the new textarea storage key');
 assert.equal(legacyContext.localStorage.getItem('inputAreaHeight'), null, 'legacy height storage should be cleared after migration');
@@ -370,13 +370,13 @@ const standaloneViewportContext = createContext({
   windowInnerHeight: 500,
   visualViewportHeight: 260,
 });
-vm.runInNewContext(composeSource, standaloneViewportContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, standaloneViewportContext, { filename: 'static/frontend/session/compose.js' });
 standaloneViewportContext.setManualInputHeight(220);
 standaloneViewportContext.syncInputHeightForLayout();
 assert.equal(standaloneViewportContext.msgInput.style.height, '139px', 'manual composer height should clamp against visualViewport height when available');
 
 const failedSendFocusContext = createContext();
-vm.runInNewContext(composeSource, failedSendFocusContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, failedSendFocusContext, { filename: 'static/frontend/session/compose.js' });
 failedSendFocusContext.restoreFailedSendState('session-a', 'retry me', []);
 assert.equal(failedSendFocusContext.focusComposerCalls.length, 1, 'failed-send recovery should invoke the shared focus helper once');
 assert.equal(failedSendFocusContext.focusComposerCalls[0]?.force, true, 'failed-send recovery should force composer focus when rehydrating the draft');
@@ -388,7 +388,7 @@ canonicalSendContext.dispatchAction = async (payload) => {
   canonicalSendCalls.push(payload);
   return true;
 };
-vm.runInNewContext(composeSource, canonicalSendContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, canonicalSendContext, { filename: 'static/frontend/session/compose.js' });
 canonicalSendContext.msgInput.value = 'hold the draft until confirmed';
 canonicalSendContext.saveDraft();
 canonicalSendContext.sendMessage();
@@ -406,7 +406,7 @@ assert.equal(canonicalSendContext.msgInput.value, 'hold the draft until confirme
 const reloadedPendingSendContext = createContext({
   storageSeed: Object.fromEntries(canonicalSendContext.localStorage.store),
 });
-vm.runInNewContext(composeSource, reloadedPendingSendContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, reloadedPendingSendContext, { filename: 'static/frontend/session/compose.js' });
 reloadedPendingSendContext.restoreDraft();
 assert.equal(reloadedPendingSendContext.msgInput.value, '', 'reloading the page should not resurrect a stale sending draft after the durable draft has been cleared');
 
@@ -422,7 +422,7 @@ assert.equal(canonicalSendContext.localStorage.getItem('draft_session-a'), null,
 
 const queuedSendContext = createContext();
 queuedSendContext.dispatchAction = async () => true;
-vm.runInNewContext(composeSource, queuedSendContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, queuedSendContext, { filename: 'static/frontend/session/compose.js' });
 queuedSendContext.msgInput.value = 'queue this follow-up';
 queuedSendContext.saveDraft();
 queuedSendContext.sendMessage();
@@ -443,7 +443,7 @@ runningTakeoverContext.getCurrentSession = () => ({
     queue: { state: 'idle', count: 0 },
   },
 });
-vm.runInNewContext(composeSource, runningTakeoverContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, runningTakeoverContext, { filename: 'static/frontend/session/compose.js' });
 runningTakeoverContext.msgInput.value = 'turn this into a real run';
 runningTakeoverContext.saveDraft();
 runningTakeoverContext.sendMessage();
@@ -469,7 +469,7 @@ runningBaselineContext.getCurrentSession = () => ({
     queue: { state: 'idle', count: 0 },
   },
 });
-vm.runInNewContext(composeSource, runningBaselineContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, runningBaselineContext, { filename: 'static/frontend/session/compose.js' });
 runningBaselineContext.msgInput.value = 'queue behind the current run';
 runningBaselineContext.saveDraft();
 runningBaselineContext.sendMessage();
@@ -494,7 +494,7 @@ assert.equal(runningBaselineContext.msgInput.readOnly, false, 'queue confirmatio
 
 const failedSendContext = createContext();
 failedSendContext.dispatchAction = async () => true;
-vm.runInNewContext(composeSource, failedSendContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, failedSendContext, { filename: 'static/frontend/session/compose.js' });
 failedSendContext.msgInput.value = 'retry this request';
 failedSendContext.saveDraft();
 failedSendContext.sendMessage();
@@ -527,7 +527,7 @@ const suggestionContext = createContext({
     },
   },
 });
-vm.runInNewContext(composeSource, suggestionContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, suggestionContext, { filename: 'static/frontend/session/compose.js' });
 suggestionContext.renderSuggestedQuestions({
   id: 'main-1',
   rootSessionId: 'main-1',
@@ -554,7 +554,7 @@ const fallbackSuggestionContext = createContext({
     },
   },
 });
-vm.runInNewContext(composeSource, fallbackSuggestionContext, { filename: 'static/chat/session/compose.js' });
+vm.runInNewContext(composeSource, fallbackSuggestionContext, { filename: 'static/frontend/session/compose.js' });
 fallbackSuggestionContext.renderSuggestedQuestions({
   id: 'main-1',
   rootSessionId: 'main-1',

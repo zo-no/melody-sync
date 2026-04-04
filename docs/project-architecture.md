@@ -24,13 +24,13 @@ MelodySync is now an owner-operated AI task workspace.
 
 ### Core backend modules
 
-`chat/router.mjs`
+`backend/router.mjs`
 
 - top-level HTTP dispatcher
 - serves auth/build/runtime/session APIs
 - still contains some retired compatibility stubs that should be pruned during cleanup
 
-`chat/session-manager.mjs`
+`backend/session-manager.mjs`
 
 - session CRUD
 - history/event persistence
@@ -39,7 +39,7 @@ MelodySync is now an owner-operated AI task workspace.
 - fork/delegate flows
 - session invalidation broadcasts
 
-`chat/runner-sidecar.mjs`
+`backend/runner-sidecar.mjs`
 
 - launches provider runtimes
 - streams normalized output into the session event store
@@ -51,16 +51,18 @@ MelodySync is now an owner-operated AI task workspace.
 
 - owner-facing chat shell
 
-`static/chat.js`
+`static/frontend.js`
 
 - loader for split frontend assets
 
-`static/chat/`
+`static/frontend/`
 
 - `core/`: bootstrap payloads, app state, i18n/icons, layout, websocket invalidation, gestures, app init
 - `session/`: HTTP fetch/update helpers, derived session state, tooling, composer, transcript rendering, and attached session surface
 - `session-list/`: task-list contract, ordering contract, grouping model, sidebar list rendering, and sidebar shell behavior
 - `settings/hooks/`: hook settings lifecycle model plus browser entry UI
+- `settings/email/`: mailbox identity, outbound, and automation settings UI
+- `settings/voice/`: local voice-ingress settings UI backed by `appRoot/voice/config.json`
 - `workbench/`: task-map contract/model plus focused workbench renderers
 - `workbench/controller.js`: workbench-side coordinator that wires graph, surfaces, and node canvas
 
@@ -119,7 +121,7 @@ Persistence:
 ### Boot and load
 
 1. Browser loads `chat.html`.
-2. `static/chat.js` loads the split frontend.
+2. `static/frontend.js` loads the split frontend.
 3. Frontend calls `/api/auth/me`, `/api/tools`, `/api/sessions`, and related owner APIs.
 4. WebSocket connects to `/ws`.
 5. The selected session is hydrated by HTTP, then kept fresh by invalidation messages.
@@ -147,13 +149,14 @@ Persistence:
 
 Default runtime behavior:
 
-- if `general-settings.json` has `appRoot`, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
+- if `general-settings.json` has `appRoot`, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `email/`, `voice/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
 - if no storage root is configured, MelodySync falls back to the legacy home-local layout (`~/.config/melody-sync` plus `~/.melody-sync/memory`)
 - isolated instances can still override this via `REMOTELAB_INSTANCE_ROOT`, `REMOTELAB_CONFIG_DIR`, and `REMOTELAB_MEMORY_DIR`
 
 Vault-backed app root shape:
 
 - `config/` — auth, sessions cookie store, runtime selection, push config, general settings
+- `email/` — mailbox identity, allowlist, outbound, and automation config
 - `memory/` — bootstrap/project/skills/task memory
 - `sessions/` — machine-readable session storage:
   - `chat-sessions.json` for the current session catalog
@@ -168,7 +171,7 @@ Vault-backed app root shape:
 ## Current Constraints
 
 - The system is owner-only. Do not reintroduce visitor/share assumptions into auth, routing, or frontend state.
-- `chat/session-manager.mjs` is still the biggest complexity hotspot.
+- `backend/session-manager.mjs` is still the biggest complexity hotspot.
 - Frontend state is split but still mostly global-script driven.
 - Legacy `appId` / `appName` / `userId` / `userName` fields may still appear in stored session metadata, but they are not shipped product systems anymore.
 - Workbench and integrations remain valuable, but they should stay layered on the core session/run path rather than drive the primary architecture.
@@ -179,3 +182,4 @@ Vault-backed app root shape:
 - `current-features.md` for the current shipped feature surface
 - `../notes/current/core-domain-contract.md` for the current domain model
 - `setup.md` for deployment/setup flow
+- `voice/` — local voice-ingress config, event log, pid file, launcher script, and runtime log

@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const bootstrapSource = readFileSync(join(repoRoot, 'static', 'chat', 'core', 'bootstrap.js'), 'utf8');
+const bootstrapSource = readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'bootstrap.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -68,7 +68,7 @@ async function main() {
   vm.runInNewContext(
     `${applyBuildInfoSource}\nglobalThis.applyBuildInfo = applyBuildInfo;`,
     context,
-    { filename: 'static/chat/core/bootstrap.js' },
+    { filename: 'static/frontend/core/bootstrap.js' },
   );
 
   const nextBuildInfo = { assetVersion: 'build-b', title: 'Frontend ui:build-b' };

@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const bootstrapSource = readFileSync(join(repoRoot, 'static', 'chat', 'core', 'bootstrap.js'), 'utf8') + '\n' + readFileSync(join(repoRoot, 'static', 'chat', 'core', 'bootstrap-session-catalog.js'), 'utf8');
+const bootstrapSource = readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'bootstrap.js'), 'utf8') + '\n' + readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'bootstrap-session-catalog.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -87,7 +87,7 @@ context.globalThis = context;
 vm.runInNewContext(
   `${getSessionSortTimeSource}\n${getSessionPinSortRankSource}\n${compareSessionListSessionsSource}\n${sortSessionsInPlaceSource}`,
   context,
-  { filename: 'static/chat/core/bootstrap-session-catalog.js' },
+  { filename: 'static/frontend/core/bootstrap-session-catalog.js' },
 );
 
 context.sortSessionsInPlace();

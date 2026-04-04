@@ -16,7 +16,7 @@ const {
   MANAGER_TURN_POLICY_REMINDER,
   applyManagedRuntimeEnv,
   ensureManagedCodexHome,
-} = await import('../chat/runtime-policy.mjs');
+} = await import('../backend/runtime-policy.mjs');
 
 try {
   const managedHome = join(home, '.config', 'remotelab', 'provider-runtime-homes', 'codex-test');

@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
-const repoRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-label-context-'));
 const tempBin = join(tempHome, 'bin');
 const configDir = join(tempHome, '.config', 'remotelab');
@@ -116,10 +116,10 @@ process.env.PATH = `${tempBin}:${process.env.PATH}`;
 process.env.PROMPT_LOG_FILE = promptLogPath;
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'chat', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
 );
 const history = await import(
-  pathToFileURL(join(repoRoot, 'chat', 'history.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'history.mjs')).href
 );
 
 const {

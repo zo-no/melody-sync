@@ -56,10 +56,10 @@ Universal learnings and patterns that apply to all RemoteLab deployments, regard
 ### Similar UI Totals Often Have Separate Code Paths (2026-03-11)
 - In RemoteLab, session row counts, folder counts, archive counts, and app-filter totals can look like one product concept while still coming from different frontend functions.
 - When a screenshot reports a "count bug", first identify the exact UI surface and trace that specific DOM/data path; fixing an adjacent counter can create false confidence while the real bug remains.
-- For the session sidebar specifically, per-session row counts live in `static/chat/session/transcript-ui.js`, while the app-filter totals are computed separately in `static/chat/core/bootstrap.js`.
+- For the session sidebar specifically, per-session row counts live in `static/frontend/session/transcript-ui.js`, while the app-filter totals are computed separately in `static/frontend/core/bootstrap.js`.
 
 ### Template-Literal Prompt Edits Can Break Server Boot (2026-03-11)
-- `chat/system-prompt.mjs` builds a large template literal, so inserting raw backticks inside the embedded prompt text creates a syntax error that prevents `chat-server.mjs` from starting.
+- `backend/system-prompt.mjs` builds a large template literal, so inserting raw backticks inside the embedded prompt text creates a syntax error that prevents `chat-server.mjs` from starting.
 - After touching server-loaded modules or large inline prompt/template strings, run `node --check` before restart, then verify both the listener and a real HTTP endpoint; do not rely only on a helper script printing "restarted".
 
 ### Project Path Persistence (2026-03-06)
@@ -169,7 +169,7 @@ Universal learnings and patterns that apply to all RemoteLab deployments, regard
 
 ### Visitor Mode Must Propagate Across Bootstrap (2026-03-12)
 - Visitor-mode requests should carry an explicit signal (currently `?visitor=1`) across initial page loads, API fetches, and WebSocket upgrades when owner and visitor cookies can coexist.
-- Frontend test harnesses may load `static/chat/session/http.js` or other modules without `bootstrap.js`; any visitor-flag helpers introduced in `bootstrap.js` need a local fallback to avoid undefined globals during tests.
+- Frontend test harnesses may load `static/frontend/session/http.js` or other modules without `bootstrap.js`; any visitor-flag helpers introduced in `bootstrap.js` need a local fallback to avoid undefined globals during tests.
 
 ### Owner Session Cookies Should Use PWA-Compatible Defaults (2026-03-12)
 - For owner login persistence in installed PWAs, prefer standard web-cookie defaults: `HttpOnly`, `Secure` when HTTPS, `SameSite=Lax`, and both `Max-Age` plus `Expires`.
@@ -210,9 +210,9 @@ Universal learnings and patterns that apply to all RemoteLab deployments, regard
 - Reserve built-in apps for product-structural roles such as the owner chat surface, app-creation helpers, or connector scopes that need a stable first-class identity in the UI.
 - Do not hardcode niche business workflows like video cutting as shipped built-ins; model them as normal shareable apps so they remain optional, editable, and unspecial in app ordering and product copy.
 
-### Post-Run Integrations Should Live Outside `chat/` (2026-03-11)
-- Business-specific side effects triggered by finished runs, such as outbound email delivery, should not live under the core `chat/` domain modules even when the chat server invokes them.
-- A cleaner split is: `chat/` owns sessions, runs, and event history; integration modules under `lib/` or connector-specific areas consume those primitives and perform provider-specific delivery work.
+### Post-Run Integrations Should Live Outside `backend/` (2026-03-11)
+- Business-specific side effects triggered by finished runs, such as outbound email delivery, should not live under the core `backend/` domain modules even when the chat server invokes them.
+- A cleaner split is: `backend/` owns sessions, runs, and event history; integration modules under `lib/` or connector-specific areas consume those primitives and perform provider-specific delivery work.
 
 ### Connector HTTP Sends Must Respect Proxy Reality (2026-03-19)
 - Do not assume Node's built-in `fetch` will successfully inherit the operator's shell proxy setup on every machine; in real local-first deployments it can fail with `fetch failed` / `UND_ERR_CONNECT_TIMEOUT` while `curl` to the same URL succeeds.
@@ -269,7 +269,7 @@ Universal learnings and patterns that apply to all RemoteLab deployments, regard
 
 ### Boot Memory Should Stay Pointer-Sized (2026-03-06)
 - In RemoteLab, the built-in boot prompt should stay a small pointer/index that tells the agent which memory files exist; do not inline full memory documents there.
-- Default context bloat usually comes from the agent explicitly reading large memory files and from accumulated chat/tool history, not from `buildSystemContext()` itself.
+- Default context bloat usually comes from the agent explicitly reading large memory files and from accumulated backend/tool history, not from `buildSystemContext()` itself.
 - Practical rule: keep bootstrap memory tiny, split large notes into topical files, and read deep context on demand instead of every session.
 
 ### Scope Routers Should Cover Non-Repo Domains Too (2026-03-09)

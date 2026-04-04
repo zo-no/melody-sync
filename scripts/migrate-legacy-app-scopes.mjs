@@ -3,7 +3,7 @@
 import { copyFile, readFile } from 'fs/promises';
 import { basename, dirname, join } from 'path';
 import { CHAT_SESSIONS_FILE } from '../lib/config.mjs';
-import { ensureDir, pathExists, writeTextAtomic } from '../chat/fs-utils.mjs';
+import { ensureDir, pathExists, writeTextAtomic } from '../backend/fs-utils.mjs';
 
 const APPLY_FLAG = '--apply';
 const AUTOMATION_REVIEW_NAME_RE = /^🔧\s*(daily|weekly)\s+review\s+—\s+\d{4}-\d{2}-\d{2}$/i;

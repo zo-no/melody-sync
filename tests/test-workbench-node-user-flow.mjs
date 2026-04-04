@@ -14,24 +14,24 @@ mkdirSync(join(tempHome, '.config', 'melody-sync'), { recursive: true });
 process.env.HOME = tempHome;
 
 function loadFrontendModule(relativePath) {
-  return readFileSync(join(repoRoot, 'static', 'chat', 'workbench', relativePath), 'utf8');
+  return readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', relativePath), 'utf8');
 }
 
 try {
   const nodeSettingsStore = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/node-settings-store.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/node-settings-store.mjs')).href
   );
   const nodeDefinitionsModule = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/node-definitions.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/node-definitions.mjs')).href
   );
   const producers = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/task-map-plan-producers.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/task-map-plan-producers.mjs')).href
   );
   const backendNodeInstance = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/node-instance.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/node-instance.mjs')).href
   );
   const backendNodeTaskCard = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/node-task-card.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/node-task-card.mjs')).href
   );
 
   function toPlain(value) {

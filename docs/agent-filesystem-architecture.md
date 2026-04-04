@@ -63,7 +63,7 @@ MelodySync 当前有三层文件系统：
 当前和 agent 最相关的源码目录：
 
 ```text
-chat/
+backend/
   hooks/         生命周期 hook contract、catalog、handler、settings store
   routes/        HTTP route
   workbench/     workbench / continuity / operation record projection
@@ -72,7 +72,7 @@ chat/
 lib/
   config.mjs     实例根、config、memory 等路径定义
 
-static/chat/
+static/frontend/
   session-list/  任务列表 contract、排序 contract、model、UI
   workbench/     任务地图、tracker、操作记录、支线动作 UI
   ...            其余前端 bootstrap/session/composer/runtime 模块
@@ -93,11 +93,11 @@ memory/
 和 agent 文件系统直接相关的关键文件：
 
 - `lib/config.mjs`
-- `chat/system-prompt.mjs`
-- `chat/hooks/first-boot-memory-hook.mjs`
-- `chat/history.mjs`
-- `chat/runs.mjs`
-- `chat/session-meta-store.mjs`
+- `backend/system-prompt.mjs`
+- `backend/hooks/first-boot-memory-hook.mjs`
+- `backend/history.mjs`
+- `backend/runs.mjs`
+- `backend/session-meta-store.mjs`
 
 ---
 
@@ -176,7 +176,7 @@ melody-sync-instance/
 
 结构来自：
 
-- `chat/history.mjs`
+- `backend/history.mjs`
 
 每个 session 目录下通常有：
 
@@ -196,7 +196,7 @@ melody-sync-instance/
 
 结构来自：
 
-- `chat/runs.mjs`
+- `backend/runs.mjs`
 
 每个 run 目录下至少有：
 
@@ -211,7 +211,7 @@ melody-sync-instance/
 
 实现：
 
-- `chat/hooks/hook-settings-store.mjs`
+- `backend/hooks/hook-settings-store.mjs`
 
 当前只持久化：
 
@@ -262,8 +262,8 @@ melody-sync-instance/
 由：
 
 - `lib/config.mjs`
-- `chat/system-prompt.mjs`
-- `chat/hooks/first-boot-memory-hook.mjs`
+- `backend/system-prompt.mjs`
+- `backend/hooks/first-boot-memory-hook.mjs`
 
 共同定义。
 
@@ -446,10 +446,10 @@ memory/
 如果后续开发者要理解“agent 文件系统”，我建议按这个顺序读：
 
 1. `lib/config.mjs`
-2. `chat/system-prompt.mjs`
-3. `chat/hooks/first-boot-memory-hook.mjs`
-4. `chat/history.mjs`
-5. `chat/runs.mjs`
+2. `backend/system-prompt.mjs`
+3. `backend/hooks/first-boot-memory-hook.mjs`
+4. `backend/history.mjs`
+5. `backend/runs.mjs`
 6. `docs/project-architecture.md`
 7. `docs/hooks-node-architecture.md`
 8. `notes/current/hooks-and-node-structure.md`

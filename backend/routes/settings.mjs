@@ -7,10 +7,15 @@ import {
   readGeneralSettings,
   persistGeneralSettings,
 } from '../settings-store.mjs';
+import {
+  persistVoiceSettings,
+  readVoiceSettings,
+} from '../voice-settings-store.mjs';
 
 export async function handleSettingsRoutes({ req, res, pathname, writeJson, scheduleConfigReload } = {}) {
   const isSettingsRoute = pathname === '/api/settings' || pathname === '/api/settings/';
   const isEmailSettingsRoute = pathname === '/api/settings/email' || pathname === '/api/settings/email/';
+  const isVoiceSettingsRoute = pathname === '/api/settings/voice' || pathname === '/api/settings/voice/';
 
   if (isSettingsRoute && req?.method === 'GET') {
     const settings = await readGeneralSettings();
@@ -20,6 +25,12 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
 
   if (isEmailSettingsRoute && req?.method === 'GET') {
     const settings = await readEmailSettings();
+    writeJson(res, 200, settings);
+    return true;
+  }
+
+  if (isVoiceSettingsRoute && req?.method === 'GET') {
+    const settings = await readVoiceSettings();
     writeJson(res, 200, settings);
     return true;
   }
@@ -67,6 +78,25 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
       return true;
     } catch (error) {
       writeJson(res, 400, { error: error.message || 'Failed to update email settings' });
+      return true;
+    }
+  }
+
+  if (isVoiceSettingsRoute && req?.method === 'PATCH') {
+    let payload = {};
+    try {
+      const raw = await readBody(req, 256 * 1024);
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      writeJson(res, 400, { error: 'Invalid request body' });
+      return true;
+    }
+    try {
+      const next = await persistVoiceSettings(payload);
+      writeJson(res, 200, next);
+      return true;
+    } catch (error) {
+      writeJson(res, 400, { error: error.message || 'Failed to update voice settings' });
       return true;
     }
   }

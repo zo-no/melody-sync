@@ -3,7 +3,7 @@ import assert from 'assert/strict';
 import {
   createNodeInstance,
   mergeNodeInstances,
-} from '../chat/workbench/node-instance.mjs';
+} from '../backend/workbench/node-instance.mjs';
 
 const candidateNode = createNodeInstance({
   id: 'candidate:main-1:review',

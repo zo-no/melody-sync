@@ -1,13 +1,13 @@
 {
   "files": {
-    "chat/session-manager.mjs": 3855,
-    "chat/router.mjs": 2175,
+    "backend/session-manager.mjs": 3855,
+    "backend/router.mjs": 2175,
     "scripts/github-auto-triage.mjs": 1726,
     "scripts/proactive-observer.mjs": 1424,
     "scripts/remote-capability-monitor.mjs": 1415,
     "tests/test-http-runtime-phase1.mjs": 1007,
     "scripts/github-ci-auto-repair.mjs": 973,
     "scripts/doubao-fast-agent.mjs": 867,
-    "static/chat/session/transcript-ui.js": 808
+    "static/frontend/session/transcript-ui.js": 808
   }
 }

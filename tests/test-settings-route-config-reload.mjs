@@ -32,7 +32,7 @@ writeFileSync(
 
 try {
   const { handleSettingsRoutes } = await import(
-    pathToFileURL(join(repoRoot, 'chat/routes/settings.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/routes/settings.mjs')).href
   );
 
   const req = Readable.from([JSON.stringify({ appRoot: secondAppRoot })]);

@@ -26,8 +26,8 @@ async function main() {
     createSession,
     setSessionArchived,
     updateSessionTaskCard,
-  } = await importFromRepo('chat/session-manager.mjs');
-  const { registerHook } = await importFromRepo('chat/hooks/index.mjs');
+  } = await importFromRepo('backend/session-manager.mjs');
+  const { registerHook } = await importFromRepo('backend/hooks/index.mjs');
   const {
     createBranchFromSession,
     getWorkbenchSnapshot,
@@ -35,7 +35,7 @@ async function main() {
     mergeBranchSessionBackToMain,
     setBranchSessionStatus,
     syncSessionContinuityFromSession,
-  } = await importFromRepo('chat/workbench/index.mjs');
+  } = await importFromRepo('backend/workbench/index.mjs');
 
   const mainSession = await createSession(workdir, 'codex', '学习电影史', {});
   assert.ok(mainSession?.id, 'main session should be created');

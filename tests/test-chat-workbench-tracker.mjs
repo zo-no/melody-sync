@@ -7,24 +7,24 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const nodeContractSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-contract.js'), 'utf8');
-const nodeEffectsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/node-effects.js'), 'utf8');
-const nodeInstanceSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'node-instance.js'), 'utf8');
-const graphModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'graph-model.js'), 'utf8');
-const graphClientSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'graph-client.js'), 'utf8');
-const taskMapPlanSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-plan.js'), 'utf8');
-const taskMapClustersSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-map-clusters.js'), 'utf8');
-const taskMapMockPresetsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-map-mock-presets.js'), 'utf8');
-const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench/task-map-model.js'), 'utf8');
-const questStateSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'quest-state.js'), 'utf8');
-const taskTrackerUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-tracker-ui.js'), 'utf8');
-const nodeRichViewUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'node-rich-view-ui.js'), 'utf8');
-const nodeCanvasUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'node-canvas-ui.js'), 'utf8');
-const taskMapUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-map-ui.js'), 'utf8');
-const taskListUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'task-list-ui.js'), 'utf8');
-const branchActionsSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'branch-actions.js'), 'utf8');
-const operationRecordUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'operation-record-ui.js'), 'utf8');
-const source = readFileSync(join(repoRoot, 'static', 'chat', 'workbench', 'controller.js'), 'utf8');
+const nodeContractSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/node-contract.js'), 'utf8');
+const nodeEffectsSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/node-effects.js'), 'utf8');
+const nodeInstanceSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'node-instance.js'), 'utf8');
+const graphModelSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'graph-model.js'), 'utf8');
+const graphClientSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'graph-client.js'), 'utf8');
+const taskMapPlanSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/task-map-plan.js'), 'utf8');
+const taskMapClustersSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-clusters.js'), 'utf8');
+const taskMapMockPresetsSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-mock-presets.js'), 'utf8');
+const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/task-map-model.js'), 'utf8');
+const questStateSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'quest-state.js'), 'utf8');
+const taskTrackerUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-tracker-ui.js'), 'utf8');
+const nodeRichViewUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'node-rich-view-ui.js'), 'utf8');
+const nodeCanvasUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'node-canvas-ui.js'), 'utf8');
+const taskMapUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-ui.js'), 'utf8');
+const taskListUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-list-ui.js'), 'utf8');
+const branchActionsSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'branch-actions.js'), 'utf8');
+const operationRecordUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'operation-record-ui.js'), 'utf8');
+const source = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'controller.js'), 'utf8');
 
 function makeClassList(initial = [], onChange = () => {}) {
   const values = new Set(initial);
@@ -258,7 +258,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
   await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
-    filename: 'static/chat/workbench/controller.js',
+    filename: 'static/frontend/workbench/controller.js',
   });
   await flushAsync(8);
   return { elements, fetchCalls, fetchLog, attachCalls, workbench: context.window.MelodySyncWorkbench };

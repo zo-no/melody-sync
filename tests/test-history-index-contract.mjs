@@ -7,7 +7,7 @@ import { join } from 'path';
 const home = mkdtempSync(join(tmpdir(), 'remotelab-history-index-'));
 process.env.HOME = home;
 
-const { appendEvents, readEventBody, readEventsAfter } = await import('./chat/history.mjs');
+const { appendEvents, readEventBody, readEventsAfter } = await import('../backend/history.mjs');
 
 try {
   const sessionId = 'history-index-contract';

@@ -22,14 +22,14 @@ async function main() {
     createSession,
     getSession,
     updateSessionTaskCard,
-  } = await importFromRepo('chat/session-manager.mjs');
+  } = await importFromRepo('backend/session-manager.mjs');
   const {
     getWorkbenchSnapshot,
     syncSessionContinuityFromSession,
-  } = await importFromRepo('chat/workbench/index.mjs');
+  } = await importFromRepo('backend/workbench/index.mjs');
   const {
     mutateSessionMeta,
-  } = await importFromRepo('chat/session-meta-store.mjs');
+  } = await importFromRepo('backend/session-meta-store.mjs');
 
   const mainSession = await createSession(workdir, 'codex', '初始化任务', {});
   assert.ok(mainSession?.id, 'main session should be created');

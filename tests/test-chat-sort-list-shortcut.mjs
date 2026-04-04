@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sidebarUiSource = readFileSync(join(repoRoot, 'static', 'chat', 'session-list', 'sidebar-ui.js'), 'utf8');
-const sessionHttpSource = readFileSync(join(repoRoot, 'static', 'chat', 'session/http.js'), 'utf8');
+const sidebarUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session-list', 'sidebar-ui.js'), 'utf8');
+const sessionHttpSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session/http.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -60,7 +60,7 @@ function createHarness({ organizeResult = true } = {}) {
   context.globalThis = context;
   vm.runInNewContext(`${createSortSessionListShortcutSource}
 globalThis.createSortSessionListShortcut = createSortSessionListShortcut;`, context, {
-    filename: 'static/chat/session-list/sidebar-ui.js',
+    filename: 'static/frontend/session-list/sidebar-ui.js',
   });
   return { context, state };
 }

@@ -1,4 +1,4 @@
-# Chat Backend Map
+# Backend Map
 
 This directory holds the owner-facing backend for MelodySync.
 

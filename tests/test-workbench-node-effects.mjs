@@ -8,11 +8,11 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const nodeContractSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'node-contract.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'node-contract.js'),
   'utf8',
 );
 const nodeEffectsSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'node-effects.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'node-effects.js'),
   'utf8',
 );
 

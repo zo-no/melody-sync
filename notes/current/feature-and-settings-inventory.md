@@ -61,9 +61,9 @@
 ### 当前主流程落点
 
 - 模板：`templates/chat.html`
-- Session 列表 UI：`static/chat/session-list/ui.js`
-- Session 行动作：`static/chat/session/surface-ui.js`
-- 发送/草稿/附件：`static/chat/session/compose.js`
+- Session 列表 UI：`static/frontend/session-list/ui.js`
+- Session 行动作：`static/frontend/session/surface-ui.js`
+- 发送/草稿/附件：`static/frontend/session/compose.js`
 
 ## 3. 当前侧边工作流功能
 
@@ -86,11 +86,11 @@
 
 ### 当前落点
 
-- `static/chat/workbench/controller.js`
-- `static/chat/workbench/task-map-model.js`
-- `static/chat/workbench/node-contract.js`
-- `chat/workbench/index.mjs`
-- `chat/routes/workbench.mjs`
+- `static/frontend/workbench/controller.js`
+- `static/frontend/workbench/task-map-model.js`
+- `static/frontend/workbench/node-contract.js`
+- `backend/workbench/index.mjs`
+- `backend/routes/workbench.mjs`
 
 ## 4. 现在就适合归到设置的功能
 
@@ -113,8 +113,8 @@
 当前落点：
 
 - `templates/chat.html` 中 `hooksSettingsBtn`
-- `static/chat/settings/hooks/ui.js`
-- `chat/routes/hooks.mjs`
+- `static/frontend/settings/hooks/ui.js`
+- `backend/routes/hooks.mjs`
 
 ### 4.2 Runtime 偏好
 
@@ -142,9 +142,9 @@
 当前落点：
 
 - `templates/chat.html`
-- `static/chat/session/tooling.js`
+- `static/frontend/session/tooling.js`
 - `lib/runtime-selection.mjs`
-- `chat/router.mjs` 的 `/api/runtime-selection`
+- `backend/router.mjs` 的 `/api/runtime-selection`
 
 ### 4.3 通知目标 / 副作用目标
 
@@ -161,8 +161,8 @@
 
 当前落点：
 
-- `chat/hooks/email-completion-hook.mjs`
-- `chat/session-manager.mjs`
+- `backend/hooks/email-completion-hook.mjs`
+- `backend/session-manager.mjs`
 
 ### 4.4 部署/实例/连接器配置
 
@@ -229,9 +229,9 @@
 
 主要落点：
 
-- `static/chat/core/bootstrap.js`
-- `static/chat/core/bootstrap-session-catalog.js`
-- `static/chat/session/compose.js`
+- `static/frontend/core/bootstrap.js`
+- `static/frontend/core/bootstrap-session-catalog.js`
+- `static/frontend/session/compose.js`
 
 ### 6.2 delegate / fork 的表面定义还不干净
 
@@ -290,7 +290,7 @@
 推荐方向：
 
 ```text
-static/chat/
+static/frontend/
   sessions/
   compose/
   workbench/

@@ -65,6 +65,7 @@
       <div class="hooks-panel-tabs" role="tablist" aria-label="设置分类">
         <button class="hooks-panel-tab is-active" id="settingsTabGeneral" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelGeneral" data-settings-tab="general">通用</button>
         <button class="hooks-panel-tab" id="settingsTabEmail" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelEmail" data-settings-tab="email">Email</button>
+        <button class="hooks-panel-tab" id="settingsTabVoice" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelVoice" data-settings-tab="voice">Voice</button>
         <button class="hooks-panel-tab" id="settingsTabHooks" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelHooks" data-settings-tab="hooks">Hooks</button>
         <button class="hooks-panel-tab" id="settingsTabNodes" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelNodes" data-settings-tab="nodes">节点</button>
       </div>
@@ -91,6 +92,21 @@
                 <div class="hooks-phase-heading">
                   <div class="hooks-phase-title">Email 设置</div>
                   <div class="hooks-phase-desc">管理邮箱身份、发送方式和自动化处理规则。</div>
+                </div>
+              </div>
+              <div class="hooks-event-card">
+                <div class="hooks-loading">加载中…</div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="settings-tab-panel" id="settingsPanelVoice" data-settings-panel="voice" role="tabpanel" hidden>
+          <div id="voiceSettingsPanelBody">
+            <div class="hooks-phase-section">
+              <div class="hooks-phase-header">
+                <div class="hooks-phase-heading">
+                  <div class="hooks-phase-title">Voice 设置</div>
+                  <div class="hooks-phase-desc">管理本地语音入口，让语音输入接入普通会话。</div>
                 </div>
               </div>
               <div class="hooks-event-card">
@@ -287,6 +303,7 @@
 <script src="/chat/settings/hooks/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/general/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/email/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat/settings/voice/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/workbench/node-settings-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/settings/hooks/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
 <script src="/chat/core/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>

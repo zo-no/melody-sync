@@ -4,7 +4,7 @@ This is the active refactor backlog for simplifying the shipped session-first pr
 
 ## Current priorities
 
-1. Split `chat/session-manager.mjs` by responsibility.
+1. Split `backend/session-manager.mjs` by responsibility.
    - prompt building
    - session metadata mutation
    - fork/delegate flows
@@ -15,7 +15,7 @@ This is the active refactor backlog for simplifying the shipped session-first pr
    - delete stale frontend globals and dead route families early
 
 3. Continue route decomposition.
-   - keep `chat/router.mjs` as thin dispatch
+   - keep `backend/router.mjs` as thin dispatch
    - move focused route families into dedicated modules
 
 4. Reduce stale data tolerance.

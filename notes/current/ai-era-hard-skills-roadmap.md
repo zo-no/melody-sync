@@ -55,9 +55,9 @@ Suggested material:
 Read against these files:
 
 - `chat-server.mjs`
-- `chat/session-manager.mjs`
-- `chat/process-runner.mjs`
-- `chat/runner-supervisor.mjs`
+- `backend/session-manager.mjs`
+- `backend/process-runner.mjs`
+- `backend/runner-supervisor.mjs`
 
 Practice task:
 
@@ -84,10 +84,10 @@ Suggested material:
 
 Read against these files:
 
-- `chat/session-manager.mjs`
-- `chat/runs.mjs`
-- `chat/ws.mjs`
-- `static/chat/core/realtime.js`
+- `backend/session-manager.mjs`
+- `backend/runs.mjs`
+- `backend/ws.mjs`
+- `static/frontend/core/realtime.js`
 
 Practice task:
 
@@ -114,8 +114,8 @@ Suggested material:
 
 Read against these files:
 
-- `chat/router.mjs`
-- `chat/ws.mjs`
+- `backend/router.mjs`
+- `backend/ws.mjs`
 - `docs/external-message-protocol.md`
 - `lib/agent-mail-http-bridge.mjs`
 
@@ -144,10 +144,10 @@ Suggested material:
 
 Read against these files:
 
-- `chat/history.mjs`
-- `chat/runs.mjs`
-- `chat/session-meta-store.mjs`
-- `chat/session-continuation.mjs`
+- `backend/history.mjs`
+- `backend/runs.mjs`
+- `backend/session-meta-store.mjs`
+- `backend/session-continuation.mjs`
 
 Practice task:
 
@@ -174,7 +174,7 @@ Suggested material:
 
 Read against these files:
 
-- `chat/api-request-log.mjs`
+- `backend/api-request-log.mjs`
 - `tests/`
 - browser performance marks already used by the frontend
 
@@ -213,9 +213,9 @@ Suggested material:
 Read against these files:
 
 - `lib/auth.mjs`
-- `chat/router.mjs`
-- `chat/system-prompt.mjs`
-- owner-side session flows in `chat/session-manager.mjs`
+- `backend/router.mjs`
+- `backend/system-prompt.mjs`
+- owner-side session flows in `backend/session-manager.mjs`
 
 Practice task:
 

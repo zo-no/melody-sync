@@ -24,13 +24,13 @@ process.env.HOME = tempHome;
 try {
   // Import hooks module first
   const { listHooks, HOOK_EVENTS, HOOK_EVENT_DEFINITIONS, applyHookEnabledOverrides } = await import(
-    pathToFileURL(join(repoRoot, 'chat/hooks/index.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/hooks/index.mjs')).href
   );
 
   // Import session-manager — this registers module-level code but not
   // registerSessionManagerHooks yet (that's called in startDetachedRunObservers)
   const { startDetachedRunObservers, killAll } = await import(
-    pathToFileURL(join(repoRoot, 'chat/session-manager.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/session-manager.mjs')).href
   );
 
   // Trigger startup registration (same as chat-server.mjs does).
@@ -162,17 +162,17 @@ try {
   assert.equal(byId['builtin.session-naming'].taskMapPlanPolicy, 'none');
   assert.equal(byId['builtin.session-naming'].producesTaskMapPlan, false);
   assert.equal(byId['builtin.first-boot-memory'].owner, 'hooks');
-  assert.equal(byId['builtin.first-boot-memory'].sourceModule, 'chat/hooks/first-boot-memory-hook.mjs');
+  assert.equal(byId['builtin.first-boot-memory'].sourceModule, 'backend/hooks/first-boot-memory-hook.mjs');
   assert.equal(byId['builtin.resume-completion-targets'].owner, 'hooks');
-  assert.equal(byId['builtin.resume-completion-targets'].sourceModule, 'chat/hooks/resume-completion-targets-hook.mjs');
+  assert.equal(byId['builtin.resume-completion-targets'].sourceModule, 'backend/hooks/resume-completion-targets-hook.mjs');
   assert.equal(byId['builtin.graph-context-bootstrap'].owner, 'hooks');
-  assert.equal(byId['builtin.graph-context-bootstrap'].sourceModule, 'chat/hooks/graph-context-bootstrap-hook.mjs');
+  assert.equal(byId['builtin.graph-context-bootstrap'].sourceModule, 'backend/hooks/graph-context-bootstrap-hook.mjs');
   assert.equal(byId['builtin.push-notification'].owner, 'hooks');
-  assert.equal(byId['builtin.push-notification'].sourceModule, 'chat/hooks/push-notification-hook.mjs');
+  assert.equal(byId['builtin.push-notification'].sourceModule, 'backend/hooks/push-notification-hook.mjs');
   assert.equal(byId['builtin.branch-candidates'].owner, 'hooks');
-  assert.equal(byId['builtin.branch-candidates'].sourceModule, 'chat/hooks/branch-candidates-hook.mjs');
+  assert.equal(byId['builtin.branch-candidates'].sourceModule, 'backend/hooks/branch-candidates-hook.mjs');
   assert.equal(byId['builtin.session-naming'].owner, 'hooks');
-  assert.equal(byId['builtin.session-naming'].sourceModule, 'chat/hooks/session-naming-hook.mjs');
+  assert.equal(byId['builtin.session-naming'].sourceModule, 'backend/hooks/session-naming-hook.mjs');
 
   // All built-ins should be enabled by default.
   for (const h of hooks) {

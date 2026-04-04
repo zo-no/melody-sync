@@ -13,16 +13,16 @@ process.env.HOME = tempHome;
 
 try {
   const sessionManager = await import(
-    pathToFileURL(join(repoRoot, 'chat/session-manager.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/session-manager.mjs')).href
   );
   const nodeSettingsStore = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/node-settings-store.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/node-settings-store.mjs')).href
   );
   const taskMapPlanService = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/task-map-plan-service.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/task-map-plan-service.mjs')).href
   );
   const taskMapGraphService = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/task-map-graph-service.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/task-map-graph-service.mjs')).href
   );
 
   await nodeSettingsStore.createCustomNodeKind({

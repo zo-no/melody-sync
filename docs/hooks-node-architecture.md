@@ -23,13 +23,13 @@
 
 当前建议把两个扩展入口都固定成单一 contract 文件：
 
-- hooks contract：`chat/hooks/hook-contract.mjs`
-- node contract：`static/chat/workbench/node-contract.js`
+- hooks contract：`backend/hooks/hook-contract.mjs`
+- node contract：`static/frontend/workbench/node-contract.js`
 
 同时把 GTD 任务列表本身也固定成独立 contract，而不是让 hooks 或 node 间接拥有它：
 
-- session list contract：`static/chat/session-list/contract.js`
-- session list order contract：`static/chat/session-list/order-contract.js`
+- session list contract：`static/frontend/session-list/contract.js`
+- session list order contract：`static/frontend/session-list/order-contract.js`
 
 ## 2. 顶层原则
 
@@ -164,13 +164,13 @@ durable state + optional taskMapPlan
 
 目标是只动这几处：
 
-1. `chat/hooks/hook-contract.mjs`
+1. `backend/hooks/hook-contract.mjs`
    - 只有在新增 lifecycle layer 或 lifecycle event 时才改
-2. `chat/hooks/builtin-hook-catalog.mjs`
+2. `backend/hooks/builtin-hook-catalog.mjs`
    - 加 metadata definition
-3. `chat/hooks/*.mjs`
+3. `backend/hooks/*.mjs`
    - 加 handler/factory
-4. `chat/hooks/register-*.mjs`
+4. `backend/hooks/register-*.mjs`
    - 把 definition 绑定到 handler
 
 如果新增 hook 还要去改 UI 文案或别的 schema，说明 contract 还不够集中。
@@ -280,7 +280,7 @@ config/hooks/<hook-id>.json
   "label": "Session 自动命名",
   "event": "run.completed",
   "enabled": true,
-  "handler": "chat/hooks/session-naming-hook.mjs",
+  "handler": "backend/hooks/session-naming-hook.mjs",
   "priority": 200,
   "outputs": {
     "statePatches": true,
@@ -404,20 +404,20 @@ config/hooks/<hook-id>.json
 
 当前主线已经有一个更轻的过渡层：
 
-- `static/chat/workbench/node-effects.js`
+- `static/frontend/workbench/node-effects.js`
 
 它先把 `main / branch / candidate / done` 的计数、交互、边类型和 compact 布局规则收口成共享语义，再由 `task-map-model.js` 和 `task-map-ui.js` 共同消费。
 
 当前主线也已经开始把 composition 规则直接透出到 node contract：
 
-- `chat/workbench/node-definitions.mjs`
-- `static/chat/workbench/node-contract.js`
+- `backend/workbench/node-definitions.mjs`
+- `static/frontend/workbench/node-contract.js`
 
 当前主线还新增了一层可选 overlay：
 
-- `chat/workbench/task-map-plans.mjs`
-- `chat/workbench/task-map-plan-contract.mjs`
-- `static/chat/workbench/task-map-plan.js`
+- `backend/workbench/task-map-plans.mjs`
+- `backend/workbench/task-map-plan-contract.mjs`
+- `static/frontend/workbench/task-map-plan.js`
 
 这层的作用不是替代 continuity，而是把“默认 continuity 图”和“未来 hook / AI 规划图”明确分开。
 
@@ -528,7 +528,7 @@ config/hooks/<hook-id>.json
 
 当前主线已经有对应落点：
 
-- `chat/workbench/task-map-plan-contract.mjs`
+- `backend/workbench/task-map-plan-contract.mjs`
 - `GET /api/workbench/task-map-plan-contract`
 
 当前白名单策略也已经落地：
@@ -570,9 +570,9 @@ config/hooks/<hook-id>.json
 
 目标是只动这几处：
 
-1. `static/chat/workbench/node-contract.js`
+1. `static/frontend/workbench/node-contract.js`
    - 加新的 node kind definition
-2. `static/chat/workbench/task-map-model.js`
+2. `static/frontend/workbench/task-map-model.js`
    - 在 projection 里决定何时产出这种 node
 3. 对应 UI renderer
    - 只有当新 node 需要新的视觉表达时才改
@@ -626,7 +626,7 @@ Node instance 是 projection 产物，格式也应固定：
 推荐收敛成下面这个形态：
 
 ```text
-chat/
+backend/
   hooks/
     registry/
       hook-events.mjs
@@ -655,7 +655,7 @@ chat/
 前端：
 
 ```text
-static/chat/workbench/
+static/frontend/workbench/
   node-contract.js
   node-definition-store.js
   node-projection.js

@@ -3,7 +3,7 @@ import assert from 'assert/strict';
 import {
   buildEventBlockEvents,
   buildSessionDisplayEvents,
-} from './chat/session-display-events.mjs';
+} from '../backend/session-display-events.mjs';
 
 const interleavedTurnHistory = [
   { seq: 1, type: 'message', role: 'user', content: 'Please summarize the work' },

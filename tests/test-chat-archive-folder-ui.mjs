@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sessionSurfaceSource = readFileSync(join(repoRoot, 'static', 'chat', 'session/surface-ui.js'), 'utf8');
-const sessionListSource = readFileSync(join(repoRoot, 'static', 'chat', 'session-list', 'ui.js'), 'utf8');
+const sessionSurfaceSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session/surface-ui.js'), 'utf8');
+const sessionListSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session-list', 'ui.js'), 'utf8');
 
 function extractFunctionSource(code, functionName) {
   const marker = `function ${functionName}`;
@@ -103,7 +103,7 @@ vm.runInNewContext(`
   ${buildSessionActionConfigsSource}
   globalThis.buildSessionActionConfigs = buildSessionActionConfigs;
 `, actionContext, {
-  filename: 'static/chat/session/surface-ui.js',
+  filename: 'static/frontend/session/surface-ui.js',
 });
 
 assert.equal(
@@ -185,7 +185,7 @@ vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, renderContext, {
-  filename: 'static/chat/session-list/ui.js',
+  filename: 'static/frontend/session-list/ui.js',
 });
 
 renderContext.renderArchivedSection();
@@ -239,7 +239,7 @@ vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, loadingContext, {
-  filename: 'static/chat/session-list/ui.js',
+  filename: 'static/frontend/session-list/ui.js',
 });
 
 loadingContext.renderArchivedSection();
@@ -289,7 +289,7 @@ vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, emptyContext, {
-  filename: 'static/chat/session-list/ui.js',
+  filename: 'static/frontend/session-list/ui.js',
 });
 
 emptyContext.renderArchivedSection();

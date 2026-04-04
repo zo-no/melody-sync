@@ -24,7 +24,7 @@ writeFileSync(join(configDir, 'general-settings.json'), JSON.stringify({ appRoot
 
 try {
   const { handleSettingsRoutes } = await import(
-    pathToFileURL(join(repoRoot, 'chat', 'routes', 'settings.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend', 'routes', 'settings.mjs')).href
   );
 
   const patchReq = Readable.from([JSON.stringify({

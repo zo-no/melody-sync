@@ -20,6 +20,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   appRoot: '',
 });
 
+const DEFAULT_APP_SCOPED_SETTINGS = Object.freeze({});
+
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -38,6 +40,12 @@ function normalizeGeneralSettings(value = {}) {
   );
   return {
     appRoot: nextAppRootPath,
+  };
+}
+
+function normalizeAppScopedSettings(_value = {}) {
+  return {
+    ...DEFAULT_APP_SCOPED_SETTINGS,
   };
 }
 
@@ -112,11 +120,12 @@ export async function readGeneralSettings() {
   const bootstrapPayload = await readJson(GENERAL_SETTINGS_BOOTSTRAP_FILE, DEFAULT_SETTINGS);
   const bootstrapNormalized = normalizeGeneralSettings(bootstrapPayload);
   const bootstrapMetadata = deriveGeneralSettingsMetadata(bootstrapNormalized);
-  const payload = await readJson(bootstrapMetadata.storagePath, bootstrapNormalized);
-  const normalized = normalizeGeneralSettings(payload);
-  const metadata = deriveGeneralSettingsMetadata(normalized);
+  const payload = await readJson(bootstrapMetadata.storagePath, DEFAULT_APP_SCOPED_SETTINGS);
+  const appScoped = normalizeAppScopedSettings(payload);
+  const metadata = deriveGeneralSettingsMetadata(bootstrapNormalized);
   return {
-    ...normalized,
+    ...appScoped,
+    ...bootstrapNormalized,
     ...metadata,
   };
 }
@@ -136,12 +145,14 @@ export async function persistGeneralSettings(payload = {}) {
   await ensureDir(paths.configDir);
   await ensureDir(paths.emailDir);
   await ensureDir(paths.hooksDir);
+  await ensureDir(paths.voiceDir);
+  await ensureDir(paths.voiceLogsDir);
   await ensureDir(paths.sessionsDir);
   await ensureDir(paths.workbenchDir);
   await ensureDir(paths.memoryDir);
   await ensureDir(paths.logsDir);
   await ensureDir(resolve(paths.memoryDir, 'tasks'));
-  await writeJsonAtomic(paths.generalSettingsFile, normalized);
+  await writeJsonAtomic(paths.generalSettingsFile, normalizeAppScopedSettings(payload));
   await ensureAgentsFile(metadata.agentsPath);
   await ensureHooksFile(paths.customHooksFile);
 
@@ -158,11 +169,14 @@ export async function ensureGeneralSettingsRuntimeFiles() {
   await ensureDir(paths.configDir);
   await ensureDir(paths.emailDir);
   await ensureDir(paths.hooksDir);
+  await ensureDir(paths.voiceDir);
+  await ensureDir(paths.voiceLogsDir);
   await ensureDir(paths.sessionsDir);
   await ensureDir(paths.workbenchDir);
   await ensureDir(paths.memoryDir);
   await ensureDir(paths.logsDir);
   await ensureDir(resolve(paths.memoryDir, 'tasks'));
+  await writeJsonAtomic(paths.generalSettingsFile, normalizeAppScopedSettings(current));
   await ensureAgentsFile(metadata.agentsPath);
   await ensureHooksFile(paths.customHooksFile);
   return {

@@ -27,7 +27,7 @@ Current split:
 Boundary rules:
 
 - Keep persistence and projection separate.
-- Prefer adding new focused modules here rather than growing `chat/workbench/index.mjs`.
+- Prefer adding new focused modules here rather than growing `backend/workbench/index.mjs`.
 - Keep capture/project/node/summary CRUD in `project-records.mjs`; `index.mjs` should stay focused on continuity and branch orchestration.
 - Keep the current node-kind source of truth in `node-definitions.mjs`; frontend projection reads it through chat bootstrap and `/api/workbench/node-definitions`.
 - Keep persisted custom node-kind editing in `node-settings-store.mjs`; do not mix it into task-map projection code.
@@ -43,4 +43,4 @@ Boundary rules:
 - Keep task-card patch derivation centralized in `node-task-card.mjs`; hook/AI flows should not invent ad hoc patch precedence rules.
 - Keep plan-to-session task-card writeback centralized in `node-task-card-sync.mjs`; producer and hook modules should pass managed binding keys, not hand-roll merge logic.
 - Keep rich canvas rendering declarative in plan/node metadata. Backend stores node/view intent; frontend renderer owns actual DOM/iframe rendering.
-- Keep task-map projection logic in `static/chat/workbench/task-map-model.js`, not in backend store modules.
+- Keep task-map projection logic in `static/frontend/workbench/task-map-model.js`, not in backend store modules.

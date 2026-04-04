@@ -3,7 +3,7 @@ import assert from 'assert/strict';
 import {
   buildCodexArgs,
   DEFAULT_CODEX_DEVELOPER_INSTRUCTIONS,
-} from '../chat/adapters/codex.mjs';
+} from '../backend/adapters/codex.mjs';
 
 const args = buildCodexArgs('Say hello.', {});
 assert.equal(args[0], 'exec');

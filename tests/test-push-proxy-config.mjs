@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
 
-import { resolvePushSendOptions } from '../chat/push.mjs';
+import { resolvePushSendOptions } from '../backend/push.mjs';
 
 const defaultOptions = resolvePushSendOptions({});
 assert.equal(defaultOptions.timeout, 5000, 'push send should default to a bounded timeout');

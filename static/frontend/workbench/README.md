@@ -31,7 +31,7 @@ Design rules:
 
 - `controller.js` should stay a coordinator, not absorb renderer details again.
 - Keep contracts and projection close to the workbench UI that consumes them.
-- Treat `chat/workbench/node-definitions.mjs` as the canonical current node source; `node-contract.js` should read bootstrap/API-fed definitions and keep a safe fallback for isolated tests.
+- Treat `backend/workbench/node-definitions.mjs` as the canonical current node source; `node-contract.js` should read bootstrap/API-fed definitions and keep a safe fallback for isolated tests.
 - Keep node behavior centralized in `node-effects.js`; avoid adding new `kind === ...` branches directly in `task-map-model.js` or `task-map-ui.js`.
 - Keep graph node-instance shape centralized in `node-instance.js`; avoid letting `task-map-model.js`, `task-map-plan.js`, `surface-projection.js`, and `node-capabilities.js` drift into separate node payload formats.
 - Keep graph node/edge collection shape centralized in `graph-model.js`; avoid letting `task-map-model.js` and `task-map-plan.js` drift into separate quest graph formats.
@@ -41,7 +41,7 @@ Design rules:
 - Keep optional graph overrides centralized in `task-map-plan.js`; default continuity projection should stay available as the fallback path.
 - Treat hook-generated `taskMapPlan` overlays as node metadata enrichers first. If a hook wants to enrich an existing default node, reuse the same node id and let the plan merge path attach summary/view/surface metadata.
 - Treat `taskCardBindings` as contract metadata first. They describe which task-card fields a node is allowed to bind back to; they should not be applied ad hoc inside render code.
-- Keep task-card patch precedence consistent with backend `chat/workbench/node-task-card.mjs`: plan/manual/hook nodes may override projection-backed scalar bindings; renderer order should not decide semantic authority.
+- Keep task-card patch precedence consistent with backend `backend/workbench/node-task-card.mjs`: plan/manual/hook nodes may override projection-backed scalar bindings; renderer order should not decide semantic authority.
 - Preserve node `origin` metadata (`projection` vs `plan`) when enriching or replacing graph nodes. Future AI/hook flows need that provenance to stay debuggable.
 - Treat `/api/workbench/task-map-plan-contract` as the canonical backend contract for future hook/AI graph planning inputs.
 - Treat `GET/POST/DELETE /api/workbench/sessions/:id/task-map-plans` as the formal session-scoped plan entry. UI and future AI/manual tooling should write plan metadata there instead of patching workbench state files directly.

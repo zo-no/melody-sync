@@ -4,7 +4,7 @@ import {
   buildTaskCardPatch,
   buildTaskCardPatchEntries,
   buildTaskCardPatchForSourceSession,
-} from '../chat/workbench/node-task-card.mjs';
+} from '../backend/workbench/node-task-card.mjs';
 
 const nodes = [
   {

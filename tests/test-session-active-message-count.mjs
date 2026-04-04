@@ -12,10 +12,10 @@ const home = mkdtempSync(join(tmpdir(), 'remotelab-active-message-count-'));
 process.env.HOME = home;
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'chat', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
 );
 const history = await import(
-  pathToFileURL(join(repoRoot, 'chat', 'history.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'history.mjs')).href
 );
 
 const {

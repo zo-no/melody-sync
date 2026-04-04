@@ -17,12 +17,12 @@ writeFileSync(
 process.env.HOME = tempHome;
 
 try {
-  const hooksModule = await import(pathToFileURL(join(repoRoot, 'chat/hooks/index.mjs')).href);
+  const hooksModule = await import(pathToFileURL(join(repoRoot, 'backend/hooks/index.mjs')).href);
   const { registerSessionManagerBuiltinHooks } = await import(
-    pathToFileURL(join(repoRoot, 'chat/hooks/register-session-manager-hooks.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/hooks/register-session-manager-hooks.mjs')).href
   );
   const { loadPersistedHookSettings, persistHookEnabledState, readHookSettings } = await import(
-    pathToFileURL(join(repoRoot, 'chat/hooks/hook-settings-store.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/hooks/hook-settings-store.mjs')).href
   );
 
   registerSessionManagerBuiltinHooks({

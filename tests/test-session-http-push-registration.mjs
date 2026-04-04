@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sessionHttpSource = readFileSync(join(repoRoot, 'static/chat/session/http.js'), 'utf8');
+const sessionHttpSource = readFileSync(join(repoRoot, 'static/frontend/session/http.js'), 'utf8');
 
 const setupStart = sessionHttpSource.indexOf('async function setupPushNotifications()');
 if (setupStart === -1) throw new Error('Missing setupPushNotifications');

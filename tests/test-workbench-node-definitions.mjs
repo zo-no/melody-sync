@@ -16,7 +16,7 @@ import {
   getNodeKindDefinition,
   isKnownNodeKind,
   listNodeKindDefinitions,
-} from '../chat/workbench/node-definitions.mjs';
+} from '../backend/workbench/node-definitions.mjs';
 
 assert.deepEqual(NODE_LANES, ['main', 'branch', 'side']);
 assert.deepEqual(NODE_ROLES, ['state', 'action', 'summary']);

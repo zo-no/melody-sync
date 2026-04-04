@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
-const repoRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-external-trigger-refresh-'));
 process.env.HOME = tempHome;
 
@@ -13,7 +13,7 @@ const workspace = join(tempHome, 'workspace');
 mkdirSync(workspace, { recursive: true });
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'chat', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
 );
 
 const {

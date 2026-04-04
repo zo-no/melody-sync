@@ -62,9 +62,9 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 **Main files**
 
 - `templates/chat.html`
-- `static/chat/session/transcript-ui.js`
-- `static/chat/session/compose.js`
-- `static/chat/session/state-model.js`
+- `static/frontend/session/transcript-ui.js`
+- `static/frontend/session/compose.js`
+- `static/frontend/session/state-model.js`
 
 **Acceptance**
 
@@ -87,10 +87,10 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 
 **Main files**
 
-- `chat/session-manager.mjs`
-- `chat/session-continuation.mjs`
-- `chat/history.mjs`
-- `chat/runs.mjs`
+- `backend/session-manager.mjs`
+- `backend/session-continuation.mjs`
+- `backend/history.mjs`
+- `backend/runs.mjs`
 
 **Acceptance**
 
@@ -113,8 +113,8 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 
 **Main files**
 
-- `chat/session-manager.mjs`
-- `chat/router.mjs`
+- `backend/session-manager.mjs`
+- `backend/router.mjs`
 - `cli.js`
 - `lib/session-spawn-command.mjs`
 
@@ -139,9 +139,9 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 
 **Main files**
 
-- `chat/session-manager.mjs`
-- `chat/history.mjs`
-- `chat/runs.mjs`
+- `backend/session-manager.mjs`
+- `backend/history.mjs`
+- `backend/runs.mjs`
 
 **Acceptance**
 

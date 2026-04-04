@@ -17,17 +17,17 @@ const {
   getSession,
   killAll,
   submitHttpMessage,
-} = await import('./chat/session-manager.mjs');
+} = await import('../backend/session-manager.mjs');
 const {
   appendEvents,
   getForkContext,
   getContextHead,
   setForkContext,
   setContextHead,
-} = await import('./chat/history.mjs');
+} = await import('../backend/history.mjs');
 const {
   getRunManifest,
-} = await import('./chat/runs.mjs');
+} = await import('../backend/runs.mjs');
 
 try {
   const parent = await createSession(workspace, 'codex', 'Source session', {

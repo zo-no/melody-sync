@@ -11,9 +11,9 @@
 当前 chat 侧 provider 抽象是分裂的：
 
 - `lib/tools.mjs` 管可用工具列表
-- `chat/models.mjs` 管模型列表
-- `chat/process-runner.mjs` + `chat/adapters/*.mjs` 管 runtime
-- `static/chat.js` 还带着部分 reasoning UI 协议
+- `backend/models.mjs` 管模型列表
+- `backend/process-runner.mjs` + `backend/adapters/*.mjs` 管 runtime
+- `static/frontend.js` 还带着部分 reasoning UI 协议
 
 结果是：
 
@@ -112,7 +112,7 @@ session.tool(providerId)
 放在 repo 内，例如：
 
 ```text
-chat/providers/builtin/*.mjs
+backend/providers/builtin/*.mjs
 ```
 
 用途：

@@ -35,37 +35,37 @@ Browser / mobile shell
 
 ### Backend
 
-- [`chat/router.mjs`](chat/router.mjs): main HTTP surface
-- [`chat/session-manager.mjs`](chat/session-manager.mjs): session and run orchestration
-- [`chat/runs.mjs`](chat/runs.mjs): durable run manifests, spool, status, result
-- [`chat/runner-supervisor.mjs`](chat/runner-supervisor.mjs): detached runner launcher
-- [`chat/runner-sidecar.mjs`](chat/runner-sidecar.mjs): detached executor entry
-- [`chat/provider-runtime-monitor.mjs`](chat/provider-runtime-monitor.mjs): provider timeout / termination monitoring
-- [`chat/runner-sidecar-finalize.mjs`](chat/runner-sidecar-finalize.mjs): run finalization helpers
-- [`chat/history.mjs`](chat/history.mjs): append-only event store
-- [`chat/session-meta-store.mjs`](chat/session-meta-store.mjs): session metadata persistence
-- [`chat/session-api-shapes.mjs`](chat/session-api-shapes.mjs): API projection helpers
-- [`chat/workbench/index.mjs`](chat/workbench/index.mjs): task/workbench domain entry layered on sessions
+- [`backend/router.mjs`](backend/router.mjs): main HTTP surface
+- [`backend/session-manager.mjs`](backend/session-manager.mjs): session and run orchestration
+- [`backend/runs.mjs`](backend/runs.mjs): durable run manifests, spool, status, result
+- [`backend/runner-supervisor.mjs`](backend/runner-supervisor.mjs): detached runner launcher
+- [`backend/runner-sidecar.mjs`](backend/runner-sidecar.mjs): detached executor entry
+- [`backend/provider-runtime-monitor.mjs`](backend/provider-runtime-monitor.mjs): provider timeout / termination monitoring
+- [`backend/runner-sidecar-finalize.mjs`](backend/runner-sidecar-finalize.mjs): run finalization helpers
+- [`backend/history.mjs`](backend/history.mjs): append-only event store
+- [`backend/session-meta-store.mjs`](backend/session-meta-store.mjs): session metadata persistence
+- [`backend/session-api-shapes.mjs`](backend/session-api-shapes.mjs): API projection helpers
+- [`backend/workbench/index.mjs`](backend/workbench/index.mjs): task/workbench domain entry layered on sessions
 
 ### Frontend
 
 - [`templates/chat.html`](templates/chat.html): main shell
-- [`static/chat.js`](static/chat.js): versioned loader
-- [`static/chat/core/bootstrap.js`](static/chat/core/bootstrap.js): bootstrap/runtime globals
-- [`static/chat/core/bootstrap-data.js`](static/chat/core/bootstrap-data.js): bootstrap payload helpers
-- [`static/chat/core/bootstrap-session-catalog.js`](static/chat/core/bootstrap-session-catalog.js): session/source/user catalog helpers
-- [`static/chat/core/realtime.js`](static/chat/core/realtime.js): WS invalidation / reconnect logic
-- [`static/chat/core/realtime-render.js`](static/chat/core/realtime-render.js): transcript refresh/render helpers
-- [`static/chat/session/http.js`](static/chat/session/http.js): canonical session HTTP client
-- [`static/chat/session/tooling.js`](static/chat/session/tooling.js): runtime/tool/model controls
-- [`static/chat/session/compose.js`](static/chat/session/compose.js): composer interactions
-- [`static/chat/session/transcript-ui.js`](static/chat/session/transcript-ui.js): transcript/event rendering and attachment UI
-- [`static/chat/session/surface-ui.js`](static/chat/session/surface-ui.js): session detail rendering
-- [`static/chat/session/state-model.js`](static/chat/session/state-model.js): session derived state helpers
-- [`static/chat/session-list/model.js`](static/chat/session-list/model.js): session list grouping, badges, and lightweight branch semantics
-- [`static/chat/session-list/ui.js`](static/chat/session-list/ui.js): session list rendering
-- [`static/chat/session-list/sidebar-ui.js`](static/chat/session-list/sidebar-ui.js): sidebar interactions
-- [`static/chat/workbench/controller.js`](static/chat/workbench/controller.js): workbench coordinator
+- [`static/frontend.js`](static/frontend.js): versioned loader
+- [`static/frontend/core/bootstrap.js`](static/frontend/core/bootstrap.js): bootstrap/runtime globals
+- [`static/frontend/core/bootstrap-data.js`](static/frontend/core/bootstrap-data.js): bootstrap payload helpers
+- [`static/frontend/core/bootstrap-session-catalog.js`](static/frontend/core/bootstrap-session-catalog.js): session/source/user catalog helpers
+- [`static/frontend/core/realtime.js`](static/frontend/core/realtime.js): WS invalidation / reconnect logic
+- [`static/frontend/core/realtime-render.js`](static/frontend/core/realtime-render.js): transcript refresh/render helpers
+- [`static/frontend/session/http.js`](static/frontend/session/http.js): canonical session HTTP client
+- [`static/frontend/session/tooling.js`](static/frontend/session/tooling.js): runtime/tool/model controls
+- [`static/frontend/session/compose.js`](static/frontend/session/compose.js): composer interactions
+- [`static/frontend/session/transcript-ui.js`](static/frontend/session/transcript-ui.js): transcript/event rendering and attachment UI
+- [`static/frontend/session/surface-ui.js`](static/frontend/session/surface-ui.js): session detail rendering
+- [`static/frontend/session/state-model.js`](static/frontend/session/state-model.js): session derived state helpers
+- [`static/frontend/session-list/model.js`](static/frontend/session-list/model.js): session list grouping, badges, and lightweight branch semantics
+- [`static/frontend/session-list/ui.js`](static/frontend/session-list/ui.js): session list rendering
+- [`static/frontend/session-list/sidebar-ui.js`](static/frontend/session-list/sidebar-ui.js): sidebar interactions
+- [`static/frontend/workbench/controller.js`](static/frontend/workbench/controller.js): workbench coordinator
 
 ### Shared
 

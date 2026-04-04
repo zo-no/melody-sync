@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const bootstrapSource = readFileSync(join(repoRoot, 'static', 'chat', 'core', 'bootstrap.js'), 'utf8');
-const layoutToolingSource = readFileSync(join(repoRoot, 'static', 'chat', 'core', 'layout-tooling.js'), 'utf8');
+const bootstrapSource = readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'bootstrap.js'), 'utf8');
+const layoutToolingSource = readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'layout-tooling.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -73,7 +73,7 @@ vm.runInNewContext(
     'globalThis.derivePreferredToolId = derivePreferredToolId;',
   ].join('\n\n'),
   context,
-  { filename: 'static/chat/core/layout-tooling.js' },
+  { filename: 'static/frontend/core/layout-tooling.js' },
 );
 
 const ordered = context.prioritizeToolOptions([

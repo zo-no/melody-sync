@@ -29,25 +29,27 @@ if (shouldUseActiveRelease()) {
 
 if (!delegatedToRelease) {
   const http = await import('http');
-  const [{ CHAT_PORT, CHAT_BIND_HOST, SECURE_COOKIES, MEMORY_DIR }, { handleRequest }, apiRequestLog, ws, sessionManager, { ensureDir }, { registerBuiltinHooks }, { registerCustomHooks }, { emit: emitHook }, { isFirstBootMemoryState }, { loadPersistedHookSettings }, { ensureGeneralSettingsRuntimeFiles }] = await Promise.all([
+  const [{ CHAT_PORT, CHAT_BIND_HOST, SECURE_COOKIES, MEMORY_DIR }, { handleRequest }, apiRequestLog, ws, sessionManager, { ensureDir }, { registerBuiltinHooks }, { registerCustomHooks }, { emit: emitHook }, { isFirstBootMemoryState }, { loadPersistedHookSettings }, { ensureGeneralSettingsRuntimeFiles }, { ensureVoiceSettingsRuntimeFiles }] = await Promise.all([
     import('./lib/config.mjs'),
-    import('./chat/router.mjs'),
-    import('./chat/api-request-log.mjs'),
-    import('./chat/ws.mjs'),
-    import('./chat/session-manager.mjs'),
-    import('./chat/fs-utils.mjs'),
-    import('./chat/hooks/runtime/register-builtins.mjs'),
-    import('./chat/hooks/runtime/register-custom-hooks.mjs'),
-    import('./chat/hooks/runtime/registry.mjs'),
-    import('./chat/hooks/first-boot-memory-hook.mjs'),
-    import('./chat/hooks/runtime/settings-store.mjs'),
-    import('./chat/settings-store.mjs'),
+    import('./backend/router.mjs'),
+    import('./backend/api-request-log.mjs'),
+    import('./backend/ws.mjs'),
+    import('./backend/session-manager.mjs'),
+    import('./backend/fs-utils.mjs'),
+    import('./backend/hooks/runtime/register-builtins.mjs'),
+    import('./backend/hooks/runtime/register-custom-hooks.mjs'),
+    import('./backend/hooks/runtime/registry.mjs'),
+    import('./backend/hooks/first-boot-memory-hook.mjs'),
+    import('./backend/hooks/runtime/settings-store.mjs'),
+    import('./backend/settings-store.mjs'),
+    import('./backend/voice-settings-store.mjs'),
   ]);
 
   for (const dir of [MEMORY_DIR, join(MEMORY_DIR, 'tasks')]) {
     await ensureDir(dir);
   }
   await ensureGeneralSettingsRuntimeFiles();
+  await ensureVoiceSettingsRuntimeFiles();
 
   await apiRequestLog.initApiRequestLog();
   registerBuiltinHooks();

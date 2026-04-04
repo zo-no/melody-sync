@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const source = readFileSync(join(repoRoot, 'static', 'chat', 'session/http.js'), 'utf8');
+const source = readFileSync(join(repoRoot, 'static', 'frontend', 'session/http.js'), 'utf8');
 
 function extractFunctionSource(code, functionName) {
   const marker = `function ${functionName}`;
@@ -104,7 +104,7 @@ const context = {
 context.globalThis = context;
 
 vm.runInNewContext(`${snippet}\nglobalThis.fetchSessionsList = fetchSessionsList;`, context, {
-  filename: 'static/chat/session/http.js',
+  filename: 'static/frontend/session/http.js',
 });
 
 await context.fetchSessionsList();

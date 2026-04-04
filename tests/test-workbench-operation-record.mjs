@@ -21,21 +21,21 @@ async function main() {
   const {
     createSession,
     updateSessionTaskCard,
-  } = await importFromRepo('chat/session-manager.mjs');
+  } = await importFromRepo('backend/session-manager.mjs');
   const {
     appendEvent,
-  } = await importFromRepo('chat/history.mjs');
+  } = await importFromRepo('backend/history.mjs');
   const {
     messageEvent,
-  } = await importFromRepo('chat/normalizer.mjs');
+  } = await importFromRepo('backend/normalizer.mjs');
   const {
     mutateSessionMeta,
-  } = await importFromRepo('chat/session-meta-store.mjs');
+  } = await importFromRepo('backend/session-meta-store.mjs');
   const {
     createBranchFromSession,
     getSessionOperationRecords,
     syncSessionContinuityFromSession,
-  } = await importFromRepo('chat/workbench/index.mjs');
+  } = await importFromRepo('backend/workbench/index.mjs');
   const {
     WORKBENCH_BRANCH_CONTEXTS_FILE,
   } = await importFromRepo('lib/config.mjs');

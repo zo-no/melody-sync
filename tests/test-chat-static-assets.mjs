@@ -224,6 +224,7 @@ async function main() {
     assert.match(page.text, /<script src="\/chat\/session\/compose\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/core\/gestures\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/settings\/hooks\/model\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\/settings\/voice\/ui\.js(?:\?v=[^"]*)?"/);
     assert.match(page.text, /<script src="\/chat\/settings\/hooks\/ui\.js(?:\?v=[^"]*)?"/);
     assert.doesNotMatch(page.text, /<script src="\/chat\/voice-input\.js(?:\?v=[^"]*)?"/);
 
@@ -262,9 +263,12 @@ async function main() {
     assert.match(page.text, /id="taskMapRail"/, 'chat page should ship the dedicated middle-column task map rail');
     assert.match(page.text, /id="hooksSettingsBtn"/, 'chat page should ship the shared settings trigger in the sidebar header');
     assert.match(page.text, /id="settingsTabEmail"/, 'chat page should ship the email tab inside the shared settings overlay');
+    assert.match(page.text, /id="settingsTabVoice"/, 'chat page should ship the voice tab inside the shared settings overlay');
     assert.match(page.text, /id="settingsTabHooks"/, 'chat page should ship the hooks tab inside the shared settings overlay');
     assert.match(page.text, /id="settingsPanelEmail"/, 'chat page should ship the email settings panel mount inside the shared settings overlay');
     assert.match(page.text, /id="emailSettingsPanelBody"/, 'chat page should ship the email settings body mount inside the shared settings overlay');
+    assert.match(page.text, /id="settingsPanelVoice"/, 'chat page should ship the voice settings panel mount inside the shared settings overlay');
+    assert.match(page.text, /id="voiceSettingsPanelBody"/, 'chat page should ship the voice settings body mount inside the shared settings overlay');
     assert.match(page.text, /id="settingsTabNodes"/, 'chat page should ship the node tab inside the shared settings overlay');
     assert.match(page.text, /id="settingsPanelNodes"/, 'chat page should ship the node settings panel mount inside the shared settings overlay');
     assert.match(page.text, /id="taskMapNodeSettingsBody"/, 'chat page should ship the node settings body mount inside the shared settings overlay');
@@ -600,6 +604,11 @@ async function main() {
     assert.equal(emailSettingsUiAsset.status, 200, 'email settings ui asset should load');
     assert.match(emailSettingsUiAsset.text, /emailSettingsPanelBody/);
     assert.match(emailSettingsUiAsset.text, /\/api\/settings\/email/);
+
+    const voiceSettingsUiAsset = await request(port, 'GET', '/chat/settings/voice/ui.js');
+    assert.equal(voiceSettingsUiAsset.status, 200, 'voice settings ui asset should load');
+    assert.match(voiceSettingsUiAsset.text, /voiceSettingsPanelBody/);
+    assert.match(voiceSettingsUiAsset.text, /\/api\/settings\/voice/);
 
     const nodeContractAsset = await request(port, 'GET', '/chat/workbench/node-contract.js');
     assert.equal(nodeContractAsset.status, 200, 'workbench node contract asset should load');
@@ -1257,6 +1266,12 @@ async function main() {
       'If-None-Match': loader.headers.etag,
     });
     assert.equal(loader304.status, 304, 'loader should also support conditional GETs');
+
+    const frontendLoader = await request(port, 'GET', '/frontend.js');
+    assert.equal(frontendLoader.status, 200, 'frontend loader alias should exist');
+
+    const frontendSplitAsset = await request(port, 'GET', '/frontend/core/bootstrap.js');
+    assert.equal(frontendSplitAsset.status, 200, 'frontend split asset alias should exist');
   } finally {
     await stopServer(server);
     rmSync(home, { recursive: true, force: true });

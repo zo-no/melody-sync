@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const source = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'node-rich-view-ui.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'node-rich-view-ui.js'),
   'utf8',
 );
 

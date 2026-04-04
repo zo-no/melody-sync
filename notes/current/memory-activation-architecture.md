@@ -84,7 +84,7 @@ It should not be loaded wholesale for every new session.
 
 ## Implementation Surface
 
-- `chat/system-prompt.mjs`: define pointer-first startup behavior
+- `backend/system-prompt.mjs`: define pointer-first startup behavior
 - `~/.remotelab/memory/bootstrap.md`: tiny startup layer
 - `~/.remotelab/memory/projects.md`: scope-routing layer
 - `memory/system.md`: shared principles about activation, writeback, and pruning

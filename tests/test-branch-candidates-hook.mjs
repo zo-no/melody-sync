@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { createBranchCandidatesHook } from '../chat/hooks/branch-candidates-hook.mjs';
+import { createBranchCandidatesHook } from '../backend/hooks/branch-candidates-hook.mjs';
 
 const appended = [];
 const synced = [];

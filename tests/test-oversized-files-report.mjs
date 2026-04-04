@@ -16,13 +16,13 @@ function createText(lineCount, prefix = 'line') {
 const tempRoot = mkdtempSync(join(tmpdir(), 'remotelab-oversized-files-'));
 
 try {
-  mkdirSync(join(tempRoot, 'chat'), { recursive: true });
-  mkdirSync(join(tempRoot, 'static', 'chat'), { recursive: true });
+  mkdirSync(join(tempRoot, 'backend'), { recursive: true });
+  mkdirSync(join(tempRoot, 'static', 'frontend'), { recursive: true });
   mkdirSync(join(tempRoot, 'node_modules', 'ignored-package'), { recursive: true });
 
-  writeFileSync(join(tempRoot, 'chat', 'healthy.mjs'), createText(3), 'utf8');
-  writeFileSync(join(tempRoot, 'chat', 'warn.mjs'), createText(5), 'utf8');
-  writeFileSync(join(tempRoot, 'static', 'chat', 'fail.css'), createText(9), 'utf8');
+  writeFileSync(join(tempRoot, 'backend', 'healthy.mjs'), createText(3), 'utf8');
+  writeFileSync(join(tempRoot, 'backend', 'warn.mjs'), createText(5), 'utf8');
+  writeFileSync(join(tempRoot, 'static', 'frontend', 'fail.css'), createText(9), 'utf8');
   writeFileSync(join(tempRoot, 'node_modules', 'ignored-package', 'skip.mjs'), createText(20), 'utf8');
   writeFileSync(join(tempRoot, 'static', 'marked.min.js'), createText(20), 'utf8');
 
@@ -41,21 +41,21 @@ try {
   assert.deepEqual(
     report.oversizedFiles.map((entry) => ({ path: entry.path, severity: entry.severity, lines: entry.lines })),
     [
-      { path: 'static/chat/fail.css', severity: 'fail', lines: 9 },
-      { path: 'chat/warn.mjs', severity: 'warn', lines: 5 },
+      { path: 'static/frontend/fail.css', severity: 'fail', lines: 9 },
+      { path: 'backend/warn.mjs', severity: 'warn', lines: 5 },
     ],
     'scanner should classify warned and failing files by line thresholds',
   );
 
   const formatted = formatOversizedFilesReport(report, { githubActions: true });
   assert.match(formatted.text, /Oversized source file report: 2 file\(s\) flagged/);
-  assert.match(formatted.text, /static\/chat\/fail\.css 9 lines/);
-  assert.match(formatted.text, /chat\/warn\.mjs 5 lines/);
+  assert.match(formatted.text, /static\/frontend\/fail\.css 9 lines/);
+  assert.match(formatted.text, /backend\/warn\.mjs 5 lines/);
   assert.deepEqual(
     formatted.annotations,
     [
-      '::warning file=static/chat/fail.css::Oversized source file (9 lines; warn 4, fail 8)',
-      '::warning file=chat/warn.mjs::Oversized source file (5 lines; warn 4, fail 8)',
+      '::warning file=static/frontend/fail.css::Oversized source file (9 lines; warn 4, fail 8)',
+      '::warning file=backend/warn.mjs::Oversized source file (5 lines; warn 4, fail 8)',
     ],
     'formatter should emit GitHub Actions warnings when requested',
   );
@@ -64,8 +64,8 @@ try {
     join(tempRoot, 'oversized-baseline.json'),
     JSON.stringify({
       files: {
-        'chat/warn.mjs': 5,
-        'static/chat/fail.css': 9,
+        'backend/warn.mjs': 5,
+        'static/frontend/fail.css': 9,
       },
     }, null, 2),
     'utf8',

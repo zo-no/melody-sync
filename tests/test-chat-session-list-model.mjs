@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const contractSource = readFileSync(join(repoRoot, 'static', 'chat', 'session-list', 'contract.js'), 'utf8');
-const source = readFileSync(join(repoRoot, 'static', 'chat', 'session-list', 'model.js'), 'utf8');
+const contractSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session-list', 'contract.js'), 'utf8');
+const source = readFileSync(join(repoRoot, 'static', 'frontend', 'session-list', 'model.js'), 'utf8');
 
 const translations = {
   'sidebar.group.inbox': 'Capture',
@@ -27,8 +27,8 @@ const context = {
 context.globalThis = context;
 context.self = context;
 
-vm.runInNewContext(contractSource, context, { filename: 'static/chat/session-list/contract.js' });
-vm.runInNewContext(source, context, { filename: 'static/chat/session-list/model.js' });
+vm.runInNewContext(contractSource, context, { filename: 'static/frontend/session-list/contract.js' });
+vm.runInNewContext(source, context, { filename: 'static/frontend/session-list/model.js' });
 
 const model = context.MelodySyncSessionListModel;
 assert.ok(model, 'session list model should register itself on the global object');

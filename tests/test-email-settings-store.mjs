@@ -23,7 +23,7 @@ writeFileSync(join(configDir, 'general-settings.json'), JSON.stringify({ appRoot
 
 try {
   const { readEmailSettings, persistEmailSettings } = await import(
-    pathToFileURL(join(repoRoot, 'chat', 'email-settings-store.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend', 'email-settings-store.mjs')).href
   );
 
   const initial = await readEmailSettings();

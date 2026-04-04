@@ -8,11 +8,11 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const source = readFileSync(
-  join(repoRoot, 'static', 'chat', 'session/state-model.js'),
+  join(repoRoot, 'static', 'frontend', 'session/state-model.js'),
   'utf8',
 );
 const orderContractSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'session-list', 'order-contract.js'),
+  join(repoRoot, 'static', 'frontend', 'session-list', 'order-contract.js'),
   'utf8',
 );
 

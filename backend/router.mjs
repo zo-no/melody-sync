@@ -71,13 +71,13 @@ const staticDir = join(__dirname, '..', 'static');
 const packageJsonPath = join(__dirname, '..', 'package.json');
 const releaseMetadataPath = join(__dirname, '..', '.melody-sync-release.json');
 const serviceBuildRoots = [
-  join(__dirname, '..', 'chat'),
+  join(__dirname, '..', 'backend'),
   join(__dirname, '..', 'lib'),
   join(__dirname, '..', 'chat-server.mjs'),
   packageJsonPath,
 ];
 
-const serviceBuildStatusPaths = ['chat', 'lib', 'chat-server.mjs', 'package.json'];
+const serviceBuildStatusPaths = ['backend', 'lib', 'chat-server.mjs', 'package.json'];
 
 const BUILD_INFO = loadBuildInfo();
 const pageBuildRoots = [
@@ -483,7 +483,14 @@ function hasVersionedAssetTag(query = {}) {
 async function resolveStaticAsset(pathname, query = {}) {
   if (!pathname.startsWith('/')) return null;
 
-  const staticName = pathname.slice(1);
+  let staticName = pathname.slice(1);
+  if (pathname === '/chat.js' || pathname === '/frontend.js') {
+    staticName = 'frontend.js';
+  } else if (pathname.startsWith('/chat/')) {
+    staticName = `frontend/${pathname.slice('/chat/'.length)}`;
+  } else if (pathname.startsWith('/frontend/')) {
+    staticName = `frontend/${pathname.slice('/frontend/'.length)}`;
+  }
   if (!staticName || staticName.endsWith('/')) return null;
 
   const segments = staticName.split('/').filter(Boolean);

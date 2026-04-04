@@ -1,27 +1,27 @@
-# Voice Hardware Connector (Prompt-First)
+# Voice Connector
 
-This document is the rollout contract for wiring a wake-word voice connector to RemoteLab.
+This document is the rollout contract for wiring a wake-word voice connector to MelodySync.
 
 The design goal is simple:
 
 - microphone + wake-word detection live outside the core server
-- the connector turns one spoken request into one normal RemoteLab message
-- RemoteLab runs the selected local agent as usual
+- the connector turns one spoken request into one normal MelodySync message
+- MelodySync runs the selected local agent as usual
 - the connector converts the final assistant reply back into speaker audio
 
 That keeps voice as just another thin connector on top of the existing session/run/event architecture.
 
 ## Copyable Prompt
 
-Use this when handing the setup to an AI coding agent on the RemoteLab machine:
+Use this when handing the setup to an AI coding agent on the MelodySync machine:
 
 ```text
-I want you to wire a wake-word voice connector for RemoteLab on this machine.
+I want you to wire a wake-word voice connector for MelodySync on this machine.
 
 Target behavior:
 - a local microphone listens for a wake phrase
 - transcribe wake audio locally
-- send it into RemoteLab as one user message
+- send it into MelodySync as one user message
 - wait for the assistant reply
 - speak the reply back through the local speaker
 
@@ -38,21 +38,21 @@ Pipeline choices:
 - STT layer: <mlx_whisper / whisper.cpp / faster-whisper / cloud API / custom>
 - TTS layer: <macOS say / espeak / Piper / cloud API / custom>
 
-RemoteLab session choices:
+MelodySync session choices:
 - tool: <codex / claude / other>
 - model: <optional>
 - effort: <optional>
 - thinking: <true/false>
 
 Constraints:
-- keep RemoteLab as the shared runtime and conversation engine
+- keep MelodySync as the shared runtime and conversation engine
 - keep platform-specific audio handling inside the connector
 - prefer a stable per-device voice session using externalTriggerId
 - keep replies short and speech-friendly
 
 Please:
 1. install or verify the needed local dependencies
-2. create ~/.config/remotelab/voice-connector/config.json
+2. create or update <appRoot>/voice/config.json
 3. wire the wake/capture/stt/tts commands into scripts/voice-connector.mjs
 4. validate with a dry run using --text or --stdin
 5. start the persistent connector process
@@ -66,7 +66,7 @@ When the setup is complete, the machine should have:
 - one local `voice-connector` process
 - one wake pipeline that emits activations
 - one local audio/transcribe pipeline, either direct wake-to-transcript or wake + capture + STT
-- one durable RemoteLab session per connector/device
+- one durable MelodySync session per connector/device
 - one TTS path back to the speaker
 
 The expected session scope is:
@@ -93,6 +93,12 @@ Everything else should stay inside the AI session.
 ## Connector Contract
 
 The shipped implementation lives in `scripts/voice-connector.mjs`.
+
+Current product integration:
+
+- `设置 -> Voice` manages the local voice config
+- the durable config file lives at `<appRoot>/voice/config.json`
+- `scripts/voice-connector-instance.sh` reads the current `appRoot` automatically
 
 It supports three operating modes:
 
@@ -155,7 +161,7 @@ For a custom command, the reply is passed both as stdin and as `REMOTELAB_VOICE_
 {
   "connectorId": "desk-speaker",
   "roomName": "Desk",
-  "chatBaseUrl": "http://127.0.0.1:7690",
+  "chatBaseUrl": "http://127.0.0.1:7760",
   "sessionFolder": "~",
   "sessionTool": "codex",
   "sessionMode": "per-wake",
@@ -177,7 +183,7 @@ This one-stage setup is the simplest validation path:
 - `ffmpeg` reads the microphone
 - `mlx_whisper` transcribes each short chunk locally
 - the wake loop emits a JSON event that already includes `transcript`
-- `scripts/voice-connector.mjs` sends that transcript straight into a new RemoteLab session
+- `scripts/voice-connector.mjs` sends that transcript straight into a new MelodySync session
 
 `capture.command` and `stt.command` stay available for more advanced flows, but they are not required for the first hello-world demo.
 
@@ -185,7 +191,7 @@ This one-stage setup is the simplest validation path:
 
 This repo now ships a generic Python wake path that keeps the core logic outside the main server and outside platform-specific app code:
 
-- `scripts/voice-utterance-loop.py` — passive always-on utterance listener; any detected full utterance becomes one RemoteLab message
+- `scripts/voice-utterance-loop.py` — passive always-on utterance listener; any detected full utterance becomes one MelodySync message
 - `scripts/voice-wake-loop.py` — always-on wake listener using short microphone chunks plus local `mlx_whisper`
 - `scripts/voice-capture-until-silence.py` — one-shot follow-up capture that waits for speech and stops after trailing silence
 - `scripts/voice-record-once.py` — one-shot microphone capture helper using `sounddevice` when available, with `ffmpeg` fallback
@@ -203,7 +209,7 @@ In passive speech mode:
 - the connector continuously listens for any utterance
 - once speech starts, it keeps recording until trailing silence
 - the whole utterance is transcribed locally
-- that transcript is sent into a fresh RemoteLab session turn
+- that transcript is sent into a fresh MelodySync session turn
 
 This mode is intentionally simple and good for evaluation, but it will also react to background human speech or other nearby voice audio. It is a demo path, not yet a production-grade wake-word filter.
 
@@ -217,7 +223,7 @@ In this mode:
 - the full utterance is transcribed locally first
 - only utterances that start with the configured wake phrase are accepted
 - the wake phrase can match fuzzily within a small edit distance
-- only the trailing content after the wake phrase is sent into RemoteLab
+- only the trailing content after the wake phrase is sent into MelodySync
 
 Example:
 
@@ -240,7 +246,7 @@ Example machine-local config for that macOS-only prototype shape:
 {
   "connectorId": "desk-speaker",
   "roomName": "Desk",
-  "chatBaseUrl": "http://127.0.0.1:7690",
+  "chatBaseUrl": "http://127.0.0.1:7760",
   "sessionFolder": "~",
   "sessionTool": "codex",
   "sessionMode": "per-wake",
@@ -283,13 +289,13 @@ swift /Users/jiujianian/code/remotelab/scripts/voice-wake-phrase.swift --phrase 
 Start with the cheapest checks first:
 
 ```bash
-npm run voice:connect -- --config ~/.config/remotelab/voice-connector/config.json --text "Hello there" --no-speak
+npm run voice:connect -- --config <appRoot>/voice/config.json --text "Hello there" --no-speak
 ```
 
 Then a local interactive pass:
 
 ```bash
-npm run voice:connect -- --config ~/.config/remotelab/voice-connector/config.json --stdin
+npm run voice:connect -- --config <appRoot>/voice/config.json --stdin
 ```
 
 Then a wake-layer smoke test using a prerecorded file:
@@ -301,12 +307,12 @@ Then a wake-layer smoke test using a prerecorded file:
 Then the real wake loop:
 
 ```bash
-npm run voice:connect -- --config ~/.config/remotelab/voice-connector/config.json
+npm run voice:connect -- --config <appRoot>/voice/config.json
 ```
 
 Expected outcome:
 
-- a `Voice` session is created or reused in RemoteLab
+- a `Voice` session is created or reused in MelodySync
 - the spoken text appears as a normal user message in that session
 - the assistant reply is short and speech-friendly
 - if TTS is enabled, the reply is spoken through the configured TTS path
@@ -317,7 +323,7 @@ This connector does not require a new core runtime model.
 
 It follows the same contract as GitHub, email, and other external connectors:
 
-1. authenticate to RemoteLab
+1. authenticate to MelodySync
 2. create or reuse a session
 3. submit one normalized message
 4. wait for the run to complete

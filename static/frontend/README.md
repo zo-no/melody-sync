@@ -1,14 +1,14 @@
-# Chat Frontend Map
+# Frontend Map
 
 This directory is the no-build frontend for the owner chat surface.
 
 Read this before moving code:
 
-- `../chat.js`: split-loader entry. If an asset path changes, update the loader and `templates/chat.html` together.
+- `../frontend.js`: split-loader entry. If an asset path changes, update the loader and `templates/chat.html` together.
 - `core/`: browser-wide runtime shell helpers: bootstrap payloads, icons/i18n, layout, websocket invalidation, gestures, and final app init.
 - `session/`: session-scoped fetch/update helpers, derived state, and session surface rendering.
 - `session-list/`: left sidebar task-list contract, ordering contract, list model, list UI, and sidebar shell interactions.
-- `settings/`: shared settings overlay shell plus tab-specific settings surfaces such as `hooks/`.
+- `settings/`: shared settings overlay shell plus tab-specific settings surfaces such as `hooks/`, `email/`, and `voice/`.
 - `workbench/`: node contract, node settings tab/model, task-map model, tracker, quest-state selectors, operation-record rail, and branch action UI.
 - Root-level files should now be limited to shared stylesheets and this directory map.
 

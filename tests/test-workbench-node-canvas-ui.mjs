@@ -8,11 +8,11 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const richViewSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'node-rich-view-ui.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'node-rich-view-ui.js'),
   'utf8',
 );
 const canvasSource = readFileSync(
-  join(repoRoot, 'static', 'chat', 'workbench', 'node-canvas-ui.js'),
+  join(repoRoot, 'static', 'frontend', 'workbench', 'node-canvas-ui.js'),
   'utf8',
 );
 

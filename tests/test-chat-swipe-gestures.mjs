@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const gesturesSource = readFileSync(join(repoRoot, 'static/chat/core/gestures.js'), 'utf8');
+const gesturesSource = readFileSync(join(repoRoot, 'static/frontend/core/gestures.js'), 'utf8');
 
 function makeClassList(initial = []) {
   const values = new Set(initial);
@@ -113,7 +113,7 @@ function createHarness() {
     },
   };
   context.globalThis = context;
-  vm.runInNewContext(gesturesSource, context, { filename: 'static/chat/core/gestures.js' });
+  vm.runInNewContext(gesturesSource, context, { filename: 'static/frontend/core/gestures.js' });
   return { context, listeners, gesturePill };
 }
 

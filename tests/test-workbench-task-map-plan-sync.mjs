@@ -5,7 +5,7 @@ import {
   listAffectedRootSessionIds,
   persistTaskMapPlansWithSessionSync,
   syncSessionTaskCardsForTaskMapPlans,
-} from '../chat/workbench/task-map-plan-sync.mjs';
+} from '../backend/workbench/task-map-plan-sync.mjs';
 
 const previousTaskMapPlans = [
   {

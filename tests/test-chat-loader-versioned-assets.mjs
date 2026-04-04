@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const loaderSource = readFileSync(join(repoRoot, 'static/chat.js'), 'utf8');
+const loaderSource = readFileSync(join(repoRoot, 'static/frontend.js'), 'utf8');
 
 function createScriptElement() {
   return {
@@ -88,7 +88,7 @@ async function waitForLoaderWork() {
 }
 
 const fallbackContext = createContext();
-vm.runInNewContext(loaderSource, fallbackContext, { filename: 'static/chat.js' });
+vm.runInNewContext(loaderSource, fallbackContext, { filename: 'static/frontend.js' });
 await waitForLoaderWork();
 
 assert.equal(
@@ -150,6 +150,7 @@ assert.deepEqual(
     '/chat/settings/ui.js?v=build-123',
     '/chat/settings/hooks/model.js?v=build-123',
     '/chat/settings/general/ui.js?v=build-123',
+    '/chat/settings/voice/ui.js?v=build-123',
     '/chat/workbench/node-settings-ui.js?v=build-123',
     '/chat/settings/hooks/ui.js?v=build-123',
     '/chat/core/init.js?v=build-123',
@@ -159,7 +160,7 @@ assert.deepEqual(
 assert.deepEqual(fallbackContext.loggedErrors, [], 'compatibility loader should not log load errors during the happy path');
 
 const inlineContext = createContext({ inlineAssetVersion: 'inline-build-456' });
-vm.runInNewContext(loaderSource, inlineContext, { filename: 'static/chat.js' });
+vm.runInNewContext(loaderSource, inlineContext, { filename: 'static/frontend.js' });
 await waitForLoaderWork();
 
 assert.deepEqual(
@@ -218,6 +219,7 @@ assert.deepEqual(
     '/chat/settings/ui.js?v=inline-build-456',
     '/chat/settings/hooks/model.js?v=inline-build-456',
     '/chat/settings/general/ui.js?v=inline-build-456',
+    '/chat/settings/voice/ui.js?v=inline-build-456',
     '/chat/workbench/node-settings-ui.js?v=inline-build-456',
     '/chat/settings/hooks/ui.js?v=inline-build-456',
     '/chat/core/init.js?v=inline-build-456',

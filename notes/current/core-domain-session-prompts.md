@@ -4,7 +4,7 @@ This file replaces the older share/visitor-oriented prompt packs.
 
 ## Current prompt maintenance rules
 
-When changing prompt construction in `chat/session-manager.mjs`:
+When changing prompt construction in `backend/session-manager.mjs`:
 
 1. Keep the owner-only model explicit.
 2. Treat Apps as template/context sources, not access scopes.

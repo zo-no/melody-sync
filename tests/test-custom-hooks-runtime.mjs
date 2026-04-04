@@ -44,10 +44,10 @@ writeFileSync(
 
 try {
   const { registerCustomHooks } = await import(
-    pathToFileURL(join(repoRoot, 'chat/hooks/runtime/register-custom-hooks.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/hooks/runtime/register-custom-hooks.mjs')).href
   );
   const { listHooks, emit } = await import(
-    pathToFileURL(join(repoRoot, 'chat/hooks/runtime/registry.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/hooks/runtime/registry.mjs')).href
   );
 
   await registerCustomHooks();

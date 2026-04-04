@@ -3,7 +3,7 @@ import assert from 'assert/strict';
 import {
   buildSessionTaskCardFromTaskMapPlans,
   syncSessionTaskCardFromTaskMapPlans,
-} from '../chat/workbench/node-task-card-sync.mjs';
+} from '../backend/workbench/node-task-card-sync.mjs';
 
 const session = {
   id: 'main-1',

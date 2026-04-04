@@ -7,7 +7,7 @@ const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'remotelab-system-promp
 process.env.HOME = tempHome;
 process.env.REMOTELAB_MEMORY_DIR = path.join(tempHome, 'instance-data', 'memory');
 
-const { buildSystemContext } = await import('../chat/system-prompt.mjs');
+const { buildSystemContext } = await import('../backend/system-prompt.mjs');
 
 const context = await buildSystemContext({ sessionId: 'session-test-123' });
 

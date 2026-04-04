@@ -33,12 +33,13 @@ This document lists the current shipped MelodySync feature surface after App tem
 
 Default layout:
 
-- if `appRoot` is configured, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
+- if `appRoot` is configured, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `email/`, `voice/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
 - otherwise it uses the machine-local default app root at `~/.melodysync`
 
 | Path | Purpose |
 | --- | --- |
 | `config/` | Owner auth config, runtime settings, push config, tool catalog |
+| `email/` | Mailbox identity, outbound, and automation config |
 | `memory/` | Bootstrap/project/skills/task memory |
 | `sessions/` | Machine-readable session storage: `chat-sessions.json`, derived `SESSIONS.md`, append-only `history/`, durable `runs/`, and uploaded assets |
 | `hooks/` | Hook enable state and custom hook design file |
@@ -50,3 +51,4 @@ Default layout:
 - Those fields are not active product surfaces. They should be treated as passive metadata unless a future product decision explicitly revives them.
 - Integrations and workbench capabilities still matter, but they layer on top of the core session/run model instead of replacing it.
 - For internal review of which capabilities belong in the main flow, settings, hidden/internal surfaces, or deletion review, see `notes/current/feature-and-settings-inventory.md`.
+| `voice/` | Local voice-ingress config and runtime artifacts |

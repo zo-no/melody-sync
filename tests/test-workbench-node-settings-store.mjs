@@ -13,10 +13,10 @@ process.env.HOME = tempHome;
 
 try {
   const storeModule = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/node-settings-store.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/node-settings-store.mjs')).href
   );
   const definitionsModule = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/node-definitions.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/node-definitions.mjs')).href
   );
 
   await storeModule.createCustomNodeKind({

@@ -15,7 +15,7 @@ try {
     materializeRunSpoolLine,
     readRunSpoolDelta,
     updateRun,
-  } = await import('./chat/runs.mjs');
+  } = await import('../backend/runs.mjs');
 
   const run = await createRun({
     status: {

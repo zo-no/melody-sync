@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { appendFile, mkdir, readFile } from 'fs/promises'
+import { appendFile, mkdir } from 'fs/promises'
 import { createInterface } from 'readline'
 import { spawn } from 'child_process'
 import { randomUUID } from 'crypto'
@@ -8,7 +8,19 @@ import { homedir } from 'os'
 import { dirname, join, resolve } from 'path'
 import { pathToFileURL } from 'url'
 
-import { CHAT_PORT } from '../lib/config.mjs'
+import {
+  DEFAULT_APP_ID,
+  DEFAULT_APP_NAME,
+  DEFAULT_CHAT_BASE_URL,
+  DEFAULT_CONFIG_PATH,
+  DEFAULT_SESSION_MODE,
+  DEFAULT_SESSION_SYSTEM_PROMPT,
+  DEFAULT_SESSION_TOOL,
+  DEFAULT_TTS_RATE,
+  loadConfig,
+  normalizeConfig,
+  resolveHomePath,
+} from '../lib/voice-connector-config.mjs'
 import {
   buildExternalTriggerId,
   buildRemoteLabMessage,
@@ -24,41 +36,6 @@ import {
   runShellCommand,
 } from './voice-connector-shell.mjs'
 
-const DEFAULT_STORAGE_DIR = join(homedir(), '.config', 'remotelab', 'voice-connector')
-const DEFAULT_CONFIG_PATH = join(DEFAULT_STORAGE_DIR, 'config.json')
-const DEFAULT_CHAT_BASE_URL = `http://127.0.0.1:${CHAT_PORT}`
-const DEFAULT_SESSION_TOOL = 'codex'
-const DEFAULT_APP_ID = 'voice'
-const DEFAULT_APP_NAME = 'Voice'
-const DEFAULT_GROUP_NAME = 'Voice'
-const DEFAULT_SESSION_MODE = 'stable'
-const DEFAULT_CAPTURE_TIMEOUT_MS = 90 * 1000
-const DEFAULT_STT_TIMEOUT_MS = 2 * 60 * 1000
-const DEFAULT_TTS_TIMEOUT_MS = 2 * 60 * 1000
-const DEFAULT_TTS_RATE = 185
-const LEGACY_DEFAULT_SESSION_SYSTEM_PROMPT = [
-  'You are replying through a local wake-word voice connector powered by RemoteLab.',
-  'For each assistant turn, output exactly the text that should be spoken aloud through the speaker.',
-  'Keep replies concise, natural, and conversational.',
-  'Prefer short sentences that sound good when spoken.',
-  'Match the user\'s language unless they ask you to switch.',
-  'Avoid markdown tables, code fences, bullet-heavy formatting, and raw URLs unless the user explicitly asks for them.',
-  'If you need to mention structured information, say it in speech-first language.',
-  'Do not mention hidden connector, session, or run internals unless the user explicitly asks.',
-].join('\n')
-const DEFAULT_SESSION_SYSTEM_PROMPT = [
-  'You are interacting through a local wake-word voice connector on the user\'s own machine.',
-  'Keep connector-specific overrides minimal and only describe constraints not already owned by RemoteLab backend prompt logic.',
-].join('\n')
-
-function normalizeSystemPrompt(value) {
-  const normalized = trimString(value)
-  if (!normalized || normalized === DEFAULT_SESSION_SYSTEM_PROMPT || normalized === LEGACY_DEFAULT_SESSION_SYSTEM_PROMPT) {
-    return ''
-  }
-  return normalized
-}
-
 function trimString(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -67,149 +44,6 @@ function nowIso() {
   return new Date().toISOString()
 }
 
-function normalizeBaseUrl(value) {
-  const normalized = trimString(value || DEFAULT_CHAT_BASE_URL).replace(/\/+$/, '')
-  return normalized || DEFAULT_CHAT_BASE_URL
-}
-
-function resolveHomePath(value, fallback = '') {
-  const trimmed = trimString(value || fallback)
-  if (!trimmed) return ''
-  if (trimmed === '~') return homedir()
-  if (trimmed.startsWith('~/')) return join(homedir(), trimmed.slice(2))
-  return resolve(trimmed)
-}
-
-function parsePositiveInteger(value, fallback) {
-  const parsed = Number.parseInt(value, 10)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
-}
-
-function normalizeEnvMap(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-  return Object.fromEntries(
-    Object.entries(value)
-      .map(([key, entryValue]) => [trimString(key), entryValue])
-      .filter(([key, entryValue]) => key && entryValue !== undefined && entryValue !== null)
-      .map(([key, entryValue]) => [key, String(entryValue)]),
-  )
-}
-
-function normalizeCommandStage(value, defaultTimeoutMs) {
-  if (typeof value === 'string') {
-    return {
-      command: trimString(value),
-      timeoutMs: defaultTimeoutMs,
-      env: {},
-    }
-  }
-  const normalized = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
-  return {
-    command: trimString(normalized.command || normalized.cmd),
-    timeoutMs: parsePositiveInteger(normalized.timeoutMs, defaultTimeoutMs),
-    env: normalizeEnvMap(normalized.env),
-  }
-}
-
-function normalizeWakeConfig(value) {
-  const normalized = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
-  const command = trimString(normalized.command)
-  const requestedMode = trimString(normalized.mode).toLowerCase()
-  const mode = requestedMode || (command ? 'command' : 'stdin')
-  if (!['command', 'stdin'].includes(mode)) {
-    throw new Error(`Unsupported wake mode: ${normalized.mode}`)
-  }
-  if (mode === 'command' && !command) {
-    throw new Error('wake.command is required when wake.mode is "command"')
-  }
-  return {
-    mode,
-    command,
-    keyword: trimString(normalized.keyword),
-    env: normalizeEnvMap(normalized.env),
-  }
-}
-
-function normalizeTtsConfig(value) {
-  const normalized = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
-  const command = trimString(normalized.command)
-  const requestedMode = trimString(normalized.mode).toLowerCase()
-  const defaultMode = command ? 'command' : (process.platform === 'darwin' ? 'say' : 'disabled')
-  const mode = requestedMode || defaultMode
-  if (!['command', 'say', 'disabled', 'off'].includes(mode)) {
-    throw new Error(`Unsupported tts.mode: ${normalized.mode}`)
-  }
-  if (mode === 'command' && !command) {
-    throw new Error('tts.command is required when tts.mode is "command"')
-  }
-  return {
-    enabled: normalized.enabled !== false && mode !== 'disabled' && mode !== 'off',
-    mode: mode === 'off' ? 'disabled' : mode,
-    command,
-    voice: trimString(normalized.voice),
-    rate: parsePositiveInteger(normalized.rate, DEFAULT_TTS_RATE),
-    timeoutMs: parsePositiveInteger(normalized.timeoutMs, DEFAULT_TTS_TIMEOUT_MS),
-    env: normalizeEnvMap(normalized.env),
-  }
-}
-
-function normalizeConfig(value, options = {}) {
-  const normalized = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
-  const resolvedConfigPath = resolveHomePath(options.configPath || DEFAULT_CONFIG_PATH, DEFAULT_CONFIG_PATH)
-  const storageDir = resolveHomePath(normalized.storageDir || dirname(resolvedConfigPath), DEFAULT_STORAGE_DIR)
-  const connectorId = trimString(normalized.connectorId || normalized.deviceId || normalized.name || 'voice-main') || 'voice-main'
-  const roomName = trimString(normalized.roomName || normalized.room)
-  const sessionName = trimString(normalized.sessionName)
-  const description = trimString(normalized.description)
-  const sessionMode = trimString(normalized.sessionMode).toLowerCase() === 'per-wake' ? 'per-wake' : DEFAULT_SESSION_MODE
-  const queueMode = trimString(normalized.queueMode).toLowerCase() === 'ignore' ? 'ignore' : 'queue'
-  const hasCustomSystemPrompt = Object.prototype.hasOwnProperty.call(normalized, 'systemPrompt')
-  return {
-    configPath: resolvedConfigPath,
-    storageDir,
-    connectorId,
-    roomName,
-    chatBaseUrl: normalizeBaseUrl(normalized.chatBaseUrl),
-    sessionFolder: resolveHomePath(normalized.sessionFolder || homedir(), homedir()),
-    sessionTool: trimString(normalized.sessionTool || DEFAULT_SESSION_TOOL) || DEFAULT_SESSION_TOOL,
-    model: trimString(normalized.model),
-    effort: trimString(normalized.effort),
-    thinking: normalized.thinking === true,
-    systemPrompt: hasCustomSystemPrompt ? normalizeSystemPrompt(normalized.systemPrompt) : '',
-    appId: trimString(normalized.appId || DEFAULT_APP_ID) || DEFAULT_APP_ID,
-    appName: trimString(normalized.appName || DEFAULT_APP_NAME) || DEFAULT_APP_NAME,
-    group: trimString(normalized.group || DEFAULT_GROUP_NAME) || DEFAULT_GROUP_NAME,
-    sessionMode,
-    sessionName,
-    description,
-    queueMode,
-    wake: normalizeWakeConfig(normalized.wake),
-    capture: normalizeCommandStage(normalized.capture, DEFAULT_CAPTURE_TIMEOUT_MS),
-    stt: normalizeCommandStage(normalized.stt, DEFAULT_STT_TIMEOUT_MS),
-    tts: normalizeTtsConfig(normalized.tts),
-    errorSpeech: trimString(normalized.errorSpeech),
-  }
-}
-
-async function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
-  const resolvedPath = resolveHomePath(configPath, DEFAULT_CONFIG_PATH)
-  let raw = ''
-  try {
-    raw = await readFile(resolvedPath, 'utf8')
-  } catch (error) {
-    if (error?.code === 'ENOENT') {
-      throw new Error(`Voice connector config not found at ${resolvedPath}`)
-    }
-    throw error
-  }
-  let parsed = null
-  try {
-    parsed = JSON.parse(raw)
-  } catch (error) {
-    throw new Error(`Invalid JSON in ${resolvedPath}: ${error?.message || error}`)
-  }
-  return normalizeConfig(parsed, { configPath: resolvedPath })
-}
 
 function printUsage(exitCode) {
   const output = exitCode === 0 ? console.log : console.error
@@ -700,7 +534,7 @@ async function main() {
   const runtime = createRuntimeContext(config)
   installSignalHandlers(runtime)
 
-  console.log(`[voice-connector] RemoteLab base URL: ${config.chatBaseUrl}`)
+  console.log(`[voice-connector] MelodySync base URL: ${config.chatBaseUrl}`)
   console.log(`[voice-connector] connector id: ${config.connectorId}`)
   console.log(`[voice-connector] room: ${config.roomName || '(unspecified)'}`)
   console.log(`[voice-connector] wake mode: ${config.wake.mode}`)

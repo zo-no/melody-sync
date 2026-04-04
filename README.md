@@ -188,7 +188,7 @@ MelodySync’s shipped architecture is now centered on a stable chat control pla
 
 | Service | Port | Role |
 |---------|------|------|
-| `chat-server.mjs` | `7760` | Primary chat/control plane for production use |
+| `chat-server.mjs` | `7760` | Primary backend/control plane for production use |
 
 ```
 Browser / client surface
@@ -213,7 +213,7 @@ Key architectural rules:
 - browser state always converges back to HTTP reads
 - WebSocket is an invalidation channel, not the canonical transcript
 - active work can recover after control-plane restarts because the durable state is on disk
-- `7760` is the shipped chat/control plane; restart recovery now removes the need for a permanent second validation service
+- `7760` is the shipped backend/control plane; restart recovery now removes the need for a permanent second validation service
 
 For the full code map and flow breakdown, read `docs/project-architecture.md`.
 

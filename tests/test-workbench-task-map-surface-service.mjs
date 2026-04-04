@@ -13,13 +13,13 @@ process.env.HOME = tempHome;
 
 try {
   const sessionManager = await import(
-    pathToFileURL(join(repoRoot, 'chat/session-manager.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/session-manager.mjs')).href
   );
   const taskMapPlanService = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/task-map-plan-service.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/task-map-plan-service.mjs')).href
   );
   const taskMapSurfaceService = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/task-map-surface-service.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/task-map-surface-service.mjs')).href
   );
 
   const mainSession = await sessionManager.createSession(tempHome, 'codex', '整理 node 架构', {});

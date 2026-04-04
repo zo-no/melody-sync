@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const bootstrapSource = readFileSync(join(repoRoot, 'static', 'chat', 'core', 'bootstrap.js'), 'utf8');
+const bootstrapSource = readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'bootstrap.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -84,7 +84,7 @@ context.globalThis = context;
 vm.runInNewContext(
   `${updateFrontendRefreshUiSource}\nglobalThis.updateFrontendRefreshUi = updateFrontendRefreshUi;`,
   context,
-  { filename: 'static/chat/core/bootstrap.js' },
+  { filename: 'static/frontend/core/bootstrap.js' },
 );
 
 context.updateFrontendRefreshUi();

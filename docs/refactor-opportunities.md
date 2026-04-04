@@ -9,7 +9,7 @@
 
 ### P0 — Runner stdout 无背压控制（可能导致进程挂起）
 
-**文件**：`chat/runner-sidecar.mjs:238`
+**文件**：`backend/runner-sidecar.mjs:238`
 
 **现状**：
 ```javascript
@@ -30,7 +30,7 @@ createInterface({ input: proc.stdout }).on('line', (line) => {
 
 ### P1 — `loadHistory` 是 N+1 串行查询
 
-**文件**：`chat/history.mjs:403`
+**文件**：`backend/history.mjs:403`
 
 **现状**：
 ```javascript
@@ -54,7 +54,7 @@ const rawEvents = await Promise.all(seqs.map(seq => loadStoredEvent(sessionId, s
 
 ### P1 — `getSessionOperationRecords` 在循环里串行 loadHistory
 
-**文件**：`chat/workbench/index.mjs`（当前对应 `operation-records.mjs` / `index.mjs` 组合）
+**文件**：`backend/workbench/index.mjs`（当前对应 `operation-records.mjs` / `index.mjs` 组合）
 
 **现状**：
 ```javascript
@@ -78,7 +78,7 @@ const branchHistories = await Promise.all(
 
 ### P2 — `finalizeDetachedRun` 有大量串行 await
 
-**文件**：`chat/session-manager.mjs:2540`
+**文件**：`backend/session-manager.mjs:2540`
 
 **现状**：Run 完成后约 18 个串行 await，其中多个互不依赖：
 
@@ -101,7 +101,7 @@ queueSessionCompletionTargets(...)     → 触发通知
 
 ### P2 — WORKBENCH_QUEUE 是全局单一队列
 
-**文件**：`chat/workbench/index.mjs`
+**文件**：`backend/workbench/index.mjs`
 
 **现状**：
 ```javascript
@@ -129,7 +129,7 @@ function getWorkbenchQueue(scopeKey) {
 
 ### P3 — `buildPromptForToolInvocation` 中 context 有重复查询
 
-**文件**：`chat/session-manager.mjs:2218`
+**文件**：`backend/session-manager.mjs:2218`
 
 **现状**：
 ```javascript
@@ -151,7 +151,7 @@ const prepared = await getOrPrepareForkContext(
 
 ### P3 — `syncSessionContinuityFromSession` 每次 AI 响应后全量重算
 
-**文件**：`chat/workbench/index.mjs`（当前 continuity 同步主入口）
+**文件**：`backend/workbench/index.mjs`（当前 continuity 同步主入口）
 
 **现状**：每次 Run 完成后调用，内部执行：
 - `loadState()`（读 6 个 JSON 文件）
@@ -174,7 +174,7 @@ const prepared = await getOrPrepareForkContext(
 
 ### P3 — "AI Hooks"是硬编码的，没有扩展点
 
-**文件**：`chat/session-manager.mjs:2540`（`finalizeDetachedRun`）
+**文件**：`backend/session-manager.mjs:2540`（`finalizeDetachedRun`）
 
 **现状**：所有后置处理都写死在一个 300 行的大函数里：
 - 写历史事件

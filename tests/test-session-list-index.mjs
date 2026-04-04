@@ -29,7 +29,7 @@ writeFileSync(
 
 try {
   const config = await import(pathToFileURL(join(repoRoot, 'lib/config.mjs')).href);
-  const store = await import(pathToFileURL(join(repoRoot, 'chat/session-meta-store.mjs')).href);
+  const store = await import(pathToFileURL(join(repoRoot, 'backend/session-meta-store.mjs')).href);
 
   await store.withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
     metas.splice(0, metas.length, {

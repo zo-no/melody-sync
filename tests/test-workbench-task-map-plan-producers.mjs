@@ -14,10 +14,10 @@ process.env.HOME = tempHome;
 
 try {
   const producers = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/task-map-plan-producers.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/task-map-plan-producers.mjs')).href
   );
   const taskMapPlans = await import(
-    pathToFileURL(join(repoRoot, 'chat/workbench/task-map-plans.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/workbench/task-map-plans.mjs')).href
   );
 
   const sessions = [

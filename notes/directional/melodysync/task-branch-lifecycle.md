@@ -227,14 +227,14 @@ GTD 分组是任务列表的组织视图，不是生命周期状态本身。
 
 这一轮最关键的代码入口：
 
-- `chat/workbench/index.mjs`
-- `chat/router.mjs`
-- `chat/session-manager.mjs`
-- `chat/history.mjs`
-- `static/chat/workbench/controller.js`
-- `static/chat/session/surface-ui.js`
-- `static/chat/session-list/ui.js`
-- `static/chat/core/realtime.js`
+- `backend/workbench/index.mjs`
+- `backend/router.mjs`
+- `backend/session-manager.mjs`
+- `backend/history.mjs`
+- `static/frontend/workbench/controller.js`
+- `static/frontend/session/surface-ui.js`
+- `static/frontend/session-list/ui.js`
+- `static/frontend/core/realtime.js`
 
 阅读顺序建议：
 

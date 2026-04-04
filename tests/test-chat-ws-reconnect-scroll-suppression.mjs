@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const realtimeSource = readFileSync(join(repoRoot, 'static/chat/core/realtime.js'), 'utf8');
+const realtimeSource = readFileSync(join(repoRoot, 'static/frontend/core/realtime.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -89,7 +89,7 @@ const context = {
 context.globalThis = context;
 
 vm.runInNewContext(`${connectSource}\nglobalThis.connect = connect;`, context, {
-  filename: 'static/chat/core/realtime.js',
+  filename: 'static/frontend/core/realtime.js',
 });
 
 context.connect();

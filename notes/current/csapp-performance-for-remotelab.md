@@ -25,9 +25,9 @@ That makes CSAPP directly useful in four areas:
 Relevant files:
 
 - `chat-server.mjs`
-- `chat/session-manager.mjs`
-- `chat/process-runner.mjs`
-- `chat/runner-supervisor.mjs`
+- `backend/session-manager.mjs`
+- `backend/process-runner.mjs`
+- `backend/runner-supervisor.mjs`
 
 CSAPP framing:
 
@@ -60,9 +60,9 @@ Better instinct:
 
 Relevant files:
 
-- `chat/session-manager.mjs`
-- `chat/router.mjs`
-- `static/chat/core/realtime.js`
+- `backend/session-manager.mjs`
+- `backend/router.mjs`
+- `static/frontend/core/realtime.js`
 
 CSAPP framing:
 
@@ -73,7 +73,7 @@ CSAPP framing:
 Project mapping:
 
 - the Node server multiplexes requests, session refreshes, websocket invalidations, and filesystem work on one event loop
-- the browser reconnect loop in `static/chat/core/realtime.js` is intentionally simple because HTTP is the source of truth and WebSocket is only an invalidation hint
+- the browser reconnect loop in `static/frontend/core/realtime.js` is intentionally simple because HTTP is the source of truth and WebSocket is only an invalidation hint
 - any synchronous CPU-heavy transform or oversized JSON materialization in the server can create head-of-line blocking
 
 Optimization implications:
@@ -90,11 +90,11 @@ Rule of thumb:
 
 Relevant files:
 
-- `chat/history.mjs`
-- `chat/runs.mjs`
-- `chat/session-manager.mjs`
-- `chat/ws.mjs`
-- `chat/api-request-log.mjs`
+- `backend/history.mjs`
+- `backend/runs.mjs`
+- `backend/session-manager.mjs`
+- `backend/ws.mjs`
+- `backend/api-request-log.mjs`
 
 CSAPP framing:
 
@@ -122,10 +122,10 @@ Practical CSAPP lens:
 
 Relevant files:
 
-- `chat/history.mjs`
-- `chat/session-meta-store.mjs`
-- `chat/session-activity.mjs`
-- `static/chat/session/state-model.js`
+- `backend/history.mjs`
+- `backend/session-meta-store.mjs`
+- `backend/session-activity.mjs`
+- `static/frontend/session/state-model.js`
 
 CSAPP framing:
 
@@ -153,7 +153,7 @@ Smell:
 
 Relevant files:
 
-- `chat/api-request-log.mjs`
+- `backend/api-request-log.mjs`
 - `tests/`
 - browser perf marks referenced in prior task notes
 

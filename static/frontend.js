@@ -51,6 +51,7 @@
     "/chat/settings/ui.js",
     "/chat/settings/hooks/model.js",
     "/chat/settings/general/ui.js",
+    "/chat/settings/voice/ui.js",
     "/chat/workbench/node-settings-ui.js",
     "/chat/settings/hooks/ui.js",
     "/chat/core/init.js",

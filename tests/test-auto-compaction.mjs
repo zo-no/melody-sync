@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
-const repoRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-auto-compact-'));
 const tempBin = join(tempHome, 'bin');
 const codexSessionsDir = join(tempHome, '.codex', 'sessions', '2026', '03', '10');
@@ -127,10 +127,10 @@ writeCodexMetrics('overflow-thread', 101, 100);
 writeCodexMetrics('exact-thread', 100, 100);
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'chat', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
 );
 const history = await import(
-  pathToFileURL(join(repoRoot, 'chat', 'history.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'history.mjs')).href
 );
 
 const {

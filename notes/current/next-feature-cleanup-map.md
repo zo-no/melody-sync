@@ -15,43 +15,43 @@
 
 ### 后端主链
 
-- `chat/router.mjs`
-- `chat/routes/auth.mjs`
-- `chat/routes/session-read.mjs`
-- `chat/routes/session-write.mjs`
-- `chat/routes/runs.mjs`
-- `chat/routes/assets.mjs`
-- `chat/routes/workbench.mjs`
-- `chat/session-manager.mjs`
-- `chat/history.mjs`
-- `chat/runs.mjs`
-- `chat/runner-supervisor.mjs`
-- `chat/runner-sidecar.mjs`
-- `chat/runner-sidecar-finalize.mjs`
-- `chat/provider-runtime-monitor.mjs`
-- `chat/session-meta-store.mjs`
-- `chat/session-api-shapes.mjs`
-- `chat/workbench/index.mjs`
+- `backend/router.mjs`
+- `backend/routes/auth.mjs`
+- `backend/routes/session-read.mjs`
+- `backend/routes/session-write.mjs`
+- `backend/routes/runs.mjs`
+- `backend/routes/assets.mjs`
+- `backend/routes/workbench.mjs`
+- `backend/session-manager.mjs`
+- `backend/history.mjs`
+- `backend/runs.mjs`
+- `backend/runner-supervisor.mjs`
+- `backend/runner-sidecar.mjs`
+- `backend/runner-sidecar-finalize.mjs`
+- `backend/provider-runtime-monitor.mjs`
+- `backend/session-meta-store.mjs`
+- `backend/session-api-shapes.mjs`
+- `backend/workbench/index.mjs`
 
 ### 前端主链
 
 - `templates/chat.html`
-- `static/chat.js`
-- `static/chat/core/bootstrap.js`
-- `static/chat/core/bootstrap-data.js`
-- `static/chat/core/bootstrap-session-catalog.js`
-- `static/chat/session/http.js`
-- `static/chat/session/http-helpers.js`
-- `static/chat/session/http-list-state.js`
-- `static/chat/core/realtime.js`
-- `static/chat/core/realtime-render.js`
-- `static/chat/session/surface-ui.js`
-- `static/chat/session-list/ui.js`
-- `static/chat/session-list/sidebar-ui.js`
-- `static/chat/session/compose.js`
-- `static/chat/workbench/controller.js`
-- `static/chat/workbench/task-map-model.js`
-- `static/chat/settings/hooks/ui.js`
+- `static/frontend.js`
+- `static/frontend/core/bootstrap.js`
+- `static/frontend/core/bootstrap-data.js`
+- `static/frontend/core/bootstrap-session-catalog.js`
+- `static/frontend/session/http.js`
+- `static/frontend/session/http-helpers.js`
+- `static/frontend/session/http-list-state.js`
+- `static/frontend/core/realtime.js`
+- `static/frontend/core/realtime-render.js`
+- `static/frontend/session/surface-ui.js`
+- `static/frontend/session-list/ui.js`
+- `static/frontend/session-list/sidebar-ui.js`
+- `static/frontend/session/compose.js`
+- `static/frontend/workbench/controller.js`
+- `static/frontend/workbench/task-map-model.js`
+- `static/frontend/settings/hooks/ui.js`
 
 ### 基础支撑
 
@@ -111,10 +111,10 @@
 
 先 grep 再删，重点检查：
 
-- `chat/compat/apps.mjs`
-- `chat/router-public-routes.mjs`
-- `chat/router-system-routes.mjs`
-- `chat/compat/session-meta-compat.mjs`
+- `backend/compat/apps.mjs`
+- `backend/router-public-routes.mjs`
+- `backend/router-system-routes.mjs`
+- `backend/compat/session-meta-compat.mjs`
 
 这些文件不一定都该立刻删除，但它们属于“历史兼容 / 外围壳 / 非主链路由”的高概率裁剪区。
 
@@ -144,7 +144,7 @@
 ### 第 2 步：再删前端死挂点
 
 - 删 UI 上已经没有入口的 DOM / CSS / 全局状态
-- 每删一块都保持 `templates/chat.html` 和 `static/chat/*.js` 一起收口
+- 每删一块都保持 `templates/chat.html` 和 `static/frontend/*.js` 一起收口
 
 ### 第 3 步：再削路由兼容壳
 
@@ -153,9 +153,9 @@
 
 ### 第 4 步：最后再拆大文件
 
-- `chat/session-manager.mjs`
-- `chat/workbench/index.mjs`
-- `static/chat/workbench/controller.js`
+- `backend/session-manager.mjs`
+- `backend/workbench/index.mjs`
+- `static/frontend/workbench/controller.js`
 
 这一步应该在“功能残留删干净”后再做，否则只是在给旧逻辑换目录。
 
