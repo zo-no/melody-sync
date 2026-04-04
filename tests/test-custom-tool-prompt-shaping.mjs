@@ -3,7 +3,7 @@ import assert from 'assert/strict';
 import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import http from 'http';
 import { spawn } from 'child_process';
 
@@ -73,27 +73,33 @@ async function resolveMessageContent(port, sessionId, event) {
   return fetchEventBody(port, sessionId, event.seq);
 }
 
-function setupTempHome() {
+async function setupTempHome() {
   const home = mkdtempSync(join(tmpdir(), 'remotelab-custom-prompt-shape-'));
-  const configDir = join(home, '.config', 'remotelab');
   const localBin = join(home, '.local', 'bin');
+  process.env.HOME = home;
+
+  const config = await import(
+    `${pathToFileURL(join(repoRoot, 'lib', 'config.mjs')).href}?home=${encodeURIComponent(home)}`
+  );
+  const configDir = config.CONFIG_DIR;
+
   mkdirSync(configDir, { recursive: true });
   mkdirSync(localBin, { recursive: true });
 
   writeFileSync(
-    join(configDir, 'auth.json'),
+    config.AUTH_FILE,
     JSON.stringify({ token: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }, null, 2),
     'utf8',
   );
   writeFileSync(
-    join(configDir, 'auth-sessions.json'),
+    config.AUTH_SESSIONS_FILE,
     JSON.stringify({
       'test-session': { expiry: Date.now() + 60 * 60 * 1000, role: 'owner' },
     }, null, 2),
     'utf8',
   );
   writeFileSync(
-    join(configDir, 'tools.json'),
+    config.TOOLS_FILE,
     JSON.stringify([
       {
         id: 'fake-catpaw',
@@ -154,6 +160,7 @@ console.log(JSON.stringify({
     cache_read_input_tokens: 0,
   },
 }));
+setTimeout(() => process.exit(0), 50);
 `,
     'utf8',
   );
@@ -224,7 +231,7 @@ async function waitForRunTerminal(port, runId) {
   }, `run ${runId} terminal`);
 }
 
-const { home } = setupTempHome();
+const { home } = await setupTempHome();
 const port = randomPort();
 const server = await startServer({ home, port });
 

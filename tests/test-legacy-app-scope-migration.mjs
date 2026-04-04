@@ -2,15 +2,19 @@
 import assert from 'assert/strict';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { spawnSync } from 'child_process';
+import { pathToFileURL } from 'url';
 
 const repoRoot = process.cwd();
 const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-legacy-app-scope-'));
-const configDir = join(tempHome, '.config', 'remotelab');
-mkdirSync(configDir, { recursive: true });
+process.env.HOME = tempHome;
 
-const sessionsPath = join(configDir, 'chat-sessions.json');
+const config = await import(
+  pathToFileURL(join(repoRoot, 'lib', 'config.mjs')).href
+);
+const sessionsPath = config.CHAT_SESSIONS_FILE;
+mkdirSync(dirname(sessionsPath), { recursive: true });
 
 const sessions = [
   {
@@ -110,7 +114,7 @@ try {
   assert.equal(byId.get('legacy_review_without_trigger')?.appId, 'automation');
   assert.equal(byId.get('already_scoped')?.appId, 'github');
 
-  const backupDir = join(configDir, 'backups');
+  const backupDir = join(dirname(sessionsPath), 'backups');
   const backups = readdirSync(backupDir).filter((entry) => entry.includes('legacy-app-scope'));
   assert.equal(backups.length, 1, 'migration should create a single backup snapshot');
 } finally {

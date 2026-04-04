@@ -8,7 +8,6 @@ import { fileURLToPath, pathToFileURL } from 'url';
 const repoRoot = dirname(fileURLToPath(import.meta.url));
 const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-auto-compact-'));
 const tempBin = join(tempHome, 'bin');
-const configDir = join(tempHome, '.config', 'remotelab');
 const codexSessionsDir = join(tempHome, '.codex', 'sessions', '2026', '03', '10');
 const compactionWorkerText = JSON.stringify(
   '<summary>Carry forward only the compacted continuation summary.</summary>\n\n'
@@ -20,6 +19,17 @@ const compactionWorkerText = JSON.stringify(
   + '## Continue from here\n'
   + '- Keep going from the fresh handoff.</handoff>'
 );
+
+process.env.HOME = tempHome;
+process.env.PATH = `${tempBin}:${process.env.PATH}`;
+delete process.env.REMOTELAB_LIVE_CONTEXT_COMPACT_TOKENS;
+
+const config = await import(
+  pathToFileURL(join(repoRoot, 'lib', 'config.mjs')).href
+);
+const configDir = config.CONFIG_DIR;
+const toolsFile = config.TOOLS_FILE;
+const chatHistoryDir = config.CHAT_HISTORY_DIR;
 
 mkdirSync(tempBin, { recursive: true });
 mkdirSync(configDir, { recursive: true });
@@ -63,7 +73,7 @@ setTimeout(() => process.exit(0), 50);
 chmodSync(fakeCodexPath, 0o755);
 
 writeFileSync(
-  join(configDir, 'tools.json'),
+  toolsFile,
   JSON.stringify(
     [
       {
@@ -116,10 +126,6 @@ function writeCodexMetrics(threadId, contextTokens, contextWindowTokens) {
 writeCodexMetrics('overflow-thread', 101, 100);
 writeCodexMetrics('exact-thread', 100, 100);
 
-process.env.HOME = tempHome;
-process.env.PATH = `${tempBin}:${process.env.PATH}`;
-delete process.env.REMOTELAB_LIVE_CONTEXT_COMPACT_TOKENS;
-
 const sessionManager = await import(
   pathToFileURL(join(repoRoot, 'chat', 'session-manager.mjs')).href
 );
@@ -139,7 +145,7 @@ const {
 const { getContextHead } = history;
 
 function readPersistedContextHead(sessionId) {
-  const raw = readFileSync(join(configDir, 'chat-history', sessionId, 'context.json'), 'utf8');
+  const raw = readFileSync(join(chatHistoryDir, sessionId, 'context.json'), 'utf8');
   return JSON.parse(raw);
 }
 
