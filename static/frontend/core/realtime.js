@@ -220,15 +220,17 @@ async function dispatchAction(msg) {
         }
         const previousSession = applyOptimisticSessionDelete(msg.sessionId);
         try {
-          await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
+          const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
             method: "DELETE",
           });
-          if (currentSessionId === msg.sessionId) {
-            currentSessionId = null;
-            hasAttachedSession = false;
-            showEmpty();
+          removeSessionsFromClientState(
+            normalizeDeletedSessionIds(data?.deletedSessionIds, msg.sessionId),
+          );
+          try {
+            await fetchSessionsList();
+          } catch (refreshError) {
+            console.warn("Session list refresh failed after delete:", refreshError?.message || refreshError);
           }
-          await fetchSessionsList();
         } catch (error) {
           if (previousSession) {
             restoreOptimisticSessionSnapshot(previousSession);
@@ -482,17 +484,56 @@ function applyOptimisticSessionArchiveState(sessionId, archived) {
   return previous;
 }
 
-function applyOptimisticSessionDelete(sessionId) {
-  const index = sessions.findIndex((session) => session.id === sessionId);
-  if (index === -1) return null;
-  const previous = sessions[index];
-  sessions.splice(index, 1);
-  if (previous?.archived === true) {
-    archivedSessionCount = Math.max(0, archivedSessionCount - 1);
+function normalizeDeletedSessionIds(deletedSessionIds = [], fallbackSessionId = "") {
+  const normalized = new Set();
+  for (const sessionId of Array.isArray(deletedSessionIds) ? deletedSessionIds : []) {
+    const trimmed = typeof sessionId === "string" ? sessionId.trim() : "";
+    if (trimmed) normalized.add(trimmed);
+  }
+  const fallback = typeof fallbackSessionId === "string" ? fallbackSessionId.trim() : "";
+  if (fallback) normalized.add(fallback);
+  return [...normalized];
+}
+
+function removeSessionsFromClientState(sessionIds = []) {
+  const deletedIds = normalizeDeletedSessionIds(sessionIds);
+  if (deletedIds.length === 0) return [];
+  const targetIds = new Set(deletedIds);
+  const removedSessions = [];
+  const nextSessions = [];
+  for (const session of Array.isArray(sessions) ? sessions : []) {
+    if (session?.id && targetIds.has(session.id)) {
+      removedSessions.push(session);
+      continue;
+    }
+    nextSessions.push(session);
+  }
+  const shouldClearCurrent = Boolean(currentSessionId && targetIds.has(currentSessionId));
+  if (!removedSessions.length && !shouldClearCurrent) return [];
+  sessions = nextSessions;
+  const removedArchivedCount = removedSessions.filter((session) => session?.archived === true).length;
+  if (removedArchivedCount > 0) {
+    archivedSessionCount = Math.max(0, archivedSessionCount - removedArchivedCount);
+  }
+  if (shouldClearCurrent) {
+    currentSessionId = null;
+    hasAttachedSession = false;
   }
   sortSessionsInPlace();
   refreshAppCatalog();
   renderSessionList();
+  if (shouldClearCurrent && typeof showEmpty === "function") {
+    showEmpty();
+  }
+  return removedSessions;
+}
+
+function applyOptimisticSessionDelete(sessionId) {
+  const previous = Array.isArray(sessions)
+    ? sessions.find((session) => session?.id === sessionId) || null
+    : null;
+  if (!previous) return null;
+  removeSessionsFromClientState([sessionId]);
   return previous;
 }
 

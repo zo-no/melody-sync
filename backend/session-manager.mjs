@@ -2981,79 +2981,115 @@ async function deleteSessionRuns(sessionIds = []) {
   }
 }
 
-export async function deleteSessionPermanently(id) {
-  const current = await findSessionMeta(id);
-  if (!current) return { deletedSessionIds: [] };
-  if (current.archived !== true) {
-    const error = new Error('请先归档任务，再删除。');
-    error.statusCode = 409;
-    throw error;
-  }
+function assertSessionCanBeDeletedPermanently(session) {
+  if (session?.archived === true) return;
+  const error = new Error('请先归档任务，再删除。');
+  error.statusCode = 409;
+  throw error;
+}
 
+async function buildPermanentSessionDeletionPlan(rootSessionId, current) {
   const metas = await loadSessionsMeta();
-  const targetTreeIds = collectSessionTreeIds(id, metas);
-  if (!targetTreeIds.length) {
-    return { deletedSessionIds: [] };
-  }
+  const targetTreeIds = collectSessionTreeIds(rootSessionId, metas);
+  if (!targetTreeIds.length) return null;
   const targetIdSet = new Set(targetTreeIds);
-  const rootSession = metas.find((meta) => meta?.id === id) || current;
-  const relatedSessions = metas.filter((meta) => meta?.id && targetIdSet.has(meta.id) && meta.id !== id);
+  const rootSession = metas.find((meta) => meta?.id === rootSessionId) || current;
+  const relatedSessions = metas.filter((meta) => meta?.id && targetIdSet.has(meta.id) && meta.id !== rootSessionId);
   const historyEntries = await Promise.all(targetTreeIds.map(async (sessionId) => [
     sessionId,
     await loadHistory(sessionId, { includeBodies: true }).catch(() => []),
   ]));
   const historiesBySessionId = Object.fromEntries(historyEntries);
-  const deletionArtifacts = collectSessionManagedArtifacts(historiesBySessionId, targetTreeIds);
-  const runFileAssetIds = await collectRunPublishedFileAssetIds(targetTreeIds);
-
-  await writeSessionDeletionJournalEntry({
+  return {
     rootSession,
     relatedSessions,
+    targetTreeIds,
+    targetIdSet,
     historiesBySessionId,
-    deletedSessionIds: targetTreeIds,
-  });
+    deletionArtifacts: collectSessionManagedArtifacts(historiesBySessionId, targetTreeIds),
+    runFileAssetIds: await collectRunPublishedFileAssetIds(targetTreeIds),
+  };
+}
 
-  const deletedSessionIds = await withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
+async function deleteSessionTreeMetadata(targetIdSet) {
+  return withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
     const treeIds = metas
       .map((meta) => trimString(meta?.id))
       .filter((sessionId) => sessionId && targetIdSet.has(sessionId));
     if (!treeIds.length) return [];
-    const targetIds = new Set(treeIds);
-    const nextMetas = metas.filter((meta) => !targetIds.has(meta?.id));
+    const matchedIds = new Set(treeIds);
+    const nextMetas = metas.filter((meta) => !matchedIds.has(meta?.id));
     metas.splice(0, metas.length, ...nextMetas);
     await saveSessionsMeta(metas);
     return treeIds;
   });
+}
 
-  if (!deletedSessionIds.length) {
-    return { deletedSessionIds: [] };
-  }
-
-  for (const sessionId of deletedSessionIds) {
+async function clearDeletedSessionRuntimeState(sessionIds = []) {
+  for (const sessionId of Array.isArray(sessionIds) ? sessionIds : []) {
     liveSessions.delete(sessionId);
     clearRenameState(sessionId);
     await clearSessionHistory(sessionId);
     await clearContextHead(sessionId).catch(() => {});
     await clearForkContext(sessionId).catch(() => {});
   }
+}
 
-  await deleteSessionRuns(deletedSessionIds);
-  await pruneWorkbenchSessionArtifacts(deletedSessionIds).catch(() => {});
+async function deletePermanentSessionArtifacts(sessionIds = [], {
+  managedPaths = [],
+  fileAssetIds = [],
+  runFileAssetIds = [],
+} = {}) {
+  await deleteSessionRuns(sessionIds);
+  await pruneWorkbenchSessionArtifacts(sessionIds).catch(() => {});
 
-  for (const managedPath of deletionArtifacts.managedPaths) {
+  for (const managedPath of managedPaths) {
     await removePath(managedPath).catch(() => {});
   }
   await deleteFileAssets([
-    ...deletionArtifacts.fileAssetIds,
+    ...fileAssetIds,
     ...runFileAssetIds,
   ]).catch(() => {});
+}
 
-  if (shouldExposeSession(current)) {
+function broadcastPermanentSessionDeletion(rootSession, deletedSessionIds = []) {
+  if (shouldExposeSession(rootSession)) {
     broadcastSessionsInvalidation();
   }
-  for (const sessionId of deletedSessionIds) {
+  for (const sessionId of Array.isArray(deletedSessionIds) ? deletedSessionIds : []) {
     broadcastSessionInvalidation(sessionId);
   }
+}
+
+export async function deleteSessionPermanently(id) {
+  const current = await findSessionMeta(id);
+  if (!current) return { deletedSessionIds: [] };
+  assertSessionCanBeDeletedPermanently(current);
+
+  const deletionPlan = await buildPermanentSessionDeletionPlan(id, current);
+  if (!deletionPlan) {
+    return { deletedSessionIds: [] };
+  }
+
+  await writeSessionDeletionJournalEntry({
+    rootSession: deletionPlan.rootSession,
+    relatedSessions: deletionPlan.relatedSessions,
+    historiesBySessionId: deletionPlan.historiesBySessionId,
+    deletedSessionIds: deletionPlan.targetTreeIds,
+  });
+
+  const deletedSessionIds = await deleteSessionTreeMetadata(deletionPlan.targetIdSet);
+  if (!deletedSessionIds.length) {
+    return { deletedSessionIds: [] };
+  }
+
+  await clearDeletedSessionRuntimeState(deletedSessionIds);
+  await deletePermanentSessionArtifacts(deletedSessionIds, {
+    managedPaths: deletionPlan.deletionArtifacts.managedPaths,
+    fileAssetIds: deletionPlan.deletionArtifacts.fileAssetIds,
+    runFileAssetIds: deletionPlan.runFileAssetIds,
+  });
+  broadcastPermanentSessionDeletion(current, deletedSessionIds);
 
   return { deletedSessionIds };
 }

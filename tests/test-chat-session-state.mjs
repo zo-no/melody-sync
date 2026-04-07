@@ -670,12 +670,20 @@ const deleteContext = createBaseContext();
 let deleteConfirmMessage = null;
 let deleteRequest = null;
 let emptyStateShown = 0;
-deleteContext.currentSessionId = 'session-delete';
+deleteContext.currentSessionId = 'session-delete-child';
+deleteContext.archivedSessionCount = 2;
 deleteContext.sessions = [{
   id: 'session-delete',
   name: 'Delete me',
+  archived: true,
   activity: createSessionActivity(),
   updatedAt: '2026-03-12T08:00:00.000Z',
+}, {
+  id: 'session-delete-child',
+  name: 'Delete child',
+  archived: true,
+  activity: createSessionActivity(),
+  updatedAt: '2026-03-12T08:01:00.000Z',
 }];
 deleteContext.sortSessionsInPlace = () => {};
 deleteContext.refreshAppCatalog = () => {};
@@ -687,7 +695,7 @@ deleteContext.confirm = (message) => {
 };
 deleteContext.fetchJsonOrRedirect = async (url, options) => {
   deleteRequest = { url, options };
-  return { deletedSessionIds: ['session-delete'] };
+  return { deletedSessionIds: ['session-delete', 'session-delete-child'] };
 };
 deleteContext.showEmpty = () => {
   emptyStateShown += 1;
@@ -702,8 +710,47 @@ assert.equal(deleteAccepted, true, 'delete should resolve after the server accep
 assert.equal(deleteConfirmMessage, 'Delete Delete me', 'delete should confirm before removing the task');
 assert.equal(deleteRequest?.url, '/api/sessions/session-delete');
 assert.equal(deleteRequest?.options?.method, 'DELETE');
-assert.equal(deleteContext.currentSessionId, null, 'deleting the attached session should clear the current selection');
-assert.equal(emptyStateShown, 1, 'deleting the attached session should show the empty state');
+assert.equal(deleteContext.currentSessionId, null, 'deleting any currently attached descendant should clear the current selection');
+assert.equal(deleteContext.sessions.length, 0, 'delete should remove every returned session id from the local catalog');
+assert.equal(deleteContext.archivedSessionCount, 0, 'delete should decrement the archived counter for every removed archived session');
+assert.equal(emptyStateShown, 1, 'deleting the attached descendant should show the empty state');
+
+const deleteRefreshFailureContext = createBaseContext();
+deleteRefreshFailureContext.console = { ...console, error() {}, warn() {} };
+deleteRefreshFailureContext.sessions = [{
+  id: 'session-delete-refresh',
+  name: 'Delete refresh issue',
+  archived: true,
+  activity: createSessionActivity(),
+  updatedAt: '2026-03-12T08:00:00.000Z',
+}];
+deleteRefreshFailureContext.archivedSessionCount = 1;
+deleteRefreshFailureContext.sortSessionsInPlace = () => {};
+deleteRefreshFailureContext.refreshAppCatalog = () => {};
+deleteRefreshFailureContext.renderSessionList = () => {};
+deleteRefreshFailureContext.confirm = () => true;
+let deleteRefreshCalls = 0;
+deleteRefreshFailureContext.fetchJsonOrRedirect = async () => ({ deletedSessionIds: ['session-delete-refresh'] });
+deleteRefreshFailureContext.fetchSessionsList = async () => {
+  deleteRefreshCalls += 1;
+  throw new Error('sidebar refresh failed');
+};
+
+vm.runInNewContext(dispatchActionSnippet, deleteRefreshFailureContext, {
+  filename: 'chat-dispatch-action-runtime.js',
+});
+
+const deleteAcceptedDespiteRefreshFailure = await deleteRefreshFailureContext.dispatchAction({
+  action: 'delete',
+  sessionId: 'session-delete-refresh',
+});
+assert.equal(deleteAcceptedDespiteRefreshFailure, true, 'delete should stay successful even if the follow-up list refresh fails');
+assert.equal(deleteRefreshCalls, 1, 'delete should still attempt a post-delete list refresh');
+assert.equal(
+  deleteRefreshFailureContext.sessions.some((session) => session.id === 'session-delete-refresh'),
+  false,
+  'delete should not roll back a confirmed removal when only the follow-up refresh fails',
+);
 
 const deleteFailureContext = createBaseContext();
 let deleteFailureAlert = null;
