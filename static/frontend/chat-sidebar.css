@@ -1034,16 +1034,88 @@
 .task-cluster-root-card.is-done-session,
 .task-cluster-main.session-item.is-done-session,
 .task-cluster-tree-row.session-item.is-done-session {
-  background: #8ea296 !important;
-  border-color: #7a8d81 !important;
+  background: #d8ede0 !important;
+  border-color: #bed8c8 !important;
   box-shadow: none !important;
+}
+
+.session-item.is-running-session,
+.task-cluster-root-card.is-running-session,
+.task-cluster-main.session-item.is-running-session,
+.task-cluster-tree-row.session-item.is-running-session {
+  background: #dfeaf2 !important;
+  border-color: #c5d6e2 !important;
+  box-shadow: none !important;
+}
+
+.session-item.is-running-session:hover,
+.task-cluster-root-card.is-running-session:hover,
+.task-cluster-main.session-item.is-running-session:hover,
+.task-cluster-tree-row.session-item.is-running-session:hover {
+  background: #e8f1f7 !important;
+}
+
+.session-item.is-running-session.active,
+.task-cluster-root-card.is-running-session.active,
+.task-cluster-main.session-item.is-running-session.active,
+.task-cluster-tree-row.session-item.is-running-session.active,
+.task-cluster-tree-row.session-item.is-running-session.is-current-branch {
+  background: #d2e3ed !important;
+  border-color: #b5cada !important;
+  box-shadow: 0 8px 18px rgba(88, 118, 145, 0.1) !important;
+}
+
+.session-item.is-running-session .session-item-name,
+.session-item.is-running-session .session-item-meta,
+.session-item.is-running-session .session-item-meta *,
+.session-item.is-running-session .session-pin-badge,
+.task-cluster-root-card.is-running-session .session-item-name,
+.task-cluster-root-card.is-running-session .session-item-meta,
+.task-cluster-root-card.is-running-session .session-item-meta *,
+.task-cluster-main.session-item.is-running-session .session-item-name,
+.task-cluster-main.session-item.is-running-session .session-item-meta,
+.task-cluster-main.session-item.is-running-session .session-item-meta *,
+.task-cluster-tree-row.session-item.is-running-session .session-item-name,
+.task-cluster-tree-row.session-item.is-running-session .session-item-meta,
+.task-cluster-tree-row.session-item.is-running-session .session-item-meta * {
+  color: #314754 !important;
+}
+
+.session-item.is-running-session .session-list-badge,
+.task-cluster-root-card.is-running-session .session-list-badge,
+.task-cluster-main.session-item.is-running-session .session-list-badge,
+.task-cluster-tree-row.session-item.is-running-session .session-list-badge {
+  background: rgba(49, 71, 84, 0.06) !important;
+  border-color: rgba(49, 71, 84, 0.12) !important;
+  color: #314754 !important;
+}
+
+.session-item.is-running-session .session-action-btn,
+.task-cluster-root-card.is-running-session .session-action-btn,
+.task-cluster-main.session-item.is-running-session .session-action-btn,
+.task-cluster-tree-row.session-item.is-running-session .session-action-btn {
+  color: rgba(49, 71, 84, 0.72);
+}
+
+.session-item.is-running-session .session-action-btn:hover,
+.task-cluster-root-card.is-running-session .session-action-btn:hover,
+.task-cluster-main.session-item.is-running-session .session-action-btn:hover,
+.task-cluster-tree-row.session-item.is-running-session .session-action-btn:hover {
+  background: rgba(49, 71, 84, 0.06);
+}
+
+.task-cluster-main.session-item.is-running-session::before,
+.task-cluster-root-card.is-running-session::before,
+.task-cluster-tree-row.session-item.is-running-session::before,
+.task-cluster-tree-row.session-item.is-running-session.is-current-branch::after {
+  background: rgba(49, 71, 84, 0.22) !important;
 }
 
 .session-item.is-done-session:hover,
 .task-cluster-root-card.is-done-session:hover,
 .task-cluster-main.session-item.is-done-session:hover,
 .task-cluster-tree-row.session-item.is-done-session:hover {
-  background: #97aa9f !important;
+  background: #e2f2e7 !important;
 }
 
 .session-item.is-done-session.active,
@@ -1051,9 +1123,9 @@
 .task-cluster-main.session-item.is-done-session.active,
 .task-cluster-tree-row.session-item.is-done-session.active,
 .task-cluster-tree-row.session-item.is-done-session.is-current-branch {
-  background: #81958a !important;
-  border-color: #718479 !important;
-  box-shadow: 0 10px 24px rgba(67, 82, 73, 0.18) !important;
+  background: #cfe6d7 !important;
+  border-color: #b3d0be !important;
+  box-shadow: 0 8px 18px rgba(83, 128, 99, 0.09) !important;
 }
 
 .session-item.is-done-session .session-item-name,
@@ -1069,37 +1141,37 @@
 .task-cluster-tree-row.session-item.is-done-session .session-item-name,
 .task-cluster-tree-row.session-item.is-done-session .session-item-meta,
 .task-cluster-tree-row.session-item.is-done-session .session-item-meta * {
-  color: #ffffff !important;
+  color: #294335 !important;
 }
 
 .session-item.is-done-session .session-list-badge,
 .task-cluster-root-card.is-done-session .session-list-badge,
 .task-cluster-main.session-item.is-done-session .session-list-badge,
 .task-cluster-tree-row.session-item.is-done-session .session-list-badge {
-  background: rgba(255, 255, 255, 0.14) !important;
-  border-color: rgba(255, 255, 255, 0.28) !important;
-  color: #ffffff !important;
+  background: rgba(41, 67, 53, 0.06) !important;
+  border-color: rgba(41, 67, 53, 0.12) !important;
+  color: #294335 !important;
 }
 
 .session-item.is-done-session .session-action-btn,
 .task-cluster-root-card.is-done-session .session-action-btn,
 .task-cluster-main.session-item.is-done-session .session-action-btn,
 .task-cluster-tree-row.session-item.is-done-session .session-action-btn {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(41, 67, 53, 0.72);
 }
 
 .session-item.is-done-session .session-action-btn:hover,
 .task-cluster-root-card.is-done-session .session-action-btn:hover,
 .task-cluster-main.session-item.is-done-session .session-action-btn:hover,
 .task-cluster-tree-row.session-item.is-done-session .session-action-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(41, 67, 53, 0.06);
 }
 
 .task-cluster-main.session-item.is-done-session::before,
 .task-cluster-root-card.is-done-session::before,
 .task-cluster-tree-row.session-item.is-done-session::before,
 .task-cluster-tree-row.session-item.is-done-session.is-current-branch::after {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(41, 67, 53, 0.22) !important;
 }
 
 .session-item-name {

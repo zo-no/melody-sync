@@ -126,6 +126,7 @@ window.MelodySyncBuild = {
 // ---- Elements ----
 const menuBtn = document.getElementById("menuBtn");
 const sidebarOverlay = document.getElementById("sidebarOverlay");
+const sidebarResizeHandle = document.getElementById("sidebarResizeHandle");
 const closeSidebar = document.getElementById("closeSidebar");
 const sessionList = document.getElementById("sessionList");
 const sessionListFooter = document.getElementById("sessionListFooter");

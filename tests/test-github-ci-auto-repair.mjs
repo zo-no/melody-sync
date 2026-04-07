@@ -314,7 +314,7 @@ try {
   assert.equal(firstSummary.skipped.some((item) => item.reason === 'latest_run_success'), true, 'successful master run should be skipped as healthy');
   assert.equal(sessionCreates.length, 1, 'session should be created exactly once');
   assert.equal(messageCreates.length, 1, 'repair message should be submitted once');
-  assert.equal(sessionCreates[0].appId, 'github-ci');
+  assert.equal(sessionCreates[0].appId, undefined);
   assert.equal(sessionCreates[0].sourceId, 'github-ci');
   assert.equal(sessionCreates[0].sourceName, 'GitHub CI');
   assert.equal(sessionCreates[0].externalTriggerId, 'github-ci:owner/repo:run/101');

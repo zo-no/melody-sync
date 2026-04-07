@@ -199,7 +199,6 @@ async function runSessionLabelSuggestion(sessionMeta, onRename, options = {}) {
     name,
     group,
     description,
-    appName,
     sourceName,
     autoRenamePending,
   } = sessionMeta;
@@ -252,7 +251,6 @@ async function runSessionLabelSuggestion(sessionMeta, onRename, options = {}) {
     `Current session name: ${name || '(unnamed)'}`,
     currentGroup ? `Current display group: ${currentGroup}` : '',
     currentDescription ? `Current session description: ${currentDescription}` : '',
-    appName ? `Current app label: ${appName}` : '',
     sourceName ? `Current source label: ${sourceName}` : '',
     promptContext.contextSummary ? `Earlier session context:\n${promptContext.contextSummary}` : '',
     promptContext.scopeRouter ? `Known scope router entries:\n${promptContext.scopeRouter}` : '',

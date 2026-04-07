@@ -392,11 +392,32 @@ function shouldNotifyCompletion(session, previousSession = null) {
   return nextState === "done" && previousState !== "done";
 }
 
-function requestHostCompletionSound() {
+function buildCompletionNoticeKey(session = null, previousSession = null) {
+  const sessionId = String(session?.id || "").trim();
+  const runId = String(session?.activeRunId || previousSession?.activeRunId || "").trim();
+  const stamp = getCompletionStamp(session);
+  const normalizedStamp = String(stamp || "").trim();
+  if (!sessionId) return "";
+  if (runId) {
+    return `completion:run:${runId}`;
+  }
+  return `completion:session:${sessionId}:run:${runId || "unknown"}:stamp:${normalizedStamp || "no-stamp"}`;
+}
+
+function requestHostCompletionSound(session = null, previousSession = null) {
   if (typeof window?.fetch !== "function") return null;
+  const completionNoticeKey = buildCompletionNoticeKey(session, previousSession);
+  const runId = String(session?.activeRunId || previousSession?.activeRunId || "").trim();
   return window.fetch("/api/system/completion-sound", {
     method: "POST",
     credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      completionNoticeKey,
+      runId,
+    }),
   }).then((response) => response?.ok === true);
 }
 
@@ -432,12 +453,16 @@ function playBrowserCompletionSound() {
   } catch {}
 }
 
-function playCompletionSound() {
+function shouldRequestHostCompletionSound() {
+  return isLikelyMobileClient();
+}
+
+function playCompletionSound(session = null, previousSession = null) {
   const playedLocally = shouldPlayCompletionSoundLocally();
   if (playedLocally) {
     playBrowserCompletionSound();
   }
-  const hostRequest = requestHostCompletionSound();
+  const hostRequest = shouldRequestHostCompletionSound() ? requestHostCompletionSound(session, previousSession) : null;
   if (hostRequest && typeof hostRequest.then === "function") {
     void hostRequest.then((played) => {
       if (played || playedLocally) return;
@@ -455,15 +480,15 @@ function playCompletionSound() {
 
 function handleCompletionAlerts(session, previousSession = null) {
   if (!shouldNotifyCompletion(session, previousSession)) return;
-  const stamp = getCompletionStamp(session);
-  if (stamp && notifiedCompletionStamps.get(session.id) === stamp) return;
-  if (stamp) {
-    notifiedCompletionStamps.set(session.id, stamp);
+  const completionNoticeKey = buildCompletionNoticeKey(session, previousSession);
+  if (completionNoticeKey && notifiedCompletionStamps.get(session.id) === completionNoticeKey) return;
+  if (completionNoticeKey) {
+    notifiedCompletionStamps.set(session.id, completionNoticeKey);
   } else {
     notifiedCompletionStamps.set(session.id, "done");
   }
   if (typeof completionSoundEnabled === "undefined" || completionSoundEnabled !== false) {
-    playCompletionSound();
+    playCompletionSound(session, previousSession);
   }
   showCompletionAttention(session);
   notifyCompletion(session);
@@ -637,7 +662,6 @@ function buildSessionListOrganizerSessionMetadata(session) {
       : null,
     pinned: session?.pinned === true,
     tool: clipSessionListOrganizerText(session?.tool || "", 40),
-    appName: clipSessionListOrganizerText(session?.appName || "", 80),
     sourceName: clipSessionListOrganizerText(session?.sourceName || "", 80),
     userName: clipSessionListOrganizerText(session?.userName || "", 80),
     folder: clipSessionListOrganizerText(session?.folder || "", 180),
@@ -1015,10 +1039,15 @@ function normalizeSessionRecord(session, previous = null) {
   const queueCount = Number.isInteger(session?.activity?.queue?.count)
     ? session.activity.queue.count
     : 0;
-  const normalized = {
-    ...session,
-    appId: getEffectiveSessionAppId(session),
-  };
+  const normalized = { ...session };
+  const compatAppId = typeof session?.appId === "string" ? session.appId.trim() : "";
+  if (compatAppId) normalized.appId = compatAppId;
+  else delete normalized.appId;
+  const compatAppName = typeof session?.appName === "string"
+    ? session.appName.trim()
+    : "";
+  if (compatAppName) normalized.appName = compatAppName;
+  else delete normalized.appName;
   if (!Object.prototype.hasOwnProperty.call(session || {}, "queuedMessages")) {
     if (queueCount > 0 && Array.isArray(previous?.queuedMessages)) {
       normalized.queuedMessages = previous.queuedMessages;

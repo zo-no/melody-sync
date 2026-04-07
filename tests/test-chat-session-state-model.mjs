@@ -74,6 +74,7 @@ const runningSession = makeSession({
 });
 const runningStatus = model.getSessionStatusSummary(runningSession);
 assert.equal(runningStatus.primary.key, 'running');
+assert.equal(runningStatus.primary.itemClass, 'is-running-session');
 assert.equal(model.isSessionBusy(runningSession), true);
 
 const queuedSession = makeSession({

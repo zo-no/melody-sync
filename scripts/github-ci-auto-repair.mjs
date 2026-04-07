@@ -742,8 +742,6 @@ async function triggerRepairSession(options, runtime, incident) {
     folder: options.sessionFolder,
     tool: options.sessionTool,
     name: buildSessionName(incident.run),
-    appId: 'github-ci',
-    appName: 'GitHub CI',
     sourceId: 'github-ci',
     sourceName: 'GitHub CI',
     group: 'GitHub',

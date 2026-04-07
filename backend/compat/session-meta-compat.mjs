@@ -2,7 +2,6 @@ import {
   DEFAULT_APP_ID,
   getBuiltinApp,
   normalizeAppId,
-  resolveEffectiveAppId,
 } from './apps.mjs';
 
 export function normalizeSessionAppName(value) {
@@ -20,11 +19,6 @@ export function normalizeSessionUserName(value) {
   return value.trim().replace(/\s+/g, ' ');
 }
 
-export function isTemplateAppScopeId(appId) {
-  const normalized = normalizeAppId(appId);
-  return /^app[_-]/i.test(normalized);
-}
-
 export function formatSessionSourceNameFromId(sourceId) {
   const normalized = typeof sourceId === 'string' ? sourceId.trim() : '';
   if (!normalized) return 'Chat';
@@ -36,25 +30,12 @@ export function formatSessionSourceNameFromId(sourceId) {
 export function resolveSessionSourceId(meta) {
   const explicitSourceId = normalizeAppId(meta?.sourceId);
   if (explicitSourceId) return explicitSourceId;
-
-  const legacyAppId = normalizeAppId(meta?.appId);
-  if (legacyAppId && !isTemplateAppScopeId(legacyAppId)) {
-    return legacyAppId;
-  }
-
   return DEFAULT_APP_ID;
 }
 
 export function resolveSessionSourceName(meta, sourceId = resolveSessionSourceId(meta)) {
   const explicitSourceName = normalizeSessionSourceName(meta?.sourceName);
   if (explicitSourceName) return explicitSourceName;
-
-  const legacyAppId = normalizeAppId(meta?.appId);
-  if (legacyAppId && !isTemplateAppScopeId(legacyAppId) && legacyAppId === sourceId) {
-    const legacyAppName = normalizeSessionAppName(meta?.appName);
-    if (legacyAppName) return legacyAppName;
-  }
-
   const builtinSource = getBuiltinApp(sourceId);
   if (builtinSource?.name) return builtinSource.name;
 
@@ -62,11 +43,15 @@ export function resolveSessionSourceName(meta, sourceId = resolveSessionSourceId
 }
 
 export function normalizeSessionCompatInput(extra = {}) {
+  const requestedAppId = normalizeAppId(extra.appId);
+  const requestedAppName = normalizeSessionAppName(extra.appName);
+  const requestedSourceId = normalizeAppId(extra.sourceId);
+  const requestedSourceName = normalizeSessionSourceName(extra.sourceName);
   return {
-    requestedAppId: normalizeAppId(extra.appId),
-    requestedAppName: normalizeSessionAppName(extra.appName),
-    requestedSourceId: normalizeAppId(extra.sourceId),
-    requestedSourceName: normalizeSessionSourceName(extra.sourceName),
+    requestedAppId,
+    requestedAppName,
+    requestedSourceId,
+    requestedSourceName,
     requestedUserId: typeof extra.userId === 'string' ? extra.userId.trim() : '',
     requestedUserName: normalizeSessionUserName(extra.userName),
   };
@@ -83,10 +68,14 @@ export function applySessionCompatFields(session, compat = {}) {
     requestedUserName = '',
   } = compat;
 
-  session.appId = resolveEffectiveAppId(requestedAppId || session.appId);
+  if (requestedAppId) session.appId = requestedAppId;
+  else if (!normalizeAppId(session.appId)) delete session.appId;
   if (requestedAppName) session.appName = requestedAppName;
+  else if (!normalizeSessionAppName(session.appName)) delete session.appName;
   if (requestedSourceId) session.sourceId = requestedSourceId;
+  else if (!normalizeAppId(session.sourceId)) delete session.sourceId;
   if (requestedSourceName) session.sourceName = requestedSourceName;
+  else if (!normalizeSessionSourceName(session.sourceName)) delete session.sourceName;
   if (requestedUserId) session.userId = requestedUserId;
   if (requestedUserName) session.userName = requestedUserName;
   return session;
@@ -95,5 +84,4 @@ export function applySessionCompatFields(session, compat = {}) {
 export {
   DEFAULT_APP_ID,
   normalizeAppId,
-  resolveEffectiveAppId,
 };

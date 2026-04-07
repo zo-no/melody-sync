@@ -157,7 +157,6 @@ function normalizeVoiceSettingsPatch(payload = {}, currentConfig = {}) {
     ...(Object.prototype.hasOwnProperty.call(patch, 'effort') ? { effort: normalizeStringField(patch.effort) } : {}),
     ...(Object.prototype.hasOwnProperty.call(patch, 'thinking') ? { thinking: normalizeBooleanField(patch.thinking) } : {}),
     ...(Object.prototype.hasOwnProperty.call(patch, 'systemPrompt') ? { systemPrompt: patch.systemPrompt == null ? '' : String(patch.systemPrompt) } : {}),
-    ...(Object.prototype.hasOwnProperty.call(patch, 'appId') ? { appId: normalizeStringField(patch.appId) } : {}),
     ...(Object.prototype.hasOwnProperty.call(patch, 'appName') ? { appName: normalizeStringField(patch.appName) } : {}),
     ...(Object.prototype.hasOwnProperty.call(patch, 'group') ? { group: normalizeStringField(patch.group) } : {}),
     ...(Object.prototype.hasOwnProperty.call(patch, 'sessionMode') ? { sessionMode: normalizeStringField(patch.sessionMode) } : {}),

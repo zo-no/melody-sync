@@ -263,6 +263,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
   }
 
   const runEvent = finalizedRun.state === 'completed' ? 'run.completed' : 'run.failed';
+  const completionNoticeKey = finalizedRun?.id ? `completion:run:${finalizedRun.id}` : '';
   const hookContext = {
     sessionId,
     session: latestSession,
@@ -272,6 +273,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
     previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
     branchCandidateEvents,
     manifest,
+    completionNoticeKey,
   };
   if (branchCandidateEvents.length > 0) {
     await emitHook('branch.suggested', hookContext);

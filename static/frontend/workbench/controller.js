@@ -13,6 +13,7 @@
   const trackerTimeEl = document.getElementById("questTrackerTime");
   const trackerTaskListEl = document.getElementById("questTaskList");
   const taskMapRail = document.getElementById("taskMapRail");
+  const sidebarOverlay = document.getElementById("sidebarOverlay");
   const taskMapResizeHandle = document.getElementById("taskMapResizeHandle");
   const taskCanvasPanel = document.getElementById("taskCanvasPanel");
   const taskCanvasTitleEl = document.getElementById("taskCanvasTitle");
@@ -196,7 +197,17 @@
   function getTaskMapDesktopWidthLimits() {
     const viewportWidth = Number(window?.innerWidth || 0);
     const sidebarCollapsed = document.body?.classList?.contains?.("sidebar-is-collapsed") === true;
-    const sidebarWidth = sidebarCollapsed ? 0 : 288;
+    const sidebarRectWidth = Number(sidebarOverlay?.getBoundingClientRect?.().width || 0);
+    const cssSidebarWidth = Number.parseFloat(
+      String(getComputedStyle(document.documentElement).getPropertyValue("--sidebar-width") || "").trim(),
+    );
+    const sidebarWidth = sidebarCollapsed
+      ? 0
+      : (
+        (Number.isFinite(sidebarRectWidth) && sidebarRectWidth > 0)
+          ? sidebarRectWidth
+          : (Number.isFinite(cssSidebarWidth) ? cssSidebarWidth : 288)
+      );
     const computedMaxByMainReserve = viewportWidth > 0
       ? (viewportWidth - sidebarWidth - TASK_MAP_DESKTOP_MAIN_RESERVE)
       : TASK_MAP_DESKTOP_MAX_WIDTH;

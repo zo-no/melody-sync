@@ -9,6 +9,7 @@ import { readBody } from '../lib/utils.mjs';
 import { playHostCompletionSound } from './completion-sound.mjs';
 import { getModelsForTool } from './models.mjs';
 import { getPublicKey, addSubscription } from './push.mjs';
+import { enqueueHostCompletionSpeech } from './completion-speech-queue.mjs';
 
 function jsonError(writeJson, res, statusCode, message) {
   writeJson(res, statusCode, { error: message });
@@ -45,16 +46,6 @@ export async function handleSystemRoutes({
   if (pathname === '/api/tools' && req.method === 'GET') {
     const tools = await getAvailableToolsAsync();
     writeJsonCached(req, res, { tools });
-    return true;
-  }
-
-  if (pathname === '/api/tools' && req.method === 'POST') {
-    const authSession = getAuthSession(req);
-    if (authSession?.role !== 'owner') {
-      jsonError(writeJson, res, 403, 'Owner access required');
-      return true;
-    }
-    jsonError(writeJson, res, 410, 'Tool creation has been removed from MelodySync');
     return true;
   }
 
@@ -169,12 +160,53 @@ export async function handleSystemRoutes({
         body = await readBody(req, 4096);
       } catch {}
       const parsedBody = body ? JSON.parse(body) : {};
+      const completionNoticeKey = typeof parsedBody?.completionNoticeKey === 'string'
+        ? parsedBody.completionNoticeKey.trim()
+        : '';
+      const runId = typeof parsedBody?.runId === 'string'
+        ? parsedBody.runId.trim()
+        : '';
+      const speechText = typeof parsedBody?.speechText === 'string'
+        ? parsedBody.speechText
+        : undefined;
+      const completionVoiceProvider = typeof parsedBody?.completionTtsProvider === 'string'
+        ? parsedBody.completionTtsProvider
+        : undefined;
+      const completionFallbackToSay = typeof parsedBody?.fallbackToSay === 'boolean'
+        ? parsedBody.fallbackToSay
+        : undefined;
+      const voice = typeof parsedBody?.voice === 'string'
+        ? parsedBody.voice
+        : undefined;
+      const rate = Number.isFinite(Number(parsedBody?.rate))
+        ? Number(parsedBody.rate)
+        : undefined;
+
+      if (completionNoticeKey) {
+        const queuedPath = await enqueueHostCompletionSpeech({
+          speechText,
+          voice,
+          rate,
+          completionNoticeKey,
+          runId,
+          completionTtsProvider: completionVoiceProvider,
+          fallbackToSay: completionFallbackToSay,
+        });
+        writeJson(res, 200, {
+          ok: true,
+          mode: queuedPath ? 'host:queued' : 'host:deduped',
+          soundPath: '',
+          queue: !!queuedPath,
+        });
+        return;
+      }
+
       const playback = await playHostCompletionSoundImpl({
-        speechText: typeof parsedBody?.speechText === 'string' ? parsedBody.speechText : undefined,
-        voice: typeof parsedBody?.voice === 'string' ? parsedBody.voice : undefined,
-        rate: Number.isFinite(Number(parsedBody?.rate)) ? Number(parsedBody.rate) : undefined,
-        completionTtsProvider: typeof parsedBody?.completionTtsProvider === 'string' ? parsedBody.completionTtsProvider : undefined,
-        fallbackToSay: typeof parsedBody?.fallbackToSay === 'boolean' ? parsedBody.fallbackToSay : undefined,
+        speechText,
+        voice,
+        rate,
+        completionTtsProvider: completionVoiceProvider,
+        fallbackToSay: completionFallbackToSay,
       });
       writeJson(res, 200, {
         ok: true,

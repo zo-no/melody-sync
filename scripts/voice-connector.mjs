@@ -9,7 +9,6 @@ import { dirname, join, resolve } from 'path'
 import { pathToFileURL } from 'url'
 
 import {
-  DEFAULT_APP_ID,
   DEFAULT_APP_NAME,
   DEFAULT_CHAT_BASE_URL,
   DEFAULT_CONFIG_PATH,
@@ -795,7 +794,6 @@ async function main() {
 }
 
 export {
-  DEFAULT_APP_ID,
   DEFAULT_APP_NAME,
   DEFAULT_SESSION_SYSTEM_PROMPT,
   buildExternalTriggerId,

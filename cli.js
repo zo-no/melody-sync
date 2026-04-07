@@ -105,13 +105,6 @@ switch (command) {
     break;
   }
 
-  case 'trigger':
-  case 'triggers': {
-    console.error('Time-based triggers have been removed from MelodySync');
-    process.exit(1);
-    break;
-  }
-
   case 'usage-summary': {
     const { runUsageSummaryCommand } = await import(scriptPath('lib/usage-summary-command.mjs'));
     try {

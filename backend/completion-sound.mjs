@@ -1,8 +1,8 @@
 import { access, appendFile, constants as fsConstants, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 
+import { VOICE_LOGS_DIR } from '../lib/config.mjs';
 import { buildToolProcessEnv } from '../lib/user-shell-env.mjs';
 import { isXfyunAvailable, synthesizeSpeechWithXfyun } from './xfyun-completion-tts.mjs';
 
@@ -23,9 +23,7 @@ const DEFAULT_AFP_PLAY_TIMEOUT_MS = 20000;
 
 let speechPlaybackQueue = Promise.resolve();
 const COMPLETION_SOUND_LOG = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '.melodysync',
+  VOICE_LOGS_DIR,
   'host-completion-voice.log',
 );
 

@@ -12,27 +12,7 @@ A user can start from phone or desktop with that messy input. MelodySync helps t
 
 > Reach the same work thread from desktop, phone, and optional integration surfaces without changing the core session workflow.
 
-## Quick install
-
-If the demo makes sense, do not keep reading. Open a fresh terminal on the host machine, start Codex, Claude Code, or another coding agent, and paste this:
-
-```text
-I want to set up MelodySync locally on this machine so I can hand repetitive digital work to AI and use it right away.
-
-Use the setup contract at `https://raw.githubusercontent.com/zo-no/melody-sync/main/docs/setup.md` as the source of truth.
-Do not assume the repo is already cloned. If `~/code/melody-sync` does not exist yet, fetch that contract, clone `https://github.com/zo-no/melody-sync.git` yourself, and continue.
-Keep the workflow inside this chat.
-Before you start work, collect every missing piece of context in one message so I can answer once.
-Do every step you can automatically.
-After my reply, continue autonomously and only stop for real [HUMAN] steps, approvals, or final completion.
-When you stop, tell me exactly what I need to do and how you'll verify it after I reply.
-```
-
-Need the longer version first? Jump to [Setup details](#setup-details) or open `docs/setup.md`.
-
----
-
-## For Humans
+## Product overview
 
 ### What MelodySync is
 
@@ -63,6 +43,24 @@ The product is deliberately cross-surface: collect context from a phone, continu
 - let the agent auto-title and auto-group sessions in the sidebar
 - paste screenshots directly into the chat
 - let the UI follow your system light/dark appearance automatically
+
+## Quick install
+
+If the product direction already makes sense, do not keep reading. Open a fresh terminal on the host machine, start Codex, Claude Code, or another coding agent, and paste this:
+
+```text
+I want to set up MelodySync locally on this machine so I can hand repetitive digital work to AI and use it right away.
+
+Use the setup contract at `https://raw.githubusercontent.com/zo-no/melody-sync/main/docs/setup.md` as the source of truth.
+Do not assume the repo is already cloned. If `~/code/melody-sync` does not exist yet, fetch that contract, clone `https://github.com/zo-no/melody-sync.git` yourself, and continue.
+Keep the workflow inside this chat.
+Before you start work, collect every missing piece of context in one message so I can answer once.
+Do every step you can automatically.
+After my reply, continue autonomously and only stop for real [HUMAN] steps, approvals, or final completion.
+When you stop, tell me exactly what I need to do and how you'll verify it after I reply.
+```
+
+Need the longer version first? Jump to [Setup details](#setup-details) or open `docs/setup.md`.
 
 ### What MelodySync is not
 
@@ -286,6 +284,7 @@ Minimum usable layout:
 ## Storage growth and manual cleanup
 
 - MelodySync is durability-first: session history, run output, artifacts, and logs accumulate on disk over time.
+- MelodySync now trims some non-canonical payloads in the event index: hidden reasoning traces and oversized hidden tool/context bodies keep previews plus byte counts in the main history view, while full bodies remain recoverable on demand from externalized storage.
 - Archiving a session is organizational only. It hides the session from the active list, but it does **not** delete the stored history or run data behind it.
 - On long-lived installs, storage can grow materially, especially if you keep long conversations, large tool outputs, heavy reasoning traces, or generated artifacts.
 - MelodySync still does **not** auto-delete old data by default, but it now ships a conservative cleanup command for reclaimable runtime storage.

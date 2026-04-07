@@ -11,8 +11,27 @@
       || null;
   }
 
-  function getTaskRunStatusUi(options = {}) {
-    return getTaskRunStatusApi()?.getTaskRunStatusUi?.(options) || { label: "", summary: "" };
+  function getTaskRunStatusPresentation(options = {}) {
+    return getTaskRunStatusApi()?.getTaskRunStatusPresentation?.(options)
+      || getTaskRunStatusApi()?.getTaskRunStatusUi?.(options)
+      || { key: "", label: "", summary: "", statusClassName: "", dotClassName: "", nodeClassName: "" };
+  }
+
+  function getNodeTaskRunStatusUi(
+    node,
+    {
+      getTaskRunStatusPresentation: resolveTaskRunStatusPresentation = getTaskRunStatusPresentation,
+      showIdle = true,
+    } = {},
+  ) {
+    return resolveTaskRunStatusPresentation({
+      status: node?.status,
+      workflowState: node?.workflowState,
+      activityState: node?.activityState,
+      isCurrent: node?.isCurrent === true,
+      isCurrentPath: node?.isCurrentPath === true,
+      showIdle,
+    }) || { key: "", label: "", summary: "" };
   }
 
   function freezeEffect(effect) {
@@ -326,15 +345,13 @@
   function getNodeMetaLabel(
     node,
     {
-      getTaskRunStatusUi: resolveTaskRunStatusUi = getTaskRunStatusUi,
+      getTaskRunStatusPresentation: resolveTaskRunStatusPresentation = getTaskRunStatusPresentation,
     } = {},
   ) {
     const effect = getNodeEffect(node);
     if (!trimText(node?.parentNodeId || "")) {
-      return trimText(resolveTaskRunStatusUi({
-        status: node?.status,
-        isCurrent: node?.isCurrent === true,
-        isCurrentPath: node?.isCurrentPath === true,
+      return trimText(getNodeTaskRunStatusUi(node, {
+        getTaskRunStatusPresentation: resolveTaskRunStatusPresentation,
       })?.label || "");
     }
     if (getNodeView(node)?.type !== "flow-node") {
@@ -348,10 +365,8 @@
       case "canvas-view":
         return "画布";
       case "branch-status":
-        return trimText(resolveTaskRunStatusUi({
-          status: node?.status,
-          isCurrent: node?.isCurrent === true,
-          isCurrentPath: node?.isCurrentPath === true,
+        return trimText(getNodeTaskRunStatusUi(node, {
+          getTaskRunStatusPresentation: resolveTaskRunStatusPresentation,
         })?.label || "");
       default:
         return "";
@@ -386,6 +401,7 @@
     getNodeTaskCardBindings,
     getNodeView,
     buildQuestNodeCounts,
+    getNodeTaskRunStatusUi,
     getNodeMetaLabel,
     getNodeSummaryText,
   });

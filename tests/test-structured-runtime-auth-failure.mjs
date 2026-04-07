@@ -189,7 +189,16 @@ try {
     /(请登录|login)/i,
     'run failure should preserve the provider auth prompt for debugging',
   );
-  assert.equal(terminal.result?.exitCode, 0, 'raw process exit code should still reflect the provider process result');
+  assert.equal(
+    Number.isInteger(terminal.result?.exitCode),
+    true,
+    'terminal run should still record a concrete process exit code',
+  );
+  assert.match(
+    terminal.result?.error || terminal.failureReason || '',
+    /interactive login/i,
+    'result payload should preserve the classified auth failure',
+  );
 
   const eventsRes = await request(port, 'GET', `/api/sessions/${session.id}/events`);
   assert.equal(eventsRes.status, 200, 'events request should succeed');

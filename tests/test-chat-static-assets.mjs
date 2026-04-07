@@ -337,6 +337,8 @@ async function main() {
       name: 'GitHub session',
       appId: 'github',
       appName: 'GitHub',
+      sourceId: 'github',
+      sourceName: 'GitHub',
     });
     assert.equal(createdGithub.status, 201, 'GitHub-scoped session should be creatable over HTTP');
     const createdGithubJson = JSON.parse(createdGithub.text);
@@ -361,10 +363,10 @@ async function main() {
       'other sessions should remain visible after pinning',
     );
 
-    const githubOnly = await request(port, 'GET', '/api/sessions?appId=github');
-    assert.equal(githubOnly.status, 200, 'app-filtered session list should load');
-    assert.match(githubOnly.text, /"appId":"github"/);
-    assert.match(githubOnly.text, /"appName":"GitHub"/);
+    const githubOnly = await request(port, 'GET', '/api/sessions?sourceId=github');
+    assert.equal(githubOnly.status, 200, 'source-filtered session list should load');
+    assert.match(githubOnly.text, /"sourceId":"github"/);
+    assert.match(githubOnly.text, /"sourceName":"GitHub"/);
     assert.doesNotMatch(githubOnly.text, /"name":"Owner chat session"/);
 
     const splitAsset = await request(port, 'GET', '/chat/core/bootstrap.js');
@@ -393,16 +395,9 @@ async function main() {
     assert.equal(sessionHttpAsset.status, 200, 'session http asset should load');
     const bootstrapCatalogAsset = await request(port, 'GET', '/chat/core/bootstrap-session-catalog.js');
     assert.equal(bootstrapCatalogAsset.status, 200, 'bootstrap session catalog asset should load');
-    assert.match(bootstrapCatalogAsset.text, /function getEffectiveSessionAppId\(/);
+    assert.match(bootstrapCatalogAsset.text, /function getEffectiveSessionSourceId\(/);
     assert.match(bootstrapCatalogAsset.text, /function sortSessionsInPlace\(/);
-
-    if (/getEffectiveSessionAppId\(/.test(sessionHttpAsset.text)) {
-      assert.match(
-        bootstrapCatalogAsset.text,
-        /function getEffectiveSessionAppId\(/,
-        'bootstrap session catalog asset should define the effective app helper used by session-http',
-      );
-    }
+    assert.doesNotMatch(sessionHttpAsset.text, /getEffectiveSessionAppId\(/);
 
     const versionedSplitAsset = await request(port, 'GET', '/chat/core/bootstrap.js?v=test-build');
     assert.equal(versionedSplitAsset.status, 200, 'versioned split chat asset should load');
@@ -1045,6 +1040,7 @@ async function main() {
         'session.created',
         'session.first_user_message',
         'session.waiting_user',
+        'session.completed',
         'run.started',
         'run.completed',
         'run.failed',
@@ -1063,6 +1059,7 @@ async function main() {
         'session.created',
         'session.first_user_message',
         'session.waiting_user',
+        'session.completed',
         'run.started',
         'run.completed',
         'run.failed',

@@ -728,7 +728,13 @@
         actionsEl.appendChild(promoteBtn);
       }
 
-      if (actionsEl.childNodes.length > 0) {
+      const actionCount = Number(
+        actionsEl.childElementCount
+        ?? actionsEl.children?.length
+        ?? actionsEl.childNodes?.length
+        ?? 0,
+      );
+      if (actionCount > 0) {
         header.appendChild(actionsEl);
       }
       return header;

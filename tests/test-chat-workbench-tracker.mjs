@@ -8,6 +8,7 @@ import vm from 'vm';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const nodeContractSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/node-contract.js'), 'utf8');
+const taskRunStatusSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/task-run-status.js'), 'utf8');
 const nodeEffectsSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/node-effects.js'), 'utf8');
 const nodeInstanceSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'node-instance.js'), 'utf8');
 const graphModelSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'graph-model.js'), 'utf8');
@@ -274,7 +275,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
-  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'static/frontend/workbench/controller.js',
   });
   await flushAsync(8);
@@ -674,8 +675,8 @@ assert.equal(branchElements.get('questTrackerBackBtn').hidden, true, 'active bra
 assert.deepEqual(branchFetchCalls, [
   '/api/workbench/sessions/session-branch/tracker',
   '/api/workbench',
-  '/api/workbench/sessions/session-branch/task-map-graph',
-], 'branch tracker should also prefer the lightweight tracker payload before the full workbench snapshot');
+  '/api/workbench/sessions/session-main/task-map-graph',
+], 'branch tracker should resolve the task-map graph back to the root main session after the lightweight tracker payload');
 assert.equal(branchElements.get('questTrackerStatus').hidden, false, 'mobile branch tracker should render the task status inside the task bar');
 assert.equal(branchElements.get('taskMapDrawerBtn').hidden, false, 'mobile branch tracker should expose the header task-map drawer toggle');
 assert.equal(branchElements.get('questTrackerToggleBtn').hidden, true, 'mobile branch tracker should stop rendering the old inline task-map toggle');
@@ -1199,7 +1200,7 @@ const {
   },
 });
 
-operationRecordWorkbench.openOperationRecord();
+await operationRecordWorkbench.openOperationRecord();
 await flushAsync();
 assert.equal(
   operationRecordFetchLog.some((entry) => entry.url === '/api/workbench/sessions/operation-branch-child/operation-record'),

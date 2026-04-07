@@ -97,6 +97,9 @@ function extractFailureReasonFromParsedLine(parsed) {
 function classifyProviderFailureText(value) {
   const text = toStringOrUndefined(value);
   if (!text) return '';
+  if (/(请登录|登录超时|auth|authentication|sso|sign in|login)/i.test(text)) {
+    return `Provider requires interactive login before MelodySync can use it: ${text}`;
+  }
   if (/Detached runner disappeared before writing a result/i.test(text)) {
     return `Provider terminated before persisting result: ${text}`;
   }

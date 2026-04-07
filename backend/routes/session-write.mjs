@@ -136,12 +136,6 @@ export async function handleSessionWriteRoutes({
     const sessionId = parts[2];
     const action = parts[3] || null;
 
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'run-scheduled-trigger') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return true;
-      writeJson(res, 410, { error: 'Scheduled session triggers have been removed from MelodySync' });
-      return true;
-    }
-
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'organize') {
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       let payload = {};
@@ -346,18 +340,6 @@ export async function handleSessionWriteRoutes({
         return true;
       }
       writeJson(res, 200, { run });
-      return true;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'apply-template') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return true;
-      writeJson(res, 410, { error: 'App templates have been removed from MelodySync' });
-      return true;
-    }
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'save-template') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return true;
-      writeJson(res, 410, { error: 'App template creation has been removed from MelodySync' });
       return true;
     }
 

@@ -437,8 +437,6 @@ async function submitApprovedItem(item, rootDir, automation, runtime) {
     folder: automation.session.folder,
     tool: runtimeSelection.tool,
     name: buildSessionName(item),
-    appId: 'email',
-    appName: 'Email',
     sourceId: 'email',
     sourceName: 'Email',
     group: automation.session.group,

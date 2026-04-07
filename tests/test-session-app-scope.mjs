@@ -34,40 +34,56 @@ function readSessionsFile() {
 
 try {
   const ownerChat = await createSession(workspace, 'codex', 'Owner chat');
-  assert.equal(ownerChat.appId, 'chat', 'owner sessions should default to the built-in chat app');
+  assert.equal(ownerChat.sourceId, 'chat', 'owner sessions should still default to the built-in chat source');
+  assert.equal(ownerChat.sourceName, 'Chat');
+  assert.equal(ownerChat.appId || '', '', 'owner sessions should not synthesize a legacy app id');
 
-  const githubSession = await createSession(workspace, 'codex', 'GitHub issue triage', {
+  const appOnlyGithub = await createSession(workspace, 'codex', 'GitHub issue triage', {
     appId: 'github',
     appName: 'GitHub',
     group: 'GitHub',
   });
-  assert.equal(githubSession.appId, 'github');
-  assert.equal(githubSession.appName, 'GitHub');
+  assert.equal(appOnlyGithub.appId, 'github', 'explicit app metadata should still round-trip');
+  assert.equal(appOnlyGithub.appName, 'GitHub');
+  assert.equal(appOnlyGithub.sourceId, 'chat', 'legacy app metadata should not drive the active source id');
+  assert.equal(appOnlyGithub.sourceName, 'Chat');
+
+  const githubSourceSession = await createSession(workspace, 'codex', 'GitHub issue triage', {
+    appId: 'github',
+    appName: 'GitHub',
+    sourceId: 'github',
+    sourceName: 'GitHub',
+    group: 'GitHub',
+  });
+  assert.equal(githubSourceSession.sourceId, 'github');
+  assert.equal(githubSourceSession.sourceName, 'GitHub');
 
   const storedAfterCreate = readSessionsFile();
   assert.equal(
     storedAfterCreate.find((entry) => entry.id === ownerChat.id)?.appId,
-    'chat',
-    'newly created owner sessions should persist the default app id',
+    undefined,
+    'new owner sessions should not persist a default app id',
   );
   assert.equal(
-    storedAfterCreate.find((entry) => entry.id === githubSession.id)?.appId,
+    storedAfterCreate.find((entry) => entry.id === appOnlyGithub.id)?.appId,
     'github',
-    'explicit app ids should persist as canonical session metadata',
+    'explicit app ids should remain as passive session metadata',
   );
   assert.equal(
-    storedAfterCreate.find((entry) => entry.id === githubSession.id)?.appName,
-    'GitHub',
-    'session-scoped app names should persist for owner UI rendering',
+    storedAfterCreate.find((entry) => entry.id === appOnlyGithub.id)?.sourceId,
+    undefined,
+    'app-only sessions should not silently backfill a source id',
   );
 
-  const legacySessionId = 'legacy_session_no_app';
+  const legacyAppOnlyId = 'legacy_app_only_session';
   const legacyExternalId = 'legacy_email_thread';
   storedAfterCreate.push({
-    id: legacySessionId,
+    id: legacyAppOnlyId,
     folder: workspace,
     tool: 'codex',
-    name: 'Legacy owner session',
+    name: 'Legacy email metadata only',
+    appId: 'email',
+    appName: 'Email',
     created: '2026-03-10T00:00:00.000Z',
     updatedAt: '2026-03-10T00:00:00.000Z',
   });
@@ -82,47 +98,47 @@ try {
   });
   writeFileSync(sessionsPath, `${JSON.stringify(storedAfterCreate, null, 2)}\n`, 'utf8');
 
-  const loadedLegacy = await getSession(legacySessionId);
+  const loadedLegacyAppOnly = await getSession(legacyAppOnlyId);
+  assert.equal(loadedLegacyAppOnly?.appId, 'email', 'legacy app metadata should still be readable');
   assert.equal(
-    loadedLegacy?.appId,
+    loadedLegacyAppOnly?.sourceId,
     'chat',
-    'legacy owner sessions should read back through the default chat app',
+    'legacy app metadata alone should no longer upgrade the active source',
   );
+  assert.equal(loadedLegacyAppOnly?.sourceName, 'Chat');
 
   const emailReuse = await createSession(workspace, 'codex', 'Reply via email', {
     appId: 'email',
     appName: 'Email',
+    sourceId: 'email',
+    sourceName: 'Email',
     externalTriggerId: 'email-thread:legacy-root',
     group: 'Mail',
   });
   assert.equal(emailReuse.id, legacyExternalId, 'external trigger reuse should keep the same session id');
-  assert.equal(emailReuse.appId, 'email', 'external trigger refresh should upgrade legacy sessions to the connector app scope');
-  assert.equal(emailReuse.appName, 'Email', 'external trigger refresh should also preserve the connector display name');
+  assert.equal(emailReuse.sourceId, 'email', 'explicit source metadata should drive the reused session');
+  assert.equal(emailReuse.sourceName, 'Email');
+  assert.equal(emailReuse.appId, 'email', 'passive app metadata should still persist when explicitly supplied');
+  assert.equal(emailReuse.appName, 'Email');
 
-  const storedAfterReuse = readSessionsFile();
-  assert.equal(
-    storedAfterReuse.find((entry) => entry.id === legacyExternalId)?.appName,
-    'Email',
-    'session reuse should persist connector display names for legacy sessions',
-  );
-
-  const chatSessions = await listSessions({ appId: 'chat' });
+  const chatSessions = await listSessions({ sourceId: 'chat' });
   assert.equal(chatSessions.some((session) => session.id === ownerChat.id), true);
-  assert.equal(chatSessions.some((session) => session.id === legacySessionId), true);
-  assert.equal(chatSessions.some((session) => session.id === githubSession.id), false);
+  assert.equal(chatSessions.some((session) => session.id === appOnlyGithub.id), true);
+  assert.equal(chatSessions.some((session) => session.id === legacyAppOnlyId), true);
+  assert.equal(chatSessions.some((session) => session.id === githubSourceSession.id), false);
 
-  const githubSessions = await listSessions({ appId: 'github' });
+  const githubSessions = await listSessions({ sourceId: 'github' });
   assert.deepEqual(
     githubSessions.map((session) => session.id),
-    [githubSession.id],
-    'app-scoped listing should isolate GitHub sessions',
+    [githubSourceSession.id],
+    'source-scoped listing should isolate GitHub sessions',
   );
 
-  const emailSessions = await listSessions({ appId: 'email' });
+  const emailSessions = await listSessions({ sourceId: 'email' });
   assert.deepEqual(
     emailSessions.map((session) => session.id),
     [legacyExternalId],
-    'app-scoped listing should isolate email sessions',
+    'source-scoped listing should isolate email sessions',
   );
 } finally {
   killAll();

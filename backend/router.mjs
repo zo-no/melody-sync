@@ -898,11 +898,6 @@ function isOwnerOnlyRoute(pathname, method) {
   return false;
 }
 
-function parseTriggerRoute(pathname) {
-  const match = /^\/api\/triggers\/(trg_[a-f0-9]{24})$/.exec(pathname || '');
-  return match ? match[1] : null;
-}
-
 function parseFileAssetRoute(pathname) {
   const match = /^\/api\/assets\/(fasset_[a-f0-9]{24})(?:\/(download|finalize))?$/.exec(pathname || '');
   if (!match) return null;
@@ -967,33 +962,7 @@ export async function handleRequest(req, res) {
   // ---- API endpoints ----
 
   const sessionGetRoute = req.method === 'GET' ? parseSessionGetRoute(pathname) : null;
-  const triggerId = parseTriggerRoute(pathname);
   const fileAssetRoute = parseFileAssetRoute(pathname);
-
-  if (pathname === '/api/triggers' && req.method === 'GET') {
-    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
-    return;
-  }
-
-  if (pathname === '/api/triggers' && req.method === 'POST') {
-    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
-    return;
-  }
-
-  if (triggerId && req.method === 'GET') {
-    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
-    return;
-  }
-
-  if (triggerId && req.method === 'PATCH') {
-    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
-    return;
-  }
-
-  if (triggerId && req.method === 'DELETE') {
-    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
-    return;
-  }
 
   if (await handleAssetRoutes({
     req,
@@ -1091,8 +1060,6 @@ export async function handleRequest(req, res) {
     const hasWorkflowStatePatch = Object.prototype.hasOwnProperty.call(patch || {}, 'workflowState');
     const hasWorkflowPriorityPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'workflowPriority');
     const hasLastReviewedAtPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'lastReviewedAt');
-    const hasScheduledTriggersPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'scheduledTriggers');
-    const hasScheduledTriggerPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'scheduledTrigger');
     if (hasArchivedPatch && typeof patch.archived !== 'boolean') {
       writeJsonForReq(res, 400, { error: 'archived must be a boolean' });
       return;
@@ -1226,10 +1193,6 @@ export async function handleRequest(req, res) {
     }
     if (hasLastReviewedAtPatch) {
       session = await updateSessionLastReviewedAt(sessionId, patch.lastReviewedAt || '') || session;
-    }
-    if (hasScheduledTriggersPatch || hasScheduledTriggerPatch) {
-      writeJsonForReq(res, 410, { error: 'Scheduled session triggers have been removed from MelodySync' });
-      return;
     }
     if (!session) {
       session = await getSessionForClient(sessionId);

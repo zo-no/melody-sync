@@ -329,6 +329,9 @@ const preToolAttachContext = {
   renderSessionList() {},
   syncBrowserState() {},
   syncForkButton() {},
+  stopCompletionTitleFlash() {},
+  hideCompletionAttention() {},
+  completionAttentionSessionId: null,
 };
 preToolAttachContext.globalThis = preToolAttachContext;
 

@@ -136,7 +136,6 @@ melody-sync-instance/
 - `tools.json`
 - `auth-sessions.json`
 - `chat-sessions.json`
-- `chat-triggers.json`
 - `hooks.json`
 - `chat-history/`
 - `chat-runs/`

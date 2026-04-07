@@ -33,7 +33,6 @@ export async function handleSessionReadRoutes({
     const view = getQueryStringValue(parsedUrl?.query?.view).toLowerCase();
     const sessionList = await listSessionListItemsForClient({
       includeArchived: true,
-      appId: typeof parsedUrl?.query?.appId === 'string' ? parsedUrl.query.appId : '',
       sourceId: typeof parsedUrl?.query?.sourceId === 'string' ? parsedUrl.query.sourceId : '',
     });
     const folderFilter = parsedUrl?.query?.folder;

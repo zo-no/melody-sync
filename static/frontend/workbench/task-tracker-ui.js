@@ -19,30 +19,6 @@
     getCurrentTaskSummary = () => "",
     getBranchDisplayName = (session) => String(session?.name || "").trim(),
   } = {}) {
-    const COMPLETED_STATUS_TOKENS = new Set([
-      "resolved",
-      "merged",
-      "done",
-      "closed",
-      "complete",
-      "completed",
-      "finished",
-    ]);
-
-    function normalizeStatusToken(value) {
-      return String(value || "")
-        .trim()
-        .toLowerCase()
-        .replace(/[\s-]+/g, "_");
-    }
-
-    function isCompletedTrackerState(state) {
-      const branchStatus = normalizeStatusToken(state?.branchStatus || "");
-      if (branchStatus && COMPLETED_STATUS_TOKENS.has(branchStatus)) return true;
-      const workflowState = normalizeStatusToken(state?.session?.workflowState || "");
-      return workflowState === "done";
-    }
-
     function getTaskRunStatusApi() {
       return globalThis?.MelodySyncTaskRunStatus
         || globalThis?.window?.MelodySyncTaskRunStatus
@@ -51,22 +27,29 @@
 
     function getTrackerVisualStatus(state) {
       if (!state?.hasSession || !state?.session) {
-        return { label: "", dotClass: "" };
+        return { key: "", label: "", dotClassName: "" };
       }
-      if (isCompletedTrackerState(state)) {
-        return { label: "已完成", dotClass: "status-completed" };
-      }
-      const taskRunStatus = getTaskRunStatusApi()?.getTaskRunStatusUi?.({
+      const taskRunStatus = getTaskRunStatusApi()?.getTaskRunStatusPresentation?.({
         status: state?.branchStatus || "",
+        workflowState: state?.session?.workflowState || "",
+        activityState: state?.session?.activity?.run?.state || "",
         isCurrent: true,
-      }) || { label: "", summary: "" };
+        showIdle: true,
+      }) || getTaskRunStatusApi()?.getTaskRunStatusUi?.({
+        status: state?.branchStatus || "",
+        workflowState: state?.session?.workflowState || "",
+        activityState: state?.session?.activity?.run?.state || "",
+        isCurrent: true,
+        showIdle: true,
+      }) || { key: "", label: "", summary: "", dotClassName: "" };
       const label = String(taskRunStatus?.label || "").trim();
       if (!label) {
-        return { label: "", dotClass: "" };
+        return { key: "", label: "", dotClassName: "" };
       }
       return {
+        key: String(taskRunStatus?.key || "").trim(),
         label,
-        dotClass: label === "已完成" ? "status-completed" : "status-running",
+        dotClassName: String(taskRunStatus?.dotClassName || "").trim(),
       };
     }
 
@@ -81,7 +64,7 @@
       const visualStatus = getTrackerVisualStatus(state);
       trackerStatusEl.hidden = !visualStatus.label;
       trackerStatusTextEl.textContent = visualStatus.label || "";
-      trackerStatusDotEl.className = `quest-tracker-status-dot${visualStatus.dotClass ? ` ${visualStatus.dotClass}` : ""}`;
+      trackerStatusDotEl.className = `quest-tracker-status-dot${visualStatus.dotClassName ? ` ${visualStatus.dotClassName}` : ""}`;
     }
 
     function getPrimaryTitle(state) {

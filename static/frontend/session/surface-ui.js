@@ -193,10 +193,16 @@ function getSessionListTouchStatusInfo(session) {
     return {
       ...doneStatus,
       label: doneStatus.label || t("workflow.status.done"),
-      title: doneStatus.title || t("workflow.status.doneTitle"),
+      title: t("workflow.status.finishedTitle") || doneStatus.title || t("workflow.status.doneTitle"),
     };
   }
-  return reviewStatus;
+  return {
+    key: "finished",
+    label: t("workflow.status.finished") || t("workflow.status.done"),
+    className: "status-done",
+    itemClass: "is-done-session",
+    title: t("workflow.status.finishedTitle") || t("workflow.status.doneTitle"),
+  };
 }
 
 function isSessionCompleteAndReviewed(session) {

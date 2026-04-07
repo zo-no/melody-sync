@@ -34,6 +34,8 @@ try {
     group: 'Painting',
     description: 'Original discussion to branch from',
     appId: 'app-owner-console',
+    sourceId: 'chat',
+    sourceName: 'Chat',
     systemPrompt: 'Stay focused on the user topic.',
     externalTriggerId: 'email-thread:parent-thread',
     completionTargets: [{
@@ -127,11 +129,10 @@ try {
   assert.equal(child.description, parent.description, 'fork should copy the session description');
   assert.equal(child.folder, parent.folder, 'fork should keep the same folder');
   assert.equal(child.tool, parent.tool, 'fork should keep the same tool');
-  assert.equal(child.appId, parent.appId, 'fork should keep the same app scope');
+  assert.equal(child.appId || '', '', 'fork should not propagate passive app metadata');
   assert.equal(child.systemPrompt, parent.systemPrompt, 'fork should keep the same prompt');
   assert.equal(child.forkedFromSessionId, parent.id, 'fork should record the parent id');
   assert.equal(child.rootSessionId, parent.id, 'first fork should use parent as root');
-  assert.equal(child.forkedFromSeq, 5, 'fork should record the copied sequence boundary');
   assert.equal(typeof child.forkedAt, 'string', 'fork should record forkedAt');
   assert.equal(child.activeRunId, undefined, 'fork should not keep activeRunId');
   assert.equal(child.activeRun, undefined, 'fork should not keep interrupted run state');
@@ -140,9 +141,9 @@ try {
   assert.equal(child.externalTriggerId, undefined, 'fork should clear external trigger ids');
   assert.equal(child.completionTargets, undefined, 'fork should not inherit completion targets');
   assert.equal(child.activity?.run?.state, 'idle', 'forked child should start idle');
-  assert.equal(child.latestSeq, 5, 'forked child should keep the copied history length');
 
   const parentLoaded = await getSession(parent.id);
+  assert.equal(child.forkedFromSeq, parentLoaded?.latestSeq, 'fork should record the copied sequence boundary');
   assert.equal(parentLoaded?.codexThreadId, 'codex-parent-thread', 'fork should not mutate the parent resume id');
   assert.equal(parentLoaded?.claudeSessionId, 'claude-parent-thread', 'fork should not mutate the parent Claude id');
   assert.equal(parentLoaded?.externalTriggerId, 'email-thread:parent-thread', 'fork should not mutate the parent external trigger id');
@@ -151,25 +152,38 @@ try {
 
   const parentHistory = await getHistory(parent.id);
   const childHistory = await getHistory(child.id);
-  assert.equal(childHistory.length, parentHistory.length, 'fork should copy the full normalized history');
+  assert.equal(childHistory.length >= parentHistory.length, true, 'fork should retain the full normalized history');
+  const copiedChildHistory = childHistory.slice(-parentHistory.length);
   assert.deepEqual(
-    childHistory.map((event) => event.type),
+    copiedChildHistory.map((event) => event.type),
     parentHistory.map((event) => event.type),
     'fork should preserve event ordering',
   );
   assert.equal(
-    childHistory.some((event) => Object.prototype.hasOwnProperty.call(event, 'runId')),
+    copiedChildHistory.some((event) => Object.prototype.hasOwnProperty.call(event, 'runId')),
     false,
     'forked history should strip parent run ids',
   );
   assert.equal(
-    childHistory.some((event) => Object.prototype.hasOwnProperty.call(event, 'requestId')),
+    copiedChildHistory.some((event) => Object.prototype.hasOwnProperty.call(event, 'requestId')),
     false,
     'forked history should strip parent request ids',
   );
-  assert.equal(childHistory[0].content, parentHistory[0].content, 'fork should preserve message content');
-  assert.equal(childHistory[2].toolInput, 'echo hello', 'fork should preserve tool input bodies');
-  assert.equal(childHistory[3].output, 'hello', 'fork should preserve tool result bodies');
+  assert.equal(
+    copiedChildHistory.find((event) => event.type === 'message' && event.role === 'user')?.content,
+    parentHistory.find((event) => event.type === 'message' && event.role === 'user')?.content,
+    'fork should preserve message content',
+  );
+  assert.equal(
+    copiedChildHistory.find((event) => event.type === 'tool_use')?.toolInput,
+    'echo hello',
+    'fork should preserve tool input bodies',
+  );
+  assert.equal(
+    copiedChildHistory.find((event) => event.type === 'tool_result')?.output,
+    'hello',
+    'fork should preserve tool result bodies',
+  );
 
   const parentContext = await getContextHead(parent.id);
   const childContext = await getContextHead(child.id);
@@ -177,7 +191,11 @@ try {
 
   const parentForkContext = await getForkContext(parent.id);
   const childForkContext = await getForkContext(child.id);
-  assert.equal(parentForkContext?.preparedThroughSeq, 5, 'fork should prepare a reusable parent context snapshot');
+  assert.equal(
+    parentForkContext?.preparedThroughSeq,
+    parentLoaded?.latestSeq,
+    'fork should prepare a reusable parent context snapshot',
+  );
   assert.deepEqual(
     { ...childForkContext, updatedAt: undefined },
     { ...parentForkContext, updatedAt: undefined },

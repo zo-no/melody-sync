@@ -534,8 +534,8 @@ export async function createBranchFromNode(nodeId, payload = {}) {
       {
         group: project.title,
         description: `Branch from ${project.title} / ${node.title}`,
-        appId: sourceSession.appId || '',
-        appName: sourceSession.appName || '',
+        sourceId: sourceSession.sourceId || '',
+        sourceName: sourceSession.sourceName || '',
         userId: sourceSession.userId || '',
         userName: sourceSession.userName || '',
         model: sourceSession.model || '',
@@ -665,8 +665,8 @@ export async function createBranchFromSession(sessionId, payload = {}) {
       {
         group: project.title,
         description: `Branch from ${project.title} / ${parentNode.title}`,
-        appId: sourceSession.appId || '',
-        appName: sourceSession.appName || '',
+        sourceId: sourceSession.sourceId || '',
+        sourceName: sourceSession.sourceName || '',
         userId: sourceSession.userId || '',
         userName: sourceSession.userName || '',
         model: sourceSession.model || '',

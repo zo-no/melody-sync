@@ -49,6 +49,8 @@ const clipTaskLabelSource = extractFunctionSource(sessionSurfaceUiSource, 'clipT
 const toSingleGoalLabelSource = extractFunctionSource(sessionSurfaceUiSource, 'toSingleGoalLabel');
 const getPreferredSessionDisplayNameSource = extractFunctionSource(sessionSurfaceUiSource, 'getPreferredSessionDisplayName');
 const getSessionDisplayNameSource = extractFunctionSource(sessionSurfaceUiSource, 'getSessionDisplayName');
+const getDoneWorkflowStatusInfoSource = extractFunctionSource(sessionSurfaceUiSource, 'getDoneWorkflowStatusInfo');
+const getSessionListTouchStatusInfoSource = extractFunctionSource(sessionSurfaceUiSource, 'getSessionListTouchStatusInfo');
 const renderSessionMessageCountSource = extractFunctionSource(sessionSurfaceUiSource, 'renderSessionMessageCount');
 const buildSessionMetaPartsSource = extractFunctionSource(sessionSurfaceUiSource, 'buildSessionMetaParts');
 
@@ -65,14 +67,12 @@ const context = {
       const vars = arguments[1] || {};
       return `${vars.count || 0} msg${vars.suffix || ''}`;
     }
+    if (key === 'status.running') return 'running';
     return key;
   },
   renderSessionScopeContext() {
     state.scopeCalls += 1;
     return ['<span>scope</span>'];
-  },
-  getSessionReviewStatusInfo() {
-    return null;
   },
   getSessionStatusSummary() {
     return { primary: { key: 'running', label: 'running' } };
@@ -82,10 +82,23 @@ const context = {
     state.statusCalls += 1;
     return `<span>${statusInfo.label}</span>`;
   },
+  window: {
+    MelodySyncSessionStateModel: {
+      isSessionBusy() {
+        return true;
+      },
+      getSessionReviewStatusInfo() {
+        return null;
+      },
+      getWorkflowStatusInfo() {
+        return null;
+      },
+    },
+  },
 };
 context.globalThis = context;
 vm.runInNewContext(
-  `${getShortFolderSource}\n${getFolderLabelSource}\n${clipTaskLabelSource}\n${toSingleGoalLabelSource}\n${getPreferredSessionDisplayNameSource}\n${getSessionDisplayNameSource}\n${renderSessionMessageCountSource}\n${buildSessionMetaPartsSource}\nglobalThis.getSessionDisplayName = getSessionDisplayName;\nglobalThis.renderSessionMessageCount = renderSessionMessageCount;\nglobalThis.buildSessionMetaParts = buildSessionMetaParts;`,
+  `${getShortFolderSource}\n${getFolderLabelSource}\n${clipTaskLabelSource}\n${toSingleGoalLabelSource}\n${getPreferredSessionDisplayNameSource}\n${getSessionDisplayNameSource}\n${getDoneWorkflowStatusInfoSource}\n${getSessionListTouchStatusInfoSource}\n${renderSessionMessageCountSource}\n${buildSessionMetaPartsSource}\nglobalThis.getSessionDisplayName = getSessionDisplayName;\nglobalThis.renderSessionMessageCount = renderSessionMessageCount;\nglobalThis.buildSessionMetaParts = buildSessionMetaParts;`,
   context,
   { filename: 'static/frontend/session/surface-ui.js' },
 );

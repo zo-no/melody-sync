@@ -18,6 +18,17 @@
     return "";
   }
 
+  function normalizeActivityState(value) {
+    const normalized = normalizeKey(value);
+    if (!normalized) return "";
+    if (normalized === "running") return "running";
+    if (normalized === "queued") return "queued";
+    if (normalized === "pending") return "pending";
+    if (normalized === "renaming") return "renaming";
+    if (normalized === "rename_failed") return "rename_failed";
+    return "";
+  }
+
   function resolveBranchLikeStatus(...values) {
     let sawActive = false;
     let sawParked = false;
@@ -94,10 +105,21 @@
       const sessionId = trimText(node?.sessionId);
       const session = resolveSessionRecord(sessionId, { getSessionRecord, getCurrentSession });
       const branchContext = getLatestBranchContext(snapshot, sessionId);
+      node.workflowState = normalizeWorkflowState(
+        node?.workflowState
+        || session?.workflowState
+        || "",
+      );
+      node.activityState = normalizeActivityState(
+        node?.activityState
+        || session?.activity?.run?.state
+        || "",
+      );
 
       if (normalizeKey(node?.kind) === "branch") {
         node.status = resolveBranchLikeStatus(
           node?.status,
+          node?.workflowState,
           session?._branchStatus,
           session?.branchStatus,
           session?.taskCard?.branchStatus,
@@ -108,7 +130,7 @@
       }
 
       if (normalizeKey(node?.kind) === "main") {
-        const workflowState = normalizeWorkflowState(session?.workflowState || "");
+        const workflowState = normalizeWorkflowState(node?.workflowState || session?.workflowState || "");
         if (workflowState === "done") {
           node.status = "done";
         } else if (workflowState === "parked") {

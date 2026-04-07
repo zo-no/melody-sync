@@ -1254,8 +1254,6 @@ async function submitInboundUpdate(
     folder: options.sessionFolder,
     tool: options.sessionTool,
     name: buildSessionName(options.repo, item),
-    appId: 'github',
-    appName: 'GitHub',
     sourceId: 'github',
     sourceName: 'GitHub',
     group: 'GitHub',

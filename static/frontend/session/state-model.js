@@ -278,7 +278,7 @@
     const indicators = [];
 
     if (activity.run.state === "running") {
-      indicators.push(createStatus("running", t("status.running"), "status-running", "running"));
+      indicators.push(createStatus("running", t("status.running"), "status-running", "running", "is-running-session"));
     }
 
     if (activity.queue.state === "queued") {

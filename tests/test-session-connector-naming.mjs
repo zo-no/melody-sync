@@ -25,6 +25,8 @@ try {
   const genericFeishu = await createSession(baseFolder, 'codex', 'Feishu group', {
     appId: 'feishu',
     appName: 'Feishu',
+    sourceId: 'feishu',
+    sourceName: 'Feishu',
     group: 'Feishu',
     externalTriggerId: 'feishu:group:chat_1',
   });
@@ -34,6 +36,8 @@ try {
   const explicitGithub = await createSession(baseFolder, 'codex', 'GitHub: owner/repo#7 — macOS build failure', {
     appId: 'github',
     appName: 'GitHub',
+    sourceId: 'github',
+    sourceName: 'GitHub',
     group: 'GitHub',
     externalTriggerId: 'github:owner/repo#7',
   });
@@ -47,6 +51,8 @@ try {
   const explicitChinese = await createSession(baseFolder, 'codex', '飞书：支付接口报错', {
     appId: 'feishu',
     appName: '飞书',
+    sourceId: 'feishu',
+    sourceName: '飞书',
     group: '飞书',
     externalTriggerId: 'feishu:group:chat_2',
   });
@@ -56,6 +62,8 @@ try {
   const upgradedReuse = await createSession(baseFolder, 'codex', 'Feishu group', {
     appId: 'feishu',
     appName: 'Feishu',
+    sourceId: 'feishu',
+    sourceName: 'Feishu',
     group: 'Feishu',
     externalTriggerId: 'feishu:group:chat_3',
   });
@@ -65,6 +73,8 @@ try {
   const enrichedReuse = await createSession(baseFolder, 'codex', '飞书：修复支付回调', {
     appId: 'feishu',
     appName: '飞书',
+    sourceId: 'feishu',
+    sourceName: '飞书',
     group: '飞书',
     externalTriggerId: 'feishu:group:chat_3',
   });

@@ -121,6 +121,10 @@
       }
     }
 
+    function getTaskFlowNodeStatusUi(node) {
+      return getNodeEffectsApi()?.getNodeTaskRunStatusUi?.(node) || { key: "", label: "", summary: "" };
+    }
+
     function getProjectedTaskFlowConfig() {
       const mobile = isMobileQuestTracker();
       return {
@@ -679,6 +683,8 @@
         const node = entry.node;
         const nodeEffect = getNodeEffect(node);
         const nodeView = getNodeView(node);
+        const nodeStatusUi = getTaskFlowNodeStatusUi(node);
+        const nodeStatusClassName = String(nodeStatusUi?.nodeClassName || "").trim();
         const isDone = nodeEffect?.metaVariant === "done";
         const isRichView = nodeView.type !== "flow-node";
         const nodePrimaryAction = nodeActionController.resolvePrimaryAction(node, { isRichView, isDone });
@@ -705,6 +711,7 @@
         if (node.status === "parked") nodeEl.classList.add("is-parked");
         if (node.status === "resolved") nodeEl.classList.add("is-resolved");
         if (node.status === "merged") nodeEl.classList.add("is-resolved", "is-merged");
+        if (nodeStatusClassName) nodeEl.classList.add(nodeStatusClassName);
         nodeEl.style.left = `${entry.x}px`;
         nodeEl.style.top = `${entry.y}px`;
         nodeEl.style.width = `${entry.nodeWidth}px`;
@@ -716,6 +723,8 @@
           badge.className = "quest-task-flow-node-badge";
           if (["resolved", "done"].includes(node.status)) badge.classList.add("is-complete");
           if (node.status === "merged") badge.classList.add("is-complete", "is-merged");
+          if (node.status === "parked") badge.classList.add("is-parked");
+          if (nodeStatusClassName) badge.classList.add(nodeStatusClassName);
           badge.textContent = badgeLabel;
           nodeEl.appendChild(badge);
         }

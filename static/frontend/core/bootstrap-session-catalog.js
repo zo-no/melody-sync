@@ -172,19 +172,10 @@ function formatAppNameFromId(appId) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function getEffectiveSessionAppId(session) {
-  return normalizeAppId(session?.appId, { fallbackDefault: true });
-}
-
 function getEffectiveSessionSourceId(session) {
   const explicitSourceId = normalizeAppId(session?.sourceId);
   if (explicitSourceId) return explicitSourceId;
-
-  const legacyAppId = normalizeAppId(session?.appId, { fallbackDefault: true });
-  if (!legacyAppId || /^app[_-]/i.test(legacyAppId)) {
-    return DEFAULT_APP_ID;
-  }
-  return legacyAppId;
+  return DEFAULT_APP_ID;
 }
 
 function getEffectiveSessionSourceName(session) {
@@ -192,18 +183,7 @@ function getEffectiveSessionSourceName(session) {
     ? session.sourceName.trim()
     : "";
   if (explicitSourceName) return explicitSourceName;
-
-  const sourceId = getEffectiveSessionSourceId(session);
-  if (
-    typeof session?.appName === "string"
-    && session.appName.trim()
-    && !/^app[_-]/i.test(normalizeAppId(session?.appId))
-    && normalizeAppId(session?.appId) === sourceId
-  ) {
-    return session.appName.trim();
-  }
-
-  return formatAppNameFromId(sourceId);
+  return formatAppNameFromId(getEffectiveSessionSourceId(session));
 }
 
 function refreshAppCatalog() {

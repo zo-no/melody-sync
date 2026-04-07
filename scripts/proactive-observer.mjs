@@ -23,7 +23,6 @@ const DEFAULT_CAPTURE_DIR = join(DEFAULT_STORAGE_DIR, 'captures')
 const DEFAULT_CHAT_BASE_URL = `http://127.0.0.1:${CHAT_PORT}`
 const DEFAULT_HTTP_PORT = 7960
 const DEFAULT_SESSION_TOOL = 'codex'
-const DEFAULT_APP_ID = 'observer-home'
 const DEFAULT_APP_NAME = 'Home Coach'
 const DEFAULT_GROUP = 'Observer'
 const DEFAULT_CAPTURE_INTERVAL_MS = 4000
@@ -276,7 +275,6 @@ export async function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
     model: trimString(normalized.model),
     effort: trimString(normalized.effort),
     thinking: normalizeBoolean(normalized.thinking, false),
-    appId: trimString(normalized.appId || DEFAULT_APP_ID) || DEFAULT_APP_ID,
     appName: trimString(normalized.appName || DEFAULT_APP_NAME) || DEFAULT_APP_NAME,
     group: trimString(normalized.group || DEFAULT_GROUP) || DEFAULT_GROUP,
     systemPrompt: normalizeSystemPrompt(normalized.systemPrompt),
@@ -630,8 +628,6 @@ async function createEpisodeSession(runtime, trigger, episode, event) {
     folder: runtime.config.sessionFolder,
     tool: runtime.config.sessionTool,
     name: buildSessionName(trigger, event.detectedAt),
-    appId: runtime.config.appId,
-    appName: runtime.config.appName,
     sourceId: 'observer',
     sourceName: runtime.config.appName,
     group: runtime.config.group,
@@ -1305,7 +1301,6 @@ function printConfigTemplate() {
   "model": "",
   "effort": "",
   "thinking": false,
-  "appId": "observer-home",
   "appName": "Home Coach",
   "group": "Observer",
   "systemPrompt": ${JSON.stringify(DEFAULT_SYSTEM_PROMPT)},

@@ -228,8 +228,6 @@ async function createOrReuseSession(runtime, summary) {
     folder: runtime.config.sessionFolder,
     tool: runtime.config.sessionTool,
     name: buildSessionName(runtime.config, summary),
-    appId: runtime.config.appId,
-    appName: runtime.config.appName,
     sourceId: 'voice',
     sourceName: runtime.config.appName,
     group: runtime.config.group,

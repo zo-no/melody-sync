@@ -76,7 +76,6 @@ function buildOrganizerPayload(session, transcript) {
     existingWorkflowPriority: clipText(session?.workflowPriority || '', 40),
     folder: clipText(session?.folder || '', 160),
     tool: clipText(session?.tool || '', 40),
-    appName: clipText(session?.appName || '', 80),
     sourceName: clipText(session?.sourceName || '', 80),
     messageCount: Number.isInteger(session?.messageCount) ? session.messageCount : 0,
     created: clipText(session?.created || '', 40),

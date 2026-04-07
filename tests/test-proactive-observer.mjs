@@ -42,7 +42,6 @@ const loadedConfig = await loadConfig(tempConfigPath)
 assert.equal(loadedConfig.connectorId, 'home-observer')
 assert.equal(loadedConfig.roomName, 'Living Room')
 assert.equal(loadedConfig.sessionTool, 'codex')
-assert.equal(loadedConfig.appId, 'observer-home')
 assert.equal(loadedConfig.triggers[0].id, 'home-arrival')
 assert.equal(loadedConfig.systemPrompt, '')
 assert.match(DEFAULT_SYSTEM_PROMPT, /Keep connector-specific overrides minimal/i)
@@ -181,8 +180,8 @@ try {
     roomName: 'Living Room',
   }))
 
-  assert.equal(createPayload?.appId, 'observer-home')
-  assert.equal(createPayload?.appName, 'Home Coach')
+  assert.equal(createPayload?.appId, undefined)
+  assert.equal(createPayload?.appName, undefined)
   assert.equal(createPayload?.sourceId, 'observer')
   assert.equal(createPayload?.sourceName, 'Home Coach')
   assert.equal(createPayload?.group, 'Observer')

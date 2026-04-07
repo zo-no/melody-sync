@@ -489,6 +489,8 @@ function buildDefaultQuestGraph({
     title: getSessionTitle(rootSession),
     summary: getNodeSummary(rootSession),
     status: getRootNodeStatus(rootSession, { isCurrent: activeNodeId === rootNodeId }),
+    workflowState: trimText(rootSession?.workflowState || ''),
+    activityState: trimText(rootSession?.activity?.run?.state || ''),
     isCurrent: activeNodeId === rootNodeId,
     isCurrentPath: activeNodeId === rootNodeId,
   });
@@ -544,6 +546,8 @@ function buildDefaultQuestGraph({
         title: getBranchTitle(branchSession),
         summary: conclusionText || getNodeSummary(branchSession),
         status: branchStatus,
+        workflowState: trimText(branchSession?.workflowState || ''),
+        activityState: trimText(branchSession?.activity?.run?.state || ''),
         isCurrent: nodeId === activeNodeId,
         isCurrentPath: currentLineageIds.has(branchSession.id),
         conclusionText,

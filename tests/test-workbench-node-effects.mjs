@@ -11,6 +11,10 @@ const nodeContractSource = readFileSync(
   join(repoRoot, 'static', 'frontend', 'workbench', 'node-contract.js'),
   'utf8',
 );
+const taskRunStatusSource = readFileSync(
+  join(repoRoot, 'static', 'frontend', 'workbench', 'task-run-status.js'),
+  'utf8',
+);
 const nodeEffectsSource = readFileSync(
   join(repoRoot, 'static', 'frontend', 'workbench', 'node-effects.js'),
   'utf8',
@@ -21,12 +25,14 @@ context.globalThis = context;
 context.window = context;
 
 vm.runInNewContext(nodeContractSource, context, { filename: 'workbench/node-contract.js' });
+vm.runInNewContext(taskRunStatusSource, context, { filename: 'workbench/task-run-status.js' });
 vm.runInNewContext(nodeEffectsSource, context, { filename: 'workbench/node-effects.js' });
 
 const effectsApi = context.MelodySyncWorkbenchNodeEffects;
 assert.ok(effectsApi, 'node effects api should be exposed on globalThis');
 assert.equal(typeof effectsApi.getNodeKindEffect, 'function');
 assert.equal(typeof effectsApi.buildQuestNodeCounts, 'function');
+assert.equal(typeof effectsApi.getNodeTaskRunStatusUi, 'function');
 
 const mainEffect = effectsApi.getNodeKindEffect('main');
 assert.equal(mainEffect.layoutVariant, 'root');
@@ -135,6 +141,7 @@ const bootstrapContext = {
 bootstrapContext.globalThis = bootstrapContext;
 bootstrapContext.window = bootstrapContext;
 vm.runInNewContext(nodeContractSource, bootstrapContext, { filename: 'workbench/node-contract.js' });
+vm.runInNewContext(taskRunStatusSource, bootstrapContext, { filename: 'workbench/task-run-status.js' });
 vm.runInNewContext(nodeEffectsSource, bootstrapContext, { filename: 'workbench/node-effects.js' });
 
 const customEffect = bootstrapContext.MelodySyncWorkbenchNodeEffects.getNodeKindEffect('review');
@@ -172,6 +179,67 @@ assert.equal(
   }),
   '画布',
   'custom rich-view nodes should expose a neutral canvas badge instead of falling back to branch status labels',
+);
+
+assert.equal(
+  effectsApi.getNodeMetaLabel({
+    id: 'session:branch-running',
+    kind: 'branch',
+    parentNodeId: 'session:main-1',
+    status: 'active',
+    activityState: 'running',
+    isCurrent: true,
+  }),
+  '运行中',
+  'active running nodes should surface the running badge label',
+);
+
+assert.equal(
+  effectsApi.getNodeMetaLabel({
+    id: 'session:branch-done',
+    kind: 'branch',
+    parentNodeId: 'session:main-1',
+    status: 'active',
+    workflowState: 'done',
+    isCurrent: true,
+  }),
+  '已完成',
+  'workflowState=done should override current-node running badges',
+);
+
+assert.equal(
+  effectsApi.getNodeTaskRunStatusUi({
+    id: 'session:branch-waiting',
+    kind: 'branch',
+    parentNodeId: 'session:main-1',
+    status: 'active',
+    workflowState: 'waiting_user',
+  })?.key,
+  'waiting_user',
+  'node effects should expose the normalized task-run status key for downstream styling',
+);
+
+assert.equal(
+  effectsApi.getNodeTaskRunStatusUi({
+    id: 'session:branch-idle',
+    kind: 'branch',
+    parentNodeId: 'session:main-1',
+    status: 'active',
+    isCurrent: false,
+  })?.key,
+  'idle',
+  'task-map nodes should keep showing a stable idle status even when they are not the current node',
+);
+
+assert.equal(
+  effectsApi.getNodeMetaLabel({
+    id: 'session:branch-parked',
+    kind: 'branch',
+    parentNodeId: 'session:main-1',
+    status: 'parked',
+  }),
+  '已挂起',
+  'parked nodes should surface a parked badge label',
 );
 
 console.log('test-workbench-node-effects: ok');
