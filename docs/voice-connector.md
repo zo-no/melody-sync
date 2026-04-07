@@ -52,7 +52,7 @@ Constraints:
 
 Please:
 1. install or verify the needed local dependencies
-2. create or update <appRoot>/voice/config.json
+2. create or update <runtimeRoot>/voice/config.json
 3. wire the wake/capture/stt/tts commands into scripts/voice-connector.mjs
 4. validate with a dry run using --text or --stdin
 5. start the persistent connector process
@@ -97,8 +97,8 @@ The shipped implementation lives in `scripts/voice-connector.mjs`.
 Current product integration:
 
 - `设置 -> Voice` manages the local voice config
-- the durable config file lives at `<appRoot>/voice/config.json`
-- `scripts/voice-connector-instance.sh` reads the current `appRoot` automatically
+- the durable config file lives at `<runtimeRoot>/voice/config.json`
+- `scripts/voice-connector-instance.sh` reads the current `runtimeRoot` automatically
 
 It supports three operating modes:
 
@@ -289,13 +289,13 @@ swift /Users/jiujianian/code/melody-sync/scripts/voice-wake-phrase.swift --phras
 Start with the cheapest checks first:
 
 ```bash
-npm run voice:connect -- --config <appRoot>/voice/config.json --text "Hello there" --no-speak
+npm run voice:connect -- --config <runtimeRoot>/voice/config.json --text "Hello there" --no-speak
 ```
 
 Then a local interactive pass:
 
 ```bash
-npm run voice:connect -- --config <appRoot>/voice/config.json --stdin
+npm run voice:connect -- --config <runtimeRoot>/voice/config.json --stdin
 ```
 
 Then a wake-layer smoke test using a prerecorded file:
@@ -307,7 +307,7 @@ Then a wake-layer smoke test using a prerecorded file:
 Then the real wake loop:
 
 ```bash
-npm run voice:connect -- --config <appRoot>/voice/config.json
+npm run voice:connect -- --config <runtimeRoot>/voice/config.json
 ```
 
 Expected outcome:

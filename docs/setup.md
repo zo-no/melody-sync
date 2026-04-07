@@ -42,18 +42,26 @@ If multiple tools are installed and the user has no strong preference, prefer `C
 
 ## Storage rule
 
-MelodySync has two layers of local config:
+MelodySync has three storage layers:
 
 1. **Current device config file**
    - machine-local file: `~/.config/melody-sync/general-settings.json`
-   - its job is only to tell MelodySync where the app root lives
+   - its job is to tell MelodySync where the portable brain and local runtime live
 
-2. **App root**
+2. **Brain root**
    - default when unset: `~/.melodysync`
-   - if `general-settings.json` contains `appRoot`, MelodySync treats that value as the **direct app root**
-   - MelodySync stores its own durable data directly under that app root using:
-     - `config/`
+   - if `general-settings.json` contains `brainRoot`, MelodySync treats that value as the portable long-term brain
+   - portable assets live here:
+     - `AGENTS.md`
      - `memory/`
+
+3. **Runtime root**
+   - default when unset: `~/.melodysync/runtime`
+   - if `general-settings.json` contains `runtimeRoot`, MelodySync treats that value as the current machine runtime root
+   - runtime state lives here:
+     - `config/`
+     - `email/`
+     - `voice/`
      - `sessions/`
      - `hooks/`
      - `workbench/`
@@ -61,8 +69,8 @@ MelodySync has two layers of local config:
 
 Important:
 
-- Do **not** create an extra nested `.melodysync/` under a custom app root.
-- If the app root is synced by Obsidian or another tool, each machine still needs its **own** local device config file so the service can find that synced directory on that machine.
+- Do **not** create an extra nested `.melodysync/` under a custom `brainRoot`.
+- If the brain is synced by Obsidian or another tool, each machine still needs its **own** local device config file and runtime root.
 
 ## Minimal file layout
 
@@ -71,21 +79,23 @@ Once MelodySync is set up, the minimum usable layout is:
 ```text
 ~/.config/melody-sync/general-settings.json
 
-<appRoot>/
+<brainRoot>/
   AGENTS.md
-  config/
-    auth.json
-    general-settings.json
   memory/
     bootstrap.md
     projects.md
     skills.md
+
+<runtimeRoot>/
+  config/
+    provider-runtime-homes/
+  email/
+  voice/
+  hooks/
   sessions/
     chat-sessions.json
     history/
     runs/
-  hooks/
-    custom-hooks.json
   workbench/
   logs/
 ```
@@ -93,8 +103,9 @@ Once MelodySync is set up, the minimum usable layout is:
 How to read this:
 
 - `~/.config/melody-sync/general-settings.json` belongs to the current machine only
-- `<appRoot>/` is the actual MelodySync application directory
-- if you want cross-machine continuity, sync `<appRoot>/`; each machine still keeps its own local device config file
+- `<brainRoot>/` is the portable long-term brain you may sync across machines
+- `<runtimeRoot>/` is the machine-local runtime state
+- if you want cross-machine continuity, sync `<brainRoot>/`; each machine still keeps its own local runtime root
 
 ## Runtime configuration principle
 

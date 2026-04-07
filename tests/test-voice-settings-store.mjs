@@ -8,7 +8,8 @@ import { fileURLToPath, pathToFileURL } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-voice-settings-store-'));
-const appRoot = join(tempHome, 'vault', '00-🤖agent');
+const brainRoot = join(tempHome, 'vault', '00-🤖agent');
+const runtimeRoot = join(tempHome, '.melodysync', 'runtime');
 const configDir = join(tempHome, '.config', 'melody-sync');
 
 process.env.HOME = tempHome;
@@ -19,7 +20,10 @@ delete process.env.MELODYSYNC_OBSIDIAN_VAULT_DIR;
 delete process.env.MELODYSYNC_OBSIDIAN_PATH;
 
 mkdirSync(configDir, { recursive: true });
-writeFileSync(join(configDir, 'general-settings.json'), JSON.stringify({ appRoot }, null, 2), 'utf8');
+writeFileSync(join(configDir, 'general-settings.json'), JSON.stringify({
+  brainRoot,
+  runtimeRoot,
+}, null, 2), 'utf8');
 
 try {
   const { readVoiceSettings, persistVoiceSettings } = await import(
@@ -27,9 +31,9 @@ try {
   );
 
   const initial = await readVoiceSettings();
-  assert.equal(initial.voiceRoot, join(appRoot, 'voice'));
-  assert.equal(initial.paths.configFile, join(appRoot, 'voice', 'config.json'));
-  assert.equal(initial.paths.runtimeLogFile, join(appRoot, 'voice', 'logs', 'connector.log'));
+  assert.equal(initial.voiceRoot, join(runtimeRoot, 'voice'));
+  assert.equal(initial.paths.configFile, join(runtimeRoot, 'voice', 'config.json'));
+  assert.equal(initial.paths.runtimeLogFile, join(runtimeRoot, 'voice', 'logs', 'connector.log'));
   assert.equal(initial.config.connectorId, 'voice-main');
   assert.equal(initial.config.chatBaseUrl, 'http://127.0.0.1:7760');
   assert.equal(initial.config.sessionMode, 'stable');

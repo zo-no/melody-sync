@@ -151,7 +151,7 @@ async function stopServer(server) {
 
 async function main() {
   const { home } = setupTempHome();
-  const sessionsFile = join(home, '.melodysync', 'config', 'auth-sessions.json');
+  const sessionsFile = join(home, '.config', 'melody-sync', 'auth-sessions.json');
   const port = randomPort();
   const server = await startServer({ home, port });
 

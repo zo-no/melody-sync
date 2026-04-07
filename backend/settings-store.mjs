@@ -279,6 +279,49 @@ async function migrateRootsIfNeeded(currentMetadata = null, nextMetadata = null)
   }
 }
 
+async function migrateLegacyBrainRuntimeIfNeeded(metadata = null) {
+  if (!metadata?.brainRoot || !metadata?.runtimeRoot || metadata.brainRoot === metadata.runtimeRoot) {
+    return;
+  }
+
+  const runtimePaths = buildPathsFromMetadata(metadata);
+  const legacyBrainConfigDir = resolve(metadata.brainRoot, 'config');
+  const legacyAppScopedSettings = normalizeAppScopedSettings(
+    await readJson(resolve(legacyBrainConfigDir, 'general-settings.json'), DEFAULT_APP_SCOPED_SETTINGS),
+  );
+  const currentAppScopedSettings = normalizeAppScopedSettings(
+    await readJson(runtimePaths.generalSettingsFile, DEFAULT_APP_SCOPED_SETTINGS),
+  );
+  if (!Object.keys(currentAppScopedSettings).length && Object.keys(legacyAppScopedSettings).length) {
+    await writeJsonAtomic(runtimePaths.generalSettingsFile, legacyAppScopedSettings);
+  }
+
+  const runtimeConfigMappings = [
+    ['provider-runtime-homes', runtimePaths.runtimeConfigDir + '/provider-runtime-homes'],
+    ['hooks.json', runtimePaths.hooksFile],
+    ['custom-hooks.json', runtimePaths.customHooksFile],
+    ['workbench-node-settings.json', runtimePaths.workbenchNodeSettingsFile],
+    ['workbench-capture-items.json', runtimePaths.workbenchCaptureItemsFile],
+    ['workbench-projects.json', runtimePaths.workbenchProjectsFile],
+    ['workbench-nodes.json', runtimePaths.workbenchNodesFile],
+    ['workbench-branch-contexts.json', runtimePaths.workbenchBranchContextsFile],
+    ['workbench-task-map-plans.json', runtimePaths.workbenchTaskMapPlansFile],
+    ['workbench-skills.json', runtimePaths.workbenchSkillsFile],
+    ['workbench-summaries.json', runtimePaths.workbenchSummariesFile],
+  ];
+
+  for (const [relativePath, targetPath] of runtimeConfigMappings) {
+    await copyEntryIfMissing(resolve(legacyBrainConfigDir, relativePath), targetPath);
+  }
+
+  await copyDirectoryContentsIfMissing(resolve(metadata.brainRoot, 'email'), runtimePaths.emailDir);
+  await copyDirectoryContentsIfMissing(resolve(metadata.brainRoot, 'hooks'), runtimePaths.hooksDir);
+  await copyDirectoryContentsIfMissing(resolve(metadata.brainRoot, 'voice'), runtimePaths.voiceDir);
+  await copyDirectoryContentsIfMissing(resolve(metadata.brainRoot, 'sessions'), runtimePaths.sessionsDir);
+  await copyDirectoryContentsIfMissing(resolve(metadata.brainRoot, 'workbench'), runtimePaths.workbenchDir);
+  await copyDirectoryContentsIfMissing(resolve(metadata.brainRoot, 'logs'), runtimePaths.logsDir);
+}
+
 export async function readGeneralSettings() {
   const bootstrapPayload = await readJson(GENERAL_SETTINGS_BOOTSTRAP_FILE, DEFAULT_SETTINGS);
   const bootstrapNormalized = normalizeGeneralSettings(bootstrapPayload);
@@ -312,6 +355,7 @@ export async function persistGeneralSettings(payload = {}) {
   const paths = buildPathsFromMetadata(metadata);
   await ensureStorageLayout(paths);
   await migrateRootsIfNeeded(current, metadata);
+  await migrateLegacyBrainRuntimeIfNeeded(metadata);
   await writeJsonAtomic(GENERAL_SETTINGS_BOOTSTRAP_FILE, {
     brainRoot: metadata.brainRoot,
     runtimeRoot: metadata.runtimeRoot,
@@ -335,8 +379,9 @@ export async function ensureGeneralSettingsRuntimeFiles() {
   const current = await readGeneralSettings();
   const metadata = deriveGeneralSettingsMetadata(current);
   const paths = buildPathsFromMetadata(metadata);
-  const appScopedPayload = await readJson(paths.generalSettingsFile, DEFAULT_APP_SCOPED_SETTINGS);
   await ensureStorageLayout(paths);
+  await migrateLegacyBrainRuntimeIfNeeded(metadata);
+  const appScopedPayload = await readJson(paths.generalSettingsFile, DEFAULT_APP_SCOPED_SETTINGS);
   await writeJsonAtomic(paths.generalSettingsFile, normalizeAppScopedSettings(appScopedPayload));
   await ensureAgentsFile(metadata.agentsPath);
   await ensureHooksFile(paths.customHooksFile);

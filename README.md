@@ -236,10 +236,11 @@ Some advanced env vars still keep the older `MELODYSYNC_` prefix for compatibili
 
 ## Common file locations
 
-These are the default paths when no custom app root is configured.
+These are the default paths when no custom roots are configured.
 
-- If `general-settings.json` includes `appRoot`, MelodySync treats it as the direct app root.
-- If no custom app root is configured, MelodySync falls back to the machine-local paths below.
+- `general-settings.json` may point at a portable `brainRoot` and a machine-local `runtimeRoot`.
+- `brainRoot` is where long-lived portable assets such as `AGENTS.md` and `memory/` live.
+- `runtimeRoot` is where sessions, runs, voice/email runtime files, logs, and provider-managed homes live.
 - The current device config file lives at `~/.config/melody-sync/general-settings.json`.
 
 Minimum usable layout:
@@ -247,37 +248,41 @@ Minimum usable layout:
 ```text
 ~/.config/melody-sync/general-settings.json
 
-<appRoot>/
+<brainRoot>/
   AGENTS.md
-  config/
-    auth.json
-    general-settings.json
   memory/
     bootstrap.md
     projects.md
     skills.md
+
+<runtimeRoot>/
+  config/
+    provider-runtime-homes/
+  email/
+  hooks/
+  voice/
   sessions/
     chat-sessions.json
     history/
     runs/
-  hooks/
-    custom-hooks.json
   workbench/
   logs/
 ```
 
 - `~/.config/melody-sync/general-settings.json` belongs to the current machine only
-- `<appRoot>/` is the actual MelodySync application directory
-- if you use a synced folder, sync `<appRoot>/`; each machine still keeps its own current device config file
+- `<brainRoot>/` is the portable long-term brain you may sync across machines
+- `<runtimeRoot>/` is the machine-local runtime state for the current device
+- if you want cross-machine continuity, sync `<brainRoot>/`; do not sync `<runtimeRoot>/`
 
 | Path | Contents |
 |------|----------|
-| `~/.melodysync/config/auth.json` | Access token + password hash |
-| `~/.melodysync/config/auth-sessions.json` | Owner auth sessions |
-| `~/.melodysync/sessions/chat-sessions.json` | Chat session metadata |
-| `~/.melodysync/sessions/history/` | Per-session event store (`meta.json`, `context.json`, `events/*.json`, `bodies/*.txt`) |
-| `~/.melodysync/sessions/runs/` | Durable run manifests, spool output, and final results |
-| `~/.melodysync/memory/` | Private machine-specific memory used for pointer-first startup |
+| `~/.config/melody-sync/auth.json` | Access token + password hash |
+| `~/.config/melody-sync/auth-sessions.json` | Owner auth sessions |
+| `~/.config/melody-sync/general-settings.json` | Current device bootstrap pointing at `brainRoot` + `runtimeRoot` |
+| `~/.melodysync/runtime/sessions/chat-sessions.json` | Chat session metadata |
+| `~/.melodysync/runtime/sessions/history/` | Per-session event store (`meta.json`, `context.json`, `events/*.json`, `bodies/*.txt`) |
+| `~/.melodysync/runtime/sessions/runs/` | Durable run manifests, spool output, and final results |
+| `~/Desktop/diary/diary/00-🤖agent/memory/` | Portable long-term memory when you use `00-🤖agent` as the brain root |
 | `~/Library/Logs/chat-server.log` | Chat server stdout **(macOS)** |
 | `~/.local/share/melody-sync/logs/chat-server.log` | Chat server stdout **(Linux)** |
 
@@ -290,7 +295,7 @@ Minimum usable layout:
 - MelodySync still does **not** auto-delete old data by default, but it now ships a conservative cleanup command for reclaimable runtime storage.
 - Use `melodysync storage-maintenance` for a dry-run report, then `melodysync storage-maintenance --apply` to prune old API logs, old terminal run spool/artifacts, and old manager-owned Codex raw sessions/shell snapshots.
 - The cleanup command intentionally does **not** touch canonical session truth such as `sessions/chat-sessions.json`, `sessions/history/`, or run `manifest/status/result` files.
-- In practice, most storage growth lives under `~/.melodysync/sessions/history/` and `~/.melodysync/sessions/runs/`.
+- In practice, most storage growth lives under `~/.melodysync/runtime/sessions/history/` and `~/.melodysync/runtime/sessions/runs/`.
 
 ## Ad-hoc extra instances
 

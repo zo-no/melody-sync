@@ -17,7 +17,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-storage-maint-'));
 const bootstrapConfigDir = join(tempHome, '.config', 'melody-sync');
-const appRoot = join(tempHome, 'vault', '00-🤖agent');
+const brainRoot = join(tempHome, 'vault', '00-🤖agent');
+const runtimeRoot = join(tempHome, '.melodysync', 'runtime');
 const nowIso = '2026-04-07T12:00:00.000Z';
 const oldDate = new Date('2026-03-20T12:00:00.000Z');
 const recentDate = new Date('2026-04-06T12:00:00.000Z');
@@ -32,7 +33,7 @@ delete process.env.MELODYSYNC_OBSIDIAN_PATH;
 mkdirSync(bootstrapConfigDir, { recursive: true });
 writeFileSync(
   join(bootstrapConfigDir, 'general-settings.json'),
-  JSON.stringify({ appRoot }, null, 2),
+  JSON.stringify({ brainRoot, runtimeRoot }, null, 2),
   'utf8',
 );
 
@@ -42,15 +43,15 @@ function writeFile(pathname, content, mtime = recentDate) {
   utimesSync(pathname, mtime, mtime);
 }
 
-const oldApiLog = join(appRoot, 'logs', 'api', '2026-03-20.jsonl');
-const recentApiLog = join(appRoot, 'logs', 'api', '2026-04-06.jsonl');
+const oldApiLog = join(runtimeRoot, 'logs', 'api', '2026-03-20.jsonl');
+const recentApiLog = join(runtimeRoot, 'logs', 'api', '2026-04-06.jsonl');
 
-const oldRunDir = join(appRoot, 'sessions', 'runs', 'run_old');
-const recentRunDir = join(appRoot, 'sessions', 'runs', 'run_recent');
-const activeRunDir = join(appRoot, 'sessions', 'runs', 'run_active');
+const oldRunDir = join(runtimeRoot, 'sessions', 'runs', 'run_old');
+const recentRunDir = join(runtimeRoot, 'sessions', 'runs', 'run_recent');
+const activeRunDir = join(runtimeRoot, 'sessions', 'runs', 'run_active');
 
 const oldProviderSession = join(
-  appRoot,
+  runtimeRoot,
   'config',
   'provider-runtime-homes',
   'codex',
@@ -61,7 +62,7 @@ const oldProviderSession = join(
   'rollout-old.jsonl',
 );
 const recentProviderSession = join(
-  appRoot,
+  runtimeRoot,
   'config',
   'provider-runtime-homes',
   'codex',
@@ -72,7 +73,7 @@ const recentProviderSession = join(
   'rollout-recent.jsonl',
 );
 const oldShellSnapshot = join(
-  appRoot,
+  runtimeRoot,
   'config',
   'provider-runtime-homes',
   'codex',
@@ -80,7 +81,7 @@ const oldShellSnapshot = join(
   'old.sh',
 );
 const recentShellSnapshot = join(
-  appRoot,
+  runtimeRoot,
   'config',
   'provider-runtime-homes',
   'codex',

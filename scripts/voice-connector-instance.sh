@@ -13,23 +13,23 @@ import { join, resolve } from 'path';
 import { readFileSync } from 'fs';
 
 const bootstrapPath = join(homedir(), '.config', 'melody-sync', 'general-settings.json');
-let appRoot = join(homedir(), '.melodysync');
+let runtimeRoot = join(homedir(), '.melodysync', 'runtime');
 
 try {
   const payload = JSON.parse(readFileSync(bootstrapPath, 'utf8'));
-  const raw = typeof payload?.appRoot === 'string' ? payload.appRoot.trim() : '';
+  const raw = typeof payload?.runtimeRoot === 'string' ? payload.runtimeRoot.trim() : '';
   if (raw) {
     if (raw === '~') {
-      appRoot = homedir();
+      runtimeRoot = homedir();
     } else if (raw.startsWith('~/')) {
-      appRoot = join(homedir(), raw.slice(2));
+      runtimeRoot = join(homedir(), raw.slice(2));
     } else {
-      appRoot = resolve(raw);
+      runtimeRoot = resolve(raw);
     }
   }
 } catch {}
 
-process.stdout.write(join(appRoot, 'voice'));
+process.stdout.write(join(runtimeRoot, 'voice'));
 NODE
 }
 

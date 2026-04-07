@@ -62,7 +62,7 @@ MelodySync is now an owner-operated AI task workspace.
 - `session-list/`: task-list contract, ordering contract, grouping model, sidebar list rendering, and sidebar shell behavior
 - `settings/hooks/`: hook settings lifecycle model plus browser entry UI
 - `settings/email/`: mailbox identity, outbound, and automation settings UI
-- `settings/voice/`: local voice-ingress settings UI backed by `appRoot/voice/config.json`
+- `settings/voice/`: local voice-ingress settings UI backed by `runtimeRoot/voice/config.json`
 - `workbench/`: task-map contract/model plus focused workbench renderers
 - `workbench/controller.js`: workbench-side coordinator that wires graph, surfaces, and node canvas
 
@@ -151,7 +151,8 @@ For the value/retention contract that sits on top of this filesystem shape, also
 
 Default runtime behavior:
 
-- if `general-settings.json` has `appRoot`, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `email/`, `voice/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
+- `general-settings.json` now points at a portable `brainRoot` plus a machine-local `runtimeRoot`
+- MelodySync keeps `AGENTS.md` and `memory/` under the brain, while runtime state such as `config/`, `email/`, `voice/`, `sessions/`, `hooks/`, `workbench/`, and `logs/` lives under the runtime root
 - if no storage root is configured, MelodySync falls back to the home-local layout (`~/.config/melody-sync` plus `~/.melodysync/memory`)
 - isolated instances can still override this via `MELODYSYNC_INSTANCE_ROOT`, `MELODYSYNC_CONFIG_DIR`, and `MELODYSYNC_MEMORY_DIR`
 

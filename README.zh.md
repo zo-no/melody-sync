@@ -241,10 +241,11 @@ melodysync --help               显示帮助
 
 ## 常用文件位置
 
-下面这些是未配置自定义应用目录时的默认路径。
+下面这些是未配置自定义根目录时的默认路径。
 
-- 如果 `general-settings.json` 里配置了 `appRoot`，MelodySync 会把它当作直接应用目录。
-- 如果没有配置自定义应用目录，则继续回退到下面的机器本地默认路径。
+- `general-settings.json` 现在可以同时指向可迁移的 `brainRoot` 和当前机器的 `runtimeRoot`。
+- `brainRoot` 只放长期、可迁移的资产，比如 `AGENTS.md` 和 `memory/`。
+- `runtimeRoot` 只放当前机器的运行态数据，比如 sessions、runs、voice/email 运行文件、logs、provider runtime homes。
 - 当前设备配置文件位于 `~/.config/melody-sync/general-settings.json`。
 
 最小可用结构：
@@ -252,37 +253,41 @@ melodysync --help               显示帮助
 ```text
 ~/.config/melody-sync/general-settings.json
 
-<appRoot>/
+<brainRoot>/
   AGENTS.md
-  config/
-    auth.json
-    general-settings.json
   memory/
     bootstrap.md
     projects.md
     skills.md
+
+<runtimeRoot>/
+  config/
+    provider-runtime-homes/
+  email/
+  hooks/
+  voice/
   sessions/
     chat-sessions.json
     history/
     runs/
-  hooks/
-    custom-hooks.json
   workbench/
   logs/
 ```
 
 - `~/.config/melody-sync/general-settings.json` 只属于当前这台机器
-- `<appRoot>/` 才是 MelodySync 真正的应用目录
-- 如果你把应用目录放进同步盘，需要同步的是 `<appRoot>/`；每台机器仍然保留自己的“当前设备配置文件”
+- `<brainRoot>/` 是可跨机器同步的长期“大脑”
+- `<runtimeRoot>/` 是当前设备的本地运行态
+- 如果你要跨机器延续 agent，应该同步 `<brainRoot>/`，而不是 `<runtimeRoot>/`
 
 | 路径 | 内容 |
 |------|------|
-| `~/.melodysync/config/auth.json` | 访问 token + 密码哈希 |
-| `~/.melodysync/config/auth-sessions.json` | Owner 登录会话 |
-| `~/.melodysync/sessions/chat-sessions.json` | Chat 会话元数据 |
-| `~/.melodysync/sessions/history/` | 每个会话的事件存储（`meta.json`、`context.json`、`events/*.json`、`bodies/*.txt`） |
-| `~/.melodysync/sessions/runs/` | 持久化 run manifest、spool 输出和最终结果 |
-| `~/.melodysync/memory/` | pointer-first 启动时使用的机器私有 memory |
+| `~/.config/melody-sync/auth.json` | 访问 token + 密码哈希 |
+| `~/.config/melody-sync/auth-sessions.json` | Owner 登录会话 |
+| `~/.config/melody-sync/general-settings.json` | 当前设备 bootstrap，指向 `brainRoot` + `runtimeRoot` |
+| `~/.melodysync/runtime/sessions/chat-sessions.json` | Chat 会话元数据 |
+| `~/.melodysync/runtime/sessions/history/` | 每个会话的事件存储（`meta.json`、`context.json`、`events/*.json`、`bodies/*.txt`） |
+| `~/.melodysync/runtime/sessions/runs/` | 持久化 run manifest、spool 输出和最终结果 |
+| `~/Desktop/diary/diary/00-🤖agent/memory/` | 作为 `brainRoot` 时承载长期 memory 的目录示例 |
 | `~/Library/Logs/chat-server.log` | Chat server 标准输出 **(macOS)** |
 | `~/.local/share/melody-sync/logs/chat-server.log` | Chat server 标准输出 **(Linux)** |
 

@@ -8,7 +8,8 @@ import { fileURLToPath, pathToFileURL } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-email-settings-store-'));
-const appRoot = join(tempHome, 'vault', '00-🤖agent');
+const brainRoot = join(tempHome, 'vault', '00-🤖agent');
+const runtimeRoot = join(tempHome, '.melodysync', 'runtime');
 const configDir = join(tempHome, '.config', 'melody-sync');
 
 process.env.HOME = tempHome;
@@ -19,7 +20,10 @@ delete process.env.MELODYSYNC_OBSIDIAN_VAULT_DIR;
 delete process.env.MELODYSYNC_OBSIDIAN_PATH;
 
 mkdirSync(configDir, { recursive: true });
-writeFileSync(join(configDir, 'general-settings.json'), JSON.stringify({ appRoot }, null, 2), 'utf8');
+writeFileSync(join(configDir, 'general-settings.json'), JSON.stringify({
+  brainRoot,
+  runtimeRoot,
+}, null, 2), 'utf8');
 
 try {
   const { readEmailSettings, persistEmailSettings } = await import(
@@ -27,8 +31,8 @@ try {
   );
 
   const initial = await readEmailSettings();
-  assert.equal(initial.emailRoot, join(appRoot, 'email'));
-  assert.equal(initial.paths.identityFile, join(appRoot, 'email', 'identity.json'));
+  assert.equal(initial.emailRoot, join(runtimeRoot, 'email'));
+  assert.equal(initial.paths.identityFile, join(runtimeRoot, 'email', 'identity.json'));
   assert.equal(initial.identity.address, '');
   assert.equal(initial.outbound.provider, 'apple_mail');
   assert.equal(initial.automation.chatBaseUrl, 'http://127.0.0.1:7760');

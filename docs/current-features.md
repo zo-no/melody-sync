@@ -33,8 +33,9 @@ This document lists the current shipped MelodySync feature surface and explicitl
 
 Default layout:
 
-- if `appRoot` is configured, MelodySync treats it as the direct local app root and stores runtime state under that directory using standard top-level folders such as `config/`, `email/`, `voice/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
-- otherwise it uses the machine-local default app root at `~/.melodysync`
+- `brainRoot` stores portable assets such as `AGENTS.md` and `memory/`
+- `runtimeRoot` stores machine-local runtime state such as `config/`, `email/`, `voice/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
+- by default MelodySync uses `~/.melodysync` for the brain and `~/.melodysync/runtime` for the runtime
 
 | Path | Purpose |
 | --- | --- |
