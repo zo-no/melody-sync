@@ -43,6 +43,16 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     sourceModule: 'backend/hooks/push-notification-hook.mjs',
   }),
   createHookDefinition({
+    id: 'builtin.host-completion-voice',
+    eventPattern: 'run.completed',
+    label: '本轮完成时主机语音播报',
+    description: '一次执行完成后，在宿主机本地直接执行语音播报。',
+    builtIn: true,
+    owner: 'hooks',
+    layer: 'delivery',
+    sourceModule: 'backend/hooks/host-completion-voice-hook.mjs',
+  }),
+  createHookDefinition({
     id: 'builtin.email-completion',
     eventPattern: 'run.completed',
     label: '完成后邮件通知',

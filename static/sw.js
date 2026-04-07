@@ -35,19 +35,13 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Skip notification if app window is currently visible
-      for (const client of clientList) {
-        if (client.visibilityState === 'visible') return;
-      }
-      return self.registration.showNotification(data.title || 'RemoteLab', {
-        body: data.body || 'Task completed',
-        icon: '/icon.svg',
-        badge: '/apple-touch-icon.png',
-        tag: 'remotelab-done',
-        renotify: true,
-        data: target,
-      });
+    self.registration.showNotification(data.title || 'RemoteLab', {
+      body: data.body || 'Task completed',
+      icon: '/icon.svg',
+      badge: '/apple-touch-icon.png',
+      tag: 'remotelab-done',
+      renotify: true,
+      data: target,
     })
   );
 });

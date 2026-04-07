@@ -13,6 +13,7 @@ Files by role:
 Design rules:
 
 - The sidebar is a task-entry surface, not a second task-map tree.
+- Closed branch sessions (`resolved` / `merged`) should stay out of the sidebar; reopening them belongs to the task map.
 - Keep grouping and badge logic in `model.js`.
 - Keep list DOM behavior in `ui.js`.
 - Keep shell open/close/collapse behavior in `sidebar-ui.js`.

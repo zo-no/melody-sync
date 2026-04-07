@@ -7,6 +7,7 @@ import { selectAssistantReplyEvent, stripHiddenBlocks } from '../lib/reply-selec
 
 const RUN_POLL_INTERVAL_MS = 300
 const RUN_POLL_TIMEOUT_MS = 10 * 60 * 1000
+const SESSION_EVENTS_POLL_TIMEOUT_MS = 10 * 60 * 1000
 
 function trimString(value) {
   return typeof value === 'string' ? value.trim() : ''
@@ -145,6 +146,55 @@ async function loadAssistantReply(requester, sessionId, runId, requestId) {
   return candidate || null
 }
 
+async function loadAssistantReplyByRequest(runtime, sessionId, requestId, runId) {
+  const eventsResult = await requestRemoteLab(runtime, `/api/sessions/${sessionId}/events?filter=all`)
+  if (!eventsResult.response.ok || !Array.isArray(eventsResult.json?.events)) {
+    throw new Error(eventsResult.json?.error || eventsResult.text || `Failed to load session events for ${sessionId}`)
+  }
+
+  const normalizedRequestId = trimString(requestId)
+  const normalizedRunId = trimString(runId)
+  const candidate = await selectAssistantReplyEvent(eventsResult.json.events, {
+    match: (event) => (
+      (normalizedRequestId && trimString(event?.requestId) === normalizedRequestId)
+      || (normalizedRunId && trimString(event?.runId) === normalizedRunId)
+    ),
+    hydrate: async (event) => {
+      const bodyResult = await requestRemoteLab(runtime, `/api/sessions/${sessionId}/events/${event.seq}/body`)
+      if (!bodyResult.response.ok || bodyResult.json?.body?.value === undefined) {
+        return event
+      }
+      return {
+        ...event,
+        content: bodyResult.json.body.value,
+        bodyLoaded: true,
+      }
+    },
+  })
+
+  return candidate || null
+}
+
+async function waitForAssistantReplyByRequest(runtime, sessionId, requestId, runId) {
+  const deadline = Date.now() + SESSION_EVENTS_POLL_TIMEOUT_MS
+  const normalizedRequestId = trimString(requestId)
+  const normalizedRunId = trimString(runId)
+
+  while (Date.now() < deadline) {
+    const replyEvent = await loadAssistantReplyByRequest(runtime, sessionId, normalizedRequestId, normalizedRunId)
+    if (replyEvent?.content) {
+      return {
+        replyEvent,
+        requestId: normalizedRequestId || trimString(replyEvent.requestId),
+        runId: trimString(replyEvent.runId || normalizedRunId),
+      }
+    }
+    await delay(RUN_POLL_INTERVAL_MS)
+  }
+
+  throw new Error(`assistant reply for request ${normalizedRequestId || '<unknown>'} timed out after ${SESSION_EVENTS_POLL_TIMEOUT_MS}ms`)
+}
+
 async function ensureAuthCookie(runtime, forceRefresh = false) {
   if (!forceRefresh && runtime.authCookie) {
     return runtime.authCookie
@@ -211,13 +261,14 @@ async function submitRemoteLabMessage(runtime, sessionId, summary) {
     method: 'POST',
     body: payload,
   })
-  if (![200, 202].includes(result.response.status) || !result.json?.run?.id) {
+  if (![200, 202].includes(result.response.status) || !result.json) {
     throw new Error(result.json?.error || result.text || `Failed to submit session message (${result.response.status})`)
   }
 
   return {
     requestId: payload.requestId,
-    runId: result.json.run.id,
+    runId: trimString(result.json.run?.id),
+    queued: result.json.queued === true,
     duplicate: result.json?.duplicate === true,
   }
 }
@@ -244,18 +295,36 @@ async function waitForRunCompletion(runtime, runId) {
 async function generateRemoteLabReply(runtime, summary) {
   const session = await createOrReuseSession(runtime, summary)
   const submission = await submitRemoteLabMessage(runtime, session.id, summary)
-  await waitForRunCompletion(runtime, submission.runId)
-  const replyEvent = await loadAssistantReply(
-    (path) => requestRemoteLab(runtime, path),
+  if (submission.runId) {
+    await waitForRunCompletion(runtime, submission.runId)
+    const replyEvent = await loadAssistantReply(
+      (path) => requestRemoteLab(runtime, path),
+      session.id,
+      submission.runId,
+      submission.requestId,
+    )
+    const replyText = normalizeSpokenReplyText(replyEvent?.content)
+    return {
+      sessionId: session.id,
+      runId: submission.runId,
+      requestId: submission.requestId,
+      duplicate: submission.duplicate,
+      replyText,
+      silent: !replyText,
+    }
+  }
+
+  const reply = await waitForAssistantReplyByRequest(
+    runtime,
     session.id,
-    submission.runId,
     submission.requestId,
+    submission.runId,
   )
-  const replyText = normalizeSpokenReplyText(replyEvent?.content)
+  const replyText = normalizeSpokenReplyText(reply?.replyEvent?.content)
   return {
     sessionId: session.id,
-    runId: submission.runId,
-    requestId: submission.requestId,
+    runId: reply.runId,
+    requestId: reply.requestId,
     duplicate: submission.duplicate,
     replyText,
     silent: !replyText,

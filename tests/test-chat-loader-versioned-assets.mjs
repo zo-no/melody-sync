@@ -19,9 +19,19 @@ function createScriptElement() {
   };
 }
 
+function createLinkElement() {
+  return {
+    rel: '',
+    as: '',
+    href: '',
+    nonce: '',
+  };
+}
+
 function createContext({ inlineAssetVersion = '' } = {}) {
   const fetchCalls = [];
   const scriptLoads = [];
+  const preloadLoads = [];
   const loggedErrors = [];
 
   const context = {
@@ -33,6 +43,7 @@ function createContext({ inlineAssetVersion = '' } = {}) {
     queueMicrotask,
     fetchCalls,
     scriptLoads,
+    preloadLoads,
     loggedErrors,
     console: {
       error(...args) {
@@ -64,15 +75,23 @@ function createContext({ inlineAssetVersion = '' } = {}) {
         src: 'http://127.0.0.1/chat.js',
       },
       head: {
-        appendChild(script) {
-          scriptLoads.push(script.src);
-          queueMicrotask(() => script.onload?.());
-          return script;
+        appendChild(element) {
+          if (element.src) {
+            scriptLoads.push(element.src);
+            queueMicrotask(() => element.onload?.());
+            return element;
+          }
+          if (element.href) {
+            preloadLoads.push(element.href);
+            return element;
+          }
+          throw new Error('unexpected appended element');
         },
       },
       createElement(tagName) {
-        assert.equal(tagName, 'script', 'loader should append script elements');
-        return createScriptElement();
+        if (tagName === 'script') return createScriptElement();
+        if (tagName === 'link') return createLinkElement();
+        throw new Error(`unexpected element: ${tagName}`);
       },
     },
   };
@@ -87,6 +106,67 @@ async function waitForLoaderWork() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+const expectedBuild123Assets = [
+  '/marked.min.js?v=build-123',
+  '/chat/core/bootstrap-data.js?v=build-123',
+  '/chat/core/i18n.js?v=build-123',
+  '/chat/session-list/order-contract.js?v=build-123',
+  '/chat/session/state-model.js?v=build-123',
+  '/chat/core/icons.js?v=build-123',
+  '/chat/core/bootstrap.js?v=build-123',
+  '/chat/core/bootstrap-session-catalog.js?v=build-123',
+  '/chat/session-list/contract.js?v=build-123',
+  '/chat/session/http-helpers.js?v=build-123',
+  '/chat/session/http-list-state.js?v=build-123',
+  '/chat/session/http.js?v=build-123',
+  '/chat/core/layout-tooling.js?v=build-123',
+  '/chat/session/tooling.js?v=build-123',
+  '/chat/core/realtime.js?v=build-123',
+  '/chat/core/realtime-render.js?v=build-123',
+  '/chat/session/transcript-ui.js?v=build-123',
+  '/chat/session/surface-ui.js?v=build-123',
+  '/chat/session-list/model.js?v=build-123',
+  '/chat/session-list/ui.js?v=build-123',
+  '/chat/session-list/sidebar-ui.js?v=build-123',
+  '/chat/workbench/node-contract.js?v=build-123',
+  '/chat/workbench/node-effects.js?v=build-123',
+  '/chat/workbench/node-instance.js?v=build-123',
+  '/chat/workbench/graph-model.js?v=build-123',
+  '/chat/workbench/node-capabilities.js?v=build-123',
+  '/chat/workbench/node-task-card.js?v=build-123',
+  '/chat/workbench/graph-client.js?v=build-123',
+  '/chat/settings/nodes/model.js?v=build-123',
+  '/chat/workbench/task-map-plan.js?v=build-123',
+  '/chat/workbench/surface-projection.js?v=build-123',
+  '/chat/workbench/task-map-clusters.js?v=build-123',
+  '/chat/workbench/task-map-mock-presets.js?v=build-123',
+  '/chat/workbench/task-map-model.js?v=build-123',
+  '/chat/workbench/quest-state.js?v=build-123',
+  '/chat/workbench/task-tracker-ui.js?v=build-123',
+  '/chat/workbench/node-rich-view-ui.js?v=build-123',
+  '/chat/workbench/node-canvas-ui.js?v=build-123',
+  '/chat/workbench/task-map-ui.js?v=build-123',
+  '/chat/workbench/task-list-ui.js?v=build-123',
+  '/chat/workbench/branch-actions.js?v=build-123',
+  '/chat/workbench/operation-record-ui.js?v=build-123',
+  '/chat/workbench/controller.js?v=build-123',
+  '/chat/session/compose.js?v=build-123',
+  '/chat/core/gestures.js?v=build-123',
+  '/chat/settings/ui.js?v=build-123',
+  '/chat/settings/hooks/model.js?v=build-123',
+  '/chat/settings/general/model.js?v=build-123',
+  '/chat/settings/email/model.js?v=build-123',
+  '/chat/settings/voice/model.js?v=build-123',
+  '/chat/settings/general/ui.js?v=build-123',
+  '/chat/settings/email/ui.js?v=build-123',
+  '/chat/settings/voice/ui.js?v=build-123',
+  '/chat/settings/nodes/ui.js?v=build-123',
+  '/chat/settings/hooks/ui.js?v=build-123',
+  '/chat/core/init.js?v=build-123',
+];
+
+const expectedInlineAssets = expectedBuild123Assets.map((path) => path.replace('build-123', 'inline-build-456'));
+
 const fallbackContext = createContext();
 vm.runInNewContext(loaderSource, fallbackContext, { filename: 'static/frontend.js' });
 await waitForLoaderWork();
@@ -100,65 +180,13 @@ assert.equal(fallbackContext.fetchCalls[0]?.url, '/api/build-info');
 assert.equal(fallbackContext.fetchCalls[0]?.options?.credentials, 'same-origin');
 assert.equal(fallbackContext.fetchCalls[0]?.options?.cache, 'no-store');
 assert.deepEqual(
+  fallbackContext.preloadLoads,
+  expectedBuild123Assets,
+  'compatibility loader should preload the full split frontend asset chain before executing it',
+);
+assert.deepEqual(
   fallbackContext.scriptLoads,
-  [
-    '/marked.min.js?v=build-123',
-    '/chat/core/bootstrap-data.js?v=build-123',
-    '/chat/core/i18n.js?v=build-123',
-    '/chat/session-list/order-contract.js?v=build-123',
-    '/chat/session/state-model.js?v=build-123',
-    '/chat/core/icons.js?v=build-123',
-    '/chat/core/bootstrap.js?v=build-123',
-    '/chat/core/bootstrap-session-catalog.js?v=build-123',
-    '/chat/session-list/contract.js?v=build-123',
-    '/chat/session/http-helpers.js?v=build-123',
-    '/chat/session/http-list-state.js?v=build-123',
-    '/chat/session/http.js?v=build-123',
-    '/chat/core/layout-tooling.js?v=build-123',
-    '/chat/session/tooling.js?v=build-123',
-    '/chat/core/realtime.js?v=build-123',
-    '/chat/core/realtime-render.js?v=build-123',
-    '/chat/session/transcript-ui.js?v=build-123',
-    '/chat/session/surface-ui.js?v=build-123',
-    '/chat/session-list/model.js?v=build-123',
-    '/chat/session-list/ui.js?v=build-123',
-    '/chat/session-list/sidebar-ui.js?v=build-123',
-    '/chat/workbench/node-contract.js?v=build-123',
-    '/chat/workbench/node-effects.js?v=build-123',
-    '/chat/workbench/node-instance.js?v=build-123',
-    '/chat/workbench/graph-model.js?v=build-123',
-    '/chat/workbench/node-capabilities.js?v=build-123',
-    '/chat/workbench/node-task-card.js?v=build-123',
-    '/chat/workbench/graph-client.js?v=build-123',
-    '/chat/settings/nodes/model.js?v=build-123',
-    '/chat/workbench/task-map-plan.js?v=build-123',
-    '/chat/workbench/surface-projection.js?v=build-123',
-    '/chat/workbench/task-map-clusters.js?v=build-123',
-    '/chat/workbench/task-map-mock-presets.js?v=build-123',
-    '/chat/workbench/task-map-model.js?v=build-123',
-    '/chat/workbench/quest-state.js?v=build-123',
-    '/chat/workbench/task-tracker-ui.js?v=build-123',
-    '/chat/workbench/node-rich-view-ui.js?v=build-123',
-    '/chat/workbench/node-canvas-ui.js?v=build-123',
-    '/chat/workbench/task-map-ui.js?v=build-123',
-    '/chat/workbench/task-list-ui.js?v=build-123',
-    '/chat/workbench/branch-actions.js?v=build-123',
-    '/chat/workbench/operation-record-ui.js?v=build-123',
-    '/chat/workbench/controller.js?v=build-123',
-    '/chat/session/compose.js?v=build-123',
-    '/chat/core/gestures.js?v=build-123',
-    '/chat/settings/ui.js?v=build-123',
-    '/chat/settings/hooks/model.js?v=build-123',
-    '/chat/settings/general/model.js?v=build-123',
-    '/chat/settings/email/model.js?v=build-123',
-    '/chat/settings/voice/model.js?v=build-123',
-    '/chat/settings/general/ui.js?v=build-123',
-    '/chat/settings/email/ui.js?v=build-123',
-    '/chat/settings/voice/ui.js?v=build-123',
-    '/chat/settings/nodes/ui.js?v=build-123',
-    '/chat/settings/hooks/ui.js?v=build-123',
-    '/chat/core/init.js?v=build-123',
-  ],
+  expectedBuild123Assets,
   'compatibility loader should version-pin the full split frontend asset chain',
 );
 assert.deepEqual(fallbackContext.loggedErrors, [], 'compatibility loader should not log load errors during the happy path');
@@ -173,65 +201,13 @@ assert.deepEqual(
   'inline build info should let the compatibility loader skip the build-info roundtrip',
 );
 assert.deepEqual(
+  inlineContext.preloadLoads,
+  expectedInlineAssets,
+  'inline build info should also keep preload hints on the matching version',
+);
+assert.deepEqual(
   inlineContext.scriptLoads,
-  [
-    '/marked.min.js?v=inline-build-456',
-    '/chat/core/bootstrap-data.js?v=inline-build-456',
-    '/chat/core/i18n.js?v=inline-build-456',
-    '/chat/session-list/order-contract.js?v=inline-build-456',
-    '/chat/session/state-model.js?v=inline-build-456',
-    '/chat/core/icons.js?v=inline-build-456',
-    '/chat/core/bootstrap.js?v=inline-build-456',
-    '/chat/core/bootstrap-session-catalog.js?v=inline-build-456',
-    '/chat/session-list/contract.js?v=inline-build-456',
-    '/chat/session/http-helpers.js?v=inline-build-456',
-    '/chat/session/http-list-state.js?v=inline-build-456',
-    '/chat/session/http.js?v=inline-build-456',
-    '/chat/core/layout-tooling.js?v=inline-build-456',
-    '/chat/session/tooling.js?v=inline-build-456',
-    '/chat/core/realtime.js?v=inline-build-456',
-    '/chat/core/realtime-render.js?v=inline-build-456',
-    '/chat/session/transcript-ui.js?v=inline-build-456',
-    '/chat/session/surface-ui.js?v=inline-build-456',
-    '/chat/session-list/model.js?v=inline-build-456',
-    '/chat/session-list/ui.js?v=inline-build-456',
-    '/chat/session-list/sidebar-ui.js?v=inline-build-456',
-    '/chat/workbench/node-contract.js?v=inline-build-456',
-    '/chat/workbench/node-effects.js?v=inline-build-456',
-    '/chat/workbench/node-instance.js?v=inline-build-456',
-    '/chat/workbench/graph-model.js?v=inline-build-456',
-    '/chat/workbench/node-capabilities.js?v=inline-build-456',
-    '/chat/workbench/node-task-card.js?v=inline-build-456',
-    '/chat/workbench/graph-client.js?v=inline-build-456',
-    '/chat/settings/nodes/model.js?v=inline-build-456',
-    '/chat/workbench/task-map-plan.js?v=inline-build-456',
-    '/chat/workbench/surface-projection.js?v=inline-build-456',
-    '/chat/workbench/task-map-clusters.js?v=inline-build-456',
-    '/chat/workbench/task-map-mock-presets.js?v=inline-build-456',
-    '/chat/workbench/task-map-model.js?v=inline-build-456',
-    '/chat/workbench/quest-state.js?v=inline-build-456',
-    '/chat/workbench/task-tracker-ui.js?v=inline-build-456',
-    '/chat/workbench/node-rich-view-ui.js?v=inline-build-456',
-    '/chat/workbench/node-canvas-ui.js?v=inline-build-456',
-    '/chat/workbench/task-map-ui.js?v=inline-build-456',
-    '/chat/workbench/task-list-ui.js?v=inline-build-456',
-    '/chat/workbench/branch-actions.js?v=inline-build-456',
-    '/chat/workbench/operation-record-ui.js?v=inline-build-456',
-    '/chat/workbench/controller.js?v=inline-build-456',
-    '/chat/session/compose.js?v=inline-build-456',
-    '/chat/core/gestures.js?v=inline-build-456',
-    '/chat/settings/ui.js?v=inline-build-456',
-    '/chat/settings/hooks/model.js?v=inline-build-456',
-    '/chat/settings/general/model.js?v=inline-build-456',
-    '/chat/settings/email/model.js?v=inline-build-456',
-    '/chat/settings/voice/model.js?v=inline-build-456',
-    '/chat/settings/general/ui.js?v=inline-build-456',
-    '/chat/settings/email/ui.js?v=inline-build-456',
-    '/chat/settings/voice/ui.js?v=inline-build-456',
-    '/chat/settings/nodes/ui.js?v=inline-build-456',
-    '/chat/settings/hooks/ui.js?v=inline-build-456',
-    '/chat/core/init.js?v=inline-build-456',
-  ],
+  expectedInlineAssets,
   'compatibility loader should reuse inline build info to keep split assets on the same version',
 );
 

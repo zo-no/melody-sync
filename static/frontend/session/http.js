@@ -36,18 +36,437 @@ if ("serviceWorker" in navigator) {
 function notifyCompletion(session) {
   if (!("Notification" in window) || Notification.permission !== "granted")
     return;
-  if (document.visibilityState === "visible") return;
   const folder = (session?.folder || "").split("/").pop() || "Session";
   const name = session?.name || folder;
-  const n = new Notification("MelodySync", {
-    body: `${name} — task completed`,
-    tag: "melodysync-done",
-  });
-  n.onclick = () => {
-    window.focus();
-    applyNavigationState({ sessionId: session?.id, tab: "sessions" });
-    n.close();
+  const completionText = `${name} 已完成`;
+  try {
+    const n = new Notification("MelodySync", {
+      icon: "/icon.svg",
+      body: completionText,
+      tag: "melodysync-done",
+      renotify: true,
+      requireInteraction: isLikelyMobileClient(),
+    });
+    n.onclick = () => {
+      window.focus();
+      applyNavigationState({ sessionId: session?.id, tab: "sessions" });
+      n.close();
+    };
+  } catch {}
+}
+
+let completionAudioContext = null;
+let completionAudioPrimed = false;
+let completionSoundEnabled = true;
+const notifiedCompletionStamps = new Map();
+const completionAttentionBanner = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionBanner")
+  : null;
+const completionAttentionText = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionText")
+  : null;
+const completionAttentionOpenBtn = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionOpenBtn")
+  : null;
+const completionAttentionCloseBtn = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionCloseBtn")
+  : null;
+const completionAttentionModalBackdrop = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionModalBackdrop")
+  : null;
+const completionAttentionModalTitle = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionModalTitle")
+  : null;
+const completionAttentionModalLead = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionModalLead")
+  : null;
+const completionAttentionModalOpenBtn = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionModalOpenBtn")
+  : null;
+const completionAttentionModalAckBtn = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionModalAckBtn")
+  : null;
+const completionAttentionModalCloseBtn = typeof document !== "undefined"
+  ? document.getElementById("completionAttentionModalCloseBtn")
+  : null;
+let completionAttentionSessionId = "";
+let completionAttentionHideTimer = null;
+let completionTitleFlashTimer = null;
+let completionTitleFlashBaseTitle = "";
+let completionTitleFlashAlertTitle = "";
+let completionForegroundRefreshPromise = null;
+let lastCompletionForegroundRefreshAt = 0;
+
+function normalizeOptionalBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "true" || normalized === "1") return true;
+  if (normalized === "false" || normalized === "0") return false;
+  return null;
+}
+
+function setCompletionSoundEnabled(value, fallback = true) {
+  const normalized = normalizeOptionalBoolean(value);
+  completionSoundEnabled = normalized === null ? fallback : normalized;
+  return completionSoundEnabled;
+}
+
+function applyCompletionSoundSetting(settings = null) {
+  const fallback = typeof completionSoundEnabled === "boolean" ? completionSoundEnabled : true;
+  return setCompletionSoundEnabled(settings?.completionSoundEnabled, fallback);
+}
+
+async function refreshCompletionSoundSetting() {
+  if (typeof window?.fetch !== "function") return;
+  try {
+    const response = await window.fetch("/api/settings", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (!response?.ok) return;
+    const payload = await response.json().catch(() => null);
+    applyCompletionSoundSetting(payload);
+  } catch {}
+}
+
+function getCompletionAudioContext() {
+  if (typeof window === "undefined") return null;
+  const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (typeof AudioCtor !== "function") return null;
+  if (!completionAudioContext || completionAudioContext.state === "closed") {
+    completionAudioContext = new AudioCtor();
+  }
+  return completionAudioContext;
+}
+
+async function unlockCompletionAudioContext() {
+  const ctx = getCompletionAudioContext();
+  if (!ctx) return false;
+  if (ctx.state === "suspended") {
+    try {
+      await ctx.resume();
+    } catch {
+      return false;
+    }
+  }
+  return ctx.state === "running";
+}
+
+function primeCompletionAudioContext() {
+  if (completionAudioPrimed) return;
+  if (typeof window?.addEventListener !== "function") return;
+  completionAudioPrimed = true;
+  const unlock = () => {
+    void unlockCompletionAudioContext();
   };
+  window.addEventListener("pointerdown", unlock, { capture: true, once: true });
+  window.addEventListener("keydown", unlock, { capture: true, once: true });
+  window.addEventListener("touchstart", unlock, { capture: true, once: true });
+}
+
+function isLikelyMobileClient() {
+  const userAgent = String(navigator?.userAgent || "");
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(userAgent)) return true;
+  if (typeof window?.matchMedia === "function") {
+    return window.matchMedia("(max-width: 820px)").matches
+      && window.matchMedia("(pointer: coarse)").matches;
+  }
+  return false;
+}
+
+function shouldPlayCompletionSoundLocally() {
+  return isLikelyMobileClient();
+}
+
+function shouldUseBlockingCompletionModal() {
+  return isLikelyMobileClient();
+}
+
+function refreshCompletionAlertsOnForeground() {
+  if (typeof fetchSessionsList !== "function") return null;
+  if (completionForegroundRefreshPromise) return completionForegroundRefreshPromise;
+  const now = Date.now();
+  if (now - lastCompletionForegroundRefreshAt < 3000) return null;
+  lastCompletionForegroundRefreshAt = now;
+  const request = fetchSessionsList().catch(() => {}).finally(() => {
+    completionForegroundRefreshPromise = null;
+  });
+  completionForegroundRefreshPromise = request;
+  return request;
+}
+
+function clearCompletionAttentionHideTimer() {
+  if (completionAttentionHideTimer) {
+    window.clearTimeout(completionAttentionHideTimer);
+    completionAttentionHideTimer = null;
+  }
+}
+
+function hideCompletionAttention() {
+  clearCompletionAttentionHideTimer();
+  completionAttentionSessionId = "";
+  if (!completionAttentionBanner) return;
+  completionAttentionBanner.classList.remove("is-visible");
+  if (typeof document?.body?.classList?.remove === "function") {
+    document.body.classList.remove("completion-attention-active");
+  }
+  window.setTimeout(() => {
+    if (!completionAttentionBanner.classList.contains("is-visible")) {
+      completionAttentionBanner.hidden = true;
+    }
+  }, 180);
+  if (completionAttentionModalBackdrop) {
+    completionAttentionModalBackdrop.hidden = true;
+  }
+}
+
+function scheduleCompletionAttentionHide(delayMs = 12000) {
+  if (!completionAttentionBanner || typeof window?.setTimeout !== "function") return;
+  clearCompletionAttentionHideTimer();
+  completionAttentionHideTimer = window.setTimeout(() => {
+    hideCompletionAttention();
+  }, delayMs);
+}
+
+function stopCompletionTitleFlash() {
+  if (completionTitleFlashTimer) {
+    window.clearInterval(completionTitleFlashTimer);
+    completionTitleFlashTimer = null;
+  }
+  if (typeof document !== "undefined" && completionTitleFlashBaseTitle) {
+    document.title = completionTitleFlashBaseTitle;
+  }
+  completionTitleFlashBaseTitle = "";
+  completionTitleFlashAlertTitle = "";
+}
+
+function startCompletionTitleFlash(session) {
+  if (typeof document === "undefined" || typeof window?.setInterval !== "function") return;
+  const folder = (session?.folder || "").split("/").pop() || "任务";
+  const name = session?.name || folder;
+  completionTitleFlashBaseTitle = String(document.title || "MelodySync Chat");
+  completionTitleFlashAlertTitle = `MelodySync 任务完成: ${name} 已完成`;
+  stopCompletionTitleFlash();
+  completionTitleFlashBaseTitle = String(document.title || "MelodySync Chat");
+  completionTitleFlashAlertTitle = `MelodySync 任务完成: ${name} 已完成`;
+  let showAlert = true;
+  let tickCount = 0;
+  document.title = completionTitleFlashAlertTitle;
+  completionTitleFlashTimer = window.setInterval(() => {
+    tickCount += 1;
+    document.title = showAlert ? completionTitleFlashAlertTitle : completionTitleFlashBaseTitle;
+    showAlert = !showAlert;
+    if (document.visibilityState === "visible" && tickCount >= 8) {
+      stopCompletionTitleFlash();
+    }
+  }, 900);
+}
+
+function triggerCompletionHaptics() {
+  try {
+    if (typeof navigator?.vibrate === "function") {
+      navigator.vibrate([180, 120, 180]);
+    }
+  } catch {}
+}
+
+function showCompletionAttention(session) {
+  const folder = (session?.folder || "").split("/").pop() || "任务";
+  const name = session?.name || folder;
+  const isMobile = isLikelyMobileClient();
+  completionAttentionSessionId = typeof session?.id === "string" ? session.id : "";
+  triggerCompletionHaptics();
+  startCompletionTitleFlash(session);
+  if (!completionAttentionBanner || !completionAttentionText) return;
+  completionAttentionText.textContent = `${name} 已完成`;
+  completionAttentionBanner.hidden = false;
+  if (typeof document?.body?.classList?.add === "function") {
+    document.body.classList.add("completion-attention-active");
+  }
+  if (typeof window?.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(() => {
+      completionAttentionBanner.classList.add("is-visible");
+    });
+  } else {
+    completionAttentionBanner.classList.add("is-visible");
+  }
+  if (!isMobile) {
+    scheduleCompletionAttentionHide(document?.visibilityState === "visible" ? 12000 : 18000);
+  }
+  if (shouldUseBlockingCompletionModal() && completionAttentionModalBackdrop) {
+    completionAttentionBanner.classList.remove("is-visible");
+    completionAttentionBanner.hidden = true;
+    completionAttentionModalBackdrop.hidden = false;
+    if (completionAttentionModalTitle) {
+      completionAttentionModalTitle.textContent = "MelodySync 任务完成";
+    }
+    if (completionAttentionModalLead) {
+      completionAttentionModalLead.textContent = `${name} 已完成`;
+    }
+    clearCompletionAttentionHideTimer();
+  }
+}
+
+if (typeof window !== "undefined" && typeof window?.addEventListener === "function") {
+  window.addEventListener("melodysync:general-settings-updated", (event) => {
+    applyCompletionSoundSetting(event?.detail || null);
+  });
+  window.addEventListener("focus", () => {
+    stopCompletionTitleFlash();
+    void refreshCompletionAlertsOnForeground();
+  });
+  window.addEventListener("pageshow", () => {
+    void refreshCompletionAlertsOnForeground();
+  });
+  primeCompletionAudioContext();
+  void refreshCompletionSoundSetting();
+}
+
+if (typeof document !== "undefined" && typeof document?.addEventListener === "function") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      stopCompletionTitleFlash();
+      void refreshCompletionAlertsOnForeground();
+      if (completionAttentionBanner && !completionAttentionBanner.hidden) {
+        const isMobile = isLikelyMobileClient();
+        scheduleCompletionAttentionHide(isMobile ? 45000 : 10000);
+      }
+    }
+  });
+}
+
+completionAttentionOpenBtn?.addEventListener?.("click", () => {
+  if (completionAttentionSessionId) {
+    applyNavigationState({ sessionId: completionAttentionSessionId, tab: "sessions" });
+  }
+  stopCompletionTitleFlash();
+  hideCompletionAttention();
+});
+
+completionAttentionCloseBtn?.addEventListener?.("click", () => {
+  stopCompletionTitleFlash();
+  hideCompletionAttention();
+});
+
+completionAttentionModalOpenBtn?.addEventListener?.("click", () => {
+  if (completionAttentionSessionId) {
+    applyNavigationState({ sessionId: completionAttentionSessionId, tab: "sessions" });
+  }
+  stopCompletionTitleFlash();
+  hideCompletionAttention();
+});
+
+completionAttentionModalAckBtn?.addEventListener?.("click", () => {
+  stopCompletionTitleFlash();
+  hideCompletionAttention();
+});
+
+completionAttentionModalCloseBtn?.addEventListener?.("click", () => {
+  stopCompletionTitleFlash();
+  hideCompletionAttention();
+});
+
+function normalizeCompletionWorkflowState(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function getCompletionStamp(session) {
+  return String(
+    session?.lastEventAt
+    || session?.updatedAt
+    || session?.created
+    || "",
+  ).trim();
+}
+
+function shouldNotifyCompletion(session, previousSession = null) {
+  if (!session?.id || !previousSession?.id) return false;
+  const nextState = normalizeCompletionWorkflowState(session?.workflowState);
+  const previousState = normalizeCompletionWorkflowState(previousSession?.workflowState);
+  return nextState === "done" && previousState !== "done";
+}
+
+function requestHostCompletionSound() {
+  if (typeof window?.fetch !== "function") return null;
+  return window.fetch("/api/system/completion-sound", {
+    method: "POST",
+    credentials: "same-origin",
+  }).then((response) => response?.ok === true);
+}
+
+function playBrowserCompletionSound() {
+  const ctx = getCompletionAudioContext();
+  if (!ctx) return;
+  try {
+    if (ctx.state === "suspended") {
+      void unlockCompletionAudioContext();
+      return;
+    }
+    const now = typeof ctx.currentTime === "number" ? ctx.currentTime : 0;
+    const notes = [
+      { at: 0, hz: 1046.5, gain: 0.12, len: 0.11 },
+      { at: 0.11, hz: 1318.51, gain: 0.11, len: 0.1 },
+      { at: 0.23, hz: 1567.98, gain: 0.1, len: 0.15 },
+    ];
+    for (const note of notes) {
+      const startAt = now + note.at;
+      const stopAt = startAt + note.len;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(note.hz, startAt);
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(note.gain, startAt + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(startAt);
+      oscillator.stop(stopAt + 0.01);
+    }
+  } catch {}
+}
+
+function playCompletionSound() {
+  const playedLocally = shouldPlayCompletionSoundLocally();
+  if (playedLocally) {
+    playBrowserCompletionSound();
+  }
+  const hostRequest = requestHostCompletionSound();
+  if (hostRequest && typeof hostRequest.then === "function") {
+    void hostRequest.then((played) => {
+      if (played || playedLocally) return;
+      playBrowserCompletionSound();
+    }).catch(() => {
+      if (playedLocally) return;
+      playBrowserCompletionSound();
+    });
+    return;
+  }
+  if (!playedLocally) {
+    playBrowserCompletionSound();
+  }
+}
+
+function handleCompletionAlerts(session, previousSession = null) {
+  if (!shouldNotifyCompletion(session, previousSession)) return;
+  const stamp = getCompletionStamp(session);
+  if (stamp && notifiedCompletionStamps.get(session.id) === stamp) return;
+  if (stamp) {
+    notifiedCompletionStamps.set(session.id, stamp);
+  } else {
+    notifiedCompletionStamps.set(session.id, "done");
+  }
+  if (typeof completionSoundEnabled === "undefined" || completionSoundEnabled !== false) {
+    playCompletionSound();
+  }
+  showCompletionAttention(session);
+  notifyCompletion(session);
 }
 
 const SESSION_LIST_ORGANIZER_POLL_INTERVAL_MS = 1200;
@@ -452,6 +871,9 @@ function reconcilePendingMessageState(event) {
 const pendingSessionReviewSyncs = new Map();
 
 function normalizeSessionReviewStamp(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Date(value).toISOString();
+  }
   const trimmed = typeof value === "string" ? value.trim() : "";
   if (!trimmed) return "";
   const time = new Date(trimmed).getTime();
@@ -464,7 +886,7 @@ function getSessionReviewStampTime(value) {
 }
 
 function getSessionReviewStamp(session) {
-  return normalizeSessionReviewStamp(session?.lastEventAt || session?.updatedAt || session?.created || "");
+  return normalizeSessionReviewStamp(session?.lastEventAt || session?.created || "");
 }
 
 function getEffectiveSessionReviewedAt(session) {
@@ -534,6 +956,16 @@ function markSessionReviewed(session, { sync = false, render = true } = {}) {
     return Promise.resolve(session);
   }
   return syncSessionReviewedToServer(session);
+}
+
+function markVisibleSessionReviewed(session, { sync = false } = {}) {
+  if (!session?.id || currentSessionId !== session.id) {
+    return Promise.resolve(session);
+  }
+  if (typeof document !== "undefined" && document.visibilityState && document.visibilityState !== "visible") {
+    return Promise.resolve(session);
+  }
+  return markSessionReviewed(session, { sync, render: true });
 }
 
 function normalizeSessionLocalListOrder(value) {
@@ -625,10 +1057,17 @@ function normalizeSessionRecord(session, previous = null) {
   } else {
     delete normalized.localReviewedAt;
   }
+  const latestSessionStamp = normalizeSessionReviewStamp(
+    normalized.lastEventAt
+    || normalized.created
+    || "",
+  );
   const reviewBaselineAt = normalizeSessionReviewStamp(
     normalized.reviewBaselineAt
     || previous?.reviewBaselineAt
-    || (typeof getSessionReviewBaselineAt === "function" ? getSessionReviewBaselineAt() : ""),
+    || (typeof getSessionReviewBaselineAtForSession === "function"
+      ? getSessionReviewBaselineAtForSession(normalized.id, latestSessionStamp)
+      : (typeof getSessionReviewBaselineAt === "function" ? getSessionReviewBaselineAt() : "")),
   );
   if (reviewBaselineAt) {
     normalized.reviewBaselineAt = reviewBaselineAt;
@@ -662,6 +1101,7 @@ function upsertSession(session) {
   if (typeof syncMelodySyncAppState === "function") {
     syncMelodySyncAppState();
   }
+  handleCompletionAlerts(normalized, previous);
   return normalized;
 }
 
@@ -772,6 +1212,10 @@ async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
 function applyAttachedSessionState(id, session) {
   currentSessionId = id;
   hasAttachedSession = true;
+  stopCompletionTitleFlash();
+  if (completionAttentionSessionId && completionAttentionSessionId === id) {
+    hideCompletionAttention();
+  }
   if (typeof syncMelodySyncAppState === "function") {
     syncMelodySyncAppState();
   }
@@ -932,10 +1376,17 @@ async function runCurrentSessionRefresh(
   const runState = getSessionRunState(session);
   if (shouldFetchSessionEventsForRefresh(sessionId, session)) {
     await fetchSessionEvents(sessionId, { runState, viewportIntent });
-    return session;
+    const latestSession = sessions.find((entry) => entry?.id === sessionId) || session;
+    await Promise.resolve(markVisibleSessionReviewed(latestSession, {
+      sync: !isSessionBusy(latestSession),
+    })).catch(() => {});
+    return latestSession;
   }
   renderedEventState.sessionId = sessionId;
   renderedEventState.runState = runState;
+  await Promise.resolve(markVisibleSessionReviewed(session, {
+    sync: !isSessionBusy(session),
+  })).catch(() => {});
   return session;
 }
 
@@ -1031,17 +1482,49 @@ async function bootstrapViaHttp({ deferOwnerRestore = false } = {}) {
   }
 }
 
+function normalizePushApplicationServerKey(value) {
+  if (!value) return new Uint8Array();
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (ArrayBuffer.isView(value)) {
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  }
+  return new Uint8Array();
+}
+
+function pushApplicationServerKeysMatch(subscription, expectedKey) {
+  const currentKey = normalizePushApplicationServerKey(
+    subscription?.options?.applicationServerKey || null,
+  );
+  const nextKey = normalizePushApplicationServerKey(expectedKey);
+  if (!currentKey.length || !nextKey.length || currentKey.length !== nextKey.length) {
+    return false;
+  }
+  for (let index = 0; index < currentKey.length; index += 1) {
+    if (currentKey[index] !== nextKey[index]) return false;
+  }
+  return true;
+}
+
 async function setupPushNotifications() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return {
+      ok: false,
+      error: "当前浏览器不支持 Web Push 订阅。",
+    };
+  }
   try {
     const persistSubscription = async (subscription) => {
       const payload = subscription?.toJSON ? subscription.toJSON() : subscription;
       if (!payload?.endpoint) return;
-      await fetch("/api/push/subscribe", {
+      const response = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!response?.ok) {
+        throw new Error(`保存浏览器订阅失败（${response?.status || "unknown"}）`);
+      }
     };
     const reg = await navigator.serviceWorker.register(
       `/sw.js?v=${encodeURIComponent(buildAssetVersion)}`,
@@ -1052,21 +1535,39 @@ async function setupPushNotifications() {
     reg.waiting?.postMessage({ type: "melodysync:clear-caches" });
     reg.active?.postMessage({ type: "melodysync:clear-caches" });
     await navigator.serviceWorker.ready;
+    const res = await fetch("/api/push/vapid-public-key");
+    if (!res.ok) {
+      throw new Error(`获取推送公钥失败（${res.status || "unknown"}）`);
+    }
+    const { publicKey } = await res.json();
+    const applicationServerKey = urlBase64ToUint8Array(publicKey);
     const existing = await reg.pushManager.getSubscription();
     if (existing) {
-      await persistSubscription(existing);
-      return;
+      if (!pushApplicationServerKeysMatch(existing, applicationServerKey)) {
+        await existing.unsubscribe().catch(() => {});
+      } else {
+        await persistSubscription(existing);
+        return {
+          ok: true,
+          reused: true,
+        };
+      }
     }
-    const res = await fetch("/api/push/vapid-public-key");
-    if (!res.ok) return;
-    const { publicKey } = await res.json();
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
+      applicationServerKey,
     });
     await persistSubscription(sub);
     console.log("[push] Subscribed to web push");
+    return {
+      ok: true,
+      renewed: true,
+    };
   } catch (err) {
     console.warn("[push] Setup failed:", err.message);
+    return {
+      ok: false,
+      error: err?.message || "浏览器订阅失败",
+    };
   }
 }

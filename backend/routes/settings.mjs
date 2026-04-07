@@ -69,7 +69,15 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
     }
     try {
       const current = await readGeneralSettingsPayload();
-      const next = await persistGeneralSettingsPayload(payload);
+      const nextPayload = {
+        appRoot: Object.prototype.hasOwnProperty.call(payload, 'appRoot')
+          ? payload.appRoot
+          : (current?.configuredAppRootPath || current?.appRoot || ''),
+        completionSoundEnabled: Object.prototype.hasOwnProperty.call(payload, 'completionSoundEnabled')
+          ? payload.completionSoundEnabled
+          : (current?.completionSoundEnabled === false ? false : undefined),
+      };
+      const next = await persistGeneralSettingsPayload(nextPayload);
       const appRootChanged = !!(current?.appRoot && next?.appRoot && current.appRoot !== next.appRoot);
       const restartScheduled = appRootChanged && typeof scheduleConfigReload === 'function'
         ? scheduleConfigReload()

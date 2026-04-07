@@ -1096,6 +1096,7 @@ async function main() {
         'instance.resume',
         'session.created',
         'session.first_user_message',
+        'session.waiting_user',
         'run.started',
         'run.completed',
         'run.failed',
@@ -1113,6 +1114,7 @@ async function main() {
         'instance.resume',
         'session.created',
         'session.first_user_message',
+        'session.waiting_user',
         'run.started',
         'run.completed',
         'run.failed',
@@ -1195,10 +1197,20 @@ async function main() {
       hooksApiJson.eventDefinitions?.find((definition) => definition.id === 'run.completed')?.scope,
       'run',
     );
+    assert.equal(
+      hooksApiJson.eventDefinitions?.find((definition) => definition.id === 'session.waiting_user')?.label,
+      '需要用户接手',
+    );
+    assert.equal(
+      hooksApiJson.eventDefinitions?.find((definition) => definition.id === 'session.waiting_user')?.phase,
+      'closeout',
+    );
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.scope, 'instance');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.phase, 'startup');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.scope, 'session');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.phase, 'entry');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.host-completion-voice')?.scope, 'run');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.host-completion-voice')?.phase, 'closeout');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.scope, 'run');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.phase, 'closeout');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.scope, 'branch');
@@ -1207,6 +1219,7 @@ async function main() {
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.taskMapPlanPolicy, 'none');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.producesTaskMapPlan, false);
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.layer, 'delivery');
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.host-completion-voice')?.layer, 'delivery');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.layer, 'lifecycle');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.promptContextPolicy, 'continuity');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.producesPromptContext, true);
@@ -1219,6 +1232,7 @@ async function main() {
       'builtin.resume-completion-targets',
       'builtin.graph-context-bootstrap',
       'builtin.push-notification',
+      'builtin.host-completion-voice',
       'builtin.email-completion',
       'builtin.branch-candidates',
       'builtin.session-naming',

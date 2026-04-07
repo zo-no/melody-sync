@@ -18,6 +18,15 @@ const translations = {
 
 const context = {
   console,
+  MelodySyncWorkbench: {
+    getSnapshot() {
+      return {
+        branchContexts: [
+          { sessionId: 'branch-from-context', status: 'resolved', updatedAt: '2026-04-06T09:00:00.000Z' },
+        ],
+      };
+    },
+  },
   window: {
     melodySyncT(key) {
       return translations[key] || key;
@@ -61,6 +70,31 @@ assert.equal(
   model.isBranchTaskSession({ taskCard: { lineRole: 'main' } }),
   false,
   'mainline tasks should stay out of the branch-only badge path',
+);
+assert.equal(
+  model.getBranchTaskStatus({ id: 'branch-merged', taskCard: { lineRole: 'branch' }, _branchStatus: 'merged' }),
+  'merged',
+  'branch status should prefer the session record when the branch lifecycle status is present locally',
+);
+assert.equal(
+  model.getBranchTaskStatus({ id: 'branch-from-context', taskCard: { lineRole: 'branch' } }),
+  'resolved',
+  'branch status should fall back to the latest workbench branch context when the session record lacks a local status',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'branch-merged', taskCard: { lineRole: 'branch' }, _branchStatus: 'merged' }),
+  false,
+  'merged branches should disappear from the sidebar task list',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'branch-parked', taskCard: { lineRole: 'branch' }, _branchStatus: 'parked' }),
+  true,
+  'parked branches should remain reopenable from the sidebar',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'main-done', taskCard: { lineRole: 'main' }, _branchStatus: 'merged' }),
+  true,
+  'mainline tasks should not be hidden by branch-only completion rules',
 );
 assert.deepEqual(
   Array.from(model.getSessionListBadges({ taskCard: { lineRole: 'branch' } }), (entry) => entry.label),

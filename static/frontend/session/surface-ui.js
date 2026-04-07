@@ -163,6 +163,32 @@ function getSessionReviewStatusInfo(session) {
     : null;
 }
 
+function getSessionListTouchStatusInfo(session) {
+  const model = typeof window !== "undefined" ? window.MelodySyncSessionStateModel : null;
+  if (!model || !session) return null;
+  if (typeof model.isSessionBusy === "function" && model.isSessionBusy(session)) {
+    const liveStatus = typeof getSessionStatusSummary === "function"
+      ? getSessionStatusSummary(session).primary
+      : null;
+    return {
+      key: "running",
+      label: t("status.running"),
+      className: "status-running",
+      title: liveStatus?.title || t("status.running"),
+    };
+  }
+  const reviewStatus = typeof model.getSessionReviewStatusInfo === "function"
+    ? model.getSessionReviewStatusInfo(session)
+    : null;
+  if (!reviewStatus) return null;
+  return {
+    key: "finished",
+    label: t("workflow.status.finished"),
+    className: "status-done",
+    title: t("workflow.status.finishedTitle"),
+  };
+}
+
 function isSessionCompleteAndReviewed(session) {
   return typeof window !== "undefined"
     && window.MelodySyncSessionStateModel
@@ -173,13 +199,8 @@ function isSessionCompleteAndReviewed(session) {
 
 function buildSessionMetaParts(session) {
   const parts = [];
-  const reviewHtml = renderSessionStatusHtml(getSessionReviewStatusInfo(session));
-  if (reviewHtml) parts.push(reviewHtml);
-  const liveStatus = getSessionStatusSummary(session).primary;
-  const statusHtml = liveStatus?.key && liveStatus.key !== "idle"
-    ? renderSessionStatusHtml(liveStatus)
-    : "";
-  if (statusHtml) parts.push(statusHtml);
+  const touchStatusHtml = renderSessionStatusHtml(getSessionListTouchStatusInfo(session));
+  if (touchStatusHtml) parts.push(touchStatusHtml);
   const countHtml = renderSessionMessageCount(session);
   if (countHtml) parts.push(countHtml);
   return parts;
@@ -214,18 +235,26 @@ function buildSessionActionConfigs(session, options = {}) {
   if (Array.isArray(options.actions)) {
     return options.actions.filter(Boolean);
   }
-  const activity = typeof getSessionActivity === "function"
-    ? getSessionActivity(session)
-    : {
-        run: { state: "idle" },
-        compact: { state: "idle" },
-        queue: { count: 0 },
-      };
-  const canOrganize = session?.archived !== true
-    && activity.run.state !== "running"
-    && activity.compact.state !== "pending"
-    && (!Number.isInteger(activity.queue.count) || activity.queue.count === 0);
-  if (session?.archived === true) {
+  const isArchivedSession = options.archived === true || session?.archived === true;
+  const hasUnreadUpdate = typeof getSessionReviewStatusInfo === "function"
+    ? Boolean(getSessionReviewStatusInfo(session))
+    : false;
+  const rawWorkflowState = String(session?.workflowState || "").trim().toLowerCase();
+  const normalizedWorkflowState = typeof window !== "undefined"
+    && window.MelodySyncSessionStateModel
+    && typeof window.MelodySyncSessionStateModel.normalizeSessionWorkflowState === "function"
+      ? window.MelodySyncSessionStateModel.normalizeSessionWorkflowState(rawWorkflowState)
+      : "";
+  const fallbackDoneWorkflowState = [
+    "done",
+    "complete",
+    "completed",
+    "finished",
+    "完成",
+    "运行完毕",
+  ].includes(rawWorkflowState);
+  const isDoneSession = normalizedWorkflowState === "done" || fallbackDoneWorkflowState;
+  if (isArchivedSession) {
     return [
       {
         key: "restore",
@@ -244,12 +273,19 @@ function buildSessionActionConfigs(session, options = {}) {
     ];
   }
   return [
-    canOrganize ? {
-      key: "organize",
-      action: "organize",
-      label: t("action.organize"),
-      icon: "refresh",
-      className: "organize",
+    {
+      key: session?.pinned === true ? "unpin" : "pin",
+      action: session?.pinned === true ? "unpin" : "pin",
+      label: session?.pinned === true ? t("action.unpin") : t("action.pin"),
+      icon: session?.pinned === true ? "pinned" : "pin",
+      className: session?.pinned === true ? "pin pinned" : "pin",
+    },
+    isDoneSession ? {
+      key: "restore-pending",
+      action: "restore_pending",
+      label: t("action.restorePending"),
+      icon: "unarchive",
+      className: "restore",
     } : null,
     {
       key: "archive",
@@ -258,6 +294,19 @@ function buildSessionActionConfigs(session, options = {}) {
       icon: "archive",
       className: "archive",
     },
+    hasUnreadUpdate ? {
+      key: "acknowledge",
+      action: "acknowledge",
+      label: t("action.acknowledge"),
+      icon: "check",
+      className: "acknowledge",
+      onClick(event, currentSession) {
+        event?.stopPropagation?.();
+        event?.preventDefault?.();
+        if (typeof markSessionReviewed !== "function") return;
+        return markSessionReviewed(currentSession, { sync: true, render: true });
+      },
+    } : null,
   ].filter(Boolean);
 }
 

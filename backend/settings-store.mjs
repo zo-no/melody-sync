@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS = Object.freeze({
 });
 
 const DEFAULT_APP_SCOPED_SETTINGS = Object.freeze({});
+const DEFAULT_COMPLETION_SOUND_ENABLED = true;
 
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -43,10 +44,36 @@ function normalizeGeneralSettings(value = {}) {
   };
 }
 
-function normalizeAppScopedSettings(_value = {}) {
-  return {
-    ...DEFAULT_APP_SCOPED_SETTINGS,
-  };
+function normalizeOptionalBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return null;
+  }
+  const normalized = trimText(value).toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'true' || normalized === '1') return true;
+  if (normalized === 'false' || normalized === '0') return false;
+  return null;
+}
+
+function readCompletionSoundEnabled(value = {}) {
+  return normalizeOptionalBoolean(
+    value?.completionSoundEnabled
+    ?? value?.completion?.soundEnabled
+    ?? value?.alerts?.completionSoundEnabled,
+  );
+}
+
+function normalizeAppScopedSettings(value = {}) {
+  const completionSoundEnabled = readCompletionSoundEnabled(value);
+  return completionSoundEnabled === null
+    ? { ...DEFAULT_APP_SCOPED_SETTINGS }
+    : {
+      ...DEFAULT_APP_SCOPED_SETTINGS,
+      completionSoundEnabled,
+    };
 }
 
 function deriveGeneralSettingsMetadata(settings = {}) {
@@ -123,8 +150,12 @@ export async function readGeneralSettings() {
   const payload = await readJson(bootstrapMetadata.storagePath, DEFAULT_APP_SCOPED_SETTINGS);
   const appScoped = normalizeAppScopedSettings(payload);
   const metadata = deriveGeneralSettingsMetadata(bootstrapNormalized);
+  const completionSoundEnabled = appScoped.completionSoundEnabled === false
+    ? false
+    : DEFAULT_COMPLETION_SOUND_ENABLED;
   return {
     ...appScoped,
+    completionSoundEnabled,
     ...bootstrapNormalized,
     ...metadata,
   };
@@ -156,7 +187,11 @@ export async function persistGeneralSettings(payload = {}) {
   await ensureAgentsFile(metadata.agentsPath);
   await ensureHooksFile(paths.customHooksFile);
 
+  const completionSoundEnabled = readCompletionSoundEnabled(payload);
   return {
+    completionSoundEnabled: completionSoundEnabled === null
+      ? DEFAULT_COMPLETION_SOUND_ENABLED
+      : completionSoundEnabled,
     ...normalized,
     ...metadata,
   };
@@ -166,6 +201,7 @@ export async function ensureGeneralSettingsRuntimeFiles() {
   const current = await readGeneralSettings();
   const metadata = deriveGeneralSettingsMetadata(current);
   const paths = buildMelodySyncPaths(metadata.appRoot, { agentsFile: metadata.agentsPath });
+  const appScopedPayload = await readJson(paths.generalSettingsFile, DEFAULT_APP_SCOPED_SETTINGS);
   await ensureDir(paths.configDir);
   await ensureDir(paths.emailDir);
   await ensureDir(paths.hooksDir);
@@ -176,7 +212,7 @@ export async function ensureGeneralSettingsRuntimeFiles() {
   await ensureDir(paths.memoryDir);
   await ensureDir(paths.logsDir);
   await ensureDir(resolve(paths.memoryDir, 'tasks'));
-  await writeJsonAtomic(paths.generalSettingsFile, normalizeAppScopedSettings(current));
+  await writeJsonAtomic(paths.generalSettingsFile, normalizeAppScopedSettings(appScopedPayload));
   await ensureAgentsFile(metadata.agentsPath);
   await ensureHooksFile(paths.customHooksFile);
   return {
@@ -189,6 +225,7 @@ export function exposeGeneralSettingsDefaults() {
   const metadata = deriveGeneralSettingsMetadata(DEFAULT_SETTINGS);
   return {
     appRoot: DEFAULT_SETTINGS.appRoot,
+    completionSoundEnabled: DEFAULT_COMPLETION_SOUND_ENABLED,
     ...metadata,
   };
 }

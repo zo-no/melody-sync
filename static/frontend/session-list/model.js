@@ -25,6 +25,19 @@
     return trimText(value).replace(/\s+/g, " ").toLowerCase();
   }
 
+  function getWorkbenchSnapshot() {
+    return root?.MelodySyncWorkbench?.getSnapshot?.()
+      || root?.window?.MelodySyncWorkbench?.getSnapshot?.()
+      || null;
+  }
+
+  function normalizeBranchStatus(value) {
+    const normalized = normalizeKey(value);
+    return ["active", "parked", "resolved", "merged", "done", "closed"].includes(normalized)
+      ? normalized
+      : "";
+  }
+
   function isVoiceSession(session) {
     const sourceId = normalizeKey(session?.sourceId || session?.appId || "");
     return sourceId === "voice";
@@ -63,6 +76,53 @@
       || trimText(session?.branchParentSessionId)
       || trimText(session?.sourceContext?.parentSessionId)
     );
+  }
+
+  function getBranchContextStatus(sessionId = "") {
+    const normalizedSessionId = trimText(sessionId);
+    if (!normalizedSessionId) return "";
+    const snapshot = getWorkbenchSnapshot();
+    const matches = (Array.isArray(snapshot?.branchContexts) ? snapshot.branchContexts : [])
+      .filter((entry) => trimText(entry?.sessionId) === normalizedSessionId);
+    if (!matches.length) return "";
+
+    let latestStatus = "";
+    let latestStamp = -1;
+    for (const entry of matches) {
+      const status = normalizeBranchStatus(entry?.status);
+      if (!status) continue;
+      const stamp = Date.parse(entry?.updatedAt || entry?.createdAt || "");
+      if (!Number.isFinite(stamp)) {
+        if (!latestStatus) latestStatus = status;
+        continue;
+      }
+      if (stamp >= latestStamp) {
+        latestStamp = stamp;
+        latestStatus = status;
+      }
+    }
+    return latestStatus;
+  }
+
+  function getBranchTaskStatus(session) {
+    if (!isBranchTaskSession(session)) return "";
+    return normalizeBranchStatus(
+      session?._branchStatus
+      || session?.branchStatus
+      || session?.taskCard?.branchStatus
+      || getBranchContextStatus(session?.id)
+      || "active"
+    );
+  }
+
+  function isClosedBranchTaskSession(session) {
+    const branchStatus = getBranchTaskStatus(session);
+    return isBranchTaskSession(session) && ["resolved", "merged", "done", "closed"].includes(branchStatus);
+  }
+
+  function shouldShowSessionInSidebar(session) {
+    if (!session?.id) return false;
+    return !isClosedBranchTaskSession(session);
   }
 
   function getPersistentBadge(session) {
@@ -111,6 +171,9 @@
     resolveTaskListGroup,
     getSessionGroupInfo,
     isBranchTaskSession,
+    getBranchTaskStatus,
+    isClosedBranchTaskSession,
+    shouldShowSessionInSidebar,
     getSessionListBadges,
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

@@ -53,8 +53,10 @@ try {
       'run.completed',
       'run.failed',
       'run.started',
+      'session.completed',
       'session.created',
       'session.first_user_message',
+      'session.waiting_user',
     ],
     'HOOK_EVENTS should contain all supported lifecycle events',
   );
@@ -66,6 +68,8 @@ try {
       'instance.resume',
       'session.created',
       'session.first_user_message',
+      'session.waiting_user',
+      'session.completed',
       'run.started',
       'run.completed',
       'run.failed',
@@ -81,6 +85,8 @@ try {
       'instance',
       'instance',
       'instance',
+      'session',
+      'session',
       'session',
       'session',
       'run',
@@ -100,6 +106,8 @@ try {
       'startup',
       'entry',
       'entry',
+      'closeout',
+      'closeout',
       'execution',
       'closeout',
       'closeout',
@@ -118,6 +126,7 @@ try {
     'builtin.resume-completion-targets',
     'builtin.graph-context-bootstrap',
     'builtin.push-notification',
+    'builtin.host-completion-voice',
     'builtin.email-completion',
     'builtin.branch-candidates',
     'builtin.session-naming',
@@ -151,6 +160,9 @@ try {
   assert.equal(byId['builtin.graph-context-bootstrap'].producesTaskMapPlan, false);
   assert.equal(byId['builtin.graph-context-bootstrap'].promptContextPolicy, 'continuity');
   assert.equal(byId['builtin.graph-context-bootstrap'].producesPromptContext, true);
+  assert.equal(byId['builtin.host-completion-voice'].eventPattern, 'run.completed');
+  assert.equal(byId['builtin.host-completion-voice'].scope, 'run');
+  assert.equal(byId['builtin.host-completion-voice'].phase, 'closeout');
   assert.equal(byId['builtin.branch-candidates'].eventPattern, 'branch.suggested');
   assert.equal(byId['builtin.branch-candidates'].scope, 'branch');
   assert.equal(byId['builtin.branch-candidates'].phase, 'closeout');
@@ -167,6 +179,8 @@ try {
   assert.equal(byId['builtin.resume-completion-targets'].sourceModule, 'backend/hooks/resume-completion-targets-hook.mjs');
   assert.equal(byId['builtin.graph-context-bootstrap'].owner, 'hooks');
   assert.equal(byId['builtin.graph-context-bootstrap'].sourceModule, 'backend/hooks/graph-context-bootstrap-hook.mjs');
+  assert.equal(byId['builtin.host-completion-voice'].owner, 'hooks');
+  assert.equal(byId['builtin.host-completion-voice'].sourceModule, 'backend/hooks/host-completion-voice-hook.mjs');
   assert.equal(byId['builtin.push-notification'].owner, 'hooks');
   assert.equal(byId['builtin.push-notification'].sourceModule, 'backend/hooks/push-notification-hook.mjs');
   assert.equal(byId['builtin.branch-candidates'].owner, 'hooks');

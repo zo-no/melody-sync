@@ -69,6 +69,9 @@ function createBaseContext() {
     Math,
     Promise,
     encodeURIComponent,
+    document: {
+      visibilityState: 'visible',
+    },
     currentSessionId: null,
     hasAttachedSession: false,
     archivedSessionCount: 0,
@@ -77,6 +80,9 @@ function createBaseContext() {
       return session?.appId || 'chat';
     },
     normalizeSessionReviewStamp(value) {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return new Date(value).toISOString();
+      }
       const trimmed = typeof value === 'string' ? value.trim() : '';
       if (!trimmed) return '';
       const time = new Date(trimmed).getTime();
@@ -87,6 +93,24 @@ function createBaseContext() {
     },
     getSessionReviewBaselineAt() {
       return '';
+    },
+    getSessionReviewBaselineAtForSession() {
+      return '';
+    },
+    markSessionReviewed(session) {
+      return session;
+    },
+    markVisibleSessionReviewed(session) {
+      return session;
+    },
+    completionAttentionSessionId: null,
+    stopCompletionTitleFlash() {},
+    hideCompletionAttention() {},
+    t(key, vars = {}) {
+      if (key === 'action.deleteConfirm') {
+        return `Delete ${vars.name || ''}`.trim();
+      }
+      return key;
     },
   };
   context.globalThis = context;
@@ -103,6 +127,18 @@ const applyAttachedSessionStateSnippet = sliceBetween(
   sessionHttpSource,
   'function applyAttachedSessionState',
   'async function fetchSessionState',
+);
+
+const markVisibleSessionReviewedSnippet = sliceBetween(
+  sessionHttpSource,
+  'function markVisibleSessionReviewed',
+  'function normalizeSessionLocalListOrder',
+);
+
+const reviewStampHelpersSnippet = sliceBetween(
+  sessionHttpSource,
+  'function normalizeSessionReviewStamp',
+  'function getEffectiveSessionReviewedAt',
 );
 
 const dispatchActionSnippet = sliceBetween(
@@ -165,6 +201,71 @@ assert.equal(
   Object.prototype.hasOwnProperty.call(clearedQueue, 'queuedMessages'),
   false,
   'queued message details should clear once the backend queue drains',
+);
+
+let seededBaselineCall = null;
+recordContext.getSessionReviewBaselineAtForSession = (sessionId, fallbackStamp) => {
+  seededBaselineCall = { sessionId, fallbackStamp };
+  return fallbackStamp;
+};
+const firstSeenSession = recordContext.normalizeSessionRecord(
+  {
+    id: 'session-first-seen',
+    activity: createSessionActivity(),
+    lastEventAt: '2026-03-12T13:00:00.000Z',
+  },
+  null,
+);
+assert.deepEqual(
+  seededBaselineCall,
+  {
+    sessionId: 'session-first-seen',
+    fallbackStamp: '2026-03-12T13:00:00.000Z',
+  },
+  'new sessions should seed their review baseline from the latest visible session event',
+);
+assert.equal(
+  firstSeenSession.reviewBaselineAt,
+  '2026-03-12T13:00:00.000Z',
+  'first-seen sessions should carry a per-session review baseline so they do not all appear unread',
+);
+
+const reviewStampContext = createBaseContext();
+vm.runInNewContext(
+  reviewStampHelpersSnippet,
+  reviewStampContext,
+  { filename: 'chat-session-review-stamp-runtime.js' },
+);
+assert.equal(
+  reviewStampContext.getSessionReviewStamp({ lastEventAt: 1775396288754 }),
+  new Date(1775396288754).toISOString(),
+  'review stamps should normalize numeric lastEventAt values so viewed completed tasks can actually clear',
+);
+
+const reviewContext = createBaseContext();
+const reviewCalls = [];
+reviewContext.currentSessionId = 'session-visible';
+reviewContext.markSessionReviewed = (session, options) => {
+  reviewCalls.push({ session, options });
+  return session;
+};
+vm.runInNewContext(
+  markVisibleSessionReviewedSnippet,
+  reviewContext,
+  { filename: 'chat-session-visible-review-runtime.js' },
+);
+await reviewContext.markVisibleSessionReviewed({ id: 'session-visible' }, { sync: true });
+assert.equal(
+  JSON.stringify(reviewCalls),
+  JSON.stringify([{ session: { id: 'session-visible' }, options: { sync: true, render: true } }]),
+  'visible current sessions should auto-mark reviewed once the task content is on screen',
+);
+reviewContext.document.visibilityState = 'hidden';
+await reviewContext.markVisibleSessionReviewed({ id: 'session-visible' }, { sync: true });
+assert.equal(
+  reviewCalls.length,
+  1,
+  'hidden tabs should not auto-clear completion state before the user can actually see the task',
 );
 
 const dispatchContext = createBaseContext();
@@ -311,6 +412,7 @@ let attachRefreshCalls = 0;
 let attachStateCalls = 0;
 let attachEventCalls = 0;
 let attachRequested = null;
+let attachReviewed = null;
 
 attachReuseContext.sessions = [
   {
@@ -333,6 +435,10 @@ attachReuseContext.refreshCurrentSession = async () => {
   attachRefreshCalls += 1;
   return null;
 };
+attachReuseContext.markVisibleSessionReviewed = async (session, options = {}) => {
+  attachReviewed = { session, options };
+  return session;
+};
 
 vm.runInNewContext(dispatchActionSnippet, attachReuseContext, {
   filename: 'chat-dispatch-action-attach-runtime.js',
@@ -347,11 +453,20 @@ assert.equal(attachStateCalls, 0, 'attach should skip the redundant detail fetch
 assert.equal(attachRefreshCalls, 0, 'attach should avoid the full refresh path when local metadata is already sufficient');
 assert.equal(attachRequested?.sessionId, 'session-attach-existing', 'attach should request events for the selected session');
 assert.equal(attachRequested?.options?.runState, 'idle', 'attach should carry the existing run state into the event refresh path');
+assert.equal(
+  JSON.stringify(attachReviewed),
+  JSON.stringify({
+    session: attachReuseContext.sessions[0],
+    options: { sync: true },
+  }),
+  'attach should mark the now-visible session reviewed after its content is loaded',
+);
 
 const attachQueuedContext = createBaseContext();
 let queuedAttachStateCalls = 0;
 let queuedAttachEventCalls = 0;
 let queuedAttachRefreshCalls = 0;
+let queuedAttachReviewed = null;
 
 attachQueuedContext.sessions = [
   {
@@ -376,6 +491,10 @@ attachQueuedContext.refreshCurrentSession = async () => {
   queuedAttachRefreshCalls += 1;
   return null;
 };
+attachQueuedContext.markVisibleSessionReviewed = async (session, options = {}) => {
+  queuedAttachReviewed = { session, options };
+  return session;
+};
 
 vm.runInNewContext(dispatchActionSnippet, attachQueuedContext, {
   filename: 'chat-dispatch-action-attach-queued-runtime.js',
@@ -386,6 +505,14 @@ assert.equal(attachQueued, true, 'attach should succeed for queued sessions');
 assert.equal(queuedAttachEventCalls, 1, 'attach should still fetch events for queued sessions');
 assert.equal(queuedAttachStateCalls, 1, 'attach should fetch detail only when queued follow-up bodies are actually needed');
 assert.equal(queuedAttachRefreshCalls, 0, 'queued attach should still avoid the older full refresh path');
+assert.equal(
+  JSON.stringify(queuedAttachReviewed),
+  JSON.stringify({
+    session: attachQueuedContext.sessions[0],
+    options: { sync: true },
+  }),
+  'queued attach should also mark the visible session reviewed after loading the task content',
+);
 
 const archiveContext = createBaseContext();
 let archiveFilterRefreshes = 0;
@@ -538,6 +665,81 @@ assert.deepEqual(
   ],
   'failed archive should roll the attached session view back after the optimistic update',
 );
+
+const deleteContext = createBaseContext();
+let deleteConfirmMessage = null;
+let deleteRequest = null;
+let emptyStateShown = 0;
+deleteContext.currentSessionId = 'session-delete';
+deleteContext.sessions = [{
+  id: 'session-delete',
+  name: 'Delete me',
+  activity: createSessionActivity(),
+  updatedAt: '2026-03-12T08:00:00.000Z',
+}];
+deleteContext.sortSessionsInPlace = () => {};
+deleteContext.refreshAppCatalog = () => {};
+deleteContext.renderSessionList = () => {};
+deleteContext.fetchSessionsList = async () => deleteContext.sessions;
+deleteContext.confirm = (message) => {
+  deleteConfirmMessage = message;
+  return true;
+};
+deleteContext.fetchJsonOrRedirect = async (url, options) => {
+  deleteRequest = { url, options };
+  return { deletedSessionIds: ['session-delete'] };
+};
+deleteContext.showEmpty = () => {
+  emptyStateShown += 1;
+};
+
+vm.runInNewContext(dispatchActionSnippet, deleteContext, {
+  filename: 'chat-dispatch-action-runtime.js',
+});
+
+const deleteAccepted = await deleteContext.dispatchAction({ action: 'delete', sessionId: 'session-delete' });
+assert.equal(deleteAccepted, true, 'delete should resolve after the server accepts the request');
+assert.equal(deleteConfirmMessage, 'Delete Delete me', 'delete should confirm before removing the task');
+assert.equal(deleteRequest?.url, '/api/sessions/session-delete');
+assert.equal(deleteRequest?.options?.method, 'DELETE');
+assert.equal(deleteContext.currentSessionId, null, 'deleting the attached session should clear the current selection');
+assert.equal(emptyStateShown, 1, 'deleting the attached session should show the empty state');
+
+const deleteFailureContext = createBaseContext();
+let deleteFailureAlert = null;
+deleteFailureContext.console = { ...console, error() {} };
+deleteFailureContext.currentSessionId = 'session-delete-failure';
+deleteFailureContext.sessions = [{
+  id: 'session-delete-failure',
+  name: 'Delete blocked',
+  activity: createSessionActivity(),
+  updatedAt: '2026-03-12T08:00:00.000Z',
+}];
+deleteFailureContext.sortSessionsInPlace = () => {};
+deleteFailureContext.refreshAppCatalog = () => {};
+deleteFailureContext.renderSessionList = () => {};
+deleteFailureContext.applyAttachedSessionState = () => {};
+deleteFailureContext.fetchSessionsList = async () => deleteFailureContext.sessions;
+deleteFailureContext.confirm = () => true;
+deleteFailureContext.alert = (message) => {
+  deleteFailureAlert = message;
+};
+deleteFailureContext.fetchJsonOrRedirect = async () => {
+  throw new Error('missing daily note');
+};
+
+vm.runInNewContext(dispatchActionSnippet, deleteFailureContext, {
+  filename: 'chat-dispatch-action-runtime.js',
+});
+
+const deleteRejected = await deleteFailureContext.dispatchAction({ action: 'delete', sessionId: 'session-delete-failure' });
+assert.equal(deleteRejected, false, 'failed delete should return a failed action result');
+assert.equal(
+  deleteFailureContext.sessions.some((session) => session.id === 'session-delete-failure'),
+  true,
+  'failed delete should restore the session into the sidebar list',
+);
+assert.equal(deleteFailureAlert, 'missing daily note', 'failed delete should surface the backend error to the user');
 
 const organizeContext = createBaseContext();
 let organizeCall = null;

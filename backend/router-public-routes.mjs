@@ -25,8 +25,10 @@ export async function handlePublicRoutes({
   pathname,
   nonce,
   loginTemplatePath,
+  readFrontendFileCached,
   getPageBuildInfo,
   buildHeaders,
+  prepareResponseBody,
   renderPageTemplate,
   buildTemplateReplacements,
   writeJsonCached,
@@ -96,21 +98,30 @@ export async function handlePublicRoutes({
     let loginHtml;
     const pageBuildInfo = await getPageBuildInfo();
     try {
-      loginHtml = await readFile(loginTemplatePath, 'utf8');
+      loginHtml = readFrontendFileCached
+        ? await readFrontendFileCached(loginTemplatePath, 'utf8')
+        : await readFile(loginTemplatePath, 'utf8');
     } catch {
       loginHtml = '<h1>Login template missing</h1>';
     }
+    const loginResponse = prepareResponseBody(req, {
+      contentType: 'text/html; charset=utf-8',
+      body: renderPageTemplate(loginHtml, nonce, {
+        ...buildTemplateReplacements(pageBuildInfo),
+        ERROR_CLASS: hasError ? '' : 'hidden',
+        MODE: mode,
+      }),
+      allowCompression: true,
+    });
     res.writeHead(200, buildHeaders({
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
       Pragma: 'no-cache',
       Expires: '0',
+      ...(loginResponse.vary ? { Vary: loginResponse.vary } : {}),
+      ...loginResponse.headers,
     }));
-    res.end(renderPageTemplate(loginHtml, nonce, {
-      ...buildTemplateReplacements(pageBuildInfo),
-      ERROR_CLASS: hasError ? '' : 'hidden',
-      MODE: mode,
-    }));
+    res.end(loginResponse.body);
     return true;
   }
 

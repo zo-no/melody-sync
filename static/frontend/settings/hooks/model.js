@@ -18,7 +18,7 @@
     closeout: Object.freeze({
       id: 'closeout',
       label: '收尾与分流',
-      description: '执行完成后的命名、通知、失败回执和支线建议。',
+      description: '执行结束后的命名、通知、用户接手、失败回执和支线建议。',
     }),
     branch_followup: Object.freeze({
       id: 'branch_followup',
@@ -70,6 +70,20 @@
       scope: 'session',
       label: '首次发送消息',
       description: '任务第一条真实用户消息进入历史之后。',
+    },
+    'session.waiting_user': {
+      id: 'session.waiting_user',
+      phase: 'closeout',
+      scope: 'session',
+      label: '需要用户接手',
+      description: '任务进入需要用户确认、选择、补资料或手动验证的状态之后。',
+    },
+    'session.completed': {
+      id: 'session.completed',
+      phase: 'closeout',
+      scope: 'session',
+      label: '任务完成',
+      description: '任务 workflowState 从非 done 变为 done 之后。',
     },
     'run.started': {
       id: 'run.started',

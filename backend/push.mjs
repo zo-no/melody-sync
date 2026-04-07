@@ -105,6 +105,13 @@ function isNetworkFailure(err) {
   ].some((fragment) => message.includes(fragment));
 }
 
+export function isInvalidVapidSubscription(err) {
+  if (err?.statusCode !== 403) return false;
+  const body = `${err?.body || ''}`.toLowerCase();
+  return body.includes('vapid credentials')
+    && body.includes('do not correspond');
+}
+
 function recordNetworkFailure(sub, err) {
   const failureCount = (sub?.__meta?.failureCount || 0) + 1;
   const disabledUntil = failureCount >= PUSH_NETWORK_FAILURE_THRESHOLD
@@ -166,8 +173,8 @@ export async function sendCompletionPush(session) {
   const folder = (session?.folder || '').split('/').pop() || 'Session';
   const name = session?.name || folder;
   const payload = JSON.stringify({
-    title: 'RemoteLab',
-    body: `${name} — task completed`,
+    title: 'MelodySync 任务完成',
+    body: `${name} 已完成`,
     sessionId: session?.id || null,
     tab: 'sessions',
     url: buildSessionUrl(session),
@@ -186,6 +193,10 @@ export async function sendCompletionPush(session) {
       }
     } catch (err) {
       if (err.statusCode === 410 || err.statusCode === 404) stale.add(i);
+      else if (isInvalidVapidSubscription(err)) {
+        stale.add(i);
+        console.warn('[push] Removing stale subscription with mismatched VAPID credentials');
+      }
       else if (isNetworkFailure(err)) {
         nextSubs[i] = recordNetworkFailure(sub, err);
         changed = true;

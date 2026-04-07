@@ -86,6 +86,11 @@ function createElement(tag = 'div') {
 
 const getSidebarPersistentKindSource = extractFunctionSource(sessionListSource, 'getSidebarPersistentKind');
 const getPersistentDockGroupKeySource = extractFunctionSource(sessionListSource, 'getPersistentDockGroupKey');
+const getSessionListModelSource = extractFunctionSource(sessionListSource, 'getSessionListModel');
+const shouldShowSessionInSidebarForListSource = extractFunctionSource(sessionListSource, 'shouldShowSessionInSidebarForList');
+const getDefaultPersistentDockCollapsedSource = extractFunctionSource(sessionListSource, 'getDefaultPersistentDockCollapsed');
+const isPersistentDockCollapsedSource = extractFunctionSource(sessionListSource, 'isPersistentDockCollapsed');
+const setPersistentDockCollapsedSource = extractFunctionSource(sessionListSource, 'setPersistentDockCollapsed');
 const renderPersistentSessionDockSource = extractFunctionSource(sessionListSource, 'renderPersistentSessionDock');
 const renderSessionListSource = extractFunctionSource(sessionListSource, 'renderSessionList');
 
@@ -102,6 +107,7 @@ const routingContext = {
     return [
       { id: 'recommended-long-term', name: '写日记', group: '长期任务' },
       { id: 'persistent-long-term', name: '每日进食提醒', group: '长期任务', persistent: { kind: 'recurring_task' } },
+      { id: 'closed-branch', name: '已收束支线', taskCard: { lineRole: 'branch' }, _branchStatus: 'merged' },
     ];
   },
   getSessionGroupInfoForList(session) {
@@ -129,12 +135,21 @@ const routingContext = {
   document: {
     createElement,
   },
+  window: {
+    MelodySyncSessionListModel: {
+      shouldShowSessionInSidebar(session) {
+        return session?._branchStatus !== 'merged';
+      },
+    },
+  },
 };
 routingContext.globalThis = routingContext;
 
 vm.runInNewContext(`
   ${getSidebarPersistentKindSource}
   ${getPersistentDockGroupKeySource}
+  ${getSessionListModelSource}
+  ${shouldShowSessionInSidebarForListSource}
   ${renderSessionListSource}
   globalThis.getPersistentDockGroupKey = getPersistentDockGroupKey;
   globalThis.renderSessionList = renderSessionList;
@@ -170,22 +185,39 @@ const footerContext = {
   console,
   sessionListFooter: createElement('div'),
   document: { createElement },
+  localStorage: {
+    getItem() {
+      return null;
+    },
+    setItem() {},
+  },
   t(key) {
     return key === 'persistent.sectionTitle' ? '长期项' : key;
   },
   esc(value) {
     return String(value || '');
   },
+  renderUiIcon(name) {
+    return `<svg data-icon="${name}"></svg>`;
+  },
   renderPersistentDockSection(groupKey) {
     const node = createElement('div');
     node.groupKey = groupKey;
     return node;
+  },
+  window: {
+    matchMedia() {
+      return { matches: false };
+    },
   },
 };
 footerContext.sessionListFooter.className = 'session-list-footer';
 footerContext.globalThis = footerContext;
 
 vm.runInNewContext(`
+  ${getDefaultPersistentDockCollapsedSource}
+  ${isPersistentDockCollapsedSource}
+  ${setPersistentDockCollapsedSource}
   ${renderPersistentSessionDockSource}
   globalThis.renderPersistentSessionDock = renderPersistentSessionDock;
 `, footerContext, {
@@ -210,6 +242,11 @@ assert.equal(
   footerContext.sessionListFooter.children[0]?.children[0]?.innerHTML.includes('长期项'),
   true,
   'persistent dock should show an explicit long-lived section heading',
+);
+assert.equal(
+  footerContext.sessionListFooter.children[0]?.children[1]?.children.length,
+  1,
+  'persistent dock should render dock sections inside a collapsible body container',
 );
 
 console.log('test-chat-persistent-dock-ui: ok');

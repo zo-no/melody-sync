@@ -25,6 +25,19 @@
     return getNodeCapabilities(node).includes(normalizedCapability);
   }
 
+  function normalizeNodeStatus(value) {
+    return trimText(value).toLowerCase();
+  }
+
+  function isClosedNodeStatus(status) {
+    return ["resolved", "merged", "done", "closed"].includes(normalizeNodeStatus(status));
+  }
+
+  function isSessionBackedNode(node) {
+    return getNodeEffectsApi()?.getNodeEffect?.(node)?.countsAs?.sessionNode === true
+      || Boolean(trimText(node?.sessionId || node?.sourceSessionId));
+  }
+
   function resolvePrimaryAction(node, { isRichView = false, isDone = false } = {}) {
     if (!node || isRichView || isDone) return "none";
     if (hasNodeCapability(node, "create-branch")) return "create-branch";
@@ -50,6 +63,20 @@
     };
   }
 
+  function buildManualBranchCreationPayload(node) {
+    const sourceTitle = trimText(node?.title) || "当前任务";
+    return {
+      branchReason: `从「${sourceTitle}」继续拆出独立支线`,
+      checkpointSummary: sourceTitle,
+    };
+  }
+
+  function canCreateManualBranch(node, { isRichView = false, isDone = false } = {}) {
+    if (!node || isDone || isRichView) return false;
+    if (!isSessionBackedNode(node)) return false;
+    return !isClosedNodeStatus(node?.status);
+  }
+
   function createController({
     collapseTaskMapAfterAction = null,
     enterBranchFromSession = null,
@@ -62,6 +89,24 @@
       if (!sourceSessionId || typeof enterBranchFromSession !== "function") return false;
       collapseTaskMapAfterAction?.({ render: false });
       await enterBranchFromSession(sourceSessionId, node.title, buildBranchCreationPayload(node, nodeMap));
+      return true;
+    }
+
+    async function executeManualBranch(node, branchTitle, {
+      nodeMap = new Map(),
+      branchReason = "",
+      checkpointSummary = "",
+    } = {}) {
+      const sourceSessionId = getNodeInstanceApi()?.resolveNodeSourceSessionId?.(node)
+        || trimText(node?.sourceSessionId || node?.sessionId);
+      const normalizedTitle = trimText(branchTitle);
+      if (!sourceSessionId || !normalizedTitle || typeof enterBranchFromSession !== "function") return false;
+      const payload = buildManualBranchCreationPayload(node, nodeMap);
+      collapseTaskMapAfterAction?.({ render: false });
+      await enterBranchFromSession(sourceSessionId, normalizedTitle, {
+        branchReason: trimText(branchReason) || payload.branchReason,
+        checkpointSummary: trimText(checkpointSummary) || payload.checkpointSummary,
+      });
       return true;
     }
 
@@ -94,6 +139,9 @@
       resolvePrimaryAction,
       isNodeDirectlyInteractive,
       buildBranchCreationPayload,
+      buildManualBranchCreationPayload,
+      canCreateManualBranch,
+      executeManualBranch,
       executePrimaryAction,
     });
   }
@@ -104,6 +152,8 @@
     resolvePrimaryAction,
     isNodeDirectlyInteractive,
     buildBranchCreationPayload,
+    buildManualBranchCreationPayload,
+    canCreateManualBranch,
     createController,
   });
 

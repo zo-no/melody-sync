@@ -42,6 +42,16 @@ export const HOOK_EVENT_DEFINITIONS = Object.freeze([
     description: '任务第一条真实用户消息进入历史之后。',
   }),
   createEventDefinition({
+    id: 'session.waiting_user',
+    label: '需要用户接手',
+    description: '任务进入需要用户确认、选择、补资料或手动验证的状态之后。',
+  }),
+  createEventDefinition({
+    id: 'session.completed',
+    label: '任务完成',
+    description: '任务 workflowState 从非 done 变为 done 之后。',
+  }),
+  createEventDefinition({
     id: 'run.started',
     label: '开始执行',
     description: '新的一次执行建立并进入处理流程之后。',

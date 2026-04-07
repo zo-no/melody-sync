@@ -83,6 +83,15 @@ function makeElement(tagName = 'div', id = '') {
       this.children.push(child);
       return child;
     },
+    insertBefore(child, beforeChild) {
+      const index = beforeChild ? this.children.indexOf(beforeChild) : -1;
+      if (index < 0) {
+        this.children.push(child);
+      } else {
+        this.children.splice(index, 0, child);
+      }
+      return child;
+    },
     querySelector(selector) {
       if (selector === 'h2') return null;
       if (selector === 'p') return null;
@@ -135,6 +144,11 @@ function makeElement(tagName = 'div', id = '') {
       this.children = [];
     },
   });
+  Object.defineProperty(element, 'firstChild', {
+    get() {
+      return this.children[0] || null;
+    },
+  });
   return element;
 }
 
@@ -146,11 +160,14 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
     'questTrackerStatusDot',
     'questTrackerStatusText',
     'questTrackerLabel',
+    'headerTitle',
+    'headerTaskDetailBtn',
     'questTrackerTitle',
     'questTrackerBranch',
     'questTrackerBranchLabel',
     'questTrackerBranchTitle',
     'questTrackerNext',
+    'questTrackerTime',
     'questTrackerFooter',
     'questTaskList',
     'taskMapRail',
@@ -565,12 +582,12 @@ const { elements: branchElements, fetchCalls: branchFetchCalls } = await runScen
 });
 
 assert.equal(branchElements.get('questTrackerLabel').textContent, '', 'branch tracker should not render an extra task-bar label');
+assert.equal(branchElements.get('headerTaskDetailBtn').hidden, false, 'mobile tracker should expose the task-detail disclosure in the header title slot');
+assert.equal(branchElements.get('headerTaskDetailBtn').textContent, '表现主义 ▸', 'mobile tracker should use the current task title as the header task-detail disclosure');
+assert.equal(branchElements.get('headerTitle').hidden, true, 'mobile tracker should stop rendering the project title while a task is attached');
+assert.equal(branchElements.get('questTracker').hidden, true, 'mobile tracker should collapse the task detail panel by default');
 assert.equal(branchElements.get('questTrackerTitle').hidden, false, 'branch tracker should keep the branch title visible');
 assert.equal(branchElements.get('questTrackerTitle').textContent, '表现主义', 'branch tracker should show the current branch goal');
-assert.equal(branchElements.get('questTrackerBranch').hidden, false, 'branch tracker should show the parent mainline reference inside the task bar');
-assert.equal(branchElements.get('questTrackerBranchLabel').textContent, '主线任务', 'branch tracker should treat the secondary line as the parent mainline anchor');
-assert.equal(branchElements.get('questTrackerBranchTitle').textContent, '来自主线：学习电影史', 'branch tracker should surface the parent mainline as the first detail line');
-assert.equal(branchElements.get('questTrackerNext').hidden, false, 'branch tracker should keep a concise next-step summary');
 assert.equal(branchElements.get('questTrackerCloseBtn').textContent, '收束支线', 'branch tracker should expose a compact finish action');
 assert.equal(branchElements.get('questTrackerCloseBtn').hidden, false, 'branch tracker should show the finish entry point');
 assert.equal(branchElements.get('questTrackerAltBtn').textContent, '挂起', 'branch tracker should expose a compact park action');
@@ -588,6 +605,13 @@ assert.equal(branchElements.get('taskMapRail').hidden, false, 'mobile branch tra
 assert.equal(branchElements.get('taskMapDrawerBackdrop').hidden, true, 'mobile branch tracker should keep the drawer backdrop hidden while collapsed');
 assert.equal(branchElements.get('taskMapRail').classList.contains('is-mobile-open'), false, 'mobile task map drawer should stay collapsed by default');
 assert.equal(branchElements.get('questTaskList').hidden, false, 'branch state should keep the mind-map rendered inside the drawer even before interaction');
+branchElements.get('headerTaskDetailBtn').click();
+assert.equal(branchElements.get('headerTaskDetailBtn').textContent, '表现主义 ▾', 'expanding the mobile task detail should keep the current task title in the header disclosure');
+assert.equal(branchElements.get('questTracker').hidden, false, 'expanding the mobile task detail should reveal the task detail panel');
+assert.equal(branchElements.get('questTrackerBranch').hidden, false, 'expanding the mobile task detail should reveal the parent mainline reference');
+assert.equal(branchElements.get('questTrackerBranchLabel').textContent, '主线任务', 'expanded mobile detail should keep the branch label semantics intact');
+assert.equal(branchElements.get('questTrackerBranchTitle').textContent, '来自主线：学习电影史', 'expanded mobile detail should show the parent mainline summary');
+assert.equal(branchElements.get('questTrackerNext').hidden, false, 'expanding the mobile task detail should reveal the concise next-step summary');
 
 const mergeableBranchSession = {
   id: 'session-branch-merge',

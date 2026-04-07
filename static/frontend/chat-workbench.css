@@ -65,7 +65,8 @@
   animation: pulse 1.5s infinite;
 }
 
-.quest-tracker-status-dot.status-running { background: var(--success); }
+.quest-tracker-status-dot.status-running { background: var(--notice); }
+.quest-tracker-status-dot.status-completed { background: var(--success); }
 .quest-tracker-status-dot.status-queued { background: var(--queue); }
 .quest-tracker-status-dot.status-compacting { background: var(--notice); }
 .quest-tracker-status-dot.status-renaming { background: var(--naming); }
@@ -1447,10 +1448,33 @@
   color: var(--text-secondary);
   cursor: pointer;
   opacity: 0.7;
+  white-space: nowrap;
 }
 
 .quest-tracker-detail-toggle:hover {
   opacity: 1;
+}
+
+.quest-tracker-detail-action-row {
+  margin-top: 4px;
+}
+
+.quest-tracker-detail-action {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.quest-tracker-detail-action:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--border-strong) 58%, transparent);
 }
 
 .quest-merge-note {
@@ -1517,6 +1541,12 @@
   background: color-mix(in srgb, var(--bg) 62%, transparent);
   color: var(--text-secondary);
   border-color: color-mix(in srgb, var(--border-strong) 28%, transparent);
+}
+
+.quest-branch-btn-secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: color-mix(in srgb, var(--border) 74%, transparent);
 }
 
 .msg-inline-actions {
@@ -2152,6 +2182,37 @@ button.quest-task-flow-node {
 .quest-task-flow-node-action {
   justify-self: start;
   margin-top: 0;
+}
+
+.quest-task-flow-node-action-secondary {
+  margin-top: 2px;
+}
+
+.quest-task-flow-branch-composer {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 56%, transparent);
+}
+
+.quest-task-flow-branch-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+
+.quest-task-flow-branch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 @media (max-width: 767px) {
@@ -3008,6 +3069,14 @@ button.quest-task-flow-node {
   overflow: auto;
   border-radius: 12px;
   background: color-mix(in srgb, var(--bg) 92%, transparent);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.task-canvas-panel-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .task-canvas-panel-body .quest-task-flow-node-rich {
@@ -3130,6 +3199,41 @@ button.quest-task-flow-node {
   box-shadow: 0 12px 26px color-mix(in srgb, #0b1520 12%, transparent);
 }
 
+.quest-task-flow-node.is-current {
+  position: relative;
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border-strong)) !important;
+  background: color-mix(in srgb, #ffffff 94%, var(--bg) 6%) !important;
+  box-shadow:
+    0 18px 34px color-mix(in srgb, var(--accent) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent) !important;
+}
+
+.quest-task-flow-node.is-current::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  pointer-events: none;
+}
+
+.quest-task-flow-node.is-current-path:not(.is-current) {
+  border-color: color-mix(in srgb, var(--border-strong) 18%, transparent) !important;
+  background: color-mix(in srgb, var(--bg-secondary) 64%, transparent) !important;
+  box-shadow: none !important;
+  opacity: 0.78;
+}
+
+.quest-task-flow-edge {
+  opacity: 0.34;
+}
+
+.quest-task-flow-edge.is-current {
+  opacity: 0.96;
+  stroke-width: 2.4px;
+}
+
 @media (prefers-color-scheme: dark) {
   .quest-tracker {
     background: rgba(29, 38, 49, 0.94);
@@ -3201,30 +3305,41 @@ button.quest-task-flow-node {
 
 /* ── Operation Record Overlay ────────────────────────────────────── */
 
-.header-operation-record-btn {
-  display: inline-flex;
+.header-task-detail-btn {
+  display: none;
   align-items: center;
-  justify-content: center;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 8px;
+  justify-content: flex-start;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
   border: 1px solid var(--border);
-  background: var(--bg-secondary);
+  background: var(--bg);
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  letter-spacing: 0.03em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.header-operation-record-btn:hover {
+.header-task-detail-btn:hover {
   background: var(--bg-hover, var(--bg-secondary));
   color: var(--text);
 }
 
-.header-operation-record-btn[hidden] {
+.header-task-detail-btn[hidden] {
   display: none !important;
+}
+
+@media (max-width: 767px) {
+  .header-task-detail-btn:not([hidden]) {
+    display: inline-flex;
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .operation-record-backdrop {

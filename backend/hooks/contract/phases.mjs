@@ -44,6 +44,8 @@ const EVENT_PHASE_INDEX = Object.freeze({
   'instance.resume': 'startup',
   'session.created': 'entry',
   'session.first_user_message': 'entry',
+  'session.waiting_user': 'closeout',
+  'session.completed': 'closeout',
   'run.started': 'execution',
   'run.completed': 'closeout',
   'run.failed': 'closeout',

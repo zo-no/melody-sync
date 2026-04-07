@@ -5,6 +5,7 @@ import { join, resolve, dirname, basename, extname, relative, isAbsolute, sep } 
 import { parse as parseUrl, fileURLToPath } from 'url';
 import { createHash } from 'crypto';
 import { execFileSync, spawn } from 'child_process';
+import { brotliCompressSync, constants as zlibConstants, gzipSync } from 'zlib';
 import { CHAT_IMAGES_DIR } from '../lib/config.mjs';
 import {
   getAuthSession, refreshAuthSession,
@@ -73,6 +74,8 @@ const loginTemplatePath = join(__dirname, '..', 'templates', 'login.html');
 const staticDir = join(__dirname, '..', 'static');
 const packageJsonPath = join(__dirname, '..', 'package.json');
 const releaseMetadataPath = join(__dirname, '..', '.melody-sync-release.json');
+const gitRepositoryMarkerPath = join(__dirname, '..', '.git');
+const GIT_BUILD_INFO_TIMEOUT_MS = 120;
 const serviceBuildRoots = [
   join(__dirname, '..', 'backend'),
   join(__dirname, '..', 'lib'),
@@ -91,6 +94,10 @@ let cachedPageBuildInfo = null;
 const frontendBuildWatchers = [];
 let frontendBuildInvalidationTimer = null;
 let configReloadScheduled = false;
+const FRONTEND_CONTENT_CACHE_TTL_MS = 250;
+const CHAT_SHARED_BOOTSTRAP_CACHE_TTL_MS = 1000;
+const frontendContentCache = new Map();
+let cachedChatPageSharedBootstrap = null;
 
 function scheduleConfigReload() {
   if (configReloadScheduled) return true;
@@ -158,6 +165,22 @@ const staticMimeTypesByExtension = {
 };
 
 const staticDirResolved = resolve(staticDir);
+const compressibleContentTypes = [
+  'application/javascript',
+  'application/json',
+  'application/manifest+json',
+  'application/xml',
+  'image/svg+xml',
+];
+const MIN_COMPRESSIBLE_RESPONSE_BYTES = 1024;
+const MAX_COMPRESSED_RESPONSE_CACHE_ENTRIES = 256;
+const compressedResponseCache = new Map();
+const brotliCompressionOptions = {
+  params: {
+    [zlibConstants.BROTLI_PARAM_QUALITY]: 5,
+  },
+};
+const gzipCompressionOptions = { level: 6 };
 const uploadedMediaMimeTypes = {
   gif: 'image/gif',
   jpeg: 'image/jpeg',
@@ -209,16 +232,31 @@ function formatMtimeFingerprint(mtimeMs, fallbackSeed = Date.now()) {
   return Math.round(numericValue).toString(36);
 }
 
-function hasDirtyRepoPaths(paths) {
+function hasGitRepository() {
   try {
-    return execFileSync('git', ['status', '--porcelain', '--untracked-files=all', '--', ...paths], {
-      cwd: join(__dirname, '..'),
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim().length > 0;
+    return !!statSync(gitRepositoryMarkerPath);
   } catch {
     return false;
   }
+}
+
+function execGitBuildInfo(args = []) {
+  if (!hasGitRepository()) return '';
+  try {
+    return execFileSync('git', args, {
+      cwd: join(__dirname, '..'),
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: GIT_BUILD_INFO_TIMEOUT_MS,
+      maxBuffer: 64 * 1024,
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function hasDirtyRepoPaths(paths) {
+  return execGitBuildInfo(['status', '--porcelain', '--untracked-files=no', '--', ...paths]).length > 0;
 }
 
 function normalizeReleaseText(value) {
@@ -249,13 +287,7 @@ function loadBuildInfo() {
 
   let commit = normalizeReleaseText(releaseMetadata?.sourceCommit);
   if (!commit) {
-    try {
-      commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
-        cwd: join(__dirname, '..'),
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }).trim();
-    } catch {}
+    commit = execGitBuildInfo(['rev-parse', '--short', 'HEAD']);
   }
 
   const releaseId = normalizeReleaseText(releaseMetadata?.releaseId);
@@ -265,11 +297,13 @@ function loadBuildInfo() {
     : null;
   const serviceDirty = releasedDirty === null ? hasDirtyRepoPaths(serviceBuildStatusPaths) : releasedDirty;
   const releasedFingerprint = normalizeReleaseText(releaseMetadata?.sourceFingerprint);
-  const computedFingerprint = formatMtimeFingerprint(serviceBuildRoots.reduce(
-    (latestMtime, root) => Math.max(latestMtime, getLatestMtimeMsSync(root)),
-    0,
-  ));
-  const serviceFingerprint = releasedFingerprint || (serviceDirty ? computedFingerprint : '');
+  const computedFingerprint = (!releasedFingerprint && serviceDirty)
+    ? formatMtimeFingerprint(serviceBuildRoots.reduce(
+      (latestMtime, root) => Math.max(latestMtime, getLatestMtimeMsSync(root)),
+      0,
+    ))
+    : '';
+  const serviceFingerprint = releasedFingerprint || computedFingerprint;
   const serviceRevisionBase = commit || '';
   const serviceRevisionLabel = serviceRevisionBase
     ? (serviceDirty ? `${serviceRevisionBase}*` : serviceRevisionBase)
@@ -351,11 +385,40 @@ function buildAuthInfo(authSession) {
 }
 
 function buildChatPageBootstrap(authSession) {
+  const now = Date.now();
+  if (
+    !cachedChatPageSharedBootstrap
+    || now - cachedChatPageSharedBootstrap.cachedAt >= CHAT_SHARED_BOOTSTRAP_CACHE_TTL_MS
+  ) {
+    cachedChatPageSharedBootstrap = {
+      cachedAt: now,
+      payload: {
+        assetUploads: getFileAssetBootstrapConfig(),
+        workbench: createWorkbenchNodeDefinitionsPayload(),
+      },
+    };
+  }
+
   return {
     auth: buildAuthInfo(authSession),
-    assetUploads: getFileAssetBootstrapConfig(),
-    workbench: createWorkbenchNodeDefinitionsPayload(),
+    ...cachedChatPageSharedBootstrap.payload,
   };
+}
+
+async function readFrontendFileCached(filepath, encoding = null) {
+  const cacheKey = `${encoding || 'buffer'}:${filepath}`;
+  const cached = frontendContentCache.get(cacheKey);
+  const now = Date.now();
+  if (
+    cached
+    && (frontendBuildWatchers.length > 0 || now - cached.cachedAt < FRONTEND_CONTENT_CACHE_TTL_MS)
+  ) {
+    return cached.content;
+  }
+
+  const content = encoding ? await readFile(filepath, encoding) : await readFile(filepath);
+  frontendContentCache.set(cacheKey, { cachedAt: now, content });
+  return content;
 }
 
 async function normalizeSessionFolderInput(folder) {
@@ -396,7 +459,10 @@ function sanitizeAssetVersion(value) {
 
 export async function getPageBuildInfo() {
   const now = Date.now();
-  if (cachedPageBuildInfo && now - cachedPageBuildInfo.cachedAt < 250) {
+  if (
+    cachedPageBuildInfo
+    && (frontendBuildWatchers.length > 0 || now - cachedPageBuildInfo.cachedAt < 250)
+  ) {
     return cachedPageBuildInfo.info;
   }
 
@@ -433,6 +499,8 @@ export async function getPageBuildInfo() {
 
 function scheduleFrontendBuildInvalidation() {
   cachedPageBuildInfo = null;
+  cachedChatPageSharedBootstrap = null;
+  frontendContentCache.clear();
   if (frontendBuildInvalidationTimer) return;
   frontendBuildInvalidationTimer = setTimeout(async () => {
     frontendBuildInvalidationTimer = null;
@@ -537,9 +605,145 @@ function buildHeaders(headers = {}) {
   };
 }
 
+function normalizeContentType(contentType) {
+  return String(contentType || '').split(';')[0].trim().toLowerCase();
+}
+
+function isCompressibleContentType(contentType) {
+  const normalized = normalizeContentType(contentType);
+  return normalized.startsWith('text/') || compressibleContentTypes.includes(normalized);
+}
+
+function appendVaryValue(currentValue, nextToken) {
+  const currentTokens = String(currentValue || '')
+    .split(',')
+    .map((token) => token.trim())
+    .filter(Boolean);
+  if (currentTokens.some((token) => token.toLowerCase() === nextToken.toLowerCase())) {
+    return currentTokens.join(', ');
+  }
+  currentTokens.push(nextToken);
+  return currentTokens.join(', ');
+}
+
+function parseAcceptEncodingHeader(value) {
+  const weights = new Map();
+  for (const part of String(value || '').split(',')) {
+    const [namePart, ...parameterParts] = part.split(';');
+    const name = namePart.trim().toLowerCase();
+    if (!name) continue;
+    let weight = 1;
+    for (const parameter of parameterParts) {
+      const [key, rawValue] = parameter.split('=');
+      if (key?.trim().toLowerCase() !== 'q') continue;
+      const parsedValue = Number.parseFloat(String(rawValue || '').trim());
+      if (Number.isFinite(parsedValue)) {
+        weight = Math.max(0, Math.min(1, parsedValue));
+      }
+    }
+    weights.set(name, weight);
+  }
+  return weights;
+}
+
+function getAcceptedEncodingWeight(weights, name) {
+  if (weights.has(name)) return weights.get(name) || 0;
+  if (weights.has('*')) return weights.get('*') || 0;
+  return 0;
+}
+
+function selectCompressionEncoding(req, contentType, body) {
+  if (!isCompressibleContentType(contentType)) return null;
+  const bodyBuffer = Buffer.isBuffer(body) ? body : Buffer.from(String(body ?? ''), 'utf8');
+  if (bodyBuffer.length < MIN_COMPRESSIBLE_RESPONSE_BYTES) return null;
+  const acceptedEncodings = parseAcceptEncodingHeader(req.headers['accept-encoding']);
+  const brotliWeight = getAcceptedEncodingWeight(acceptedEncodings, 'br');
+  const gzipWeight = getAcceptedEncodingWeight(acceptedEncodings, 'gzip');
+  if (brotliWeight <= 0 && gzipWeight <= 0) return null;
+  return brotliWeight >= gzipWeight ? 'br' : 'gzip';
+}
+
+function getCompressedResponseBody(body, encoding) {
+  const bodyBuffer = Buffer.isBuffer(body) ? body : Buffer.from(String(body ?? ''), 'utf8');
+  const cacheKey = `${encoding}:${createEtag(bodyBuffer)}`;
+  const cached = compressedResponseCache.get(cacheKey);
+  if (cached) {
+    compressedResponseCache.delete(cacheKey);
+    compressedResponseCache.set(cacheKey, cached);
+    return cached;
+  }
+
+  const compressedBody = encoding === 'br'
+    ? brotliCompressSync(bodyBuffer, brotliCompressionOptions)
+    : gzipSync(bodyBuffer, gzipCompressionOptions);
+  compressedResponseCache.set(cacheKey, compressedBody);
+  while (compressedResponseCache.size > MAX_COMPRESSED_RESPONSE_CACHE_ENTRIES) {
+    const oldestKey = compressedResponseCache.keys().next().value;
+    if (!oldestKey) break;
+    compressedResponseCache.delete(oldestKey);
+  }
+  return compressedBody;
+}
+
+function prepareResponseBody(req, {
+  contentType,
+  body,
+  vary,
+  allowCompression = false,
+} = {}) {
+  const responseBody = Buffer.isBuffer(body) ? body : Buffer.from(String(body ?? ''), 'utf8');
+  let responseVary = vary;
+  if (!allowCompression || !isCompressibleContentType(contentType)) {
+    return {
+      body: responseBody,
+      headers: {},
+      vary: responseVary,
+    };
+  }
+
+  responseVary = appendVaryValue(responseVary, 'Accept-Encoding');
+  const encoding = selectCompressionEncoding(req, contentType, responseBody);
+  if (!encoding) {
+    return {
+      body: responseBody,
+      headers: {},
+      vary: responseVary,
+    };
+  }
+
+  return {
+    body: getCompressedResponseBody(responseBody, encoding),
+    headers: { 'Content-Encoding': encoding },
+    vary: responseVary,
+  };
+}
+
 function writeJson(res, statusCode, payload) {
   res.writeHead(statusCode, buildHeaders({ 'Content-Type': 'application/json' }));
   res.end(JSON.stringify(payload));
+}
+
+function createWriteJsonWriter(req) {
+  return function writeJsonForReq(
+    res,
+    statusCode,
+    payload,
+    {
+      cacheControl = 'private, no-store, max-age=0, must-revalidate',
+      vary = 'Cookie',
+      headers = {},
+    } = {},
+  ) {
+    writeCachedResponse(req, res, {
+      statusCode,
+      contentType: 'application/json',
+      body: createJsonBody(payload),
+      cacheControl,
+      vary,
+      allowCompression: true,
+      headers,
+    });
+  };
 }
 
 function createJsonBody(value) {
@@ -571,16 +775,24 @@ function writeCachedResponse(req, res, {
   body,
   cacheControl,
   vary,
+  allowCompression = false,
   headers: extraHeaders = {},
 } = {}) {
-  const etag = createEtag(body);
+  const preparedResponse = prepareResponseBody(req, {
+    contentType,
+    body,
+    vary,
+    allowCompression,
+  });
+  const etag = createEtag(preparedResponse.body);
   const headers = {
     'Cache-Control': cacheControl,
     ETag: etag,
     'X-RemoteLab-Build': BUILD_INFO.title,
+    ...preparedResponse.headers,
     ...extraHeaders,
   };
-  if (vary) headers.Vary = vary;
+  if (preparedResponse.vary) headers.Vary = preparedResponse.vary;
 
   if (requestHasFreshEtag(req, etag)) {
     res.writeHead(304, headers);
@@ -590,7 +802,7 @@ function writeCachedResponse(req, res, {
 
   if (contentType) headers['Content-Type'] = contentType;
   res.writeHead(statusCode, headers);
-  res.end(body);
+  res.end(preparedResponse.body);
 }
 
 function writeJsonCached(req, res, payload, {
@@ -605,6 +817,7 @@ function writeJsonCached(req, res, payload, {
     body: createJsonBody(payload),
     cacheControl,
     vary,
+    allowCompression: true,
     headers,
   });
 }
@@ -628,6 +841,7 @@ function createSessionSummaryRef(session) {
 function writeFileCached(req, res, contentType, body, {
   cacheControl = 'public, no-cache',
   vary,
+  allowCompression = true,
 } = {}) {
   writeCachedResponse(req, res, {
     statusCode: 200,
@@ -635,6 +849,7 @@ function writeFileCached(req, res, contentType, body, {
     body,
     cacheControl,
     vary,
+    allowCompression,
   });
 }
 
@@ -644,9 +859,9 @@ function canAccessSession(authSession, sessionId) {
   return !!authSession && !!sessionId;
 }
 
-function requireSessionAccess(res, authSession, sessionId) {
+function requireSessionAccess(res, authSession, sessionId, writeJsonFn = writeJson) {
   if (canAccessSession(authSession, sessionId)) return true;
-  writeJson(res, 403, { error: 'Access denied' });
+  writeJsonFn(res, 403, { error: 'Access denied' });
   return false;
 }
 
@@ -679,6 +894,7 @@ function isOwnerOnlyRoute(pathname, method) {
   if (pathname === '/api/browse' && method === 'GET') return true;
   if (pathname === '/api/push/vapid-public-key' && method === 'GET') return true;
   if (pathname === '/api/push/subscribe' && method === 'POST') return true;
+  if (pathname === '/api/system/completion-sound' && method === 'POST') return true;
   return false;
 }
 
@@ -699,12 +915,16 @@ function parseFileAssetRoute(pathname) {
 export async function handleRequest(req, res) {
   const parsedUrl = parseUrl(req.url, true);
   const pathname = parsedUrl.pathname;
+  const writeJsonForReq = createWriteJsonWriter(req);
+  const requireSessionAccessForReq = (response, targetAuthSession, sessionId) => {
+    return requireSessionAccess(response, targetAuthSession, sessionId, writeJsonForReq);
+  };
 
   // Static assets (read from disk each time for hot-reload)
   const staticAsset = await resolveStaticAsset(pathname, parsedUrl.query);
   if (staticAsset) {
     try {
-      const content = await readFile(staticAsset.filepath);
+      const content = await readFrontendFileCached(staticAsset.filepath);
       writeFileCached(req, res, staticAsset.contentType, content, {
         cacheControl: staticAsset.cacheControl,
       });
@@ -725,8 +945,10 @@ export async function handleRequest(req, res) {
     pathname,
     nonce,
     loginTemplatePath,
+    readFrontendFileCached,
     getPageBuildInfo,
     buildHeaders,
+    prepareResponseBody,
     renderPageTemplate,
     buildTemplateReplacements,
     writeJsonCached,
@@ -738,7 +960,7 @@ export async function handleRequest(req, res) {
   if (!requireAuth(req, res)) return;
   const authSession = getAuthSession(req);
   if (authSession?.role !== 'owner' && isOwnerOnlyRoute(pathname, req.method)) {
-    writeJson(res, 403, { error: 'Owner access required' });
+    writeJsonForReq(res, 403, { error: 'Owner access required' });
     return;
   }
 
@@ -749,27 +971,27 @@ export async function handleRequest(req, res) {
   const fileAssetRoute = parseFileAssetRoute(pathname);
 
   if (pathname === '/api/triggers' && req.method === 'GET') {
-    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
+    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
   if (pathname === '/api/triggers' && req.method === 'POST') {
-    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
+    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
   if (triggerId && req.method === 'GET') {
-    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
+    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
   if (triggerId && req.method === 'PATCH') {
-    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
+    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
   if (triggerId && req.method === 'DELETE') {
-    writeJson(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
+    writeJsonForReq(res, 410, { error: 'Time-based triggers have been removed from MelodySync' });
     return;
   }
 
@@ -779,14 +1001,14 @@ export async function handleRequest(req, res) {
     pathname,
     fileAssetRoute,
     authSession,
-    requireSessionAccess,
+    requireSessionAccess: requireSessionAccessForReq,
     createFileAssetUploadIntent,
     getFileAsset,
     getFileAssetForClient,
     finalizeFileAssetUpload,
     buildFileAssetDirectUrl,
     readBody,
-    writeJson,
+    writeJson: writeJsonForReq,
     buildHeaders,
   })) {
     return;
@@ -798,11 +1020,11 @@ export async function handleRequest(req, res) {
     parsedUrl,
     sessionGetRoute,
     authSession,
-    requireSessionAccess,
+    requireSessionAccess: requireSessionAccessForReq,
     listSessionListItemsForClient,
     createSessionSummaryRef,
     writeJsonCached,
-    writeJson,
+    writeJson: writeJsonForReq,
     getSessionListItemForClient,
     getSessionForClient,
     getSessionEventsAfter,
@@ -821,8 +1043,8 @@ export async function handleRequest(req, res) {
     res,
     pathname,
     authSession,
-    requireSessionAccess,
-    writeJson,
+    requireSessionAccess: requireSessionAccessForReq,
+    writeJson: writeJsonForReq,
   })) {
     return;
   }
@@ -831,7 +1053,7 @@ export async function handleRequest(req, res) {
     req,
     res,
     pathname,
-    writeJson,
+    writeJson: writeJsonForReq,
     scheduleConfigReload,
   })) {
     return;
@@ -841,18 +1063,18 @@ export async function handleRequest(req, res) {
     const parts = pathname.split('/').filter(Boolean);
     const sessionId = parts[2];
     if (parts.length !== 3 || parts[0] !== 'api' || parts[1] !== 'sessions' || !sessionId) {
-      writeJson(res, 400, { error: 'Invalid session path' });
+      writeJsonForReq(res, 400, { error: 'Invalid session path' });
       return;
     }
-    if (!requireSessionAccess(res, authSession, sessionId)) return;
+    if (!requireSessionAccessForReq(res, authSession, sessionId)) return;
     let body;
     try { body = await readBody(req, 10240); } catch {
-      writeJson(res, 400, { error: 'Bad request' });
+      writeJsonForReq(res, 400, { error: 'Bad request' });
       return;
     }
     let patch;
     try { patch = JSON.parse(body); } catch {
-      writeJson(res, 400, { error: 'Invalid request body' });
+      writeJsonForReq(res, 400, { error: 'Invalid request body' });
       return;
     }
     const hasArchivedPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'archived');
@@ -872,66 +1094,66 @@ export async function handleRequest(req, res) {
     const hasScheduledTriggersPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'scheduledTriggers');
     const hasScheduledTriggerPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'scheduledTrigger');
     if (hasArchivedPatch && typeof patch.archived !== 'boolean') {
-      writeJson(res, 400, { error: 'archived must be a boolean' });
+      writeJsonForReq(res, 400, { error: 'archived must be a boolean' });
       return;
     }
     if (hasPinnedPatch && typeof patch.pinned !== 'boolean') {
-      writeJson(res, 400, { error: 'pinned must be a boolean' });
+      writeJsonForReq(res, 400, { error: 'pinned must be a boolean' });
       return;
     }
     if (hasToolPatch && typeof patch.tool !== 'string') {
-      writeJson(res, 400, { error: 'tool must be a string' });
+      writeJsonForReq(res, 400, { error: 'tool must be a string' });
       return;
     }
     if (hasModelPatch && typeof patch.model !== 'string') {
-      writeJson(res, 400, { error: 'model must be a string' });
+      writeJsonForReq(res, 400, { error: 'model must be a string' });
       return;
     }
     if (hasEffortPatch && typeof patch.effort !== 'string') {
-      writeJson(res, 400, { error: 'effort must be a string' });
+      writeJsonForReq(res, 400, { error: 'effort must be a string' });
       return;
     }
     if (hasThinkingPatch && typeof patch.thinking !== 'boolean') {
-      writeJson(res, 400, { error: 'thinking must be a boolean' });
+      writeJsonForReq(res, 400, { error: 'thinking must be a boolean' });
       return;
     }
     if (hasGroupPatch && patch.group !== null && typeof patch.group !== 'string') {
-      writeJson(res, 400, { error: 'group must be a string or null' });
+      writeJsonForReq(res, 400, { error: 'group must be a string or null' });
       return;
     }
     if (hasDescriptionPatch && patch.description !== null && typeof patch.description !== 'string') {
-      writeJson(res, 400, { error: 'description must be a string or null' });
+      writeJsonForReq(res, 400, { error: 'description must be a string or null' });
       return;
     }
     if (hasSidebarOrderPatch && patch.sidebarOrder !== null && (!Number.isInteger(patch.sidebarOrder) || patch.sidebarOrder < 1)) {
-      writeJson(res, 400, { error: 'sidebarOrder must be a positive integer or null' });
+      writeJsonForReq(res, 400, { error: 'sidebarOrder must be a positive integer or null' });
       return;
     }
     if (hasActiveAgreementsPatch && patch.activeAgreements !== null && !Array.isArray(patch.activeAgreements)) {
-      writeJson(res, 400, { error: 'activeAgreements must be an array of strings or null' });
+      writeJsonForReq(res, 400, { error: 'activeAgreements must be an array of strings or null' });
       return;
     }
     if (hasActiveAgreementsPatch && Array.isArray(patch.activeAgreements)) {
       const invalidAgreement = patch.activeAgreements.find((entry) => typeof entry !== 'string');
       if (invalidAgreement !== undefined) {
-        writeJson(res, 400, { error: 'activeAgreements must contain only strings' });
+        writeJsonForReq(res, 400, { error: 'activeAgreements must contain only strings' });
         return;
       }
     }
     if (hasPersistentPatch && patch.persistent !== null && (typeof patch.persistent !== 'object' || Array.isArray(patch.persistent))) {
-      writeJson(res, 400, { error: 'persistent must be an object or null' });
+      writeJsonForReq(res, 400, { error: 'persistent must be an object or null' });
       return;
     }
     if (hasWorkflowStatePatch && patch.workflowState !== null && typeof patch.workflowState !== 'string') {
-      writeJson(res, 400, { error: 'workflowState must be a string or null' });
+      writeJsonForReq(res, 400, { error: 'workflowState must be a string or null' });
       return;
     }
     if (hasWorkflowPriorityPatch && patch.workflowPriority !== null && typeof patch.workflowPriority !== 'string') {
-      writeJson(res, 400, { error: 'workflowPriority must be a string or null' });
+      writeJsonForReq(res, 400, { error: 'workflowPriority must be a string or null' });
       return;
     }
     if (hasLastReviewedAtPatch && patch.lastReviewedAt !== null && typeof patch.lastReviewedAt !== 'string') {
-      writeJson(res, 400, { error: 'lastReviewedAt must be a string or null' });
+      writeJsonForReq(res, 400, { error: 'lastReviewedAt must be a string or null' });
       return;
     }
     if (
@@ -940,7 +1162,7 @@ export async function handleRequest(req, res) {
       && String(patch.workflowState).trim()
       && !normalizeSessionWorkflowState(String(patch.workflowState))
     ) {
-      writeJson(res, 400, { error: 'workflowState must be parked, waiting_user, or done' });
+      writeJsonForReq(res, 400, { error: 'workflowState must be parked, waiting_user, or done' });
       return;
     }
     if (
@@ -949,7 +1171,7 @@ export async function handleRequest(req, res) {
       && String(patch.workflowPriority).trim()
       && !normalizeSessionWorkflowPriority(String(patch.workflowPriority))
     ) {
-      writeJson(res, 400, { error: 'workflowPriority must be high, medium, or low' });
+      writeJsonForReq(res, 400, { error: 'workflowPriority must be high, medium, or low' });
       return;
     }
     if (
@@ -958,7 +1180,7 @@ export async function handleRequest(req, res) {
       && String(patch.lastReviewedAt).trim()
       && !Number.isFinite(Date.parse(String(patch.lastReviewedAt).trim()))
     ) {
-      writeJson(res, 400, { error: 'lastReviewedAt must be a valid timestamp or null' });
+      writeJsonForReq(res, 400, { error: 'lastReviewedAt must be a valid timestamp or null' });
       return;
     }
     let session = null;
@@ -1006,17 +1228,17 @@ export async function handleRequest(req, res) {
       session = await updateSessionLastReviewedAt(sessionId, patch.lastReviewedAt || '') || session;
     }
     if (hasScheduledTriggersPatch || hasScheduledTriggerPatch) {
-      writeJson(res, 410, { error: 'Scheduled session triggers have been removed from MelodySync' });
+      writeJsonForReq(res, 410, { error: 'Scheduled session triggers have been removed from MelodySync' });
       return;
     }
     if (!session) {
       session = await getSessionForClient(sessionId);
     }
     if (!session) {
-      writeJson(res, 404, { error: 'Session not found' });
+      writeJsonForReq(res, 404, { error: 'Session not found' });
       return;
     }
-    writeJson(res, 200, { session: createClientSessionDetail(session) });
+    writeJsonForReq(res, 200, { session: createClientSessionDetail(session) });
     return;
   }
 
@@ -1024,12 +1246,18 @@ export async function handleRequest(req, res) {
     const parts = pathname.split('/').filter(Boolean);
     const sessionId = parts[2];
     if (parts.length !== 3 || parts[0] !== 'api' || parts[1] !== 'sessions' || !sessionId) {
-      writeJson(res, 400, { error: 'Invalid session path' });
+      writeJsonForReq(res, 400, { error: 'Invalid session path' });
       return;
     }
-    if (!requireSessionAccess(res, authSession, sessionId)) return;
-    const outcome = await deleteSessionPermanently(sessionId);
-    writeJson(res, 200, { deletedSessionIds: outcome?.deletedSessionIds || [] });
+    if (!requireSessionAccessForReq(res, authSession, sessionId)) return;
+    try {
+      const outcome = await deleteSessionPermanently(sessionId);
+      writeJsonForReq(res, 200, { deletedSessionIds: outcome?.deletedSessionIds || [] });
+    } catch (error) {
+      writeJsonForReq(res, error?.statusCode || 409, {
+        error: error?.message || 'Failed to delete session',
+      });
+    }
     return;
   }
 
@@ -1038,8 +1266,8 @@ export async function handleRequest(req, res) {
     res,
     pathname,
     authSession,
-    requireSessionAccess,
-    writeJson,
+    requireSessionAccess: requireSessionAccessForReq,
+    writeJson: writeJsonForReq,
   })) {
     return;
   }
@@ -1047,21 +1275,21 @@ export async function handleRequest(req, res) {
   if (pathname === '/api/runtime-selection' && req.method === 'POST') {
     let body;
     try { body = await readBody(req, 4096); } catch (err) {
-      writeJson(res, err.code === 'BODY_TOO_LARGE' ? 413 : 400, { error: err.code === 'BODY_TOO_LARGE' ? 'Request body too large' : 'Bad request' });
+      writeJsonForReq(res, err.code === 'BODY_TOO_LARGE' ? 413 : 400, { error: err.code === 'BODY_TOO_LARGE' ? 'Request body too large' : 'Bad request' });
       return;
     }
     let payload;
     try {
       payload = JSON.parse(body);
     } catch {
-      writeJson(res, 400, { error: 'Invalid request body' });
+      writeJsonForReq(res, 400, { error: 'Invalid request body' });
       return;
     }
     try {
       const selection = await saveUiRuntimeSelection(payload || {});
-      writeJson(res, 200, { selection });
+      writeJsonForReq(res, 200, { selection });
     } catch (error) {
-      writeJson(res, 400, { error: error.message || 'Failed to save runtime selection' });
+      writeJsonForReq(res, 400, { error: error.message || 'Failed to save runtime selection' });
     }
     return;
   }
@@ -1071,14 +1299,14 @@ export async function handleRequest(req, res) {
     res,
     pathname,
     authSession,
-    requireSessionAccess,
+    requireSessionAccess: requireSessionAccessForReq,
     writeJsonCached,
-    writeJson,
+    writeJson: writeJsonForReq,
   })) {
     return;
   }
 
-  if (await handleHooksRoutes({ req, res, pathname, writeJson })) {
+  if (await handleHooksRoutes({ req, res, pathname, writeJson: writeJsonForReq })) {
     return;
   }
 
@@ -1089,7 +1317,7 @@ export async function handleRequest(req, res) {
     pathname,
     parsedUrl,
     buildAuthInfo,
-    writeJson,
+    writeJson: writeJsonForReq,
     writeJsonCached,
     writeFileCached,
     isDirectoryPath,
@@ -1107,20 +1335,27 @@ export async function handleRequest(req, res) {
       const pageBootstrap = buildChatPageBootstrap(authSession);
       const [pageBuildInfo, chatPage, refreshedCookie] = await Promise.all([
         getPageBuildInfo(),
-        readFile(chatTemplatePath, 'utf8'),
+        readFrontendFileCached(chatTemplatePath, 'utf8'),
         refreshAuthSession(req),
       ]);
+      const pageResponse = prepareResponseBody(req, {
+        contentType: 'text/html; charset=utf-8',
+        body: renderPageTemplate(chatPage, nonce, {
+          ...buildTemplateReplacements(pageBuildInfo),
+          BOOTSTRAP_JSON: serializeJsonForScript(pageBootstrap),
+        }),
+        allowCompression: true,
+      });
       res.writeHead(200, buildHeaders({
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0',
+        ...(pageResponse.vary ? { Vary: pageResponse.vary } : {}),
+        ...pageResponse.headers,
         ...(refreshedCookie ? { 'Set-Cookie': refreshedCookie } : {}),
       }));
-      res.end(renderPageTemplate(chatPage, nonce, {
-        ...buildTemplateReplacements(pageBuildInfo),
-        BOOTSTRAP_JSON: serializeJsonForScript(pageBootstrap),
-      }));
+      res.end(pageResponse.body);
     } catch {
       res.writeHead(500, buildHeaders({ 'Content-Type': 'text/plain' }));
       res.end('Failed to load chat page');

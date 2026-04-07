@@ -52,10 +52,25 @@ const sessionNode = {
   kind: 'branch',
   title: '视觉风格线',
   sessionId: 'branch-1',
+  status: 'active',
 };
 assert.equal(api.hasNodeCapability(sessionNode, 'open-session'), true);
 assert.equal(api.resolvePrimaryAction(sessionNode), 'open-session');
 assert.equal(api.isNodeDirectlyInteractive(sessionNode), true);
+assert.equal(api.canCreateManualBranch(sessionNode), true);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(api.buildManualBranchCreationPayload(sessionNode))),
+  {
+    branchReason: '从「视觉风格线」继续拆出独立支线',
+    checkpointSummary: '视觉风格线',
+  },
+  'session-backed current nodes should expose a dedicated manual branch payload builder',
+);
+assert.equal(
+  api.canCreateManualBranch({ ...sessionNode, status: 'merged' }),
+  false,
+  'resolved or merged nodes should not expose manual branch creation actions',
+);
 
 const controllerCalls = [];
 const attachedSessions = [];
@@ -94,6 +109,25 @@ assert.deepEqual(
     },
   ],
   'capability controller should translate candidate node actions into branch creation calls',
+);
+
+controllerCalls.length = 0;
+await controller.executeManualBranch(sessionNode, '补充配色规范');
+assert.deepEqual(
+  JSON.parse(JSON.stringify(controllerCalls)),
+  [
+    'collapse',
+    {
+      type: 'create-branch',
+      sessionId: 'branch-1',
+      title: '补充配色规范',
+      payload: {
+        branchReason: '从「视觉风格线」继续拆出独立支线',
+        checkpointSummary: '视觉风格线',
+      },
+    },
+  ],
+  'manual branch creation should reuse the same branch lifecycle API with the node as the source session',
 );
 
 controllerCalls.length = 0;

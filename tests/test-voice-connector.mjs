@@ -18,6 +18,10 @@ const {
   normalizeIngressEvent,
   normalizeSpokenReplyText,
 } = await import(pathToFileURL(join(repoRoot, 'scripts', 'voice-connector.mjs')).href)
+const {
+  DEFAULT_CAPTURE_TIMEOUT_MS,
+  DEFAULT_STT_TIMEOUT_MS,
+} = await import(pathToFileURL(join(repoRoot, 'lib', 'voice-connector-config.mjs')).href)
 
 const tempConfigDir = await mkdtemp(join(tmpdir(), 'remotelab-voice-config-'))
 const tempConfigPath = join(tempConfigDir, 'config.json')
@@ -43,6 +47,8 @@ assert.equal(loadedConfig.sessionTool, 'codex')
 assert.equal(loadedConfig.wake.mode, 'stdin')
 assert.equal(loadedConfig.systemPrompt, '')
 assert.match(DEFAULT_SESSION_SYSTEM_PROMPT, /Keep connector-specific overrides minimal/i)
+assert.equal(loadedConfig.capture.timeoutMs, DEFAULT_CAPTURE_TIMEOUT_MS)
+assert.equal(loadedConfig.stt.timeoutMs, DEFAULT_STT_TIMEOUT_MS)
 
 await writeFile(tempConfigPath, `${JSON.stringify({
   connectorId: 'living-room-speaker',
@@ -60,6 +66,35 @@ await writeFile(tempConfigPath, `${JSON.stringify({
 }, null, 2)}\n`, 'utf8')
 const explicitEmptyPromptConfig = await loadConfig(tempConfigPath)
 assert.equal(explicitEmptyPromptConfig.systemPrompt, '')
+
+await writeFile(tempConfigPath, `${JSON.stringify({
+  connectorId: 'living-room-speaker',
+  roomName: 'Living Room',
+  chatBaseUrl: 'http://127.0.0.1:7690',
+  sessionFolder: repoRoot,
+  wake: {
+    mode: 'stdin',
+    keyword: 'Hey Rowan',
+  },
+  capture: {
+    command: 'bash -lc true',
+    env: {
+      VOICE_CAPTURE_TIMEOUT_MS: '30000',
+    },
+  },
+  stt: {
+    command: 'bash -lc true',
+    env: {
+      VOICE_STT_TIMEOUT_MS: '31000',
+    },
+  },
+  tts: {
+    enabled: false,
+  },
+}, null, 2)}\n`, 'utf8')
+const timeoutFromEnvConfig = await loadConfig(tempConfigPath)
+assert.equal(timeoutFromEnvConfig.capture.timeoutMs, 30000)
+assert.equal(timeoutFromEnvConfig.stt.timeoutMs, 31000)
 
 await writeFile(tempConfigPath, `${JSON.stringify({
   connectorId: 'living-room-speaker',

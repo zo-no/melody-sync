@@ -5,6 +5,16 @@
     return typeof value === "string" ? value.trim() : "";
   }
 
+  function getTaskRunStatusApi() {
+    return root?.MelodySyncTaskRunStatus
+      || root?.window?.MelodySyncTaskRunStatus
+      || null;
+  }
+
+  function getTaskRunStatusUi(options = {}) {
+    return getTaskRunStatusApi()?.getTaskRunStatusUi?.(options) || { label: "", summary: "" };
+  }
+
   function freezeEffect(effect) {
     return Object.freeze({
       ...effect,
@@ -313,10 +323,19 @@
     };
   }
 
-  function getNodeMetaLabel(node, { getBranchStatusUi = () => ({ label: "进行中" }) } = {}) {
+  function getNodeMetaLabel(
+    node,
+    {
+      getTaskRunStatusUi: resolveTaskRunStatusUi = getTaskRunStatusUi,
+    } = {},
+  ) {
     const effect = getNodeEffect(node);
     if (!trimText(node?.parentNodeId || "")) {
-      return "进行中";
+      return trimText(resolveTaskRunStatusUi({
+        status: node?.status,
+        isCurrent: node?.isCurrent === true,
+        isCurrentPath: node?.isCurrentPath === true,
+      })?.label || "");
     }
     if (getNodeView(node)?.type !== "flow-node") {
       return "画布";
@@ -329,7 +348,11 @@
       case "canvas-view":
         return "画布";
       case "branch-status":
-        return trimText(getBranchStatusUi(node?.status)?.label || "") || "进行中";
+        return trimText(resolveTaskRunStatusUi({
+          status: node?.status,
+          isCurrent: node?.isCurrent === true,
+          isCurrentPath: node?.isCurrentPath === true,
+        })?.label || "");
       default:
         return "";
     }

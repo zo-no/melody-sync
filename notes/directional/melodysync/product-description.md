@@ -130,6 +130,7 @@ MelodySync 因此需要把“持续聊天”升级成“可维护、可回溯、
 - 支持只读分享快照
 - 支持自动生成会话标题、分组等展示元数据
 - 前端保持无构建、轻量、跨端可访问
+- 支持“支线任务”：支持从主线拆分支线、支线独立推进、支线挂起与带回
 
 这意味着 MelodySync 已不再只是概念验证，而是已经具备“跨端发起 + 真机执行 + 持久线程 + 基础复用”的产品骨架。
 
@@ -220,3 +221,17 @@ MelodySync 因此需要把“持续聊天”升级成“可维护、可回溯、
 - `project-plan.md`：更长期的产品路线与阶段目标
 
 如果后续产品判断发生变化，应优先同步这份文档和 `prd-work-continuity-mvp.md`，确保“总述”和“执行定义”不再漂移。
+
+## 14. 支线任务（产品能力）
+
+支线任务是产品的核心工作机制之一，不是单独的 side feature。
+
+- 触发：在主线目标推进中，出现需要独立推进的子目标时，创建支线。
+- 目标：支线有自己的单一目标、可验证结果和恢复入口。
+- 关闭路径：支线完成后可带回主线，或挂起后恢复。
+- 可见性：主线和支线在任务地图中可分层显示，状态可回溯。
+
+当前实现对齐：
+- 后端能力：`backend/workbench/branch-lifecycle.mjs`
+- 地图与状态：`backend/workbench/task-map-graph-service.mjs`
+- 前端交互：`static/frontend/workbench/task-map-ui.js`、`static/frontend/workbench/controller.js`

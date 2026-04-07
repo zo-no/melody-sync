@@ -18,29 +18,28 @@
     isRedundantTrackerText = () => false,
     getCurrentTaskSummary = () => "",
     getBranchDisplayName = (session) => String(session?.name || "").trim(),
-    getSessionVisualStatus = null,
   } = {}) {
-    function getTrackerVisualStatus(session) {
-      if (!session) {
-        return {
-          label: "空闲",
-          dotClass: "",
-        };
+    function getTaskRunStatusApi() {
+      return globalThis?.MelodySyncTaskRunStatus
+        || globalThis?.window?.MelodySyncTaskRunStatus
+        || null;
+    }
+
+    function getTrackerVisualStatus(state) {
+      if (!state?.hasSession || !state?.session) {
+        return { label: "", dotClass: "" };
       }
-      const archived = session?.archived === true;
-      if (typeof getSessionVisualStatus === "function") {
-        const visualStatus = getSessionVisualStatus(session) || {};
-        if (archived && !visualStatus?.label) {
-          return { label: "已归档", dotClass: "" };
-        }
-        return {
-          label: archived && visualStatus?.label ? `${visualStatus.label} · 已归档` : (visualStatus?.label || (archived ? "已归档" : "空闲")),
-          dotClass: String(visualStatus?.dotClass || "").replace(/^status-dot\s*/, "").trim(),
-        };
+      const taskRunStatus = getTaskRunStatusApi()?.getTaskRunStatusUi?.({
+        status: state?.branchStatus || "",
+        isCurrent: true,
+      }) || { label: "", summary: "" };
+      const label = String(taskRunStatus?.label || "").trim();
+      if (!label) {
+        return { label: "", dotClass: "" };
       }
       return {
-        label: archived ? "已归档" : "空闲",
-        dotClass: "",
+        label,
+        dotClass: label === "运行完成" ? "status-completed" : "status-running",
       };
     }
 
@@ -52,9 +51,9 @@
         trackerStatusTextEl.textContent = "";
         return;
       }
-      const visualStatus = getTrackerVisualStatus(state.session);
-      trackerStatusEl.hidden = false;
-      trackerStatusTextEl.textContent = visualStatus.label || "空闲";
+      const visualStatus = getTrackerVisualStatus(state);
+      trackerStatusEl.hidden = !visualStatus.label;
+      trackerStatusTextEl.textContent = visualStatus.label || "";
       trackerStatusDotEl.className = `quest-tracker-status-dot${visualStatus.dotClass ? ` ${visualStatus.dotClass}` : ""}`;
     }
 

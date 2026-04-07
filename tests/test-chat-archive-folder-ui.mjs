@@ -85,17 +85,26 @@ function createFakeDocument() {
 }
 
 const buildSessionActionConfigsSource = extractFunctionSource(sessionSurfaceSource, 'buildSessionActionConfigs');
+const getSessionListTouchStatusInfoSource = extractFunctionSource(sessionSurfaceSource, 'getSessionListTouchStatusInfo');
+const getSessionListModelSource = extractFunctionSource(sessionListSource, 'getSessionListModel');
+const shouldShowSessionInSidebarForListSource = extractFunctionSource(sessionListSource, 'shouldShowSessionInSidebarForList');
 const renderArchivedSectionSource = extractFunctionSource(sessionListSource, 'renderArchivedSection');
 
 const actionContext = {
   t(key) {
     return {
-      'action.organize': 'Organize',
       'action.archive': 'Archive',
       'action.restore': 'Restore',
       'action.delete': 'Delete',
+      'action.acknowledge': 'Acknowledge',
+      'action.pin': 'Pin',
+      'action.unpin': 'Unpin',
     }[key] || key;
   },
+  getSessionReviewStatusInfo() {
+    return null;
+  },
+  markSessionReviewed() {},
 };
 actionContext.globalThis = actionContext;
 
@@ -108,13 +117,82 @@ vm.runInNewContext(`
 
 assert.equal(
   actionContext.buildSessionActionConfigs({ id: 'active-task' }).map((entry) => entry.action).join(','),
-  'organize,archive',
-  'active tasks should expose organize and archive as the default sidebar actions',
+  'pin,archive',
+  'active tasks should expose pin and archive as the default sidebar actions',
+);
+assert.equal(
+  actionContext.buildSessionActionConfigs({ id: 'active-task-pinned', pinned: true }).map((entry) => entry.action).join(','),
+  'unpin,archive',
+  'pinned tasks should expose an unpin action in place of pin',
 );
 assert.equal(
   actionContext.buildSessionActionConfigs({ id: 'archived-task', archived: true }).map((entry) => entry.action).join(','),
   'unarchive,delete',
   'archived tasks should expose restore and delete actions inside the archived folder',
+);
+actionContext.getSessionReviewStatusInfo = () => ({ label: "Unread" });
+assert.equal(
+  actionContext.buildSessionActionConfigs({ id: 'active-task-unread' }).map((entry) => entry.action).join(','),
+  'pin,archive,acknowledge',
+  'active tasks with unread updates should append acknowledge without disturbing the primary pin/archive action order',
+);
+
+const statusContext = {
+  t(key) {
+    return {
+      'status.running': 'Running',
+      'workflow.status.finished': 'Completed',
+      'workflow.status.finishedTitle': 'Completed since last view',
+    }[key] || key;
+  },
+  getSessionStatusSummary(session) {
+    return { primary: session?.summaryStatus || null };
+  },
+  window: {
+    MelodySyncSessionStateModel: {
+      isSessionBusy(session) {
+        return session?.busy === true;
+      },
+      getSessionReviewStatusInfo(session) {
+        return session?.reviewed === true ? { key: 'unread' } : null;
+      },
+    },
+  },
+};
+statusContext.globalThis = statusContext;
+vm.runInNewContext(`
+  ${getSessionListTouchStatusInfoSource}
+  globalThis.getSessionListTouchStatusInfo = getSessionListTouchStatusInfo;
+`, statusContext, {
+  filename: 'static/frontend/session/surface-ui.js',
+});
+assert.equal(
+  JSON.stringify(statusContext.getSessionListTouchStatusInfo({
+    busy: true,
+    summaryStatus: { title: 'Queued follow-ups' },
+  })),
+  JSON.stringify({
+    key: 'running',
+    label: 'Running',
+    className: 'status-running',
+    title: 'Queued follow-ups',
+  }),
+  'busy tasks should collapse to a single running list state',
+);
+assert.equal(
+  JSON.stringify(statusContext.getSessionListTouchStatusInfo({ reviewed: true })),
+  JSON.stringify({
+    key: 'finished',
+    label: 'Completed',
+    className: 'status-done',
+    title: 'Completed since last view',
+  }),
+  'review-pending tasks should collapse to a single completed list state',
+);
+assert.equal(
+  statusContext.getSessionListTouchStatusInfo({}),
+  null,
+  'ordinary tasks should render with no extra list-state badge',
 );
 
 const renderDocument = createFakeDocument();
@@ -164,6 +242,13 @@ const renderContext = {
   fetchArchivedSessions() {
     throw new Error('fetchArchivedSessions should not be called when archived sessions are already loaded');
   },
+  window: {
+    MelodySyncSessionListModel: {
+      shouldShowSessionInSidebar() {
+        return true;
+      },
+    },
+  },
 };
 renderContext.globalThis = renderContext;
 renderContext.appendSessionItems = (host, entries = [], options = {}) => {
@@ -182,6 +267,8 @@ renderContext.appendSessionItems = (host, entries = [], options = {}) => {
 };
 
 vm.runInNewContext(`
+  ${getSessionListModelSource}
+  ${shouldShowSessionInSidebarForListSource}
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, renderContext, {
@@ -229,6 +316,13 @@ const loadingContext = {
     loadingFetchCalls += 1;
     return Promise.resolve([]);
   },
+  window: {
+    MelodySyncSessionListModel: {
+      shouldShowSessionInSidebar() {
+        return true;
+      },
+    },
+  },
 };
 loadingContext.globalThis = loadingContext;
 loadingContext.appendSessionItems = () => {
@@ -236,6 +330,8 @@ loadingContext.appendSessionItems = () => {
 };
 
 vm.runInNewContext(`
+  ${getSessionListModelSource}
+  ${shouldShowSessionInSidebarForListSource}
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, loadingContext, {
@@ -279,6 +375,13 @@ const emptyContext = {
   fetchArchivedSessions() {
     throw new Error('fetchArchivedSessions should not run when there are no archived tasks');
   },
+  window: {
+    MelodySyncSessionListModel: {
+      shouldShowSessionInSidebar() {
+        return true;
+      },
+    },
+  },
 };
 emptyContext.globalThis = emptyContext;
 emptyContext.appendSessionItems = () => {
@@ -286,6 +389,8 @@ emptyContext.appendSessionItems = () => {
 };
 
 vm.runInNewContext(`
+  ${getSessionListModelSource}
+  ${shouldShowSessionInSidebarForListSource}
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, emptyContext, {

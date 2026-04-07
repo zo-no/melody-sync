@@ -181,6 +181,7 @@ assert.match(generalPanelBody.innerHTML, /说明文件：<\/strong><code>\/Users
 assert.doesNotMatch(generalPanelBody.innerHTML, /name="agentsPath"/, 'general settings should not render the agents path as an editable input');
 assert.doesNotMatch(generalPanelBody.innerHTML, /name="agentsContent"/, 'general settings should not expose an editable AGENTS textarea');
 assert.match(generalPanelBody.innerHTML, /保存/, 'general settings should expose a save button');
+assert.match(generalPanelBody.innerHTML, /浏览器通知/, 'general settings should only expose browser notification status in the reminder section');
 assert.match(generalPanelBody.innerHTML, /重新加载/, 'general settings should expose a reload button');
 
 console.log('test-chat-general-settings-ui: ok');

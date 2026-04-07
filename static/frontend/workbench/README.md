@@ -5,10 +5,11 @@ This directory owns the structured task-workbench UI.
 Files by role:
 
 - `node-contract.js`: frontend node-kind contract that validates and exposes the backend-provided node definitions and composition metadata.
+- `task-run-status.js`: centralized task run-state semantics. It is the single frontend source for labels like `运行中` and `运行完成`.
 - `node-effects.js`: shared node semantics for task-map projection and rendering, including counts, interaction, edge, surface, capability, and view-type rules.
 - `node-instance.js`: stable graph node-instance contract. It normalizes capabilities, surface bindings, task-card bindings, view metadata, and origin metadata before nodes hit any renderer or surface consumer.
 - `graph-model.js`: shared graph node/edge collection helpers used by both default continuity projection and task-map-plan overlays.
-- `graph-client.js`: canonical backend quest-graph client. It reads `/api/workbench/sessions/:id/task-map-graph` and normalizes that payload back into the frontend projection shape.
+- `graph-client.js`: canonical backend quest-graph client. It reads `/api/workbench/sessions/:id/task-map-graph`, resolves root-graph reuse, and normalizes that payload back into the frontend projection shape.
 - `node-capabilities.js`: capability helpers plus a workbench action controller so renderer code can execute node actions without hardcoding branch/session mutations inline.
 - `task-map-plan.js`: optional graph-plan overlay that can replace or augment the default continuity projection without touching renderer code; augment mode now also merges matching node ids so hook-generated plans can enrich default nodes instead of duplicating them, and surface-node selectors can reuse the merged graph in non-map UI like composer suggestions.
 - `surface-projection.js`: workbench-owned selectors that project node surfaces into non-map UI slots such as composer suggestions without leaking graph-plan details into session modules.
@@ -28,12 +29,14 @@ Files by role:
 Design rules:
 
 - `controller.js` should stay a coordinator, not absorb renderer details again.
+- Keep task run-state labels centralized in `task-run-status.js`; do not reintroduce ad hoc status wording in `controller.js`, `task-map-ui.js`, or `task-list-ui.js`.
+- Keep branch creation semantics centralized in `node-capabilities.js`: candidate nodes may one-click create a branch, while current session-backed nodes may open the manual branch composer inside the task map.
 - Keep contracts and projection close to the workbench UI that consumes them.
 - Treat `backend/workbench/node-definitions.mjs` as the canonical current node source; `node-contract.js` should read bootstrap/API-fed definitions and keep a safe fallback for isolated tests.
 - Keep node behavior centralized in `node-effects.js`; avoid adding new `kind === ...` branches directly in `task-map-model.js` or `task-map-ui.js`.
 - Keep graph node-instance shape centralized in `node-instance.js`; avoid letting `task-map-model.js`, `task-map-plan.js`, `surface-projection.js`, and `node-capabilities.js` drift into separate node payload formats.
 - Keep graph node/edge collection shape centralized in `graph-model.js`; avoid letting `task-map-model.js` and `task-map-plan.js` drift into separate quest graph formats.
-- Keep canonical graph reads centralized in `graph-client.js`; `controller.js` should prefer the backend graph payload before falling back to local continuity reconstruction.
+- Keep canonical graph reads and root-graph reuse centralized in `graph-client.js`; `controller.js` should prefer the backend graph payload before falling back to local continuity reconstruction.
 - Keep quest-source helpers in `task-map-clusters.js` and mock/demo graph injection in `task-map-mock-presets.js`; `task-map-model.js` should stay focused on default continuity projection.
 - Treat `view.type` as the right-rail node-canvas contract. The canvas renderer decides safe embedding; task-map nodes only provide structure, selection, and capability entry points.
 - Keep optional graph overrides centralized in `task-map-plan.js`; default continuity projection should stay available as the fallback path.

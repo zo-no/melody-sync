@@ -5,7 +5,6 @@
     isMobileQuestTracker = () => false,
     clipText = (value) => String(value || "").trim(),
     translate = (key) => key,
-    getBranchStatusUi = () => ({ label: "进行中", summary: "" }),
     collapseTaskMapAfterAction = null,
     enterBranchFromSession = null,
     getSessionRecord = null,
@@ -227,7 +226,7 @@
           fromY: tree.y + tree.nodeHeight,
           toX: child.x + child.nodeWidth / 2,
           toY: child.y,
-          current: child.node?.isCurrent === true || child.node?.isCurrentPath === true,
+          current: child.node?.isCurrent === true,
           variant: edge?.type || getNodeEdgeVariant(child.node),
         });
         collectProjectedTaskFlowEdges(child, edgeByTargetNodeId, results);
@@ -252,12 +251,11 @@
 
     function getProjectedTaskFlowNodeMeta(node) {
       const nodeEffect = getNodeEffect(node);
-      const label = getNodeEffectsApi()?.getNodeMetaLabel?.(node, { getBranchStatusUi });
+      const label = getNodeEffectsApi()?.getNodeMetaLabel?.(node);
       if (label) return label;
-      if (!node?.parentNodeId) return "进行中";
       if (nodeEffect?.metaVariant === "candidate") return "可选";
       if (nodeEffect?.metaVariant === "done") return "已收束";
-      return getBranchStatusUi(node.status).label;
+      return "";
     }
 
     function getProjectedTaskFlowNodeSummary(node, activeQuest) {
@@ -400,6 +398,7 @@
       focusCenterX = 0,
       focusCenterY = 0,
       focusTopY = 0,
+      focusMode = "overview",
       contentWidth = 0,
       contentHeight = 0,
       metrics = null,
@@ -424,7 +423,13 @@
       }
 
       const targetX = clampNumber((viewportWidth / 2) - focusCenterX, Math.min(0, viewportWidth - nextCanvasWidth), 0);
-      const targetY = clampNumber(Math.min(metrics?.paddingY || 0, viewportHeight * 0.18) - focusTopY, Math.min(0, viewportHeight - nextCanvasHeight), 0);
+      const targetY = clampNumber(
+        focusMode === "center"
+          ? ((viewportHeight / 2) - focusCenterY)
+          : (Math.min(metrics?.paddingY || 0, viewportHeight * 0.18) - focusTopY),
+        Math.min(0, viewportHeight - nextCanvasHeight),
+        0,
+      );
 
       const PanzoomFactory = typeof windowRef !== "undefined" ? windowRef.Panzoom : null;
       if (typeof PanzoomFactory === "function") {
@@ -456,7 +461,12 @@
 
       scroll.classList.remove("is-panzoom-ready");
       scroll.scrollLeft = Math.max(0, focusCenterX - (viewportWidth / 2));
-      scroll.scrollTop = Math.max(0, focusCenterY - Math.min(viewportHeight * 0.42, viewportHeight / 2));
+      scroll.scrollTop = Math.max(
+        0,
+        focusMode === "center"
+          ? (focusCenterY - (viewportHeight / 2))
+          : (focusCenterY - Math.min(viewportHeight * 0.42, viewportHeight / 2)),
+      );
     }
 
     function renderFlowBoard({ activeQuest, nodeMap, rootNode, state }) {
@@ -511,6 +521,15 @@
       canvas.appendChild(svg);
 
       const nodeActionController = getNodeActionController();
+      let activeManualBranchComposer = null;
+
+      const closeManualBranchComposer = () => {
+        const composerState = activeManualBranchComposer;
+        activeManualBranchComposer = null;
+        if (!composerState) return;
+        composerState.button.hidden = false;
+        composerState.composer.remove();
+      };
 
       const createCandidateAction = (node) => {
         const actionBtn = documentRef.createElement("button");
@@ -538,6 +557,124 @@
         return actionBtn;
       };
 
+      const createManualBranchAction = (node, nodeEl, actionContext = {}) => {
+        const actionBtn = documentRef.createElement("button");
+        actionBtn.type = "button";
+        actionBtn.className = "quest-branch-btn quest-branch-btn-secondary quest-task-flow-node-action quest-task-flow-node-action-secondary panzoom-exclude";
+        actionBtn.textContent = "新建支线";
+        actionBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          event.preventDefault();
+
+          if (activeManualBranchComposer?.nodeId === node?.id) {
+            activeManualBranchComposer.input.focus();
+            activeManualBranchComposer.input.select();
+            return;
+          }
+
+          closeManualBranchComposer();
+
+          const composer = documentRef.createElement("div");
+          composer.className = "quest-task-flow-branch-composer panzoom-exclude";
+
+          const input = documentRef.createElement("input");
+          input.type = "text";
+          input.className = "quest-task-flow-branch-input";
+          input.placeholder = "输入支线标题";
+          input.setAttribute("aria-label", "支线标题");
+
+          const actions = documentRef.createElement("div");
+          actions.className = "quest-task-flow-branch-actions";
+
+          const confirmBtn = documentRef.createElement("button");
+          confirmBtn.type = "button";
+          confirmBtn.className = "quest-branch-btn quest-branch-btn-primary panzoom-exclude";
+          confirmBtn.textContent = "开启";
+
+          const cancelBtn = documentRef.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.className = "quest-branch-btn quest-branch-btn-secondary panzoom-exclude";
+          cancelBtn.textContent = "取消";
+
+          const setBusy = (busy) => {
+            input.disabled = busy;
+            confirmBtn.disabled = busy;
+            cancelBtn.disabled = busy;
+            actionBtn.disabled = busy;
+          };
+
+          const confirm = async () => {
+            const branchTitle = String(input.value || "").replace(/\s+/g, " ").trim();
+            if (!branchTitle) {
+              input.focus();
+              return;
+            }
+            setBusy(true);
+            try {
+              const executed = await nodeActionController.executeManualBranch?.(node, branchTitle, actionContext);
+              if (executed) {
+                closeManualBranchComposer();
+                return;
+              }
+            } finally {
+              setBusy(false);
+            }
+          };
+
+          cancelBtn.addEventListener("click", (cancelEvent) => {
+            cancelEvent.stopPropagation();
+            cancelEvent.preventDefault();
+            closeManualBranchComposer();
+          });
+          confirmBtn.addEventListener("click", (confirmEvent) => {
+            confirmEvent.stopPropagation();
+            confirmEvent.preventDefault();
+            void confirm();
+          });
+          input.addEventListener("keydown", (keyEvent) => {
+            if (keyEvent.key === "Enter") {
+              keyEvent.preventDefault();
+              keyEvent.stopPropagation();
+              void confirm();
+            } else if (keyEvent.key === "Escape") {
+              keyEvent.preventDefault();
+              keyEvent.stopPropagation();
+              closeManualBranchComposer();
+            }
+          });
+          composer.addEventListener("click", (composerEvent) => {
+            composerEvent.stopPropagation();
+          });
+
+          actions.appendChild(confirmBtn);
+          actions.appendChild(cancelBtn);
+          composer.appendChild(input);
+          composer.appendChild(actions);
+          nodeEl.appendChild(composer);
+
+          actionBtn.hidden = true;
+          activeManualBranchComposer = {
+            nodeId: node?.id || "",
+            composer,
+            input,
+            button: actionBtn,
+          };
+
+          const focusInput = () => {
+            input.focus();
+            input.select();
+          };
+          if (typeof windowRef?.requestAnimationFrame === "function") {
+            windowRef.requestAnimationFrame(focusInput);
+          } else if (typeof windowRef?.setTimeout === "function") {
+            windowRef.setTimeout(focusInput, 0);
+          } else {
+            focusInput();
+          }
+        });
+        return actionBtn;
+      };
+
       for (const entry of entries) {
         const node = entry.node;
         const nodeEffect = getNodeEffect(node);
@@ -546,10 +683,13 @@
         const isRichView = nodeView.type !== "flow-node";
         const nodePrimaryAction = nodeActionController.resolvePrimaryAction(node, { isRichView, isDone });
         const isCandidate = nodeActionController.hasNodeCapability(node, "create-branch");
+        const canCreateManualBranch = node?.isCurrent === true
+          && nodeActionController.canCreateManualBranch?.(node, { isRichView, isDone }) === true;
+        const hostsInlineActions = nodePrimaryAction === "create-branch" || canCreateManualBranch;
         const isNonInteractive = !nodeActionController.isNodeDirectlyInteractive(node, { isRichView, isDone });
         const isCanvasSelected = isRichView
           && String(getSelectedTaskCanvasNodeId?.() || "").trim() === String(node?.id || "").trim();
-        const nodeEl = documentRef.createElement(isNonInteractive ? "div" : "button");
+        const nodeEl = documentRef.createElement(isNonInteractive || hostsInlineActions ? "div" : "button");
         if (nodeEl.type !== undefined && !isNonInteractive) {
           nodeEl.type = "button";
         }
@@ -570,13 +710,15 @@
         nodeEl.style.width = `${entry.nodeWidth}px`;
         nodeEl.style.minHeight = `${entry.nodeHeight}px`;
 
-        const badge = documentRef.createElement("div");
-        badge.className = "quest-task-flow-node-badge";
-        if (node.status === "parked") badge.classList.add("is-parked");
-        if (node.status === "resolved") badge.classList.add("is-complete");
-        if (node.status === "merged") badge.classList.add("is-complete", "is-merged");
-        badge.textContent = getProjectedTaskFlowNodeMeta(node);
-        nodeEl.appendChild(badge);
+        const badgeLabel = getProjectedTaskFlowNodeMeta(node);
+        if (badgeLabel) {
+          const badge = documentRef.createElement("div");
+          badge.className = "quest-task-flow-node-badge";
+          if (node.status === "resolved") badge.classList.add("is-complete");
+          if (node.status === "merged") badge.classList.add("is-complete", "is-merged");
+          badge.textContent = badgeLabel;
+          nodeEl.appendChild(badge);
+        }
 
         const titleEl = documentRef.createElement("div");
         titleEl.className = "quest-task-flow-node-title";
@@ -597,6 +739,13 @@
 
         if (nodePrimaryAction === "create-branch") {
           nodeEl.appendChild(createCandidateAction(node));
+        } else if (canCreateManualBranch) {
+          nodeEl.appendChild(createManualBranchAction(node, nodeEl, {
+            state,
+            nodeMap,
+            isRichView,
+            isDone,
+          }));
         } else if (nodePrimaryAction === "open-session" && !isDone && node.sessionId) {
           nodeEl.addEventListener("click", () => {
             void nodeActionController.executePrimaryAction(node, {
@@ -618,8 +767,11 @@
       scroll.appendChild(canvas);
       board.appendChild(scroll);
 
-      const focusEntries = entries.filter((entry) => entry?.node && (entry.node.isCurrent || entry.node.isCurrentPath || !entry.node.parentNodeId));
-      const focusEntry = focusEntries[0] || entries.find((entry) => entry?.node?.isCurrent) || entries.find((entry) => entry?.node?.isCurrentPath) || entries[0];
+      const focusEntries = entries.filter((entry) => entry?.node?.isCurrent);
+      const focusEntry = focusEntries[0]
+        || entries.find((entry) => entry?.node?.isCurrentPath)
+        || entries.find((entry) => !entry?.node?.parentNodeId)
+        || entries[0];
       const focusBounds = focusEntries.length > 0
         ? focusEntries.reduce((acc, entry) => ({
           left: Math.min(acc.left, entry.x),
@@ -639,6 +791,7 @@
       const focusCenterY = focusBounds
         ? ((focusBounds.top + focusBounds.bottom) / 2)
         : (focusEntry ? (focusEntry.y + focusEntry.nodeHeight / 2) : (tree.y + tree.nodeHeight / 2));
+      const focusMode = focusEntry?.node?.parentNodeId ? "center" : "overview";
       const scheduleScrollSync = typeof windowRef?.setTimeout === "function"
         ? windowRef.setTimeout.bind(windowRef)
         : (typeof globalThis?.setTimeout === "function" ? globalThis.setTimeout.bind(globalThis) : ((fn) => fn()));
@@ -650,6 +803,7 @@
           focusCenterX,
           focusCenterY,
           focusTopY: focusBounds?.top ?? (focusEntry ? focusEntry.y : tree.y),
+          focusMode,
           contentWidth: canvasWidth,
           contentHeight: canvasHeight,
           metrics,

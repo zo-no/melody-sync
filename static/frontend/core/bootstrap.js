@@ -167,6 +167,7 @@ const ACTIVE_SESSION_STORAGE_KEY = "activeSessionId";
 const ACTIVE_SIDEBAR_TAB_STORAGE_KEY = "activeSidebarTab";
 const LEGACY_SESSION_SEND_FAILURES_STORAGE_KEY = "sessionSendFailures";
 const SESSION_REVIEW_MARKERS_STORAGE_KEY = "sessionReviewedAtById";
+const SESSION_REVIEW_BASELINES_STORAGE_KEY = "sessionReviewBaselineAtById";
 const SESSION_REVIEW_BASELINE_AT_STORAGE_KEY = "sessionReviewBaselineAt";
 const DEFAULT_APP_ID = "chat";
 const DEFAULT_APP_NAME = "Chat";
@@ -335,6 +336,7 @@ try {
 } catch {}
 
 let sessionReviewMarkers = readStoredJsonValue(SESSION_REVIEW_MARKERS_STORAGE_KEY, {});
+let sessionReviewBaselines = readStoredJsonValue(SESSION_REVIEW_BASELINES_STORAGE_KEY, {});
 let sessionReviewBaselineAt = readStoredTimestampValue(SESSION_REVIEW_BASELINE_AT_STORAGE_KEY);
 if (!sessionReviewBaselineAt) {
   sessionReviewBaselineAt = new Date().toISOString();
@@ -404,6 +406,47 @@ function getLocalSessionReviewedAt(sessionId) {
     writeStoredJsonValue(SESSION_REVIEW_MARKERS_STORAGE_KEY, sessionReviewMarkers);
   }
   return "";
+}
+
+function getLocalSessionReviewBaselineAt(sessionId) {
+  if (!sessionId || !sessionReviewBaselines || typeof sessionReviewBaselines !== "object") return "";
+  const normalized = normalizeStoredTimestamp(sessionReviewBaselines[sessionId]);
+  if (normalized) return normalized;
+  if (Object.prototype.hasOwnProperty.call(sessionReviewBaselines, sessionId)) {
+    const next = { ...sessionReviewBaselines };
+    delete next[sessionId];
+    sessionReviewBaselines = next;
+    writeStoredJsonValue(SESSION_REVIEW_BASELINES_STORAGE_KEY, sessionReviewBaselines);
+  }
+  return "";
+}
+
+function setLocalSessionReviewBaselineAt(sessionId, stamp) {
+  if (!sessionId) return "";
+  const normalized = normalizeStoredTimestamp(stamp);
+  if (!normalized) return "";
+  const current = getLocalSessionReviewBaselineAt(sessionId);
+  if (current) return current;
+  sessionReviewBaselines = {
+    ...sessionReviewBaselines,
+    [sessionId]: normalized,
+  };
+  writeStoredJsonValue(SESSION_REVIEW_BASELINES_STORAGE_KEY, sessionReviewBaselines);
+  return normalized;
+}
+
+function getSessionReviewBaselineAtForSession(sessionId, fallbackStamp = "") {
+  const normalizedId = typeof sessionId === "string" ? sessionId.trim() : "";
+  if (!normalizedId) {
+    return normalizeStoredTimestamp(fallbackStamp) || getSessionReviewBaselineAt();
+  }
+  const stored = getLocalSessionReviewBaselineAt(normalizedId);
+  if (stored) return stored;
+  const seeded = setLocalSessionReviewBaselineAt(
+    normalizedId,
+    normalizeStoredTimestamp(fallbackStamp) || getSessionReviewBaselineAt(),
+  );
+  return seeded || "";
 }
 
 function setLocalSessionReviewedAt(sessionId, stamp) {

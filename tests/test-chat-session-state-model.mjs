@@ -150,6 +150,16 @@ const unreadDoneSession = makeSession({
 assert.equal(model.hasSessionUnreadUpdate(unreadDoneSession), true, 'idle sessions updated after review should be marked unread');
 assert.equal(model.getSessionReviewStatusInfo(unreadDoneSession)?.key, 'unread', 'unread sessions should expose a dedicated review badge');
 
+const firstSeenSession = makeSession({
+  lastEventAt: '2026-03-14T13:00:00.000Z',
+  reviewBaselineAt: '2026-03-14T13:00:00.000Z',
+});
+assert.equal(
+  model.hasSessionUnreadUpdate(firstSeenSession),
+  false,
+  'sessions should not appear unread on first sight when their baseline matches the latest event',
+);
+
 const completeAndReviewed = makeSession({
   workflowState: 'done',
   lastEventAt: '2026-03-14T13:00:00.000Z',
@@ -173,6 +183,18 @@ const runningUnreadCandidate = makeSession({
   }),
 });
 assert.equal(model.hasSessionUnreadUpdate(runningUnreadCandidate), false, 'running sessions should not constantly become unread while streaming');
+
+const metadataOnlyRefreshSession = makeSession({
+  created: '2026-03-14T10:00:00.000Z',
+  lastEventAt: '2026-03-14T12:00:00.000Z',
+  updatedAt: '2026-03-14T13:30:00.000Z',
+  lastReviewedAt: '2026-03-14T12:00:00.000Z',
+});
+assert.equal(
+  model.hasSessionUnreadUpdate(metadataOnlyRefreshSession),
+  false,
+  'metadata-only updatedAt changes should not revive the unread/completed badge after a session was reviewed',
+);
 
 assert.ok(
   model.compareSessionListSessions(

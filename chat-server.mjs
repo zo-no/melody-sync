@@ -46,28 +46,16 @@ if (!delegatedToRelease) {
     import('./backend/voice-settings-store.mjs'),
   ]);
 
-  for (const dir of [MEMORY_DIR, join(MEMORY_DIR, 'tasks')]) {
-    await ensureDir(dir);
-  }
-  await ensureGeneralSettingsRuntimeFiles();
-  await ensureVoiceSettingsRuntimeFiles();
-
-  await apiRequestLog.initApiRequestLog();
   registerBuiltinHooks();
-  await registerCustomHooks();
+  await Promise.all([
+    ensureDir(MEMORY_DIR),
+    ensureDir(join(MEMORY_DIR, 'tasks')),
+    ensureGeneralSettingsRuntimeFiles(),
+    ensureVoiceSettingsRuntimeFiles(),
+    apiRequestLog.initApiRequestLog(),
+    registerCustomHooks(),
+  ]);
   await loadPersistedHookSettings();
-  await emitHook('instance.startup', {
-    sessionId: '',
-    session: null,
-    manifest: null,
-  });
-  if (await isFirstBootMemoryState()) {
-    await emitHook('instance.first_boot', {
-      sessionId: '',
-      session: null,
-      manifest: null,
-    });
-  }
 
   const server = http.createServer((req, res) => {
     const requestLog = apiRequestLog.startApiRequestLog(req, res);
@@ -82,7 +70,6 @@ if (!delegatedToRelease) {
   });
 
   ws.attachWebSocket(server);
-  persistentScheduler.startPersistentSessionScheduler();
 
   async function shutdown() {
     console.log('Shutting down chat server...');
@@ -94,9 +81,30 @@ if (!delegatedToRelease) {
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
 
+  async function runDeferredStartupHooks() {
+    try {
+      await emitHook('instance.startup', {
+        sessionId: '',
+        session: null,
+        manifest: null,
+      });
+      if (await isFirstBootMemoryState()) {
+        await emitHook('instance.first_boot', {
+          sessionId: '',
+          session: null,
+          manifest: null,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to run deferred startup hooks:', error);
+    }
+  }
+
   server.listen(CHAT_PORT, CHAT_BIND_HOST, () => {
     console.log(`Chat server listening on http://${CHAT_BIND_HOST}:${CHAT_PORT}`);
     console.log(`Cookie mode: ${SECURE_COOKIES ? 'Secure (HTTPS)' : 'Non-secure (localhost)'}`);
+    persistentScheduler.startPersistentSessionScheduler();
+    void runDeferredStartupHooks();
     try {
       console.log('Startup: rehydrating detached runs...');
       void sessionManager.startDetachedRunObservers().then(() => {

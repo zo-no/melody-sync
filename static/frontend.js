@@ -4,11 +4,11 @@
   const nonce = document.currentScript?.nonce || "";
   const splitAssetPaths = [
     "/marked.min.js",
-    "/chat/core/bootstrap-data.js",
     "/chat/core/i18n.js",
     "/chat/session-list/order-contract.js",
     "/chat/session/state-model.js",
     "/chat/core/icons.js",
+    "/chat/core/app-state.js",
     "/chat/core/bootstrap.js",
     "/chat/core/bootstrap-session-catalog.js",
     "/chat/session-list/contract.js",
@@ -25,6 +25,7 @@
     "/chat/session-list/ui.js",
     "/chat/session-list/sidebar-ui.js",
     "/chat/workbench/node-contract.js",
+    "/chat/workbench/task-run-status.js",
     "/chat/workbench/node-effects.js",
     "/chat/workbench/node-instance.js",
     "/chat/workbench/graph-model.js",
@@ -45,6 +46,7 @@
     "/chat/workbench/task-list-ui.js",
     "/chat/workbench/branch-actions.js",
     "/chat/workbench/operation-record-ui.js",
+    "/chat/vendor/panzoom.min.js",
     "/chat/workbench/controller.js",
     "/chat/session/compose.js",
     "/chat/core/gestures.js",
@@ -112,8 +114,22 @@
     });
   }
 
+  function preloadAsset(path, assetVersion) {
+    if (!path) return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "script";
+    link.href = buildVersionedAssetPath(path, assetVersion);
+    if (nonce) link.nonce = nonce;
+    document.head.appendChild(link);
+  }
+
   (async () => {
     const assetVersion = await resolveAssetVersion();
+    for (const path of splitAssetPaths) {
+      preloadAsset(path, assetVersion);
+    }
+
     for (const path of splitAssetPaths) {
       await loadScript(buildVersionedAssetPath(path, assetVersion));
     }

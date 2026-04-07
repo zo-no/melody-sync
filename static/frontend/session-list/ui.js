@@ -20,6 +20,10 @@ function isBranchTaskSessionForList(session) {
   return getSessionListModel()?.isBranchTaskSession?.(session) === true;
 }
 
+function shouldShowSessionInSidebarForList(session, options = {}) {
+  return getSessionListModel()?.shouldShowSessionInSidebar?.(session, options) !== false;
+}
+
 function buildSessionListMetaHtml(session) {
   const model = getSessionListModel();
   const metaParts = typeof buildSessionMetaParts === "function"
@@ -57,11 +61,28 @@ function canRunSidebarQuickAction(session, { archived = false } = {}) {
 }
 
 function buildSidebarSessionActions(session, { archived = false } = {}) {
+  const isArchivedSession = archived || session?.archived === true;
   const baseActions = typeof buildSessionActionConfigs === "function"
-    ? buildSessionActionConfigs(session, { archived })
+    ? buildSessionActionConfigs(session, { archived: isArchivedSession })
     : [];
+  const visibleBaseActions = isArchivedSession
+    ? baseActions
+    : baseActions.filter((entry) => entry?.action !== "delete");
+  const renameAction = isArchivedSession ? null : {
+    key: "rename",
+    label: t("action.rename"),
+    icon: "edit",
+    className: "rename",
+    onClick(event, currentSession, itemEl) {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      if (!itemEl || !currentSession?.id) return;
+      startRename(itemEl, currentSession);
+    },
+  };
+  const actionList = renameAction ? [renameAction, ...visibleBaseActions] : visibleBaseActions;
   if (!canRunSidebarQuickAction(session, { archived })) {
-    return baseActions;
+    return actionList;
   }
   return [
     {
@@ -79,7 +100,7 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
         });
       },
     },
-    ...baseActions,
+    ...actionList,
   ];
 }
 
@@ -95,11 +116,12 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
   if (persistentKind === "skill") extraClassNames.push("is-quick-action-item");
   if (persistentKind === "recurring_task") extraClassNames.push("is-persistent-recurring-item");
   const metaOverrideHtml = buildSessionListMetaHtml(session);
-  return createActiveSessionItem(session, {
+  const item = createActiveSessionItem(session, {
     extraClassName: extraClassNames.join(" "),
     actions: buildSidebarSessionActions(session, { archived }),
     ...(metaOverrideHtml ? { metaOverrideHtml } : {}),
   });
+  return item;
 }
 
 function getPersistentDockStorageState() {
@@ -139,6 +161,27 @@ function setPersistentDockSectionCollapsed(groupKey, collapsed) {
   const state = getPersistentDockStorageState();
   state[groupKey] = collapsed === true;
   setPersistentDockStorageState(state);
+}
+
+function getDefaultPersistentDockCollapsed() {
+  return typeof window?.matchMedia === "function"
+    ? window.matchMedia("(max-width: 767px)").matches
+    : false;
+}
+
+function isPersistentDockCollapsed() {
+  try {
+    const raw = localStorage.getItem("collapsedSessionPersistentDockRoot");
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+  } catch {}
+  return getDefaultPersistentDockCollapsed();
+}
+
+function setPersistentDockCollapsed(collapsed) {
+  try {
+    localStorage.setItem("collapsedSessionPersistentDockRoot", collapsed === true ? "true" : "false");
+  } catch {}
 }
 
 function getPersistentDockGroupLabel(groupKey) {
@@ -192,35 +235,49 @@ function renderPersistentSessionDock(persistentSessionsByGroup) {
   container.className = "session-list-footer has-persistent-dock";
 
   const dock = document.createElement("div");
-  dock.className = "session-list-persistent-dock";
+  const totalCount = (hasLongTerm ? persistentSessionsByGroup["group:long-term"].length : 0)
+    + (hasQuickActions ? persistentSessionsByGroup["group:quick-actions"].length : 0);
+  const isCollapsed = isPersistentDockCollapsed();
+  dock.className = "session-list-persistent-dock" + (isCollapsed ? " is-collapsed" : "");
 
-  const overview = document.createElement("div");
+  const overview = document.createElement("button");
   overview.className = "persistent-dock-overview";
+  overview.type = "button";
+  overview.setAttribute("aria-label", `${t("persistent.sectionTitle")} ${totalCount} 项`);
   overview.innerHTML = `<span class="persistent-dock-overview-title">${esc(t("persistent.sectionTitle"))}</span>
-    <span class="persistent-dock-overview-count">${(hasLongTerm ? persistentSessionsByGroup["group:long-term"].length : 0) + (hasQuickActions ? persistentSessionsByGroup["group:quick-actions"].length : 0)}</span>`;
+    <span class="persistent-dock-overview-count">${totalCount}</span>
+    <span class="persistent-dock-overview-chevron">${renderUiIcon("chevron-down")}</span>`;
+  overview.addEventListener("click", () => {
+    const nextCollapsed = !dock.classList.contains("is-collapsed");
+    dock.classList.toggle("is-collapsed", nextCollapsed);
+    setPersistentDockCollapsed(nextCollapsed);
+  });
   dock.appendChild(overview);
 
+  const body = document.createElement("div");
+  body.className = "session-list-persistent-dock-body";
   if (hasLongTerm) {
-    dock.appendChild(renderPersistentDockSection("group:long-term", persistentSessionsByGroup["group:long-term"]));
+    body.appendChild(renderPersistentDockSection("group:long-term", persistentSessionsByGroup["group:long-term"]));
   }
   if (hasQuickActions) {
-    dock.appendChild(renderPersistentDockSection("group:quick-actions", persistentSessionsByGroup["group:quick-actions"]));
+    body.appendChild(renderPersistentDockSection("group:quick-actions", persistentSessionsByGroup["group:quick-actions"]));
   }
+  dock.appendChild(body);
 
   container.appendChild(dock);
 }
 
 function appendSessionItems(host, entries = [], options = {}) {
   for (const session of Array.isArray(entries) ? entries : []) {
-    if (!session?.id) continue;
+    if (!session?.id || !shouldShowSessionInSidebarForList(session, options)) continue;
     host.appendChild(createSidebarSessionItem(session, options));
   }
 }
 
 function renderSessionList() {
   sessionList.innerHTML = "";
-  const pinnedSessions = getVisiblePinnedSessions();
-  const visibleSessions = getVisibleActiveSessions();
+  const pinnedSessions = getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session));
+  const visibleSessions = getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session));
   const persistentSessionsByGroup = Object.create(null);
 
   if (pinnedSessions.length > 0) {
@@ -305,7 +362,7 @@ function renderSessionList() {
 function renderArchivedSection() {
   const existing = document.getElementById("archivedSection");
   if (existing) existing.remove();
-  const archivedSessions = getVisibleArchivedSessions();
+  const archivedSessions = getVisibleArchivedSessions().filter((session) => shouldShowSessionInSidebarForList(session, { archived: true }));
   const shouldRenderSection = archivedSessionsLoading || archivedSessionCount > 0 || archivedSessions.length > 0;
   if (!shouldRenderSection) return;
 
@@ -397,7 +454,17 @@ function startRename(itemEl, session) {
   });
 }
 
+function resolveAttachedSessionRecord(id, session) {
+  const sessionId = typeof id === "string" ? id.trim() : "";
+  if (!sessionId) return session || null;
+  const existing = Array.isArray(sessions)
+    ? sessions.find((entry) => entry?.id === sessionId)
+    : null;
+  return existing || session || null;
+}
+
 function attachSession(id, session) {
+  const resolvedSession = resolveAttachedSessionRecord(id, session);
   if (typeof window !== "undefined" && typeof window.MelodySyncWorkbench?.setFocusedSessionId === "function") {
     window.MelodySyncWorkbench.setFocusedSessionId(id, { render: false });
   }
@@ -406,9 +473,9 @@ function attachSession(id, session) {
     clearMessages();
     dispatchAction({ action: "attach", sessionId: id });
   }
-  applyAttachedSessionState(id, session);
+  applyAttachedSessionState(id, resolvedSession);
   if (typeof markSessionReviewed === "function") {
-    Promise.resolve(markSessionReviewed(session, { sync: shouldReattach, render: true })).catch(() => {});
+    Promise.resolve(markSessionReviewed(resolvedSession, { sync: shouldReattach, render: true })).catch(() => {});
   }
   if (typeof focusComposer === "function") {
     focusComposer({ preventScroll: true });

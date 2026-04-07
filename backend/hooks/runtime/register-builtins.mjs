@@ -3,6 +3,7 @@ import { getBuiltinHookDefinition } from '../builtin-hook-catalog.mjs';
 import { firstBootMemoryHook } from '../first-boot-memory-hook.mjs';
 import { pushNotificationHook } from '../push-notification-hook.mjs';
 import { emailCompletionHook } from '../email-completion-hook.mjs';
+import { hostCompletionVoiceHook } from '../host-completion-voice-hook.mjs';
 
 let builtinHooksRegistered = false;
 
@@ -22,5 +23,6 @@ export function registerBuiltinHooks() {
   builtinHooksRegistered = true;
   registerCatalogHook('builtin.first-boot-memory', firstBootMemoryHook);
   registerCatalogHook('builtin.push-notification', pushNotificationHook);
+  registerCatalogHook('builtin.host-completion-voice', hostCompletionVoiceHook);
   registerCatalogHook('builtin.email-completion', emailCompletionHook);
 }

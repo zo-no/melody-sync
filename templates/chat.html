@@ -14,9 +14,8 @@
 <link rel="icon" href="/favicon.ico?v={{ASSET_VERSION}}" sizes="any">
 <link rel="icon" href="/icon.svg?v={{ASSET_VERSION}}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v={{ASSET_VERSION}}">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap">
+<link rel="preload" href="/chat/chat.css?v={{ASSET_VERSION}}" as="style">
+<link rel="preload" href="/chat.js" as="script">
 <title>{{PAGE_TITLE}}</title>
 <link rel="stylesheet" href="/chat/chat.css?v={{ASSET_VERSION}}">
 </head>
@@ -27,11 +26,38 @@
 <div class="header">
   <button class="header-btn" id="menuBtn" title="Tasks" aria-label="Tasks" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
   <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync</h1>
+  <button class="header-task-detail-btn" id="headerTaskDetailBtn" type="button" hidden>任务详情 ▸</button>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
-  <button class="header-operation-record-btn" id="operationRecordBtn" type="button" aria-label="操作记录" title="操作记录" hidden>记录</button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
+</div>
+
+<div class="completion-attention-banner" id="completionAttentionBanner" hidden role="status" aria-live="assertive">
+  <div class="completion-attention-copy">
+    <span class="completion-attention-kicker">MelodySync 任务完成</span>
+    <span class="completion-attention-text" id="completionAttentionText">当前任务已完成</span>
+  </div>
+  <div class="completion-attention-actions">
+    <button class="completion-attention-btn" id="completionAttentionOpenBtn" type="button">打开</button>
+    <button class="completion-attention-btn secondary" id="completionAttentionCloseBtn" type="button">关闭</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="completionAttentionModalBackdrop" hidden>
+  <div class="modal completion-attention-modal" role="dialog" aria-modal="true" aria-labelledby="completionAttentionModalTitle">
+    <div class="modal-header">
+      <div class="modal-title" id="completionAttentionModalTitle">MelodySync 任务完成</div>
+      <button class="modal-close" id="completionAttentionModalCloseBtn" type="button" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-lead" id="completionAttentionModalLead">当前任务已完成</div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn primary" id="completionAttentionModalOpenBtn" type="button">打开任务</button>
+      <button class="modal-btn" id="completionAttentionModalAckBtn" type="button">知道了</button>
+    </div>
+  </div>
 </div>
 
 <div class="app-container">
@@ -171,6 +197,9 @@
                 <span class="quest-tracker-detail-label">记忆</span>
                 <div class="quest-tracker-detail-list" id="questTrackerMemoryList"></div>
               </div>
+              <div class="quest-tracker-detail-row quest-tracker-detail-action-row">
+                <button class="quest-tracker-detail-action" id="operationRecordBtn" type="button" aria-label="操作记录" title="操作记录" hidden>操作记录</button>
+              </div>
             </div>
           </div>
           <div class="quest-tracker-footer" id="questTrackerFooter">
@@ -253,62 +282,6 @@
 
 {{BOOTSTRAP_SCRIPT_TAGS}}
 {{EXTRA_BOOTSTRAP_SCRIPTS}}
-<script src="/marked.min.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/i18n.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session-list/order-contract.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session/state-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/icons.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/app-state.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/bootstrap.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/bootstrap-session-catalog.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session-list/contract.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session/http-helpers.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session/http-list-state.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session/http.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/layout-tooling.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session/tooling.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/realtime.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/realtime-render.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session/transcript-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session/surface-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session-list/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session-list/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session-list/sidebar-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/node-contract.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/node-effects.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/node-instance.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/graph-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/node-capabilities.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/node-task-card.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/graph-client.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/nodes/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/task-map-plan.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/surface-projection.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/task-map-clusters.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/task-map-mock-presets.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/task-map-model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/quest-state.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/task-tracker-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/node-rich-view-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/node-canvas-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/task-map-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/task-list-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/branch-actions.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/operation-record-ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/vendor/panzoom.min.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/workbench/controller.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/session/compose.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/gestures.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/hooks/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/general/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/email/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/voice/model.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/general/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/email/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/voice/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/nodes/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/settings/hooks/ui.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
-<script src="/chat/core/init.js?v={{ASSET_VERSION}}" nonce="{{NONCE}}"></script>
+<script src="/chat.js" nonce="{{NONCE}}"></script>
 </body>
 </html>

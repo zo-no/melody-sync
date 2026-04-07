@@ -40,6 +40,45 @@ function trimString(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+const CAPTURE_RECOVERABLE_ERROR_PATTERNS = [
+  /no speech/i,
+  /speech.*(start.*timeout|detected.*timeout|start timeout|start timeout|silence)/i,
+  /recognition.*failed/i,
+  /recognition canceled|recognition cancelled/i,
+  /kaf(?:ail|assistant(?:error)?domain)/i,
+  /1107/i,
+  /timed out/i,
+]
+const MAX_CAPTURE_ATTEMPTS = 2
+const MAX_STT_ATTEMPTS = 2
+
+function isRecoverableCaptureError(error) {
+  const message = trimString(error?.message || error)
+  if (!message) return false
+  return CAPTURE_RECOVERABLE_ERROR_PATTERNS.some((pattern) => pattern.test(message))
+}
+
+function parseBooleanish(value) {
+  if (typeof value === 'boolean') return value
+  const normalized = trimString(value).toLowerCase()
+  if (!normalized) return undefined
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false
+  return undefined
+}
+
+function isCaptureExplicitlyOptional(summary) {
+  const captureNeeded = parseBooleanish(summary?.metadata?.captureNeeded)
+  const hasTranscript = Boolean(normalizeMultilineText(summary?.transcript))
+  return captureNeeded === false && !hasTranscript
+}
+
+function isCaptureNeeded(summary) {
+  const hasWakeTranscript = Boolean(normalizeMultilineText(summary?.transcript))
+  if (hasWakeTranscript) return false
+  return !isCaptureExplicitlyOptional(summary)
+}
+
 function nowIso() {
   return new Date().toISOString()
 }
@@ -351,9 +390,70 @@ async function transcribeAudio(runtime, audioPath, summary) {
   return normalizeMultilineText(result.stdout)
 }
 
+async function captureWithRetry(runtime, summary) {
+  let lastError
+  for (let attempt = 1; attempt <= MAX_CAPTURE_ATTEMPTS; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        await logConnectorEvent(runtime, 'capture_retry', {
+          eventId: summary.eventId,
+          attempt,
+        })
+      }
+      return await captureAudio(runtime, summary)
+    } catch (error) {
+      lastError = error
+      const errorMessage = trimString(error?.message || String(error || ''))
+      await logConnectorEvent(runtime, 'capture_failed', {
+        eventId: summary.eventId,
+        attempt,
+        error: errorMessage,
+      })
+      if (!isRecoverableCaptureError(error) || attempt === MAX_CAPTURE_ATTEMPTS) {
+        throw error
+      }
+    }
+  }
+  throw lastError || new Error('capture failed')
+}
+
+async function transcribeWithRetry(runtime, audioPath, summary) {
+  let lastError
+  for (let attempt = 1; attempt <= MAX_STT_ATTEMPTS; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        await logConnectorEvent(runtime, 'stt_retry', {
+          eventId: summary.eventId,
+          attempt,
+          audioPath,
+        })
+      }
+      return await transcribeAudio(runtime, audioPath, summary)
+    } catch (error) {
+      lastError = error
+      const errorMessage = trimString(error?.message || String(error || ''))
+      await logConnectorEvent(runtime, 'transcription_failed', {
+        eventId: summary.eventId,
+        audioPath,
+        attempt,
+        error: errorMessage,
+      })
+      if (!isRecoverableCaptureError(error) || attempt === MAX_STT_ATTEMPTS) {
+        throw error
+      }
+    }
+  }
+  throw lastError || new Error('transcription failed')
+}
+
 async function resolveTranscript(runtime, summary) {
   const directTranscript = normalizeMultilineText(summary.transcript)
   if (directTranscript) {
+    await logConnectorEvent(runtime, 'transcript_ready_stage', {
+      eventId: summary.eventId,
+      stage: 'wake_transcript',
+      transcriptSource: 'wake',
+    })
     return {
       transcript: directTranscript,
       audioPath: trimString(summary.audioPath),
@@ -363,14 +463,62 @@ async function resolveTranscript(runtime, summary) {
   let audioPath = trimString(summary.audioPath)
   let transcript = ''
 
-  if (!audioPath || runtime.config.capture.command) {
-    const captured = await captureAudio(runtime, summary)
-    audioPath = trimString(captured.audioPath || audioPath)
-    transcript = normalizeMultilineText(captured.transcript)
+  const shouldCapture = Boolean(runtime.config.capture.command) && !isCaptureExplicitlyOptional(summary)
+  if (!audioPath && !shouldCapture) {
+    await logConnectorEvent(runtime, 'transcript_ready_stage', {
+      eventId: summary.eventId,
+      stage: 'empty_input',
+      captureNeeded: isCaptureNeeded(summary),
+      hasAudioPath: false,
+    })
+    return {
+      transcript: '',
+      audioPath: '',
+    }
+  }
+
+  if (shouldCapture) {
+    try {
+      const captured = await captureWithRetry(runtime, summary)
+      audioPath = trimString(captured.audioPath || audioPath)
+      transcript = normalizeMultilineText(captured.transcript)
+      await logConnectorEvent(runtime, 'transcript_ready_stage', {
+        eventId: summary.eventId,
+        stage: 'capture_complete',
+        audioPath,
+        transcriptPresent: Boolean(transcript),
+      })
+    } catch (error) {
+      if (!isRecoverableCaptureError(error)) {
+        throw error
+      }
+      await logConnectorEvent(runtime, 'transcript_ready_stage', {
+        eventId: summary.eventId,
+        stage: 'capture_gave_up',
+        reason: 'recoverable',
+      })
+      return {
+        transcript: '',
+        audioPath: audioPath || '',
+      }
+    }
   }
 
   if (!transcript && audioPath) {
-    transcript = await transcribeAudio(runtime, audioPath, summary)
+    try {
+      transcript = await transcribeWithRetry(runtime, audioPath, summary)
+    } catch (error) {
+      await logConnectorEvent(runtime, 'transcript_ready_stage', {
+        eventId: summary.eventId,
+        stage: 'transcription_gave_up',
+        reason: isRecoverableCaptureError(error) ? 'recoverable' : 'fatal',
+        audioPath,
+      })
+      if (!isRecoverableCaptureError(error)) {
+        throw error
+      }
+      transcript = ''
+    }
   }
 
   return {

@@ -74,13 +74,24 @@ async function dispatchAction(msg) {
         const queueCount = Number.isInteger(attachedSession?.activity?.queue?.count)
           ? attachedSession.activity.queue.count
           : 0;
+        let latestSession = attachedSession;
         if (queueCount > 0 && !Array.isArray(attachedSession?.queuedMessages)) {
-          await Promise.all([
+          const [detailSession] = await Promise.all([
             fetchSessionState(msg.sessionId),
             eventsPromise,
           ]);
+          latestSession = getCurrentSession() || detailSession || latestSession;
         } else {
           await eventsPromise;
+          latestSession = getCurrentSession() || latestSession;
+        }
+        if (latestSession && typeof markVisibleSessionReviewed === "function") {
+          const shouldSyncReviewed = typeof isSessionBusy === "function"
+            ? !isSessionBusy(latestSession)
+            : true;
+          await Promise.resolve(markVisibleSessionReviewed(latestSession, {
+            sync: shouldSyncReviewed,
+          })).catch(() => {});
         }
         return true;
       }
@@ -178,7 +189,35 @@ async function dispatchAction(msg) {
         }
         return true;
       }
+      case "restore_pending": {
+        const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workflowState: "" }),
+        });
+        if (data.session) {
+          const session = upsertSession(data.session) || data.session;
+          renderSessionList();
+          if (currentSessionId === msg.sessionId) {
+            applyAttachedSessionState(msg.sessionId, session);
+          }
+        } else if (currentSessionId === msg.sessionId) {
+          await refreshCurrentSession();
+        } else {
+          await refreshSidebarSession(msg.sessionId);
+        }
+        return true;
+      }
       case "delete": {
+        const targetSession = Array.isArray(sessions)
+          ? sessions.find((session) => session?.id === msg.sessionId) || null
+          : null;
+        const sessionName = typeof targetSession?.name === "string" && targetSession.name.trim()
+          ? targetSession.name.trim()
+          : t("session.defaultName");
+        if (typeof confirm === "function" && !confirm(t("action.deleteConfirm", { name: sessionName }))) {
+          return false;
+        }
         const previousSession = applyOptimisticSessionDelete(msg.sessionId);
         try {
           await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
@@ -397,6 +436,9 @@ async function dispatchAction(msg) {
     }
   } catch (error) {
     console.error("HTTP action failed:", error.message);
+    if (msg?.action === "delete" && typeof alert === "function") {
+      alert(error?.message || t("action.deleteFailed"));
+    }
     return false;
   }
 }

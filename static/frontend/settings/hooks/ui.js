@@ -9,6 +9,9 @@
 
   // ── State ────────────────────────────────────────────────────────────────────
   let hooksData = null; // { events: string[], hooks: HookMeta[] }
+  let testingHostVoice = false;
+  let statusMessage = '';
+  let statusError = '';
 
   // ── Fetch ────────────────────────────────────────────────────────────────────
   async function loadHooks() {
@@ -34,13 +37,79 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       hooksData = { ...hooksData, hooks: data.hooks };
+      statusMessage = '';
+      statusError = '';
       render();
     } catch (err) {
       console.error('[hooks-ui] patch failed:', err.message);
+      statusMessage = '';
+      statusError = err.message || 'Hook 更新失败';
+      render();
+    }
+  }
+
+  async function testHostCompletionVoice() {
+    if (testingHostVoice) return;
+    testingHostVoice = true;
+    statusMessage = '';
+    statusError = '';
+    render();
+    try {
+      const appState = globalThis.MelodySyncAppState?.getState?.();
+      const currentSession = appState?.currentSessionId
+        ? (Array.isArray(appState?.sessions) ? appState.sessions.find((entry) => entry?.id === appState.currentSessionId) || null : null)
+        : null;
+      const speechText = buildHostVoiceSpeech(currentSession);
+      const res = await fetch('/api/system/completion-sound', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ speechText }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      statusMessage = '已在这台 Mac 上触发本地语音播报测试。';
+    } catch (err) {
+      statusError = err?.message || '本地语音播报测试失败';
+    } finally {
+      testingHostVoice = false;
+      render();
     }
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
+  function normalizeSpeechClause(value) {
+    return String(value || '')
+      .replace(/\s+/g, ' ')
+      .replace(/[。！？!?；;：:]+$/g, '')
+      .trim();
+  }
+
+  function firstNonEmptyText(...values) {
+    for (const value of values) {
+      const text = normalizeSpeechClause(value);
+      if (text) return text;
+    }
+    return '';
+  }
+
+  function buildHostVoiceSpeech(session = null) {
+    const sessionName = firstNonEmptyText(session?.name);
+    const taskCard = session?.taskCard || {};
+    const needsFromUser = Array.isArray(taskCard?.needsFromUser) ? taskCard.needsFromUser : [];
+    const nextSteps = Array.isArray(taskCard?.nextSteps) ? taskCard.nextSteps : [];
+    const actionHint = firstNonEmptyText(
+      needsFromUser[0],
+      nextSteps[0],
+      taskCard?.checkpoint,
+    );
+    if (sessionName) return `${sessionName}，需要你处理。`;
+    if (actionHint) return '需要你处理。';
+    return '需要你处理。';
+  }
+
   function render() {
     if (!hooksData) return;
     const { hooks, settings } = hooksData;
@@ -118,6 +187,29 @@
     const storageNote = settings?.storagePath
       ? `<div class="hooks-summary-desc">启停状态文件：<code>${escHtml(settings.storagePath)}</code></div>`
       : '';
+    const hostVoiceHook = Array.isArray(hooks)
+      ? hooks.find((hook) => hook?.id === 'builtin.host-completion-voice')
+      : null;
+    const hostVoiceStatus = hostVoiceHook?.enabled === false ? '已禁用' : '已启用';
+    const hostVoiceCard = `
+      <section class="hooks-event-card">
+        <div class="hooks-event-card-header">
+          <div class="hooks-event-card-heading">
+            <div class="hooks-event-card-title">本地语音播报</div>
+            <div class="hooks-section-desc">这项提醒由 <code>builtin.host-completion-voice</code> 控制。一次执行完成后，在 Mac mini 本地直接执行语音播报。</div>
+          </div>
+          <span class="hooks-event-card-count">${escHtml(hostVoiceStatus)}</span>
+        </div>
+        <div class="hooks-event-body" style="display:flex;flex-direction:column;gap:10px;">
+          <div class="hooks-summary-desc">启用/禁用请直接切换下面 Hooks 列表中的 <code>本轮完成时主机语音播报</code>。</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="new-session-btn secondary" type="button" data-action="test-host-completion-voice" ${testingHostVoice ? 'disabled' : ''}>${testingHostVoice ? '播放中…' : '测试完成语音播报'}</button>
+            ${statusError ? `<span class="hooks-error" style="margin:0">${escHtml(statusError)}</span>` : ''}
+            ${statusMessage ? `<span class="hooks-summary-desc">${escHtml(statusMessage)}</span>` : ''}
+          </div>
+        </div>
+      </section>`;
+
     const intro = `
       <div class="hooks-summary">
         <div class="hooks-summary-desc">按完整闭环流程查看，只显示当前生命周期节点下已经接入的 Hook。</div>
@@ -135,7 +227,7 @@
       </section>`;
 
     body.innerHTML = phaseSections
-      ? `${intro}<div class="hooks-phase-list">${phaseSections}</div>${flowchart}`
+      ? `${intro}${hostVoiceCard}<div class="hooks-phase-list">${phaseSections}</div>${flowchart}`
       : '<div class="hooks-empty">暂无已声明的生命周期</div>';
 
     // Bind toggle events
@@ -143,6 +235,9 @@
       input.addEventListener('change', () => {
         patchHook(input.dataset.hookId, input.checked);
       });
+    });
+    body.querySelector?.('[data-action="test-host-completion-voice"]')?.addEventListener?.('click', () => {
+      void testHostCompletionVoice();
     });
   }
 

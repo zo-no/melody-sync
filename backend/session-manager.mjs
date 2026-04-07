@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 import { watch } from 'fs';
 import { writeFile } from 'fs/promises';
 import { dirname, join, resolve } from 'path';
-import { CHAT_IMAGES_DIR } from '../lib/config.mjs';
+import { CHAT_FILE_ASSET_CACHE_DIR, CHAT_IMAGES_DIR } from '../lib/config.mjs';
 import { getToolDefinitionAsync } from '../lib/tools.mjs';
 import { createToolInvocation } from './process-runner.mjs';
 import {
@@ -22,6 +22,7 @@ import {
 import { messageEvent, statusEvent } from './normalizer.mjs';
 import { buildSourceRuntimePrompt } from './source-runtime-prompts.mjs';
 import { emit as emitHook } from './hooks/runtime/registry.mjs';
+import { registerBuiltinHooks } from './hooks/runtime/register-builtins.mjs';
 import { createFollowUpQueueHelpers } from './follow-up-queue.mjs';
 import {
   buildSessionOrganizerPrompt,
@@ -46,8 +47,10 @@ import {
   resolveInitialSessionName,
 } from './session-naming.mjs';
 import {
+  didSessionWorkflowTransitionToDone,
   normalizeSessionWorkflowPriority,
   normalizeSessionWorkflowState,
+  SESSION_WORKFLOW_STATE_WAITING_USER,
 } from './session-workflow-state.mjs';
 import {
   formatAttachmentContextLine,
@@ -97,7 +100,7 @@ import {
   resolveSessionSourceId,
   resolveSessionSourceName,
 } from './compat/session-meta-compat.mjs';
-import { publishLocalFileAssetFromPath } from './file-assets.mjs';
+import { deleteFileAssets, publishLocalFileAssetFromPath } from './file-assets.mjs';
 import { ensureDir, pathExists, removePath, statOrNull } from './fs-utils.mjs';
 import {
   buildResultAssetReadyMessage,
@@ -113,6 +116,7 @@ import {
   parseTaskCardFromAssistantContent,
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
+import { writeSessionDeletionJournalEntry } from './session-deletion-journal.mjs';
 import {
   buildPersistentDigest,
   buildPersistentRunMessage,
@@ -124,6 +128,8 @@ import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
 import { registerSessionManagerBuiltinHooks } from './hooks/runtime/register-session-manager-hooks.mjs';
 import { appendGraphBootstrapPromptContext } from './workbench/graph-prompt-context.mjs';
 import { syncSessionContinuityFromSession } from './workbench/index.mjs';
+import { workbenchQueue } from './workbench/queues.mjs';
+import { loadWorkbenchState, saveWorkbenchState } from './workbench/state-store.mjs';
 
 const INTERNAL_SESSION_ROLE_CONTEXT_COMPACTOR = 'context_compactor';
 const INTERNAL_SESSION_ROLE_AGENT_DELEGATE = 'agent_delegate';
@@ -2276,6 +2282,7 @@ async function syncDetachedRun(sessionId, runId) {
 }
 
 function ensureSessionManagerBuiltinHooksRegistered() {
+  registerBuiltinHooks();
   registerSessionManagerBuiltinHooks({
     appendEvents,
     isSessionAutoRenamePending,
@@ -2779,6 +2786,123 @@ function collectSessionTreeIds(rootSessionId, metas = []) {
   return collected;
 }
 
+function isManagedSessionPath(candidatePath, managedDir) {
+  const target = trimString(candidatePath);
+  const baseDir = trimString(managedDir);
+  if (!target || !baseDir) return false;
+  const resolvedTarget = resolve(target);
+  const resolvedBase = resolve(baseDir);
+  return resolvedTarget === resolvedBase
+    || resolvedTarget.startsWith(`${resolvedBase}/`)
+    || resolvedTarget.startsWith(`${resolvedBase}\\`);
+}
+
+function collectSessionManagedArtifacts(historiesBySessionId = {}, sessionIds = []) {
+  const managedPaths = new Set();
+  const fileAssetIds = new Set();
+
+  for (const sessionId of Array.isArray(sessionIds) ? sessionIds : []) {
+    const events = Array.isArray(historiesBySessionId[sessionId]) ? historiesBySessionId[sessionId] : [];
+    for (const event of events) {
+      if (!Array.isArray(event?.images)) continue;
+      for (const image of event.images) {
+        const savedPath = trimString(image?.savedPath);
+        const assetId = trimString(image?.assetId);
+        if (savedPath && (
+          isManagedSessionPath(savedPath, CHAT_IMAGES_DIR)
+          || isManagedSessionPath(savedPath, CHAT_FILE_ASSET_CACHE_DIR)
+        )) {
+          managedPaths.add(savedPath);
+        }
+        if (assetId) {
+          fileAssetIds.add(assetId);
+        }
+      }
+    }
+  }
+
+  return {
+    managedPaths: [...managedPaths],
+    fileAssetIds: [...fileAssetIds],
+  };
+}
+
+async function collectRunPublishedFileAssetIds(sessionIds = []) {
+  const targets = new Set((Array.isArray(sessionIds) ? sessionIds : []).filter(Boolean));
+  if (!targets.size) return [];
+  const fileAssetIds = new Set();
+  const runIds = await listRunIds();
+  for (const runId of runIds) {
+    const run = await getRun(runId);
+    if (!run?.sessionId || !targets.has(run.sessionId)) continue;
+    for (const attachment of normalizePublishedResultAssetAttachments(run?.publishedResultAssets || [])) {
+      if (trimString(attachment?.assetId)) {
+        fileAssetIds.add(trimString(attachment.assetId));
+      }
+    }
+  }
+  return [...fileAssetIds];
+}
+
+async function pruneWorkbenchSessionArtifacts(sessionIds = []) {
+  const targetIds = new Set((Array.isArray(sessionIds) ? sessionIds : []).filter(Boolean));
+  if (!targetIds.size) return;
+
+  await workbenchQueue(async () => {
+    const state = await loadWorkbenchState();
+    const removedProjectIds = new Set(
+      (state.projects || [])
+        .filter((entry) => targetIds.has(trimString(entry?.scopeKey)))
+        .map((entry) => trimString(entry?.id))
+        .filter(Boolean),
+    );
+
+    state.projects = (state.projects || []).filter((entry) => !targetIds.has(trimString(entry?.scopeKey)));
+    state.branchContexts = (state.branchContexts || []).filter((entry) => (
+      !targetIds.has(trimString(entry?.sessionId))
+      && !targetIds.has(trimString(entry?.parentSessionId))
+    ));
+    state.taskMapPlans = (state.taskMapPlans || []).flatMap((plan) => {
+      if (targetIds.has(trimString(plan?.rootSessionId))) {
+        return [];
+      }
+      const removedNodeIds = new Set(
+        (Array.isArray(plan?.nodes) ? plan.nodes : [])
+          .filter((node) => (
+            targetIds.has(trimString(node?.sessionId))
+            || targetIds.has(trimString(node?.sourceSessionId))
+          ))
+          .map((node) => trimString(node?.id))
+          .filter(Boolean),
+      );
+      if (!removedNodeIds.size) {
+        return [plan];
+      }
+      const nodes = (plan.nodes || []).filter((node) => !removedNodeIds.has(trimString(node?.id)));
+      if (!nodes.length) {
+        return [];
+      }
+      const nodeIds = new Set(nodes.map((node) => trimString(node?.id)).filter(Boolean));
+      const edges = (plan.edges || []).filter((edge) => (
+        nodeIds.has(trimString(edge?.fromNodeId))
+        && nodeIds.has(trimString(edge?.toNodeId))
+      ));
+      return [{
+        ...plan,
+        nodes,
+        edges,
+        activeNodeId: nodeIds.has(trimString(plan?.activeNodeId))
+          ? trimString(plan.activeNodeId)
+          : trimString(nodes[0]?.id),
+      }];
+    });
+    state.nodes = (state.nodes || []).filter((entry) => !removedProjectIds.has(trimString(entry?.projectId)));
+    state.summaries = (state.summaries || []).filter((entry) => !removedProjectIds.has(trimString(entry?.projectId)));
+
+    await saveWorkbenchState(state);
+  });
+}
+
 async function deleteSessionRuns(sessionIds = []) {
   const targets = new Set((Array.isArray(sessionIds) ? sessionIds : []).filter(Boolean));
   if (!targets.size) return;
@@ -2795,9 +2919,39 @@ async function deleteSessionRuns(sessionIds = []) {
 export async function deleteSessionPermanently(id) {
   const current = await findSessionMeta(id);
   if (!current) return { deletedSessionIds: [] };
+  if (current.archived !== true) {
+    const error = new Error('请先归档任务，再删除。');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const metas = await loadSessionsMeta();
+  const targetTreeIds = collectSessionTreeIds(id, metas);
+  if (!targetTreeIds.length) {
+    return { deletedSessionIds: [] };
+  }
+  const targetIdSet = new Set(targetTreeIds);
+  const rootSession = metas.find((meta) => meta?.id === id) || current;
+  const relatedSessions = metas.filter((meta) => meta?.id && targetIdSet.has(meta.id) && meta.id !== id);
+  const historyEntries = await Promise.all(targetTreeIds.map(async (sessionId) => [
+    sessionId,
+    await loadHistory(sessionId, { includeBodies: true }).catch(() => []),
+  ]));
+  const historiesBySessionId = Object.fromEntries(historyEntries);
+  const deletionArtifacts = collectSessionManagedArtifacts(historiesBySessionId, targetTreeIds);
+  const runFileAssetIds = await collectRunPublishedFileAssetIds(targetTreeIds);
+
+  await writeSessionDeletionJournalEntry({
+    rootSession,
+    relatedSessions,
+    historiesBySessionId,
+    deletedSessionIds: targetTreeIds,
+  });
 
   const deletedSessionIds = await withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
-    const treeIds = collectSessionTreeIds(id, metas);
+    const treeIds = metas
+      .map((meta) => trimString(meta?.id))
+      .filter((sessionId) => sessionId && targetIdSet.has(sessionId));
     if (!treeIds.length) return [];
     const targetIds = new Set(treeIds);
     const nextMetas = metas.filter((meta) => !targetIds.has(meta?.id));
@@ -2819,6 +2973,15 @@ export async function deleteSessionPermanently(id) {
   }
 
   await deleteSessionRuns(deletedSessionIds);
+  await pruneWorkbenchSessionArtifacts(deletedSessionIds).catch(() => {});
+
+  for (const managedPath of deletionArtifacts.managedPaths) {
+    await removePath(managedPath).catch(() => {});
+  }
+  await deleteFileAssets([
+    ...deletionArtifacts.fileAssetIds,
+    ...runFileAssetIds,
+  ]).catch(() => {});
 
   if (shouldExposeSession(current)) {
     broadcastSessionsInvalidation();
@@ -3318,6 +3481,7 @@ export async function updateSessionWorkflowClassification(id, payload = {}) {
   const hasWorkflowState = Object.prototype.hasOwnProperty.call(payload, 'workflowState');
   const nextWorkflowPriority = normalizeSessionWorkflowPriority(workflowPriority || '');
   const hasWorkflowPriority = Object.prototype.hasOwnProperty.call(payload, 'workflowPriority');
+  let shouldSendCompletionPush = false;
   const result = await mutateSessionMeta(id, (session) => {
     const currentWorkflowState = normalizeSessionWorkflowState(session.workflowState || '');
     const currentWorkflowPriority = normalizeSessionWorkflowPriority(session.workflowPriority || '');
@@ -3326,6 +3490,7 @@ export async function updateSessionWorkflowClassification(id, payload = {}) {
     if (hasWorkflowState) {
       if (nextWorkflowState) {
         if (currentWorkflowState !== nextWorkflowState) {
+          shouldSendCompletionPush = didSessionWorkflowTransitionToDone(nextWorkflowState, currentWorkflowState);
           session.workflowState = nextWorkflowState;
           changed = true;
         }
@@ -3351,10 +3516,25 @@ export async function updateSessionWorkflowClassification(id, payload = {}) {
   });
 
   if (!result.meta) return null;
+  const enriched = await enrichSessionMeta(result.meta);
   if (result.changed) {
     broadcastSessionInvalidation(id);
+    const eventPayload = {
+      sessionId: id,
+      session: enriched,
+      manifest: null,
+    };
+    if (normalizeSessionWorkflowState(enriched?.workflowState || '') === SESSION_WORKFLOW_STATE_WAITING_USER) {
+      await emitHook('session.waiting_user', eventPayload);
+    }
+    if (shouldSendCompletionPush) {
+      await Promise.all([
+        emitHook('run.completed', eventPayload),
+        emitHook('session.completed', eventPayload),
+      ]);
+    }
   }
-  return enrichSessionMeta(result.meta);
+  return enriched;
 }
 
 async function updateSessionTool(id, tool) {

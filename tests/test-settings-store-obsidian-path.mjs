@@ -34,6 +34,7 @@ try {
   const first = await settingsModule.persistGeneralSettings({ appRoot: firstAppRoot });
   assert.equal(first.configuredAppRootPath, firstAppRoot);
   assert.equal(first.appRoot, firstAppRoot);
+  assert.equal(first.completionSoundEnabled, true);
   assert.equal(first.storagePath, join(firstAppRoot, 'config', 'general-settings.json'));
   assert.equal(first.bootstrapStoragePath, join(legacyConfigDir, 'general-settings.json'));
   assert.equal(first.customHooksPath, join(firstAppRoot, 'hooks', 'custom-hooks.json'));
@@ -43,6 +44,7 @@ try {
   const second = await settingsModule.persistGeneralSettings({ appRoot: secondAppRoot });
   assert.equal(second.configuredAppRootPath, secondAppRoot);
   assert.equal(second.appRoot, secondAppRoot);
+  assert.equal(second.completionSoundEnabled, true);
   assert.equal(second.storagePath, join(secondAppRoot, 'config', 'general-settings.json'));
   assert.equal(second.customHooksPath, join(secondAppRoot, 'hooks', 'custom-hooks.json'));
   assert.equal(second.agentsPath, join(secondAppRoot, 'AGENTS.md'));
@@ -57,6 +59,17 @@ try {
     'app-local settings should not persist machine-specific app root pointers',
   );
 
+  const toggled = await settingsModule.persistGeneralSettings({
+    appRoot: secondAppRoot,
+    completionSoundEnabled: false,
+  });
+  assert.equal(toggled.completionSoundEnabled, false);
+  assert.equal(
+    JSON.stringify(JSON.parse(readFileSync(second.storagePath, 'utf8'))),
+    JSON.stringify({ completionSoundEnabled: false }),
+    'app-local settings should persist completion sound preference when overridden',
+  );
+
   writeFileSync(
     second.storagePath,
     JSON.stringify({
@@ -68,6 +81,7 @@ try {
   const current = await settingsModule.readGeneralSettings();
   assert.equal(current.configuredAppRootPath, secondAppRoot);
   assert.equal(current.appRoot, secondAppRoot);
+  assert.equal(current.completionSoundEnabled, true, 'unknown app-local keys should not disable completion sounds by default');
   assert.equal(current.customHooksPath, join(secondAppRoot, 'hooks', 'custom-hooks.json'));
   assert.equal(current.agentsPath, join(secondAppRoot, 'AGENTS.md'));
 

@@ -7,6 +7,7 @@
 
   let loaded = null;
   let pending = false;
+  let requestingBrowserNotifications = false;
   let error = '';
   let success = '';
 
@@ -23,6 +24,7 @@
     try {
       loaded = await settingsModel.fetchSettings();
       pending = false;
+      requestingBrowserNotifications = false;
       error = '';
       render();
     } catch (err) {
@@ -34,6 +36,51 @@
     const field = form?.elements?.namedItem?.(name);
     return typeof field?.value === 'string' ? field.value : '';
   }
+
+  function describeBrowserNotificationState() {
+    if (!global?.Notification) {
+      return {
+        supported: false,
+        buttonLabel: '浏览器不支持通知',
+        detail: '当前浏览器不支持系统通知。',
+      };
+    }
+    if (global.isSecureContext === false) {
+      return {
+        supported: false,
+        buttonLabel: '需安全连接',
+        detail: '当前连接不是安全上下文，手机 Chrome 不会启用浏览器通知。',
+      };
+    }
+    if (!('serviceWorker' in global.navigator) || !('PushManager' in global)) {
+      return {
+        supported: false,
+        buttonLabel: '不支持推送订阅',
+        detail: '当前浏览器不支持 Web Push 订阅，手机后台系统通知不会工作。',
+      };
+    }
+    const permission = global.Notification.permission || 'default';
+    if (permission === 'granted') {
+      return {
+        supported: true,
+        buttonLabel: '重新订阅浏览器通知',
+        detail: '浏览器通知权限已授予，可重新执行一次订阅修复失效订阅。',
+      };
+    }
+    if (permission === 'denied') {
+      return {
+        supported: false,
+        buttonLabel: '通知已被拒绝',
+        detail: '浏览器通知权限已被拒绝，需要在浏览器站点设置里重新允许。',
+      };
+    }
+    return {
+      supported: true,
+      buttonLabel: '开启浏览器通知',
+      detail: '建议在手机上手动点一次，Chrome 才会真正弹权限。',
+    };
+  }
+
   async function saveSettings(form) {
     if (pending || !form) return;
     pending = true;
@@ -60,14 +107,53 @@
     }
   }
 
+  async function requestBrowserNotifications() {
+    if (pending || requestingBrowserNotifications) return;
+    requestingBrowserNotifications = true;
+    error = '';
+    success = '';
+    render();
+    try {
+      const notificationState = describeBrowserNotificationState();
+      if (!notificationState.supported) {
+        throw new Error(notificationState.detail);
+      }
+      const currentPermission = global.Notification.permission || 'default';
+      const permission = currentPermission === 'granted'
+        ? 'granted'
+        : await global.Notification.requestPermission();
+      if (permission === 'granted') {
+        if (typeof global.setupPushNotifications === 'function') {
+          const result = await global.setupPushNotifications();
+          if (result?.ok === false) {
+            throw new Error(result.error || '浏览器订阅失败');
+          }
+        }
+        success = currentPermission === 'granted'
+          ? '浏览器通知订阅已刷新。'
+          : '浏览器通知已开启。';
+      } else if (permission === 'denied') {
+        error = '浏览器通知被拒绝，请到浏览器站点设置里重新允许。';
+      } else {
+        error = '浏览器通知仍未授权。';
+      }
+    } catch (err) {
+      error = err?.message || '开启浏览器通知失败';
+    } finally {
+      requestingBrowserNotifications = false;
+      render();
+    }
+  }
+
   function render() {
     if (!loaded) return;
     const appRoot = loaded.appRoot || '';
     const storagePath = loaded.storagePath || '';
     const bootstrapStoragePath = loaded.bootstrapStoragePath || '';
     const agentsPath = loaded.agentsPath || '';
+    const notificationState = describeBrowserNotificationState();
     const statusRow = error
-      ? `<div class="hooks-error">保存失败：${escHtml(error)}</div>`
+      ? `<div class="hooks-error">操作失败：${escHtml(error)}</div>`
       : (success ? `<div class="hooks-summary"><div class="hooks-summary-desc">${escHtml(success)}</div></div>` : '');
     body.innerHTML = `
       <div class="hooks-phase-section">
@@ -92,9 +178,16 @@
                 ${agentsPath ? `<div class="hooks-summary-desc"><strong>说明文件：</strong><code>${escHtml(agentsPath)}</code></div>` : ''}
               </div>
             </div>
+            <div class="task-map-node-section">
+              <div class="task-map-node-section-title">浏览器通知</div>
+              <div class="hooks-summary" style="margin-top:10px">
+                <div class="hooks-summary-desc">${escHtml(notificationState.detail)}</div>
+              </div>
+            </div>
             ${statusRow}
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <button class="new-session-btn" type="submit" ${pending ? 'disabled' : ''}>${pending ? '保存中…' : '保存'}</button>
+              <button class="new-session-btn secondary" type="button" data-action="enable-browser-notifications" ${(pending || requestingBrowserNotifications || !notificationState.supported) ? 'disabled' : ''}>${requestingBrowserNotifications ? '请求中…' : escHtml(notificationState.buttonLabel)}</button>
               <button class="new-session-btn secondary" type="button" data-action="reload-general-settings" ${pending ? 'disabled' : ''}>重新加载</button>
             </div>
           </form>
@@ -111,6 +204,9 @@
       success = '';
       error = '';
       void fetchSettings();
+    });
+    body.querySelector?.('[data-action="enable-browser-notifications"]')?.addEventListener?.('click', () => {
+      void requestBrowserNotifications();
     });
   }
 

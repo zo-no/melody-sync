@@ -6,6 +6,7 @@ import { getAuthSession, refreshAuthSession } from '../lib/auth.mjs';
 import { getAvailableToolsAsync } from '../lib/tools.mjs';
 import { readBody } from '../lib/utils.mjs';
 
+import { playHostCompletionSound } from './completion-sound.mjs';
 import { getModelsForTool } from './models.mjs';
 import { getPublicKey, addSubscription } from './push.mjs';
 
@@ -31,6 +32,8 @@ export async function handleSystemRoutes({
   pathExists,
   chatImagesDir,
   uploadedMediaMimeTypes,
+  getAuthSession: getAuthSessionImpl = getAuthSession,
+  playHostCompletionSound: playHostCompletionSoundImpl = playHostCompletionSound,
 }) {
   if (pathname === '/api/models' && req.method === 'GET') {
     const toolId = getQueryValue(parsedUrl?.query?.tool);
@@ -154,8 +157,38 @@ export async function handleSystemRoutes({
     return true;
   }
 
+  if (pathname === '/api/system/completion-sound' && req.method === 'POST') {
+    const authSession = getAuthSessionImpl(req);
+    if (authSession?.role !== 'owner') {
+      jsonError(writeJson, res, 403, 'Owner access required');
+      return true;
+    }
+    try {
+      let body = '';
+      try {
+        body = await readBody(req, 4096);
+      } catch {}
+      const parsedBody = body ? JSON.parse(body) : {};
+      const playback = await playHostCompletionSoundImpl({
+        speechText: typeof parsedBody?.speechText === 'string' ? parsedBody.speechText : undefined,
+        voice: typeof parsedBody?.voice === 'string' ? parsedBody.voice : undefined,
+        rate: Number.isFinite(Number(parsedBody?.rate)) ? Number(parsedBody.rate) : undefined,
+        completionTtsProvider: typeof parsedBody?.completionTtsProvider === 'string' ? parsedBody.completionTtsProvider : undefined,
+        fallbackToSay: typeof parsedBody?.fallbackToSay === 'boolean' ? parsedBody.fallbackToSay : undefined,
+      });
+      writeJson(res, 200, {
+        ok: true,
+        mode: playback?.provider ? `host:${playback.provider}` : 'host',
+        soundPath: playback?.soundPath || '',
+      });
+    } catch (error) {
+      jsonError(writeJson, res, 500, error?.message || 'Failed to play host completion sound');
+    }
+    return true;
+  }
+
   if (pathname === '/api/auth/me' && req.method === 'GET') {
-    const authSession = getAuthSession(req);
+    const authSession = getAuthSessionImpl(req);
     if (!authSession) {
       jsonError(writeJson, res, 401, 'Not authenticated');
       return true;

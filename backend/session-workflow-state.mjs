@@ -51,6 +51,11 @@ export function normalizeSessionWorkflowState(value) {
   }
 }
 
+export function didSessionWorkflowTransitionToDone(nextValue, previousValue = '') {
+  return normalizeSessionWorkflowState(nextValue) === SESSION_WORKFLOW_STATE_DONE
+    && normalizeSessionWorkflowState(previousValue) !== SESSION_WORKFLOW_STATE_DONE;
+}
+
 export function normalizeSessionWorkflowPriority(value) {
   const normalized = typeof value === 'string'
     ? value.trim().toLowerCase().replace(/[\s-]+/g, '_')

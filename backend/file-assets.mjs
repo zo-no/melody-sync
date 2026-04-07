@@ -309,6 +309,28 @@ export async function getFileAsset(assetId) {
   return normalizeFileAssetRecord(await readJson(fileAssetPath(assetId), null));
 }
 
+export async function deleteFileAsset(assetId) {
+  if (!isValidFileAssetId(assetId)) return false;
+  return runFileAssetMutation(async () => {
+    const record = await getFileAsset(assetId);
+    if (!record) return false;
+    const localizedPath = normalizeString(record.localizedPath);
+    if (localizedPath) {
+      await removePath(localizedPath).catch(() => {});
+    }
+    await removePath(fileAssetPath(assetId)).catch(() => {});
+    return true;
+  });
+}
+
+export async function deleteFileAssets(assetIds = []) {
+  const uniqueIds = [...new Set((Array.isArray(assetIds) ? assetIds : []).filter(isValidFileAssetId))];
+  for (const assetId of uniqueIds) {
+    await deleteFileAsset(assetId).catch(() => {});
+  }
+  return uniqueIds;
+}
+
 export async function getFileAssetForClient(assetId, options = {}) {
   const record = await getFileAsset(assetId);
   if (!record) return null;

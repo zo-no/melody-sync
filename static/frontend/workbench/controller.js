@@ -3,6 +3,8 @@
   const trackerStatusEl = document.getElementById("questTrackerStatus");
   const trackerStatusDotEl = document.getElementById("questTrackerStatusDot");
   const trackerStatusTextEl = document.getElementById("questTrackerStatusText");
+  const headerTitleEl = document.getElementById("headerTitle");
+  const headerTaskDetailBtn = document.getElementById("headerTaskDetailBtn");
   const trackerTitleEl = document.getElementById("questTrackerTitle");
   const trackerBranchEl = document.getElementById("questTrackerBranch");
   const trackerBranchLabelEl = document.getElementById("questTrackerBranchLabel");
@@ -45,7 +47,6 @@
     branchContexts: [],
     taskClusters: [],
     taskMapGraph: null,
-    taskMapGraphSessionId: "",
     skills: [],
     summaries: [],
   };
@@ -54,6 +55,8 @@
   let taskMapGraphRefreshInFlight = null;
   let taskMapGraphRefreshSessionId = "";
   let fullSnapshotRefreshTimer = null;
+  let trackerExpanded = !isMobileQuestTracker();
+  let lastTrackerViewportMode = isMobileQuestTracker() ? "mobile" : "desktop";
   let taskMapExpanded = !isMobileQuestTracker();
   let lastTaskMapViewportMode = isMobileQuestTracker() ? "mobile" : "desktop";
   let questHasSessionTracked = false;
@@ -269,7 +272,6 @@
     isRedundantTrackerText,
     getCurrentTaskSummary: (state) => questStateSelector?.getCurrentTaskSummary?.(state) || "",
     getBranchDisplayName,
-    getSessionVisualStatus: typeof getSessionVisualStatus === "function" ? getSessionVisualStatus : null,
   }) || {
     renderStatus() {},
     getPrimaryTitle() { return "当前任务"; },
@@ -298,7 +300,6 @@
     isMobileQuestTracker,
     clipText,
     translate,
-    getBranchStatusUi,
     collapseTaskMapAfterAction,
     enterBranchFromSession,
     getSessionRecord,
@@ -316,24 +317,11 @@
   taskListController = window.MelodySyncTaskListUi?.createController?.({
     trackerTaskListEl,
     taskMapRail,
-    clipText,
-    translate,
-    renderChevronIcon,
     isMobileQuestTracker,
     isTaskMapExpanded,
     syncTaskMapDrawerUi,
-    collapseTaskMapAfterAction,
-    attachSession,
     getTaskMapProjection,
-    getResolvedClusterCurrentBranchSessionId,
-    getTaskCard,
-    getTaskCardList,
-    getClusterTitle: (cluster) => questStateSelector?.getClusterTitle?.(cluster) || "",
-    getBranchDisplayName,
-    getBranchStatusUi,
-    toConciseGoal,
     taskMapFlowRenderer,
-    requestRender: renderTracker,
   }) || {
     invalidate() {},
     render() {},
@@ -639,15 +627,23 @@
   }
 
   function getTaskMapProjection() {
-    const targetSessionId = getFocusedSessionId() || getCurrentSessionIdSafe();
     const graphClient = getGraphClientApi();
+    const targetSessionId = graphClient?.resolveTaskMapGraphRootSessionId?.({
+      sessionId: getFocusedSessionId() || getCurrentSessionIdSafe(),
+      snapshot,
+      getSessionRecord,
+      getCurrentSession: getCurrentSessionSafe,
+    }) || "";
     const canonicalProjection = (
       snapshot?.taskMapGraph
       && typeof snapshot.taskMapGraph === "object"
-      && normalizeSessionId(snapshot?.taskMapGraphSessionId || "") === normalizeSessionId(targetSessionId)
+      && graphClient?.canReuseTaskMapGraph?.(snapshot.taskMapGraph, targetSessionId) === true
       && typeof graphClient?.buildProjectionFromTaskMapGraph === "function"
     )
-      ? graphClient.buildProjectionFromTaskMapGraph(snapshot.taskMapGraph)
+      ? graphClient.buildProjectionFromTaskMapGraph(snapshot.taskMapGraph, {
+        currentSessionId: getCurrentSessionIdSafe(),
+        focusedSessionId: getFocusedSessionId(),
+      })
       : null;
     let projection = canonicalProjection;
     if (!projection) {
@@ -761,19 +757,6 @@
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${mo}-${dy} ${hh}:${mm}`;
-  }
-
-  function getBranchStatusUi(branchStatus) {
-    switch (String(branchStatus || "").toLowerCase()) {
-      case "resolved":
-        return { label: "已关闭", summary: "当前子任务已直接关闭，可稍后重新打开。" };
-      case "parked":
-        return { label: "已挂起", summary: "当前子任务已挂起，并已回到主线。" };
-      case "merged":
-        return { label: "已收束", summary: "当前子任务已收尾并带回主线。" };
-      default:
-        return { label: "进行中", summary: "" };
-    }
   }
 
   function getSuppressedStorageKey(sessionId, branchTitle) {
@@ -906,6 +889,8 @@
       tracker.hidden = true;
       if (taskMapRail) taskMapRail.hidden = true;
       if (trackerTaskListEl) trackerTaskListEl.hidden = true;
+      if (headerTaskDetailBtn) headerTaskDetailBtn.hidden = true;
+      if (headerTitleEl) headerTitleEl.hidden = false;
       taskMapRail?.classList?.remove?.("has-node-canvas");
       taskCanvasController?.clear?.();
       syncTaskMapDrawerUi(false);
@@ -923,8 +908,24 @@
     const trackerTitle = getTrackerPrimaryTitle(state);
     const trackerPrimaryDetail = getTrackerPrimaryDetail(state);
     const trackerSecondaryDetail = getTrackerSecondaryDetail(state, trackerPrimaryDetail);
+    const mobileTracker = isMobileQuestTracker();
+    const expanded = !mobileTracker || trackerExpanded;
+    if (headerTaskDetailBtn) {
+      headerTaskDetailBtn.hidden = !mobileTracker;
+      const headerTaskLabel = clipText(trackerTitle, 28) || "当前任务";
+      headerTaskDetailBtn.textContent = `${headerTaskLabel} ${expanded ? "▾" : "▸"}`;
+      headerTaskDetailBtn.title = trackerTitle || headerTaskLabel;
+      headerTaskDetailBtn.setAttribute("aria-label", `${expanded ? "收起" : "展开"}任务详情：${trackerTitle || headerTaskLabel}`);
+      headerTaskDetailBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
+    }
+    if (headerTitleEl) {
+      headerTitleEl.hidden = mobileTracker;
+    }
+    tracker.hidden = !expanded;
     trackerTitleEl.textContent = trackerTitle;
     trackerTitleEl.hidden = false;
+    const sessionTime = state.session?.lastEventAt || state.session?.updatedAt || state.session?.created || "";
+    const timeText = formatTrackerTime(sessionTime);
     if (trackerBranchEl) {
       trackerBranchEl.hidden = !trackerPrimaryDetail;
       trackerBranchLabelEl.textContent = showBranch ? "主线任务" : "当前推进";
@@ -933,8 +934,6 @@
     trackerNextEl.hidden = !trackerSecondaryDetail;
     trackerNextEl.textContent = trackerSecondaryDetail;
     if (trackerTimeEl) {
-      const sessionTime = state.session?.lastEventAt || state.session?.updatedAt || state.session?.created || "";
-      const timeText = formatTrackerTime(sessionTime);
       trackerTimeEl.hidden = !timeText;
       trackerTimeEl.textContent = timeText;
     }
@@ -973,19 +972,21 @@
     if (patch.taskMapGraph && typeof patch.taskMapGraph === "object") {
       snapshot.taskMapGraph = patch.taskMapGraph;
     }
-    if (typeof patch.taskMapGraphSessionId === "string") {
-      snapshot.taskMapGraphSessionId = patch.taskMapGraphSessionId;
-    }
   }
 
   async function refreshTaskMapGraph(sessionIdOverride = "", { force = false } = {}) {
-    const targetSessionId = normalizeSessionId(sessionIdOverride || getFocusedSessionId() || getCurrentSessionIdSafe());
     const graphClient = getGraphClientApi();
+    const targetSessionId = graphClient?.resolveTaskMapGraphRootSessionId?.({
+      sessionId: sessionIdOverride || getFocusedSessionId() || getCurrentSessionIdSafe(),
+      snapshot,
+      getSessionRecord,
+      getCurrentSession: getCurrentSessionSafe,
+    }) || "";
     if (!targetSessionId || typeof graphClient?.fetchTaskMapGraphForSession !== "function") return null;
     if (
       !force
       && snapshot?.taskMapGraph
-      && normalizeSessionId(snapshot?.taskMapGraphSessionId || "") === targetSessionId
+      && graphClient?.canReuseTaskMapGraph?.(snapshot.taskMapGraph, targetSessionId) === true
     ) {
       return snapshot.taskMapGraph;
     }
@@ -1001,7 +1002,6 @@
         const response = await graphClient.fetchTaskMapGraphForSession(targetSessionId);
         if (response?.taskMapGraph && typeof response.taskMapGraph === "object") {
           snapshot.taskMapGraph = response.taskMapGraph;
-          snapshot.taskMapGraphSessionId = targetSessionId;
         }
       } catch {
       } finally {
@@ -1048,7 +1048,6 @@
           branchContexts: [],
           taskClusters: [],
           taskMapGraph: null,
-          taskMapGraphSessionId: "",
           skills: [],
           summaries: [],
         };
@@ -1248,12 +1247,19 @@
     renderTracker();
   });
 
+  headerTaskDetailBtn?.addEventListener("click", () => {
+    trackerExpanded = !trackerExpanded;
+    renderTracker();
+  });
+
   document.addEventListener("melodysync:session-change", (event) => {
     const nextFocusedSessionId = normalizeSessionId(event?.detail?.session?.id || "");
     collapseTaskMapAfterAction({ render: false });
+    if (isMobileQuestTracker()) {
+      trackerExpanded = false;
+    }
     selectedTaskCanvasNodeId = "";
     snapshot.taskMapGraph = null;
-    snapshot.taskMapGraphSessionId = "";
     if (nextFocusedSessionId) {
       setFocusedSessionId(nextFocusedSessionId, { render: false });
     }
@@ -1275,6 +1281,10 @@
   window.addEventListener("resize", () => {
     taskListController?.invalidate?.();
     const nextViewportMode = isMobileQuestTracker() ? "mobile" : "desktop";
+    if (nextViewportMode !== lastTrackerViewportMode) {
+      lastTrackerViewportMode = nextViewportMode;
+      trackerExpanded = nextViewportMode === "desktop";
+    }
     if (nextViewportMode !== lastTaskMapViewportMode) {
       lastTaskMapViewportMode = nextViewportMode;
       taskMapExpanded = nextViewportMode === "desktop";

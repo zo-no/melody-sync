@@ -173,6 +173,11 @@
     return parseSessionTime(stamp);
   }
 
+  function getSessionLatestReviewableTime(session) {
+    const stamp = session?.lastEventAt || session?.created || "";
+    return parseSessionTime(stamp);
+  }
+
   function getSessionReviewTime(session) {
     return Math.max(
       parseSessionTime(session?.lastReviewedAt),
@@ -385,7 +390,7 @@
   function hasSessionUnreadUpdate(session) {
     if (!session) return false;
     if (isSessionBusy(session)) return false;
-    return getSessionLatestChangeTime(session) > getSessionReviewTime(session);
+    return getSessionLatestReviewableTime(session) > getSessionReviewTime(session);
   }
 
   function getSessionReviewStatusInfo(session) {

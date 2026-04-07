@@ -23,6 +23,18 @@
     return next;
   }
 
+  async function testCompletionSound() {
+    const response = await global.fetch('/api/system/completion-sound', {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    const next = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(next?.error || `HTTP ${response.status}`);
+    }
+    return next;
+  }
+
   function scheduleReloadAfterConfigSwitch({ delayMs = 600, maxAttempts = 12 } = {}) {
     let attempts = 0;
 
@@ -51,6 +63,7 @@
   global.MelodySyncGeneralSettingsModel = Object.freeze({
     fetchSettings,
     saveSettings,
+    testCompletionSound,
     scheduleReloadAfterConfigSwitch,
   });
 })(window);

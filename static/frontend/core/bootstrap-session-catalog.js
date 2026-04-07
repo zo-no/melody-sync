@@ -83,10 +83,20 @@ function initializePushNotifications() {
   if (!("Notification" in window)) return;
   if (Notification.permission === "default") {
     Notification.requestPermission().then((perm) => {
-      if (perm === "granted") setupPushNotifications();
+      if (perm === "granted") {
+        setupPushNotifications().then((result) => {
+          if (result?.ok === false) {
+            console.warn("[push] Auto-subscribe failed:", result.error || "unknown_error");
+          }
+        });
+      }
     });
   } else if (Notification.permission === "granted") {
-    setupPushNotifications();
+    setupPushNotifications().then((result) => {
+      if (result?.ok === false) {
+        console.warn("[push] Auto-subscribe failed:", result.error || "unknown_error");
+      }
+    });
   }
 }
 
