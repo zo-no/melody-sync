@@ -125,6 +125,12 @@
       return getNodeEffectsApi()?.getNodeTaskRunStatusUi?.(node) || { key: "", label: "", summary: "" };
     }
 
+    function getTaskRunStatusApi() {
+      return typeof globalThis === "object" && globalThis
+        ? (globalThis?.MelodySyncTaskRunStatus || globalThis?.window?.MelodySyncTaskRunStatus)
+        : (window?.MelodySyncTaskRunStatus || window?.window?.MelodySyncTaskRunStatus);
+    }
+
     function getProjectedTaskFlowConfig() {
       const mobile = isMobileQuestTracker();
       return {
@@ -255,11 +261,13 @@
 
     function getProjectedTaskFlowNodeMeta(node) {
       const nodeEffect = getNodeEffect(node);
-      const label = getNodeEffectsApi()?.getNodeMetaLabel?.(node);
-      if (label) return label;
+      const nodeStatusUi = getTaskFlowNodeStatusUi(node);
+      const nodeStatusLabel = String(nodeStatusUi?.label || "").trim();
+      const metaLabel = String(getNodeEffectsApi()?.getNodeMetaLabel?.(node) || "").trim();
+      if (metaLabel) return metaLabel;
       if (nodeEffect?.metaVariant === "candidate") return "可选";
       if (nodeEffect?.metaVariant === "done") return "已收束";
-      return "";
+      return nodeStatusLabel || "空闲";
     }
 
     function getProjectedTaskFlowNodeSummary(node, activeQuest) {
@@ -705,13 +713,16 @@
         if (isCanvasSelected) nodeEl.classList.add("is-canvas-selected");
         if (!node.parentNodeId) nodeEl.classList.add("is-root");
         if (isCandidate) nodeEl.classList.add("is-candidate");
-        if (isDone || node.status === "done") nodeEl.classList.add("is-done", "is-resolved");
         if (node.isCurrentPath) nodeEl.classList.add("is-current-path");
         if (node.isCurrent) nodeEl.classList.add("is-current");
-        if (node.status === "parked") nodeEl.classList.add("is-parked");
-        if (node.status === "resolved") nodeEl.classList.add("is-resolved");
-        if (node.status === "merged") nodeEl.classList.add("is-resolved", "is-merged");
         if (nodeStatusClassName) nodeEl.classList.add(nodeStatusClassName);
+        const taskRunStatusApi = getTaskRunStatusApi();
+        const statusAliasClassName = String(
+          taskRunStatusApi?.getTaskRunStatusResolvedNodeClassName?.(nodeStatusUi?.key || "", "is-") || "",
+        ).trim();
+        if (statusAliasClassName) {
+          nodeEl.classList.add(statusAliasClassName);
+        }
         nodeEl.style.left = `${entry.x}px`;
         nodeEl.style.top = `${entry.y}px`;
         nodeEl.style.width = `${entry.nodeWidth}px`;
@@ -721,9 +732,9 @@
         if (badgeLabel) {
           const badge = documentRef.createElement("div");
           badge.className = "quest-task-flow-node-badge";
-          if (["resolved", "done"].includes(node.status)) badge.classList.add("is-complete");
-          if (node.status === "merged") badge.classList.add("is-complete", "is-merged");
-          if (node.status === "parked") badge.classList.add("is-parked");
+          if (nodeStatusUi?.key === "completed") badge.classList.add("is-complete");
+          if (node.status === "merged") badge.classList.add("is-merged");
+          if (nodeStatusUi?.key === "parked") badge.classList.add("is-parked");
           if (nodeStatusClassName) badge.classList.add(nodeStatusClassName);
           badge.textContent = badgeLabel;
           nodeEl.appendChild(badge);

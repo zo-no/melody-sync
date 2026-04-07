@@ -242,4 +242,16 @@ assert.equal(
   'parked nodes should surface a parked badge label',
 );
 
+assert.equal(
+  effectsApi.getNodeMetaLabel({
+    id: 'session:branch-plain',
+    kind: 'review',
+    parentNodeId: 'session:main-1',
+    status: 'active',
+    isCurrent: true,
+  }),
+  '空闲',
+  'unknown status-carrying branch-like nodes should fall back to a stable idle badge label',
+);
+
 console.log('test-workbench-node-effects: ok');

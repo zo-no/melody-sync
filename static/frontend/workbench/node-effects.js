@@ -34,6 +34,16 @@
     }) || { key: "", label: "", summary: "" };
   }
 
+  function getNodeStatusMetaLabel(
+    node,
+    {
+      getTaskRunStatusPresentation: resolveTaskRunStatusPresentation = getTaskRunStatusPresentation,
+      fallbackLabel = "",
+    } = {},
+  ) {
+    return trimText(getNodeTaskRunStatusUi(node, { getTaskRunStatusPresentation: resolveTaskRunStatusPresentation })?.label || fallbackLabel);
+  }
+
   function freezeEffect(effect) {
     return Object.freeze({
       ...effect,
@@ -349,10 +359,11 @@
     } = {},
   ) {
     const effect = getNodeEffect(node);
+    const statusLabel = getNodeStatusMetaLabel(node, {
+      getTaskRunStatusPresentation: resolveTaskRunStatusPresentation,
+    });
     if (!trimText(node?.parentNodeId || "")) {
-      return trimText(getNodeTaskRunStatusUi(node, {
-        getTaskRunStatusPresentation: resolveTaskRunStatusPresentation,
-      })?.label || "");
+      return statusLabel;
     }
     if (getNodeView(node)?.type !== "flow-node") {
       return "画布";
@@ -365,11 +376,8 @@
       case "canvas-view":
         return "画布";
       case "branch-status":
-        return trimText(getNodeTaskRunStatusUi(node, {
-          getTaskRunStatusPresentation: resolveTaskRunStatusPresentation,
-        })?.label || "");
       default:
-        return "";
+        return statusLabel || "空闲";
     }
   }
 
