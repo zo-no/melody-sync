@@ -8,8 +8,6 @@ MelodySync is for people who have repetitive digital work but are not automation
 
 A user can start from phone or desktop with that messy input. MelodySync helps turn it into executable work, lets strong local executors such as `codex`, `claude`, and compatible tools do the machine-side execution, and keeps the work thread durable enough to resume later instead of restarting from zero.
 
-![MelodySync across surfaces](docs/readme-multisurface-demo.png)
-
 > Current baseline: `v0.3` — an owner-first session runtime, durable on-disk history, executor adapters, and a no-build web UI that works across phone and desktop.
 
 > Reach the same work thread from desktop, phone, and optional integration surfaces without changing the core session workflow.
@@ -135,8 +133,6 @@ If you want the full local setup contract and the human-only checkpoints, use `d
 
 Open MelodySync locally first:
 - **Local**: `http://127.0.0.1:7760/?token=YOUR_TOKEN`
-
-![Dashboard](docs/new-dashboard.png)
 
 - create a session with a local AI tool, with Codex first by default
 - start from `~` by default, or point the agent at another repo when needed
