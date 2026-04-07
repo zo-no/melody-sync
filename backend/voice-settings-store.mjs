@@ -80,7 +80,12 @@ async function readVoiceStatus(paths) {
 
 async function resolveVoiceSettingsContext() {
   const general = await readGeneralSettings();
-  const paths = buildMelodySyncPaths(general.appRoot, { agentsFile: general.agentsPath });
+  const paths = buildMelodySyncPaths({
+    brainRoot: general.brainRoot || general.appRoot,
+    runtimeRoot: general.runtimeRoot,
+    machineConfigRoot: general.machineOverlayRoot,
+    agentsFile: general.agentsPath,
+  });
   await ensureDir(paths.voiceDir);
   await ensureDir(paths.voiceLogsDir);
   const storedConfig = await ensureVoiceConfigFile(paths.voiceConfigFile);

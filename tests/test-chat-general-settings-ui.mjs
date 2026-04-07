@@ -145,10 +145,18 @@ const context = {
       ok: true,
       async json() {
         return {
-          appRoot: '/Users/test/vault',
-          storagePath: '/Users/test/vault/config/general-settings.json',
+          brainRoot: '/Users/test/vault/00-🤖agent',
+          runtimeRoot: '/Users/test/.melodysync/runtime',
+          appRoot: '/Users/test/vault/00-🤖agent',
+          storagePath: '/Users/test/.melodysync/runtime/config/general-settings.json',
           bootstrapStoragePath: '/Users/test/.config/melody-sync/general-settings.json',
-          customHooksPath: '/Users/test/vault/hooks/custom-hooks.json',
+          machineOverlayRoot: '/Users/test/.config/melody-sync',
+          runtimeConfigRoot: '/Users/test/.melodysync/runtime/config',
+          customHooksPath: '/Users/test/.melodysync/runtime/hooks/custom-hooks.json',
+          memoryPath: '/Users/test/vault/00-🤖agent/memory',
+          sessionsPath: '/Users/test/.melodysync/runtime/sessions',
+          logsPath: '/Users/test/.melodysync/runtime/logs',
+          providerRuntimeHomesPath: '/Users/test/.melodysync/runtime/config/provider-runtime-homes',
           agentsPath: '/Users/test/vault/00-🤖agent/AGENTS.md',
         };
       },
@@ -171,17 +179,19 @@ assert.equal(hooksOverlay.hidden, false, 'settings button should open the shared
 assert.deepEqual(fetchCalls, ['/api/settings/catalog', '/api/settings'], 'opening settings should fetch the catalog and general settings once');
 assert.equal(settingsTabGeneral.classList.contains('is-active'), true, 'general tab should be active by default');
 assert.equal(settingsPanelGeneral.hidden, false, 'general panel should be visible by default');
-assert.match(generalPanelBody.innerHTML, /应用路径/, 'general settings should expose the editable application path field');
-assert.match(generalPanelBody.innerHTML, /说明文件/, 'general settings should expose the agents file path');
-assert.match(generalPanelBody.innerHTML, /<input[^>]+name="appRoot"[^>]+value="\/Users\/test\/vault"/, 'general settings should render the app root as an editable input');
-assert.match(generalPanelBody.innerHTML, /应用目录：<\/strong><code>\/Users\/test\/vault<\/code>/, 'general settings should still show the resolved app root');
-assert.match(generalPanelBody.innerHTML, /后端配置文件：<\/strong><code>\/Users\/test\/vault\/config\/general-settings\.json<\/code>/, 'general settings should show the backend config file path');
-assert.match(generalPanelBody.innerHTML, /当前设备配置文件：<\/strong><code>\/Users\/test\/\.config\/melody-sync\/general-settings\.json<\/code>/, 'general settings should show the local device config file');
-assert.match(generalPanelBody.innerHTML, /说明文件：<\/strong><code>\/Users\/test\/vault\/00-🤖agent\/AGENTS\.md<\/code>/, 'general settings should show the local AGENTS file path');
+assert.match(generalPanelBody.innerHTML, /当前存储拓扑/, 'general settings should present the storage topology hero');
+assert.match(generalPanelBody.innerHTML, /大脑目录/, 'general settings should expose the editable brain root field');
+assert.match(generalPanelBody.innerHTML, /运行目录/, 'general settings should expose the editable runtime root field');
+assert.match(generalPanelBody.innerHTML, /设备配置层/, 'general settings should explain the machine-local settings layer');
+assert.match(generalPanelBody.innerHTML, /<input[^>]+name="brainRoot"[^>]+value="\/Users\/test\/vault\/00-🤖agent"/, 'general settings should render the brain root as an editable input');
+assert.match(generalPanelBody.innerHTML, /<input[^>]+name="runtimeRoot"[^>]+value="\/Users\/test\/\.melodysync\/runtime"/, 'general settings should render the runtime root as an editable input');
+assert.match(generalPanelBody.innerHTML, /说明文件[\s\S]*\/Users\/test\/vault\/00-🤖agent\/AGENTS\.md/, 'general settings should show the AGENTS file path');
+assert.match(generalPanelBody.innerHTML, /当前设备配置文件[\s\S]*\/Users\/test\/\.config\/melody-sync\/general-settings\.json/, 'general settings should show the device config file path');
+assert.match(generalPanelBody.innerHTML, /Provider 运行目录[\s\S]*\/Users\/test\/\.melodysync\/runtime\/config\/provider-runtime-homes/, 'general settings should show the provider runtime home path');
 assert.doesNotMatch(generalPanelBody.innerHTML, /name="agentsPath"/, 'general settings should not render the agents path as an editable input');
 assert.doesNotMatch(generalPanelBody.innerHTML, /name="agentsContent"/, 'general settings should not expose an editable AGENTS textarea');
 assert.match(generalPanelBody.innerHTML, /保存/, 'general settings should expose a save button');
-assert.match(generalPanelBody.innerHTML, /浏览器通知/, 'general settings should only expose browser notification status in the reminder section');
+assert.match(generalPanelBody.innerHTML, /浏览器通知/, 'general settings should expose browser notification status');
 assert.match(generalPanelBody.innerHTML, /重新加载/, 'general settings should expose a reload button');
 
 console.log('test-chat-general-settings-ui: ok');

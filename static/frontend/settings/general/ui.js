@@ -89,11 +89,12 @@
     render();
     try {
       const next = await settingsModel.saveSettings({
-        appRoot: getNamedField(form, 'appRoot').trim(),
+        brainRoot: getNamedField(form, 'brainRoot').trim(),
+        runtimeRoot: getNamedField(form, 'runtimeRoot').trim(),
       });
       loaded = next || loaded;
       success = next?.reloadRequired
-        ? (next?.reloadScheduled ? '已保存，服务正在重新加载新应用目录。' : '已保存，请重启服务以加载新应用目录。')
+        ? (next?.reloadScheduled ? '已保存，服务正在切换新的大脑目录与运行目录。' : '已保存，请重启服务以加载新的大脑目录与运行目录。')
         : '已保存';
       pending = false;
       render();
@@ -145,37 +146,136 @@
     }
   }
 
+  function renderRootCard({ kicker, title, desc, value, extraRows = [], editableName = '', placeholder = '' }) {
+    const input = editableName
+      ? `
+          <label class="general-settings-field">
+            <span class="general-settings-field-label">${escHtml(title)}</span>
+            <input class="settings-inline-input" form="generalSettingsForm" name="${escHtml(editableName)}" value="${escHtml(value)}" placeholder="${escHtml(placeholder)}">
+          </label>
+        `
+      : '';
+    const rows = extraRows
+      .filter((entry) => entry && entry.value)
+      .map((entry) => `
+        <div class="general-settings-path-row">
+          <span class="general-settings-path-label">${escHtml(entry.label)}</span>
+          <code>${escHtml(entry.value)}</code>
+        </div>
+      `)
+      .join('');
+    return `
+      <section class="general-settings-card">
+        <div class="general-settings-card-head">
+          <div>
+            <div class="general-settings-card-kicker">${escHtml(kicker)}</div>
+            <div class="general-settings-card-title">${escHtml(title)}</div>
+          </div>
+        </div>
+        <div class="general-settings-card-desc">${escHtml(desc)}</div>
+        ${input}
+        <div class="general-settings-path-list">${rows}</div>
+      </section>
+    `;
+  }
+
   function render() {
     if (!loaded) return;
-    const appRoot = loaded.appRoot || '';
+    const brainRoot = loaded.brainRoot || loaded.appRoot || '';
+    const runtimeRoot = loaded.runtimeRoot || '';
     const storagePath = loaded.storagePath || '';
     const bootstrapStoragePath = loaded.bootstrapStoragePath || '';
     const agentsPath = loaded.agentsPath || '';
+    const machineOverlayRoot = loaded.machineOverlayRoot || '';
+    const runtimeConfigRoot = loaded.runtimeConfigRoot || '';
+    const memoryPath = loaded.memoryPath || '';
+    const sessionsPath = loaded.sessionsPath || '';
+    const logsPath = loaded.logsPath || '';
+    const providerRuntimeHomesPath = loaded.providerRuntimeHomesPath || '';
     const notificationState = describeBrowserNotificationState();
     const statusRow = error
       ? `<div class="hooks-error">操作失败：${escHtml(error)}</div>`
       : (success ? `<div class="hooks-summary"><div class="hooks-summary-desc">${escHtml(success)}</div></div>` : '');
+
     body.innerHTML = `
-      <div class="hooks-phase-section">
+      <div class="hooks-phase-section general-settings-shell">
         <div class="hooks-phase-header">
           <div class="hooks-phase-heading">
             <div class="hooks-phase-title">通用设置</div>
-            <div class="hooks-phase-desc">应用路径决定当前服务从哪里读取和写入本地数据。</div>
+            <div class="hooks-phase-desc">把可迁移的大脑和本机运行体彻底分开，用户才能既拿到长期资产，又不让知识库被运行态污染。</div>
           </div>
         </div>
+
+        <div class="hooks-event-card general-settings-hero">
+          <div class="general-settings-hero-title">当前存储拓扑</div>
+          <div class="general-settings-hero-desc">长期记忆跟着你走，运行数据留在本机，设备配置只属于当前机器。</div>
+          <div class="general-settings-topology">
+            <div class="general-settings-topology-node">
+              <span class="general-settings-topology-kicker">Brain</span>
+              <strong>00-🤖agent</strong>
+              <span>长期记忆、规则、项目资产</span>
+            </div>
+            <div class="general-settings-topology-arrow">→</div>
+            <div class="general-settings-topology-node">
+              <span class="general-settings-topology-kicker">Runtime</span>
+              <strong>本机运行体</strong>
+              <span>sessions、logs、provider capture</span>
+            </div>
+            <div class="general-settings-topology-arrow">→</div>
+            <div class="general-settings-topology-node">
+              <span class="general-settings-topology-kicker">Device</span>
+              <strong>当前设备配置</strong>
+              <span>auth、tools、push、启动配置</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="general-settings-grid">
+          ${renderRootCard({
+            kicker: 'Portable Brain',
+            title: '大脑目录',
+            desc: '这个目录可以放进同步盘或知识库，承载长期记忆、规则和项目背景。',
+            value: brainRoot,
+            editableName: 'brainRoot',
+            placeholder: '/Users/xxx/diary/diary/00-🤖agent',
+            extraRows: [
+              { label: '说明文件', value: agentsPath },
+              { label: '记忆目录', value: memoryPath },
+            ],
+          })}
+          ${renderRootCard({
+            kicker: 'Local Runtime',
+            title: '运行目录',
+            desc: '这一层承载本机运行态，优先保证能力、恢复和读取速度，不默认进入知识库。',
+            value: runtimeRoot,
+            editableName: 'runtimeRoot',
+            placeholder: '/Users/xxx/.melodysync/runtime',
+            extraRows: [
+              { label: '运行态配置', value: runtimeConfigRoot },
+              { label: '会话目录', value: sessionsPath },
+              { label: '日志目录', value: logsPath },
+              { label: 'Provider 运行目录', value: providerRuntimeHomesPath },
+            ],
+          })}
+          ${renderRootCard({
+            kicker: 'Current Device',
+            title: '设备配置层',
+            desc: '只属于当前机器，不跟着大脑跨机器移动。',
+            value: machineOverlayRoot,
+            extraRows: [
+              { label: '当前设备配置文件', value: bootstrapStoragePath },
+              { label: '运行态设置文件', value: storagePath },
+            ],
+          })}
+        </div>
+
         <div class="hooks-event-card">
-          <form data-general-settings-form style="display:flex;flex-direction:column;gap:12px;padding:12px 0;">
+          <form id="generalSettingsForm" data-general-settings-form class="general-settings-form">
             <div class="task-map-node-section">
-              <div class="task-map-node-section-title">路径</div>
-              <label class="task-map-node-field" style="display:flex;flex-direction:column;gap:6px">
-                <span class="hooks-panel-title" style="font-size:13px">应用路径</span>
-                <input class="settings-inline-input" name="appRoot" value="${escHtml(appRoot)}" placeholder="/Users/xxx/diary/diary/00-🤖agent">
-              </label>
+              <div class="task-map-node-section-title">保存规则</div>
               <div class="hooks-summary" style="margin-top:10px">
-                ${appRoot ? `<div class="hooks-summary-desc"><strong>应用目录：</strong><code>${escHtml(appRoot)}</code></div>` : ''}
-                ${storagePath ? `<div class="hooks-summary-desc"><strong>后端配置文件：</strong><code>${escHtml(storagePath)}</code></div>` : ''}
-                ${bootstrapStoragePath ? `<div class="hooks-summary-desc"><strong>当前设备配置文件：</strong><code>${escHtml(bootstrapStoragePath)}</code></div>` : ''}
-                ${agentsPath ? `<div class="hooks-summary-desc"><strong>说明文件：</strong><code>${escHtml(agentsPath)}</code></div>` : ''}
+                <div class="hooks-summary-desc">修改大脑目录或运行目录后，服务会重新加载，并把后续数据写入新的根路径。</div>
+                <div class="hooks-summary-desc">长期内容应通过 writeback/promotion 进入大脑，而不是让运行日志和会话直接滞留在知识库。</div>
               </div>
             </div>
             <div class="task-map-node-section">
@@ -185,7 +285,7 @@
               </div>
             </div>
             ${statusRow}
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div class="general-settings-actions">
               <button class="new-session-btn" type="submit" ${pending ? 'disabled' : ''}>${pending ? '保存中…' : '保存'}</button>
               <button class="new-session-btn secondary" type="button" data-action="enable-browser-notifications" ${(pending || requestingBrowserNotifications || !notificationState.supported) ? 'disabled' : ''}>${requestingBrowserNotifications ? '请求中…' : escHtml(notificationState.buttonLabel)}</button>
               <button class="new-session-btn secondary" type="button" data-action="reload-general-settings" ${pending ? 'disabled' : ''}>重新加载</button>

@@ -33,7 +33,7 @@ export { workbenchQueue as WORKBENCH_QUEUE } from './queues.mjs';
 
 async function getDefaultObsidianPath() {
   const settings = await readGeneralSettings();
-  return settings?.appRoot || '';
+  return settings?.brainRoot || settings?.appRoot || '';
 }
 
 export async function createCaptureItem(payload = {}) {

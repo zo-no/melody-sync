@@ -19,6 +19,7 @@ delete process.env.MELODYSYNC_OBSIDIAN_PATH;
 const legacyConfigDir = join(tempHome, '.config', 'melody-sync');
 const vaultPath = join(tempHome, 'vault');
 const preferredAgentDir = join(vaultPath, '00-🤖agent');
+const defaultRuntimeRoot = join(tempHome, '.melodysync', 'runtime');
 const legacyNestedAppRoot = join(preferredAgentDir, '.melodysync');
 const legacyVaultConfigDir = join(legacyNestedAppRoot, 'config');
 const legacyVaultHooksDir = join(legacyNestedAppRoot, 'hooks');
@@ -55,12 +56,14 @@ try {
 
   assert.equal(config.USE_OBSIDIAN_VAULT_STORAGE, true);
   assert.equal(config.OBSIDIAN_VAULT_DIR, preferredAgentDir);
+  assert.equal(config.MELODYSYNC_BRAIN_ROOT, preferredAgentDir);
+  assert.equal(config.MELODYSYNC_RUNTIME_ROOT, defaultRuntimeRoot);
   assert.equal(config.MELODYSYNC_APP_ROOT, preferredAgentDir);
-  assert.equal(config.CONFIG_DIR, join(preferredAgentDir, 'config'));
+  assert.equal(config.CONFIG_DIR, legacyConfigDir);
   assert.equal(config.MEMORY_DIR, join(preferredAgentDir, 'memory'));
-  assert.equal(config.HOOKS_FILE, join(preferredAgentDir, 'hooks', 'settings.json'));
-  assert.equal(config.CHAT_SESSIONS_FILE, join(preferredAgentDir, 'sessions', 'chat-sessions.json'));
-  assert.equal(config.CUSTOM_HOOKS_FILE, join(preferredAgentDir, 'hooks', 'custom-hooks.json'));
+  assert.equal(config.HOOKS_FILE, join(defaultRuntimeRoot, 'hooks', 'settings.json'));
+  assert.equal(config.CHAT_SESSIONS_FILE, join(defaultRuntimeRoot, 'sessions', 'chat-sessions.json'));
+  assert.equal(config.CUSTOM_HOOKS_FILE, join(defaultRuntimeRoot, 'hooks', 'custom-hooks.json'));
   assert.equal(config.MELODYSYNC_AGENTS_FILE, join(preferredAgentDir, 'AGENTS.md'));
 
   assert.equal(existsSync(join(preferredAgentDir, 'README.md')), true, 'app root README should be scaffolded');

@@ -10,6 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-voice-settings-route-'));
 const appRoot = join(tempHome, 'vault', '00-🤖agent');
+const runtimeRoot = join(tempHome, '.melodysync', 'runtime');
 const configDir = join(tempHome, '.config', 'melody-sync');
 
 process.env.HOME = tempHome;
@@ -52,7 +53,8 @@ try {
   assert.equal(patchResult.payload.config.wake.command, 'bash scripts/voice-managed-wake.sh');
   assert.equal(patchResult.payload.config.capture.command, 'bash scripts/voice-managed-capture.sh');
   assert.equal(patchResult.payload.config.tts.mode, 'say');
-  assert.equal(patchResult.payload.paths.configFile, join(appRoot, 'voice', 'config.json'));
+  assert.equal(patchResult.payload.appRoot, appRoot);
+  assert.equal(patchResult.payload.paths.configFile, join(runtimeRoot, 'voice', 'config.json'));
 
   const getResult = {};
   const getHandled = await handleSettingsRoutes({

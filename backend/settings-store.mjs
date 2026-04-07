@@ -1,22 +1,27 @@
 import { homedir } from 'os';
 import { dirname, resolve } from 'path';
-import { readFile, stat } from 'fs/promises';
+import { cp, readFile, readdir, stat } from 'fs/promises';
 import {
   CUSTOM_HOOKS_FILE,
   DEFAULT_MELODYSYNC_APP_ROOT,
+  DEFAULT_MELODYSYNC_RUNTIME_ROOT,
   GENERAL_SETTINGS_BOOTSTRAP_FILE,
   GENERAL_SETTINGS_FILE,
   MELODYSYNC_AGENTS_FILENAME,
   MELODYSYNC_AGENTS_FILE,
   MELODYSYNC_APP_ROOT,
+  MELODYSYNC_RUNTIME_ROOT,
   buildDefaultAgentsContent,
   buildMelodySyncPaths,
   resolveMelodySyncDefaultAgentsPath,
   resolveMelodySyncAppRoot,
+  resolveMelodySyncRuntimeRoot,
 } from '../lib/config.mjs';
 import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from './fs-utils.mjs';
 
 const DEFAULT_SETTINGS = Object.freeze({
+  brainRoot: '',
+  runtimeRoot: '',
   appRoot: '',
 });
 
@@ -36,12 +41,22 @@ function normalizeAppRootPath(value) {
 }
 
 function normalizeGeneralSettings(value = {}) {
-  const nextAppRootPath = normalizeAppRootPath(
-    value?.appRoot || value?.appRootPath || value?.app?.root,
+  const nextBrainRootPath = normalizeAppRootPath(
+    value?.brainRoot || value?.brainRootPath || value?.brain?.root
+    || value?.appRoot || value?.appRootPath || value?.app?.root,
+  );
+  const nextRuntimeRootPath = normalizeAppRootPath(
+    value?.runtimeRoot || value?.runtimeRootPath || value?.runtime?.root,
   );
   return {
-    appRoot: nextAppRootPath,
+    brainRoot: nextBrainRootPath,
+    runtimeRoot: nextRuntimeRootPath,
+    appRoot: nextBrainRootPath,
   };
+}
+
+function resolveMachineConfigRoot() {
+  return dirname(GENERAL_SETTINGS_BOOTSTRAP_FILE);
 }
 
 function normalizeOptionalBoolean(value) {
@@ -76,36 +91,80 @@ function normalizeAppScopedSettings(value = {}) {
     };
 }
 
+function buildPathsFromMetadata(metadata = {}) {
+  return buildMelodySyncPaths({
+    brainRoot: metadata.brainRoot,
+    runtimeRoot: metadata.runtimeRoot,
+    machineConfigRoot: resolveMachineConfigRoot(),
+    agentsFile: metadata.agentsPath,
+  });
+}
+
 function deriveGeneralSettingsMetadata(settings = {}) {
   const normalizedSettings = normalizeGeneralSettings(settings);
-  const { appRoot } = normalizedSettings;
-  const configuredAppRootPath = normalizeAppRootPath(appRoot);
-  const resolvedAppRoot = configuredAppRootPath
-    ? resolveMelodySyncAppRoot(configuredAppRootPath)
+  const configuredBrainRootPath = normalizeAppRootPath(normalizedSettings.brainRoot);
+  const configuredRuntimeRootPath = normalizeAppRootPath(normalizedSettings.runtimeRoot);
+  const resolvedBrainRoot = configuredBrainRootPath
+    ? resolveMelodySyncAppRoot(configuredBrainRootPath)
     : (MELODYSYNC_APP_ROOT || DEFAULT_MELODYSYNC_APP_ROOT);
-  const resolvedAgentsPath = resolvedAppRoot
-    ? resolveMelodySyncDefaultAgentsPath(resolvedAppRoot)
+  const resolvedRuntimeRoot = configuredRuntimeRootPath
+    ? resolveMelodySyncRuntimeRoot(configuredRuntimeRootPath)
+    : (MELODYSYNC_RUNTIME_ROOT || DEFAULT_MELODYSYNC_RUNTIME_ROOT);
+  const resolvedAgentsPath = resolvedBrainRoot
+    ? resolveMelodySyncDefaultAgentsPath(resolvedBrainRoot)
     : MELODYSYNC_AGENTS_FILE;
-  if (!resolvedAppRoot) {
+  if (!resolvedBrainRoot) {
     return {
-      configuredAppRootPath,
+      configuredBrainRootPath,
+      configuredRuntimeRootPath,
+      configuredAppRootPath: configuredBrainRootPath,
+      brainRoot: '',
+      runtimeRoot: '',
       appRoot: '',
       storagePath: GENERAL_SETTINGS_FILE,
       bootstrapStoragePath: GENERAL_SETTINGS_BOOTSTRAP_FILE,
+      machineOverlayRoot: resolveMachineConfigRoot(),
+      runtimeConfigRoot: '',
       emailPath: '',
+      hooksPath: '',
+      voicePath: '',
+      sessionsPath: '',
+      logsPath: '',
+      memoryPath: '',
+      workbenchPath: '',
+      providerRuntimeHomesPath: '',
       customHooksPath: CUSTOM_HOOKS_FILE,
       agentsPath: resolvedAgentsPath,
+      runtimeMode: 'split',
     };
   }
-  const paths = buildMelodySyncPaths(resolvedAppRoot, { agentsFile: resolvedAgentsPath });
+  const paths = buildPathsFromMetadata({
+    brainRoot: resolvedBrainRoot,
+    runtimeRoot: resolvedRuntimeRoot,
+    agentsPath: resolvedAgentsPath,
+  });
   return {
-    configuredAppRootPath,
-    appRoot: resolvedAppRoot,
+    configuredBrainRootPath,
+    configuredRuntimeRootPath,
+    configuredAppRootPath: configuredBrainRootPath,
+    brainRoot: resolvedBrainRoot,
+    runtimeRoot: resolvedRuntimeRoot,
+    appRoot: resolvedBrainRoot,
     storagePath: paths.generalSettingsFile,
     bootstrapStoragePath: GENERAL_SETTINGS_BOOTSTRAP_FILE,
+    machineOverlayRoot: paths.configDir,
+    runtimeConfigRoot: paths.runtimeConfigDir,
     emailPath: paths.emailDir,
+    hooksPath: paths.hooksDir,
+    voicePath: paths.voiceDir,
+    sessionsPath: paths.sessionsDir,
+    logsPath: paths.logsDir,
+    memoryPath: paths.memoryDir,
+    workbenchPath: paths.workbenchDir,
+    providerRuntimeHomesPath: paths.providerRuntimeHomesDir,
     customHooksPath: paths.customHooksFile,
     agentsPath: resolvedAgentsPath,
+    runtimeMode: resolvedBrainRoot === resolvedRuntimeRoot ? 'unified' : 'split',
   };
 }
 
@@ -133,6 +192,47 @@ async function ensureHooksFile(path) {
   }
 }
 
+async function statOrNull(path) {
+  try {
+    return await stat(path);
+  } catch {
+    return null;
+  }
+}
+
+async function copyEntryIfMissing(sourcePath, targetPath) {
+  if (!sourcePath || !targetPath || sourcePath === targetPath) return false;
+  const [sourceStats, targetStats] = await Promise.all([
+    statOrNull(sourcePath),
+    statOrNull(targetPath),
+  ]);
+  if (!sourceStats || targetStats) return false;
+  await ensureDir(dirname(targetPath));
+  await cp(sourcePath, targetPath, {
+    recursive: sourceStats.isDirectory(),
+    force: false,
+    errorOnExist: false,
+    preserveTimestamps: true,
+  });
+  return true;
+}
+
+async function copyDirectoryContentsIfMissing(sourceDir, targetDir) {
+  const sourceStats = await statOrNull(sourceDir);
+  if (!sourceStats || !sourceStats.isDirectory()) return false;
+  await ensureDir(targetDir);
+  const entries = await readdir(sourceDir, { withFileTypes: true });
+  let copied = false;
+  for (const entry of entries) {
+    const didCopy = await copyEntryIfMissing(
+      resolve(sourceDir, entry.name),
+      resolve(targetDir, entry.name),
+    );
+    copied = didCopy || copied;
+  }
+  return copied;
+}
+
 async function isDirectoryPath(path) {
   if (!path) return false;
   try {
@@ -140,6 +240,42 @@ async function isDirectoryPath(path) {
     return stats.isDirectory();
   } catch {
     return false;
+  }
+}
+
+async function ensureStorageLayout(paths) {
+  await ensureDir(paths.configDir);
+  await ensureDir(paths.runtimeConfigDir);
+  await ensureDir(paths.emailDir);
+  await ensureDir(paths.hooksDir);
+  await ensureDir(paths.voiceDir);
+  await ensureDir(paths.voiceLogsDir);
+  await ensureDir(paths.sessionsDir);
+  await ensureDir(paths.workbenchDir);
+  await ensureDir(paths.memoryDir);
+  await ensureDir(paths.logsDir);
+  await ensureDir(resolve(paths.memoryDir, 'tasks'));
+}
+
+async function migrateRootsIfNeeded(currentMetadata = null, nextMetadata = null) {
+  if (!currentMetadata || !nextMetadata) return;
+  const currentPaths = buildPathsFromMetadata(currentMetadata);
+  const nextPaths = buildPathsFromMetadata(nextMetadata);
+
+  if (currentMetadata.brainRoot && currentMetadata.brainRoot !== nextMetadata.brainRoot) {
+    await copyEntryIfMissing(currentPaths.readmeFile, nextPaths.readmeFile);
+    await copyEntryIfMissing(currentPaths.agentsFile, nextPaths.agentsFile);
+    await copyDirectoryContentsIfMissing(currentPaths.memoryDir, nextPaths.memoryDir);
+  }
+
+  if (currentMetadata.runtimeRoot && currentMetadata.runtimeRoot !== nextMetadata.runtimeRoot) {
+    await copyDirectoryContentsIfMissing(currentPaths.runtimeConfigDir, nextPaths.runtimeConfigDir);
+    await copyDirectoryContentsIfMissing(currentPaths.emailDir, nextPaths.emailDir);
+    await copyDirectoryContentsIfMissing(currentPaths.hooksDir, nextPaths.hooksDir);
+    await copyDirectoryContentsIfMissing(currentPaths.voiceDir, nextPaths.voiceDir);
+    await copyDirectoryContentsIfMissing(currentPaths.sessionsDir, nextPaths.sessionsDir);
+    await copyDirectoryContentsIfMissing(currentPaths.workbenchDir, nextPaths.workbenchDir);
+    await copyDirectoryContentsIfMissing(currentPaths.logsDir, nextPaths.logsDir);
   }
 }
 
@@ -162,27 +298,25 @@ export async function readGeneralSettings() {
 }
 
 export async function persistGeneralSettings(payload = {}) {
+  const current = await readGeneralSettings();
   const normalized = normalizeGeneralSettings(payload);
-  if (normalized.appRoot && !(await isDirectoryPath(normalized.appRoot))) {
-    await ensureDir(normalized.appRoot);
-    if (!(await isDirectoryPath(normalized.appRoot))) {
-      throw new Error('应用路径不存在或不是目录');
+  const metadata = deriveGeneralSettingsMetadata(normalized);
+  for (const targetPath of [metadata.brainRoot, metadata.runtimeRoot]) {
+    if (targetPath && !(await isDirectoryPath(targetPath))) {
+      await ensureDir(targetPath);
+      if (!(await isDirectoryPath(targetPath))) {
+        throw new Error('应用路径不存在或不是目录');
+      }
     }
   }
-  await writeJsonAtomic(GENERAL_SETTINGS_BOOTSTRAP_FILE, normalized);
-
-  const metadata = deriveGeneralSettingsMetadata(normalized);
-  const paths = buildMelodySyncPaths(metadata.appRoot, { agentsFile: metadata.agentsPath });
-  await ensureDir(paths.configDir);
-  await ensureDir(paths.emailDir);
-  await ensureDir(paths.hooksDir);
-  await ensureDir(paths.voiceDir);
-  await ensureDir(paths.voiceLogsDir);
-  await ensureDir(paths.sessionsDir);
-  await ensureDir(paths.workbenchDir);
-  await ensureDir(paths.memoryDir);
-  await ensureDir(paths.logsDir);
-  await ensureDir(resolve(paths.memoryDir, 'tasks'));
+  const paths = buildPathsFromMetadata(metadata);
+  await ensureStorageLayout(paths);
+  await migrateRootsIfNeeded(current, metadata);
+  await writeJsonAtomic(GENERAL_SETTINGS_BOOTSTRAP_FILE, {
+    brainRoot: metadata.brainRoot,
+    runtimeRoot: metadata.runtimeRoot,
+    appRoot: metadata.brainRoot,
+  });
   await writeJsonAtomic(paths.generalSettingsFile, normalizeAppScopedSettings(payload));
   await ensureAgentsFile(metadata.agentsPath);
   await ensureHooksFile(paths.customHooksFile);
@@ -200,18 +334,9 @@ export async function persistGeneralSettings(payload = {}) {
 export async function ensureGeneralSettingsRuntimeFiles() {
   const current = await readGeneralSettings();
   const metadata = deriveGeneralSettingsMetadata(current);
-  const paths = buildMelodySyncPaths(metadata.appRoot, { agentsFile: metadata.agentsPath });
+  const paths = buildPathsFromMetadata(metadata);
   const appScopedPayload = await readJson(paths.generalSettingsFile, DEFAULT_APP_SCOPED_SETTINGS);
-  await ensureDir(paths.configDir);
-  await ensureDir(paths.emailDir);
-  await ensureDir(paths.hooksDir);
-  await ensureDir(paths.voiceDir);
-  await ensureDir(paths.voiceLogsDir);
-  await ensureDir(paths.sessionsDir);
-  await ensureDir(paths.workbenchDir);
-  await ensureDir(paths.memoryDir);
-  await ensureDir(paths.logsDir);
-  await ensureDir(resolve(paths.memoryDir, 'tasks'));
+  await ensureStorageLayout(paths);
   await writeJsonAtomic(paths.generalSettingsFile, normalizeAppScopedSettings(appScopedPayload));
   await ensureAgentsFile(metadata.agentsPath);
   await ensureHooksFile(paths.customHooksFile);
@@ -224,6 +349,8 @@ export async function ensureGeneralSettingsRuntimeFiles() {
 export function exposeGeneralSettingsDefaults() {
   const metadata = deriveGeneralSettingsMetadata(DEFAULT_SETTINGS);
   return {
+    brainRoot: DEFAULT_SETTINGS.brainRoot,
+    runtimeRoot: DEFAULT_SETTINGS.runtimeRoot,
     appRoot: DEFAULT_SETTINGS.appRoot,
     completionSoundEnabled: DEFAULT_COMPLETION_SOUND_ENABLED,
     ...metadata,

@@ -10,6 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-email-settings-route-'));
 const appRoot = join(tempHome, 'vault', '00-🤖agent');
+const runtimeRoot = join(tempHome, '.melodysync', 'runtime');
 const configDir = join(tempHome, '.config', 'melody-sync');
 
 process.env.HOME = tempHome;
@@ -63,7 +64,8 @@ try {
   assert.equal(patchResult.payload.outbound.provider, 'apple_mail');
   assert.equal(patchResult.payload.outbound.account, 'Google');
   assert.equal(patchResult.payload.outbound.from, 'rowan@example.com');
-  assert.equal(patchResult.payload.paths.outboundFile, join(appRoot, 'email', 'outbound.json'));
+  assert.equal(patchResult.payload.appRoot, appRoot);
+  assert.equal(patchResult.payload.paths.outboundFile, join(runtimeRoot, 'email', 'outbound.json'));
 
   const getResult = {};
   const getHandled = await handleSettingsRoutes({

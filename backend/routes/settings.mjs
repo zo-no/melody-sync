@@ -70,21 +70,29 @@ export async function handleSettingsRoutes({ req, res, pathname, writeJson, sche
     try {
       const current = await readGeneralSettingsPayload();
       const nextPayload = {
-        appRoot: Object.prototype.hasOwnProperty.call(payload, 'appRoot')
-          ? payload.appRoot
-          : (current?.configuredAppRootPath || current?.appRoot || ''),
+        brainRoot: Object.prototype.hasOwnProperty.call(payload, 'brainRoot')
+          ? payload.brainRoot
+          : (Object.prototype.hasOwnProperty.call(payload, 'appRoot')
+            ? payload.appRoot
+            : (current?.configuredBrainRootPath || current?.brainRoot || current?.appRoot || '')),
+        runtimeRoot: Object.prototype.hasOwnProperty.call(payload, 'runtimeRoot')
+          ? payload.runtimeRoot
+          : (current?.configuredRuntimeRootPath || current?.runtimeRoot || ''),
         completionSoundEnabled: Object.prototype.hasOwnProperty.call(payload, 'completionSoundEnabled')
           ? payload.completionSoundEnabled
           : (current?.completionSoundEnabled === false ? false : undefined),
       };
       const next = await persistGeneralSettingsPayload(nextPayload);
-      const appRootChanged = !!(current?.appRoot && next?.appRoot && current.appRoot !== next.appRoot);
-      const restartScheduled = appRootChanged && typeof scheduleConfigReload === 'function'
+      const rootsChanged = (
+        (current?.brainRoot || current?.appRoot || '') !== (next?.brainRoot || next?.appRoot || '')
+        || (current?.runtimeRoot || '') !== (next?.runtimeRoot || '')
+      );
+      const restartScheduled = rootsChanged && typeof scheduleConfigReload === 'function'
         ? scheduleConfigReload()
         : false;
       writeJson(res, 200, {
         ...next,
-        reloadRequired: appRootChanged,
+        reloadRequired: rootsChanged,
         reloadScheduled: restartScheduled,
       });
       return true;

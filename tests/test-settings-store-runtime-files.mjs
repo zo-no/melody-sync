@@ -10,6 +10,7 @@ const repoRoot = dirname(__dirname);
 const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-runtime-files-'));
 const bootstrapConfigDir = join(tempHome, '.config', 'melody-sync');
 const appRoot = join(tempHome, 'vault', '00-🤖agent');
+const runtimeRoot = join(tempHome, '.melodysync', 'runtime');
 
 process.env.HOME = tempHome;
 delete process.env.MELODYSYNC_CONFIG_DIR;
@@ -29,22 +30,25 @@ try {
   const settingsStore = await import(pathToFileURL(join(repoRoot, 'backend/settings-store.mjs')).href);
   const runtime = await settingsStore.ensureGeneralSettingsRuntimeFiles();
 
+  assert.equal(runtime.brainRoot, appRoot);
+  assert.equal(runtime.runtimeRoot, runtimeRoot);
   assert.equal(runtime.appRoot, appRoot);
   assert.equal(runtime.agentsPath, join(appRoot, 'AGENTS.md'));
-  assert.equal(existsSync(join(appRoot, 'config')), true);
-  assert.equal(existsSync(join(appRoot, 'email')), true);
-  assert.equal(existsSync(join(appRoot, 'voice')), true);
-  assert.equal(existsSync(join(appRoot, 'voice', 'logs')), true);
+  assert.equal(existsSync(join(bootstrapConfigDir, 'auth.json')), false);
   assert.equal(existsSync(join(appRoot, 'memory')), true);
   assert.equal(existsSync(join(appRoot, 'memory', 'tasks')), true);
-  assert.equal(existsSync(join(appRoot, 'sessions')), true);
-  assert.equal(existsSync(join(appRoot, 'hooks')), true);
-  assert.equal(existsSync(join(appRoot, 'workbench')), true);
-  assert.equal(existsSync(join(appRoot, 'logs')), true);
   assert.equal(existsSync(join(appRoot, 'AGENTS.md')), true);
-  assert.equal(existsSync(join(appRoot, 'hooks', 'custom-hooks.json')), true);
+  assert.equal(existsSync(join(runtimeRoot, 'config')), true);
+  assert.equal(existsSync(join(runtimeRoot, 'email')), true);
+  assert.equal(existsSync(join(runtimeRoot, 'voice')), true);
+  assert.equal(existsSync(join(runtimeRoot, 'voice', 'logs')), true);
+  assert.equal(existsSync(join(runtimeRoot, 'sessions')), true);
+  assert.equal(existsSync(join(runtimeRoot, 'hooks')), true);
+  assert.equal(existsSync(join(runtimeRoot, 'workbench')), true);
+  assert.equal(existsSync(join(runtimeRoot, 'logs')), true);
+  assert.equal(existsSync(join(runtimeRoot, 'hooks', 'custom-hooks.json')), true);
   assert.match(readFileSync(join(appRoot, 'AGENTS.md'), 'utf8'), /MelodySync AGENTS/);
-  assert.equal(readFileSync(join(appRoot, 'hooks', 'custom-hooks.json'), 'utf8'), '[]\n');
+  assert.equal(readFileSync(join(runtimeRoot, 'hooks', 'custom-hooks.json'), 'utf8'), '[]\n');
 
   console.log('test-settings-store-runtime-files: ok');
 } finally {

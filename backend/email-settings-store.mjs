@@ -89,7 +89,12 @@ function normalizeAutomationPatch(value = {}, current = {}) {
 
 async function resolveEmailSettingsContext() {
   const general = await readGeneralSettings();
-  const paths = buildMelodySyncPaths(general.appRoot, { agentsFile: general.agentsPath });
+  const paths = buildMelodySyncPaths({
+    brainRoot: general.brainRoot || general.appRoot,
+    runtimeRoot: general.runtimeRoot,
+    machineConfigRoot: general.machineOverlayRoot,
+    agentsFile: general.agentsPath,
+  });
   await ensureDir(paths.emailDir);
   return {
     general,

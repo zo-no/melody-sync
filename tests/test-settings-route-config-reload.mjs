@@ -20,6 +20,7 @@ delete process.env.MELODYSYNC_OBSIDIAN_PATH;
 const configDir = join(tempHome, '.config', 'melody-sync');
 const firstAppRoot = join(tempHome, 'vault-a', '00-🤖agent');
 const secondAppRoot = join(tempHome, 'vault-b', '00-🤖agent');
+const secondRuntimeRoot = join(tempHome, '.melodysync', 'runtime-b');
 
 mkdirSync(configDir, { recursive: true });
 mkdirSync(firstAppRoot, { recursive: true });
@@ -35,7 +36,7 @@ try {
     pathToFileURL(join(repoRoot, 'backend/routes/settings.mjs')).href
   );
 
-  const req = Readable.from([JSON.stringify({ appRoot: secondAppRoot })]);
+  const req = Readable.from([JSON.stringify({ brainRoot: secondAppRoot, runtimeRoot: secondRuntimeRoot })]);
   req.method = 'PATCH';
   const result = {};
   const handled = await handleSettingsRoutes({
@@ -54,6 +55,8 @@ try {
 
   assert.equal(handled, true);
   assert.equal(result.status, 200);
+  assert.equal(result.payload.brainRoot, secondAppRoot);
+  assert.equal(result.payload.runtimeRoot, secondRuntimeRoot);
   assert.equal(result.payload.appRoot, secondAppRoot);
   assert.equal(result.payload.reloadRequired, true);
   assert.equal(result.payload.reloadScheduled, true);
