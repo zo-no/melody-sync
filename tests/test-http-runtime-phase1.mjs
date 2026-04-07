@@ -385,7 +385,10 @@ async function phase4RunnerThin() {
 
     const spoolPath = join(runtimeSessionsDir(home), 'runs', submit.json.run.id, 'spool.jsonl');
     const records = readFileSync(spoolPath, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
-    assert.ok(records.some((record) => record.stream === 'stdout' && typeof record.line === 'string'));
+    assert.ok(records.some((record) => (
+      record.stream === 'stdout'
+      && (typeof record.line === 'string' || (record.json && typeof record.json === 'object'))
+    )));
     assert.equal(records.some((record) => record.type === 'message'), false, 'runner spool should stay raw');
     console.log('phase4-runner-thin: ok');
   } finally {

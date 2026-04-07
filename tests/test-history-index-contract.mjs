@@ -13,7 +13,7 @@ try {
   const sessionId = 'history-index-contract';
   const longReasoning = 'thinking '.repeat(900);
   const shortToolInput = 'echo hello';
-  const shortToolResult = 'hello';
+  const longToolResult = 'hello '.repeat(1400);
   const events = [];
 
   for (let index = 0; index < 620; index += 1) {
@@ -26,7 +26,7 @@ try {
 
   events.splice(10, 0, { type: 'reasoning', content: longReasoning });
   events.splice(11, 0, { type: 'tool_use', id: 'tool-1', toolName: 'shell', toolInput: shortToolInput });
-  events.splice(12, 0, { type: 'tool_result', output: shortToolResult, exitCode: 0 });
+  events.splice(12, 0, { type: 'tool_result', output: longToolResult, exitCode: 0 });
 
   await appendEvents(sessionId, events);
 
@@ -62,13 +62,17 @@ try {
   assert.equal(messageBody?.value, 'message 0', 'message body should load on demand');
 
   const reasoningBody = await readEventBody(sessionId, reasoning.seq);
-  assert.equal(reasoningBody?.value, longReasoning, 'reasoning body should load on demand');
+  assert.equal(reasoningBody?.value, longReasoning, 'reasoning body should remain fully recoverable on demand');
+  assert.equal(reasoningBody?.persistence, 'externalized', 'reasoning body should stay externalized instead of preview-only');
+  assert.equal(reasoningBody?.truncated, undefined, 'externalized reasoning should not report truncation');
 
   const toolUseBody = await readEventBody(sessionId, toolUse.seq);
   assert.equal(toolUseBody?.value, shortToolInput, 'inline tool input should still load on demand');
 
   const toolResultBody = await readEventBody(sessionId, toolResult.seq);
-  assert.equal(toolResultBody?.value, shortToolResult, 'inline tool result should still load on demand');
+  assert.equal(toolResultBody?.value, longToolResult, 'oversized tool results should remain fully recoverable on demand');
+  assert.equal(toolResultBody?.persistence, 'externalized', 'oversized tool results should stay externalized instead of preview-only');
+  assert.equal(toolResultBody?.truncated, undefined, 'externalized tool results should not report truncation');
 
   console.log('history-index-contract: ok');
 } finally {

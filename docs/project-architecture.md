@@ -147,6 +147,8 @@ Persistence:
 
 ## Persistence Layout
 
+For the value/retention contract that sits on top of this filesystem shape, also read `application-storage-architecture.md`.
+
 Default runtime behavior:
 
 - if `general-settings.json` has `appRoot`, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `email/`, `voice/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`

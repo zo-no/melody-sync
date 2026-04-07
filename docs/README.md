@@ -14,15 +14,17 @@ Read these first when you need the current truth:
 1. `../AGENTS.md` — repo rules, constraints, active priorities
 2. `../README.md` / `../README.zh.md` — product framing, setup path, operator-facing expectations
 3. `project-architecture.md` — current shipped architecture and code map
-4. `current-features.md` — current shipped feature table
-5. `agent-filesystem-architecture.md` — current repo/config/memory filesystem split for agent-facing storage and runtime truth
-6. `hooks-node-architecture.md` — target hooks + node architecture for configurable lifecycle orchestration and AI-friendly extension
-7. `../notes/current/core-domain-contract.md` — current domain/refactor baseline
-8. `../notes/current/session-first-workflow-surfaces.md` — current workflow-organization contract for session list / grouping / task-like views
-9. `../notes/current/product-surface-lifecycle.md` — current keep/iterate/retire rule for shipped product surfaces
-10. `../notes/current/session-run-closure-requirements.md` — next-stage task closure direction after the current refactor line
-11. `structural-cleanup-plan.md` — staged cleanup contract for removing residue without breaking the main session flow
-12. `setup.md` / `external-message-protocol.md` / other focused guides as needed
+4. `application-storage-architecture.md` — target app-data storage contract: canonical truth, operational state, projections, caches, and diagnostics
+5. `session-history-storage-layout.md` — target dense physical layout for `sessions/history/<sessionId>/`
+6. `current-features.md` — current shipped feature table
+7. `agent-filesystem-architecture.md` — current repo/config/memory filesystem split for agent-facing storage and runtime truth
+8. `hooks-node-architecture.md` — target hooks + node architecture for configurable lifecycle orchestration and AI-friendly extension
+9. `../notes/current/core-domain-contract.md` — current domain/refactor baseline
+10. `../notes/current/session-first-workflow-surfaces.md` — current workflow-organization contract for session list / grouping / task-like views
+11. `../notes/current/product-surface-lifecycle.md` — current keep/iterate/retire rule for shipped product surfaces
+12. `../notes/current/session-run-closure-requirements.md` — next-stage task closure direction after the current refactor line
+13. `structural-cleanup-plan.md` — staged cleanup contract for removing residue without breaking the main session flow
+14. `setup.md` / `external-message-protocol.md` / other focused guides as needed
 
 For the current internal note grouping, also see:
 
@@ -59,6 +61,8 @@ For setup, deployment, connector, and feature-rollout docs, assume the operator 
 ### Current Core
 
 - `project-architecture.md` — top-down map of the shipped system
+- `application-storage-architecture.md` — value-based storage contract for app data, runtime capture, caches, and diagnostics
+- `session-history-storage-layout.md` — dense physical layout target for transcript storage under `sessions/history/`
 - `agent-filesystem-architecture.md` — current repo/config/memory split for agents and runtime durability
 - `current-features.md` — current shipped feature table after product-surface cleanup
 - `hooks-node-architecture.md` — target hooks + node architecture for configurable lifecycle orchestration and AI-friendly extension

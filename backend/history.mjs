@@ -18,7 +18,6 @@ const BODY_FIELD_BY_TYPE = {
   tool_use: 'toolInput',
   tool_result: 'output',
 };
-const ALWAYS_EXTERNALIZE_TYPES = new Set(['reasoning']);
 const DEFERRED_INDEX_BODY_TYPES = new Set(['message', 'reasoning', 'template_context', 'tool_use', 'tool_result']);
 const INLINE_BODY_LIMITS = {
   message: 64 * 1024,
@@ -35,6 +34,11 @@ const PREVIEW_LIMITS = {
   tool_use: 800,
   tool_result: 1200,
   status: 800,
+};
+const BODY_STORAGE_MODES = {
+  INLINE: 'inline',
+  EXTERNALIZE: 'externalize',
+  PREVIEW_ONLY: 'preview_only',
 };
 
 const metaCache = new Map();
@@ -131,6 +135,27 @@ function previewLimitFor(event) {
 
 function inlineLimitFor(event) {
   return INLINE_BODY_LIMITS[event?.type] ?? 4096;
+}
+
+function bodyStorageModeFor(event, raw = '') {
+  if (!raw) return BODY_STORAGE_MODES.INLINE;
+  switch (event?.type) {
+    case 'message':
+      return raw.length > inlineLimitFor(event)
+        ? BODY_STORAGE_MODES.EXTERNALIZE
+        : BODY_STORAGE_MODES.INLINE;
+    case 'reasoning':
+    case 'template_context':
+    case 'tool_use':
+    case 'tool_result':
+      return raw.length > inlineLimitFor(event)
+        ? BODY_STORAGE_MODES.EXTERNALIZE
+        : BODY_STORAGE_MODES.INLINE;
+    default:
+      return raw.length > inlineLimitFor(event)
+        ? BODY_STORAGE_MODES.EXTERNALIZE
+        : BODY_STORAGE_MODES.INLINE;
+  }
 }
 
 function shouldDeferEventBodyInIndex(event, options = {}) {
@@ -273,17 +298,39 @@ async function storeEvent(sessionId, event) {
   const bodyField = eventBodyField(stored);
   if (bodyField && typeof stored[bodyField] === 'string') {
     const raw = stored[bodyField];
-    const shouldExternalize = ALWAYS_EXTERNALIZE_TYPES.has(stored.type) || raw.length > inlineLimitFor(stored);
-    if (shouldExternalize && raw) {
+    const storageMode = bodyStorageModeFor(stored, raw);
+    const bodyBytes = raw ? Buffer.byteLength(raw, 'utf8') : 0;
+    if (storageMode === BODY_STORAGE_MODES.EXTERNALIZE && raw) {
       stored[bodyField] = clipMiddle(raw, previewLimitFor(stored));
       stored.bodyAvailable = true;
       stored.bodyLoaded = false;
       stored.bodyField = bodyField;
       stored.bodyRef = await writeBody(sessionId, stored.seq, bodyField, raw);
-      stored.bodyBytes = Buffer.byteLength(raw, 'utf8');
+      stored.bodyBytes = bodyBytes;
+      stored.bodyPersistence = 'externalized';
+      delete stored.bodyTruncated;
+    } else if (storageMode === BODY_STORAGE_MODES.PREVIEW_ONLY && raw) {
+      stored[bodyField] = clipMiddle(raw, previewLimitFor(stored));
+      stored.bodyAvailable = true;
+      stored.bodyLoaded = true;
+      stored.bodyField = bodyField;
+      stored.bodyBytes = bodyBytes;
+      stored.bodyPersistence = 'preview_only';
+      stored.bodyTruncated = stored[bodyField] !== raw;
+      delete stored.bodyRef;
     } else {
       stored.bodyAvailable = !!raw;
       stored.bodyLoaded = true;
+      if (raw) {
+        stored.bodyField = bodyField;
+        stored.bodyBytes = bodyBytes;
+      } else {
+        delete stored.bodyField;
+        delete stored.bodyBytes;
+      }
+      delete stored.bodyRef;
+      delete stored.bodyPersistence;
+      delete stored.bodyTruncated;
     }
   }
   await ensureSessionDir(sessionId);
@@ -500,6 +547,8 @@ export async function readEventBody(sessionId, seq) {
     field: bodyField,
     value: body,
     bytes: stored.bodyBytes || Buffer.byteLength(body, 'utf8'),
+    ...(stored.bodyPersistence ? { persistence: stored.bodyPersistence } : {}),
+    ...(stored.bodyTruncated === true ? { truncated: true } : {}),
   };
 }
 

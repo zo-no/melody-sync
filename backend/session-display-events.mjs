@@ -41,6 +41,8 @@ function stripDeferredBodyFields(event) {
   delete next.bodyLoaded;
   delete next.bodyPreview;
   delete next.bodyBytes;
+  delete next.bodyPersistence;
+  delete next.bodyTruncated;
   return next;
 }
 
