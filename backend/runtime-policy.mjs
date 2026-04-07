@@ -1,4 +1,4 @@
-import { copyFile, lstat, readlink, symlink, unlink } from 'fs/promises';
+import { copyFile, lstat, readFile, readlink, symlink, unlink } from 'fs/promises';
 import { homedir } from 'os';
 import { join } from 'path';
 import { CODEX_MANAGED_HOME_DIR } from '../lib/config.mjs';
@@ -56,6 +56,7 @@ const MANAGED_CODEX_HOME_NOTES = [
 
 const PERSONAL_CODEX_HOME = join(homedir(), '.codex');
 const PERSONAL_CODEX_AUTH_FILE = join(PERSONAL_CODEX_HOME, 'auth.json');
+const PERSONAL_CODEX_CONFIG_FILE = join(PERSONAL_CODEX_HOME, 'config.toml');
 const managedCodexHomeQueue = createSerialTaskQueue();
 
 function normalizeCodexHomeMode(value) {
@@ -97,6 +98,74 @@ async function ensureSymlinkOrCopy(sourcePath, targetPath) {
   }
 }
 
+function normalizeTomlSectionHeader(line) {
+  const match = String(line || '').trim().match(/^\[([^\]]+)\]$/);
+  return match ? match[1].trim() : '';
+}
+
+function isModelProviderSection(sectionName) {
+  return sectionName === 'model_providers' || sectionName.startsWith('model_providers.');
+}
+
+function extractRootModelProviderLine(lines) {
+  for (const line of lines) {
+    if (normalizeTomlSectionHeader(line)) break;
+    if (/^\s*model_provider\s*=/.test(line)) return `${line.trim()}\n`;
+  }
+  return '';
+}
+
+function extractModelProviderSections(lines) {
+  const sections = [];
+  let current = null;
+
+  for (const line of lines) {
+    const sectionName = normalizeTomlSectionHeader(line);
+    if (sectionName) {
+      if (current) sections.push(current);
+      current = isModelProviderSection(sectionName) ? [line] : null;
+      continue;
+    }
+    if (current) {
+      current.push(line);
+    }
+  }
+  if (current) sections.push(current);
+
+  return sections
+    .map((section) => section.join('\n').trim())
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+async function buildManagedCodexConfig(configSource) {
+  const sourcePath = typeof configSource === 'string' && configSource.trim()
+    ? configSource.trim()
+    : PERSONAL_CODEX_CONFIG_FILE;
+  let personalConfig = '';
+  try {
+    personalConfig = await readFile(sourcePath, 'utf8');
+  } catch {
+  }
+
+  const lines = personalConfig.split(/\r?\n/);
+  const providerLine = extractRootModelProviderLine(lines);
+  const providerSections = extractModelProviderSections(lines);
+  const inheritedConfig = [providerLine.trim(), providerSections.trim()].filter(Boolean).join('\n\n');
+  if (!inheritedConfig) {
+    return MANAGED_CODEX_HOME_NOTES;
+  }
+
+  return [
+    MANAGED_CODEX_HOME_NOTES.trimEnd(),
+    '',
+    '# Inherited from the owner Codex config: provider routing only.',
+    '# MelodySync intentionally does not copy personal project trust, MCP servers, or UI settings.',
+    inheritedConfig,
+    '',
+  ].join('\n');
+}
+
 export async function ensureManagedCodexHome(options = {}) {
   return managedCodexHomeQueue(async () => {
     const homeDir = typeof options.homeDir === 'string' && options.homeDir.trim()
@@ -105,9 +174,12 @@ export async function ensureManagedCodexHome(options = {}) {
     const authSource = typeof options.authSource === 'string' && options.authSource.trim()
       ? options.authSource.trim()
       : PERSONAL_CODEX_AUTH_FILE;
+    const configSource = typeof options.configSource === 'string' && options.configSource.trim()
+      ? options.configSource.trim()
+      : PERSONAL_CODEX_CONFIG_FILE;
 
     await ensureDir(homeDir);
-    await writeTextAtomic(join(homeDir, 'config.toml'), MANAGED_CODEX_HOME_NOTES);
+    await writeTextAtomic(join(homeDir, 'config.toml'), await buildManagedCodexConfig(configSource));
     await writeTextAtomic(join(homeDir, 'AGENTS.md'), '');
     await ensureSymlinkOrCopy(authSource, join(homeDir, 'auth.json'));
     return homeDir;
@@ -132,6 +204,7 @@ export async function applyManagedRuntimeEnv(toolId, baseEnv = {}, options = {})
   const managedHome = await ensureManagedCodexHome({
     homeDir: options.codexHomeDir,
     authSource: options.codexAuthSource,
+    configSource: options.codexConfigSource,
   });
   delete env.CODEX_HOME;
   env.CODEX_HOME = managedHome;
