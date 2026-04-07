@@ -2,17 +2,17 @@
 
 [中文](README.zh.md) | English
 
-**A cross-surface AI workbench that helps ordinary people hand repetitive digital work to AI.**
+**A cross-surface AI workbench for handing messy recurring digital work to AI and keeping long-running work continuous.**
 
-MelodySync is not only for the small group of people who already know how to use AI well. The goal is to bring AI automation to a much wider set of users, especially people with lots of repetitive digital work but no engineering automation background.
+MelodySync is for people who have repetitive digital work but are not automation specialists. It is built for the moment when someone knows a task keeps coming back, has a screenshot or sample file that explains the problem, but does not yet have a clean automation spec.
 
-It does not care much whether the control surface is a phone, tablet, or desktop. The point is to let a user hand over a messy recurring task, screenshot, or sample file, have the AI clarify the problem first, and then let strong executors like `codex`, `claude`, and compatible local tools do the real work on a real machine.
+A user can start from phone or desktop with that messy input. MelodySync helps turn it into executable work, lets strong local executors such as `codex`, `claude`, and compatible tools do the machine-side execution, and keeps the work thread durable enough to resume later instead of restarting from zero.
 
 ![MelodySync across surfaces](docs/readme-multisurface-demo.png)
 
 > Current baseline: `v0.3` — an owner-first session runtime, durable on-disk history, executor adapters, and a no-build web UI that works across phone and desktop.
 
-> Reach the same system from desktop, phone, and optional integration surfaces without changing the core session workflow.
+> Reach the same work thread from desktop, phone, and optional integration surfaces without changing the core session workflow.
 
 ## Quick install
 
@@ -36,29 +36,35 @@ Need the longer version first? Jump to [Setup details](#setup-details) or open `
 
 ## For Humans
 
-### Vision
-
-Bluntly: MelodySync is an AI automation workbench for ordinary people. It should first serve people who have repetitive digital work but have not yet turned AI into part of their daily operating flow.
-
-The first goal is concrete: in a short conversation, help a user hand off a tedious job that used to cost hours every week — data cleanup, light analysis, report generation, file batch work, exports/imports, triggered notifications, and other scriptable chores.
-
-### Core judgments
-
-- The biggest unmet need is not encouraging people to open endless concurrent sessions; it is finding repetitive work that is actually worth automating.
-- Most target users are not AI-native operators and do not arrive with product-manager-grade prompts; the AI needs to help clarify the task, gather examples, and design a workable approach.
-- The first high-fit user slice is not literally everyone with a computer; it looks more like time-pressed middle managers / owner-operators in traditional industries who both coordinate others and still personally carry repetitive digital admin work.
-- The first screen cannot be a blank session list. New users need a clear default task-entry flow that helps them describe one concrete repetitive job worth automating.
-- The best wedge is simple, fast-payback digital work: data cleanup, analysis, file processing, reports, notifications, and other repetitive scriptable tasks.
-- Phone + desktop + real-machine execution is the product advantage: capture context anywhere, let the machine do the heavy work, and review results or approvals from the most convenient device.
-- `Session`, source metadata, concurrency, and distribution still matter, but they are enabling layers or later multipliers rather than the first headline.
-
 ### What MelodySync is
 
-- an AI automation workbench that sits above strong executors running on a real machine
-- an AI collaboration entry point that helps users turn vague problems into executable plans
-- a cross-surface control plane where people can start from phone, continue from desktop, and let the machine do the work
-- a durable work-thread system that helps humans recover context instead of repeatedly re-explaining the task
-- a task workspace that keeps durable threads, execution state, and reusable source context
+MelodySync is an AI automation workbench that sits above strong executors running on a real machine. It is designed for the common situation where someone knows a job is worth automating, but still needs help clarifying the inputs, outputs, and constraints before any executor should run.
+
+The product is deliberately cross-surface: collect context from a phone, continue from a desktop, and let the host machine do the heavy work while the thread stays recoverable.
+
+### How MelodySync works
+
+1. Start with a recurring job, a screenshot, or a sample file.
+2. MelodySync helps clarify the task, gather the missing context, and shape the problem into an execution brief.
+3. A strong local executor such as `codex`, `claude`, or another compatible tool runs on the host machine.
+4. Session history, run state, and outputs stay durable so the next step can continue later without re-explaining everything.
+
+### Why it is different from a normal AI chat tool
+
+- The goal is not to open more chat tabs; it is to get repetitive digital work into a form that can actually be executed.
+- The user does not need product-manager-grade prompts; MelodySync is supposed to help with clarification before execution.
+- The first screen should lead toward one concrete job worth automating, not drop a new user into an empty session list.
+- Phone + desktop + real-machine execution + durable continuity is the product advantage.
+- `Session` remains the shipped public object because recoverable work threads are the current product center; richer workflow language can layer on later.
+
+### What you can do today
+
+- start a session from phone or desktop while the agent works on your real machine
+- keep durable history even if the browser disconnects
+- recover long-running work after control-plane restarts
+- let the agent auto-title and auto-group sessions in the sidebar
+- paste screenshots directly into the chat
+- let the UI follow your system light/dark appearance automatically
 
 ### What MelodySync is not
 
@@ -69,18 +75,15 @@ The first goal is concrete: in a short conversation, help a user hand off a tedi
 - a generic multi-user chat SaaS
 - a closed all-in-one executor stack trying to out-execute `codex` or `claude`
 
-### Two core product layers
-
-1. **First, solve repetitive digital work.** MelodySync should accept a messy but recurring task, help the user clarify inputs, outputs, and constraints, and turn it into an automation that reliably saves time.
-2. **Then stabilize and reuse what works.** Once an automation proves valuable, MelodySync should preserve the session context, source metadata, and operating pattern in a form that can be redesigned later without distorting the current product.
-
 ### Product grammar
 
-The current product model is intentionally simple:
+The current shipped product model is intentionally simple:
 
 - `Session` — the durable work thread
 - `Run` — one execution attempt inside a session
 - `Source metadata` — passive tags such as `sourceId` / `sourceName` used to label how a session entered the system
+
+`Session` stays public because the product still centers on recoverable work threads. More ambitious workflow language can sit above it later without forcing a rename now.
 
 The architectural assumptions behind that model:
 
@@ -89,25 +92,6 @@ The architectural assumptions behind that model:
 - runtime processes are disposable; durable state lives on disk
 - the product is single-owner first
 - the frontend stays framework-light and endpoint-flexible
-
-### Why this boundary matters
-
-MelodySync is opinionated in a few ways:
-
-- **Clarify the problem before executing.** MelodySync should not assume the user already thinks like an AI product manager; the AI needs to carry part of the problem-framing and solution-design work.
-- **Do not rebuild the executor layer.** MelodySync should not spend most of its energy optimizing single-task agent internals.
-- **Recover context, do not dump logs.** Durable sessions matter more than raw terminal continuity.
-- **Package recurring workflows carefully, but keep the current shipped product session-first until the next workflow model is ready.**
-- **Integrate the strongest tools, keep them replaceable.** The point is a stable abstraction layer so better executors can be adopted quickly as the ecosystem evolves.
-
-### What you can do
-
-- start a session from phone or desktop while the agent works on your real machine
-- keep durable history even if the browser disconnects
-- recover long-running work after control-plane restarts
-- let the agent auto-title and auto-group sessions in the sidebar
-- paste screenshots directly into the chat
-- let the UI follow your system light/dark appearance automatically
 
 ### Provider note
 
