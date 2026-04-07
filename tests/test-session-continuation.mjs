@@ -23,11 +23,11 @@ const attachmentBody = prepareSessionContinuationBody([
     images: [{
       filename: 'abc123.csv',
       originalName: 'report.csv',
-      savedPath: '/tmp/remotelab/report-abc123.csv',
+      savedPath: '/tmp/melodysync/report-abc123.csv',
       mimeType: 'text/csv',
     }],
   },
 ]);
-assert.match(attachmentBody, /\[Attached files: report\.csv -> \/tmp\/remotelab\/report-abc123\.csv\]/);
+assert.match(attachmentBody, /\[Attached files: report\.csv -> \/tmp\/melodysync\/report-abc123\.csv\]/);
 
 console.log('test-session-continuation: ok');

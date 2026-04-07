@@ -39,18 +39,18 @@ assert.equal(
 const plist = buildLaunchAgentPlist({
   label: 'com.chatserver.trial4',
   nodePath: '/usr/local/bin/node',
-  chatServerPath: '/Users/example/code/remotelab/chat-server.mjs',
-  workingDirectory: '/Users/example/code/remotelab',
+  chatServerPath: '/Users/example/code/melody-sync/chat-server.mjs',
+  workingDirectory: '/Users/example/code/melody-sync',
   standardOutPath: '/Users/example/Library/Logs/chat-server-trial4.log',
   standardErrorPath: '/Users/example/Library/Logs/chat-server-trial4.error.log',
   environmentVariables: {
     CHAT_PORT: '7699',
-    REMOTELAB_INSTANCE_ROOT: '/Users/example/.remotelab/instances/trial4',
+    MELODYSYNC_INSTANCE_ROOT: '/Users/example/.melodysync/instances/trial4',
   },
 });
 assert.match(plist, /<string>com\.chatserver\.trial4<\/string>/);
 assert.match(plist, /<key>CHAT_PORT<\/key><string>7699<\/string>/);
-assert.match(plist, /<string>\/Users\/example\/code\/remotelab\/chat-server\.mjs<\/string>/);
+assert.match(plist, /<string>\/Users\/example\/code\/melody-sync\/chat-server\.mjs<\/string>/);
 
 const formatted = formatGuestInstance({
   name: 'trial16',
@@ -58,9 +58,9 @@ const formatted = formatGuestInstance({
   localBaseUrl: 'http://127.0.0.1:7710',
   publicBaseUrl: 'https://trial16.example.com',
   mailboxAddress: 'rowan+trial16@jiujianian.dev',
-  instanceRoot: '/Users/example/.remotelab/instances/trial16',
-  configDir: '/Users/example/.remotelab/instances/trial16/config',
-  memoryDir: '/Users/example/.remotelab/instances/trial16/memory',
+  instanceRoot: '/Users/example/.melodysync/instances/trial16',
+  configDir: '/Users/example/.melodysync/instances/trial16/config',
+  memoryDir: '/Users/example/.melodysync/instances/trial16/memory',
   launchAgentPath: '/Users/example/Library/LaunchAgents/com.chatserver.trial16.plist',
   createdAt: '2026-03-24T00:00:00.000Z',
 }, {

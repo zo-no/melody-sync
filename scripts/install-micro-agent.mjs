@@ -12,8 +12,6 @@ const DEFAULT_TOOL_NAME = 'Micro Agent';
 const DEFAULT_COMMAND = 'codex';
 const DEFAULT_MODEL = 'gpt-5.4';
 const PERSONAL_CODEX_CONFIG_PATH = join(HOME, '.codex', 'config.toml');
-const LEGACY_CONFIG_PATH = join(HOME, '.config', 'remotelab', 'micro-agent.json');
-
 function trimString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -30,12 +28,12 @@ function printUsage(exitCode = 0, errorMessage = '') {
 Options:
   --model <id>             Codex / GPT model id (default: detected from ~/.codex/config.toml, else ${DEFAULT_MODEL})
   --command <cmd>          Command used to launch the runtime (default: ${DEFAULT_COMMAND})
-  --tool-id <id>           RemoteLab tool id (default: ${DEFAULT_TOOL_ID})
-  --tool-name <name>       RemoteLab tool label (default: ${DEFAULT_TOOL_NAME})
+  --tool-id <id>           MelodySync tool id (default: ${DEFAULT_TOOL_ID})
+  --tool-name <name>       MelodySync tool label (default: ${DEFAULT_TOOL_NAME})
   -h, --help               Show this help
 
 This installer no longer writes a separate micro-agent runtime config.
-It simply registers a thin Codex-backed tool preset in ~/.config/remotelab/tools.json.
+It simply registers a thin Codex-backed tool preset in ~/.melodysync/config/tools.json.
 `);
   process.exit(exitCode);
 }
@@ -150,9 +148,6 @@ async function main() {
   console.log(`- Command: ${record.command}`);
   console.log(`- Runtime: ${record.runtimeFamily}`);
   console.log(`- Model: ${model}`);
-  if (await pathExists(LEGACY_CONFIG_PATH)) {
-    console.log(`- Note: legacy config still exists at ${LEGACY_CONFIG_PATH} but is no longer used.`);
-  }
 }
 
 await main();

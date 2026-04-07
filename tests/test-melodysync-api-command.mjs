@@ -4,10 +4,10 @@ import http from 'http';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-const tempRoot = mkdtempSync(join(tmpdir(), 'remotelab-api-command-'));
+const tempRoot = mkdtempSync(join(tmpdir(), 'melodysync-api-command-'));
 const homeDir = join(tempRoot, 'home');
-mkdirSync(join(homeDir, '.config', 'remotelab'), { recursive: true });
-writeFileSync(join(homeDir, '.config', 'remotelab', 'auth.json'), `${JSON.stringify({ token: 'owner-token' })}\n`, 'utf8');
+mkdirSync(join(homeDir, '.config', 'melody-sync'), { recursive: true });
+writeFileSync(join(homeDir, '.config', 'melody-sync', 'auth.json'), `${JSON.stringify({ token: 'owner-token' })}\n`, 'utf8');
 process.env.HOME = homeDir;
 
 let runPolls = 0;
@@ -16,7 +16,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (url.pathname === '/' && url.searchParams.get('token') === 'owner-token') {
     res.writeHead(302, {
-      'Set-Cookie': 'remotelab_session=owner; Path=/',
+      'Set-Cookie': 'melodysync_session=owner; Path=/',
       Location: '/app',
     });
     res.end();
@@ -24,7 +24,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   const cookie = req.headers.cookie || '';
-  if (!cookie.includes('remotelab_session=owner')) {
+  if (!cookie.includes('melodysync_session=owner')) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'forbidden' }));
     return;
@@ -90,11 +90,11 @@ const address = server.address();
 assert(address && typeof address === 'object');
 const baseUrl = `http://127.0.0.1:${address.port}`;
 
-const { runRemoteLabApiCommand } = await import('../lib/remotelab-api-command.mjs');
+const { runMelodySyncApiCommand } = await import('../lib/melodysync-api-command.mjs');
 
 async function runCli(args) {
   let stdout = '';
-  await runRemoteLabApiCommand(args, {
+  await runMelodySyncApiCommand(args, {
     stdout: {
       write(chunk) {
         stdout += String(chunk);
@@ -126,4 +126,4 @@ for (const socket of sockets) {
 server.closeAllConnections?.();
 await new Promise((resolve) => server.close(resolve));
 
-console.log('test-remotelab-api-command: ok');
+console.log('test-melodysync-api-command: ok');

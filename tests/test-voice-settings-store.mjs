@@ -12,11 +12,11 @@ const appRoot = join(tempHome, 'vault', '00-🤖agent');
 const configDir = join(tempHome, '.config', 'melody-sync');
 
 process.env.HOME = tempHome;
-delete process.env.REMOTELAB_CONFIG_DIR;
-delete process.env.REMOTELAB_MEMORY_DIR;
-delete process.env.REMOTELAB_INSTANCE_ROOT;
-delete process.env.REMOTELAB_OBSIDIAN_VAULT_DIR;
-delete process.env.REMOTELAB_OBSIDIAN_PATH;
+delete process.env.MELODYSYNC_CONFIG_DIR;
+delete process.env.MELODYSYNC_MEMORY_DIR;
+delete process.env.MELODYSYNC_INSTANCE_ROOT;
+delete process.env.MELODYSYNC_OBSIDIAN_VAULT_DIR;
+delete process.env.MELODYSYNC_OBSIDIAN_PATH;
 
 mkdirSync(configDir, { recursive: true });
 writeFileSync(join(configDir, 'general-settings.json'), JSON.stringify({ appRoot }, null, 2), 'utf8');

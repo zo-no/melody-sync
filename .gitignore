@@ -26,7 +26,7 @@ credentials.txt
 *.tmp
 *.swp
 *~
-.remotelab-runtime/
+.melody-sync-runtime/
 .melodysync/
 
 # Claude Code session plan dumps

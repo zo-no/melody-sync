@@ -1,12 +1,12 @@
-# CSAPP Performance Lens For RemoteLab
+# CSAPP Performance Lens For MelodySync
 
-This note is a focused CSAPP refresher for people optimizing `zo-no-remotelab`.
+This note is a focused CSAPP refresher for people optimizing `zo-no-melody-sync`.
 
 It is not a generic chapter summary. The goal is to map CSAPP ideas onto the current codebase so future optimization work starts from systems facts instead of intuition.
 
 ## Why CSAPP matters here
 
-RemoteLab looks like a chat app, but its performance profile is closer to a small operating-system-adjacent service:
+MelodySync looks like a chat app, but its performance profile is closer to a small operating-system-adjacent service:
 
 - one long-lived Node.js server handles many short control-plane requests
 - child processes execute real local tools and stream output back
@@ -240,7 +240,7 @@ If we want to "study by doing", these are high-value exercises:
 
 ## What to remember
 
-For RemoteLab, the most valuable CSAPP lesson is simple:
+For MelodySync, the most valuable CSAPP lesson is simple:
 
 - performance problems are usually caused by process boundaries, blocking work, and unnecessary I/O volume
 

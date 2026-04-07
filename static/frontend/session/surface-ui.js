@@ -163,6 +163,13 @@ function getSessionReviewStatusInfo(session) {
     : null;
 }
 
+function getDoneWorkflowStatusInfo(session) {
+  const model = typeof window !== "undefined" ? window.MelodySyncSessionStateModel : null;
+  if (!model || typeof model.getWorkflowStatusInfo !== "function") return null;
+  const workflowStatus = model.getWorkflowStatusInfo(session?.workflowState);
+  return workflowStatus?.key === "done" ? workflowStatus : null;
+}
+
 function getSessionListTouchStatusInfo(session) {
   const model = typeof window !== "undefined" ? window.MelodySyncSessionStateModel : null;
   if (!model || !session) return null;
@@ -181,12 +188,15 @@ function getSessionListTouchStatusInfo(session) {
     ? model.getSessionReviewStatusInfo(session)
     : null;
   if (!reviewStatus) return null;
-  return {
-    key: "finished",
-    label: t("workflow.status.finished"),
-    className: "status-done",
-    title: t("workflow.status.finishedTitle"),
-  };
+  const doneStatus = getDoneWorkflowStatusInfo(session);
+  if (doneStatus) {
+    return {
+      ...doneStatus,
+      label: doneStatus.label || t("workflow.status.done"),
+      title: doneStatus.title || t("workflow.status.doneTitle"),
+    };
+  }
+  return reviewStatus;
 }
 
 function isSessionCompleteAndReviewed(session) {
@@ -197,9 +207,9 @@ function isSessionCompleteAndReviewed(session) {
     : false;
 }
 
-function buildSessionMetaParts(session) {
+function buildSessionMetaParts(session, { touchStatusInfo = null } = {}) {
   const parts = [];
-  const touchStatusHtml = renderSessionStatusHtml(getSessionListTouchStatusInfo(session));
+  const touchStatusHtml = renderSessionStatusHtml(touchStatusInfo || getSessionListTouchStatusInfo(session));
   if (touchStatusHtml) parts.push(touchStatusHtml);
   const countHtml = renderSessionMessageCount(session);
   if (countHtml) parts.push(countHtml);
@@ -251,7 +261,9 @@ function buildSessionActionConfigs(session, options = {}) {
     "completed",
     "finished",
     "完成",
+    "已完成",
     "运行完毕",
+    "运行完成",
   ].includes(rawWorkflowState);
   const isDoneSession = normalizedWorkflowState === "done" || fallbackDoneWorkflowState;
   if (isArchivedSession) {
@@ -312,6 +324,7 @@ function buildSessionActionConfigs(session, options = {}) {
 
 function createActiveSessionItem(session, options = {}) {
   const statusInfo = getSessionMetaStatusInfo(session);
+  const touchStatusInfo = getSessionListTouchStatusInfo(session);
   const completeRead = isSessionCompleteAndReviewed(session);
   const extraClassName = typeof options.extraClassName === "string" && options.extraClassName.trim()
     ? ` ${options.extraClassName.trim()}`
@@ -323,13 +336,14 @@ function createActiveSessionItem(session, options = {}) {
     + (session.id === currentSessionId ? " active" : "")
     + (completeRead ? " is-complete-read" : "")
     + (statusInfo.itemClass ? ` ${statusInfo.itemClass}` : "")
+    + (touchStatusInfo?.itemClass && touchStatusInfo.itemClass !== statusInfo.itemClass ? ` ${touchStatusInfo.itemClass}` : "")
     + extraClassName;
 
   const displayName = getSessionDisplayName(session);
   const displayTitle = getPreferredSessionDisplayName(session) || displayName;
   const metaHtml = typeof options.metaOverrideHtml === "string"
     ? options.metaOverrideHtml
-    : buildSessionMetaParts(session).join(" · ");
+    : buildSessionMetaParts(session, { touchStatusInfo }).join(" · ");
   const actionConfigs = options.hideActions === true ? [] : buildSessionActionConfigs(session, options);
   const hideActions = actionConfigs.length === 0;
   const actionsHtml = actionConfigs.map((entry) => `

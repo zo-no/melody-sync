@@ -132,12 +132,12 @@ Keep session continuity distinct from scope and task memory.
 - Do not impose a heavy handoff template by default; let the child decide what to inspect or how to proceed.
 - If extra context is required, let the child fetch it from the parent session instead of pasting a long recap.
 - If the \`melodysync\` command is unavailable in PATH, use:
-  - node "$REMOTELAB_PROJECT_ROOT/cli.js" session-spawn --task "<focused task>" --json
+  - node "$MELODYSYNC_PROJECT_ROOT/cli.js" session-spawn --task "<focused task>" --json
 - The shell environment exposes:
-  - REMOTELAB_SESSION_ID — current source session id${currentSessionId ? ` (current: ${currentSessionId})` : ''}
-  - REMOTELAB_CHAT_BASE_URL — local MelodySync API base URL (usually http://127.0.0.1:${CHAT_PORT})
-  - REMOTELAB_PROJECT_ROOT — local MelodySync project root for fallback commands
-- The spawn command defaults to REMOTELAB_SESSION_ID, so you usually do not need to pass --source-session explicitly.
+  - MELODYSYNC_SESSION_ID — current source session id${currentSessionId ? ` (current: ${currentSessionId})` : ''}
+  - MELODYSYNC_CHAT_BASE_URL — local MelodySync API base URL (usually http://127.0.0.1:${CHAT_PORT})
+  - MELODYSYNC_PROJECT_ROOT — local MelodySync project root for fallback commands
+- The spawn command defaults to MELODYSYNC_SESSION_ID, so you usually do not need to pass --source-session explicitly.
 - MelodySync may append a lightweight source-session note, but do not rely on heavy parent/child UI; normal session-list and sidebar surfaces are the primary way spawned sessions show up.
 - Use this capability judiciously: split work when it reduces context pressure or enables real parallelism, not for every trivial substep.
 

@@ -32,22 +32,79 @@ import {
 const runId = process.argv[2];
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
+const MAX_RAW_FALLBACK_LINES = 40;
+const MAX_RAW_FALLBACK_CHARS = 8000;
+const DEFAULT_API_RETRY_COUNT_LIMIT = 8;
+const DEFAULT_API_RETRY_STALL_MS = 25000;
+
+function toPositiveInt(value, fallback, { min = 1 } = {}) {
+  const parsed = parseInt(String(value || '').trim(), 10);
+  return Number.isInteger(parsed) && parsed >= min ? parsed : fallback;
+}
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function truncateText(text, maxChars) {
+  if (!text || !Number.isInteger(maxChars) || maxChars <= 0) return '';
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, maxChars - 3)}...`;
+}
+
+function normalizeFallbackLines(lines) {
+  const compact = (Array.isArray(lines) ? lines : [])
+    .map((entry) => typeof entry === 'string' ? entry.trim() : '')
+    .filter(Boolean)
+    .join('\n');
+  return truncateText(compact.replace(/\s+/g, ' ').trim(), MAX_RAW_FALLBACK_CHARS);
+}
+
+function toStringOrUndefined(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Error) return String(value.message || value.toString()).trim();
+  if (typeof value === 'object') {
+    if (typeof value.message === 'string') {
+      return value.message.trim();
+    }
+    try {
+      return JSON.stringify(value).trim();
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
+
+function extractFailureReasonFromParsedLine(parsed) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return '';
+  if (parsed.type !== 'result' || parsed.is_error !== true) return '';
+  const candidates = [
+    parsed.result,
+    parsed.error,
+    parsed.message,
+    parsed.summary,
+  ];
+  for (const candidate of candidates) {
+    const text = toStringOrUndefined(candidate);
+    if (text) return truncateText(text, MAX_RAW_FALLBACK_CHARS);
+  }
+  return '';
 }
 
 async function cleanEnv(toolId, manifest = {}, options = {}) {
   const env = buildToolProcessEnv();
   delete env.CLAUDECODE;
   delete env.CLAUDE_CODE_ENTRYPOINT;
-  env.REMOTELAB_CHAT_BASE_URL = process.env.REMOTELAB_CHAT_BASE_URL || `http://127.0.0.1:${CHAT_PORT}`;
-  env.REMOTELAB_PROJECT_ROOT = process.env.REMOTELAB_PROJECT_ROOT || PROJECT_ROOT;
+  env.MELODYSYNC_CHAT_BASE_URL = process.env.MELODYSYNC_CHAT_BASE_URL || `http://127.0.0.1:${CHAT_PORT}`;
+  env.MELODYSYNC_PROJECT_ROOT = process.env.MELODYSYNC_PROJECT_ROOT || PROJECT_ROOT;
   if (typeof manifest?.sessionId === 'string' && manifest.sessionId.trim()) {
-    env.REMOTELAB_SESSION_ID = manifest.sessionId.trim();
+    env.MELODYSYNC_SESSION_ID = manifest.sessionId.trim();
   }
   if (runId) {
-    env.REMOTELAB_RUN_ID = runId;
+    env.MELODYSYNC_RUN_ID = runId;
   }
   return applyManagedRuntimeEnv(toolId, env, {
     runtimeFamily: typeof options.runtimeFamily === 'string' ? options.runtimeFamily : '',
@@ -150,6 +207,15 @@ async function main() {
   });
   const providerTransportFailureGraceMs = getProviderTransportFailureGraceMs(process.env);
   const providerTerminationGraceMs = getProviderTerminationGraceMs(process.env);
+  const apiRetryCountLimit = toPositiveInt(
+    process.env.MELODYSYNC_CLAUDE_API_RETRY_LIMIT,
+    DEFAULT_API_RETRY_COUNT_LIMIT,
+  );
+  const apiRetryStallMs = toPositiveInt(
+    process.env.MELODYSYNC_CLAUDE_API_RETRY_STALL_MS,
+    DEFAULT_API_RETRY_STALL_MS,
+    { min: 5000 },
+  );
 
   await updateRun(runId, (current) => ({
     ...current,
@@ -159,6 +225,8 @@ async function main() {
   let finalized = false;
   let cancelSent = false;
   let forcedFailureReason = '';
+  const apiRetryEvents = [];
+  let hasAssistantMessage = false;
   let transportAbortRequested = false;
   const terminationController = createTerminationController(proc, {
     terminationGraceMs: providerTerminationGraceMs,
@@ -167,6 +235,9 @@ async function main() {
     runtimeFamily,
     graceMs: providerTransportFailureGraceMs,
   });
+  const rawStdoutLines = [];
+  const rawStderrLines = [];
+  let sawStructuredStdout = false;
 
   const cancelTimer = setInterval(() => {
     void (async () => {
@@ -195,8 +266,67 @@ async function main() {
       terminationController.requestTermination();
     })();
   }, 500);
+  const pruneApiRetryEvents = (now = Date.now()) => {
+    while (apiRetryEvents.length > 0 && (now - apiRetryEvents[0]) > apiRetryStallMs) {
+      apiRetryEvents.shift();
+    }
+  };
+  const trackApiRetryEvent = (line, now = Date.now()) => {
+    if (!line || typeof line !== 'string') return;
+    if (!/api_retry/i.test(line)) return;
+    apiRetryEvents.push(now);
+    pruneApiRetryEvents(now);
+  };
+  const hasApiRetryStall = () => apiRetryEvents.length >= apiRetryCountLimit;
+  const collectRawFallbackText = () => normalizeFallbackLines([...rawStdoutLines, ...rawStderrLines]);
+
+  const appendClaudeRawOutputFallback = async ({ code }) => {
+    if (
+      runtimeFamily !== 'claude-stream-json'
+      || code !== 0
+      || forcedFailureReason
+      || sawStructuredStdout
+      || !(rawStdoutLines.length || rawStderrLines.length)
+    ) return;
+
+    const combinedText = collectRawFallbackText();
+    if (!combinedText) return;
+
+    await appendRunSpoolRecord(runId, {
+      ts: nowIso(),
+      stream: 'error',
+      line: `No structured runtime output was produced for this session. Raw output: ${combinedText}`,
+    });
+  };
+
+  const apiRetryWatchdog = setInterval(() => {
+    void (async () => {
+      if (
+        finalized
+        || hasAssistantMessage
+        || forcedFailureReason
+      ) return;
+      const now = Date.now();
+      pruneApiRetryEvents(now);
+      if (!hasApiRetryStall()) return;
+      forcedFailureReason = `Claude API retry loop without assistant output for ${Math.round(apiRetryStallMs / 1000)}s`;
+      await appendRunSpoolRecord(runId, {
+        ts: nowIso(),
+        stream: 'error',
+        line: forcedFailureReason,
+      });
+      await updateRun(runId, (current) => ({
+        ...current,
+        failureReason: forcedFailureReason,
+      }));
+      terminationController.requestTermination();
+    })();
+  }, 500);
   if (typeof transportWatchdog.unref === 'function') {
     transportWatchdog.unref();
+  }
+  if (typeof apiRetryWatchdog.unref === 'function') {
+    apiRetryWatchdog.unref();
   }
 
   const recordStdoutLine = async (line) => {
@@ -204,6 +334,37 @@ async function main() {
     try {
       parsed = JSON.parse(line);
     } catch {}
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      sawStructuredStdout = true;
+      if (parsed.type === 'assistant') {
+        hasAssistantMessage = true;
+      }
+      if (!forcedFailureReason) {
+        const parsedFailureReason = extractFailureReasonFromParsedLine(parsed);
+        if (parsedFailureReason) {
+          forcedFailureReason = parsedFailureReason;
+          await updateRun(runId, (current) => ({
+            ...current,
+            failureReason: forcedFailureReason,
+          }));
+          await appendRunSpoolRecord(runId, {
+            ts: nowIso(),
+            stream: 'error',
+            line: forcedFailureReason,
+          });
+        }
+      }
+      trackApiRetryEvent(String(parsed.subtype || ''));
+    } else if (line && typeof line === 'string') {
+      const clean = line.trim();
+      if (clean) {
+        rawStdoutLines.push(clean);
+        if (rawStdoutLines.length > MAX_RAW_FALLBACK_LINES) {
+          rawStdoutLines.shift();
+        }
+        trackApiRetryEvent(clean);
+      }
+    }
     transportMonitor.observeStdoutJson(parsed);
     await appendRunSpoolRecord(runId, {
       ts: nowIso(),
@@ -227,12 +388,40 @@ async function main() {
       const clean = line.trim();
       if (!clean) continue;
       transportMonitor.observeStderrLine(clean);
+      trackApiRetryEvent(clean);
+      rawStderrLines.push(clean);
+      if (rawStderrLines.length > MAX_RAW_FALLBACK_LINES) {
+        rawStderrLines.shift();
+      }
       await appendRunSpoolRecord(runId, {
         ts: nowIso(),
         stream: 'stderr',
         line: clean,
       });
     }
+  };
+
+  const markClaudeRawFailureFromFallback = async () => {
+    if (
+      runtimeFamily !== 'claude-stream-json'
+      || sawStructuredStdout
+      || hasAssistantMessage
+      || forcedFailureReason
+    ) return;
+
+    const combinedText = collectRawFallbackText();
+    if (!combinedText) return;
+
+    forcedFailureReason = `Provider exited without structured output despite raw content: ${combinedText}`;
+    await updateRun(runId, (current) => ({
+      ...current,
+      failureReason: forcedFailureReason,
+    }));
+    await appendRunSpoolRecord(runId, {
+      ts: nowIso(),
+      stream: 'error',
+      line: forcedFailureReason,
+    });
   };
 
   // Backpressure-aware stdout reader: pause the readline interface while
@@ -249,33 +438,57 @@ async function main() {
 
   proc.on('error', (error) => {
     void (async () => {
-      finalized = true;
-      clearInterval(cancelTimer);
-      clearInterval(transportWatchdog);
-      terminationController.clearTerminateTimer();
-      await finalizeSidecarRunError(runId, {
-        nowIso,
-        error,
-        forcedFailureReason,
-      });
-      process.exit(1);
+      try {
+        finalized = true;
+        clearInterval(cancelTimer);
+        clearInterval(transportWatchdog);
+        clearInterval(apiRetryWatchdog);
+        terminationController.clearTerminateTimer();
+        await finalizeSidecarRunError(runId, {
+          nowIso,
+          error,
+          forcedFailureReason,
+        });
+      } catch (finalizationError) {
+        await finalizeSidecarRunError(runId, {
+          nowIso,
+          error: finalizationError,
+          forcedFailureReason,
+        });
+      } finally {
+        process.exit(1);
+      }
     })();
   });
 
   proc.on('exit', (code, signal) => {
     void (async () => {
-      finalized = true;
-      clearInterval(cancelTimer);
-      clearInterval(transportWatchdog);
-      terminationController.clearTerminateTimer();
-      const exitCode = await finalizeSidecarRunExit(runId, run, {
-        nowIso,
-        appendCodexContextMetrics,
-        code,
-        signal,
-        forcedFailureReason,
-      });
-      process.exit(exitCode);
+      try {
+        finalized = true;
+        clearInterval(cancelTimer);
+        clearInterval(transportWatchdog);
+        clearInterval(apiRetryWatchdog);
+        terminationController.clearTerminateTimer();
+        if (!forcedFailureReason) {
+          await markClaudeRawFailureFromFallback();
+        }
+        await appendClaudeRawOutputFallback({ code: code ?? 1 });
+        const exitCode = await finalizeSidecarRunExit(runId, run, {
+          nowIso,
+          appendCodexContextMetrics,
+          code,
+          signal,
+          forcedFailureReason,
+        });
+        process.exit(exitCode);
+      } catch (finalizationError) {
+        await finalizeSidecarRunError(runId, {
+          nowIso,
+          error: finalizationError,
+          forcedFailureReason,
+        });
+        process.exit(1);
+      }
     })();
   });
 }

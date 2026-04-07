@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-const home = mkdtempSync(join(tmpdir(), 'remotelab-history-index-'));
+const home = mkdtempSync(join(tmpdir(), 'melodysync-history-index-'));
 process.env.HOME = home;
 
 const { appendEvents, readEventBody, readEventsAfter } = await import('../backend/history.mjs');

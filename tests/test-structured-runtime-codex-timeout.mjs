@@ -60,8 +60,8 @@ function request(port, method, path, body = null) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-structured-runtime-codex-timeout-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-structured-runtime-codex-timeout-'));
+  const configDir = join(home, '.config', 'melody-sync');
   const localBin = join(home, '.local', 'bin');
   mkdirSync(configDir, { recursive: true });
   mkdirSync(localBin, { recursive: true });
@@ -115,8 +115,8 @@ async function startServer({ home, port }) {
       HOME: home,
       CHAT_PORT: String(port),
       SECURE_COOKIES: '0',
-      REMOTELAB_PROVIDER_TRANSPORT_FAILURE_GRACE_MS: '250',
-      REMOTELAB_PROVIDER_TERMINATION_GRACE_MS: '250',
+      MELODYSYNC_PROVIDER_TRANSPORT_FAILURE_GRACE_MS: '250',
+      MELODYSYNC_PROVIDER_TERMINATION_GRACE_MS: '250',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

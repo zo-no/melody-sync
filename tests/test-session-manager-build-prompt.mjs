@@ -4,12 +4,12 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
-const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'remotelab-build-prompt-'));
+const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'melodysync-build-prompt-'));
 process.env.HOME = tempHome;
 
-await fs.mkdir(path.join(tempHome, '.config', 'remotelab'), { recursive: true });
+await fs.mkdir(path.join(tempHome, '.config', 'melody-sync'), { recursive: true });
 await fs.writeFile(
-  path.join(tempHome, '.config', 'remotelab', 'tools.json'),
+  path.join(tempHome, '.config', 'melody-sync', 'tools.json'),
   `${JSON.stringify([
     {
       id: 'micro-agent',

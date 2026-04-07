@@ -356,8 +356,8 @@ function renderPageTemplate(template, nonce, replacements = {}) {
   };
   if (!Object.prototype.hasOwnProperty.call(replacements, 'BOOTSTRAP_SCRIPT_TAGS')) {
     merged.BOOTSTRAP_SCRIPT_TAGS = [
-      `<script nonce="${merged.NONCE}">window.__REMOTELAB_BUILD__ = ${merged.BUILD_JSON};</script>`,
-      `<script nonce="${merged.NONCE}">window.__REMOTELAB_BOOTSTRAP__ = ${merged.BOOTSTRAP_JSON};</script>`,
+      `<script nonce="${merged.NONCE}">window.__MELODYSYNC_BUILD__ = ${merged.BUILD_JSON};</script>`,
+      `<script nonce="${merged.NONCE}">window.__MELODYSYNC_BOOTSTRAP__ = ${merged.BOOTSTRAP_JSON};</script>`,
     ].join('\n');
   }
   return Object.entries(merged).reduce(
@@ -600,7 +600,7 @@ async function resolveStaticAsset(pathname, query = {}) {
 
 function buildHeaders(headers = {}) {
   return {
-    'X-RemoteLab-Build': BUILD_INFO.title,
+    'X-MelodySync-Build': BUILD_INFO.title,
     ...headers,
   };
 }
@@ -788,7 +788,7 @@ function writeCachedResponse(req, res, {
   const headers = {
     'Cache-Control': cacheControl,
     ETag: etag,
-    'X-RemoteLab-Build': BUILD_INFO.title,
+    'X-MelodySync-Build': BUILD_INFO.title,
     ...preparedResponse.headers,
     ...extraHeaders,
   };

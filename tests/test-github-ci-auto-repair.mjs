@@ -10,8 +10,8 @@ import { buildSessionMessage, selectLatestFailureCandidates, truncateLogText } f
 
 const testsRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(testsRoot, '..');
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-github-ci-auto-repair-'));
-const configDir = join(tempHome, '.config', 'remotelab');
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-github-ci-auto-repair-'));
+const configDir = join(tempHome, '.config', 'melody-sync');
 const binDir = join(tempHome, 'bin');
 const stateFile = join(tempHome, 'state.json');
 const snapshotDir = join(tempHome, 'snapshots');
@@ -326,7 +326,7 @@ try {
 
   const storedState = JSON.parse(readFileSync(stateFile, 'utf8'));
   assert.equal(storedState.handledRuns['101'].sessionId, 'session_ci_1');
-  assert.equal(storedState.handledRuns['101'].remotelabRunId, 'run_ci_1');
+  assert.equal(storedState.handledRuns['101'].melodysyncRunId, 'run_ci_1');
 
   const secondRun = await runNode(command, childEnv);
 

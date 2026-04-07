@@ -1,12 +1,12 @@
 # Remote Capability Monitor
 
-The remote capability monitor is a recurring RemoteLab automation App that scouts the remote-control coding-agent space and feeds the result back into a reviewable RemoteLab session.
+The remote capability monitor is a recurring MelodySync automation flow that scouts the remote-control coding-agent space and feeds the result back into a reviewable MelodySync session.
 
 It is meant to answer a focused question continuously:
 
 - what are direct competitors and adjacent tools shipping for remote control of local coding agents,
 - what changed recently,
-- and which of those changes are worth adapting inside RemoteLab.
+- and which of those changes are worth adapting inside MelodySync.
 
 ## Primary tracked surfaces
 
@@ -25,7 +25,7 @@ The `Happy` project matters here because it is an explicit remote-control produc
 - `slopus/happy` — mobile and web client for Claude Code and Codex
 - `slopus/happy-cli` — local CLI bridge / wrapper for remote control of local coding tools
 
-## How it fits RemoteLab
+## How it fits MelodySync
 
 This monitor should not stop at local logs or standalone notifications.
 
@@ -33,18 +33,19 @@ The intended flow is:
 
 1. fetch and score source updates
 2. write a local report and JSON summary
-3. create or reuse a stable RemoteLab review session under an automation App
+3. create or reuse one stable MelodySync review session for the automation
 4. submit the digest into that session
-5. let the AI produce the review/proposal inside RemoteLab
+5. let the AI produce the review/proposal inside MelodySync
 6. optionally notify the owner with a deep link into that session
 
-That makes the real review surface a normal RemoteLab session instead of an external dashboard.
+That makes the real review surface a normal MelodySync session instead of an external dashboard.
 
-## App pattern
+## Session/source pattern
 
-A good monitor rollout uses a dedicated App, for example `Agent Radar`, with:
+A good monitor rollout uses a dedicated automation source, for example `Agent Radar`, with:
 
 - a system prompt focused on competitive/product judgment
+- stable source metadata such as `sourceId`, `sourceName`, and `group`
 - a stable session identity via `externalTriggerId`
 - one recurring review thread for the automation
 
@@ -67,7 +68,7 @@ Machine-local setup stays outside the repo:
 - notifier channels
 - scheduler setup
 - auth/token files
-- concrete App/session IDs for that machine
+- concrete source/session IDs for that machine
 
 ## Local config shape
 
@@ -76,23 +77,27 @@ Typical local config includes:
 ```json
 {
   "bootstrapHours": 72,
-  "reportDir": "~/.remotelab/research/remote-capability-monitor",
+  "reportDir": "~/.melodysync/research/remote-capability-monitor",
   "notification": {
-    "notifierPath": "~/.remotelab/scripts/send-multi-channel-reminder.mjs",
+    "notifierPath": "~/.melodysync/scripts/send-multi-channel-reminder.mjs",
     "channels": []
   },
-  "remotelab": {
-    "baseUrl": "http://127.0.0.1:7690",
-    "authFile": "~/.config/remotelab/auth.json",
-    "sessionFolder": "~/code/remotelab",
+  "melodysync": {
+    "baseUrl": "http://127.0.0.1:7760",
+    "authFile": "~/.config/melody-sync/auth.json",
+    "sessionFolder": "~/code/melody-sync",
     "session": {
-      "appId": "app_...",
+      "sourceId": "agent-radar",
+      "sourceName": "Agent Radar",
+      "group": "Automation",
       "externalTriggerId": "automation:agent-radar:remote-capability-scout"
     }
   },
   "sources": []
 }
 ```
+
+The current script reads the `melodysync` config block and stores state under MelodySync paths.
 
 ## Source types
 
@@ -116,13 +121,13 @@ Per-source tuning can include:
 
 Typical outputs are:
 
-- state in `~/.config/remotelab/remote-capability-monitor/`
-- reports in `~/.remotelab/research/remote-capability-monitor/`
-- a stable RemoteLab review session for the automation
+- state in `~/.config/melody-sync/remote-capability-monitor/`
+- reports in `~/.melodysync/research/remote-capability-monitor/`
+- a stable MelodySync review session for the automation
 - optional deep-link notifications
 
 ## Operational rule
 
-When the monitor is connected to a RemoteLab review session, that session should be treated as the primary review surface.
+When the monitor is connected to a MelodySync review session, that session should be treated as the primary review surface.
 
 Notifications are helpful, but they should point back to the session rather than replace it.

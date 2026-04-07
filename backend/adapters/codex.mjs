@@ -21,7 +21,7 @@ export { DEFAULT_CODEX_DEVELOPER_INSTRUCTIONS } from '../runtime-policy.mjs';
  *   item.updated    — { type, item: ThreadItem }
  *   item.completed  — { type, item: ThreadItem }
  *   error           — { type, message }
- *   remotelab.context_metrics — synthetic line injected by RemoteLab sidecar
+ *   melodysync.context_metrics — synthetic line injected by MelodySync sidecar
  *                               after reading Codex's session JSONL token_count data
  *
  * ThreadItem types:
@@ -60,11 +60,11 @@ export function createCodexAdapter() {
 
         case 'turn.completed':
           // Codex stdout usage is cumulative across the agent loop, so
-          // RemoteLab injects a later remotelab.context_metrics line instead.
+          // MelodySync injects a later melodysync.context_metrics line instead.
           events.push(statusEvent('completed'));
           break;
 
-        case 'remotelab.context_metrics':
+        case 'melodysync.context_metrics':
           events.push(usageEvent({
             contextTokens: obj.contextTokens,
             inputTokens: obj.inputTokens,
@@ -186,20 +186,20 @@ function parseItem(item) {
 /**
  * Optional system instruction prepended to Codex prompts.
  *
- * RemoteLab now leaves this empty by default so local project memory and
+ * MelodySync now leaves this empty by default so local project memory and
  * session prompts remain the primary steering layer. Operators can still set
- * `REMOTELAB_CODEX_SYSTEM_PREFIX` if they want to force an extra prefix.
+ * `MELODYSYNC_CODEX_SYSTEM_PREFIX` if they want to force an extra prefix.
  */
-const CODEX_SYSTEM_PREFIX = process.env.REMOTELAB_CODEX_SYSTEM_PREFIX || '';
+const CODEX_SYSTEM_PREFIX = process.env.MELODYSYNC_CODEX_SYSTEM_PREFIX || '';
 /**
  * Optional developer instructions passed through Codex's own supported
  * `developer_instructions` config key. This is stronger than a prompt prefix
  * when the manager needs to shape the agent's default reply style.
  */
-const CODEX_DEVELOPER_INSTRUCTIONS = process.env.REMOTELAB_CODEX_DEVELOPER_INSTRUCTIONS || '';
+const CODEX_DEVELOPER_INSTRUCTIONS = process.env.MELODYSYNC_CODEX_DEVELOPER_INSTRUCTIONS || '';
 const HAS_CODEX_DEVELOPER_INSTRUCTIONS_ENV = Object.prototype.hasOwnProperty.call(
   process.env,
-  'REMOTELAB_CODEX_DEVELOPER_INSTRUCTIONS',
+  'MELODYSYNC_CODEX_DEVELOPER_INSTRUCTIONS',
 );
 
 function encodeTomlString(value) {

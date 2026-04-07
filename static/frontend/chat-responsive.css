@@ -37,11 +37,15 @@ body::before {
   display: inline-flex;
 }
 
+.task-map-resize-handle {
+  display: none;
+}
+
 /* ---- Desktop ---- */
 @media (min-width: 768px) {
   :root {
     --sidebar-width: 288px;
-    --task-map-width: clamp(320px, 24vw, 420px);
+    --task-map-width: clamp(320px, 28vw, 520px);
     --workspace-max-width: min(980px, 100%);
   }
 
@@ -181,6 +185,41 @@ body::before {
     background: transparent;
     box-shadow: none;
     transition: width 0.2s ease, opacity 0.16s ease, transform 0.2s ease;
+    position: relative;
+  }
+
+  .task-map-resize-handle {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 12px;
+    transform: translateX(-42%);
+    border-radius: 999px;
+    cursor: col-resize;
+    z-index: 4;
+    touch-action: none;
+    background: transparent;
+  }
+
+  .task-map-resize-handle::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    top: 0;
+    bottom: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--border-strong) 26%, transparent);
+    opacity: 0.6;
+    transition: opacity 0.15s ease, background 0.15s ease;
+  }
+
+  .task-map-resize-handle:hover::before,
+  .task-map-resize-handle.is-dragging::before {
+    opacity: 1;
+    background: color-mix(in srgb, var(--accent) 36%, var(--border-strong));
   }
 
   .task-map-rail:not(.is-collapsed) {
@@ -272,11 +311,17 @@ body::before {
     pointer-events: none;
     transform: translateX(12px);
   }
+
+  body.is-task-map-resizing,
+  body.is-task-map-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+  }
 }
 
 @media (min-width: 1280px) {
   :root {
-    --task-map-width: clamp(340px, 24vw, 456px);
+    --task-map-width: clamp(384px, 31vw, 620px);
   }
 }
 

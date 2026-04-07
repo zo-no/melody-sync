@@ -6,7 +6,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-auto-compact-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-auto-compact-'));
 const tempBin = join(tempHome, 'bin');
 const codexSessionsDir = join(tempHome, '.codex', 'sessions', '2026', '03', '10');
 const compactionWorkerText = JSON.stringify(
@@ -22,7 +22,7 @@ const compactionWorkerText = JSON.stringify(
 
 process.env.HOME = tempHome;
 process.env.PATH = `${tempBin}:${process.env.PATH}`;
-delete process.env.REMOTELAB_LIVE_CONTEXT_COMPACT_TOKENS;
+delete process.env.MELODYSYNC_LIVE_CONTEXT_COMPACT_TOKENS;
 
 const config = await import(
   pathToFileURL(join(repoRoot, 'lib', 'config.mjs')).href
@@ -160,7 +160,7 @@ async function waitFor(predicate, description, timeoutMs = 12000) {
 
 try {
   const overflowSession = await createSession(tempHome, 'fake-codex', 'Overflow Fallback', {
-    group: 'RemoteLab',
+    group: 'MelodySync',
     description: 'Verify fallback compaction only after window overflow.',
   });
 
@@ -213,7 +213,7 @@ try {
   );
 
   const exactSession = await createSession(tempHome, 'fake-codex', 'Exact Limit', {
-    group: 'RemoteLab',
+    group: 'MelodySync',
     description: 'Verify exact 100% context usage does not auto-compact.',
   });
 

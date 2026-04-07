@@ -1,13 +1,13 @@
 # GitHub CI Auto Repair
 
-`scripts/github-ci-auto-repair.mjs` watches the latest GitHub Actions runs for selected branches and starts a RemoteLab repair session when the newest matching branch CI run is red.
+`scripts/github-ci-auto-repair.mjs` watches the latest GitHub Actions runs for selected branches and starts a MelodySync repair session when the newest matching branch CI run is red.
 
 ## Why this shape
 
 For this machine, a **local poller** is the simplest reliable default:
 
 - no extra public webhook surface needs to be exposed from GitHub into the laptop
-- it reuses the existing local `gh` auth and RemoteLab owner auth
+- it reuses the existing local `gh` auth and MelodySync owner auth
 - it can enrich the repair prompt with local repo paths, workflow context, failed jobs, and log excerpts before the model starts working
 
 The monitor is intentionally conservative:
@@ -20,25 +20,25 @@ The monitor is intentionally conservative:
 
 ## Typical usage
 
-For the RemoteLab repo itself:
+For the MelodySync repo itself:
 
 ```bash
 npm run github:ci:repair -- \
-  --repo Ninglo/remotelab \
+  --repo zo-no/melody-sync \
   --branch main \
   --workflow CI \
-  --session-folder ~/code/remotelab
+  --session-folder ~/code/melody-sync
 ```
 
 To watch both `main` and `master`:
 
 ```bash
 node scripts/github-ci-auto-repair.mjs \
-  --repo Ninglo/remotelab \
+  --repo zo-no/melody-sync \
   --branch main \
   --branch master \
   --workflow CI \
-  --session-folder ~/code/remotelab
+  --session-folder ~/code/melody-sync
 ```
 
 Useful options:
@@ -55,8 +55,10 @@ This repo now ships a small helper that installs a macOS `LaunchAgent` for sched
 
 - helper: `scripts/github-ci-auto-repair-instance.sh`
 - runner: `scripts/github-ci-auto-repair-runner.mjs`
-- config: `~/.config/remotelab/github-ci-auto-repair/config.json`
-- launch agent: `~/Library/LaunchAgents/com.remotelab.github-ci-auto-repair.plist`
+- config: `~/.config/melody-sync/github-ci-auto-repair/config.json`
+- launch agent: `~/Library/LaunchAgents/com.melodysync.github-ci-auto-repair.plist`
+
+Those path names still reflect the current legacy compatibility layout.
 
 Install and start it:
 
@@ -77,13 +79,13 @@ Useful operations:
 Default behavior on this machine:
 
 - polls every `300` seconds
-- watches `Ninglo/remotelab`
+- watches `zo-no/melody-sync`
 - watches branches `main` and `master`
 - watches workflow `CI`
 - does **not** start model work during healthy polls
-- only starts a RemoteLab repair session once the latest matching branch CI run is actually red
+- only starts a MelodySync repair session once the latest matching branch CI run is actually red
 
-Edit `~/.config/remotelab/github-ci-auto-repair/config.json` if you want to change the poll interval, branches, workflows, or session runtime.
+Edit `~/.config/melody-sync/github-ci-auto-repair/config.json` if you want to change the poll interval, branches, workflows, or session runtime.
 
 ## Recommended operation pattern
 

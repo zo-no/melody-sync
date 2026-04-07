@@ -1,6 +1,6 @@
-# AI-Era Hard Skills Roadmap For RemoteLab
+# AI-Era Hard Skills Roadmap For MelodySync
 
-This is a practical roadmap for strengthening systems-level engineering ability around `zo-no-remotelab`.
+This is a practical roadmap for strengthening systems-level engineering ability around `zo-no-melody-sync`.
 
 The goal is not to consume more content. The goal is to become stronger at building AI systems that are:
 
@@ -24,7 +24,7 @@ For this project, hard-skill growth should be prioritized in this order:
 
 Why this order:
 
-- RemoteLab already depends on process control, file I/O, detached runs, HTTP, WebSocket invalidation, and durable session state
+- MelodySync already depends on process control, file I/O, detached runs, HTTP, WebSocket invalidation, and durable session state
 - its next bottlenecks are more likely to be systems bottlenecks than model-quality bottlenecks
 - once the systems base is strong, AI-specific product work becomes easier and safer
 
@@ -235,7 +235,7 @@ This should run in parallel at lower intensity, not replace the systems track.
 
 Why it matters:
 
-- RemoteLab is slowly becoming a runtime for sessions, apps, prompts, tools, and connectors
+- MelodySync is slowly becoming a runtime for sessions, apps, prompts, tools, and connectors
 - this means language/runtime thinking is useful even without building a traditional compiler
 
 Suggested material:
@@ -283,7 +283,7 @@ That is enough. Do not turn this into a passive reading project.
 ## What to avoid
 
 - replacing systems study with generic "AI agent" content
-- reading distributed-systems theory without mapping it to actual RemoteLab flows
+- reading distributed-systems theory without mapping it to actual MelodySync flows
 - trying to optimize before defining a metric
 - confusing framework fluency with hard skill
 
@@ -307,4 +307,4 @@ The target is:
 
 - to diagnose slowness without guessing
 - to add AI capabilities without making the machine unsafe
-- to evolve RemoteLab from a clever prototype into a durable system
+- to evolve MelodySync from a clever prototype into a durable system

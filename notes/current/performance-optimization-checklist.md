@@ -1,6 +1,6 @@
-# RemoteLab Performance Optimization Checklist
+# MelodySync Performance Optimization Checklist
 
-Use this before and during any performance pass on `zo-no-remotelab`.
+Use this before and during any performance pass on `zo-no-melody-sync`.
 
 ## 1. Define the symptom
 

@@ -16,7 +16,7 @@ async function main() {
   const home = mkdtempSync(join(tmpdir(), 'melodysync-orphan-branch-home-'));
   const workdir = mkdtempSync(join(tmpdir(), 'melodysync-orphan-branch-work-'));
   process.env.HOME = home;
-  mkdirSync(join(home, '.config', 'remotelab'), { recursive: true });
+  mkdirSync(join(home, '.config', 'melody-sync'), { recursive: true });
 
   const {
     createSession,

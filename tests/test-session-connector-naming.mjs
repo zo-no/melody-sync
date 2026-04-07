@@ -6,7 +6,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-session-connector-naming-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-session-connector-naming-'));
 
 process.env.HOME = tempHome;
 

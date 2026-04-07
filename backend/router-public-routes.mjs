@@ -146,11 +146,11 @@ export async function handlePublicRoutes({
       cacheControl: 'no-store, max-age=0, must-revalidate',
       vary: '',
       headers: {
-        'X-RemoteLab-Runtime-Mode': pageBuildInfo.runtimeMode,
-        'X-RemoteLab-Release-Id': pageBuildInfo.releaseId || '',
-        'X-RemoteLab-Asset-Version': pageBuildInfo.assetVersion,
-        'X-RemoteLab-Service-Build': pageBuildInfo.serviceTitle,
-        'X-RemoteLab-Frontend-Build': pageBuildInfo.frontendTitle,
+        'X-MelodySync-Runtime-Mode': pageBuildInfo.runtimeMode,
+        'X-MelodySync-Release-Id': pageBuildInfo.releaseId || '',
+        'X-MelodySync-Asset-Version': pageBuildInfo.assetVersion,
+        'X-MelodySync-Service-Build': pageBuildInfo.serviceTitle,
+        'X-MelodySync-Frontend-Build': pageBuildInfo.frontendTitle,
       },
     });
     return true;

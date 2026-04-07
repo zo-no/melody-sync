@@ -5,12 +5,12 @@ ACTION="${1:-}"
 shift || true
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/remotelab"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/melody-sync"
 
 if [[ "$(uname)" == "Darwin" ]]; then
   DEFAULT_LOG_DIR="$HOME/Library/Logs"
 else
-  DEFAULT_LOG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/remotelab/logs"
+  DEFAULT_LOG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/melody-sync/logs"
 fi
 
 PORT=""
@@ -37,13 +37,13 @@ Options:
   --name <name>    Optional label used for pid/log filenames
   --home <path>    HOME to use for the instance runtime
   --instance-root <path>
-                    Isolated RemoteLab data root (uses <root>/config and <root>/memory)
+                    Isolated MelodySync data root (uses <root>/config and <root>/memory)
   --config-dir <path>
-                    Explicit RemoteLab config dir override for the instance runtime
+                    Explicit MelodySync config dir override for the instance runtime
   --memory-dir <path>
-                    Explicit RemoteLab memory dir override for the instance runtime
+                    Explicit MelodySync memory dir override for the instance runtime
   --sync-from-home <path>
-                    Mirror ~/.config/remotelab and ~/.remotelab/memory from source HOME before start
+                    Mirror MelodySync config and memory from source HOME before start
   --log <path>     Explicit log path override
   --node <path>    Explicit node binary override
   --secure-cookies <0|1>
@@ -51,16 +51,16 @@ Options:
 
 Examples:
   scripts/chat-instance.sh restart --port 7695 --name scratch
-  scripts/chat-instance.sh start --port 7692 --name staging --home ~/.remotelab/instances/staging-home --sync-from-home ~ --secure-cookies 0
-  scripts/chat-instance.sh start --port 7692 --name companion --instance-root ~/.remotelab/instances/companion --secure-cookies 1
-  scripts/chat-instance.sh sync --home ~/.remotelab/instances/staging-home --sync-from-home ~
-  scripts/chat-instance.sh sync --instance-root ~/.remotelab/instances/companion --sync-from-home ~
+  scripts/chat-instance.sh start --port 7692 --name staging --home ~/.melodysync/instances/staging-home --sync-from-home ~ --secure-cookies 0
+  scripts/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melodysync/instances/companion --secure-cookies 1
+  scripts/chat-instance.sh sync --home ~/.melodysync/instances/staging-home --sync-from-home ~
+  scripts/chat-instance.sh sync --instance-root ~/.melodysync/instances/companion --sync-from-home ~
   scripts/chat-instance.sh status --port 7695
   scripts/chat-instance.sh logs --port 7695
 
 Notes:
   - This is for optional ad-hoc chat-server instances started manually on arbitrary ports.
-  - Production service management still uses launchd/systemd via `remotelab restart chat`.
+  - Production service management still uses launchd/systemd via `melodysync restart chat`.
 EOF
 }
 
@@ -225,8 +225,8 @@ sync_instance_home() {
   resolve_instance_storage
 
   if [[ -n "$RESOLVED_INSTANCE_CONFIG_DIR" || -n "$RESOLVED_INSTANCE_MEMORY_DIR" ]]; then
-    source_config_dir="$(canonical_dir_if_exists "$source_home/.config/remotelab")"
-    source_memory_dir="$(canonical_dir_if_exists "$source_home/.remotelab/memory")"
+    source_config_dir="$(canonical_dir_if_exists "$source_home/.config/melody-sync")"
+    source_memory_dir="$(canonical_dir_if_exists "$source_home/.melodysync/memory")"
 
     if [[ -n "$source_config_dir" && -n "$RESOLVED_INSTANCE_CONFIG_DIR" && "$source_config_dir" == "$RESOLVED_INSTANCE_CONFIG_DIR" ]]; then
       echo "refusing to sync config onto itself: $source_config_dir" >&2
@@ -238,10 +238,10 @@ sync_instance_home() {
     fi
 
     if [[ -n "$RESOLVED_INSTANCE_CONFIG_DIR" ]]; then
-      mirror_directory "$source_home/.config/remotelab" "$RESOLVED_INSTANCE_CONFIG_DIR"
+      mirror_directory "$source_home/.config/melody-sync" "$RESOLVED_INSTANCE_CONFIG_DIR"
     fi
     if [[ -n "$RESOLVED_INSTANCE_MEMORY_DIR" ]]; then
-      mirror_directory "$source_home/.remotelab/memory" "$RESOLVED_INSTANCE_MEMORY_DIR"
+      mirror_directory "$source_home/.melodysync/memory" "$RESOLVED_INSTANCE_MEMORY_DIR"
     fi
 
     echo "synced data: $source_home -> ${RESOLVED_INSTANCE_ROOT:-custom dirs}"
@@ -261,8 +261,8 @@ sync_instance_home() {
     exit 1
   fi
 
-  mirror_directory "$source_home/.config/remotelab" "$target_home/.config/remotelab"
-  mirror_directory "$source_home/.remotelab/memory" "$target_home/.remotelab/memory"
+  mirror_directory "$source_home/.config/melody-sync" "$target_home/.config/melody-sync"
+  mirror_directory "$source_home/.melodysync/memory" "$target_home/.melodysync/memory"
 
   echo "synced data: $source_home -> $target_home"
 }
@@ -335,13 +335,13 @@ start_instance() {
     TMPDIR="${TMPDIR:-/tmp}"
   )
   if [[ -n "$RESOLVED_INSTANCE_ROOT" ]]; then
-    env_args+=(REMOTELAB_INSTANCE_ROOT="$RESOLVED_INSTANCE_ROOT")
+    env_args+=(MELODYSYNC_INSTANCE_ROOT="$RESOLVED_INSTANCE_ROOT")
   fi
   if [[ -n "$RESOLVED_INSTANCE_CONFIG_DIR" ]]; then
-    env_args+=(REMOTELAB_CONFIG_DIR="$RESOLVED_INSTANCE_CONFIG_DIR")
+    env_args+=(MELODYSYNC_CONFIG_DIR="$RESOLVED_INSTANCE_CONFIG_DIR")
   fi
   if [[ -n "$RESOLVED_INSTANCE_MEMORY_DIR" ]]; then
-    env_args+=(REMOTELAB_MEMORY_DIR="$RESOLVED_INSTANCE_MEMORY_DIR")
+    env_args+=(MELODYSYNC_MEMORY_DIR="$RESOLVED_INSTANCE_MEMORY_DIR")
   fi
   if [[ -n "$SECURE_COOKIES_VALUE" ]]; then
     env_args+=(SECURE_COOKIES="$SECURE_COOKIES_VALUE")

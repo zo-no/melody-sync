@@ -32,10 +32,11 @@ Usage:
   melodysync stop                     Stop all services
   melodysync restart [service]        Restart services (chat|all)
   melodysync release                  Create, gate, and activate a release snapshot
-  melodysync guest-instance           Create isolated guest instances on this machine
+  melodysync guest-instance           Create isolated instances on this machine
   melodysync chat                     Run chat server in foreground
   melodysync api                      Call the local MelodySync HTTP API with owner auth
   melodysync usage-summary            Summarize local Codex token usage
+  melodysync storage-maintenance      Report or prune reclaimable runtime storage
   melodysync session-spawn            Spawn a focused parallel session from a source session
   melodysync generate-token           Generate a new access token
   melodysync set-password             Set username & password for login
@@ -94,9 +95,9 @@ switch (command) {
   }
 
   case 'api': {
-    const { runRemoteLabApiCommand } = await import(scriptPath('lib/remotelab-api-command.mjs'));
+    const { runMelodySyncApiCommand } = await import(scriptPath('lib/melodysync-api-command.mjs'));
     try {
-      process.exitCode = await runRemoteLabApiCommand(args);
+      process.exitCode = await runMelodySyncApiCommand(args);
     } catch (error) {
       console.error(error.message || String(error));
       process.exit(1);
@@ -115,6 +116,17 @@ switch (command) {
     const { runUsageSummaryCommand } = await import(scriptPath('lib/usage-summary-command.mjs'));
     try {
       process.exitCode = await runUsageSummaryCommand(args);
+    } catch (error) {
+      console.error(error.message || String(error));
+      process.exit(1);
+    }
+    break;
+  }
+
+  case 'storage-maintenance': {
+    const { runStorageMaintenanceCommand } = await import(scriptPath('lib/storage-maintenance-command.mjs'));
+    try {
+      process.exitCode = await runStorageMaintenanceCommand(args);
     } catch (error) {
       console.error(error.message || String(error));
       process.exit(1);

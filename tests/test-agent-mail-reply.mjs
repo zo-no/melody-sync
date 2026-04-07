@@ -6,10 +6,10 @@ import { join } from 'path';
 import { pathToFileURL } from 'url';
 
 const repoRoot = process.cwd();
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-agent-mail-reply-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-agent-mail-reply-'));
 process.env.HOME = tempHome;
 
-const mailboxRoot = join(tempHome, '.config', 'remotelab', 'agent-mailbox');
+const mailboxRoot = join(tempHome, '.config', 'melody-sync', 'agent-mailbox');
 const workspace = join(tempHome, 'workspace');
 mkdirSync(workspace, { recursive: true });
 

@@ -126,7 +126,7 @@ backend/providers/builtin/*.mjs
 放在本机配置目录，例如：
 
 ```text
-~/.config/remotelab/providers/*.json
+~/.config/melody-sync/providers/*.json
 ```
 
 用途：
@@ -141,7 +141,7 @@ backend/providers/builtin/*.mjs
 放在本机配置目录，例如：
 
 ```text
-~/.config/remotelab/providers/*.mjs
+~/.config/melody-sync/providers/*.mjs
 ```
 
 用途：

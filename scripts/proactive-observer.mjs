@@ -15,7 +15,7 @@ import { selectAssistantReplyEvent, stripHiddenBlocks } from '../lib/reply-selec
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = join(__dirname, '..')
 
-const DEFAULT_STORAGE_DIR = join(homedir(), '.config', 'remotelab', 'proactive-observer')
+const DEFAULT_STORAGE_DIR = join(homedir(), '.config', 'melody-sync', 'proactive-observer')
 const DEFAULT_CONFIG_PATH = join(DEFAULT_STORAGE_DIR, 'config.json')
 const DEFAULT_STATE_PATH = join(DEFAULT_STORAGE_DIR, 'state.json')
 const DEFAULT_EVENTS_LOG_PATH = join(DEFAULT_STORAGE_DIR, 'events.jsonl')
@@ -51,7 +51,7 @@ const LEGACY_DEFAULT_SYSTEM_PROMPT = [
 ].join('\n')
 const DEFAULT_SYSTEM_PROMPT = [
   'You are interacting through a proactive local observer on the user\'s own machine.',
-  'Keep connector-specific overrides minimal and only describe constraints not already owned by RemoteLab backend prompt logic.',
+  'Keep connector-specific overrides minimal and only describe constraints not already owned by MelodySync backend prompt logic.',
 ].join('\n')
 
 function trimString(value) {
@@ -193,7 +193,7 @@ function normalizeCameraConfig(value) {
 
 function normalizeVisionConfig(value) {
   const normalized = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
-  const defaultDetectorCommand = `swift "${join(PROJECT_ROOT, 'scripts', 'proactive-observer-human-detect.swift')}" --image "$REMOTELAB_OBSERVER_IMAGE_PATH"`
+  const defaultDetectorCommand = `swift "${join(PROJECT_ROOT, 'scripts', 'proactive-observer-human-detect.swift')}" --image "$MELODYSYNC_OBSERVER_IMAGE_PATH"`
   return {
     enabled: normalizeBoolean(normalized.enabled, true),
     detectorCommand: trimString(normalized.detectorCommand || defaultDetectorCommand),
@@ -205,7 +205,7 @@ function normalizeVisionConfig(value) {
 
 function normalizeSpeechConfig(value) {
   const normalized = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
-  const defaultListenCommand = `swift "${join(PROJECT_ROOT, 'scripts', 'proactive-observer-listen-once.swift')}" --timeout-ms "$REMOTELAB_OBSERVER_SPEECH_TIMEOUT_MS"`
+  const defaultListenCommand = `swift "${join(PROJECT_ROOT, 'scripts', 'proactive-observer-listen-once.swift')}" --timeout-ms "$MELODYSYNC_OBSERVER_SPEECH_TIMEOUT_MS"`
   return {
     enabled: normalizeBoolean(normalized.enabled, true),
     listenCommand: trimString(normalized.listenCommand || defaultListenCommand),
@@ -424,7 +424,7 @@ function buildSessionDescription(runtimeConfig, trigger, event) {
   return pieces.join(' ')
 }
 
-export function buildRemoteLabMessage(runtimeConfig, trigger, episode, event) {
+export function buildMelodySyncMessage(runtimeConfig, trigger, episode, event) {
   const lines = [
     'Inbound proactive observer event from a standalone local service.',
     `Episode ID: ${episode.episodeId}`,
@@ -464,15 +464,15 @@ function buildRequestId(runtimeConfig, episode, event) {
 
 function buildProcessEnv(runtime, event = {}, extra = {}) {
   return {
-    REMOTELAB_OBSERVER_CONNECTOR_ID: runtime.config.connectorId,
-    REMOTELAB_OBSERVER_ROOM_NAME: runtime.config.roomName,
-    REMOTELAB_OBSERVER_STORAGE_DIR: runtime.storagePaths.storageDir,
-    REMOTELAB_OBSERVER_EVENT_ID: trimString(event.eventId),
-    REMOTELAB_OBSERVER_EVENT_TYPE: trimString(event.type),
-    REMOTELAB_OBSERVER_IMAGE_PATH: trimString(event.imagePath),
-    REMOTELAB_OBSERVER_TRANSCRIPT: normalizeMultilineText(event.transcript),
-    REMOTELAB_OBSERVER_SPEECH_TIMEOUT_MS: String(runtime.config.speech.timeoutMs || DEFAULT_SPEECH_TIMEOUT_MS),
-    ...(extra.replyText ? { REMOTELAB_OBSERVER_REPLY_TEXT: String(extra.replyText) } : {}),
+    MELODYSYNC_OBSERVER_CONNECTOR_ID: runtime.config.connectorId,
+    MELODYSYNC_OBSERVER_ROOM_NAME: runtime.config.roomName,
+    MELODYSYNC_OBSERVER_STORAGE_DIR: runtime.storagePaths.storageDir,
+    MELODYSYNC_OBSERVER_EVENT_ID: trimString(event.eventId),
+    MELODYSYNC_OBSERVER_EVENT_TYPE: trimString(event.type),
+    MELODYSYNC_OBSERVER_IMAGE_PATH: trimString(event.imagePath),
+    MELODYSYNC_OBSERVER_TRANSCRIPT: normalizeMultilineText(event.transcript),
+    MELODYSYNC_OBSERVER_SPEECH_TIMEOUT_MS: String(runtime.config.speech.timeoutMs || DEFAULT_SPEECH_TIMEOUT_MS),
+    ...(extra.replyText ? { MELODYSYNC_OBSERVER_REPLY_TEXT: String(extra.replyText) } : {}),
   }
 }
 
@@ -545,7 +545,7 @@ async function loginWithToken(baseUrl, token) {
   })
   const setCookie = response.headers.get('set-cookie')
   if (response.status !== 302 || !setCookie) {
-    throw new Error(`Failed to authenticate to RemoteLab at ${baseUrl} (status ${response.status})`)
+    throw new Error(`Failed to authenticate to MelodySync at ${baseUrl} (status ${response.status})`)
   }
   return setCookie.split(';')[0]
 }
@@ -615,7 +615,7 @@ async function ensureAuthCookie(runtime, forceRefresh = false) {
   return runtime.authCookie
 }
 
-async function requestRemoteLab(runtime, path, options = {}) {
+async function requestMelodySync(runtime, path, options = {}) {
   const cookie = await ensureAuthCookie(runtime, false)
   let result = await requestJson(runtime.config.chatBaseUrl, path, { ...options, cookie })
   if ([401, 403].includes(result.response.status)) {
@@ -639,7 +639,7 @@ async function createEpisodeSession(runtime, trigger, episode, event) {
     systemPrompt: runtime.config.systemPrompt,
     externalTriggerId: buildEpisodeExternalTriggerId(runtime.config, trigger, episode),
   }
-  const result = await requestRemoteLab(runtime, '/api/sessions', {
+  const result = await requestMelodySync(runtime, '/api/sessions', {
     method: 'POST',
     body: payload,
   })
@@ -671,7 +671,7 @@ async function readImageAsAttachment(imagePath, maxBytes) {
 async function submitEpisodeMessage(runtime, sessionId, trigger, episode, event) {
   const payload = {
     requestId: buildRequestId(runtime.config, episode, event),
-    text: buildRemoteLabMessage(runtime.config, trigger, episode, event),
+    text: buildMelodySyncMessage(runtime.config, trigger, episode, event),
     tool: runtime.config.sessionTool,
     thinking: runtime.config.thinking === true,
   }
@@ -681,7 +681,7 @@ async function submitEpisodeMessage(runtime, sessionId, trigger, episode, event)
     payload.images = await readImageAsAttachment(event.imagePath, runtime.config.maxImageBytes)
   }
 
-  const result = await requestRemoteLab(runtime, `/api/sessions/${sessionId}/messages`, {
+  const result = await requestMelodySync(runtime, `/api/sessions/${sessionId}/messages`, {
     method: 'POST',
     body: payload,
   })
@@ -698,7 +698,7 @@ async function submitEpisodeMessage(runtime, sessionId, trigger, episode, event)
 async function waitForRunCompletion(runtime, runId) {
   const deadline = Date.now() + DEFAULT_RUN_POLL_TIMEOUT_MS
   while (Date.now() < deadline) {
-    const result = await requestRemoteLab(runtime, `/api/runs/${runId}`)
+    const result = await requestMelodySync(runtime, `/api/runs/${runId}`)
     if (!result.response.ok || !result.json?.run) {
       throw new Error(result.json?.error || result.text || `Failed to load run ${runId}`)
     }
@@ -716,7 +716,7 @@ function normalizeSpokenReplyText(value) {
   return stripHiddenBlocks(value || '').replace(/\s+/g, ' ').trim()
 }
 
-async function generateRemoteLabReply(runtime, trigger, episode, event) {
+async function generateMelodySyncReply(runtime, trigger, episode, event) {
   if (!episode.sessionId) {
     const session = await createEpisodeSession(runtime, trigger, episode, event)
     episode.sessionId = session.id
@@ -726,7 +726,7 @@ async function generateRemoteLabReply(runtime, trigger, episode, event) {
   const submission = await submitEpisodeMessage(runtime, episode.sessionId, trigger, episode, event)
   await waitForRunCompletion(runtime, submission.runId)
   const replyEvent = await loadAssistantReply(
-    (path) => requestRemoteLab(runtime, path),
+    (path) => requestMelodySync(runtime, path),
     episode.sessionId,
     submission.runId,
     submission.requestId,
@@ -952,7 +952,7 @@ async function processTranscriptEvent(runtime, transcriptEvent) {
     return { ignored: true, reason: 'missing_trigger' }
   }
 
-  const reply = await generateRemoteLabReply(runtime, trigger, episode, transcriptEvent)
+  const reply = await generateMelodySyncReply(runtime, trigger, episode, transcriptEvent)
   if (reply.replyText) {
     await speakReply(runtime, reply.replyText, transcriptEvent)
   }
@@ -994,7 +994,7 @@ export async function processArrivalEvent(runtime, arrivalEvent, options = {}) {
       imagePath: arrivalEvent.imagePath,
     })
 
-    const reply = await generateRemoteLabReply(runtime, trigger, episode, arrivalEvent)
+    const reply = await generateMelodySyncReply(runtime, trigger, episode, arrivalEvent)
     if (reply.replyText) {
       await speakReply(runtime, reply.replyText, arrivalEvent)
     }
@@ -1091,7 +1091,7 @@ async function analyzeSnapshot(runtime, imagePath) {
   const result = await runShellCommand(runtime.config.vision.detectorCommand, {
     env: {
       ...runtime.config.vision.env,
-      REMOTELAB_OBSERVER_IMAGE_PATH: imagePath,
+      MELODYSYNC_OBSERVER_IMAGE_PATH: imagePath,
     },
     timeoutMs: Math.max(runtime.config.camera.intervalMs, 10000),
   })
@@ -1294,8 +1294,8 @@ async function stopRuntime(runtime) {
 }
 
 function printConfigTemplate() {
-  const detectorCommand = `swift \"${join(PROJECT_ROOT, 'scripts', 'proactive-observer-human-detect.swift')}\" --image \"$REMOTELAB_OBSERVER_IMAGE_PATH\"`
-  const listenCommand = `swift \"${join(PROJECT_ROOT, 'scripts', 'proactive-observer-listen-once.swift')}\" --timeout-ms \"$REMOTELAB_OBSERVER_SPEECH_TIMEOUT_MS\"`
+  const detectorCommand = `swift \"${join(PROJECT_ROOT, 'scripts', 'proactive-observer-human-detect.swift')}\" --image \"$MELODYSYNC_OBSERVER_IMAGE_PATH\"`
+  const listenCommand = `swift \"${join(PROJECT_ROOT, 'scripts', 'proactive-observer-listen-once.swift')}\" --timeout-ms \"$MELODYSYNC_OBSERVER_SPEECH_TIMEOUT_MS\"`
   console.log(`{
   "connectorId": "home-observer",
   "roomName": "Living Room",

@@ -1,7 +1,7 @@
 "use strict";
 
 (function attachMelodySyncI18n(root) {
-  const UI_LANGUAGE_STORAGE_KEY = "remotelab.uiLanguage";
+  const UI_LANGUAGE_STORAGE_KEY = "melodysync.uiLanguage";
   const AUTO_UI_LANGUAGE = "auto";
   const DEFAULT_UI_LANGUAGE = "en";
 
@@ -174,8 +174,8 @@
       "workflow.priority.lowTitle": "Safe to leave for later.",
       "workflow.status.waiting": "waiting",
       "workflow.status.waitingTitle": "Waiting on user input",
-      "workflow.status.done": "done",
-      "workflow.status.doneTitle": "Current task complete",
+      "workflow.status.done": "completed",
+      "workflow.status.doneTitle": "Current task completed",
       "workflow.status.parked": "parked",
       "workflow.status.parkedTitle": "Parked for later",
       "workflow.status.queued": "queued",
@@ -187,7 +187,7 @@
       "workflow.status.unread": "new",
       "workflow.status.unreadTitle": "Updated since you last reviewed this task",
       "workflow.status.finished": "completed",
-      "workflow.status.finishedTitle": "Task finished since your last view",
+      "workflow.status.finishedTitle": "This task completed since your last view",
       "persistent.kind.recurringTask": "recurring",
       "persistent.kind.recurringTaskTitle": "Recurring task",
       "persistent.kind.recurringPaused": "recurring paused",
@@ -364,7 +364,7 @@
       "workflow.priority.lowTitle": "可以放心留到后面处理。",
       "workflow.status.waiting": "等待中",
       "workflow.status.waitingTitle": "等待用户输入",
-      "workflow.status.done": "完成",
+      "workflow.status.done": "已完成",
       "workflow.status.doneTitle": "当前任务已完成",
       "workflow.status.parked": "搁置",
       "workflow.status.parkedTitle": "先停放到后面处理",
@@ -376,8 +376,8 @@
       "workflow.status.renameFailedTitle": "任务重命名失败",
       "workflow.status.unread": "新变化",
       "workflow.status.unreadTitle": "自上次查看后，这个任务有更新",
-      "workflow.status.finished": "运行完毕",
-      "workflow.status.finishedTitle": "这个任务有新的完成结果，查看后会恢复普通状态",
+      "workflow.status.finished": "已完成",
+      "workflow.status.finishedTitle": "这个任务已完成，查看后会恢复普通状态",
       "persistent.kind.recurringTask": "长期任务",
       "persistent.kind.recurringTaskTitle": "会按设定时间执行的长期任务",
       "persistent.kind.recurringPaused": "长期任务已暂停",

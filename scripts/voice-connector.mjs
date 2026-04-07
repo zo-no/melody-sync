@@ -23,13 +23,13 @@ import {
 } from '../lib/voice-connector-config.mjs'
 import {
   buildExternalTriggerId,
-  buildRemoteLabMessage,
+  buildMelodySyncMessage,
   ensureAuthCookie,
-  generateRemoteLabReply,
+  generateMelodySyncReply,
   loginWithToken,
   normalizeSpokenReplyText,
   readOwnerToken,
-} from './voice-connector-remotelab.mjs'
+} from './voice-connector-melodysync.mjs'
 import {
   parseCommandPayload,
   runSay,
@@ -125,7 +125,7 @@ function cancelActiveSpeech(runtime, reason = '') {
 async function playTranscriptAck(runtime, summary) {
   const ackText = trimString(
     runtime?.config?.capture?.env?.VOICE_RECEIVED_ACK_TEXT
-      || runtime?.config?.capture?.env?.REMOTELAB_VOICE_RECEIVED_ACK_TEXT
+      || runtime?.config?.capture?.env?.MELODYSYNC_VOICE_RECEIVED_ACK_TEXT
       || ''
   )
   if (ackText) {
@@ -151,7 +151,7 @@ async function playTranscriptAck(runtime, summary) {
 
   const cuePath = trimString(
     runtime?.config?.capture?.env?.VOICE_RECEIVED_SOUND_PATH
-      || runtime?.config?.capture?.env?.REMOTELAB_VOICE_RECEIVED_SOUND_PATH
+      || runtime?.config?.capture?.env?.MELODYSYNC_VOICE_RECEIVED_SOUND_PATH
       || ''
   )
   if (!cuePath) return
@@ -177,9 +177,9 @@ Wake command contract:
   - JSON may include: eventId, wakeWord, transcript, audioPath, detectedAt, connectorId, roomName, metadata.
 
 Stage command contract:
-  - capture.command is optional. It receives REMOTELAB_VOICE_* env vars and may output either a plain audio path or JSON with { audioPath, transcript }.
-  - stt.command is optional. It receives REMOTELAB_VOICE_AUDIO_PATH and should output either plain transcript text or JSON with { text } / { transcript }.
-  - tts.command receives REMOTELAB_VOICE_REPLY_TEXT and also gets the reply on stdin.
+  - capture.command is optional. It receives MELODYSYNC_VOICE_* env vars and may output either a plain audio path or JSON with { audioPath, transcript }.
+  - stt.command is optional. It receives MELODYSYNC_VOICE_AUDIO_PATH and should output either plain transcript text or JSON with { text } / { transcript }.
+  - tts.command receives MELODYSYNC_VOICE_REPLY_TEXT and also gets the reply on stdin.
 
 Config shape:
   {
@@ -297,15 +297,15 @@ function normalizeIngressEvent(value, defaults = {}) {
 
 function buildProcessEnv(runtime, summary, extra = {}) {
   return {
-    REMOTELAB_VOICE_CONNECTOR_ID: trimString(summary?.connectorId || runtime.config.connectorId),
-    REMOTELAB_VOICE_ROOM_NAME: trimString(summary?.roomName || runtime.config.roomName),
-    REMOTELAB_VOICE_WAKE_WORD: trimString(summary?.wakeWord || runtime.config.wake.keyword),
-    REMOTELAB_VOICE_EVENT_ID: trimString(summary?.eventId),
-    REMOTELAB_VOICE_DETECTED_AT: trimString(summary?.detectedAt),
-    REMOTELAB_VOICE_AUDIO_PATH: trimString(summary?.audioPath),
-    REMOTELAB_VOICE_TRANSCRIPT: trimString(summary?.transcript),
-    REMOTELAB_VOICE_REPLY_TEXT: trimString(extra.replyText),
-    REMOTELAB_VOICE_METADATA_JSON: JSON.stringify(summary?.metadata || {}),
+    MELODYSYNC_VOICE_CONNECTOR_ID: trimString(summary?.connectorId || runtime.config.connectorId),
+    MELODYSYNC_VOICE_ROOM_NAME: trimString(summary?.roomName || runtime.config.roomName),
+    MELODYSYNC_VOICE_WAKE_WORD: trimString(summary?.wakeWord || runtime.config.wake.keyword),
+    MELODYSYNC_VOICE_EVENT_ID: trimString(summary?.eventId),
+    MELODYSYNC_VOICE_DETECTED_AT: trimString(summary?.detectedAt),
+    MELODYSYNC_VOICE_AUDIO_PATH: trimString(summary?.audioPath),
+    MELODYSYNC_VOICE_TRANSCRIPT: trimString(summary?.transcript),
+    MELODYSYNC_VOICE_REPLY_TEXT: trimString(extra.replyText),
+    MELODYSYNC_VOICE_METADATA_JSON: JSON.stringify(summary?.metadata || {}),
     ...Object.fromEntries(Object.entries(extra).filter(([, value]) => value !== undefined && value !== null).map(([key, value]) => [key, String(value)])),
   }
 }
@@ -593,7 +593,7 @@ async function processVoiceTurn(runtime, rawSummary, options = {}) {
       transcript,
       audioPath: turn.audioPath,
     })
-    const replyPromise = generateRemoteLabReply(runtime, turn)
+    const replyPromise = generateMelodySyncReply(runtime, turn)
     try {
       await playTranscriptAck(runtime, turn)
     } catch (error) {
@@ -700,9 +700,9 @@ async function runWakeLoop(runtime, options = {}) {
     env: {
       ...process.env,
       ...runtime.config.wake.env,
-      REMOTELAB_VOICE_CONNECTOR_ID: runtime.config.connectorId,
-      REMOTELAB_VOICE_ROOM_NAME: runtime.config.roomName,
-      REMOTELAB_VOICE_WAKE_WORD: runtime.config.wake.keyword,
+      MELODYSYNC_VOICE_CONNECTOR_ID: runtime.config.connectorId,
+      MELODYSYNC_VOICE_ROOM_NAME: runtime.config.roomName,
+      MELODYSYNC_VOICE_WAKE_WORD: runtime.config.wake.keyword,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
@@ -799,11 +799,11 @@ export {
   DEFAULT_APP_NAME,
   DEFAULT_SESSION_SYSTEM_PROMPT,
   buildExternalTriggerId,
-  buildRemoteLabMessage,
+  buildMelodySyncMessage,
   createRuntimeContext,
   enqueueVoiceTurn,
   ensureAuthCookie,
-  generateRemoteLabReply,
+  generateMelodySyncReply,
   loadConfig,
   normalizeConfig,
   normalizeIngressEvent,

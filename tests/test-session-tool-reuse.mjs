@@ -6,7 +6,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { generateSessionToolReuseSidecar } from './lib/session-tool-reuse.mjs';
 
-const root = mkdtempSync(join(tmpdir(), 'remotelab-tool-reuse-'));
+const root = mkdtempSync(join(tmpdir(), 'melodysync-tool-reuse-'));
 const configDir = join(root, 'config');
 const historyDir = join(configDir, 'chat-history');
 const outputDir = join(root, 'reports');
@@ -35,13 +35,13 @@ function toolUse(timestamp, input) {
 }
 
 writeFileSync(join(historyDir, 's1.json'), JSON.stringify([
-  toolUse(march9, 'bash -lc "cat ~/.remotelab/memory/bootstrap.md && cat ~/code/remotelab/AGENTS.md"'),
-  toolUse(march9 + 1000, 'bash -lc "rg -n \"memory\" ~/.remotelab/skills/self-review.md"'),
+  toolUse(march9, 'bash -lc "cat ~/.melodysync/memory/bootstrap.md && cat ~/code/melody-sync/AGENTS.md"'),
+  toolUse(march9 + 1000, 'bash -lc "rg -n \"memory\" ~/.melodysync/skills/self-review.md"'),
 ], null, 2));
 
 writeFileSync(join(historyDir, 's2.json'), JSON.stringify([
-  toolUse(march9 + 3000, 'bash -lc "printf \"---BOOT---\"; cat ~/.remotelab/memory/bootstrap.md; printf \"---AGENTS---\"; cat ~/code/remotelab/AGENTS.md"'),
-  toolUse(march9 + 4000, 'bash -lc "rg -n \"skills\" ~/.remotelab/skills/self-review.md"'),
+  toolUse(march9 + 3000, 'bash -lc "printf \"---BOOT---\"; cat ~/.melodysync/memory/bootstrap.md; printf \"---AGENTS---\"; cat ~/code/melody-sync/AGENTS.md"'),
+  toolUse(march9 + 4000, 'bash -lc "rg -n \"skills\" ~/.melodysync/skills/self-review.md"'),
 ], null, 2));
 
 writeFileSync(join(historyDir, 's3.json'), JSON.stringify([
@@ -49,11 +49,11 @@ writeFileSync(join(historyDir, 's3.json'), JSON.stringify([
 ], null, 2));
 
 writeFileSync(join(historyDir, 'm1.json'), JSON.stringify([
-  toolUse(march9 + 6000, 'bash -lc "cat ~/.remotelab/memory/global.md"'),
+  toolUse(march9 + 6000, 'bash -lc "cat ~/.melodysync/memory/global.md"'),
 ], null, 2));
 
 writeFileSync(join(historyDir, 'old.json'), JSON.stringify([
-  toolUse(march8, 'bash -lc "cat ~/.remotelab/memory/bootstrap.md"'),
+  toolUse(march8, 'bash -lc "cat ~/.melodysync/memory/bootstrap.md"'),
 ], null, 2));
 
 try {

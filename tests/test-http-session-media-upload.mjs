@@ -62,8 +62,8 @@ function request(port, method, path, body = null, extraHeaders = {}) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-media-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-media-'));
+  const configDir = join(home, '.config', 'melody-sync');
   const localBin = join(home, '.local', 'bin');
   const promptFile = join(home, 'captured-prompt.txt');
   mkdirSync(configDir, { recursive: true });
@@ -100,8 +100,8 @@ function setupTempHome() {
     `#!/usr/bin/env node
 const { appendFileSync } = require('fs');
 const prompt = process.argv[process.argv.length - 1] || '';
-if (process.env.REMOTELAB_FAKE_PROMPT_FILE) {
-  appendFileSync(process.env.REMOTELAB_FAKE_PROMPT_FILE, prompt + '\\n\\n---PROMPT---\\n\\n', 'utf8');
+if (process.env.MELODYSYNC_FAKE_PROMPT_FILE) {
+  appendFileSync(process.env.MELODYSYNC_FAKE_PROMPT_FILE, prompt + '\\n\\n---PROMPT---\\n\\n', 'utf8');
 }
 setTimeout(() => {
   console.log(JSON.stringify({ type: 'thread.started', thread_id: 'thread-media-test' }));
@@ -135,7 +135,7 @@ async function startServer({ home, port, promptFile }) {
       HOME: home,
       CHAT_PORT: String(port),
       SECURE_COOKIES: '0',
-      REMOTELAB_FAKE_PROMPT_FILE: promptFile,
+      MELODYSYNC_FAKE_PROMPT_FILE: promptFile,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

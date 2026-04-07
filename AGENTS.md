@@ -29,7 +29,7 @@ Browser / mobile shell
 
 - Default port comes from [`lib/config.mjs`](lib/config.mjs) and is `7760`
 - Restarts are acceptable because sessions and runs reconcile from durable state
-- Use `REMOTELAB_INSTANCE_ROOT` for isolated local/dev runtimes
+- Use `MELODYSYNC_INSTANCE_ROOT` for isolated local/dev runtimes
 
 ## High-Signal Code Map
 

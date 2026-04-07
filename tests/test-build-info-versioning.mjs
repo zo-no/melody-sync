@@ -64,8 +64,8 @@ function request(port, path, extraHeaders = {}) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-build-info-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-build-info-'));
+  const configDir = join(home, '.config', 'melody-sync');
   mkdirSync(configDir, { recursive: true });
 
   writeFileSync(
@@ -181,12 +181,12 @@ async function main() {
       'combined title should join service and frontend descriptions',
     );
     assert.equal(
-      initialBuild.headers['x-remotelab-service-build'],
+      initialBuild.headers['x-melodysync-service-build'],
       initial.serviceTitle,
       'build info headers should expose the service identity',
     );
     assert.equal(
-      initialBuild.headers['x-remotelab-frontend-build'],
+      initialBuild.headers['x-melodysync-frontend-build'],
       initial.frontendTitle,
       'build info headers should expose the frontend identity',
     );
@@ -205,7 +205,7 @@ async function main() {
     assert.match(chatPage.text, new RegExp(escapeRegex(initial.title)));
 
     await sleep(350);
-    writeFileSync(frontendProbePath, 'window.__REMOTELAB_BUILD_INFO_PROBE__ = true;\n', 'utf8');
+    writeFileSync(frontendProbePath, 'window.__MELODYSYNC_BUILD_INFO_PROBE__ = true;\n', 'utf8');
     await waitFor(
       () => wsMessages.find((msg) => msg.type === 'build_info' && msg.buildInfo?.assetVersion && msg.buildInfo.assetVersion !== initial.assetVersion),
       'frontend build websocket update',
@@ -237,7 +237,7 @@ async function main() {
     await stopServer(server);
     server = null;
 
-    writeFileSync(serviceProbePath, 'export const __REMOTELAB_SERVICE_BUILD_PROBE__ = true;\n', 'utf8');
+    writeFileSync(serviceProbePath, 'export const __MELODYSYNC_SERVICE_BUILD_PROBE__ = true;\n', 'utf8');
     await sleep(50);
 
     server = await startServer({ home, port });

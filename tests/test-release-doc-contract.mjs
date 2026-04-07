@@ -32,8 +32,8 @@ assert.match(setupContent, /raw\.githubusercontent\.com\/zo-no\/melody-sync\/mai
 assert.match(setupContent, /github\.com\/zo-no\/melody-sync\.git/);
 assert.match(setupContent, /127\.0\.0\.1:7760/);
 assert.doesNotMatch(setupContent, /EXTERNAL_ACCESS\.md/);
-assert.doesNotMatch(setupContent, /Ninglo\/remotelab/);
-assert.doesNotMatch(setupContent, /~\/code\/remotelab/);
+assert.doesNotMatch(setupContent, /github\.com\/Ninglo\//);
+assert.doesNotMatch(setupContent, /~\/code\/remote/);
 assert.doesNotMatch(setupContent, /:7690/);
 assert.doesNotMatch(setupContent, /Network mode:/);
 assert.doesNotMatch(setupContent, /cloudflare \| tailscale/i);

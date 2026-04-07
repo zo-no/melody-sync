@@ -57,8 +57,8 @@ function request(port, method, path, body = null) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-session-patch-active-agreements-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-session-patch-active-agreements-'));
+  const configDir = join(home, '.config', 'melody-sync');
   mkdirSync(configDir, { recursive: true });
 
   writeFileSync(

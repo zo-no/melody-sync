@@ -19,6 +19,50 @@ function normalizeKey(value) {
   return normalizeText(value).toLowerCase();
 }
 
+function normalizeWorkflowState(value) {
+  const normalized = normalizeKey(value);
+  if (!normalized) return '';
+  if (['done', 'complete', 'completed', 'finished'].includes(normalized)) return 'done';
+  if (['parked', 'paused', 'pause', 'backlog', 'todo'].includes(normalized)) return 'parked';
+  if (['waiting', 'waiting_user', 'waiting_for_user', 'waiting_on_user', 'needs_user', 'needs_input'].includes(normalized)) {
+    return 'waiting_user';
+  }
+  return '';
+}
+
+function resolveBranchLikeStatus(...values) {
+  let sawActive = false;
+  let sawParked = false;
+  let sawResolved = false;
+  let sawMerged = false;
+
+  for (const value of values) {
+    const normalized = normalizeKey(value);
+    if (!normalized) continue;
+    if (normalized === 'merged') {
+      sawMerged = true;
+      continue;
+    }
+    if (['resolved', 'done', 'closed', 'complete', 'completed', 'finished'].includes(normalized)) {
+      sawResolved = true;
+      continue;
+    }
+    if (['parked', 'paused', 'pause', 'backlog', 'todo'].includes(normalized)) {
+      sawParked = true;
+      continue;
+    }
+    if (['active', 'running', 'current', 'main', 'waiting', 'waiting_user'].includes(normalized)) {
+      sawActive = true;
+    }
+  }
+
+  if (sawMerged) return 'merged';
+  if (sawResolved) return 'resolved';
+  if (sawParked) return 'parked';
+  if (sawActive) return 'active';
+  return 'active';
+}
+
 function clipText(value, max = 96) {
   const text = normalizeText(value);
   if (!text) return '';
@@ -54,10 +98,21 @@ function getLineRole(session = null) {
     : 'main';
 }
 
-function getBranchStatus(session = null) {
-  const status = normalizeKey(session?._branchStatus || '');
-  if (['active', 'parked', 'resolved', 'merged'].includes(status)) return status;
-  return 'active';
+function getBranchStatus(session = null, branchContext = null) {
+  return resolveBranchLikeStatus(
+    session?._branchStatus,
+    session?.branchStatus,
+    session?.taskCard?.branchStatus,
+    branchContext?.status,
+    normalizeWorkflowState(session?.workflowState || ''),
+  );
+}
+
+function getRootNodeStatus(session = null, { isCurrent = false } = {}) {
+  const workflowState = normalizeWorkflowState(session?.workflowState || '');
+  if (workflowState === 'done') return 'done';
+  if (workflowState === 'parked') return 'parked';
+  return isCurrent ? 'current' : 'main';
 }
 
 function getSessionCreatedTimestamp(session = null) {
@@ -433,7 +488,7 @@ function buildDefaultQuestGraph({
     depth: 0,
     title: getSessionTitle(rootSession),
     summary: getNodeSummary(rootSession),
-    status: activeNodeId === rootNodeId ? 'current' : 'main',
+    status: getRootNodeStatus(rootSession, { isCurrent: activeNodeId === rootNodeId }),
     isCurrent: activeNodeId === rootNodeId,
     isCurrentPath: activeNodeId === rootNodeId,
   });
@@ -473,8 +528,8 @@ function buildDefaultQuestGraph({
     const directChildSessions = childrenByParent.get(parentSessionId) || [];
     for (const branchSession of directChildSessions) {
       const nodeId = `session:${branchSession.id}`;
-      const branchStatus = getBranchStatus(branchSession);
       const branchCtx = branchContextBySessionId.get(trimText(branchSession.id));
+      const branchStatus = getBranchStatus(branchSession, branchCtx);
       const isMerged = branchStatus === 'merged' || branchStatus === 'resolved';
       const conclusionText = isMerged ? trimText(branchCtx?.checkpointSummary) : '';
       addNode({

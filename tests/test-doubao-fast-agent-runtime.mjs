@@ -70,8 +70,8 @@ async function request(port, method, path, body = null) {
 }
 
 function setupTempHome(providerBaseUrl) {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-doubao-fast-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-doubao-fast-'));
+  const configDir = join(home, '.config', 'melody-sync');
   mkdirSync(configDir, { recursive: true });
 
   writeFileSync(

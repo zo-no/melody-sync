@@ -50,8 +50,8 @@ def parse_args():
     parser.add_argument("--wake-max-distance", type=int, default=-1)
     parser.add_argument("--wake-prefix-gap", type=int, default=2)
     parser.add_argument("--wake-window-extra", type=int, default=1)
-    parser.add_argument("--connector-id", default=os.environ.get("REMOTELAB_VOICE_CONNECTOR_ID", ""))
-    parser.add_argument("--room-name", default=os.environ.get("REMOTELAB_VOICE_ROOM_NAME", ""))
+    parser.add_argument("--connector-id", default=os.environ.get("MELODYSYNC_VOICE_CONNECTOR_ID", ""))
+    parser.add_argument("--room-name", default=os.environ.get("MELODYSYNC_VOICE_ROOM_NAME", ""))
     parser.add_argument("--test-file", default="")
     return parser.parse_args()
 

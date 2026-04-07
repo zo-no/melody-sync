@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -84,8 +84,8 @@ function buildFakeCodexScript() {
     '  ];',
     '}',
     'async function spawnChildSessions() {',
-    '  const projectRoot = process.env.REMOTELAB_PROJECT_ROOT || process.cwd();',
-    "  const baseUrl = process.env.REMOTELAB_CHAT_BASE_URL || `http://127.0.0.1:${process.env.CHAT_PORT || '7690'}`;",
+    '  const projectRoot = process.env.MELODYSYNC_PROJECT_ROOT || process.cwd();',
+    "  const baseUrl = process.env.MELODYSYNC_CHAT_BASE_URL || `http://127.0.0.1:${process.env.CHAT_PORT || '7690'}`;",
     '  const cliPath = `${projectRoot}/cli.js`;',
     '  const tasks = buildSpawnTasks();',
     '  return Promise.all(tasks.map(async (task) => {',
@@ -106,7 +106,7 @@ function buildFakeCodexScript() {
     '        type: \"item.completed\",',
     '        item: {',
     '          type: \"command_execution\",',
-    "          command: shouldSpawnThreeChildren ? 'remotelab session-spawn x3' : 'echo fake',",
+    "          command: shouldSpawnThreeChildren ? 'melodysync session-spawn x3' : 'echo fake',",
     "          aggregated_output: shouldSpawnThreeChildren ? 'spawned parallel sessions' : 'fake',",
     '          exit_code: 0,',
     '          status: \"completed\",',
@@ -143,8 +143,8 @@ function buildFakeCodexScript() {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-session-spawn-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-session-spawn-'));
+  const configDir = join(home, '.config', 'melody-sync');
   const localBin = join(home, '.local', 'bin');
   mkdirSync(configDir, { recursive: true });
   mkdirSync(localBin, { recursive: true });
@@ -188,7 +188,7 @@ async function startServer({ home, port, delayMs = 120 }) {
       ...process.env,
       HOME: home,
       CHAT_PORT: String(port),
-      REMOTELAB_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
+      MELODYSYNC_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
       SECURE_COOKIES: '0',
       FAKE_CODEX_DELAY_MS: String(delayMs),
     },
@@ -274,9 +274,12 @@ async function getEvents(port, sessionId) {
 }
 
 function readRunManifest(home, runId) {
-  return JSON.parse(
-    readFileSync(join(home, '.config', 'remotelab', 'chat-runs', runId, 'manifest.json'), 'utf8'),
-  );
+  const manifestPathCandidates = [
+    join(home, '.melodysync', 'sessions', 'runs', runId, 'manifest.json'),
+    join(home, '.config', 'melody-sync', 'chat-runs', runId, 'manifest.json'),
+  ];
+  const manifestPath = manifestPathCandidates.find((candidate) => existsSync(candidate)) || manifestPathCandidates[0];
+  return JSON.parse(readFileSync(manifestPath, 'utf8'));
 }
 
 function findLatestAssistantReply(events, runId) {
@@ -384,7 +387,7 @@ try {
     throw error;
   } finally {
     await stopServer(server);
-    if (process.env.REMOTELAB_KEEP_TEST_HOME === '1') {
+    if (process.env.MELODYSYNC_KEEP_TEST_HOME === '1') {
       console.error(`[debug] kept test home at ${home}`);
     } else {
       rmSync(home, { recursive: true, force: true });

@@ -7,8 +7,8 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 const repoRoot = process.cwd();
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-github-triage-'));
-const configDir = join(tempHome, '.config', 'remotelab');
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-github-triage-'));
+const configDir = join(tempHome, '.config', 'melody-sync');
 const binDir = join(tempHome, 'bin');
 mkdirSync(configDir, { recursive: true });
 mkdirSync(binDir, { recursive: true });
@@ -131,7 +131,7 @@ chmodSync(ghPath, 0o755);
 const requests = [];
 let submittedRequestId = '';
 let submittedText = '';
-const assistantReply = 'Thanks — the GitHub connector is now routing through RemoteLab sessions.';
+const assistantReply = 'Thanks — the GitHub connector is now routing through MelodySync sessions.';
 
 const server = http.createServer(async (req, res) => {
   let body = '';
@@ -257,7 +257,7 @@ async function runTriage() {
 try {
   await runTriage();
 
-  const triageStatePath = join(tempHome, '.config', 'remotelab', 'github-triage', 'owner__repo.json');
+  const triageStatePath = join(tempHome, '.config', 'melody-sync', 'github-triage', 'owner__repo.json');
   const triageState = JSON.parse(readFileSync(triageStatePath, 'utf8'));
   assert.equal(triageState.items['7'].automation.status, 'reply_sent');
   assert.equal(triageState.items['7'].automation.sessionId, 'sess_1');
@@ -266,9 +266,9 @@ try {
 
   const ghStateAfterFirstRun = JSON.parse(readFileSync(fakeGhStatePath, 'utf8'));
   assert.equal(ghStateAfterFirstRun.comments.length, 1);
-  assert.match(ghStateAfterFirstRun.comments[0].body, /Thanks — the GitHub connector is now routing through RemoteLab sessions\./);
-  assert.match(ghStateAfterFirstRun.comments[0].body, /remotelab-github-auto-triage/);
-  assert.match(ghStateAfterFirstRun.comments[0].body, /remotelab-github-request-id:/);
+  assert.match(ghStateAfterFirstRun.comments[0].body, /Thanks — the GitHub connector is now routing through MelodySync sessions\./);
+  assert.match(ghStateAfterFirstRun.comments[0].body, /melodysync-github-auto-triage/);
+  assert.match(ghStateAfterFirstRun.comments[0].body, /melodysync-github-request-id:/);
 
   await runTriage();
 

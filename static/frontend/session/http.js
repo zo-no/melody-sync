@@ -512,7 +512,7 @@ const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   `Never send read-only snapshot keys such as ${getSessionListOrganizerReadonlyFieldsText()}, \`currentGroup\`, or \`currentSidebarOrder\` in PATCH bodies.`,
   'Rename only when the current task name is generic, stale, or clearly weaker than the metadata snapshot.',
   'Example PATCH body: {"name":"电影史学习路线","group":"短期任务","sidebarOrder":3}',
-  "If `melodysync` is unavailable in PATH, use `node \"$REMOTELAB_PROJECT_ROOT/cli.js\" api ...` instead.",
+  "If `melodysync` is unavailable in PATH, use `node \"$MELODYSYNC_PROJECT_ROOT/cli.js\" api ...` instead.",
   "`sidebarOrder` must be a positive integer; smaller numbers sort first.",
   "Assign unique contiguous `sidebarOrder` values across the current non-archived sessions you organize.",
   `Use only these exact groups: ${getSessionListOrganizerGroupLabelsText()}.`,

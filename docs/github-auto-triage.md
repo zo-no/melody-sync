@@ -5,7 +5,7 @@
 ## 复制给 AI 的 prompt
 
 ```text
-我想在这台机器上配置 RemoteLab 的 GitHub Auto Triage，用来自动接住仓库里的 issue / PR / 跟进评论更新。
+我想在这台机器上配置 MelodySync 的 GitHub Auto Triage，用来自动接住仓库里的 issue / PR / 跟进评论更新。
 
 请把 `docs/github-auto-triage.md` 当作 rollout 契约。
 后续流程都留在这个对话里。
@@ -59,8 +59,10 @@ AI 应该尽量在最开始一轮把这些信息问全：
 
 ## 默认产物
 
-- State 文件：`~/.config/remotelab/github-triage/<owner>__<repo>.json`
-- Snapshot 目录：`~/.config/remotelab/github-triage/inbox/<owner>__<repo>/`
+当前脚本把状态文件写在 `~/.config/melody-sync/` 下。
+
+- State 文件：`~/.config/melody-sync/github-triage/<owner>__<repo>.json`
+- Snapshot 目录：`~/.config/melody-sync/github-triage/inbox/<owner>__<repo>/`
 
 每个 snapshot 会保存：
 
@@ -76,7 +78,7 @@ AI 应该尽量在最开始一轮把这些信息问全：
 先 `dry-run`：
 
 ```bash
-node scripts/github-auto-triage.mjs --repo Ninglo/remotelab --bootstrap-hours 72
+node scripts/github-auto-triage.mjs --repo zo-no/melody-sync --bootstrap-hours 72
 ```
 
 这一步不会真的发评论，只会：
@@ -88,19 +90,19 @@ node scripts/github-auto-triage.mjs --repo Ninglo/remotelab --bootstrap-hours 72
 确认 `dry-run` 没问题后，才进入真正自动回复：
 
 ```bash
-node scripts/github-auto-triage.mjs --repo Ninglo/remotelab --post
+node scripts/github-auto-triage.mjs --repo zo-no/melody-sync --post
 ```
 
 如果要手动验证维护者线程，可显式打开测试开关：
 
 ```bash
-node scripts/github-auto-triage.mjs --repo Ninglo/remotelab --only 4 --reply-to-maintainers --post
+node scripts/github-auto-triage.mjs --repo zo-no/melody-sync --only 4 --reply-to-maintainers --post
 ```
 
 如果只想安全预览某个线程“按现在规则会怎么回”，但不真的发评论：
 
 ```bash
-node scripts/github-auto-triage.mjs --repo Ninglo/remotelab --only 2 --force-draft
+node scripts/github-auto-triage.mjs --repo zo-no/melody-sync --only 2 --force-draft
 ```
 
 ## 成功标准

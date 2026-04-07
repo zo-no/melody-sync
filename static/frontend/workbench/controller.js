@@ -13,6 +13,7 @@
   const trackerTimeEl = document.getElementById("questTrackerTime");
   const trackerTaskListEl = document.getElementById("questTaskList");
   const taskMapRail = document.getElementById("taskMapRail");
+  const taskMapResizeHandle = document.getElementById("taskMapResizeHandle");
   const taskCanvasPanel = document.getElementById("taskCanvasPanel");
   const taskCanvasTitleEl = document.getElementById("taskCanvasTitle");
   const taskCanvasSummaryEl = document.getElementById("taskCanvasSummary");
@@ -39,6 +40,11 @@
 
   const SUPPRESSED_PREFIX = "melodysyncSuppressedBranch";
   const TASK_MAP_MOCK_STORAGE_KEY = "melodysyncTaskMapMockPreset";
+  const TASK_MAP_DESKTOP_WIDTH_STORAGE_KEY = "melodysyncTaskMapDesktopWidth";
+  const TASK_MAP_DESKTOP_MIN_WIDTH = 260;
+  const TASK_MAP_DESKTOP_MAX_WIDTH = 960;
+  const TASK_MAP_DESKTOP_MAIN_RESERVE = 320;
+  const TASK_MAP_DESKTOP_MAX_RATIO = 0.72;
 
   let snapshot = {
     captureItems: [],
@@ -71,6 +77,7 @@
   let operationRecordController = null;
   let trackerPersistentActionsEl = null;
   let selectedTaskCanvasNodeId = "";
+  let taskMapResizeState = null;
 
   function translate(key, vars) {
     return typeof window?.melodySyncT === "function" ? window.melodySyncT(key, vars) : key;
@@ -110,6 +117,38 @@
     const title = String(firstSegment || compact).trim();
     if (!title) return "";
     return title.length > max ? title.slice(0, max).trim() : title;
+  }
+
+  const COMPLETED_BRANCH_STATUSES = new Set([
+    "resolved",
+    "merged",
+    "done",
+    "closed",
+    "complete",
+    "completed",
+    "finished",
+  ]);
+
+  const COMPLETED_WORKFLOW_STATES = new Set(["done"]);
+
+  function normalizeStatusToken(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_");
+  }
+
+  function isTrackerTaskCompleted(state) {
+    if (!state?.hasSession || !state?.session) return false;
+    const normalizedBranchStatus = normalizeStatusToken(state.branchStatus || "");
+    if (normalizedBranchStatus && COMPLETED_BRANCH_STATUSES.has(normalizedBranchStatus)) {
+      return true;
+    }
+    const sessionStateModel = window?.MelodySyncSessionStateModel || null;
+    const normalizedWorkflowState = typeof sessionStateModel?.normalizeSessionWorkflowState === "function"
+      ? sessionStateModel.normalizeSessionWorkflowState(state.session.workflowState || "")
+      : normalizeStatusToken(state.session.workflowState || "");
+    return COMPLETED_WORKFLOW_STATES.has(normalizedWorkflowState);
   }
 
   function normalizeComparableText(value) {
@@ -154,6 +193,125 @@
     return taskMapExpanded === true;
   }
 
+  function getTaskMapDesktopWidthLimits() {
+    const viewportWidth = Number(window?.innerWidth || 0);
+    const sidebarCollapsed = document.body?.classList?.contains?.("sidebar-is-collapsed") === true;
+    const sidebarWidth = sidebarCollapsed ? 0 : 288;
+    const computedMaxByMainReserve = viewportWidth > 0
+      ? (viewportWidth - sidebarWidth - TASK_MAP_DESKTOP_MAIN_RESERVE)
+      : TASK_MAP_DESKTOP_MAX_WIDTH;
+    const computedMaxByRatio = viewportWidth > 0
+      ? Math.floor(viewportWidth * TASK_MAP_DESKTOP_MAX_RATIO)
+      : TASK_MAP_DESKTOP_MAX_WIDTH;
+    const max = Math.min(
+      TASK_MAP_DESKTOP_MAX_WIDTH,
+      Math.max(
+        TASK_MAP_DESKTOP_MIN_WIDTH,
+        Math.min(computedMaxByMainReserve, computedMaxByRatio),
+      ),
+    );
+    return {
+      min: TASK_MAP_DESKTOP_MIN_WIDTH,
+      max,
+    };
+  }
+
+  function clampTaskMapDesktopWidth(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    const limits = getTaskMapDesktopWidthLimits();
+    if (limits.max <= limits.min) return limits.min;
+    return Math.min(Math.max(Math.round(numeric), limits.min), limits.max);
+  }
+
+  function applyTaskMapDesktopWidth(width, { persist = true } = {}) {
+    const clampedWidth = clampTaskMapDesktopWidth(width);
+    if (!Number.isFinite(clampedWidth)) return null;
+    document.documentElement?.style?.setProperty?.("--task-map-width", `${clampedWidth}px`);
+    if (persist) {
+      try {
+        localStorage.setItem(TASK_MAP_DESKTOP_WIDTH_STORAGE_KEY, String(clampedWidth));
+      } catch {
+      }
+    }
+    return clampedWidth;
+  }
+
+  function restoreTaskMapDesktopWidthPreference() {
+    let storedWidth = "";
+    try {
+      storedWidth = String(localStorage.getItem(TASK_MAP_DESKTOP_WIDTH_STORAGE_KEY) || "").trim();
+    } catch {
+      storedWidth = "";
+    }
+    if (!storedWidth) return;
+    applyTaskMapDesktopWidth(Number(storedWidth), { persist: false });
+  }
+
+  function reconcileTaskMapDesktopWidthPreference() {
+    let storedWidth = "";
+    try {
+      storedWidth = String(localStorage.getItem(TASK_MAP_DESKTOP_WIDTH_STORAGE_KEY) || "").trim();
+    } catch {
+      storedWidth = "";
+    }
+    if (!storedWidth) return;
+    applyTaskMapDesktopWidth(Number(storedWidth), { persist: true });
+  }
+
+  function resetTaskMapDesktopWidthPreference() {
+    try {
+      localStorage.removeItem(TASK_MAP_DESKTOP_WIDTH_STORAGE_KEY);
+    } catch {
+    }
+    document.documentElement?.style?.removeProperty?.("--task-map-width");
+    taskListController?.invalidate?.();
+    renderTracker();
+    if (typeof requestLayoutPass === "function") {
+      requestLayoutPass("task-map-resize-reset");
+    }
+  }
+
+  function endTaskMapResize({ render = true } = {}) {
+    const wasResizing = Boolean(taskMapResizeState);
+    taskMapResizeState = null;
+    taskMapResizeHandle?.classList?.remove?.("is-dragging");
+    document.body?.classList?.remove?.("is-task-map-resizing");
+    if (!wasResizing || !render) return;
+    taskListController?.invalidate?.();
+    renderTracker();
+    if (typeof requestLayoutPass === "function") {
+      requestLayoutPass("task-map-resize-end");
+    }
+  }
+
+  function beginTaskMapResize(event) {
+    if (isMobileQuestTracker() || !isTaskMapExpanded()) return;
+    if (!taskMapRail) return;
+    const railRect = taskMapRail.getBoundingClientRect();
+    const startWidth = Number(railRect?.width || 0);
+    if (!Number.isFinite(startWidth) || startWidth <= 0) return;
+    taskMapResizeState = {
+      pointerId: event.pointerId,
+      startX: Number(event.clientX || 0),
+      startWidth,
+    };
+    taskMapResizeHandle?.classList?.add?.("is-dragging");
+    document.body?.classList?.add?.("is-task-map-resizing");
+  }
+
+  function continueTaskMapResize(event) {
+    if (!taskMapResizeState) return;
+    if (event.pointerId !== taskMapResizeState.pointerId) return;
+    const deltaX = taskMapResizeState.startX - Number(event.clientX || 0);
+    const nextWidth = taskMapResizeState.startWidth + deltaX;
+    const appliedWidth = applyTaskMapDesktopWidth(nextWidth, { persist: true });
+    if (!Number.isFinite(appliedWidth)) return;
+    if (typeof requestLayoutPass === "function") {
+      requestLayoutPass("task-map-resize-drag");
+    }
+  }
+
   function renderTrackerStatus(state) {
     trackerRenderer?.renderStatus(state);
   }
@@ -166,6 +324,9 @@
       return;
     }
     taskMapExpanded = nextExpanded;
+    if (!nextExpanded) {
+      endTaskMapResize({ render: false });
+    }
     if (typeof requestLayoutPass === "function") {
       requestLayoutPass("task-map-toggle");
     }
@@ -191,6 +352,11 @@
       taskMapRail.classList.toggle("is-mobile-open", drawerOpen);
       taskMapRail.classList.toggle("is-collapsed", desktopCollapsed);
       taskMapRail.setAttribute("aria-hidden", mapExpanded ? "false" : "true");
+    }
+    if (taskMapResizeHandle) {
+      const showDesktopHandle = shouldMount && !mobileDrawer && mapExpanded;
+      taskMapResizeHandle.hidden = !showDesktopHandle;
+      taskMapResizeHandle.setAttribute("aria-hidden", showDesktopHandle ? "false" : "true");
     }
     if (taskMapDrawerBackdrop) {
       taskMapDrawerBackdrop.hidden = !(mobileDrawer && shouldMount && drawerOpen);
@@ -643,6 +809,9 @@
       ? graphClient.buildProjectionFromTaskMapGraph(snapshot.taskMapGraph, {
         currentSessionId: getCurrentSessionIdSafe(),
         focusedSessionId: getFocusedSessionId(),
+        snapshot,
+        getSessionRecord,
+        getCurrentSession: getCurrentSessionSafe,
       })
       : null;
     let projection = canonicalProjection;
@@ -887,6 +1056,8 @@
     }
     if (!state.hasSession) {
       tracker.hidden = true;
+      tracker.classList.remove("is-branch-focus", "is-task-complete");
+      headerTaskDetailBtn?.classList?.remove?.("is-task-complete");
       if (taskMapRail) taskMapRail.hidden = true;
       if (trackerTaskListEl) trackerTaskListEl.hidden = true;
       if (headerTaskDetailBtn) headerTaskDetailBtn.hidden = true;
@@ -902,7 +1073,9 @@
     scrollWorkbenchToTopIfNeeded(state);
     syncQuestEmptyState(state);
     const showBranch = Boolean(state.isBranch && state.currentGoal);
+    const taskCompleted = isTrackerTaskCompleted(state);
     tracker.classList.toggle("is-branch-focus", showBranch);
+    tracker.classList.toggle("is-task-complete", taskCompleted);
     const branchStatus = String(state.branchStatus || "").toLowerCase();
     renderTrackerStatus(state);
     const trackerTitle = getTrackerPrimaryTitle(state);
@@ -912,6 +1085,7 @@
     const expanded = !mobileTracker || trackerExpanded;
     if (headerTaskDetailBtn) {
       headerTaskDetailBtn.hidden = !mobileTracker;
+      headerTaskDetailBtn.classList.toggle("is-task-complete", taskCompleted);
       const headerTaskLabel = clipText(trackerTitle, 28) || "当前任务";
       headerTaskDetailBtn.textContent = `${headerTaskLabel} ${expanded ? "▾" : "▸"}`;
       headerTaskDetailBtn.title = trackerTitle || headerTaskLabel;
@@ -1289,6 +1463,11 @@
       lastTaskMapViewportMode = nextViewportMode;
       taskMapExpanded = nextViewportMode === "desktop";
     }
+    if (nextViewportMode === "mobile") {
+      endTaskMapResize({ render: false });
+    } else {
+      reconcileTaskMapDesktopWidthPreference();
+    }
     renderTracker();
   });
 
@@ -1308,6 +1487,34 @@
     setTaskMapDrawerExpanded(false);
   });
 
+  taskMapResizeHandle?.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    beginTaskMapResize(event);
+    try {
+      taskMapResizeHandle.setPointerCapture(event.pointerId);
+    } catch {
+    }
+  });
+
+  taskMapResizeHandle?.addEventListener("pointermove", (event) => {
+    continueTaskMapResize(event);
+  });
+
+  taskMapResizeHandle?.addEventListener("pointerup", (event) => {
+    if (!taskMapResizeState || event.pointerId !== taskMapResizeState.pointerId) return;
+    endTaskMapResize();
+  });
+
+  taskMapResizeHandle?.addEventListener("pointercancel", () => {
+    endTaskMapResize();
+  });
+
+  taskMapResizeHandle?.addEventListener("dblclick", () => {
+    if (isMobileQuestTracker()) return;
+    resetTaskMapDesktopWidthPreference();
+  });
+
   taskMapRail?.addEventListener("transitionend", (event) => {
     if (isMobileQuestTracker() || !isTaskMapExpanded()) return;
     const propertyName = String(event?.propertyName || "").trim();
@@ -1322,6 +1529,10 @@
   document.addEventListener("keydown", (event) => {
     if (event?.key !== "Escape" || !isMobileTaskMapDrawerOpen()) return;
     setTaskMapDrawerExpanded(false);
+  });
+
+  window.addEventListener("blur", () => {
+    endTaskMapResize();
   });
 
   tracker?.addEventListener("mouseenter", () => {
@@ -1386,6 +1597,8 @@
   };
 
   // ─────────────────────────────────────────────────────────────────
+
+  restoreTaskMapDesktopWidthPreference();
 
   window.MelodySyncWorkbench = {
     surfaceMode: "quest_tracker",

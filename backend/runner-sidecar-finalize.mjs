@@ -42,19 +42,20 @@ export async function finalizeSidecarRunExit(runId, run, {
   const current = await getRun(runId) || run;
   const completedAt = nowIso();
   await appendCodexContextMetrics(runId);
+  const finalFailureReason = forcedFailureReason || current?.failureReason || null;
   const result = {
     completedAt,
     exitCode: code ?? 1,
     signal: signal || null,
     cancelled: current.cancelRequested === true,
-    ...(forcedFailureReason ? { error: forcedFailureReason } : {}),
+    ...(finalFailureReason ? { error: finalFailureReason } : {}),
   };
   await writeRunResult(runId, result);
   await updateRun(runId, (draft) => ({
     ...draft,
     state: draft.cancelRequested
       ? 'cancelled'
-      : forcedFailureReason
+      : finalFailureReason
         ? 'failed'
         : (code ?? 1) === 0
           ? 'completed'
@@ -63,7 +64,7 @@ export async function finalizeSidecarRunExit(runId, run, {
     result,
     failureReason: draft.cancelRequested
       ? null
-      : forcedFailureReason || draft.failureReason || null,
+      : finalFailureReason || draft.failureReason || null,
   }));
   return code ?? 1;
 }

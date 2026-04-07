@@ -145,7 +145,7 @@ export function buildCodexContextMetricsPayload(metrics) {
   if (!metrics || !Number.isInteger(metrics.contextTokens)) return null;
 
   return {
-    type: 'remotelab.context_metrics',
+    type: 'melodysync.context_metrics',
     contextTokens: metrics.contextTokens,
     ...(Number.isInteger(metrics.inputTokens) ? { inputTokens: metrics.inputTokens } : {}),
     ...(Number.isInteger(metrics.outputTokens) ? { outputTokens: metrics.outputTokens } : {}),

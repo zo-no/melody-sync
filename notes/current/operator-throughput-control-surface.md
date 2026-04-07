@@ -3,7 +3,7 @@
 _Last updated: 2026-03-14_
 
 > Status: current product requirement note.
-> Purpose: turn the recurring "I cannot push enough work forward fast enough" pain into a concrete RemoteLab requirement.
+> Purpose: turn the recurring "I cannot push enough work forward fast enough" pain into a concrete MelodySync requirement.
 >
 > Read together with:
 > - `docs/project-architecture.md`
@@ -20,14 +20,14 @@ The user's bottleneck is not "lack of another chat window."
 The real bottleneck is:
 
 - too many active threads competing for attention
-- too many tasks still living in the user's head instead of in RemoteLab state
+- too many tasks still living in the user's head instead of in MelodySync state
 - too much time lost deciding "what should I touch now?"
 - too much restart cost after interruption
 - too few system-driven prompts that push stuck work forward
 
 In plain product language:
 
-> RemoteLab should help one operator move more parallel work forward with less mental load.
+> MelodySync should help one operator move more parallel work forward with less mental load.
 
 This is a throughput problem, not a chat-quality problem.
 
@@ -35,7 +35,7 @@ This is a throughput problem, not a chat-quality problem.
 
 ## Product Goal
 
-RemoteLab should become a better **operator control surface** for parallel work.
+MelodySync should become a better **operator control surface** for parallel work.
 
 The user should be able to:
 
@@ -80,7 +80,7 @@ It is a set of lightweight orchestration features that:
 ### 1. Fast Capture
 
 As an operator,
-I want to throw a rough goal into RemoteLab in one shot,
+I want to throw a rough goal into MelodySync in one shot,
 so that I can keep moving instead of manually creating perfect structure first.
 
 Example:
@@ -92,7 +92,7 @@ Example:
 ### 2. Attention Routing
 
 As an operator,
-I want RemoteLab to tell me which sessions need my attention now,
+I want MelodySync to tell me which sessions need my attention now,
 so that I do not waste time scanning every thread.
 
 ### 3. Next Action Recovery
@@ -104,7 +104,7 @@ so that I can resume work in seconds.
 ### 4. Waiting Loop Automation
 
 As an operator,
-I want RemoteLab to re-ping, re-check, or wake a session later,
+I want MelodySync to re-ping, re-check, or wake a session later,
 so that I do not have to remember every follow-up myself.
 
 ### 5. Workload Shaping
@@ -131,7 +131,7 @@ This area should combine five capabilities.
 
 ### A. Inbox Capture
 
-RemoteLab should support a low-friction intake path for rough tasks.
+MelodySync should support a low-friction intake path for rough tasks.
 
 Minimum behavior:
 
@@ -169,7 +169,7 @@ Why this matters:
 
 ### C. Attention Queue
 
-RemoteLab should derive a focused operator queue from session state.
+MelodySync should derive a focused operator queue from session state.
 
 This is not a generic dashboard.
 
@@ -194,7 +194,7 @@ Why this matters:
 
 ### D. Scheduled Follow-Up / Wake-Up
 
-RemoteLab should let the user or model create future re-entry points.
+MelodySync should let the user or model create future re-entry points.
 
 First useful forms:
 
@@ -365,7 +365,7 @@ Do not turn this into:
 - a kanban clone
 - a generic task database
 
-RemoteLab should remain session-first.
+MelodySync should remain session-first.
 
 ---
 
@@ -373,7 +373,7 @@ RemoteLab should remain session-first.
 
 This requirement should **not** be interpreted as:
 
-- "build a full PM tool inside RemoteLab"
+- "build a full PM tool inside MelodySync"
 - "build a mobile IDE"
 - "add lots of manual fields the user must maintain"
 - "make every session a giant form"
@@ -453,4 +453,4 @@ Qualitative success signals:
 
 If this requirement needs a single sentence to guide product and implementation, use this:
 
-> RemoteLab should help one operator keep more AI work moving in parallel by turning session state, attention routing, follow-up timing, and context recovery into a compact control surface.
+> MelodySync should help one operator keep more AI work moving in parallel by turning session state, attention routing, follow-up timing, and context recovery into a compact control surface.

@@ -208,16 +208,27 @@ melodysync start                启动所有服务
 melodysync stop                 停止所有服务
 melodysync restart [service]    重启：chat | all
 melodysync release              跑测试、生成 release 快照、重启并做健康检查
-melodysync guest-instance       创建带独立 config + memory 的访客实例
+melodysync guest-instance       创建带独立 config + memory 的隔离实例
 melodysync chat                 前台运行 chat server（调试用）
+melodysync storage-maintenance  预览或清理可回收的运行态存储
 melodysync generate-token       生成新的访问 token
 melodysync set-password         设置用户名和密码登录
 melodysync --help               显示帮助
 ```
 
-如果你想在同一台机器上快速开一套隔离环境，可以用 `melodysync guest-instance create <name>`。它会为这个访客实例单独准备 `REMOTELAB_INSTANCE_ROOT` 和独立服务，但网络暴露方式仍然由 MelodySync 之外的运维层负责。
+如果你想在同一台机器上快速开一套隔离环境，可以用 `melodysync guest-instance create <name>`。它会为这个隔离实例单独准备独立的数据根目录和服务，但网络暴露方式仍然由 MelodySync 之外的运维层负责。
+
+## 存储增长与清理
+
+- MelodySync 默认偏向保留数据：会话 history、run 输出、artifacts 和日志都会随着时间累积。
+- `归档` 只是组织语义，不会自动删除背后的 history 或 run 数据。
+- 现在仓库内置了保守的清理命令：先运行 `melodysync storage-maintenance` 看 dry-run 报告，再用 `melodysync storage-maintenance --apply` 真正删除。
+- 这个命令只清理可再生/非真值数据：旧 `api logs`、旧终态 run 的 `spool/artifacts`、旧的 Codex managed raw sessions 和 `shell_snapshots`。
+- 它不会动 `sessions/chat-sessions.json`、`sessions/history/`，也不会删掉 run 的 `manifest/status/result` 真值文件。
 
 ## 配置项
+
+有些高级环境变量仍然保留旧的 `MELODYSYNC_` 前缀作为兼容层。它们现在只是在覆盖 MelodySync 自己的运行时路径和行为，不代表还存在另一套产品抽象。
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
@@ -225,9 +236,9 @@ melodysync --help               显示帮助
 | `CHAT_BIND_HOST` | `127.0.0.1` | Chat server 监听地址；本地访问或同机反代时保持 `127.0.0.1`，只有在你的入口层确实需要时才改成 `0.0.0.0` |
 | `SESSION_EXPIRY` | `86400000` | Cookie 有效期（毫秒，24h） |
 | `SECURE_COOKIES` | `1` | 只有在纯 HTTP 访问时才设为 `0` |
-| `REMOTELAB_INSTANCE_ROOT` | 未设置 | 可选的额外实例数据根目录；设置后默认使用 `<root>/config` + `<root>/memory` |
-| `REMOTELAB_CONFIG_DIR` | 兼容回退 `~/.config/melody-sync` | 可选的运行时数据/配置目录覆盖，包含 auth、sessions、runs、apps、push、provider runtime home |
-| `REMOTELAB_MEMORY_DIR` | 兼容回退 `~/.melody-sync/memory` | 可选的用户 memory 目录覆盖，供 pointer-first 启动使用 |
+| `MELODYSYNC_INSTANCE_ROOT` | 未设置 | 可选的额外 MelodySync 隔离实例数据根目录；设置后默认使用 `<root>/config` + `<root>/memory` |
+| `MELODYSYNC_CONFIG_DIR` | 机器默认 `~/.config/melody-sync` | 可选的运行时数据/配置目录覆盖，包含 auth、sessions、runs、push、provider runtime home |
+| `MELODYSYNC_MEMORY_DIR` | 机器默认 `~/.melodysync/memory` | 可选的用户 memory 目录覆盖，供 pointer-first 启动使用 |
 
 ## 常用文件位置
 

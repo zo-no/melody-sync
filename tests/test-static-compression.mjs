@@ -63,8 +63,8 @@ function request(port, path, extraHeaders = {}) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-static-compression-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-static-compression-'));
+  const configDir = join(home, '.config', 'melody-sync');
   mkdirSync(configDir, { recursive: true });
 
   writeFileSync(
@@ -118,7 +118,7 @@ async function main() {
   const port = randomPort();
   const probeName = `__compression_probe_${Date.now().toString(36)}.js`;
   const probePath = join(repoRoot, 'static', 'frontend', probeName);
-  const probeSource = `window.__REMOTELAB_COMPRESSION_PROBE__ = "${'x'.repeat(4096)}";\n`;
+  const probeSource = `window.__MELODYSYNC_COMPRESSION_PROBE__ = "${'x'.repeat(4096)}";\n`;
   writeFileSync(probePath, probeSource, 'utf8');
 
   const server = await startServer({ home, port });
@@ -161,7 +161,7 @@ async function main() {
     assert.match(page.headers.vary || '', /Accept-Encoding/i, 'chat page should vary by Accept-Encoding');
     assert.match(
       brotliDecompressSync(page.body).toString('utf8'),
-      /window\.__REMOTELAB_BOOTSTRAP__/,
+      /window\.__MELODYSYNC_BOOTSTRAP__/,
       'compressed chat page should decompress to HTML content',
     );
 

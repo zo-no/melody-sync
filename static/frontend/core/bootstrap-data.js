@@ -25,22 +25,22 @@
       return clonePlainRecord(fallback);
     },
     getBuildInfo() {
-      return api.read("__REMOTELAB_BUILD__");
+      return api.read("__MELODYSYNC_BUILD__");
     },
     getBootstrap() {
-      return api.read("__REMOTELAB_BOOTSTRAP__");
+      return api.read("__MELODYSYNC_BOOTSTRAP__");
     },
     getSharePayload() {
-      return api.read("__REMOTELAB_SHARE__");
+      return api.read("__MELODYSYNC_SHARE__");
     },
     setBuildInfo(value) {
-      return writeWindowPayload("__REMOTELAB_BUILD__", value);
+      return writeWindowPayload("__MELODYSYNC_BUILD__", value);
     },
     setBootstrap(value) {
-      return writeWindowPayload("__REMOTELAB_BOOTSTRAP__", value);
+      return writeWindowPayload("__MELODYSYNC_BOOTSTRAP__", value);
     },
     setSharePayload(value) {
-      return writeWindowPayload("__REMOTELAB_SHARE__", value);
+      return writeWindowPayload("__MELODYSYNC_SHARE__", value);
     },
   };
 

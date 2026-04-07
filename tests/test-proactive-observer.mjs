@@ -11,7 +11,7 @@ const repoRoot = process.cwd()
 const {
   DEFAULT_SYSTEM_PROMPT,
   buildEpisodeExternalTriggerId,
-  buildRemoteLabMessage,
+  buildMelodySyncMessage,
   buildSessionName,
   createRuntimeContext,
   loadConfig,
@@ -19,7 +19,7 @@ const {
   processArrivalEvent,
 } = await import(pathToFileURL(join(repoRoot, 'scripts', 'proactive-observer.mjs')).href)
 
-const tempConfigDir = await mkdtemp(join(tmpdir(), 'remotelab-observer-config-'))
+const tempConfigDir = await mkdtemp(join(tmpdir(), 'melodysync-observer-config-'))
 const tempConfigPath = join(tempConfigDir, 'config.json')
 
 await writeFile(tempConfigPath, `${JSON.stringify({
@@ -71,7 +71,7 @@ assert.equal(
 )
 assert.match(buildSessionName(trigger, '2026-03-16T18:00:00.000Z'), /^Home Arrival · /)
 
-const renderedPrompt = buildRemoteLabMessage(loadedConfig, trigger, episode, {
+const renderedPrompt = buildMelodySyncMessage(loadedConfig, trigger, episode, {
   type: 'arrival',
   source: 'vision',
   detectedAt: '2026-03-16T18:00:00.000Z',

@@ -71,8 +71,8 @@ function request(port, method, path, body = null, extraHeaders = {}) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-chat-static-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-chat-static-'));
+  const configDir = join(home, '.config', 'melody-sync');
   mkdirSync(configDir, { recursive: true });
 
   writeFileSync(
@@ -172,7 +172,7 @@ async function main() {
     assert.match(page.text, /<meta name="color-scheme" content="light dark">/);
     assert.match(page.text, /<meta name="theme-color" content="#e7edf0" media="\(prefers-color-scheme: light\)">/);
     assert.match(page.text, /<meta name="theme-color" content="#1c2329" media="\(prefers-color-scheme: dark\)">/);
-    const bootstrapMatch = page.text.match(/window\.__REMOTELAB_BOOTSTRAP__ = ([^;]+);/);
+    const bootstrapMatch = page.text.match(/window\.__MELODYSYNC_BOOTSTRAP__ = ([^;]+);/);
     assert.ok(bootstrapMatch, 'chat page should inline bootstrap payload');
     const bootstrap = JSON.parse(bootstrapMatch[1]);
     assert.deepEqual(bootstrap.auth, { role: 'owner' }, 'bootstrap payload should include owner auth');
@@ -186,49 +186,8 @@ async function main() {
       '子任务',
       'bootstrap payload should expose canonical labeled node definitions',
     );
-    assert.match(page.text, /<script src="\/chat\/core\/bootstrap\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/core\/bootstrap-session-catalog\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session\/http-helpers\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session\/http-list-state\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session\/http\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/core\/layout-tooling\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session\/tooling\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/core\/realtime\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/core\/realtime-render\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session\/transcript-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session\/surface-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session-list\/model\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session-list\/ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session-list\/sidebar-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/node-contract\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/node-effects\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/node-instance\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/graph-model\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/node-capabilities\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/node-task-card\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/settings\/nodes\/model\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-plan\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/surface-projection\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-clusters\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-mock-presets\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-model\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/task-tracker-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/node-rich-view-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/task-map-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/settings\/nodes\/ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/task-list-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/quest-state\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/branch-actions\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/operation-record-ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/workbench\/controller\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/session\/compose\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/core\/gestures\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/settings\/hooks\/model\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/settings\/voice\/ui\.js(?:\?v=[^"]*)?"/);
-    assert.match(page.text, /<script src="\/chat\/settings\/hooks\/ui\.js(?:\?v=[^"]*)?"/);
+    assert.match(page.text, /<script src="\/chat\.js"/, 'chat page should load the split-asset loader');
     assert.doesNotMatch(page.text, /<script src="\/chat\/voice-input\.js(?:\?v=[^"]*)?"/);
-
-    assert.match(page.text, /<script src="\/chat\/core\/init\.js(?:\?v=[^"]*)?"/);
     assert.doesNotMatch(page.text, /id="appFilterSelect"/);
     assert.doesNotMatch(page.text, /id="sourceFilterSelect"/);
     assert.doesNotMatch(page.text, /id="sessionAppFilterSelect"/);
@@ -280,16 +239,6 @@ async function main() {
     assert.match(page.text, /id="taskMapDrawerBtn"/, 'chat page should ship the mobile task-map drawer toggle');
     assert.match(page.text, /id="taskMapDrawerBackdrop"/, 'chat page should ship the mobile task-map drawer backdrop');
     assert.match(page.text, /id="questTrackerStatus"/, 'chat page should render the task-status mount inside the task bar');
-    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=/, 'chat page should load the shared workbench node contract');
-    assert.match(page.text, /\/chat\/workbench\/node-effects\.js\?v=/, 'chat page should load the shared workbench node effects before task-map projection');
-    assert.match(page.text, /\/chat\/workbench\/node-instance\.js\?v=/, 'chat page should load the shared workbench node instance contract before graph/projection modules');
-    assert.match(page.text, /\/chat\/workbench\/graph-model\.js\?v=/, 'chat page should load the shared workbench graph model before plan/projection modules');
-    assert.match(page.text, /\/chat\/workbench\/graph-client\.js\?v=/, 'chat page should load the shared workbench graph client before the workbench runtime');
-    assert.match(page.text, /\/chat\/workbench\/node-task-card\.js\?v=/, 'chat page should load the shared workbench node-to-taskCard helpers before plan/projection modules');
-    assert.match(page.text, /\/chat\/workbench\/task-map-plan\.js\?v=/, 'chat page should load the task-map plan overlay before the projection model');
-    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the task-map projection model before the workbench runtime');
-    assert.match(page.text, /\/chat\/workbench\/node-contract\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-effects\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-instance\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-capabilities\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-task-card\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/graph-client\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/nodes\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-plan\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/surface-projection\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-clusters\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-mock-presets\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-model\.js\?v=/, 'chat page should load the graph contract, graph client, node-instance helpers, task-card helpers, plan helpers, and quest-source helpers before the task-map projection model');
-    assert.match(page.text, /\/chat\/workbench\/task-map-model\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/quest-state\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-tracker-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-rich-view-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/node-canvas-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-map-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/task-list-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/branch-actions\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/operation-record-ui\.js\?v=[^"]*"[\s\S]*?\/chat\/workbench\/controller\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/model\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/general\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/email\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/nodes\/ui\.js\?v=[^"]*"[\s\S]*?\/chat\/settings\/hooks\/ui\.js\?v=/, 'chat page should load workbench helpers first, then the shared settings shell and tab content');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
     assert.match(page.text, /\/chat\/chat\.css\?v=/, 'chat page should fingerprint the split chat stylesheet');
     const chatStylesheet = await request(port, 'GET', '/chat/chat.css');
@@ -357,7 +306,6 @@ async function main() {
     assert.match(combinedChatStyles, /body\.keyboard-open \.input-area/);
     assert.doesNotMatch(combinedChatStyles, /--app-top-offset/);
     assert.ok(!page.text.includes('/chat.js?v='), 'chat page should not pin the chat frontend to a versioned URL');
-    assert.match(page.text, /\/marked\.min\.js\?v=/, 'chat page should fingerprint marked.min.js alongside the split chat assets');
     assert.match(page.text, /\/manifest\.json\?v=/, 'chat page should fingerprint the manifest URL so installed PWAs refresh policy changes');
     assert.match(page.text, /title="Attach files"/, 'chat page should advertise file uploads in the composer');
     assert.match(page.text, /accept="\*\/\*"/, 'chat page should allow arbitrary file selection');

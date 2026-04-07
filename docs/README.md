@@ -82,7 +82,7 @@ For setup, deployment, connector, and feature-rollout docs, assume the operator 
 
 - `github-auto-triage.md` — model-first GitHub intake and auto-reply rollout contract
 - `remote-capability-monitor.md` — remote-agent capability monitoring backed by the core session API
-- `voice-connector.md` — model-first wake-word speaker/microphone connector contract for RemoteLab
+- `voice-connector.md` — model-first wake-word speaker/microphone connector contract for MelodySync
 
 ## What Lives In `notes/`
 

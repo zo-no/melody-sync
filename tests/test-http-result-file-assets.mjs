@@ -62,8 +62,8 @@ function request(port, method, path, body = null, extraHeaders = {}) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-result-file-assets-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-result-file-assets-'));
+  const configDir = join(home, '.config', 'melody-sync');
   const localBin = join(home, '.local', 'bin');
   const videoCutDir = join(home, 'code', 'video-cut');
   mkdirSync(configDir, { recursive: true });
@@ -180,10 +180,10 @@ async function startServer({ home, port, storagePort }) {
       HOME: home,
       CHAT_PORT: String(port),
       SECURE_COOKIES: '0',
-      REMOTELAB_ASSET_STORAGE_BASE_URL: `http://127.0.0.1:${storagePort}/bucket`,
-      REMOTELAB_ASSET_STORAGE_REGION: 'auto',
-      REMOTELAB_ASSET_STORAGE_ACCESS_KEY_ID: 'test-access-key',
-      REMOTELAB_ASSET_STORAGE_SECRET_ACCESS_KEY: 'test-secret-key',
+      MELODYSYNC_ASSET_STORAGE_BASE_URL: `http://127.0.0.1:${storagePort}/bucket`,
+      MELODYSYNC_ASSET_STORAGE_REGION: 'auto',
+      MELODYSYNC_ASSET_STORAGE_ACCESS_KEY_ID: 'test-access-key',
+      MELODYSYNC_ASSET_STORAGE_SECRET_ACCESS_KEY: 'test-secret-key',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

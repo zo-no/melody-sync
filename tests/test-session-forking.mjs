@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-const home = mkdtempSync(join(tmpdir(), 'remotelab-session-fork-'));
+const home = mkdtempSync(join(tmpdir(), 'melodysync-session-fork-'));
 process.env.HOME = home;
 
 const workspace = join(home, 'workspace');
@@ -101,7 +101,11 @@ try {
     source: 'manual',
   });
 
-  const sessionsPath = join(home, '.config', 'remotelab', 'chat-sessions.json');
+  const sessionPathCandidates = [
+    join(home, '.melodysync', 'sessions', 'chat-sessions.json'),
+    join(home, '.config', 'melody-sync', 'chat-sessions.json'),
+  ];
+  const sessionsPath = sessionPathCandidates.find((candidate) => existsSync(candidate)) || sessionPathCandidates[0];
   const storedSessions = JSON.parse(readFileSync(sessionsPath, 'utf8'));
   const parentRecord = storedSessions.find((entry) => entry.id === parent.id);
   assert.ok(parentRecord, 'parent session record should exist');

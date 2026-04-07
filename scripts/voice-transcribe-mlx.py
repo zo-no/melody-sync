@@ -20,7 +20,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    audio_path = trim(args.audio_path) or trim(args.audio) or trim(os.environ.get("REMOTELAB_VOICE_AUDIO_PATH"))
+    audio_path = trim(args.audio_path) or trim(args.audio) or trim(os.environ.get("MELODYSYNC_VOICE_AUDIO_PATH"))
     if not audio_path:
         raise SystemExit("audio path is required")
 

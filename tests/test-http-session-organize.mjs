@@ -101,8 +101,8 @@ function buildFakeCodexScript() {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-session-organize-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-session-organize-'));
+  const configDir = join(home, '.config', 'melody-sync');
   const localBin = join(home, '.local', 'bin');
   mkdirSync(configDir, { recursive: true });
   mkdirSync(localBin, { recursive: true });
@@ -145,7 +145,7 @@ async function startServer({ home, port }) {
       ...process.env,
       HOME: home,
       CHAT_PORT: String(port),
-      REMOTELAB_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
+      MELODYSYNC_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
       SECURE_COOKIES: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],

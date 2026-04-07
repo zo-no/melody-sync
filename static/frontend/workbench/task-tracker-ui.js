@@ -19,6 +19,30 @@
     getCurrentTaskSummary = () => "",
     getBranchDisplayName = (session) => String(session?.name || "").trim(),
   } = {}) {
+    const COMPLETED_STATUS_TOKENS = new Set([
+      "resolved",
+      "merged",
+      "done",
+      "closed",
+      "complete",
+      "completed",
+      "finished",
+    ]);
+
+    function normalizeStatusToken(value) {
+      return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+    }
+
+    function isCompletedTrackerState(state) {
+      const branchStatus = normalizeStatusToken(state?.branchStatus || "");
+      if (branchStatus && COMPLETED_STATUS_TOKENS.has(branchStatus)) return true;
+      const workflowState = normalizeStatusToken(state?.session?.workflowState || "");
+      return workflowState === "done";
+    }
+
     function getTaskRunStatusApi() {
       return globalThis?.MelodySyncTaskRunStatus
         || globalThis?.window?.MelodySyncTaskRunStatus
@@ -28,6 +52,9 @@
     function getTrackerVisualStatus(state) {
       if (!state?.hasSession || !state?.session) {
         return { label: "", dotClass: "" };
+      }
+      if (isCompletedTrackerState(state)) {
+        return { label: "已完成", dotClass: "status-completed" };
       }
       const taskRunStatus = getTaskRunStatusApi()?.getTaskRunStatusUi?.({
         status: state?.branchStatus || "",
@@ -39,7 +66,7 @@
       }
       return {
         label,
-        dotClass: label === "运行完成" ? "status-completed" : "status-running",
+        dotClass: label === "已完成" ? "status-completed" : "status-running",
       };
     }
 

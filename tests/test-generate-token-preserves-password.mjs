@@ -9,7 +9,7 @@ import { spawnSync } from 'child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
-const home = mkdtempSync(join(tmpdir(), 'remotelab-generate-token-'));
+const home = mkdtempSync(join(tmpdir(), 'melodysync-generate-token-'));
 
 try {
   const configDir = join(home, 'instance-config');
@@ -27,7 +27,7 @@ try {
       ...process.env,
       HOME: home,
       CHAT_PORT: '7692',
-      REMOTELAB_CONFIG_DIR: configDir,
+      MELODYSYNC_CONFIG_DIR: configDir,
     },
     encoding: 'utf8',
   });

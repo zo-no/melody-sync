@@ -25,7 +25,7 @@ function firstNonEmpty(...values) {
 export function resolvePushSendOptions(env = pushTransportEnv) {
   const options = { timeout: PUSH_TIMEOUT_MS };
   const proxy = firstNonEmpty(
-    env?.REMOTELAB_PUSH_PROXY,
+    env?.MELODYSYNC_PUSH_PROXY,
     env?.HTTPS_PROXY,
     env?.https_proxy,
     env?.HTTP_PROXY,
@@ -54,7 +54,7 @@ async function init() {
   if (!initPromise) {
     initPromise = (async () => {
       const keys = await loadOrGenerateKeys();
-      webpush.setVapidDetails('mailto:remotelab@localhost', keys.publicKey, keys.privateKey);
+      webpush.setVapidDetails('mailto:melodysync@localhost', keys.publicKey, keys.privateKey);
       ready = true;
     })();
   }

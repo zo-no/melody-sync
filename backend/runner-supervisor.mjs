@@ -13,8 +13,8 @@ export function spawnDetachedRunner(runId) {
     stdio: 'ignore',
     env: {
       ...process.env,
-      REMOTELAB_CHAT_BASE_URL: process.env.REMOTELAB_CHAT_BASE_URL || `http://127.0.0.1:${CHAT_PORT}`,
-      REMOTELAB_USER_SHELL_ENV_B64: serializeUserShellEnvSnapshot(),
+      MELODYSYNC_CHAT_BASE_URL: process.env.MELODYSYNC_CHAT_BASE_URL || `http://127.0.0.1:${CHAT_PORT}`,
+      MELODYSYNC_USER_SHELL_ENV_B64: serializeUserShellEnvSnapshot(),
     },
   });
   child.unref();

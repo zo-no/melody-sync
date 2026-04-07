@@ -7,7 +7,7 @@ import { homedir, platform } from 'os';
 import { basename, dirname, join, resolve } from 'path';
 
 const HOME = homedir();
-const DEFAULT_CONFIG_PATH = join(HOME, '.config', 'remotelab', 'doubao-fast-agent.json');
+const DEFAULT_CONFIG_PATH = join(HOME, '.config', 'melody-sync', 'doubao-fast-agent.json');
 const DEFAULT_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3';
 const DEFAULT_MODEL = 'doubao-seed-2-0-pro-260215';
 const DEFAULT_MAX_ITERATIONS = 2;
@@ -218,7 +218,7 @@ function parseArgs(argv) {
 function buildSystemPrompt(config) {
   if (config.systemPrompt) return config.systemPrompt;
   return [
-    'You are Rowan Fast Agent running locally on the owner\'s machine through RemoteLab.',
+    'You are Rowan Fast Agent running locally on the owner\'s machine through MelodySync.',
     'Optimize for low end-to-end latency and direct execution.',
     'Prefer zero tool calls when a plain answer is enough; otherwise use the minimum tool calls needed, ideally one and at most two turns total.',
     'Use explicit tools for simple local actions before falling back to bash.',

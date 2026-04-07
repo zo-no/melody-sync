@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 import { readActiveReleaseManifest, shouldUseActiveRelease } from './lib/release-runtime.mjs';
@@ -10,14 +10,22 @@ let delegatedToRelease = false;
 if (shouldUseActiveRelease()) {
   try {
     const activeRelease = await readActiveReleaseManifest();
+    const sourceRoot = resolve(sourceProjectRoot);
+    const releaseSourceRoot = activeRelease?.sourceRoot ? resolve(activeRelease.sourceRoot) : '';
+    if (releaseSourceRoot && releaseSourceRoot !== sourceRoot) {
+      throw new Error(
+        `[release] Source root mismatch; expected ${sourceRoot}, got ${releaseSourceRoot}. ` +
+        'Falling back to source runtime.',
+      );
+    }
     if (activeRelease?.snapshotRoot) {
       delegatedToRelease = true;
-      process.env.REMOTELAB_PROJECT_ROOT = process.env.REMOTELAB_PROJECT_ROOT || sourceProjectRoot;
-      process.env.REMOTELAB_SOURCE_PROJECT_ROOT = process.env.REMOTELAB_SOURCE_PROJECT_ROOT || sourceProjectRoot;
-      delete process.env.REMOTELAB_ACTIVE_RELEASE_ROOT;
-      delete process.env.REMOTELAB_ACTIVE_RELEASE_FILE;
-      delete process.env.REMOTELAB_ACTIVE_RELEASE_ID;
-      process.env.REMOTELAB_DISABLE_ACTIVE_RELEASE = '1';
+      process.env.MELODYSYNC_PROJECT_ROOT = process.env.MELODYSYNC_PROJECT_ROOT || sourceProjectRoot;
+      process.env.MELODYSYNC_SOURCE_PROJECT_ROOT = process.env.MELODYSYNC_SOURCE_PROJECT_ROOT || sourceProjectRoot;
+      delete process.env.MELODYSYNC_ACTIVE_RELEASE_ROOT;
+      delete process.env.MELODYSYNC_ACTIVE_RELEASE_FILE;
+      delete process.env.MELODYSYNC_ACTIVE_RELEASE_ID;
+      process.env.MELODYSYNC_DISABLE_ACTIVE_RELEASE = '1';
       await import(pathToFileURL(join(activeRelease.snapshotRoot, 'chat-server.mjs')).href);
     }
   } catch (error) {

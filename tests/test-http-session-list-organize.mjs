@@ -22,7 +22,7 @@ const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   'Never send read-only snapshot keys such as `title`, `brief`, `existingGroup`, and `existingSidebarOrder`, `currentGroup`, or `currentSidebarOrder` in PATCH bodies.',
   'Rename only when the current task name is generic, stale, or clearly weaker than the metadata snapshot.',
   'Example PATCH body: {"name":"电影史学习路线","group":"短期任务","sidebarOrder":3}',
-  'If `melodysync` is unavailable in PATH, use `node "$REMOTELAB_PROJECT_ROOT/cli.js" api ...` instead.',
+  'If `melodysync` is unavailable in PATH, use `node "$MELODYSYNC_PROJECT_ROOT/cli.js" api ...` instead.',
   '`sidebarOrder` must be a positive integer; smaller numbers sort first.',
   'Assign unique contiguous `sidebarOrder` values across the current non-archived sessions you organize.',
   'Use only these exact groups: 收集箱, 长期任务, 短期任务, 知识库内容, 等待任务.',
@@ -124,8 +124,8 @@ function buildFakeCodexScript() {
     '        if (sessions.some((session) => Object.prototype.hasOwnProperty.call(session, "currentGroup") || Object.prototype.hasOwnProperty.call(session, "currentSidebarOrder"))) {',
     '          throw new Error("organizer payload should use existing* snapshot fields");',
     '        }',
-    '        const projectRoot = process.env.REMOTELAB_PROJECT_ROOT || process.cwd();',
-    '        const baseUrl = process.env.REMOTELAB_CHAT_BASE_URL || `http://127.0.0.1:${process.env.CHAT_PORT || "7760"}`;',
+    '        const projectRoot = process.env.MELODYSYNC_PROJECT_ROOT || process.cwd();',
+    '        const baseUrl = process.env.MELODYSYNC_CHAT_BASE_URL || `http://127.0.0.1:${process.env.CHAT_PORT || "7760"}`;',
     '        const cliPath = `${projectRoot}/cli.js`;',
     '        sessions.sort((left, right) => String(left.title || "").localeCompare(String(right.title || "")));',
     '        for (let index = 0; index < sessions.length; index += 1) {',
@@ -170,8 +170,8 @@ function buildFakeCodexScript() {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-session-list-organize-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-session-list-organize-'));
+  const configDir = join(home, '.config', 'melody-sync');
   const localBin = join(home, '.local', 'bin');
   mkdirSync(configDir, { recursive: true });
   mkdirSync(localBin, { recursive: true });
@@ -207,6 +207,15 @@ function setupTempHome() {
   return { home, configDir };
 }
 
+function readJsonFromCandidates(paths) {
+  for (const path of paths) {
+    try {
+      return JSON.parse(readFileSync(path, 'utf8'));
+    } catch {}
+  }
+  throw new Error(`Unable to read JSON from any candidate path:\n${paths.join('\n')}`);
+}
+
 async function startServer({ home, port }) {
   const child = spawn(process.execPath, ['chat-server.mjs'], {
     cwd: repoRoot,
@@ -214,7 +223,7 @@ async function startServer({ home, port }) {
       ...process.env,
       HOME: home,
       CHAT_PORT: String(port),
-      REMOTELAB_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
+      MELODYSYNC_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
       SECURE_COOKIES: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -253,12 +262,12 @@ const port = randomPort();
 const server = await startServer({ home, port });
 
 try {
-  const remoteLabSession = await request(port, 'POST', '/api/sessions', {
+  const primarySession = await request(port, 'POST', '/api/sessions', {
     folder: repoRoot,
     tool: 'fake-codex',
-    name: 'RemoteLab workflow cleanup',
+    name: 'MelodySync workflow cleanup',
   });
-  assert.equal(remoteLabSession.status, 201, 'first session should be created');
+  assert.equal(primarySession.status, 201, 'first session should be created');
 
   const quartzSession = await request(port, 'POST', '/api/sessions', {
     folder: repoRoot,
@@ -284,8 +293,8 @@ try {
   const organize = await request(port, 'POST', `/api/sessions/${organizerSession.json.session.id}/messages`, {
     text: buildSessionListOrganizerTask([
       {
-        id: remoteLabSession.json.session.id,
-        title: 'RemoteLab workflow cleanup',
+        id: primarySession.json.session.id,
+        title: 'MelodySync workflow cleanup',
         brief: 'Clean up the session grouping and structure.',
         existingGroup: '',
         existingSidebarOrder: null,
@@ -307,9 +316,10 @@ try {
   const completedRun = await waitForRunCompletion(port, organize.json.run.id);
   assert.equal(completedRun?.state, 'completed', 'organizer run should complete successfully');
 
-  const organizerManifest = JSON.parse(
-    readFileSync(join(home, '.config', 'remotelab', 'chat-runs', organize.json.run.id, 'manifest.json'), 'utf8'),
-  );
+  const organizerManifest = readJsonFromCandidates([
+    join(home, '.config', 'melody-sync', 'chat-runs', organize.json.run.id, 'manifest.json'),
+    join(home, '.melodysync', 'sessions', 'runs', organize.json.run.id, 'manifest.json'),
+  ]);
   assert.match(
     organizerManifest.prompt,
     /Only writable API fields for this task are `name`, `group`, and `sidebarOrder`\./,
@@ -335,15 +345,18 @@ try {
   assert.equal(listed.status, 200, 'session list should remain available after organizing');
   assert.equal((listed.json.sessions || []).length, 2, 'hidden organizer session should not appear in the normal list');
 
-  const primaryEntry = listed.json.sessions.find((entry) => entry.id === remoteLabSession.json.session.id);
+  const primaryEntry = listed.json.sessions.find((entry) => entry.id === primarySession.json.session.id);
   const quartzEntry = listed.json.sessions.find((entry) => entry.id === quartzSession.json.session.id);
   assert.equal(primaryEntry?.group, '收集箱', 'organizer should patch the default GTD inbox group');
-  assert.equal(primaryEntry?.sidebarOrder, 2, 'organizer should patch the default inbox sidebar order');
+  assert.equal(primaryEntry?.sidebarOrder, 1, 'organizer should patch the default inbox sidebar order');
   assert.equal(primaryEntry?.name, '整理会话工作流', 'organizer should be able to patch a clearer task name');
   assert.equal(quartzEntry?.group, '知识库内容', 'organizer should patch the knowledge-base group');
-  assert.equal(quartzEntry?.sidebarOrder, 1, 'organizer should patch the Quartz sidebar order');
+  assert.equal(quartzEntry?.sidebarOrder, 2, 'organizer should patch the Quartz sidebar order');
 
-  const storedMeta = JSON.parse(readFileSync(join(configDir, 'chat-sessions.json'), 'utf8'));
+  const storedMeta = readJsonFromCandidates([
+    join(configDir, 'chat-sessions.json'),
+    join(home, '.melodysync', 'sessions', 'chat-sessions.json'),
+  ]);
   const hiddenOrganizer = storedMeta.find((entry) => entry && entry.internalRole === SESSION_LIST_ORGANIZER_INTERNAL_ROLE);
   assert.ok(hiddenOrganizer, 'organizer trigger should create a hidden internal session');
   assert.match(

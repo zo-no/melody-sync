@@ -60,8 +60,8 @@ function request(port, method, path, body = null) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-session-patch-grouping-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-session-patch-grouping-'));
+  const configDir = join(home, '.config', 'melody-sync');
   mkdirSync(configDir, { recursive: true });
 
   writeFileSync(
@@ -134,12 +134,12 @@ try {
   assert.equal(invalidSidebarOrder.status, 400, 'invalid sidebar order should be rejected');
 
   const patched = await request(port, 'PATCH', `/api/sessions/${sessionId}`, {
-    group: '  RemoteLab  ',
+    group: '  MelodySync  ',
     description: '  Board-driven orchestration work.  ',
     sidebarOrder: 4,
   });
   assert.equal(patched.status, 200, 'session patch should accept group, description, and sidebar order');
-  assert.equal(patched.json.session.group, 'RemoteLab', 'patch should trim and persist group');
+  assert.equal(patched.json.session.group, 'MelodySync', 'patch should trim and persist group');
   assert.equal(
     patched.json.session.description,
     'Board-driven orchestration work.',
@@ -149,7 +149,7 @@ try {
 
   const detail = await request(port, 'GET', `/api/sessions/${sessionId}`);
   assert.equal(detail.status, 200, 'detail route should succeed after patch');
-  assert.equal(detail.json.session.group, 'RemoteLab', 'detail route should expose patched group');
+  assert.equal(detail.json.session.group, 'MelodySync', 'detail route should expose patched group');
   assert.equal(
     detail.json.session.description,
     'Board-driven orchestration work.',
@@ -161,7 +161,7 @@ try {
   assert.equal(listed.status, 200, 'session list should succeed');
   const listedSession = (listed.json.sessions || []).find((entry) => entry.id === sessionId);
   assert.ok(listedSession, 'session list should include the patched session');
-  assert.equal(listedSession.group, 'RemoteLab', 'session list should expose patched group');
+  assert.equal(listedSession.group, 'MelodySync', 'session list should expose patched group');
   assert.equal(
     listedSession.description,
     'Board-driven orchestration work.',

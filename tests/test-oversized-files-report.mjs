@@ -13,7 +13,7 @@ function createText(lineCount, prefix = 'line') {
   return Array.from({ length: lineCount }, (_, index) => `${prefix} ${index + 1}`).join('\n');
 }
 
-const tempRoot = mkdtempSync(join(tmpdir(), 'remotelab-oversized-files-'));
+const tempRoot = mkdtempSync(join(tmpdir(), 'melodysync-oversized-files-'));
 
 try {
   mkdirSync(join(tempRoot, 'backend'), { recursive: true });

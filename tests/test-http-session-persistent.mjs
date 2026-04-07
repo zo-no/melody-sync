@@ -57,8 +57,8 @@ function request(port, method, path, body = null) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-session-persistent-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-session-persistent-'));
+  const configDir = join(home, '.config', 'melody-sync');
   mkdirSync(configDir, { recursive: true });
 
   writeFileSync(
@@ -85,7 +85,7 @@ async function startServer({ home, port }) {
       HOME: home,
       CHAT_PORT: String(port),
       SECURE_COOKIES: '0',
-      REMOTELAB_DISABLE_ACTIVE_RELEASE: '1',
+      MELODYSYNC_DISABLE_ACTIVE_RELEASE: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

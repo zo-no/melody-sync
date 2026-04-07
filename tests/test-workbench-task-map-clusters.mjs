@@ -58,9 +58,22 @@ const nestedBranchSession = {
   },
 };
 
+const finishedBranchSession = {
+  id: 'branch-done',
+  name: 'Branch · 已完成支线',
+  updatedAt: '2026-04-03T10:30:00.000Z',
+  workflowState: 'done',
+  sourceContext: { parentSessionId: 'main-2' },
+  taskCard: {
+    goal: '已完成支线',
+    mainGoal: '整理写作计划',
+    lineRole: 'branch',
+  },
+};
+
 const clusters = api.getClusterList(
   { taskClusters: [] },
-  [mainSession, branchSession, nestedBranchSession],
+  [mainSession, branchSession, nestedBranchSession, finishedBranchSession],
 );
 
 assert.equal(clusters.length, 1, 'cluster helper should synthesize a main cluster when no workbench cluster exists yet');
@@ -75,6 +88,7 @@ assert.deepEqual(
   [
     { id: 'branch-2', parent: 'main-2', depth: 1, status: 'active' },
     { id: 'branch-2-1', parent: 'branch-2', depth: 2, status: 'active' },
+    { id: 'branch-done', parent: 'main-2', depth: 1, status: 'resolved' },
   ],
   'cluster helper should preserve synthetic branch lineage metadata for the default projection source',
 );

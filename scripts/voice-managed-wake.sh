@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
-WAKE_PHRASE="${REMOTELAB_VOICE_WAKE_WORD:-${VOICE_WAKE_PHRASE:-小罗小罗}}"
+WAKE_PHRASE="${MELODYSYNC_VOICE_WAKE_WORD:-${VOICE_WAKE_PHRASE:-小罗小罗}}"
 ACK_SOUND="${VOICE_ACK_SOUND_PATH:-/System/Library/Sounds/Glass.aiff}"
 
 cd "$ROOT_DIR"

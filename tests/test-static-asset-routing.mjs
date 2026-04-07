@@ -57,8 +57,8 @@ function request(port, path, extraHeaders = {}) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-static-route-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-static-route-'));
+  const configDir = join(home, '.config', 'melody-sync');
   mkdirSync(configDir, { recursive: true });
 
   writeFileSync(
@@ -112,7 +112,7 @@ async function main() {
   const port = randomPort();
   const probeName = `__static_probe_${Date.now().toString(36)}.js`;
   const probePath = join(repoRoot, 'static', 'frontend', probeName);
-  writeFileSync(probePath, 'window.__REMOTELAB_STATIC_PROBE__ = true;\n', 'utf8');
+  writeFileSync(probePath, 'window.__MELODYSYNC_STATIC_PROBE__ = true;\n', 'utf8');
 
   const server = await startServer({ home, port });
   try {
@@ -133,7 +133,7 @@ async function main() {
       'static assets should keep safe revalidation caching',
     );
     assert.ok(probe.headers.etag, 'new static asset should expose an ETag');
-    assert.match(probe.text, /__REMOTELAB_STATIC_PROBE__/);
+    assert.match(probe.text, /__MELODYSYNC_STATIC_PROBE__/);
 
     const versionedProbe = await request(port, `/chat/${probeName}?v=test-build`);
     assert.equal(versionedProbe.status, 200, 'versioned static asset should load');

@@ -6,7 +6,7 @@ This note proposes a target architecture for MelodySync that keeps the current p
 
 The current repo ships useful behavior, but several maintenance costs are higher than they need to be:
 
-- product naming and runtime defaults still drift between `RemoteLab` and `MelodySync`
+- product naming and runtime defaults still drift between `MelodySync` and `MelodySync`
 - a few large files carry too many responsibilities
 - several background behaviors are implicit side effects of session completion
 - frontend behavior depends on ordered global scripts instead of explicit module contracts
@@ -29,10 +29,10 @@ The result is a codebase that works, but is expensive for both humans and AI age
 
 The repo still mixes old and new identity:
 
-- docs and notes still refer to `RemoteLab`
+- docs and notes still refer to `MelodySync`
 - some docs still describe port `7690`
 - runtime code defaults to `7760`
-- runtime config still falls back to legacy `~/.config/remotelab`
+- runtime config now defaults cleanly to `~/.config/melody-sync`
 
 This makes setup, debugging, and automated edits ambiguous.
 

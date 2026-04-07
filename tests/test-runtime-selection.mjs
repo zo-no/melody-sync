@@ -6,7 +6,7 @@ import { join } from 'path';
 import { pathToFileURL } from 'url';
 
 const repoRoot = process.cwd();
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-runtime-selection-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-runtime-selection-'));
 process.env.HOME = tempHome;
 
 try {

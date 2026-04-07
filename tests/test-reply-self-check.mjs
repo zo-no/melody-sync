@@ -6,9 +6,9 @@ import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-reply-self-check-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-reply-self-check-'));
 const tempBin = join(tempHome, 'bin');
-const configDir = join(tempHome, '.config', 'remotelab');
+const configDir = join(tempHome, '.config', 'melody-sync');
 
 mkdirSync(tempBin, { recursive: true });
 mkdirSync(configDir, { recursive: true });

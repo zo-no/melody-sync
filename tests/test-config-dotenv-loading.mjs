@@ -27,7 +27,7 @@ writeFileSync(
 );
 
 const previous = {
-  REMOTELAB_SOURCE_PROJECT_ROOT: process.env.REMOTELAB_SOURCE_PROJECT_ROOT,
+  MELODYSYNC_SOURCE_PROJECT_ROOT: process.env.MELODYSYNC_SOURCE_PROJECT_ROOT,
   TEST_DOTENV_EXISTING: process.env.TEST_DOTENV_EXISTING,
   TEST_DOTENV_ONLY_ENV: process.env.TEST_DOTENV_ONLY_ENV,
   TEST_DOTENV_SHARED: process.env.TEST_DOTENV_SHARED,
@@ -36,7 +36,7 @@ const previous = {
   TEST_DOTENV_SINGLE: process.env.TEST_DOTENV_SINGLE,
 };
 
-process.env.REMOTELAB_SOURCE_PROJECT_ROOT = tempRoot;
+process.env.MELODYSYNC_SOURCE_PROJECT_ROOT = tempRoot;
 process.env.TEST_DOTENV_EXISTING = 'from-process';
 
 try {

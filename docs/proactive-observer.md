@@ -10,7 +10,7 @@ The prototype is a separate local service that:
 
 - watches high-frequency local signals,
 - decides when a moment is meaningful enough to escalate,
-- creates one RemoteLab session per triggered episode,
+- creates one MelodySync session per triggered episode,
 - and then lets the normal agent/runtime do the substantive work.
 
 For the first prototype, the target flow is:
@@ -25,14 +25,14 @@ For the first prototype, the target flow is:
 
 ## Architecture
 
-The implementation lives in `scripts/proactive-observer.mjs` and is intentionally decoupled from the main RemoteLab server process.
+The implementation lives in `scripts/proactive-observer.mjs` and is intentionally decoupled from the main MelodySync server process.
 
 Layers:
 
 - `Provider layer` — camera snapshots, speech capture, optional manual HTTP event injection
 - `Trigger layer` — detects meaningful transitions such as `arrival`
-- `Episode layer` — creates one durable RemoteLab session per trigger firing
-- `Agent layer` — uses a normal RemoteLab session/run flow to greet and fulfill requests
+- `Episode layer` — creates one durable MelodySync session per trigger firing
+- `Agent layer` — uses a normal MelodySync session/run flow to greet and fulfill requests
 - `Actuator layer` — local TTS speaks the assistant reply aloud
 
 ## Current prototype contract
@@ -66,7 +66,7 @@ node scripts/proactive-observer.mjs --print-config
 
 Write it to:
 
-- `~/.config/remotelab/proactive-observer/config.json`
+- `~/.config/melody-sync/proactive-observer/config.json`
 
 Important fields:
 
@@ -144,7 +144,7 @@ curl -sS -X POST http://127.0.0.1:7960/events \
 
 ## Design stance
 
-- keep RemoteLab as the durable session/runtime substrate
+- keep MelodySync as the durable session/runtime substrate
 - keep this observer as a separate local service with its own logic and state
 - use minimal deterministic logic only for transition detection, cooldown, and dedupe
 - push meaning, greeting style, and action choice into the model/session layer

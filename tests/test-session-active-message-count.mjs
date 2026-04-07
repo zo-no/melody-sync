@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const home = mkdtempSync(join(tmpdir(), 'remotelab-active-message-count-'));
+const home = mkdtempSync(join(tmpdir(), 'melodysync-active-message-count-'));
 
 process.env.HOME = home;
 

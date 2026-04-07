@@ -58,8 +58,8 @@ function request(port, path, extraHeaders = {}) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-release-runtime-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-release-runtime-'));
+  const configDir = join(home, '.config', 'melody-sync');
   mkdirSync(configDir, { recursive: true });
   writeFileSync(
     join(configDir, 'auth.json'),
@@ -78,11 +78,11 @@ async function startServer({ home, port, snapshotRoot, releaseId }) {
       HOME: home,
       CHAT_PORT: String(port),
       SECURE_COOKIES: '0',
-      REMOTELAB_DISABLE_ACTIVE_RELEASE: '0',
-      REMOTELAB_ENABLE_ACTIVE_RELEASE: '1',
-      REMOTELAB_ACTIVE_RELEASE_ROOT: snapshotRoot,
-      REMOTELAB_ACTIVE_RELEASE_ID: releaseId,
-      REMOTELAB_SOURCE_PROJECT_ROOT: repoRoot,
+      MELODYSYNC_DISABLE_ACTIVE_RELEASE: '0',
+      MELODYSYNC_ENABLE_ACTIVE_RELEASE: '1',
+      MELODYSYNC_ACTIVE_RELEASE_ROOT: snapshotRoot,
+      MELODYSYNC_ACTIVE_RELEASE_ID: releaseId,
+      MELODYSYNC_SOURCE_PROJECT_ROOT: repoRoot,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -135,7 +135,7 @@ async function main() {
     assert.equal(loginRes.status, 200, 'login page should still render');
     assert.ok(!loginRes.text.includes(loginMarker), 'release runtime should ignore source template edits after activation');
 
-    writeFileSync(sourceProbePath, 'window.__REMOTELAB_SOURCE_PROBE__ = true;\n', 'utf8');
+    writeFileSync(sourceProbePath, 'window.__MELODYSYNC_SOURCE_PROBE__ = true;\n', 'utf8');
     const sourceProbeRes = await request(port, `/chat/${sourceProbeName}`);
     assert.notEqual(sourceProbeRes.status, 200, 'release runtime should not expose new source static files until the next release');
 

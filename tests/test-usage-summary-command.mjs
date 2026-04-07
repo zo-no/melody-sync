@@ -6,7 +6,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-usage-summary-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-usage-summary-'));
 
 function makeSessionPath(rootDir, threadId) {
   return join(rootDir, '2026', '03', '19', `rollout-2026-03-19T12-00-00-${threadId}.jsonl`);
@@ -21,7 +21,7 @@ function writeSessionFile(rootDir, threadId, lines) {
 process.env.HOME = tempHome;
 
 const personalRoot = join(tempHome, '.codex', 'sessions');
-const managedRoot = join(tempHome, '.config', 'remotelab', 'provider-runtime-homes', 'codex', 'sessions');
+const managedRoot = join(tempHome, '.config', 'melody-sync', 'provider-runtime-homes', 'codex', 'sessions');
 
 writeSessionFile(personalRoot, 'thread-personal', [
   {
@@ -130,7 +130,7 @@ writeSessionFile(managedRoot, 'thread-managed', [
   {
     timestamp: '2026-03-18T22:00:01.000Z',
     type: 'event_msg',
-    payload: { type: 'user_message', message: '[Manager turn policy reminder]\n\nCurrent user message:\nRemoteLab 这边也看一下。' },
+    payload: { type: 'user_message', message: '[Manager turn policy reminder]\n\nCurrent user message:\nMelodySync 这边也看一下。' },
   },
   {
     timestamp: '2026-03-18T22:00:02.000Z',
@@ -211,7 +211,7 @@ try {
   assert.equal(summary.byModel[0].key, 'gpt-5.4', 'model aggregation should be preserved');
   assert.equal(summary.byCwd[0].key, '/Users/test/repo-a', 'cwd aggregation should preserve the top directory');
   assert.equal(summary.topSessions[0].promptPreview, '再看看最近两天是不是都在 xhigh。', 'top session should retain the latest contributing user prompt');
-  assert.equal(summary.topSessions[1].promptPreview, 'RemoteLab 这边也看一下。', 'manager wrapper should be stripped from prompt previews');
+  assert.equal(summary.topSessions[1].promptPreview, 'MelodySync 这边也看一下。', 'manager wrapper should be stripped from prompt previews');
 
   const rendered = renderCodexUsageSummary(summary);
   assert.match(rendered, /Total tokens: 315/, 'text rendering should include total tokens');

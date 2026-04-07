@@ -63,7 +63,7 @@ function createContext({ inlineAssetVersion = '' } = {}) {
       };
     },
     window: {
-      __REMOTELAB_BUILD__: inlineAssetVersion ? { assetVersion: inlineAssetVersion } : undefined,
+      __MELODYSYNC_BUILD__: inlineAssetVersion ? { assetVersion: inlineAssetVersion } : undefined,
       location: {
         href: 'http://127.0.0.1/',
         origin: 'http://127.0.0.1',

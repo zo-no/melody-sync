@@ -145,6 +145,16 @@ function findLastHiddenEventIndex(events = []) {
   return -1;
 }
 
+function findLastAssistantMessageIndex(events = []) {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event?.type === 'message' && event.role === 'assistant') {
+      return index;
+    }
+  }
+  return -1;
+}
+
 function flushTurnInto(target, turn, { sessionRunning = false } = {}) {
   if (!turn?.user) return;
   target.push(stripDeferredBodyFields(turn.user));
@@ -157,24 +167,27 @@ function flushTurnInto(target, turn, { sessionRunning = false } = {}) {
     return;
   }
 
-  const lastHiddenIndex = findLastHiddenEventIndex(bodyEvents);
-  if (lastHiddenIndex < 0) {
+  const lastAssistantIndex = findLastAssistantMessageIndex(bodyEvents);
+  if (lastAssistantIndex < 0) {
     emitSegmentedTurnBody(target, bodyEvents, { sessionRunning });
     return;
   }
 
-  const visibleTail = bodyEvents.slice(lastHiddenIndex + 1).filter(isVisibleEvent);
-  if (visibleTail.length === 0) {
-    emitSegmentedTurnBody(target, bodyEvents, { sessionRunning });
-    return;
-  }
-
-  const collapsedPrefix = bodyEvents.slice(0, lastHiddenIndex + 1);
-  if (collapsedPrefix.length > 0) {
+  const collapsedPrefix = bodyEvents.slice(0, lastAssistantIndex);
+  if (collapsedPrefix.length > 0 && (
+    collapsedPrefix.some((event) => event?.type === 'message' && event.role === 'assistant')
+    || findLastHiddenEventIndex(collapsedPrefix) >= 0
+  )) {
     target.push(buildThinkingBlockEvent(collapsedPrefix, 'completed'));
+  } else if (collapsedPrefix.length > 0) {
+    emitSegmentedTurnBody(target, collapsedPrefix, { sessionRunning });
   }
-  for (const event of visibleTail) {
-    pushVisibleEvent(target, event);
+
+  pushVisibleEvent(target, bodyEvents[lastAssistantIndex]);
+
+  const trailingEvents = bodyEvents.slice(lastAssistantIndex + 1);
+  if (trailingEvents.length > 0) {
+    emitSegmentedTurnBody(target, trailingEvents, { sessionRunning });
   }
 }
 

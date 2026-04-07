@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-const home = mkdtempSync(join(tmpdir(), 'remotelab-spool-delta-'));
+const home = mkdtempSync(join(tmpdir(), 'melodysync-spool-delta-'));
 const previousHome = process.env.HOME;
 process.env.HOME = home;
 

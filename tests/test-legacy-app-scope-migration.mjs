@@ -7,7 +7,7 @@ import { spawnSync } from 'child_process';
 import { pathToFileURL } from 'url';
 
 const repoRoot = process.cwd();
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-legacy-app-scope-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-legacy-app-scope-'));
 process.env.HOME = tempHome;
 
 const config = await import(

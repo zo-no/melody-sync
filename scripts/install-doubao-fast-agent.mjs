@@ -10,7 +10,7 @@ import { TOOLS_FILE } from '../lib/config.mjs';
 const HOME = homedir();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
-const DEFAULT_CONFIG_PATH = join(HOME, '.config', 'remotelab', 'doubao-fast-agent.json');
+const DEFAULT_CONFIG_PATH = join(HOME, '.config', 'melody-sync', 'doubao-fast-agent.json');
 const DEFAULT_AIDER_ENV_PATH = join(HOME, '.config', 'aider', 'doubao.env');
 const DEFAULT_MODEL = 'doubao-seed-2-0-pro-260215';
 const DEFAULT_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3';
@@ -36,8 +36,8 @@ Options:
   --base-url <url>         OpenAI-compatible Ark base URL (default: ${DEFAULT_BASE_URL})
   --model <id>             Model id or endpoint id (default: ${DEFAULT_MODEL})
   --config <path>          Config output path (default: ${DEFAULT_CONFIG_PATH})
-  --tool-id <id>           RemoteLab tool id (default: ${DEFAULT_TOOL_ID})
-  --tool-name <name>       RemoteLab tool label (default: ${DEFAULT_TOOL_NAME})
+  --tool-id <id>           MelodySync tool id (default: ${DEFAULT_TOOL_ID})
+  --tool-name <name>       MelodySync tool label (default: ${DEFAULT_TOOL_NAME})
   -h, --help               Show this help
 
 If no api key is passed, the installer checks env vars and then:

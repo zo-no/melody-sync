@@ -21,7 +21,7 @@ const result = spawnSync('node', ['scripts/install-micro-agent.mjs', '--tool-id'
 });
 
 assert.equal(result.status, 0, result.stderr || result.stdout);
-const toolsPath = join(homeDir, '.config', 'remotelab', 'tools.json');
+const toolsPath = join(homeDir, '.melodysync', 'config', 'tools.json');
 const tools = JSON.parse(readFileSync(toolsPath, 'utf8'));
 const record = tools.find((tool) => tool.id === 'micro-agent-test');
 

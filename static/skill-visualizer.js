@@ -10,7 +10,7 @@
   const graphArea = document.getElementById('graphArea');
   const nodeLayer = document.getElementById('nodesLayer');
   const edgeCanvas = document.getElementById('edgeCanvas');
-  const storageKey = 'remotelab.skill-visualizer.last';
+  const storageKey = 'melodysync.skill-visualizer.last';
   const defaultSample = `# 示例 Skill: 批量导出日报
 
 ## 输入

@@ -11,9 +11,9 @@ const repoRoot = process.cwd()
 const {
   DEFAULT_SESSION_SYSTEM_PROMPT,
   buildExternalTriggerId,
-  buildRemoteLabMessage,
+  buildMelodySyncMessage,
   createRuntimeContext,
-  generateRemoteLabReply,
+  generateMelodySyncReply,
   loadConfig,
   normalizeIngressEvent,
   normalizeSpokenReplyText,
@@ -23,7 +23,7 @@ const {
   DEFAULT_STT_TIMEOUT_MS,
 } = await import(pathToFileURL(join(repoRoot, 'lib', 'voice-connector-config.mjs')).href)
 
-const tempConfigDir = await mkdtemp(join(tmpdir(), 'remotelab-voice-config-'))
+const tempConfigDir = await mkdtemp(join(tmpdir(), 'melodysync-voice-config-'))
 const tempConfigPath = join(tempConfigDir, 'config.json')
 
 await writeFile(tempConfigPath, `${JSON.stringify({
@@ -100,7 +100,7 @@ await writeFile(tempConfigPath, `${JSON.stringify({
   connectorId: 'living-room-speaker',
   roomName: 'Living Room',
   chatBaseUrl: 'http://127.0.0.1:7690',
-  sessionFolder: '/definitely/missing/remotelab/voice-folder',
+  sessionFolder: '/definitely/missing/melodysync/voice-folder',
   wake: {
     mode: 'stdin',
     keyword: 'Hey Rowan',
@@ -147,7 +147,7 @@ assert.ok(plainIngress.eventId.startsWith('voice-'))
 assert.equal(buildExternalTriggerId({ connectorId: 'Living Room Speaker' }), 'voice:living-room-speaker')
 assert.equal(buildExternalTriggerId({ connectorId: 'Living Room Speaker', eventId: 'wake_1' }, { sessionMode: 'per-wake' }), 'voice:living-room-speaker:wake_1')
 
-const renderedPrompt = buildRemoteLabMessage({
+const renderedPrompt = buildMelodySyncMessage({
   connectorId: 'living-room-speaker',
   roomName: 'Living Room',
   wakeWord: 'Hey Rowan',
@@ -231,7 +231,7 @@ try {
   })
   runtime.authCookie = 'session_token=test-cookie'
 
-  const reply = await generateRemoteLabReply(runtime, {
+  const reply = await generateMelodySyncReply(runtime, {
     eventId: 'wake_1',
     connectorId: 'living-room-speaker',
     roomName: 'Living Room',
@@ -267,4 +267,4 @@ try {
 console.log('ok - voice connector config defaults load correctly')
 console.log('ok - voice ingress normalization handles JSON and plain text')
 console.log('ok - voice messages stay transcript-first')
-console.log('ok - RemoteLab roundtrip uses the voice app scope')
+console.log('ok - MelodySync roundtrip uses the voice app scope')

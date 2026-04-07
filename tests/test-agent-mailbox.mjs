@@ -14,7 +14,7 @@ import {
 } from './lib/agent-mailbox.mjs';
 
 function testCloudflareWebhookHealthy() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-healthy-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-healthy-'));
   try {
     initializeMailbox({
       rootDir,
@@ -45,7 +45,7 @@ function testCloudflareWebhookHealthy() {
 }
 
 function testCloudflareQueueReady() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-ready-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-ready-'));
   try {
     initializeMailbox({
       rootDir,
@@ -77,7 +77,7 @@ function testCloudflareQueueReady() {
 }
 
 function testCloudflareValidatedDelivery() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-validated-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-validated-'));
   try {
     initializeMailbox({
       rootDir,
@@ -110,7 +110,7 @@ function testCloudflareValidatedDelivery() {
 }
 
 function testAllowlistAutoApprove() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-auto-approve-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-auto-approve-'));
   try {
     initializeMailbox({
       rootDir,
@@ -151,7 +151,7 @@ function testAllowlistAutoApprove() {
 }
 
 function testStripsQuotedReplyContent() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-quoted-reply-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-quoted-reply-'));
   try {
     initializeMailbox({
       rootDir,
@@ -171,7 +171,7 @@ function testStripsQuotedReplyContent() {
         'References: <root-thread@example.com>',
         'Content-Type: text/plain; charset=UTF-8',
         '',
-        'email test turn2, did you continue use the same remotelab chat session ?',
+        'email test turn2, did you continue use the same MelodySync chat session ?',
         '',
         'On Tue, Mar 10, 2026 at 9:56 PM <rowan@jiujianian.dev> wrote:',
         '> Hi! Got your test email successfully — everything looks good on my end.',
@@ -183,7 +183,7 @@ function testStripsQuotedReplyContent() {
       rootDir,
       {
         text: [
-          'email test turn2, did you continue use the same remotelab chat session ?',
+          'email test turn2, did you continue use the same MelodySync chat session ?',
           '',
           'On Tue, Mar 10, 2026 at 9:56 PM <rowan@jiujianian.dev> wrote:',
           '> Hi! Got your test email successfully — everything looks good on my end.',
@@ -194,8 +194,8 @@ function testStripsQuotedReplyContent() {
       },
     );
 
-    assert.equal(ingested.content.extractedText, 'email test turn2, did you continue use the same remotelab chat session ?');
-    assert.equal(ingested.content.preview, 'email test turn2, did you continue use the same remotelab chat session ?');
+    assert.equal(ingested.content.extractedText, 'email test turn2, did you continue use the same MelodySync chat session ?');
+    assert.equal(ingested.content.preview, 'email test turn2, did you continue use the same MelodySync chat session ?');
     assert.doesNotMatch(ingested.content.extractedText, /wrote:/i);
     assert.doesNotMatch(ingested.content.extractedText, /^>/m);
   } finally {
@@ -204,7 +204,7 @@ function testStripsQuotedReplyContent() {
 }
 
 function testStripsUniformQuotedReplyContent() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-uniform-quoted-reply-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-uniform-quoted-reply-'));
   try {
     initializeMailbox({
       rootDir,
@@ -224,7 +224,7 @@ function testStripsUniformQuotedReplyContent() {
         'References: <root-thread@example.com>',
         'Content-Type: text/plain; charset=UTF-8',
         '',
-        '> email trim test turn2, did you continue use the same remotelab chat session ?',
+        '> email trim test turn2, did you continue use the same MelodySync chat session ?',
         '>',
         '> On Tue, Mar 10, 2026 at 9:56 PM <rowan@jiujianian.dev> wrote:',
         '> > Hi! Got your test email successfully - everything looks good on my end.',
@@ -236,7 +236,7 @@ function testStripsUniformQuotedReplyContent() {
       rootDir,
       {
         text: [
-          '> email trim test turn2, did you continue use the same remotelab chat session ?',
+          '> email trim test turn2, did you continue use the same MelodySync chat session ?',
           '>',
           '> On Tue, Mar 10, 2026 at 9:56 PM <rowan@jiujianian.dev> wrote:',
           '> > Hi! Got your test email successfully - everything looks good on my end.',
@@ -247,8 +247,8 @@ function testStripsUniformQuotedReplyContent() {
       },
     );
 
-    assert.equal(ingested.content.extractedText, 'email trim test turn2, did you continue use the same remotelab chat session ?');
-    assert.equal(ingested.content.preview, 'email trim test turn2, did you continue use the same remotelab chat session ?');
+    assert.equal(ingested.content.extractedText, 'email trim test turn2, did you continue use the same MelodySync chat session ?');
+    assert.equal(ingested.content.preview, 'email trim test turn2, did you continue use the same MelodySync chat session ?');
     assert.doesNotMatch(ingested.content.extractedText, /wrote:/i);
     assert.doesNotMatch(ingested.content.extractedText, /^>/m);
   } finally {
@@ -257,7 +257,7 @@ function testStripsUniformQuotedReplyContent() {
 }
 
 function testDecodesBase64BodyText() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-base64-body-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-base64-body-'));
   try {
     initializeMailbox({
       rootDir,
@@ -294,7 +294,7 @@ function testDecodesBase64BodyText() {
 }
 
 function testDecodesNestedMultipartBodyText() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-nested-multipart-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-nested-multipart-'));
   try {
     initializeMailbox({
       rootDir,
@@ -349,7 +349,7 @@ function testDecodesNestedMultipartBodyText() {
 }
 
 function testExtractsInlineImageAttachments() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-inline-image-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-inline-image-'));
   try {
     initializeMailbox({
       rootDir,
@@ -406,7 +406,7 @@ function testExtractsInlineImageAttachments() {
 }
 
 function testEnvelopeRecipientRoutesToGuestInstanceAlias() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-routing-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-routing-'));
   try {
     initializeMailbox({
       rootDir,
@@ -451,7 +451,7 @@ function testEnvelopeRecipientRoutesToGuestInstanceAlias() {
 }
 
 function testSubjectInstanceTagRoutesBaseMailboxToGuestInstance() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-subject-routing-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-subject-routing-'));
   try {
     initializeMailbox({
       rootDir,
@@ -493,7 +493,7 @@ function testSubjectInstanceTagRoutesBaseMailboxToGuestInstance() {
 }
 
 function testDirectInstanceRecipientRoutesWhenLocalPartModeEnabled() {
-  const rootDir = mkdtempSync(join(tmpdir(), 'remotelab-agent-mailbox-direct-routing-'));
+  const rootDir = mkdtempSync(join(tmpdir(), 'melodysync-agent-mailbox-direct-routing-'));
   try {
     initializeMailbox({
       rootDir,

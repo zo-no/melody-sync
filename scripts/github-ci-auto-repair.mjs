@@ -33,9 +33,9 @@ Options:
   --events <a,b>              Comma-separated events to watch
   --workflow <name>           Workflow filter by name/path/id (repeatable)
   --workflows <a,b>           Comma-separated workflow filters
-  --chat-base-url <url>       RemoteLab base URL (default: ${DEFAULT_CHAT_BASE_URL})
-  --session-folder <path>     Local repo path used for RemoteLab sessions (default: ${PROJECT_ROOT})
-  --session-tool <tool>       Tool used for RemoteLab sessions (default: ${DEFAULT_SESSION_TOOL})
+  --chat-base-url <url>       MelodySync base URL (default: ${DEFAULT_CHAT_BASE_URL})
+  --session-folder <path>     Local repo path used for MelodySync sessions (default: ${PROJECT_ROOT})
+  --session-tool <tool>       Tool used for MelodySync sessions (default: ${DEFAULT_SESSION_TOOL})
   --model <id>                Optional model override for submitted messages
   --effort <level>            Optional effort override for submitted messages
   --thinking                  Enable thinking for submitted messages
@@ -46,7 +46,7 @@ Options:
   --max-log-chars <count>     Max failed log characters included in the prompt (default: ${DEFAULT_MAX_LOG_CHARS})
   --state-file <path>         Override state file path
   --snapshot-dir <path>       Override snapshot directory
-  --dry-run                   Print candidates without creating RemoteLab sessions
+  --dry-run                   Print candidates without creating MelodySync sessions
   --json                      Print machine-readable JSON summary
   --verbose                   Print extra details
   -h, --help                  Show this help
@@ -55,7 +55,7 @@ Behavior:
   - Polls GitHub Actions runs through gh CLI
   - Looks at the latest matching run for each branch/workflow group
   - Skips runs that are still in progress, already handled, or still within the settle window
-  - Creates a RemoteLab session with failure context and a repair task when a latest branch CI run is red
+  - Creates a MelodySync session with failure context and a repair task when a latest branch CI run is red
 `;
   console.log(message);
   process.exit(exitCode);
@@ -103,11 +103,11 @@ function slugify(value, fallback = 'item') {
 }
 
 function defaultStateFile(repo) {
-  return join(homedir(), '.config', 'remotelab', 'github-ci-auto-repair', `${repoKey(repo)}.json`);
+  return join(homedir(), '.config', 'melody-sync', 'github-ci-auto-repair', `${repoKey(repo)}.json`);
 }
 
 function defaultSnapshotDir(repo) {
-  return join(homedir(), '.config', 'remotelab', 'github-ci-auto-repair', 'snapshots', repoKey(repo));
+  return join(homedir(), '.config', 'melody-sync', 'github-ci-auto-repair', 'snapshots', repoKey(repo));
 }
 
 function ensureDir(path) {
@@ -132,7 +132,7 @@ function writeJson(path, value) {
 }
 
 function normalizeBaseUrl(value) {
-  return trimString(value || process.env.REMOTELAB_CHAT_BASE_URL || DEFAULT_CHAT_BASE_URL).replace(/\/+$/, '') || DEFAULT_CHAT_BASE_URL;
+  return trimString(value || process.env.MELODYSYNC_CHAT_BASE_URL || DEFAULT_CHAT_BASE_URL).replace(/\/+$/, '') || DEFAULT_CHAT_BASE_URL;
 }
 
 function parseArgs(argv = []) {
@@ -618,7 +618,7 @@ function buildRequestId(repo, run) {
 
 function buildSessionSystemPrompt() {
   return [
-    'You were triggered automatically by the RemoteLab GitHub CI repair monitor.',
+    'You were triggered automatically by the MelodySync GitHub CI repair monitor.',
     'Treat this as an autonomous repair session for a failed branch CI run.',
     'Work directly in the local repo path provided in the user message.',
     'First inspect the workflow and reproduce the failure locally with the closest commands.',
@@ -683,7 +683,7 @@ async function loginWithToken(baseUrl, token) {
   });
   const setCookie = response.headers.get('set-cookie');
   if (response.status !== 302 || !setCookie) {
-    throw new Error(`Failed to authenticate to RemoteLab at ${baseUrl} (status ${response.status})`);
+    throw new Error(`Failed to authenticate to MelodySync at ${baseUrl} (status ${response.status})`);
   }
   return setCookie.split(';')[0];
 }
@@ -725,7 +725,7 @@ async function ensureAuthCookie(runtime, forceRefresh = false) {
   return runtime.authCookie;
 }
 
-async function requestRemoteLab(runtime, path, options = {}) {
+async function requestMelodySync(runtime, path, options = {}) {
   const cookie = await ensureAuthCookie(runtime, false);
   let result = await requestJson(runtime.baseUrl, path, { ...options, cookie });
   if ([401, 403].includes(result.response.status)) {
@@ -751,7 +751,7 @@ async function triggerRepairSession(options, runtime, incident) {
     systemPrompt: buildSessionSystemPrompt(),
     externalTriggerId,
   };
-  const createResult = await requestRemoteLab(runtime, '/api/sessions', {
+  const createResult = await requestMelodySync(runtime, '/api/sessions', {
     method: 'POST',
     body: sessionPayload,
   });
@@ -776,7 +776,7 @@ async function triggerRepairSession(options, runtime, incident) {
   if (options.model) messagePayload.model = options.model;
   if (options.effort) messagePayload.effort = options.effort;
 
-  const submitResult = await requestRemoteLab(runtime, `/api/sessions/${createResult.json.session.id}/messages`, {
+  const submitResult = await requestMelodySync(runtime, `/api/sessions/${createResult.json.session.id}/messages`, {
     method: 'POST',
     body: messagePayload,
   });
@@ -787,7 +787,7 @@ async function triggerRepairSession(options, runtime, incident) {
   return {
     sessionId: createResult.json.session.id,
     sessionName: trimString(createResult.json.session.name || sessionPayload.name),
-    remotelabRunId: submitResult.json.run.id,
+    melodysyncRunId: submitResult.json.run.id,
     requestId,
     externalTriggerId,
   };
@@ -928,7 +928,7 @@ export async function runGithubCiAutoRepair(argv = []) {
       url: trimString(incident.run.html_url),
       sessionId: sessionResult.sessionId,
       sessionName: sessionResult.sessionName,
-      remotelabRunId: sessionResult.remotelabRunId,
+      melodysyncRunId: sessionResult.melodysyncRunId,
       requestId: sessionResult.requestId,
       snapshotFile: incident.snapshotFile,
       triggeredAt,
@@ -940,7 +940,7 @@ export async function runGithubCiAutoRepair(argv = []) {
       workflow: workflowLabel(incident.run),
       url: trimString(incident.run.html_url),
       sessionId: sessionResult.sessionId,
-      remotelabRunId: sessionResult.remotelabRunId,
+      melodysyncRunId: sessionResult.melodysyncRunId,
       snapshotFile: incident.snapshotFile,
     });
   }

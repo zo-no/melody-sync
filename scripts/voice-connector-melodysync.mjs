@@ -67,7 +67,7 @@ function buildSessionDescription(config, summary) {
   return parts.join(' · ')
 }
 
-function buildRemoteLabMessage(summary) {
+function buildMelodySyncMessage(summary) {
   return trimString(summary?.transcript)
 }
 
@@ -92,7 +92,7 @@ async function loginWithToken(baseUrl, token) {
   })
   const setCookie = response.headers.get('set-cookie')
   if (response.status !== 302 || !setCookie) {
-    throw new Error(`Failed to authenticate to RemoteLab at ${baseUrl} (status ${response.status})`)
+    throw new Error(`Failed to authenticate to MelodySync at ${baseUrl} (status ${response.status})`)
   }
   return setCookie.split(';')[0]
 }
@@ -147,7 +147,7 @@ async function loadAssistantReply(requester, sessionId, runId, requestId) {
 }
 
 async function loadAssistantReplyByRequest(runtime, sessionId, requestId, runId) {
-  const eventsResult = await requestRemoteLab(runtime, `/api/sessions/${sessionId}/events?filter=all`)
+  const eventsResult = await requestMelodySync(runtime, `/api/sessions/${sessionId}/events?filter=all`)
   if (!eventsResult.response.ok || !Array.isArray(eventsResult.json?.events)) {
     throw new Error(eventsResult.json?.error || eventsResult.text || `Failed to load session events for ${sessionId}`)
   }
@@ -160,7 +160,7 @@ async function loadAssistantReplyByRequest(runtime, sessionId, requestId, runId)
       || (normalizedRunId && trimString(event?.runId) === normalizedRunId)
     ),
     hydrate: async (event) => {
-      const bodyResult = await requestRemoteLab(runtime, `/api/sessions/${sessionId}/events/${event.seq}/body`)
+      const bodyResult = await requestMelodySync(runtime, `/api/sessions/${sessionId}/events/${event.seq}/body`)
       if (!bodyResult.response.ok || bodyResult.json?.body?.value === undefined) {
         return event
       }
@@ -213,7 +213,7 @@ async function ensureAuthCookie(runtime, forceRefresh = false) {
   return runtime.authCookie
 }
 
-async function requestRemoteLab(runtime, path, options = {}) {
+async function requestMelodySync(runtime, path, options = {}) {
   const cookie = await ensureAuthCookie(runtime, false)
   let result = await requestJson(runtime.config.chatBaseUrl, path, { ...options, cookie })
   if ([401, 403].includes(result.response.status)) {
@@ -237,7 +237,7 @@ async function createOrReuseSession(runtime, summary) {
     systemPrompt: runtime.config.systemPrompt,
     externalTriggerId: buildExternalTriggerId(summary, runtime.config),
   }
-  const result = await requestRemoteLab(runtime, '/api/sessions', {
+  const result = await requestMelodySync(runtime, '/api/sessions', {
     method: 'POST',
     body: payload,
   })
@@ -247,17 +247,17 @@ async function createOrReuseSession(runtime, summary) {
   return result.json.session
 }
 
-async function submitRemoteLabMessage(runtime, sessionId, summary) {
+async function submitMelodySyncMessage(runtime, sessionId, summary) {
   const payload = {
     requestId: buildRequestId(summary, runtime.config),
-    text: buildRemoteLabMessage(summary),
+    text: buildMelodySyncMessage(summary),
     tool: runtime.config.sessionTool,
     thinking: runtime.config.thinking === true,
   }
   if (runtime.config.model) payload.model = runtime.config.model
   if (runtime.config.effort) payload.effort = runtime.config.effort
 
-  const result = await requestRemoteLab(runtime, `/api/sessions/${sessionId}/messages`, {
+  const result = await requestMelodySync(runtime, `/api/sessions/${sessionId}/messages`, {
     method: 'POST',
     body: payload,
   })
@@ -276,7 +276,7 @@ async function submitRemoteLabMessage(runtime, sessionId, summary) {
 async function waitForRunCompletion(runtime, runId) {
   const deadline = Date.now() + RUN_POLL_TIMEOUT_MS
   while (Date.now() < deadline) {
-    const result = await requestRemoteLab(runtime, `/api/runs/${runId}`)
+    const result = await requestMelodySync(runtime, `/api/runs/${runId}`)
     if (!result.response.ok || !result.json?.run) {
       throw new Error(result.json?.error || result.text || `Failed to load run ${runId}`)
     }
@@ -292,13 +292,13 @@ async function waitForRunCompletion(runtime, runId) {
   throw new Error(`run timed out after ${RUN_POLL_TIMEOUT_MS}ms`)
 }
 
-async function generateRemoteLabReply(runtime, summary) {
+async function generateMelodySyncReply(runtime, summary) {
   const session = await createOrReuseSession(runtime, summary)
-  const submission = await submitRemoteLabMessage(runtime, session.id, summary)
+  const submission = await submitMelodySyncMessage(runtime, session.id, summary)
   if (submission.runId) {
     await waitForRunCompletion(runtime, submission.runId)
     const replyEvent = await loadAssistantReply(
-      (path) => requestRemoteLab(runtime, path),
+      (path) => requestMelodySync(runtime, path),
       session.id,
       submission.runId,
       submission.requestId,
@@ -333,9 +333,9 @@ async function generateRemoteLabReply(runtime, summary) {
 
 export {
   buildExternalTriggerId,
-  buildRemoteLabMessage,
+  buildMelodySyncMessage,
   ensureAuthCookie,
-  generateRemoteLabReply,
+  generateMelodySyncReply,
   loginWithToken,
   normalizeSpokenReplyText,
   readOwnerToken,

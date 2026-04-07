@@ -12,8 +12,8 @@
     "workflow.priority.lowTitle": "Safe to leave for later.",
     "workflow.status.waiting": "waiting",
     "workflow.status.waitingTitle": "Waiting on user input",
-    "workflow.status.done": "done",
-    "workflow.status.doneTitle": "Current task complete",
+    "workflow.status.done": "completed",
+    "workflow.status.doneTitle": "Current task completed",
     "workflow.status.parked": "parked",
     "workflow.status.parkedTitle": "Parked for later",
     "workflow.status.queued": "queued",
@@ -82,7 +82,7 @@
       label: t("workflow.status.done"),
       className: "status-done",
       dotClass: "",
-      itemClass: "",
+      itemClass: "is-done-session",
       title: t("workflow.status.doneTitle"),
     },
     parked: {
@@ -125,7 +125,7 @@
     if (["waiting", "waiting_user", "waiting_for_user", "waiting_on_user", "needs_user", "needs_input"].includes(normalized)) {
       return "waiting_user";
     }
-    if (["done", "complete", "completed", "finished"].includes(normalized)) {
+    if (["done", "complete", "completed", "finished", "完成", "已完成", "运行完毕", "运行完成"].includes(normalized)) {
       return "done";
     }
     if (["parked", "paused", "pause", "backlog", "todo"].includes(normalized)) {

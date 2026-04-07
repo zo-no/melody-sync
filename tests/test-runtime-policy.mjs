@@ -4,7 +4,7 @@ import { lstatSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-const home = mkdtempSync(join(tmpdir(), 'remotelab-runtime-policy-'));
+const home = mkdtempSync(join(tmpdir(), 'melodysync-runtime-policy-'));
 const personalCodexHome = join(home, '.codex');
 mkdirSync(personalCodexHome, { recursive: true });
 writeFileSync(join(personalCodexHome, 'auth.json'), '{"token":"test"}\n', 'utf8');
@@ -19,7 +19,7 @@ const {
 } = await import('../backend/runtime-policy.mjs');
 
 try {
-  const managedHome = join(home, '.config', 'remotelab', 'provider-runtime-homes', 'codex-test');
+  const managedHome = join(home, '.config', 'melody-sync', 'provider-runtime-homes', 'codex-test');
   const resolvedManagedHome = await ensureManagedCodexHome({
     homeDir: managedHome,
     authSource: join(personalCodexHome, 'auth.json'),

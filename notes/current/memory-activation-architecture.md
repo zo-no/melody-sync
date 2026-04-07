@@ -4,7 +4,7 @@ Related broader prompt topology: `notes/current/prompt-layer-topology.md`.
 
 ## Problem
 
-RemoteLab already has storage tiers, but the old startup contract eagerly told the agent to read memory at session start. That mixes up two different concerns:
+MelodySync already has storage tiers, but the old startup contract eagerly told the agent to read memory at session start. That mixes up two different concerns:
 
 - storage: where memory lives
 - activation: when memory should enter the current context
@@ -28,7 +28,7 @@ Always-on memory must stay tiny. It should contain:
 - key directories
 - high-level project pointers
 
-This lives in `~/.remotelab/memory/bootstrap.md`.
+This lives in `~/.melodysync/memory/bootstrap.md`.
 
 ### 2. Scope Router Catalog
 
@@ -40,7 +40,7 @@ Scope routing needs its own layer. It should contain:
 - trigger phrases / task clues
 - the next file, skill, or path to open
 
-This lives in `~/.remotelab/memory/projects.md`.
+This lives in `~/.melodysync/memory/projects.md`.
 
 This layer is for scope selection, not deep context loading.
 
@@ -48,7 +48,7 @@ This layer is for scope selection, not deep context loading.
 
 Once the task scope is clear, the agent can open:
 
-- `~/.remotelab/memory/tasks/`
+- `~/.melodysync/memory/tasks/`
 - project docs
 - repo-local notes
 - KM / wiki / internal docs
@@ -85,8 +85,8 @@ It should not be loaded wholesale for every new session.
 ## Implementation Surface
 
 - `backend/system-prompt.mjs`: define pointer-first startup behavior
-- `~/.remotelab/memory/bootstrap.md`: tiny startup layer
-- `~/.remotelab/memory/projects.md`: scope-routing layer
+- `~/.melodysync/memory/bootstrap.md`: tiny startup layer
+- `~/.melodysync/memory/projects.md`: scope-routing layer
 - `memory/system.md`: shared principles about activation, writeback, and pruning
 
 ## Important Non-Goal

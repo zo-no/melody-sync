@@ -6,7 +6,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-user-shell-env-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-user-shell-env-'));
 const shellBin = join(tempHome, 'shell-bin');
 const processBin = join(tempHome, 'process-bin');
 
@@ -24,7 +24,7 @@ for (const target of [
 writeFileSync(
   join(tempHome, '.bash_profile'),
   [
-    'export REMOTELAB_SHELL_TEST_FLAG="from-shell-profile"',
+    'export MELODYSYNC_SHELL_TEST_FLAG="from-shell-profile"',
     'export PATH="$HOME/shell-bin:$PATH"',
   ].join('\n'),
   'utf8',
@@ -34,13 +34,13 @@ const originalEnv = {
   HOME: process.env.HOME,
   PATH: process.env.PATH,
   SHELL: process.env.SHELL,
-  REMOTELAB_USER_SHELL_ENV_B64: process.env.REMOTELAB_USER_SHELL_ENV_B64,
+  MELODYSYNC_USER_SHELL_ENV_B64: process.env.MELODYSYNC_USER_SHELL_ENV_B64,
 };
 
 process.env.HOME = tempHome;
 process.env.SHELL = '/bin/bash';
 process.env.PATH = `${processBin}:${process.env.PATH || ''}`;
-delete process.env.REMOTELAB_USER_SHELL_ENV_B64;
+delete process.env.MELODYSYNC_USER_SHELL_ENV_B64;
 
 try {
   const shellEnvModule = await import(pathToFileURL(join(repoRoot, 'lib', 'user-shell-env.mjs')).href);
@@ -58,7 +58,7 @@ try {
   );
 
   const env = buildToolProcessEnv();
-  assert.equal(env.REMOTELAB_SHELL_TEST_FLAG, 'from-shell-profile', 'tool env should inherit shell-exported variables');
+  assert.equal(env.MELODYSYNC_SHELL_TEST_FLAG, 'from-shell-profile', 'tool env should inherit shell-exported variables');
 
   const resolved = await resolveToolCommandPathAsync('shell-path-order-tool');
   assert.equal(resolved, join(shellBin, 'shell-path-order-tool'), 'tool resolution should follow the shell-derived PATH order');
@@ -72,8 +72,8 @@ try {
   if (originalEnv.SHELL === undefined) delete process.env.SHELL;
   else process.env.SHELL = originalEnv.SHELL;
 
-  if (originalEnv.REMOTELAB_USER_SHELL_ENV_B64 === undefined) delete process.env.REMOTELAB_USER_SHELL_ENV_B64;
-  else process.env.REMOTELAB_USER_SHELL_ENV_B64 = originalEnv.REMOTELAB_USER_SHELL_ENV_B64;
+  if (originalEnv.MELODYSYNC_USER_SHELL_ENV_B64 === undefined) delete process.env.MELODYSYNC_USER_SHELL_ENV_B64;
+  else process.env.MELODYSYNC_USER_SHELL_ENV_B64 = originalEnv.MELODYSYNC_USER_SHELL_ENV_B64;
 
   rmSync(tempHome, { recursive: true, force: true });
 }

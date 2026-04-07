@@ -1,4 +1,4 @@
-# RemoteLab Core Philosophy & Design Principles
+# MelodySync Core Philosophy & Design Principles
 
 > 形成于 2026-03-05。
 > 本文档只保留稳定的产品哲学，不再重复实现细节、阶段性 TODO 或当前状态表。
@@ -9,13 +9,13 @@
 
 ## 核心定位
 
-RemoteLab 不是：
+MelodySync 不是：
 
 - 终端模拟器
 - 手机版 IDE
 - 普通聊天机器人
 
-RemoteLab 是：
+MelodySync 是：
 
 - 一个让人类远程指挥 AI worker 的控制台
 - 一个把“AI 在真实电脑上工作”变成长期协作关系的产品
@@ -67,7 +67,7 @@ Skills 可以是：
 
 ### 5. 单 Owner 是默认前提
 
-RemoteLab 不是多租户 SaaS。
+MelodySync 不是多租户 SaaS。
 
 - Owner 是默认中心
 - 非 Owner 访问通过 App scope 暴露
@@ -81,7 +81,7 @@ RemoteLab 不是多租户 SaaS。
 
 ## 命名与边界
 
-- 产品和路径命名优先使用 `remotelab`
+- 产品和路径命名优先使用 `melodysync`
 - 终端 fallback plane 继续视为冻结安全网
 - 无外部框架、Vanilla JS、三服务心智继续保持
 

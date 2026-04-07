@@ -22,7 +22,7 @@ import {
 import { resolveExternalRuntimeSelection } from '../lib/external-runtime-selection.mjs';
 import { loadUiRuntimeSelection } from '../lib/runtime-selection.mjs';
 
-const DEFAULT_OWNER_CONFIG_DIR = join(homedir(), '.config', 'remotelab');
+const DEFAULT_OWNER_CONFIG_DIR = join(homedir(), '.config', 'melody-sync');
 const DEFAULT_GUEST_REGISTRY_FILE = join(DEFAULT_OWNER_CONFIG_DIR, 'guest-instances.json');
 
 function parseArgs(argv) {
@@ -133,7 +133,7 @@ function sameBaseUrl(leftValue, rightValue) {
 }
 
 function loadGuestRegistry() {
-  const records = readJsonFile(process.env.REMOTELAB_GUEST_REGISTRY_FILE || DEFAULT_GUEST_REGISTRY_FILE, []);
+  const records = readJsonFile(process.env.MELODYSYNC_GUEST_REGISTRY_FILE || DEFAULT_GUEST_REGISTRY_FILE, []);
   if (!Array.isArray(records)) return [];
   return records
     .map((record) => ({
@@ -224,7 +224,7 @@ async function requestJson(baseUrl, path, { method = 'GET', cookie, body } = {})
   return { response, json, text };
 }
 
-function createRemoteLabRuntime(baseUrl, { authFile = '' } = {}) {
+function createMelodySyncRuntime(baseUrl, { authFile = '' } = {}) {
   const normalizedAuthFile = normalizeAuthFile(authFile);
   return {
     baseUrl: normalizeBaseUrl(baseUrl),
@@ -253,7 +253,7 @@ async function ensureAuthCookie(runtime, forceRefresh = false) {
   return runtime.authCookie;
 }
 
-async function requestRemoteLab(runtime, path, options = {}) {
+async function requestMelodySync(runtime, path, options = {}) {
   const request = typeof runtime.requestJson === 'function' ? runtime.requestJson : requestJson;
   const cookie = await ensureAuthCookie(runtime, false);
   let result = await request(runtime.baseUrl, path, { ...options, cookie });
@@ -430,7 +430,7 @@ async function submitApprovedItem(item, rootDir, automation, runtime) {
   const runtimeTarget = resolveRuntimeTarget(item, automation, runtime?.baseUrl || automation.chatBaseUrl);
   const effectiveRuntime = runtimeMatchesTarget(runtime, runtimeTarget)
     ? runtime
-    : createRemoteLabRuntime(runtimeTarget.baseUrl, { authFile: runtimeTarget.authFile });
+    : createMelodySyncRuntime(runtimeTarget.baseUrl, { authFile: runtimeTarget.authFile });
   const uiSelection = await loadUiRuntimeSelection();
   const runtimeSelection = resolveReplyRuntimeSelection(automation, uiSelection);
   const sessionPayload = {
@@ -450,7 +450,7 @@ async function submitApprovedItem(item, rootDir, automation, runtime) {
     sessionPayload.completionTargets = [buildCompletionTarget(item, rootDir, requestId)];
   }
 
-  const createResult = await requestRemoteLab(effectiveRuntime, '/api/sessions', {
+  const createResult = await requestMelodySync(effectiveRuntime, '/api/sessions', {
     method: 'POST',
     body: sessionPayload,
   });
@@ -482,7 +482,7 @@ async function submitApprovedItem(item, rootDir, automation, runtime) {
     messagePayload.effort = runtimeSelection.effort;
   }
 
-  const submitResult = await requestRemoteLab(effectiveRuntime, `/api/sessions/${session.id}/messages`, {
+  const submitResult = await requestMelodySync(effectiveRuntime, `/api/sessions/${session.id}/messages`, {
     method: 'POST',
     body: messagePayload,
   });
@@ -523,7 +523,7 @@ async function submitApprovedItem(item, rootDir, automation, runtime) {
   };
 }
 
-async function runSweep({ rootDir, baseUrl, runtime = createRemoteLabRuntime(baseUrl) }) {
+async function runSweep({ rootDir, baseUrl, runtime = createMelodySyncRuntime(baseUrl) }) {
   const automation = loadMailboxAutomation(rootDir);
   const deliveryMode = normalizeDeliveryMode(automation.deliveryMode);
   if (automation.enabled === false) {
@@ -585,7 +585,7 @@ async function main() {
   const authFile = optionValue(options, 'auth-file', automation.authFile);
   const intervalMs = Math.max(1000, parseInt(optionValue(options, 'interval-ms', '5000'), 10) || 5000);
   const once = optionValue(options, 'once', false) === true;
-  const runtime = createRemoteLabRuntime(baseUrl, { authFile });
+  const runtime = createMelodySyncRuntime(baseUrl, { authFile });
 
   if (once) {
     console.log(JSON.stringify(await runSweep({ rootDir, baseUrl, runtime }), null, 2));
@@ -613,9 +613,9 @@ async function main() {
 }
 
 export {
-  createRemoteLabRuntime,
+  createMelodySyncRuntime,
   ensureAuthCookie,
-  requestRemoteLab,
+  requestMelodySync,
   runSweep,
 };
 

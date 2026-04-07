@@ -30,9 +30,42 @@ export async function resolveCommand(cmd) {
   return cmd;
 }
 
+function normalizeInvocationArgs(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry) => typeof entry === 'string' || Number.isFinite(entry))
+    .map((entry) => String(entry).trim())
+    .filter(Boolean);
+}
+
+function splitCommandWithArgs(command) {
+  const raw = String(command || '').trim();
+  if (!raw) {
+    return { command: '', commandArgs: [] };
+  }
+  const tokens = raw.match(/"[^"]*"|'[^']*'|[^\s]+/g) || [];
+  if (tokens.length <= 1) {
+    return {
+      command: raw,
+      commandArgs: [],
+    };
+  }
+  return {
+    command: tokens[0].replace(/^['"]|['"]$/g, ''),
+    commandArgs: tokens
+      .slice(1)
+      .map((token) => token.replace(/^['"]|['"]$/g, '')),
+  };
+}
+
 export async function createToolInvocation(toolId, prompt, options = {}) {
   const tool = await getToolDefinitionAsync(toolId);
-  const command = tool?.command || await getToolCommandAsync(toolId);
+  const commandSpec = splitCommandWithArgs(tool?.command || await getToolCommandAsync(toolId));
+  const command = commandSpec.command;
+  const commandArgs = [
+    ...normalizeInvocationArgs(commandSpec.commandArgs),
+    ...normalizeInvocationArgs(tool?.commandArgs),
+  ];
   const runtimeFamily = tool?.runtimeFamily
     || (toolId === 'claude' ? 'claude-stream-json' : toolId === 'codex' ? 'codex-json' : null);
   const isClaudeFamily = runtimeFamily === 'claude-stream-json';
@@ -43,34 +76,43 @@ export async function createToolInvocation(toolId, prompt, options = {}) {
 
   if (isClaudeFamily) {
     adapter = createClaudeAdapter();
-    args = buildClaudeArgs(prompt, {
-      dangerouslySkipPermissions: options.dangerouslySkipPermissions,
-      resume: options.claudeSessionId,
-      maxTurns: options.maxTurns,
-      continue: options.continue,
-      allowedTools: options.allowedTools,
-      thinking: options.thinking,
-      model: options.model,
-    });
+    args = [
+      ...commandArgs,
+      ...buildClaudeArgs(prompt, {
+        dangerouslySkipPermissions: options.dangerouslySkipPermissions,
+        resume: options.claudeSessionId,
+        maxTurns: options.maxTurns,
+        continue: options.continue,
+        allowedTools: options.allowedTools,
+        thinking: options.thinking,
+        model: options.model,
+      }),
+    ];
   } else if (isCodexFamily) {
     adapter = createCodexAdapter();
-    args = buildCodexArgs(prompt, {
-      threadId: options.codexThreadId,
-      model: options.model,
-      reasoningEffort: options.effort,
-      developerInstructions: options.developerInstructions,
-      systemPrefix: options.systemPrefix,
-    });
+    args = [
+      ...commandArgs,
+      ...buildCodexArgs(prompt, {
+        threadId: options.codexThreadId,
+        model: options.model,
+        reasoningEffort: options.effort,
+        developerInstructions: options.developerInstructions,
+        systemPrefix: options.systemPrefix,
+      }),
+    ];
   } else {
     adapter = createClaudeAdapter();
-    args = buildClaudeArgs(prompt, {
-      dangerouslySkipPermissions: options.dangerouslySkipPermissions,
-      maxTurns: options.maxTurns,
-      continue: options.continue,
-      allowedTools: options.allowedTools,
-      thinking: options.thinking,
-      model: options.model,
-    });
+    args = [
+      ...commandArgs,
+      ...buildClaudeArgs(prompt, {
+        dangerouslySkipPermissions: options.dangerouslySkipPermissions,
+        maxTurns: options.maxTurns,
+        continue: options.continue,
+        allowedTools: options.allowedTools,
+        thinking: options.thinking,
+        model: options.model,
+      }),
+    ];
   }
 
   return {

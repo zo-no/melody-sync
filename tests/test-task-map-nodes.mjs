@@ -269,4 +269,32 @@ function getNodeById(projection, id) {
   console.log('  ✓ full closure: main + branches + done all present');
 }
 
+// 14. Main session workflowState=done should mark the root node as done
+{
+  const session = makeSession({
+    workflowState: 'done',
+    taskCard: { goal: '主目标', candidateBranches: [] },
+  });
+  const p = project(session, []);
+  const rootNode = getNodeById(p, 'session:sess-main');
+  assert.ok(rootNode, 'root node should be present');
+  assert.equal(rootNode.status, 'done', 'done workflowState should surface a done root-node status');
+  console.log('  ✓ root node follows workflowState=done');
+}
+
+// 15. Synthetic branches should fall back to workflowState when _branchStatus is absent
+{
+  const session = makeSession({ taskCard: { goal: '主目标', candidateBranches: [] } });
+  const branch = makeBranchSession({
+    id: 'sess-branch-done',
+    _branchStatus: '',
+    workflowState: 'done',
+  });
+  const p = project(session, [branch]);
+  const branchNode = getNodeById(p, 'session:sess-branch-done');
+  assert.ok(branchNode, 'branch node should be present');
+  assert.equal(branchNode.status, 'resolved', 'done workflowState should resolve a finished branch node');
+  console.log('  ✓ synthetic branch falls back to workflowState');
+}
+
 console.log('\ntest-task-map-nodes: ok');

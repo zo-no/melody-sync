@@ -35,11 +35,11 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'RemoteLab', {
+    self.registration.showNotification(data.title || 'MelodySync', {
       body: data.body || 'Task completed',
       icon: '/icon.svg',
       badge: '/apple-touch-icon.png',
-      tag: 'remotelab-done',
+      tag: 'melodysync-done',
       renotify: true,
       data: target,
     })

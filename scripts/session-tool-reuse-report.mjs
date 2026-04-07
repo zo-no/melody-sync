@@ -12,8 +12,8 @@ function readArg(flag) {
 
 const date = readArg('--date');
 const daysArg = readArg('--days');
-const configDir = readArg('--config-dir') || join(homedir(), '.config', 'remotelab');
-const outputDir = readArg('--output-dir') || join(homedir(), '.remotelab', 'reports', 'session-tool-reuse');
+const configDir = readArg('--config-dir') || join(homedir(), '.config', 'melody-sync');
+const outputDir = readArg('--output-dir') || join(homedir(), '.melodysync', 'reports', 'session-tool-reuse');
 const includeMaintenance = process.argv.includes('--include-maintenance');
 const days = daysArg ? Number(daysArg) : 1;
 

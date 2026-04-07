@@ -63,8 +63,8 @@ def build_desktop_window(screen):
         draw.ellipse((24 + index * 26, 28, 40 + index * 26, 44), fill=color)
     draw.rounded_rectangle((outer_w // 2 - 170, 22, outer_w // 2 + 170, 56), radius=17, fill=(244, 246, 250), outline=(234, 238, 245))
     address_font = load_font(30)
-    bbox = draw.textbbox((0, 0), "remotelab", font=address_font)
-    draw.text((outer_w // 2 - (bbox[2] - bbox[0]) // 2, 20), "remotelab", font=address_font, fill=(82, 92, 108))
+    bbox = draw.textbbox((0, 0), "melodysync", font=address_font)
+    draw.text((outer_w // 2 - (bbox[2] - bbox[0]) // 2, 20), "melodysync", font=address_font, fill=(82, 92, 108))
 
     content_pad = 16
     content_y = 96

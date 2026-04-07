@@ -3,9 +3,9 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
-const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'remotelab-system-prompt-'));
+const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'melodysync-system-prompt-'));
 process.env.HOME = tempHome;
-process.env.REMOTELAB_MEMORY_DIR = path.join(tempHome, 'instance-data', 'memory');
+process.env.MELODYSYNC_MEMORY_DIR = path.join(tempHome, 'instance-data', 'memory');
 
 const { buildSystemContext } = await import('../backend/system-prompt.mjs');
 
@@ -38,8 +38,8 @@ assert.match(context, /Keep spawned-session handoff minimal/);
 assert.match(context, /focused task plus the parent session id is enough/);
 assert.match(context, /Do not impose a heavy handoff template by default/);
 assert.match(context, /let the child fetch it from the parent session/);
-assert.match(context, /REMOTELAB_SESSION_ID/);
-assert.match(context, /spawn command defaults to REMOTELAB_SESSION_ID/);
+assert.match(context, /MELODYSYNC_SESSION_ID/);
+assert.match(context, /spawn command defaults to MELODYSYNC_SESSION_ID/);
 assert.match(context, /session-test-123/);
 assert.match(context, /Execution Bias/);
 assert.match(context, /Treat a clear user request as standing permission to carry the task forward until it reaches a meaningful stopping point/);
@@ -52,6 +52,6 @@ assert.match(context, /Read .*AGENTS\.md first when it exists/, 'system prompt s
 assert.match(context, /Use .*AGENTS\.md to decide whether the active managed scope is only MelodySync program data or the broader configured local workspace/, 'system prompt should treat AGENTS as the authority for workspace scope');
 assert.match(context, /MelodySync Agent Guide Missing/, 'system prompt should mention the missing AGENTS guide when it is absent');
 assert.match(context, /~\/instance-data\/memory\//);
-assert.doesNotMatch(context, /~\/\.remotelab\/memory\//);
+assert.doesNotMatch(context, /~\/\.melodysync\/memory\//);
 
 console.log('test-system-prompt: ok');

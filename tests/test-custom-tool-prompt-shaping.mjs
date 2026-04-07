@@ -74,7 +74,7 @@ async function resolveMessageContent(port, sessionId, event) {
 }
 
 async function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-custom-prompt-shape-'));
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-custom-prompt-shape-'));
   const localBin = join(home, '.local', 'bin');
   process.env.HOME = home;
 

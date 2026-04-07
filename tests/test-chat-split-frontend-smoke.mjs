@@ -313,8 +313,8 @@ const context = {
         return { primary: { label: 'Idle', tone: 'idle' } };
       },
     },
-    __REMOTELAB_BUILD__: { assetVersion: 'test-build', title: 'test build' },
-    __REMOTELAB_BOOTSTRAP__: { auth: { role: 'owner' } },
+    __MELODYSYNC_BUILD__: { assetVersion: 'test-build', title: 'test build' },
+    __MELODYSYNC_BOOTSTRAP__: { auth: { role: 'owner' } },
   },
 };
 

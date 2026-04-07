@@ -1,13 +1,13 @@
 # Local Maintenance Contract
 
-This document defines how to keep a personal RemoteLab fork maintainable while staying close to upstream.
+This document defines how to keep a personal MelodySync fork maintainable while staying close to upstream.
 
 Use this when the local machine needs extra runtime behavior such as proxy injection, custom service wiring, local-only defaults, or temporary UI/UX patches that should not make `main` drift away from upstream.
 
 ## Copy this prompt
 
 ```text
-I want you to maintain this RemoteLab fork with an upstream-first workflow.
+I want you to maintain this MelodySync fork with an upstream-first workflow.
 
 Use `docs/local-maintenance.md` as the contract.
 Before changing code, inspect the current branch, the dirty worktree, and whether `main` still matches `origin/main`.

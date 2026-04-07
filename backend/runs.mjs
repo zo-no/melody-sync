@@ -17,6 +17,8 @@ const SPOOL_READ_CHUNK_BYTES = 1024 * 1024;
 const MAX_SPOOL_RECORD_CHARS = 2 * 1024 * 1024;
 const MAX_SPOOL_INLINE_CHARS = 16 * 1024;
 const MAX_SPOOL_PREVIEW_CHARS = 4096;
+const MAX_PERSISTED_COMMAND_OUTPUT_CHARS = 8 * 1024;
+const MAX_PERSISTED_REASONING_CHARS = 8 * 1024;
 
 const runStatusCache = new Map();
 const runManifestCache = new Map();
@@ -76,8 +78,7 @@ function runArtifactPath(runId, ref) {
 async function writeRunArtifactText(runId, prefix, text) {
   await ensureRunDirectory(runId);
   const ref = `${prefix}_${randomBytes(6).toString('hex')}`;
-  const path = runArtifactPath(runId, ref);
-  await writeTextAtomic(path, text || '');
+  await writeTextAtomic(runArtifactPath(runId, ref), text || '');
   runArtifactCache.set(`${runId}:${ref}`, text || '');
   return ref;
 }
@@ -281,12 +282,27 @@ async function externalizeStringField(runId, container, field, prefix) {
   return true;
 }
 
+function clipStoredStructuredField(container, field, maxChars) {
+  if (!container || typeof container[field] !== 'string') return false;
+  const value = container[field];
+  if (!value || value.length <= maxChars) return false;
+  container[field] = clipMiddle(value, maxChars);
+  container[`${field}Bytes`] = Buffer.byteLength(value, 'utf8');
+  container[`${field}Truncated`] = true;
+  return true;
+}
+
 async function sanitizeStructuredRecord(runId, value) {
   const next = clone(value);
   if (!next || typeof next !== 'object') return next;
 
   if (next.item && typeof next.item === 'object') {
-    await externalizeStringField(runId, next.item, 'aggregated_output', 'aggregated_output');
+    if (next.item.type === 'command_execution') {
+      clipStoredStructuredField(next.item, 'aggregated_output', MAX_PERSISTED_COMMAND_OUTPUT_CHARS);
+    }
+    if (next.item.type === 'reasoning') {
+      clipStoredStructuredField(next.item, 'text', MAX_PERSISTED_REASONING_CHARS);
+    }
     await externalizeStringField(runId, next.item, 'text', 'item_text');
     await externalizeStringField(runId, next.item, 'command', 'item_command');
   }
@@ -347,7 +363,10 @@ async function normalizeSpoolRecord(runId, record) {
   const normalized = { ...(record || {}) };
   if (normalized.json && typeof normalized.json === 'object') {
     normalized.json = await sanitizeStructuredRecord(runId, normalized.json);
-    normalized.line = JSON.stringify(normalized.json);
+    delete normalized.line;
+    delete normalized.lineArtifact;
+    delete normalized.lineBytes;
+    return normalized;
   }
   if (typeof normalized.line === 'string' && normalized.line.length > MAX_SPOOL_INLINE_CHARS) {
     const ref = await writeRunArtifactText(runId, 'line', normalized.line);

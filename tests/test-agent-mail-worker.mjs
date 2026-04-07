@@ -8,12 +8,12 @@ import { join } from 'path';
 import { pathToFileURL } from 'url';
 
 const repoRoot = process.cwd();
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-agent-mail-worker-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-agent-mail-worker-'));
 process.env.HOME = tempHome;
 
-const mailboxRoot = join(tempHome, '.config', 'remotelab', 'agent-mailbox');
-mkdirSync(join(tempHome, '.config', 'remotelab'), { recursive: true });
-writeFileSync(join(tempHome, '.config', 'remotelab', 'auth.json'), JSON.stringify({
+const mailboxRoot = join(tempHome, '.config', 'melody-sync', 'agent-mailbox');
+mkdirSync(join(tempHome, '.config', 'melody-sync'), { recursive: true });
+writeFileSync(join(tempHome, '.config', 'melody-sync', 'auth.json'), JSON.stringify({
   token: 'abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234',
 }, null, 2));
 
@@ -27,12 +27,12 @@ const {
 } = await import(pathToFileURL(join(repoRoot, 'lib', 'agent-mailbox.mjs')).href);
 const { saveUiRuntimeSelection } = await import(pathToFileURL(join(repoRoot, 'lib', 'runtime-selection.mjs')).href);
 const {
-  createRemoteLabRuntime,
+  createMelodySyncRuntime,
   ensureAuthCookie,
-  requestRemoteLab,
+  requestMelodySync,
 } = await import(pathToFileURL(join(repoRoot, 'scripts', 'agent-mail-worker.mjs')).href);
 
-const authRefreshRuntime = createRemoteLabRuntime('http://127.0.0.1:7690');
+const authRefreshRuntime = createMelodySyncRuntime('http://127.0.0.1:7690');
 authRefreshRuntime.authCookie = 'session_token=stale-cookie';
 authRefreshRuntime.authToken = 'stale-token';
 authRefreshRuntime.readOwnerToken = async () => 'fresh-token';
@@ -49,7 +49,7 @@ assert.equal(
   'mail worker should reread the current owner token on forced auth refresh',
 );
 
-const retryProbeRuntime = createRemoteLabRuntime('http://127.0.0.1:7690');
+const retryProbeRuntime = createMelodySyncRuntime('http://127.0.0.1:7690');
 retryProbeRuntime.authCookie = 'session_token=stale-cookie';
 retryProbeRuntime.authToken = 'stale-token';
 retryProbeRuntime.readOwnerToken = async () => 'fresh-token';
@@ -63,7 +63,7 @@ retryProbeRuntime.requestJson = async (_baseUrl, _path, options = {}) => {
   return { response: { status: 200, ok: true }, json: { ok: true }, text: '{"ok":true}' };
 };
 
-const retryProbeResult = await requestRemoteLab(retryProbeRuntime, '/api/probe');
+const retryProbeResult = await requestMelodySync(retryProbeRuntime, '/api/probe');
 assert.equal(retryProbeResult.response.status, 200, 'mail worker should retry after an auth failure');
 assert.deepEqual(
   retryProbeCookies,
@@ -522,13 +522,13 @@ try {
   sessionCreates.length = 0;
   messageSubmissions.length = 0;
 
-  const guestAuthDir = join(tempHome, '.remotelab', 'instances', 'trial6', 'config');
+  const guestAuthDir = join(tempHome, '.melodysync', 'instances', 'trial6', 'config');
   const guestAuthFile = join(guestAuthDir, 'auth.json');
   mkdirSync(guestAuthDir, { recursive: true });
   writeFileSync(guestAuthFile, JSON.stringify({
     token: 'trial6-auth-token',
   }, null, 2));
-  writeFileSync(join(tempHome, '.config', 'remotelab', 'guest-instances.json'), JSON.stringify([
+  writeFileSync(join(tempHome, '.config', 'melody-sync', 'guest-instances.json'), JSON.stringify([
     {
       name: 'trial6',
       authFile: guestAuthFile,

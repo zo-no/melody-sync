@@ -6,10 +6,10 @@ import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-label-context-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-label-context-'));
 const tempBin = join(tempHome, 'bin');
-const configDir = join(tempHome, '.config', 'remotelab');
-const memoryDir = join(tempHome, '.remotelab', 'memory');
+const configDir = join(tempHome, '.config', 'melody-sync');
+const memoryDir = join(tempHome, '.melodysync', 'memory');
 const promptLogPath = join(tempHome, 'label-prompt.log');
 
 mkdirSync(tempBin, { recursive: true });
@@ -20,19 +20,19 @@ writeFileSync(
   join(memoryDir, 'projects.md'),
   `# Scope Router
 
-## RemoteLab
+## MelodySync
 
 - Type: code repo
-- Path: \`~/code/remotelab/\`
-- Triggers: RemoteLab, session rename, sidebar hierarchy, prompt tuning
-- First read: \`~/code/remotelab/AGENTS.md\`
+- Path: \`~/code/melody-sync/\`
+- Triggers: MelodySync, session rename, sidebar hierarchy, prompt tuning
+- First read: \`~/code/melody-sync/AGENTS.md\`
 
 ## Video Workflow
 
 - Type: recurring non-repo domain
 - Paths: \`~/my_docs/Video/\`, \`~/movies/\`
 - Triggers: video, rough cut, transcript, review
-- First read: \`~/.remotelab/skills/video-cut-review.md\`
+- First read: \`~/.melodysync/skills/video-cut-review.md\`
 `,
   'utf8',
 );
@@ -56,13 +56,13 @@ const text = isLabelPrompt
   ? JSON.stringify(
       wantsTitle
         ? {
-            title: 'RemoteLab Prompt Tuning',
-            group: 'RemoteLab',
+            title: 'MelodySync Prompt Tuning',
+            group: 'MelodySync',
             description: 'Tune the auto-rename prompt using session history and scope hints.',
           }
         : wantsGrouping
           ? {
-              group: 'RemoteLab',
+              group: 'MelodySync',
               description: 'Tune the auto-rename prompt using session history and scope hints.',
             }
           : {}
@@ -141,7 +141,7 @@ async function waitFor(predicate, description, timeoutMs = 4000) {
 
 try {
   await createSession(tempHome, 'fake-codex', 'Naming Flow', {
-    group: 'RemoteLab',
+    group: 'MelodySync',
     description: 'Refactor session naming and grouping.',
   });
   await createSession(tempHome, 'fake-codex', 'Rough Cut Review', {
@@ -152,7 +152,7 @@ try {
   const target = await createSession(tempHome, 'fake-codex', '');
   await setContextHead(target.id, {
     mode: 'summary',
-    summary: 'This conversation is about RemoteLab session grouping, rename prompts, and keeping related work under the same top-level project.',
+    summary: 'This conversation is about MelodySync session grouping, rename prompts, and keeping related work under the same top-level project.',
     activeFromSeq: 0,
     compactedThroughSeq: 0,
     updatedAt: new Date().toISOString(),
@@ -169,7 +169,7 @@ try {
     async () => {
       const current = await getSession(target.id);
       return current?.name === 'Prompt Tuning'
-        && current?.group === 'RemoteLab'
+        && current?.group === 'MelodySync'
         && current?.description === 'Tune the auto-rename prompt using session history and scope hints.';
     },
     'session should use enriched prompt context for early naming',
@@ -180,9 +180,9 @@ try {
   assert.match(promptLog, /Earlier session context:/);
   assert.match(promptLog, /Known scope router entries:/);
   assert.match(promptLog, /Current non-archived sessions:/);
-  assert.match(promptLog, /RemoteLab session grouping, rename prompts/);
-  assert.match(promptLog, /- RemoteLab — code repo/);
-  assert.match(promptLog, /\[RemoteLab\] Naming Flow — Refactor session naming and grouping\./);
+  assert.match(promptLog, /MelodySync session grouping, rename prompts/);
+  assert.match(promptLog, /- MelodySync — code repo/);
+  assert.match(promptLog, /\[MelodySync\] Naming Flow — Refactor session naming and grouping\./);
   assert.match(promptLog, /\[Video Workflow\] Rough Cut Review — Review edit decisions for the current draft\./);
 
   await waitFor(

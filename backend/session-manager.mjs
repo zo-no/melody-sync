@@ -148,7 +148,7 @@ const MAX_RECENT_FOLLOW_UP_REQUEST_IDS = 100;
 const OBSERVED_RUN_POLL_INTERVAL_MS = 250;
 const RESULT_FILE_MAX_ATTACHMENTS = 4;
 const RESULT_FILE_COMMAND_OUTPUT_FLAGS = new Set(['-o', '--output', '--out', '--export']);
-const STARTUP_SYNC_DEBUG = process.env.REMOTELAB_STARTUP_SYNC_DEBUG === '1';
+const STARTUP_SYNC_DEBUG = process.env.MELODYSYNC_STARTUP_SYNC_DEBUG === '1';
 const {
   getFollowUpQueue,
   getFollowUpQueueCount,
@@ -216,7 +216,7 @@ function normalizeSessionTaskCardManagedBindings(value) {
 }
 
 function getConfiguredAutoCompactContextTokens() {
-  return parsePositiveIntOrInfinity(process.env.REMOTELAB_LIVE_CONTEXT_COMPACT_TOKENS);
+  return parsePositiveIntOrInfinity(process.env.MELODYSYNC_LIVE_CONTEXT_COMPACT_TOKENS);
 }
 
 function getRunLiveContextTokens(run) {
@@ -323,7 +323,10 @@ async function synthesizeDetachedRunTermination(runId, run) {
 
   const completedAt = nowIso();
   const cancelled = run?.cancelRequested === true;
-  const error = cancelled ? null : 'Detached runner disappeared before writing a result';
+  const runOutputPreview = await collectRunOutputPreview(runId);
+  const error = cancelled
+    ? null
+    : await deriveStructuredRuntimeFailureReason(runId, runOutputPreview);
   const result = {
     completedAt,
     exitCode: 1,
@@ -405,6 +408,9 @@ async function deriveStructuredRuntimeFailureReason(runId, previewText = '') {
   const preview = clipFailurePreview(previewText) || await collectRunOutputPreview(runId);
   if (preview && /(请登录|登录超时|auth|authentication|sso|sign in|login)/i.test(preview)) {
     return `Provider requires interactive login before MelodySync can use it: ${preview}`;
+  }
+  if (preview && /api_retry/i.test(preview)) {
+    return `Provider is retrying API calls without returning assistant output: ${preview}`;
   }
   if (preview) {
     return `Provider exited without emitting structured events: ${preview}`;
@@ -907,10 +913,11 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
   const completedAt = typeof result?.completedAt === 'string' && result.completedAt
     ? result.completedAt
     : null;
+  const hasAssistantMessage = normalizedEvents.some((event) => event?.type === 'message' && event.role === 'assistant');
   const zeroStructuredOutputReason = (
     isStructuredRuntime
     && inferredState === 'completed'
-    && normalizedEvents.length === 0
+    && (normalizedEvents.length === 0 || !hasAssistantMessage)
   )
     ? await deriveStructuredRuntimeFailureReason(runId, projection.preview)
     : null;
@@ -922,6 +929,16 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
       completedAt,
       result,
       failureReason: zeroStructuredOutputReason,
+    })) || run;
+  }
+
+  const terminalFailureReason = isTerminalRunState(run.state) && run.state === 'failed'
+    ? deriveRunFailureReasonFromResult(run, result)
+    : null;
+  if (terminalFailureReason && !run.failureReason) {
+    run = await updateRun(runId, (current) => ({
+      ...current,
+      failureReason: terminalFailureReason,
     })) || run;
   }
 

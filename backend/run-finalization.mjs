@@ -16,7 +16,7 @@ function buildRunTerminalStatusEvent(statusEvent, run) {
   return null;
 }
 
-const FINALIZE_DEBUG = process.env.REMOTELAB_STARTUP_SYNC_DEBUG === '1';
+const FINALIZE_DEBUG = process.env.MELODYSYNC_STARTUP_SYNC_DEBUG === '1';
 
 function clearCompactionPendingFlags(liveSessions, {
   sessionId,

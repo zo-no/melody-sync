@@ -124,19 +124,19 @@
     function getProjectedTaskFlowConfig() {
       const mobile = isMobileQuestTracker();
       return {
-        nodeWidth: mobile ? 152 : 176,
-        rootWidth: mobile ? 176 : 208,
-        richNodeWidth: mobile ? 166 : 192,
-        nodeHeight: mobile ? 88 : 96,
-        rootHeight: mobile ? 98 : 112,
-        candidateHeight: mobile ? 108 : 120,
-        richNodeHeight: mobile ? 108 : 124,
-        levelGap: mobile ? 98 : 116,
-        siblingGap: mobile ? 18 : 20,
-        paddingX: mobile ? 144 : 220,
-        paddingY: mobile ? 112 : 168,
-        overscanX: mobile ? 220 : 360,
-        overscanY: mobile ? 240 : 320,
+        nodeWidth: mobile ? 152 : 188,
+        rootWidth: mobile ? 176 : 224,
+        richNodeWidth: mobile ? 166 : 210,
+        nodeHeight: mobile ? 88 : 100,
+        rootHeight: mobile ? 98 : 118,
+        candidateHeight: mobile ? 108 : 126,
+        richNodeHeight: mobile ? 108 : 132,
+        levelGap: mobile ? 98 : 122,
+        siblingGap: mobile ? 18 : 22,
+        paddingX: mobile ? 144 : 240,
+        paddingY: mobile ? 112 : 176,
+        overscanX: mobile ? 220 : 400,
+        overscanY: mobile ? 240 : 336,
       };
     }
 
@@ -699,7 +699,7 @@
         if (isCanvasSelected) nodeEl.classList.add("is-canvas-selected");
         if (!node.parentNodeId) nodeEl.classList.add("is-root");
         if (isCandidate) nodeEl.classList.add("is-candidate");
-        if (isDone) nodeEl.classList.add("is-done");
+        if (isDone || node.status === "done") nodeEl.classList.add("is-done", "is-resolved");
         if (node.isCurrentPath) nodeEl.classList.add("is-current-path");
         if (node.isCurrent) nodeEl.classList.add("is-current");
         if (node.status === "parked") nodeEl.classList.add("is-parked");
@@ -714,7 +714,7 @@
         if (badgeLabel) {
           const badge = documentRef.createElement("div");
           badge.className = "quest-task-flow-node-badge";
-          if (node.status === "resolved") badge.classList.add("is-complete");
+          if (["resolved", "done"].includes(node.status)) badge.classList.add("is-complete");
           if (node.status === "merged") badge.classList.add("is-complete", "is-merged");
           badge.textContent = badgeLabel;
           nodeEl.appendChild(badge);

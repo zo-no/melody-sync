@@ -150,8 +150,8 @@ Persistence:
 Default runtime behavior:
 
 - if `general-settings.json` has `appRoot`, MelodySync treats it as the direct local app root and stores app state under that directory using standard top-level folders such as `config/`, `email/`, `voice/`, `memory/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
-- if no storage root is configured, MelodySync falls back to the legacy home-local layout (`~/.config/melody-sync` plus `~/.melody-sync/memory`)
-- isolated instances can still override this via `REMOTELAB_INSTANCE_ROOT`, `REMOTELAB_CONFIG_DIR`, and `REMOTELAB_MEMORY_DIR`
+- if no storage root is configured, MelodySync falls back to the home-local layout (`~/.config/melody-sync` plus `~/.melodysync/memory`)
+- isolated instances can still override this via `MELODYSYNC_INSTANCE_ROOT`, `MELODYSYNC_CONFIG_DIR`, and `MELODYSYNC_MEMORY_DIR`
 
 Vault-backed app root shape:
 

@@ -364,16 +364,16 @@ func installSignalHandlers(onSignal: @escaping () -> Void) -> [DispatchSourceSig
     return [sigintSource, sigtermSource]
 }
 
-var phrase = envString("REMOTELAB_VOICE_WAKE_WORD")
+var phrase = envString("MELODYSYNC_VOICE_WAKE_WORD")
 var localeId = "en-US"
 var cooldownMs = 3000
 var restartDelayMs = 1200
 var trailingDebounceMs = 650
 var onDevice = true
 var allowServerFallback = true
-var connectorId = envString("REMOTELAB_VOICE_CONNECTOR_ID")
-var roomName = envString("REMOTELAB_VOICE_ROOM_NAME")
-var ackSoundPath = envString("REMOTELAB_VOICE_WAKE_ACK_SOUND_PATH")
+var connectorId = envString("MELODYSYNC_VOICE_CONNECTOR_ID")
+var roomName = envString("MELODYSYNC_VOICE_ROOM_NAME")
+var ackSoundPath = envString("MELODYSYNC_VOICE_WAKE_ACK_SOUND_PATH")
 var testTrigger = false
 var testTranscript = ""
 var testRecognitionError = ""

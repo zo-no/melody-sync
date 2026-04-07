@@ -10,11 +10,11 @@ const repoRoot = dirname(__dirname);
 const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-default-app-root-'));
 
 process.env.HOME = tempHome;
-delete process.env.REMOTELAB_CONFIG_DIR;
-delete process.env.REMOTELAB_MEMORY_DIR;
-delete process.env.REMOTELAB_INSTANCE_ROOT;
-delete process.env.REMOTELAB_OBSIDIAN_VAULT_DIR;
-delete process.env.REMOTELAB_OBSIDIAN_PATH;
+delete process.env.MELODYSYNC_CONFIG_DIR;
+delete process.env.MELODYSYNC_MEMORY_DIR;
+delete process.env.MELODYSYNC_INSTANCE_ROOT;
+delete process.env.MELODYSYNC_OBSIDIAN_VAULT_DIR;
+delete process.env.MELODYSYNC_OBSIDIAN_PATH;
 
 try {
   const config = await import(pathToFileURL(join(repoRoot, 'lib/config.mjs')).href);

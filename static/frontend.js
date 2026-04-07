@@ -70,7 +70,7 @@
   }
 
   async function resolveAssetVersion() {
-    const bootstrapVersion = normalizeAssetVersion(window.__REMOTELAB_BUILD__?.assetVersion);
+    const bootstrapVersion = normalizeAssetVersion(window.__MELODYSYNC_BUILD__?.assetVersion);
     if (bootstrapVersion) return bootstrapVersion;
 
     const currentScriptSrc = document.currentScript?.src || "";

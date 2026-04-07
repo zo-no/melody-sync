@@ -8,18 +8,18 @@ import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const HOME = homedir();
-const DEFAULT_CONFIG_PATH = join(HOME, '.config', 'remotelab', 'remote-capability-monitor', 'config.json');
-const DEFAULT_STATE_PATH = join(HOME, '.config', 'remotelab', 'remote-capability-monitor', 'state.json');
-const DEFAULT_REPORT_DIR = join(HOME, '.remotelab', 'research', 'remote-capability-monitor');
-const DEFAULT_NOTIFICATION_DIR = join(HOME, '.config', 'remotelab', 'remote-capability-monitor', 'notifications');
-const DEFAULT_NOTIFIER_PATH = join(HOME, '.remotelab', 'scripts', 'send-multi-channel-reminder.mjs');
-const DEFAULT_REMOTELAB_BASE_URL = 'http://127.0.0.1:7690';
-const DEFAULT_REMOTELAB_AUTH_FILE = join(HOME, '.config', 'remotelab', 'auth.json');
-const DEFAULT_REMOTELAB_SESSION_FOLDER = join(HOME, 'code', 'remotelab');
+const DEFAULT_CONFIG_PATH = join(HOME, '.config', 'melody-sync', 'remote-capability-monitor', 'config.json');
+const DEFAULT_STATE_PATH = join(HOME, '.config', 'melody-sync', 'remote-capability-monitor', 'state.json');
+const DEFAULT_REPORT_DIR = join(HOME, '.melodysync', 'research', 'remote-capability-monitor');
+const DEFAULT_NOTIFICATION_DIR = join(HOME, '.config', 'melody-sync', 'remote-capability-monitor', 'notifications');
+const DEFAULT_NOTIFIER_PATH = join(HOME, '.melodysync', 'scripts', 'send-multi-channel-reminder.mjs');
+const DEFAULT_MELODYSYNC_BASE_URL = 'http://127.0.0.1:7760';
+const DEFAULT_MELODYSYNC_AUTH_FILE = join(HOME, '.config', 'melody-sync', 'auth.json');
+const DEFAULT_MELODYSYNC_SESSION_FOLDER = join(HOME, 'code', 'melody-sync');
 const DEFAULT_BOOTSTRAP_HOURS = 168;
 const DEFAULT_LOOKBACK_HOURS = 168;
 const DEFAULT_MAX_ITEMS = 10;
-const DEFAULT_NOTIFICATION_LOG = join(HOME, '.remotelab', 'logs', 'reminders', 'remote-capability-monitor.jsonl');
+const DEFAULT_NOTIFICATION_LOG = join(HOME, '.melodysync', 'logs', 'reminders', 'remote-capability-monitor.jsonl');
 const FETCH_TIMEOUT_MS = 15000;
 const INTERESTING_SCORE_THRESHOLD = 4;
 const LOW_CONFIDENCE_SCORE_THRESHOLD = 6;
@@ -168,9 +168,9 @@ Options:
 Config shape:
   {
     "bootstrapHours": 168,
-    "reportDir": "~/.remotelab/research/remote-capability-monitor",
+    "reportDir": "~/.melodysync/research/remote-capability-monitor",
     "notification": {
-      "notifierPath": "~/.remotelab/scripts/send-multi-channel-reminder.mjs",
+      "notifierPath": "~/.melodysync/scripts/send-multi-channel-reminder.mjs",
       "channels": [ ... ]
     },
     "sources": [ ... ]
@@ -715,7 +715,7 @@ function renderReport({ startedAt, firstRun, sourceResults, allInteresting, pend
 async function fetchText(url) {
   const options = {
     headers: {
-      'User-Agent': 'RemoteLab remote-capability-monitor/1.0',
+      'User-Agent': 'MelodySync remote-capability-monitor/1.0',
       Accept: 'application/atom+xml, application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
     },
   };
@@ -820,7 +820,7 @@ function buildSessionDigestMessage({
     'Source: Remote capability monitor',
     `Cycle: ${formatTimestamp(runAt)}`,
     `Mode: ${firstRun ? 'bootstrap' : 'incremental'}`,
-    'Focus: RemoteLab Live / remote control for local coding agents',
+    'Focus: MelodySync / remote control for local coding agents',
     '',
     'Tracked sources this cycle:',
   ];
@@ -872,7 +872,7 @@ function buildSessionDigestMessage({
   lines.push('');
   lines.push('Please review this digest and respond with:');
   lines.push('1. Delta');
-  lines.push('2. Why it matters for RemoteLab');
+  lines.push('2. Why it matters for MelodySync');
   lines.push('3. Proposal');
   lines.push('4. Ignore / watch');
 
@@ -896,8 +896,8 @@ async function waitForRunCompletion(baseUrl, runId, cookie) {
   throw new Error(`Timed out waiting for run ${runId}`);
 }
 
-async function submitDigestToRemoteLab(config, { runAt, firstRun, pendingInteresting, allInteresting, sourceResults, reportPaths, dryRun }) {
-  const remoteConfig = config?.remotelab || {};
+async function submitDigestToMelodySync(config, { runAt, firstRun, pendingInteresting, allInteresting, sourceResults, reportPaths, dryRun }) {
+  const remoteConfig = config?.melodysync || {};
   const sessionConfig = remoteConfig?.session || {};
   const sourceId = trimString(sessionConfig.sourceId) || 'automation';
   const sourceName = trimString(sessionConfig.sourceName) || 'Automation';
@@ -911,12 +911,12 @@ async function submitDigestToRemoteLab(config, { runAt, firstRun, pendingInteres
     };
   }
 
-  const baseUrl = normalizeBaseUrl(trimString(remoteConfig.baseUrl) || DEFAULT_REMOTELAB_BASE_URL);
-  const authFile = trimString(remoteConfig.authFile) || DEFAULT_REMOTELAB_AUTH_FILE;
+  const baseUrl = normalizeBaseUrl(trimString(remoteConfig.baseUrl) || DEFAULT_MELODYSYNC_BASE_URL);
+  const authFile = trimString(remoteConfig.authFile) || DEFAULT_MELODYSYNC_AUTH_FILE;
   const cookie = await authenticateOwner(baseUrl, authFile);
 
   const sessionPayload = {
-    folder: expandHome(trimString(sessionConfig.folder) || trimString(remoteConfig.sessionFolder) || DEFAULT_REMOTELAB_SESSION_FOLDER),
+    folder: expandHome(trimString(sessionConfig.folder) || trimString(remoteConfig.sessionFolder) || DEFAULT_MELODYSYNC_SESSION_FOLDER),
     tool: trimString(sessionConfig.tool) || trimString(remoteConfig.tool) || 'codex',
     name: trimString(sessionConfig.name) || 'Agent Radar',
     sourceId,
@@ -1025,7 +1025,7 @@ function buildNotificationMessage({ pendingInteresting, allInteresting, reportPa
   if (pendingInteresting.length === 0) {
     const noSignalTitle = sessionResult?.success
       ? `${sessionResult.appName || 'Agent Radar'}: review refreshed`
-      : 'RemoteLab scout: no new signals';
+      : 'MelodySync scout: no new signals';
     const noSignalBody = sessionResult?.success
       ? 'No new signals; the review session was refreshed.'
       : 'No new high-signal remote-agent changes in this cycle.';
@@ -1033,7 +1033,7 @@ function buildNotificationMessage({ pendingInteresting, allInteresting, reportPa
       title: noSignalTitle,
       body: noSignalBody,
       text: [
-        `RemoteLab scout completed an ${firstRun ? 'initial bootstrap' : 'incremental'} cycle and found no new high-signal items.`,
+        `MelodySync scout completed an ${firstRun ? 'initial bootstrap' : 'incremental'} cycle and found no new high-signal items.`,
         '',
         ...(sessionResult?.success ? [
           `Review session: ${sessionResult.appName || 'Agent Radar'} (${sessionResult.sessionId})`,
@@ -1050,13 +1050,13 @@ function buildNotificationMessage({ pendingInteresting, allInteresting, reportPa
 
   const title = sessionResult?.success
     ? `Agent Radar: ${pendingInteresting.length} new signal${pendingInteresting.length === 1 ? '' : 's'} ready`
-    : `RemoteLab scout: ${pendingInteresting.length} new signal${pendingInteresting.length === 1 ? '' : 's'}`;
+    : `MelodySync scout: ${pendingInteresting.length} new signal${pendingInteresting.length === 1 ? '' : 's'}`;
   const firstHeadline = truncate(focusItems[0]?.headline || 'New remote-agent signal', 72);
   const body = sessionResult?.success
     ? `Review is ready in ${sessionResult.appName || 'the scout session'}`
     : (pendingInteresting.length === 1 ? firstHeadline : `${firstHeadline}; +${pendingInteresting.length - 1} more`);
   const lines = [
-    `RemoteLab scout found ${pendingInteresting.length} new high-signal item${pendingInteresting.length === 1 ? '' : 's'}.`,
+    `MelodySync scout found ${pendingInteresting.length} new high-signal item${pendingInteresting.length === 1 ? '' : 's'}.`,
     '',
     'Top proposals:',
   ];
@@ -1097,7 +1097,7 @@ function materializeNotificationChannels(channelTemplates, message) {
     } else if (type === 'email') {
       next.subject = trimString(channel?.subject) || message.title;
       next.text = trimString(channel?.text) || message.text;
-    } else if (type === 'remotelab_web_push') {
+    } else if (type === 'melodysync_web_push') {
       next.title = trimString(channel?.title) || message.title;
       next.body = trimString(channel?.body) || message.body;
       next.url = trimString(message?.url) || trimString(channel?.url) || '/?tab=sessions';
@@ -1289,7 +1289,7 @@ export async function runMonitor(rawOptions) {
   };
 
   if (pendingInteresting.length > 0 || options.forceNotify) {
-    sessionResult = await submitDigestToRemoteLab(config, {
+    sessionResult = await submitDigestToMelodySync(config, {
       runAt,
       firstRun,
       pendingInteresting,

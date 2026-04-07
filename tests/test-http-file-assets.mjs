@@ -62,8 +62,8 @@ function request(port, method, path, body = null, extraHeaders = {}) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-file-assets-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-file-assets-'));
+  const configDir = join(home, '.config', 'melody-sync');
   const localBin = join(home, '.local', 'bin');
   const promptFile = join(home, 'captured-prompt.txt');
   mkdirSync(configDir, { recursive: true });
@@ -100,8 +100,8 @@ function setupTempHome() {
     `#!/usr/bin/env node
 const { appendFileSync } = require('fs');
 const prompt = process.argv[process.argv.length - 1] || '';
-if (process.env.REMOTELAB_FAKE_PROMPT_FILE) {
-  appendFileSync(process.env.REMOTELAB_FAKE_PROMPT_FILE, prompt + '\\n\\n---PROMPT---\\n\\n', 'utf8');
+if (process.env.MELODYSYNC_FAKE_PROMPT_FILE) {
+  appendFileSync(process.env.MELODYSYNC_FAKE_PROMPT_FILE, prompt + '\\n\\n---PROMPT---\\n\\n', 'utf8');
 }
 setTimeout(() => {
   console.log(JSON.stringify({ type: 'thread.started', thread_id: 'thread-file-asset-test' }));
@@ -179,11 +179,11 @@ async function startServer({ home, port, promptFile, storagePort }) {
       HOME: home,
       CHAT_PORT: String(port),
       SECURE_COOKIES: '0',
-      REMOTELAB_FAKE_PROMPT_FILE: promptFile,
-      REMOTELAB_ASSET_STORAGE_BASE_URL: `http://127.0.0.1:${storagePort}/bucket`,
-      REMOTELAB_ASSET_STORAGE_REGION: 'auto',
-      REMOTELAB_ASSET_STORAGE_ACCESS_KEY_ID: 'test-access-key',
-      REMOTELAB_ASSET_STORAGE_SECRET_ACCESS_KEY: 'test-secret-key',
+      MELODYSYNC_FAKE_PROMPT_FILE: promptFile,
+      MELODYSYNC_ASSET_STORAGE_BASE_URL: `http://127.0.0.1:${storagePort}/bucket`,
+      MELODYSYNC_ASSET_STORAGE_REGION: 'auto',
+      MELODYSYNC_ASSET_STORAGE_ACCESS_KEY_ID: 'test-access-key',
+      MELODYSYNC_ASSET_STORAGE_SECRET_ACCESS_KEY: 'test-secret-key',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -297,7 +297,11 @@ try {
     }, 'runner prompt with localized file asset');
     assert.match(capturedPrompt, /big-video\.mp4 -> .*file-assets-cache\/fasset_[a-f0-9]{24}\.mp4/, 'runner prompt should include the localized cache path');
 
-    const cacheDir = join(home, '.config', 'remotelab', 'file-assets-cache');
+    const cacheDirCandidates = [
+      join(home, '.melodysync', 'sessions', 'file-assets-cache'),
+      join(home, '.config', 'melody-sync', 'file-assets-cache'),
+    ];
+    const cacheDir = cacheDirCandidates.find((candidate) => existsSync(candidate)) || cacheDirCandidates[0];
     const cachedFiles = existsSync(cacheDir) ? readdirSync(cacheDir) : [];
     assert.equal(cachedFiles.length, 1, 'one localized file should be cached locally');
     const cachedBuffer = readFileSync(join(cacheDir, cachedFiles[0]));

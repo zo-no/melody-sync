@@ -62,8 +62,8 @@ function request(port, method, path, body = null, extraHeaders = {}) {
 }
 
 function setupTempHome() {
-  const home = mkdtempSync(join(tmpdir(), 'remotelab-http-phase1-'));
-  const configDir = join(home, '.config', 'remotelab');
+  const home = mkdtempSync(join(tmpdir(), 'melodysync-http-phase1-'));
+  const configDir = join(home, '.config', 'melody-sync');
   const localBin = join(home, '.local', 'bin');
   mkdirSync(configDir, { recursive: true });
   mkdirSync(localBin, { recursive: true });
@@ -125,6 +125,14 @@ setTimeout(() => {
   );
   chmodSync(join(localBin, 'fake-codex'), 0o755);
   return { home, configDir, localBin };
+}
+
+function runtimeConfigDir(home) {
+  return join(home, '.melodysync', 'config');
+}
+
+function runtimeSessionsDir(home) {
+  return join(home, '.melodysync', 'sessions');
 }
 
 async function startServer({ home, port, delayMs = 700 }) {
@@ -246,9 +254,12 @@ async function waitForRunState(port, runId, expectedState) {
 }
 
 function readRunManifest(home, runId) {
-  return JSON.parse(
-    readFileSync(join(home, '.config', 'remotelab', 'chat-runs', runId, 'manifest.json'), 'utf8'),
-  );
+  const manifestPathCandidates = [
+    join(runtimeSessionsDir(home), 'runs', runId, 'manifest.json'),
+    join(home, '.config', 'melody-sync', 'chat-runs', runId, 'manifest.json'),
+  ];
+  const manifestPath = manifestPathCandidates.find((candidate) => existsSync(candidate)) || manifestPathCandidates[0];
+  return JSON.parse(readFileSync(manifestPath, 'utf8'));
 }
 
 async function getEvents(port, sessionId) {
@@ -346,8 +357,8 @@ async function phase3Storage() {
     const submit = await submitMessage(port, session.id, 'req-storage');
     await waitForRunTerminal(port, submit.json.run.id);
 
-    const historyRoot = join(configDir, 'chat-history', session.id);
-    const runDir = join(configDir, 'chat-runs', submit.json.run.id);
+    const historyRoot = join(runtimeSessionsDir(home), 'history', session.id);
+    const runDir = join(runtimeSessionsDir(home), 'runs', submit.json.run.id);
     assert.equal(existsSync(join(historyRoot, 'meta.json')), true, 'history meta should exist');
     assert.equal(existsSync(join(historyRoot, 'events', '000000001.json')), true, 'history events should be sharded');
     assert.equal(existsSync(join(runDir, 'status.json')), true, 'run status should exist');
@@ -372,7 +383,7 @@ async function phase4RunnerThin() {
     const submit = await submitMessage(port, session.id, 'req-runner');
     await waitForRunTerminal(port, submit.json.run.id);
 
-    const spoolPath = join(configDir, 'chat-runs', submit.json.run.id, 'spool.jsonl');
+    const spoolPath = join(runtimeSessionsDir(home), 'runs', submit.json.run.id, 'spool.jsonl');
     const records = readFileSync(spoolPath, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
     assert.ok(records.some((record) => record.stream === 'stdout' && typeof record.line === 'string'));
     assert.equal(records.some((record) => record.type === 'message'), false, 'runner spool should stay raw');
@@ -538,8 +549,8 @@ async function phase9StaleResultReconciliation() {
     await stopServer(server);
     server = null;
 
-    const sessionsPath = join(configDir, 'chat-sessions.json');
-    const runStatusPath = join(configDir, 'chat-runs', submit.json.run.id, 'status.json');
+    const sessionsPath = join(runtimeSessionsDir(home), 'chat-sessions.json');
+    const runStatusPath = join(runtimeSessionsDir(home), 'runs', submit.json.run.id, 'status.json');
     const sessions = JSON.parse(readFileSync(sessionsPath, 'utf8'));
     const sessionRecord = sessions.find((entry) => entry.id === session.id);
     assert.ok(sessionRecord, 'session record should exist');
@@ -827,13 +838,13 @@ async function phase14SessionSpawnCli() {
       ['cli.js', 'session-spawn', '--task', 'Return a focused child-session result.', '--wait', '--json'],
       {
         HOME: home,
-        REMOTELAB_SESSION_ID: session.id,
-        REMOTELAB_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
+        MELODYSYNC_SESSION_ID: session.id,
+        MELODYSYNC_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
       },
     );
     assert.equal(cli.code, 0, `session-spawn CLI should exit cleanly: ${cli.stderr}`);
     const payload = JSON.parse(cli.stdout);
-    assert.equal(payload.sourceSessionId, session.id, 'CLI should default to REMOTELAB_SESSION_ID');
+    assert.equal(payload.sourceSessionId, session.id, 'CLI should default to MELODYSYNC_SESSION_ID');
     assert.equal(payload.task, 'Return a focused child-session result.', 'CLI should echo the delegated task');
     assert.equal(typeof payload.sessionId, 'string', 'CLI should return the child session id');
     assert.equal(typeof payload.runId, 'string', 'CLI should return the child run id');
@@ -867,8 +878,8 @@ async function phase14bSessionSpawnCliInternalFinalOnly() {
       ['cli.js', 'session-spawn', '--task', 'Return a focused child-session result.', '--internal', '--final-only', '--json'],
       {
         HOME: home,
-        REMOTELAB_SESSION_ID: session.id,
-        REMOTELAB_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
+        MELODYSYNC_SESSION_ID: session.id,
+        MELODYSYNC_CHAT_BASE_URL: `http://127.0.0.1:${port}`,
       },
     );
     assert.equal(cli.code, 0, `internal final-only session-spawn CLI should exit cleanly: ${cli.stderr}`);
@@ -966,8 +977,8 @@ async function phase16StaleMissingRunnerReconciliation() {
     await stopServer(server);
     server = null;
 
-    const sessionsPath = join(configDir, 'chat-sessions.json');
-    const runDir = join(configDir, 'chat-runs', submit.json.run.id);
+    const sessionsPath = join(runtimeSessionsDir(home), 'chat-sessions.json');
+    const runDir = join(runtimeSessionsDir(home), 'runs', submit.json.run.id);
     const runStatusPath = join(runDir, 'status.json');
     const runResultPath = join(runDir, 'result.json');
     const sessions = JSON.parse(readFileSync(sessionsPath, 'utf8'));

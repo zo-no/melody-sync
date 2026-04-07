@@ -3174,6 +3174,54 @@ button.quest-task-flow-node {
   padding-top: 0 !important;
 }
 
+.quest-tracker.is-task-complete {
+  background: var(--success) !important;
+  box-shadow: none !important;
+  animation: quest-task-complete-flash 560ms ease-out;
+}
+
+.quest-tracker.is-task-complete .quest-tracker-title,
+.quest-tracker.is-task-complete .quest-tracker-branch-title,
+.quest-tracker.is-task-complete .quest-tracker-next,
+.quest-tracker.is-task-complete .quest-tracker-time,
+.quest-tracker.is-task-complete .quest-tracker-status-text {
+  color: #ffffff !important;
+}
+
+.quest-tracker.is-task-complete .quest-tracker-status {
+  background: color-mix(in srgb, #000000 16%, transparent) !important;
+  color: #ffffff !important;
+}
+
+.quest-tracker.is-task-complete .quest-tracker-status-dot {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.quest-tracker.is-task-complete .quest-tracker-status-dot.status-completed {
+  background: #ffffff;
+}
+
+@keyframes quest-task-complete-flash {
+  0% {
+    filter: saturate(0.72);
+    transform: scale(0.992);
+  }
+  38% {
+    filter: saturate(1.04);
+    transform: scale(1.006);
+  }
+  100% {
+    filter: saturate(1);
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quest-tracker.is-task-complete {
+    animation: none;
+  }
+}
+
 .quest-task-list {
   padding-top: 0;
   scrollbar-gutter: auto;
@@ -3328,6 +3376,20 @@ button.quest-task-flow-node {
 .header-task-detail-btn:hover {
   background: var(--bg-hover, var(--bg-secondary));
   color: var(--text);
+}
+
+.header-task-detail-btn.is-task-complete {
+  border-color: var(--success);
+  background: var(--success);
+  color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .header-task-detail-btn.is-task-complete {
+    border-color: var(--success);
+    background: var(--success);
+    color: #ffffff;
+  }
 }
 
 .header-task-detail-btn[hidden] {

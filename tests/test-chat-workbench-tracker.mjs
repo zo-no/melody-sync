@@ -401,6 +401,7 @@ assert.equal(mainElements.get('questTrackerTitle').textContent, '系统学习电
 assert.equal(mainElements.get('questTrackerBranch').hidden, false, 'mainline tracker should keep one supporting detail block directly under the title');
 assert.equal(mainElements.get('questTrackerBranchTitle').textContent, '先搭电影史主线框架', 'mainline tracker should place the current task detail under the title');
 assert.equal(mainElements.get('questTrackerNext').hidden, true, 'mainline tracker should avoid duplicating the same detail block');
+assert.equal(mainElements.get('questTracker').classList.contains('is-task-complete'), false, 'in-progress tasks should not apply completed task-bar highlighting');
 assert.equal(mainElements.get('taskMapRail').hidden, false, 'desktop task manager should keep the task map rail visible');
 assert.equal(mainElements.get('questTaskList').hidden, false, 'desktop task manager should render the task map by default');
 assert.equal(mainElements.get('questTaskList').classList.contains('is-flow-board'), true, 'task-map mounts should route scrolling through the dedicated flow-board surface');
@@ -417,6 +418,83 @@ assert.deepEqual(
   mainAttachCalls.map((entry) => entry.id),
   ['session-main-branch'],
   'clicking an existing flow node should still switch the workspace to that branch session',
+);
+
+const completedMainSession = {
+  id: 'session-main-done',
+  name: '系统学习电影史',
+  workflowState: 'done',
+  taskCard: {
+    lineRole: 'main',
+    summary: '梳理电影史脉络结构图谱',
+    goal: '系统学习电影史',
+    mainGoal: '系统学习电影史',
+    nextSteps: ['先搭电影史主线框架'],
+  },
+};
+
+const { elements: completedMainElements } = await runScenario({
+  currentSession: completedMainSession,
+  sessions: [completedMainSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main-done',
+        mainSession: completedMainSession,
+        mainGoal: '系统学习电影史',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+assert.equal(
+  completedMainElements.get('questTracker').classList.contains('is-task-complete'),
+  true,
+  'done workflowState should highlight the task bar as completed',
+);
+assert.equal(
+  completedMainElements.get('questTrackerStatusText').textContent,
+  '已完成',
+  'done workflowState should surface a completed status label in the task bar',
+);
+
+const { elements: completedMainMobileElements } = await runScenario({
+  currentSession: completedMainSession,
+  sessions: [completedMainSession],
+  innerWidth: 390,
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main-done',
+        mainSession: completedMainSession,
+        mainGoal: '系统学习电影史',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+assert.equal(
+  completedMainMobileElements.get('headerTaskDetailBtn').classList.contains('is-task-complete'),
+  true,
+  'mobile task-bar disclosure should also carry completed highlighting for done tasks',
 );
 
 const candidateOnlyMain = {
@@ -605,6 +683,7 @@ assert.equal(branchElements.get('taskMapRail').hidden, false, 'mobile branch tra
 assert.equal(branchElements.get('taskMapDrawerBackdrop').hidden, true, 'mobile branch tracker should keep the drawer backdrop hidden while collapsed');
 assert.equal(branchElements.get('taskMapRail').classList.contains('is-mobile-open'), false, 'mobile task map drawer should stay collapsed by default');
 assert.equal(branchElements.get('questTaskList').hidden, false, 'branch state should keep the mind-map rendered inside the drawer even before interaction');
+assert.equal(branchElements.get('questTracker').classList.contains('is-task-complete'), false, 'active branch tracker should not apply completed highlighting');
 branchElements.get('headerTaskDetailBtn').click();
 assert.equal(branchElements.get('headerTaskDetailBtn').textContent, '表现主义 ▾', 'expanding the mobile task detail should keep the current task title in the header disclosure');
 assert.equal(branchElements.get('questTracker').hidden, false, 'expanding the mobile task detail should reveal the task detail panel');
@@ -612,6 +691,63 @@ assert.equal(branchElements.get('questTrackerBranch').hidden, false, 'expanding 
 assert.equal(branchElements.get('questTrackerBranchLabel').textContent, '主线任务', 'expanded mobile detail should keep the branch label semantics intact');
 assert.equal(branchElements.get('questTrackerBranchTitle').textContent, '来自主线：学习电影史', 'expanded mobile detail should show the parent mainline summary');
 assert.equal(branchElements.get('questTrackerNext').hidden, false, 'expanding the mobile task detail should reveal the concise next-step summary');
+
+const resolvedBranchSession = {
+  id: 'session-branch-resolved',
+  name: 'Branch · 新现实主义',
+  sourceContext: { parentSessionId: 'session-main' },
+  taskCard: {
+    lineRole: 'branch',
+    goal: '新现实主义',
+    mainGoal: '学习电影史',
+    nextSteps: ['对比《罗马，不设防的城市》与《偷自行车的人》'],
+  },
+};
+
+const { elements: resolvedBranchElements } = await runScenario({
+  currentSession: resolvedBranchSession,
+  sessions: [mainSession, resolvedBranchSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [
+      {
+        sessionId: 'session-branch-resolved',
+        parentSessionId: 'session-main',
+        lineRole: 'branch',
+        status: 'resolved',
+        goal: '新现实主义',
+        mainGoal: '学习电影史',
+        nextStep: '对比《罗马，不设防的城市》与《偷自行车的人》',
+      },
+    ],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main',
+        mainSession,
+        currentBranchSessionId: 'session-branch-resolved',
+        branchSessionIds: ['session-branch-resolved'],
+        branchSessions: [
+          {
+            ...resolvedBranchSession,
+            _branchStatus: 'resolved',
+            _branchDepth: 1,
+            _branchParentSessionId: 'session-main',
+          },
+        ],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+assert.equal(
+  resolvedBranchElements.get('questTracker').classList.contains('is-task-complete'),
+  true,
+  'resolved branches should apply completed task-bar highlighting',
+);
 
 const mergeableBranchSession = {
   id: 'session-branch-merge',

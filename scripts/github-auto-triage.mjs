@@ -10,17 +10,17 @@ import { selectAssistantReplyEvent } from '../lib/reply-selection.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
-const MARKER = '<!-- remotelab-github-auto-triage -->';
+const MARKER = '<!-- melodysync-github-auto-triage -->';
 const DEFAULT_CHAT_BASE_URL = `http://127.0.0.1:${CHAT_PORT}`;
 const DEFAULT_SESSION_TOOL = 'codex';
-const REQUEST_MARKER_PREFIX = '<!-- remotelab-github-request-id:';
+const REQUEST_MARKER_PREFIX = '<!-- melodysync-github-request-id:';
 
 const STOP_WORDS_EN = new Set([
   'about', 'after', 'again', 'also', 'been', 'being', 'both', 'from', 'have', 'just', 'more',
   'much', 'only', 'onto', 'that', 'this', 'there', 'their', 'they', 'then', 'than', 'what',
   'when', 'where', 'while', 'which', 'with', 'would', 'your', 'into', 'issue', 'github', 'repo',
   'thread', 'reply', 'please', 'thanks', 'thank', 'problem',
-  'remotelab', 'still', 'should', 'could',
+  'melodysync', 'still', 'should', 'could',
   'does', 'doesn', 'dont', 'cant', 'cannot', 'using', 'used', 'want', 'need'
 ]);
 
@@ -40,9 +40,9 @@ function usage(exitCode = 0) {
 Options:
   --repo <owner/repo>         GitHub repository to watch
   --post                      Actually post replies instead of dry-run
-  --chat-base-url <url>       RemoteLab base URL (default: ${DEFAULT_CHAT_BASE_URL})
-  --session-folder <path>     Folder used for RemoteLab sessions (default: ${PROJECT_ROOT})
-  --session-tool <tool>       Tool used for RemoteLab sessions (default: ${DEFAULT_SESSION_TOOL})
+  --chat-base-url <url>       MelodySync base URL (default: ${DEFAULT_CHAT_BASE_URL})
+  --session-folder <path>     Folder used for MelodySync sessions (default: ${PROJECT_ROOT})
+  --session-tool <tool>       Tool used for MelodySync sessions (default: ${DEFAULT_SESSION_TOOL})
   --model <id>                Optional model override for submitted messages
   --effort <level>            Optional effort override for submitted messages
   --thinking                  Enable thinking for submitted messages
@@ -61,8 +61,8 @@ Options:
 Behavior:
   - Polls GitHub issues + PRs by updated time through gh api
   - Writes local intake snapshots for each changed thread
-  - Normalizes each inbound update into a RemoteLab session message
-  - Reads the resulting assistant message back from RemoteLab and publishes it to GitHub
+  - Normalizes each inbound update into a MelodySync session message
+  - Reads the resulting assistant message back from MelodySync and publishes it to GitHub
   - Scheduled runs remain conservative by default and do not auto-reply to maintainer-authored threads
 `;
   console.log(message);
@@ -256,7 +256,7 @@ function writeJson(pathname, value) {
 function configRoot() {
   const xdgConfigHome = process.env.XDG_CONFIG_HOME;
   const base = xdgConfigHome || join(homedir(), '.config');
-  return join(base, 'remotelab', 'github-triage');
+  return join(base, 'melody-sync', 'github-triage');
 }
 
 function trimString(value) {
@@ -290,7 +290,7 @@ async function loginWithToken(baseUrl, token) {
   });
   const setCookie = response.headers.get('set-cookie');
   if (response.status !== 302 || !setCookie) {
-    throw new Error(`Failed to authenticate to RemoteLab at ${baseUrl} (status ${response.status})`);
+    throw new Error(`Failed to authenticate to MelodySync at ${baseUrl} (status ${response.status})`);
   }
   return setCookie.split(';')[0];
 }
@@ -1088,7 +1088,7 @@ function snapshotPath(snapshotDir, item) {
 }
 
 function postIssueComment(repo, number, body) {
-  const payloadFile = join(tmpdir(), `remotelab-github-triage-${process.pid}-${number}.json`);
+  const payloadFile = join(tmpdir(), `melodysync-github-triage-${process.pid}-${number}.json`);
   writeFileSync(payloadFile, `${JSON.stringify({ body })}\n`);
   try {
     return runGhJson(['api', '-X', 'POST', `repos/${repo}/issues/${number}/comments`, '--input', payloadFile]);
@@ -1122,12 +1122,12 @@ function buildSessionDescription(repo, item, kind) {
 
 function buildSessionSystemPrompt() {
   return [
-    'You are replying through the RemoteLab GitHub connector.',
+    'You are replying through the MelodySync GitHub connector.',
     'Return only the exact GitHub comment body that should be posted back to the thread.',
     'Do not add surrounding explanation, connector notes, session ids, or hidden HTML markers.',
     'Use concise, actionable maintainer language.',
     'Match the thread language when practical.',
-    'If the inbound message says "Maintainer Test: yes", briefly confirm the GitHub -> RemoteLab bridge worked and mention what was processed.',
+    'If the inbound message says "Maintainer Test: yes", briefly confirm the GitHub -> MelodySync bridge worked and mention what was processed.',
   ].join('\n');
 }
 
@@ -1136,7 +1136,7 @@ function formatContextPointer(entry) {
   return `- ${entry.relPath}${suffix}`;
 }
 
-function buildRemoteLabMessage({
+function buildMelodySyncMessage({
   repo,
   item,
   kind,
@@ -1275,7 +1275,7 @@ async function submitInboundUpdate(
   const session = createResult.json.session;
   const messagePayload = {
     requestId,
-    text: buildRemoteLabMessage({
+    text: buildMelodySyncMessage({
       repo: options.repo,
       item,
       kind,
@@ -1442,9 +1442,9 @@ function actionSummary(action) {
   if (action.mode === 'posted') return `posted at ${action.commentUrl}`;
   if (action.mode === 'submitted') return action.duplicate === true
     ? `reused existing run ${action.runId}`
-    : `submitted to RemoteLab run ${action.runId}`;
-  if (action.mode === 'processing') return action.reason || 'waiting for RemoteLab run';
-  if (action.mode === 'dry-run') return 'RemoteLab reply ready (dry-run)';
+    : `submitted to MelodySync run ${action.runId}`;
+  if (action.mode === 'processing') return action.reason || 'waiting for MelodySync run';
+  if (action.mode === 'dry-run') return 'MelodySync reply ready (dry-run)';
   if (action.mode === 'failed') return action.reason || 'automation failed';
   return action.reason;
 }
@@ -1592,7 +1592,7 @@ async function main() {
         latestExternalActivity,
         latestMaintainerActivity,
         latestTaggedReplyAt: taggedReply?.updated_at || taggedReply?.created_at || null,
-        actionLabel: needsReply ? 'preparing RemoteLab submission' : actionSummary(action),
+        actionLabel: needsReply ? 'preparing MelodySync submission' : actionSummary(action),
         relevantContext,
         replyBody: trimString(automation?.replyBody),
         automation,
@@ -1610,7 +1610,7 @@ async function main() {
         } else if (sameEvent && ['processing_for_reply', 'reply_ready'].includes(automation?.status)) {
           action = automation.status === 'reply_ready'
             ? { mode: 'processing', reason: 'reply ready pending publish' }
-            : { mode: 'processing', reason: 'awaiting RemoteLab run' };
+            : { mode: 'processing', reason: 'awaiting MelodySync run' };
         } else if (sameEvent && automation?.status === 'reply_failed') {
           action = { mode: 'failed', reason: automation.lastError || 'previous automation failed' };
         } else {
@@ -1631,7 +1631,7 @@ async function main() {
             sessionId: automation.sessionId,
             runId: automation.runId,
             duplicate: automation.duplicate === true,
-            reason: automation.duplicate === true ? 'reused existing run' : 'submitted to RemoteLab',
+            reason: automation.duplicate === true ? 'reused existing run' : 'submitted to MelodySync',
           };
         }
       }

@@ -71,8 +71,8 @@ When the setup is complete, the machine should have:
 
 The expected session scope is:
 
-- `appId`: `voice`
-- `appName`: `Voice`
+- `sourceId`: `voice`
+- `sourceName`: `Voice`
 - `group`: `Voice`
 - `externalTriggerId`: stable per connector, such as `voice:living-room-speaker`
 
@@ -133,7 +133,7 @@ If it provides only a wake event, the connector can call `capture.command` and `
 
 `capture.command` is optional.
 
-It receives `REMOTELAB_VOICE_*` environment variables and may output either:
+It receives `MELODYSYNC_VOICE_*` environment variables and may output either:
 
 - a plain audio file path
 - JSON with `{ "audioPath": "..." }`
@@ -141,7 +141,7 @@ It receives `REMOTELAB_VOICE_*` environment variables and may output either:
 
 ### STT command
 
-`stt.command` receives `REMOTELAB_VOICE_AUDIO_PATH` and should output either:
+`stt.command` receives `MELODYSYNC_VOICE_AUDIO_PATH` and should output either:
 
 - plain transcript text
 - JSON with `text` or `transcript`
@@ -153,7 +153,7 @@ The connector supports:
 - macOS `say` directly via `tts.mode: "say"`
 - a custom `tts.command`
 
-For a custom command, the reply is passed both as stdin and as `REMOTELAB_VOICE_REPLY_TEXT`.
+For a custom command, the reply is passed both as stdin and as `MELODYSYNC_VOICE_REPLY_TEXT`.
 
 ## Example Config
 
@@ -169,7 +169,7 @@ For a custom command, the reply is passed both as stdin and as `REMOTELAB_VOICE_
   "systemPrompt": "You are validating a local wake-word connector. Reply in the user's language with one short sentence that repeats the recognized transcript. Do not take external actions.",
   "wake": {
     "mode": "command",
-    "command": "~/.tmp/asr-venv/bin/python /Users/jiujianian/code/remotelab/scripts/voice-wake-loop.py --phrase \"Hello World\" --transcript-mode full --model mlx-community/whisper-large-v3-turbo-q4 --language en --chunk-seconds 1.8 --cooldown-ms 2500 --ack-sound-path \"/System/Library/Sounds/Glass.aiff\"",
+    "command": "~/.tmp/asr-venv/bin/python /Users/jiujianian/code/melody-sync/scripts/voice-wake-loop.py --phrase \"Hello World\" --transcript-mode full --model mlx-community/whisper-large-v3-turbo-q4 --language en --chunk-seconds 1.8 --cooldown-ms 2500 --ack-sound-path \"/System/Library/Sounds/Glass.aiff\"",
     "keyword": "Hello World"
   },
   "tts": {
@@ -251,14 +251,14 @@ Example machine-local config for that macOS-only prototype shape:
   "sessionTool": "codex",
   "sessionMode": "per-wake",
   "thinking": false,
-  "systemPrompt": "You are Rowan speaking through a local wake-word voice connector on the owner's Mac. You may use shell commands, osascript, and local scripts on this machine when useful. For music playback requests, prefer running `node /Users/jiujianian/code/remotelab/scripts/music-open.mjs --preset apple-music-classical` for generic classical music, or `node /Users/jiujianian/code/remotelab/scripts/music-open.mjs --query \"<query>\"` for a search. When a local action is possible, do it before replying. Reply with exactly the short text that should be spoken aloud.",
+  "systemPrompt": "You are Rowan speaking through a local wake-word voice connector on the owner's Mac. You may use shell commands, osascript, and local scripts on this machine when useful. For music playback requests, prefer running `node /Users/jiujianian/code/melody-sync/scripts/music-open.mjs --preset apple-music-classical` for generic classical music, or `node /Users/jiujianian/code/melody-sync/scripts/music-open.mjs --query \"<query>\"` for a search. When a local action is possible, do it before replying. Reply with exactly the short text that should be spoken aloud.",
   "wake": {
     "mode": "command",
-    "command": "swift /Users/jiujianian/code/remotelab/scripts/voice-wake-phrase.swift --phrase \"Hello World\" --locale en-US --cooldown-ms 3000 --restart-delay-ms 1200 --on-device true --allow-server-fallback true --ack-sound-path \"/System/Library/Sounds/Glass.aiff\"",
+    "command": "swift /Users/jiujianian/code/melody-sync/scripts/voice-wake-phrase.swift --phrase \"Hello World\" --locale en-US --cooldown-ms 3000 --restart-delay-ms 1200 --on-device true --allow-server-fallback true --ack-sound-path \"/System/Library/Sounds/Glass.aiff\"",
     "keyword": "Hello World"
   },
   "capture": {
-    "command": "swift /Users/jiujianian/code/remotelab/scripts/voice-capture-until-silence.swift --timeout-ms 20000 --speech-start-timeout-ms 8000 --silence-ms 1000 --locale zh-CN --on-device true --allow-server-fallback true",
+    "command": "swift /Users/jiujianian/code/melody-sync/scripts/voice-capture-until-silence.swift --timeout-ms 20000 --speech-start-timeout-ms 8000 --silence-ms 1000 --locale zh-CN --on-device true --allow-server-fallback true",
     "timeoutMs": 30000
   },
   "tts": {
@@ -281,7 +281,7 @@ On macOS, the instance helper may launch the connector through `Terminal.app` wh
 For a direct wake-layer smoke test without speaking, run:
 
 ```bash
-swift /Users/jiujianian/code/remotelab/scripts/voice-wake-phrase.swift --phrase "Hello World" --ack-sound-path "/System/Library/Sounds/Glass.aiff" --test-trigger
+swift /Users/jiujianian/code/melody-sync/scripts/voice-wake-phrase.swift --phrase "Hello World" --ack-sound-path "/System/Library/Sounds/Glass.aiff" --test-trigger
 ```
 
 ## Validation
@@ -301,7 +301,7 @@ npm run voice:connect -- --config <appRoot>/voice/config.json --stdin
 Then a wake-layer smoke test using a prerecorded file:
 
 ```bash
-~/.tmp/asr-venv/bin/python /Users/jiujianian/code/remotelab/scripts/voice-wake-loop.py --phrase "Hello World" --transcript-mode full --model mlx-community/whisper-large-v3-turbo-q4 --language en --test-file /tmp/hello-world.wav
+~/.tmp/asr-venv/bin/python /Users/jiujianian/code/melody-sync/scripts/voice-wake-loop.py --phrase "Hello World" --transcript-mode full --model mlx-community/whisper-large-v3-turbo-q4 --language en --test-file /tmp/hello-world.wav
 ```
 
 Then the real wake loop:

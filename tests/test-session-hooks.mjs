@@ -13,9 +13,9 @@ const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const tempHome = mkdtempSync(join(tmpdir(), 'hooks-test-'));
 
 // Minimal config so session-manager can initialise
-mkdirSync(join(tempHome, '.config', 'remotelab'), { recursive: true });
+mkdirSync(join(tempHome, '.config', 'melody-sync'), { recursive: true });
 writeFileSync(
-  join(tempHome, '.config', 'remotelab', 'tools.json'),
+  join(tempHome, '.config', 'melody-sync', 'tools.json'),
   JSON.stringify([{ id: 'fake', name: 'Fake', command: 'fake', runtimeFamily: 'codex-json' }]),
 );
 

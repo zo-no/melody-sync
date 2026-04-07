@@ -9,7 +9,7 @@
   } = {}) {
     const normalizedStatus = normalizeStatusToken(status);
     if (["resolved", "merged", "done"].includes(normalizedStatus)) {
-      return { label: "运行完成", summary: "当前任务已执行完成。" };
+      return { label: "已完成", summary: "当前任务已完成。" };
     }
     if (isCurrent) {
       return { label: "运行中", summary: "当前任务正在执行中。" };

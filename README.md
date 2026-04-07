@@ -209,18 +209,21 @@ melodysync start                Start all services
 melodysync stop                 Stop all services
 melodysync restart [service]    Restart: chat | all
 melodysync release              Run tests, snapshot the runtime, restart, and health-check the active release
-melodysync guest-instance       Create isolated guest instances with separate config + memory
+melodysync guest-instance       Create isolated instances with separate config + memory
 melodysync chat                 Run chat server in foreground (debug)
+melodysync storage-maintenance  Report or prune reclaimable runtime storage
 melodysync generate-token       Generate a new access token
 melodysync set-password         Set username & password login
 melodysync --help               Show help
 ```
 
-For quick isolated sandboxes on the same machine, use `melodysync guest-instance create <name>`. It provisions a separate `REMOTELAB_INSTANCE_ROOT` and a dedicated local service without mixing chat history or memory into the owner's main instance.
+For quick isolated sandboxes on the same machine, use `melodysync guest-instance create <name>`. It provisions a separate isolated instance root and a dedicated local service without mixing chat history or memory into the owner's main instance.
 
 Production updates should go through `melodysync release` rather than live-editing the running `7760` surface. The release command snapshots the shipped runtime, restarts only after the test gate passes, and automatically restores the previous active release if the health check fails.
 
 ## Configuration
+
+Some advanced env vars still keep the older `MELODYSYNC_` prefix for compatibility. They now override MelodySync runtime paths and behavior only; they do not imply a separate product layer.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -228,10 +231,10 @@ Production updates should go through `melodysync release` rather than live-editi
 | `CHAT_BIND_HOST` | `127.0.0.1` | Host to bind the chat server; keep `127.0.0.1` for local or same-machine reverse proxy access, use `0.0.0.0` only when your operator-managed ingress needs it |
 | `SESSION_EXPIRY` | `86400000` | Cookie lifetime in ms (24h) |
 | `SECURE_COOKIES` | `1` | Set `0` only for plain HTTP access such as local development or private-network access without HTTPS |
-| `REMOTELAB_INSTANCE_ROOT` | unset | Optional isolated data root for an additional instance; defaults to `<root>/config` + `<root>/memory` when set |
-| `REMOTELAB_CONFIG_DIR` | legacy `~/.config/melody-sync` fallback | Optional runtime data/config override for auth, sessions, runs, apps, push, and provider-managed homes |
-| `REMOTELAB_MEMORY_DIR` | legacy `~/.melody-sync/memory` fallback | Optional user-memory override for pointer-first startup files |
-| `REMOTELAB_LIVE_CONTEXT_COMPACT_TOKENS` | `window overflow` | Optional auto-compact override in live-context tokens; unset = compact only after live context exceeds 100% of a known context window, `Inf` = disable |
+| `MELODYSYNC_INSTANCE_ROOT` | unset | Optional isolated MelodySync data root for an additional instance; defaults to `<root>/config` + `<root>/memory` when set |
+| `MELODYSYNC_CONFIG_DIR` | machine default `~/.config/melody-sync` | Optional runtime data/config override for auth, sessions, runs, push, and provider-managed homes |
+| `MELODYSYNC_MEMORY_DIR` | machine default `~/.melodysync/memory` | Optional user-memory override for pointer-first startup files |
+| `MELODYSYNC_LIVE_CONTEXT_COMPACT_TOKENS` | `window overflow` | Optional auto-compact override in live-context tokens; unset = compact only after live context exceeds 100% of a known context window, `Inf` = disable |
 
 ## Common file locations
 
@@ -285,8 +288,9 @@ Minimum usable layout:
 - MelodySync is durability-first: session history, run output, artifacts, and logs accumulate on disk over time.
 - Archiving a session is organizational only. It hides the session from the active list, but it does **not** delete the stored history or run data behind it.
 - On long-lived installs, storage can grow materially, especially if you keep long conversations, large tool outputs, heavy reasoning traces, or generated artifacts.
-- MelodySync does **not** automatically delete old data and does **not** currently ship a one-click cleanup feature. This is intentional: keeping user data is safer than guessing what is safe to remove.
-- If you want to reclaim disk space, periodically review old archived sessions and prune them manually from the terminal, or ask an AI operator to help you clean them up carefully.
+- MelodySync still does **not** auto-delete old data by default, but it now ships a conservative cleanup command for reclaimable runtime storage.
+- Use `melodysync storage-maintenance` for a dry-run report, then `melodysync storage-maintenance --apply` to prune old API logs, old terminal run spool/artifacts, and old manager-owned Codex raw sessions/shell snapshots.
+- The cleanup command intentionally does **not** touch canonical session truth such as `sessions/chat-sessions.json`, `sessions/history/`, or run `manifest/status/result` files.
 - In practice, most storage growth lives under `~/.melodysync/sessions/history/` and `~/.melodysync/sessions/runs/`.
 
 ## Ad-hoc extra instances

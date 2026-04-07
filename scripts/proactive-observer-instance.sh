@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 ACTION="${1:-start}"
-CONFIG_DIR="$HOME/.config/remotelab/proactive-observer"
+CONFIG_DIR="$HOME/.config/melody-sync/proactive-observer"
 PID_FILE="$CONFIG_DIR/observer.pid"
 LOG_PATH="$CONFIG_DIR/observer.log"
 NODE_BIN="${NODE_BIN:-$(command -v node)}"

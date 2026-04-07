@@ -8,14 +8,14 @@ export function parsePositiveInt(value, fallback) {
 
 export function getProviderTransportFailureGraceMs(env = process.env) {
   return parsePositiveInt(
-    env.REMOTELAB_PROVIDER_TRANSPORT_FAILURE_GRACE_MS,
+    env.MELODYSYNC_PROVIDER_TRANSPORT_FAILURE_GRACE_MS,
     DEFAULT_TRANSPORT_FAILURE_GRACE_MS,
   );
 }
 
 export function getProviderTerminationGraceMs(env = process.env) {
   return parsePositiveInt(
-    env.REMOTELAB_PROVIDER_TERMINATION_GRACE_MS,
+    env.MELODYSYNC_PROVIDER_TERMINATION_GRACE_MS,
     DEFAULT_TERMINATION_GRACE_MS,
   );
 }

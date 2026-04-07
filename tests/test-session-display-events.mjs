@@ -33,6 +33,58 @@ assert.deepEqual(
   'collapsed block payload should still expose the folded implementation events on demand',
 );
 
+const multiAssistantTurnHistory = [
+  { seq: 1, type: 'message', role: 'user', content: '给我完整进展' },
+  { seq: 2, type: 'message', role: 'assistant', content: '先说第一步草稿' },
+  { seq: 3, type: 'status', role: 'system', content: 'Preparing context' },
+  { seq: 4, type: 'reasoning', role: 'assistant', content: 'Reviewing details' },
+  { seq: 5, type: 'message', role: 'assistant', content: '补充中间结论' },
+  { seq: 6, type: 'message', role: 'assistant', content: '最终结论' },
+];
+
+const multiAssistantDisplay = buildSessionDisplayEvents(multiAssistantTurnHistory, { sessionRunning: false });
+assert.deepEqual(
+  multiAssistantDisplay.map((event) => event.type),
+  ['message', 'thinking_block', 'message'],
+  'turn display should keep the latest assistant conclusion visible while folding earlier assistant text into a collapsible block',
+);
+assert.equal(
+  multiAssistantDisplay[2]?.content,
+  '最终结论',
+  'the latest assistant message in the turn should be treated as the visible key conclusion',
+);
+assert.equal(multiAssistantDisplay[1].blockStartSeq, 2, 'folded block should start from the first non-user event in the turn');
+assert.equal(multiAssistantDisplay[1].blockEndSeq, 5, 'folded block should include all earlier assistant/status/reasoning events before the key conclusion');
+
+const multiAssistantBlockEvents = buildEventBlockEvents(multiAssistantTurnHistory, 2, 5);
+assert.deepEqual(
+  multiAssistantBlockEvents.map((event) => event.type),
+  ['message', 'status', 'reasoning', 'message'],
+  'expanded folded block should preserve all non-key text and implementation events',
+);
+
+const noHiddenMultiAssistantHistory = [
+  { seq: 1, type: 'message', role: 'user', content: '把分析过程也保留' },
+  { seq: 2, type: 'message', role: 'assistant', content: '中间结论 A' },
+  { seq: 3, type: 'message', role: 'assistant', content: '最终结论 B' },
+];
+
+const noHiddenMultiAssistantDisplay = buildSessionDisplayEvents(noHiddenMultiAssistantHistory, { sessionRunning: false });
+assert.deepEqual(
+  noHiddenMultiAssistantDisplay.map((event) => event.type),
+  ['message', 'thinking_block', 'message'],
+  'earlier assistant conclusions should still be folded by default even when no hidden tool/reasoning events are present',
+);
+assert.equal(noHiddenMultiAssistantDisplay[1].blockStartSeq, 2, 'folded non-key assistant block should start at the first earlier assistant message');
+assert.equal(noHiddenMultiAssistantDisplay[1].blockEndSeq, 2, 'folded non-key assistant block should only include earlier assistant messages before the key conclusion');
+
+const noHiddenMultiAssistantBlockEvents = buildEventBlockEvents(noHiddenMultiAssistantHistory, 2, 2);
+assert.deepEqual(
+  noHiddenMultiAssistantBlockEvents.map((event) => event.type),
+  ['message'],
+  'folded non-key assistant block should keep earlier assistant text available on demand',
+);
+
 const leadingVisibleStatusHistory = [
   { seq: 1, type: 'message', role: 'user', content: 'Do the thing' },
   { seq: 2, type: 'status', role: 'system', content: 'Preparing environment' },

@@ -6,7 +6,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-tool-priority-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-tool-priority-'));
 const fakeBin = join(tempHome, '.local', 'bin');
 mkdirSync(fakeBin, { recursive: true });
 

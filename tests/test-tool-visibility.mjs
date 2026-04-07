@@ -7,9 +7,9 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const tempHome = mkdtempSync(join(tmpdir(), 'remotelab-tool-visibility-'));
+const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-tool-visibility-'));
 const fakeBin = join(tempHome, '.local', 'bin');
-const configDir = join(tempHome, '.config', 'remotelab');
+const configDir = join(tempHome, '.config', 'melody-sync');
 
 mkdirSync(fakeBin, { recursive: true });
 mkdirSync(configDir, { recursive: true });

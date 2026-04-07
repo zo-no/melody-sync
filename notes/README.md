@@ -22,7 +22,7 @@ Current examples:
 - `current/core-domain-refactor-todo.md`
 - `current/core-domain-session-prompts.md`
 - `current/ai-era-hard-skills-roadmap.md`
-- `current/csapp-performance-for-remotelab.md`
+- `current/csapp-performance-for-melodysync.md`
 - `current/memory-activation-architecture.md`
 - `current/performance-optimization-checklist.md`
 - `current/self-hosting-dev-restarts.md`

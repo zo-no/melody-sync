@@ -407,15 +407,15 @@ memory/
 
 例如：
 
-- `REMOTELAB_INSTANCE_ROOT`
-- `REMOTELAB_MEMORY_DIR`
+- `MELODYSYNC_INSTANCE_ROOT`
+- `MELODYSYNC_MEMORY_DIR`
 - `legacyUserConfigDir`
 - `legacyUserMemoryDir`
 
 这意味着：
 
 - MelodySync 的目录边界已经基本收口
-- 但环境变量和回退路径仍保留 `remotelab` 兼容层
+- 环境变量与回退路径已经统一到 MelodySync 口径
 
 ### 7.2 agent memory 和 runtime truth 的边界还主要靠文档约束
 
