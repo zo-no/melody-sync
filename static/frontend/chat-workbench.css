@@ -4368,7 +4368,9 @@ button.quest-task-flow-node {
   --quest-task-flow-node-badge-dot: color-mix(in srgb, var(--text-muted) 84%, transparent);
   background: var(--quest-task-flow-node-bg) !important;
   border-color: var(--quest-task-flow-node-border) !important;
-  box-shadow: inset 0 0 0 1px var(--quest-task-flow-node-border);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 4%, transparent),
+    inset 0 0 0 1px var(--quest-task-flow-node-border);
 }
 
 .quest-task-flow-node:hover,
@@ -4393,6 +4395,8 @@ button.quest-task-flow-node {
 }
 
 .quest-task-flow-node-badge::before {
+  display: inline-block;
+  flex: 0 0 auto;
   background: var(--quest-task-flow-node-badge-dot) !important;
 }
 
@@ -4468,13 +4472,27 @@ button.quest-task-flow-node {
 
 @media (prefers-color-scheme: dark) {
   .quest-task-flow-node {
-    --quest-task-flow-node-bg: color-mix(in srgb, var(--bg-secondary) 78%, var(--bg) 22%);
-    --quest-task-flow-node-bg-hover: color-mix(in srgb, var(--bg-secondary) 70%, var(--surface-hover) 30%);
-    --quest-task-flow-node-border: color-mix(in srgb, var(--border-strong) 38%, var(--border));
-    --quest-task-flow-node-title-color: color-mix(in srgb, var(--text) 90%, var(--bg-secondary) 10%);
-    --quest-task-flow-node-summary-color: color-mix(in srgb, var(--text-secondary) 82%, var(--bg-secondary) 18%);
-    --quest-task-flow-node-badge-color: color-mix(in srgb, var(--text-secondary) 72%, var(--bg-secondary) 28%);
-    --quest-task-flow-node-badge-dot: color-mix(in srgb, var(--text-muted) 62%, transparent);
+    --quest-task-flow-running-accent: #7b83ac;
+    --quest-task-flow-completed-accent: #2fbf8f;
+    --quest-task-flow-queued-accent: #508eb6;
+    --quest-task-flow-waiting-accent: #b79663;
+    --quest-task-flow-renaming-accent: #9280cf;
+    --quest-task-flow-issue-accent: #bc7a6d;
+    --quest-task-flow-muted-accent: #667387;
+    --quest-task-flow-node-surface-base: color-mix(in srgb, #0d131b 82%, var(--bg-secondary) 18%);
+    --quest-task-flow-node-surface-hover: color-mix(in srgb, #101925 80%, var(--bg-secondary) 20%);
+    --quest-task-flow-node-status-accent: var(--quest-task-flow-muted-accent);
+    --quest-task-flow-node-bg:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.022) 0%, rgba(255, 255, 255, 0.008) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-base);
+    --quest-task-flow-node-bg-hover:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.032) 0%, rgba(255, 255, 255, 0.012) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-hover);
+    --quest-task-flow-node-border: #263140;
+    --quest-task-flow-node-title-color: color-mix(in srgb, #dfe8f5 92%, var(--text) 8%);
+    --quest-task-flow-node-summary-color: color-mix(in srgb, #8e9daf 84%, var(--text-secondary) 16%);
+    --quest-task-flow-node-badge-color: color-mix(in srgb, #8293a7 78%, var(--text-secondary) 22%);
+    --quest-task-flow-node-badge-dot: color-mix(in srgb, var(--quest-task-flow-muted-accent) 76%, transparent);
   }
 
   .quest-task-flow-node:is(
@@ -4489,50 +4507,153 @@ button.quest-task-flow-node {
     .is-status-renaming,
     .is-status-rename-failed
   ) {
-    --quest-task-flow-node-bg: color-mix(in srgb, var(--bg-secondary) 92%, var(--quest-task-flow-node-status-accent) 8%);
-    --quest-task-flow-node-bg-hover: color-mix(in srgb, var(--bg-secondary) 84%, var(--quest-task-flow-node-status-accent) 16%);
-    --quest-task-flow-node-border: color-mix(in srgb, var(--border-strong) 58%, var(--quest-task-flow-node-status-accent) 42%);
-    --quest-task-flow-node-title-color: color-mix(in srgb, var(--text) 88%, var(--quest-task-flow-node-status-accent) 12%);
-    --quest-task-flow-node-summary-color: color-mix(in srgb, var(--text-secondary) 72%, var(--quest-task-flow-node-status-accent) 28%);
-    --quest-task-flow-node-badge-color: color-mix(in srgb, var(--text-secondary) 56%, var(--quest-task-flow-node-status-accent) 44%);
+    --quest-task-flow-node-bg:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 8%, transparent) 0%,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 2%, transparent) 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.022) 0%, rgba(255, 255, 255, 0.008) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-base);
+    --quest-task-flow-node-bg-hover:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 11%, transparent) 0%,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 4%, transparent) 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.032) 0%, rgba(255, 255, 255, 0.012) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-hover);
+    --quest-task-flow-node-border: color-mix(in srgb, #2d3947 74%, var(--quest-task-flow-node-status-accent) 26%);
+    --quest-task-flow-node-title-color: color-mix(in srgb, #dfe8f5 94%, var(--quest-task-flow-node-status-accent) 6%);
+    --quest-task-flow-node-summary-color: color-mix(in srgb, #8e9daf 88%, var(--quest-task-flow-node-status-accent) 12%);
+    --quest-task-flow-node-badge-color: color-mix(in srgb, #8293a7 74%, var(--quest-task-flow-node-status-accent) 26%);
+  --quest-task-flow-node-badge-dot: color-mix(in srgb, var(--quest-task-flow-node-status-accent) 68%, transparent);
+}
+
+.quest-task-flow-node:is(.is-status-running, .is-running-session, .status-running, .status-pending) .quest-task-flow-node-badge::before {
+  animation: pulse 1.5s infinite;
+}
+
+  .quest-task-flow-node:is(.is-status-running, .is-running-session, .status-running, .status-pending) {
+    --quest-task-flow-node-status-accent: var(--quest-task-flow-running-accent);
+    --quest-task-flow-node-bg:
+      linear-gradient(
+        180deg,
+        transparent 0%,
+        transparent 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.024) 0%, rgba(255, 255, 255, 0.009) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-base);
+    --quest-task-flow-node-bg-hover:
+      linear-gradient(
+        180deg,
+        transparent 0%,
+        transparent 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.034) 0%, rgba(255, 255, 255, 0.012) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-hover);
+    --quest-task-flow-node-border: color-mix(in srgb, #1e2940 12%, var(--quest-task-flow-node-status-accent) 88%);
+    --quest-task-flow-node-title-color: color-mix(in srgb, #e7f0fc 90%, var(--quest-task-flow-node-status-accent) 10%);
+    --quest-task-flow-node-summary-color: color-mix(in srgb, #97abc4 76%, var(--quest-task-flow-node-status-accent) 24%);
+    --quest-task-flow-node-badge-color: color-mix(in srgb, #86a3c4 64%, var(--quest-task-flow-node-status-accent) 36%);
     --quest-task-flow-node-badge-dot: color-mix(in srgb, var(--quest-task-flow-node-status-accent) 78%, transparent);
+    border: 1px solid color-mix(in srgb, #1e2940 12%, var(--quest-task-flow-node-status-accent) 88%) !important;
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #ffffff 4%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, #1e2940 12%, var(--quest-task-flow-node-status-accent) 88%),
+      0 10px 24px color-mix(in srgb, var(--quest-task-flow-node-status-accent) 18%, transparent) !important;
   }
 
-  .quest-task-flow-node.is-status-running,
-  .quest-task-flow-node.is-status-pending {
-    --quest-task-flow-node-status-accent: color-mix(in srgb, var(--notice) 84%, var(--text-secondary) 16%);
-    --quest-task-flow-node-bg: color-mix(in srgb, var(--bg-secondary) 86%, var(--quest-task-flow-node-status-accent) 14%);
-    --quest-task-flow-node-bg-hover: color-mix(in srgb, var(--bg-secondary) 74%, var(--quest-task-flow-node-status-accent) 26%);
-    --quest-task-flow-node-border: color-mix(in srgb, var(--border-strong) 46%, var(--quest-task-flow-node-status-accent) 54%);
-    --quest-task-flow-node-title-color: color-mix(in srgb, var(--text) 82%, var(--quest-task-flow-node-status-accent) 18%);
-    --quest-task-flow-node-summary-color: color-mix(in srgb, var(--text-secondary) 60%, var(--quest-task-flow-node-status-accent) 40%);
-    --quest-task-flow-node-badge-color: color-mix(in srgb, var(--text-secondary) 40%, var(--quest-task-flow-node-status-accent) 60%);
-    --quest-task-flow-node-badge-dot: color-mix(in srgb, var(--quest-task-flow-node-status-accent) 88%, transparent);
+  .quest-task-flow-node:is(.is-status-completed, .is-status-done, .is-done-session, .is-resolved) {
+  --quest-task-flow-node-status-accent: var(--quest-task-flow-completed-accent);
+    --quest-task-flow-node-bg:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 11%, transparent) 0%,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 4%, transparent) 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.022) 0%, rgba(255, 255, 255, 0.008) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-base);
+    --quest-task-flow-node-bg-hover:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 14%, transparent) 0%,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 5%, transparent) 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.011) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-hover);
+    --quest-task-flow-node-border: color-mix(in srgb, #225548 64%, var(--quest-task-flow-node-status-accent) 36%);
+    --quest-task-flow-node-title-color: color-mix(in srgb, #e3f0ec 94%, var(--quest-task-flow-node-status-accent) 6%);
+    --quest-task-flow-node-summary-color: color-mix(in srgb, #90a99f 84%, var(--quest-task-flow-node-status-accent) 16%);
+    --quest-task-flow-node-badge-color: color-mix(in srgb, #80a796 74%, var(--quest-task-flow-node-status-accent) 26%);
+    --quest-task-flow-node-badge-dot: #ff4d4f;
+    border: 1px solid color-mix(in srgb, #225548 64%, var(--quest-task-flow-node-status-accent) 36%) !important;
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #ffffff 4%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, #225548 64%, var(--quest-task-flow-node-status-accent) 36%),
+      0 10px 24px color-mix(in srgb, var(--quest-task-flow-node-status-accent) 10%, transparent) !important;
   }
 
-  .quest-task-flow-node.is-status-completed,
-  .quest-task-flow-node.is-status-done {
-    --quest-task-flow-node-status-accent: color-mix(in srgb, var(--success) 80%, var(--text-secondary) 20%);
-    --quest-task-flow-node-bg: color-mix(in srgb, var(--success-bg) 54%, var(--bg-secondary) 46%);
-    --quest-task-flow-node-bg-hover: color-mix(in srgb, var(--success-bg) 64%, var(--bg-secondary) 36%);
-    --quest-task-flow-node-border: color-mix(in srgb, var(--border-strong) 54%, var(--quest-task-flow-node-status-accent) 46%);
-    --quest-task-flow-node-title-color: color-mix(in srgb, var(--text) 90%, var(--quest-task-flow-node-status-accent) 10%);
-    --quest-task-flow-node-summary-color: color-mix(in srgb, var(--text-secondary) 74%, var(--quest-task-flow-node-status-accent) 26%);
-    --quest-task-flow-node-badge-color: color-mix(in srgb, var(--text-secondary) 46%, var(--quest-task-flow-node-status-accent) 54%);
-    --quest-task-flow-node-badge-dot: color-mix(in srgb, var(--quest-task-flow-node-status-accent) 82%, transparent);
+  .quest-task-flow-node.is-status-queued {
+    --quest-task-flow-node-status-accent: var(--quest-task-flow-queued-accent);
+  }
+
+  .quest-task-flow-node.is-status-waiting-user {
+    --quest-task-flow-node-status-accent: var(--quest-task-flow-waiting-accent);
+  }
+
+  .quest-task-flow-node.is-status-renaming {
+    --quest-task-flow-node-status-accent: var(--quest-task-flow-renaming-accent);
+  }
+
+  .quest-task-flow-node.is-status-rename-failed {
+    --quest-task-flow-node-status-accent: var(--quest-task-flow-issue-accent);
   }
 
   .quest-task-flow-node.is-status-parked {
-    --quest-task-flow-node-bg: color-mix(in srgb, var(--bg-secondary) 90%, var(--text-muted) 10%);
-    --quest-task-flow-node-bg-hover: color-mix(in srgb, var(--bg-secondary) 82%, var(--text-muted) 18%);
-    --quest-task-flow-node-border: color-mix(in srgb, var(--border) 74%, var(--text-muted) 26%);
+    --quest-task-flow-node-status-accent: var(--quest-task-flow-muted-accent);
+    --quest-task-flow-node-bg:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 10%, transparent) 0%,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 4%, transparent) 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.024) 0%, rgba(255, 255, 255, 0.008) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-base);
+    --quest-task-flow-node-bg-hover:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 15%, transparent) 0%,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 5%, transparent) 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.032) 0%, rgba(255, 255, 255, 0.012) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-hover);
+    --quest-task-flow-node-border: #2d3744;
+    --quest-task-flow-node-title-color: #acb7c5;
+    --quest-task-flow-node-summary-color: #7c8898;
+    --quest-task-flow-node-badge-color: #778394;
   }
 
   .quest-task-flow-node.is-status-idle {
-    --quest-task-flow-node-bg: color-mix(in srgb, var(--bg-secondary) 92%, var(--text-muted) 8%);
-    --quest-task-flow-node-bg-hover: color-mix(in srgb, var(--bg-secondary) 84%, var(--text-muted) 16%);
-    --quest-task-flow-node-border: color-mix(in srgb, var(--border) 78%, var(--text-muted) 22%);
-    --quest-task-flow-node-badge-dot: color-mix(in srgb, var(--text-muted) 74%, transparent);
+    --quest-task-flow-node-status-accent: var(--quest-task-flow-muted-accent);
+    --quest-task-flow-node-bg:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 8%, transparent) 0%,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 3%, transparent) 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.022) 0%, rgba(255, 255, 255, 0.008) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-base);
+    --quest-task-flow-node-bg-hover:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 12%, transparent) 0%,
+        color-mix(in srgb, var(--quest-task-flow-node-status-accent) 4%, transparent) 100%
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 18%, rgba(255, 255, 255, 0) 56%),
+      var(--quest-task-flow-node-surface-hover);
+    --quest-task-flow-node-border: #293340;
+    --quest-task-flow-node-badge-dot: color-mix(in srgb, #728093 68%, transparent);
   }
 }
 
@@ -4540,16 +4661,70 @@ button.quest-task-flow-node {
   background: var(--quest-task-flow-node-bg) !important;
   border-color: var(--quest-task-flow-node-border) !important;
   box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 5%, transparent),
     inset 0 0 0 1px var(--quest-task-flow-node-border),
     0 18px 34px color-mix(in srgb, #0b1520 12%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent) !important;
+    0 0 0 1px color-mix(in srgb, var(--quest-task-flow-node-status-accent) 18%, transparent) !important;
 }
 
 .quest-task-flow-node.is-current-path:not(.is-current) {
   background: var(--quest-task-flow-node-bg) !important;
   border-color: color-mix(in srgb, var(--quest-task-flow-node-border) 82%, var(--accent) 18%) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--quest-task-flow-node-border) 82%, var(--accent) 18%) !important;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 3%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--quest-task-flow-node-border) 82%, var(--quest-task-flow-node-status-accent) 18%) !important;
   opacity: 1 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .quest-task-item:is(.is-running-session, .is-status-running),
+  .quest-task-directory-row:is(.is-running-session, .is-status-running),
+  .quest-task-directory-item:is(.is-running-session, .is-status-running) > .quest-task-directory-row {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      inset 0 0 0 1px color-mix(in srgb, #1f2940 30%, #7b83ac 70%),
+      0 10px 24px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .quest-task-item:is(.is-running-session, .is-status-running) .quest-task-item-meta,
+  .quest-task-directory-row:is(.is-running-session, .is-status-running) .quest-task-item-meta,
+  .quest-task-directory-item:is(.is-running-session, .is-status-running) > .quest-task-directory-row .quest-task-item-meta {
+    color: color-mix(in srgb, #9ea8d3 72%, var(--text-secondary) 28%) !important;
+  }
+
+  .quest-task-item:is(.is-running-session, .is-status-running) .quest-task-item-meta::before,
+  .quest-task-directory-row:is(.is-running-session, .is-status-running) .quest-task-item-meta::before,
+  .quest-task-directory-item:is(.is-running-session, .is-status-running) > .quest-task-directory-row .quest-task-item-meta::before,
+  .quest-task-item-meta.status-running::before,
+  .quest-task-item-meta.is-status-running::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 999px;
+    background: #7b83ac !important;
+    vertical-align: middle;
+    animation: pulse 1.5s infinite;
+  }
+
+  .quest-task-item:is(.is-done-session, .is-status-completed, .is-resolved) .quest-task-item-meta.is-complete::before,
+  .quest-task-directory-row:is(.is-done-session, .is-status-completed, .is-resolved) .quest-task-item-meta.is-complete::before,
+  .quest-task-directory-item:is(.is-done-session, .is-status-completed, .is-resolved) > .quest-task-directory-row .quest-task-item-meta.is-complete::before,
+  .quest-task-item-meta.status-completed.is-complete::before,
+  .quest-task-item-meta.is-status-completed.is-complete::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 999px;
+    background: #ff4d4f !important;
+    color: transparent;
+    font-size: 0;
+    line-height: 0;
+    vertical-align: middle;
+  }
 }
 
 .quest-task-flow-node.is-resolved .quest-task-flow-node-title,
