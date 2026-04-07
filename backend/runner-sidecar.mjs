@@ -94,6 +94,18 @@ function extractFailureReasonFromParsedLine(parsed) {
   return '';
 }
 
+function classifyProviderFailureText(value) {
+  const text = toStringOrUndefined(value);
+  if (!text) return '';
+  if (/Detached runner disappeared before writing a result/i.test(text)) {
+    return `Provider terminated before persisting result: ${text}`;
+  }
+  if (/connection (closed|reset|terminated|was forcibly closed)|socket hang up|EPIPE|ECONNRESET/i.test(text)) {
+    return `Provider transport disrupted before result completion: ${text}`;
+  }
+  return '';
+}
+
 async function cleanEnv(toolId, manifest = {}, options = {}) {
   const env = buildToolProcessEnv();
   delete env.CLAUDECODE;
@@ -238,6 +250,36 @@ async function main() {
   const rawStdoutLines = [];
   const rawStderrLines = [];
   let sawStructuredStdout = false;
+  const applyProviderFailure = async (reason) => {
+    const classified = classifyProviderFailureText(reason);
+    if (!classified || forcedFailureReason) return;
+    forcedFailureReason = classified;
+    await appendRunSpoolRecord(runId, {
+      ts: nowIso(),
+      stream: 'error',
+      line: forcedFailureReason,
+    });
+    await updateRun(runId, (current) => ({
+      ...current,
+      failureReason: forcedFailureReason,
+    }));
+    terminationController.requestTermination();
+  };
+  const applyProviderFailureFromTransport = async (reason) => {
+    const normalized = toStringOrUndefined(reason);
+    if (!normalized || forcedFailureReason) return;
+    forcedFailureReason = normalized;
+    await appendRunSpoolRecord(runId, {
+      ts: nowIso(),
+      stream: 'error',
+      line: forcedFailureReason,
+    });
+    await updateRun(runId, (current) => ({
+      ...current,
+      failureReason: forcedFailureReason,
+    }));
+    terminationController.requestTermination();
+  };
 
   const cancelTimer = setInterval(() => {
     void (async () => {
@@ -253,17 +295,7 @@ async function main() {
       const pendingFailure = transportMonitor.getPendingFailure();
       if (!pendingFailure) return;
       transportAbortRequested = true;
-      forcedFailureReason = forcedFailureReason || pendingFailure.reason;
-      await appendRunSpoolRecord(runId, {
-        ts: nowIso(),
-        stream: 'error',
-        line: forcedFailureReason,
-      });
-      await updateRun(runId, (current) => ({
-        ...current,
-        failureReason: forcedFailureReason,
-      }));
-      terminationController.requestTermination();
+      await applyProviderFailureFromTransport(pendingFailure.reason);
     })();
   }, 500);
   const pruneApiRetryEvents = (now = Date.now()) => {
@@ -362,6 +394,7 @@ async function main() {
         if (rawStdoutLines.length > MAX_RAW_FALLBACK_LINES) {
           rawStdoutLines.shift();
         }
+        await applyProviderFailure(clean);
         trackApiRetryEvent(clean);
       }
     }
@@ -388,6 +421,7 @@ async function main() {
       const clean = line.trim();
       if (!clean) continue;
       transportMonitor.observeStderrLine(clean);
+      await applyProviderFailure(clean);
       trackApiRetryEvent(clean);
       rawStderrLines.push(clean);
       if (rawStderrLines.length > MAX_RAW_FALLBACK_LINES) {

@@ -96,7 +96,6 @@ import {
   normalizeSessionCompatInput,
   normalizeSessionSourceName,
   normalizeSessionUserName,
-  resolveEffectiveAppId,
   resolveSessionSourceId,
   resolveSessionSourceName,
 } from './compat/session-meta-compat.mjs';
@@ -286,6 +285,35 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+async function resolveLatestCompletedRunIdForSession(sessionId = '') {
+  const normalizedSessionId = String(sessionId || '').trim();
+  if (!normalizedSessionId) return '';
+  const runIds = await listRunIds();
+  let latestRunId = '';
+  let latestTimestamp = '';
+  for (const runId of runIds) {
+    const run = await getRun(runId);
+    if (!run || run.sessionId !== normalizedSessionId || run.state !== 'completed') continue;
+    const completedAt = typeof run.completedAt === 'string' ? run.completedAt : '';
+    const updatedAt = typeof run.updatedAt === 'string' ? run.updatedAt : '';
+    const candidateTimestamp = completedAt || updatedAt;
+    if (!candidateTimestamp) continue;
+    if (!latestTimestamp || candidateTimestamp > latestTimestamp) {
+      latestTimestamp = candidateTimestamp;
+      latestRunId = run.id;
+    }
+  }
+  return latestRunId;
+}
+
+function buildSessionCompletionNoticeKey(sessionId = '', runId = '') {
+  const normalizedSessionId = String(sessionId || '').trim();
+  const normalizedRunId = String(runId || '').trim();
+  if (normalizedSessionId && normalizedRunId) return `completion:run:${normalizedRunId}`;
+  if (normalizedSessionId) return `completion:session:${normalizedSessionId}:done`;
+  return '';
+}
+
 function normalizeSourceContext(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   try {
@@ -408,6 +436,12 @@ async function deriveStructuredRuntimeFailureReason(runId, previewText = '') {
   const preview = clipFailurePreview(previewText) || await collectRunOutputPreview(runId);
   if (preview && /(请登录|登录超时|auth|authentication|sso|sign in|login)/i.test(preview)) {
     return `Provider requires interactive login before MelodySync can use it: ${preview}`;
+  }
+  if (preview && /Detached runner disappeared before writing a result/i.test(preview)) {
+    return `Provider terminated before persisting result: ${preview}`;
+  }
+  if (preview && /connection (closed|reset|terminated|was forcibly closed)|socket hang up|EPIPE|ECONNRESET/i.test(preview)) {
+    return `Provider transport disrupted before result completion: ${preview}`;
   }
   if (preview && /api_retry/i.test(preview)) {
     return `Provider is retrying API calls without returning assistant output: ${preview}`;
@@ -620,6 +654,9 @@ function sanitizeForkedEvent(event) {
   delete next.bodyAvailable;
   delete next.bodyLoaded;
   delete next.bodyBytes;
+  delete next.bodyPersistence;
+  delete next.bodyTruncated;
+  delete next.bodyPreview;
   return next;
 }
 
@@ -862,6 +899,15 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
   }
   let run = await getRun(runId);
   if (!run) {
+    const cleared = (await mutateSessionMeta(sessionId, (session) => {
+      if (session.activeRunId !== runId) return false;
+      delete session.activeRunId;
+      session.updatedAt = nowIso();
+      return true;
+    })).changed;
+    if (cleared) {
+      broadcastSessionInvalidation(sessionId);
+    }
     stopObservedRun(runId);
     return null;
   }
@@ -1118,17 +1164,24 @@ async function enrichSessionMeta(meta, _options = {}) {
     recentFollowUpRequestIds,
     activeRunId,
     activeRun,
+    appId: _legacyAppId,
+    appName: _legacyAppName,
+    sourceId: _rawSourceId,
+    sourceName: _rawSourceName,
     visitorId: _legacyVisitorId,
     visitorName: _legacyVisitorName,
     taskCard: _rawTaskCard,
     taskCardManagedBindings: _taskCardManagedBindings,
     ...rest
   } = meta;
+  const compatAppId = normalizeAppId(meta?.appId);
+  const compatAppName = normalizeSessionAppName(meta?.appName);
   const sourceId = resolveSessionSourceId(meta);
   return {
     ...rest,
     ...(taskCard ? { taskCard } : {}),
-    appId: resolveEffectiveAppId(meta.appId),
+    ...(compatAppId ? { appId: compatAppId } : {}),
+    ...(compatAppName ? { appName: compatAppName } : {}),
     sourceId,
     sourceName: resolveSessionSourceName(meta, sourceId),
     latestSeq: snapshot.latestSeq,
@@ -1643,8 +1696,8 @@ async function ensureContextCompactorSession(sourceSessionId, session, run) {
   }
 
   const created = await createSession(session.folder, run?.tool || session.tool, `auto-compress - ${session.name || 'session'}`, {
-    appId: session.appId || '',
-    appName: session.appName || '',
+    sourceId: session.sourceId || '',
+    sourceName: session.sourceName || '',
     systemPrompt: CONTEXT_COMPACTOR_SYSTEM_PROMPT,
     internalRole: INTERNAL_SESSION_ROLE_CONTEXT_COMPACTOR,
     compactsSessionId: sourceSessionId,
@@ -2374,17 +2427,14 @@ export async function startDetachedRunObservers() {
 
 export async function listSessions({
   includeArchived = true,
-  appId = '',
   sourceId = '',
   includeQueuedMessages = false,
 } = {}) {
   const metas = await reconcileSessionsMetaList(await loadSessionsMeta());
-  const normalizedAppId = normalizeAppId(appId);
   const normalizedSourceId = normalizeAppId(sourceId);
   const filtered = metas
     .filter((meta) => shouldExposeSession(meta))
     .filter((meta) => includeArchived || !meta.archived)
-    .filter((meta) => !normalizedAppId || resolveEffectiveAppId(meta.appId) === normalizedAppId)
     .filter((meta) => !normalizedSourceId || resolveSessionSourceId(meta) === normalizedSourceId)
     .sort((a, b) => (
       getSessionPinSortRank(b) - getSessionPinSortRank(a)
@@ -2514,7 +2564,6 @@ export async function createSession(folder, tool, name, extra = {}) {
     : null;
   const requestedInitialNaming = resolveInitialSessionName(name, {
     group: requestedGroup,
-    appName: requestedAppName,
     sourceId: requestedSourceId,
     sourceName: requestedSourceName,
     externalTriggerId,
@@ -2539,7 +2588,6 @@ export async function createSession(folder, tool, name, extra = {}) {
 
         const refreshedInitialNaming = resolveInitialSessionName(name, {
           group: requestedGroup || updated.group || '',
-          appName: requestedAppName || updated.appName || '',
           sourceId: requestedSourceId || updated.sourceId || '',
           sourceName: requestedSourceName || updated.sourceName || '',
           externalTriggerId: externalTriggerId || updated.externalTriggerId || '',
@@ -3300,8 +3348,6 @@ export async function promoteSessionToPersistent(id, payload = {}) {
     {
       group: nextGroup,
       description: String(nextPersistent?.digest?.summary || '').trim(),
-      appId: session.appId || '',
-      appName: session.appName || '',
       sourceId: session.sourceId || '',
       sourceName: session.sourceName || '',
       userId: session.userId || '',
@@ -3536,10 +3582,24 @@ export async function updateSessionWorkflowClassification(id, payload = {}) {
   const enriched = await enrichSessionMeta(result.meta);
   if (result.changed) {
     broadcastSessionInvalidation(id);
+    let completionNoticeKey = '';
+    let completionNoticeRunId = '';
+    if (shouldSendCompletionPush) {
+      completionNoticeRunId = String(enriched?.activeRunId || '').trim();
+      if (!completionNoticeRunId) {
+        completionNoticeRunId = await resolveLatestCompletedRunIdForSession(enriched?.id || id);
+      }
+      completionNoticeKey = buildSessionCompletionNoticeKey(
+        enriched?.id || id,
+        completionNoticeRunId,
+      );
+    }
     const eventPayload = {
       sessionId: id,
       session: enriched,
       manifest: null,
+      run: completionNoticeRunId ? { id: completionNoticeRunId } : undefined,
+      completionNoticeKey,
     };
     if (normalizeSessionWorkflowState(enriched?.workflowState || '') === SESSION_WORKFLOW_STATE_WAITING_USER) {
       await emitHook('session.waiting_user', eventPayload);
@@ -3942,8 +4002,8 @@ export async function forkSession(sessionId) {
   const child = await createSession(source.folder, source.tool, buildForkSessionName(source), {
     group: source.group || '',
     description: source.description || '',
-    appId: source.appId || '',
-    appName: source.appName || '',
+    sourceId: source.sourceId || '',
+    sourceName: source.sourceName || '',
     systemPrompt: source.systemPrompt || '',
     activeAgreements: source.activeAgreements || [],
     userId: source.userId || '',
@@ -4000,8 +4060,6 @@ export async function delegateSession(sessionId, payload = {}) {
   const inheritRuntimePreferences = !requestedTool || requestedTool === source.tool;
 
   const child = await createSession(source.folder, nextTool, requestedName || buildDelegatedSessionName(source, task), {
-    appId: source.appId || '',
-    appName: source.appName || '',
     sourceId: source.sourceId || '',
     sourceName: source.sourceName || '',
     systemPrompt: source.systemPrompt || '',
