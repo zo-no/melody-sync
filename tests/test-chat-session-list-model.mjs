@@ -27,12 +27,29 @@ const context = {
       };
     },
   },
+  MelodySyncSessionStateModel: {
+    normalizeSessionWorkflowState(value) {
+      const normalized = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+      if (['parked', 'paused', 'pause', 'backlog', 'todo'].includes(normalized)) return 'parked';
+      if (['done', 'complete', 'completed', 'finished', '完成', '已完成', '运行完毕', '运行完成'].includes(normalized)) return 'done';
+      if (['waiting', 'waiting_user', 'waiting_for_user', 'waiting_on_user', 'needs_user', 'needs_input'].includes(normalized)) return 'waiting_user';
+      return '';
+    },
+    isSessionBusy(session) {
+      return session?.busy === true;
+    },
+    getSessionReviewStatusInfo(session) {
+      return session?.reviewed === true ? { key: 'unread' } : null;
+    },
+  },
   window: {
     melodySyncT(key) {
       return translations[key] || key;
     },
+    MelodySyncSessionStateModel: null,
   },
 };
+context.window.MelodySyncSessionStateModel = context.MelodySyncSessionStateModel;
 context.globalThis = context;
 context.self = context;
 
@@ -88,13 +105,68 @@ assert.equal(
 );
 assert.equal(
   model.shouldShowSessionInSidebar({ id: 'branch-parked', taskCard: { lineRole: 'branch' }, _branchStatus: 'parked' }),
-  true,
-  'parked branches should remain reopenable from the sidebar',
+  false,
+  'parked branches should disappear from the sidebar task list',
 );
 assert.equal(
-  model.shouldShowSessionInSidebar({ id: 'main-done', taskCard: { lineRole: 'main' }, _branchStatus: 'merged' }),
+  model.shouldShowSessionInSidebar({ id: 'main-done', taskCard: { lineRole: 'main' }, workflowState: 'done' }),
   true,
-  'mainline tasks should not be hidden by branch-only completion rules',
+  'mainline done tasks should remain visible in the sidebar task list',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'main-done-reviewed', taskCard: { lineRole: 'main' }, workflowState: 'done', reviewed: true }),
+  true,
+  'review-pending completed tasks should remain visible in the sidebar task list',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'main-parked', taskCard: { lineRole: 'main' }, workflowState: 'parked' }),
+  false,
+  'parked mainline tasks should disappear from the sidebar task list',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'main-reviewed', taskCard: { lineRole: 'main' }, reviewed: true }),
+  true,
+  'idle sessions carrying the completion-review state should remain in the active sidebar list',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'main-waiting-reviewed', taskCard: { lineRole: 'main' }, workflowState: 'waiting_user', reviewed: true }),
+  true,
+  'waiting-user sessions should stay visible even if they have unread updates',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'main-running', taskCard: { lineRole: 'main' }, reviewed: true, busy: true }),
+  true,
+  'busy sessions should remain visible in the sidebar',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'archived-done', archived: true, taskCard: { lineRole: 'main' }, workflowState: 'done', reviewed: true }, { archived: true }),
+  true,
+  'archived completed tasks should stay visible inside the archive section',
+);
+assert.equal(
+  model.getSessionListEntry({ id: 'entry-done', workflowState: 'done', taskCard: { lineRole: 'main' } }).hiddenReason,
+  '',
+  'sidebar entry classification should keep done mainline tasks visible',
+);
+assert.equal(
+  model.getSessionListEntry({ id: 'entry-parked', workflowState: 'parked', taskCard: { lineRole: 'main' } }).hiddenReason,
+  'parked_mainline',
+  'sidebar entry classification should explain when a mainline task is hidden for being parked',
+);
+assert.equal(
+  model.getSessionListEntry({ id: 'entry-reviewed', reviewed: true, taskCard: { lineRole: 'main' } }).needsReview,
+  true,
+  'sidebar entry classification should keep review-needed tasks visible while marking the review state',
+);
+assert.equal(
+  model.getSessionListEntry({ id: 'entry-merged', taskCard: { lineRole: 'branch' }, _branchStatus: 'merged' }).hiddenReason,
+  'closed_branch',
+  'sidebar entry classification should explain when a branch is hidden for being closed',
+);
+assert.equal(
+  model.getSessionListEntry({ id: 'entry-recurring', persistent: { kind: 'recurring_task' } }).persistentDockGroupKey,
+  'group:long-term',
+  'sidebar entry classification should route recurring tasks into the persistent dock',
 );
 assert.deepEqual(
   Array.from(model.getSessionListBadges({ taskCard: { lineRole: 'branch' } }), (entry) => entry.label),

@@ -7,8 +7,11 @@ function getSessionListModel() {
   return window.MelodySyncSessionListModel || null;
 }
 
-function getSessionGroupInfoForList(session) {
-  return getSessionListModel()?.getSessionGroupInfo?.(session) || {
+function getSessionGroupInfoForList(session, options = {}) {
+  const model = getSessionListModel();
+  const entry = model?.getSessionListEntry?.(session, options);
+  if (entry?.groupInfo) return entry.groupInfo;
+  return model?.getSessionGroupInfo?.(session) || {
     key: "group:inbox",
     label: t("sidebar.group.inbox"),
     title: t("sidebar.group.inbox"),
@@ -16,21 +19,33 @@ function getSessionGroupInfoForList(session) {
   };
 }
 
-function isBranchTaskSessionForList(session) {
-  return getSessionListModel()?.isBranchTaskSession?.(session) === true;
+function isBranchTaskSessionForList(session, options = {}) {
+  const model = getSessionListModel();
+  const entry = model?.getSessionListEntry?.(session, options);
+  if (entry) return entry.branch === true;
+  return model?.isBranchTaskSession?.(session) === true;
 }
 
 function shouldShowSessionInSidebarForList(session, options = {}) {
-  return getSessionListModel()?.shouldShowSessionInSidebar?.(session, options) !== false;
+  const model = getSessionListModel();
+  const entry = model?.getSessionListEntry?.(session, options);
+  if (entry) return entry.visible !== false;
+  return model?.shouldShowSessionInSidebar?.(session, options) !== false;
 }
 
-function buildSessionListMetaHtml(session) {
+function buildSessionListMetaHtml(session, options = {}) {
   const model = getSessionListModel();
+  const entry = model?.getSessionListEntry?.(session, options);
   const metaParts = typeof buildSessionMetaParts === "function"
     ? buildSessionMetaParts(session)
     : [];
-  const badgeHtml = Array.isArray(model?.getSessionListBadges?.(session))
-    ? model.getSessionListBadges(session)
+  const badges = Array.isArray(entry?.badges)
+    ? entry.badges
+    : (Array.isArray(model?.getSessionListBadges?.(session))
+      ? model.getSessionListBadges(session)
+      : []);
+  const badgeHtml = Array.isArray(badges)
+    ? badges
         .filter((badge) => badge?.label)
         .map((badge) => `<span class="${esc(badge.className || "session-list-badge")}" title="${esc(badge.label)}">${esc(badge.label)}</span>`)
     : [];
@@ -38,11 +53,23 @@ function buildSessionListMetaHtml(session) {
 }
 
 function getSidebarPersistentKind(session) {
+  const model = getSessionListModel();
+  const entry = model?.getSessionListEntry?.(session);
+  if (typeof entry?.persistentKind === "string") return entry.persistentKind;
+  if (typeof model?.getSidebarPersistentKind === "function") {
+    return model.getSidebarPersistentKind(session);
+  }
   const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
   return kind === "recurring_task" ? "recurring_task" : (kind === "skill" ? "skill" : "");
 }
 
 function getPersistentDockGroupKey(session) {
+  const model = getSessionListModel();
+  const entry = model?.getSessionListEntry?.(session);
+  if (typeof entry?.persistentDockGroupKey === "string") return entry.persistentDockGroupKey;
+  if (typeof model?.getPersistentDockGroupKey === "function") {
+    return model.getPersistentDockGroupKey(session);
+  }
   const kind = getSidebarPersistentKind(session);
   if (kind === "recurring_task") return "group:long-term";
   if (kind === "skill") return "group:quick-actions";
@@ -105,8 +132,9 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
 }
 
 function createSidebarSessionItem(session, { archived = false } = {}) {
-  const isBranch = isBranchTaskSessionForList(session);
-  const persistentKind = getSidebarPersistentKind(session);
+  const entry = getSessionListModel()?.getSessionListEntry?.(session, { archived }) || null;
+  const isBranch = entry ? entry.branch === true : isBranchTaskSessionForList(session, { archived });
+  const persistentKind = entry?.persistentKind || getSidebarPersistentKind(session);
   const extraClassNames = [];
   if (archived) extraClassNames.push("archived-item");
   if (isBranch) extraClassNames.push(archived ? "is-archived-branch" : "is-branch-session");
@@ -115,7 +143,7 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
   }
   if (persistentKind === "skill") extraClassNames.push("is-quick-action-item");
   if (persistentKind === "recurring_task") extraClassNames.push("is-persistent-recurring-item");
-  const metaOverrideHtml = buildSessionListMetaHtml(session);
+  const metaOverrideHtml = buildSessionListMetaHtml(session, { archived });
   const item = createActiveSessionItem(session, {
     extraClassName: extraClassNames.join(" "),
     actions: buildSidebarSessionActions(session, { archived }),

@@ -38,8 +38,26 @@
       : "";
   }
 
+  function getSessionStateModel() {
+    return root?.MelodySyncSessionStateModel
+      || root?.window?.MelodySyncSessionStateModel
+      || null;
+  }
+
+  function normalizeWorkflowState(value) {
+    const stateModel = getSessionStateModel();
+    if (typeof stateModel?.normalizeSessionWorkflowState === "function") {
+      return stateModel.normalizeSessionWorkflowState(value);
+    }
+    const normalized = normalizeKey(value).replace(/[\s-]+/g, "_");
+    if (["parked", "paused", "pause", "backlog", "todo"].includes(normalized)) return "parked";
+    if (["done", "complete", "completed", "finished", "完成", "已完成", "运行完毕", "运行完成"].includes(normalized)) return "done";
+    if (["waiting", "waiting_user", "waiting_for_user", "waiting_on_user", "needs_user", "needs_input"].includes(normalized)) return "waiting_user";
+    return "";
+  }
+
   function isVoiceSession(session) {
-    const sourceId = normalizeKey(session?.sourceId || session?.appId || "");
+    const sourceId = normalizeKey(session?.sourceId || "");
     return sourceId === "voice";
   }
 
@@ -66,6 +84,18 @@
         ? group.order
         : TASK_LIST_GROUPS.findIndex((entry) => entry.key === group.key),
     };
+  }
+
+  function getSidebarPersistentKind(session) {
+    const kind = normalizeKey(session?.persistent?.kind || "");
+    return kind === "recurring_task" ? "recurring_task" : (kind === "skill" ? "skill" : "");
+  }
+
+  function getPersistentDockGroupKey(session) {
+    const persistentKind = getSidebarPersistentKind(session);
+    if (persistentKind === "recurring_task") return "group:long-term";
+    if (persistentKind === "skill") return "group:quick-actions";
+    return "";
   }
 
   function isBranchTaskSession(session) {
@@ -117,16 +147,34 @@
 
   function isClosedBranchTaskSession(session) {
     const branchStatus = getBranchTaskStatus(session);
-    return isBranchTaskSession(session) && ["resolved", "merged", "done", "closed"].includes(branchStatus);
+    return isBranchTaskSession(session) && ["parked", "resolved", "merged", "done", "closed"].includes(branchStatus);
   }
 
-  function shouldShowSessionInSidebar(session) {
-    if (!session?.id) return false;
-    return !isClosedBranchTaskSession(session);
+  function isHiddenWorkflowStateSession(session, options = {}) {
+    if (options?.archived === true || session?.archived === true) return false;
+    const workflowState = normalizeWorkflowState(session?.workflowState || "");
+    return workflowState === "parked";
+  }
+
+  function isSidebarCompletionReviewSession(session, options = {}) {
+    const stateModel = getSessionStateModel();
+    if (!stateModel) return false;
+    if (options?.archived === true || session?.archived === true) return false;
+    const workflowState = normalizeWorkflowState(session?.workflowState || "");
+    if (workflowState === "waiting_user" || workflowState === "done") return false;
+    if (typeof stateModel.isSessionBusy === "function" && stateModel.isSessionBusy(session)) {
+      return false;
+    }
+    return typeof stateModel.getSessionReviewStatusInfo === "function"
+      && Boolean(stateModel.getSessionReviewStatusInfo(session));
+  }
+
+  function shouldShowSessionInSidebar(session, options = {}) {
+    return getSessionListEntry(session, options).visible;
   }
 
   function getPersistentBadge(session) {
-    const kind = normalizeKey(session?.persistent?.kind || "");
+    const kind = getSidebarPersistentKind(session);
     const state = normalizeKey(session?.persistent?.state || "");
     if (kind === "recurring_task") {
       return {
@@ -145,7 +193,7 @@
     return null;
   }
 
-  function getSessionListBadges(session) {
+  function getSessionListBadges(session, entry = null) {
     const badges = [];
     const persistentBadge = getPersistentBadge(session);
     if (persistentBadge) badges.push(persistentBadge);
@@ -156,7 +204,7 @@
         className: "session-list-badge session-list-badge-source-voice",
       });
     }
-    if (isBranchTaskSession(session)) {
+    if ((entry?.branch ?? isBranchTaskSession(session)) === true) {
       badges.push({
         key: "branch",
         label: translate("sidebar.branchTag"),
@@ -166,14 +214,54 @@
     return badges;
   }
 
+  function getSessionListEntry(session, options = {}) {
+    const archived = options?.archived === true || session?.archived === true;
+    const branch = isBranchTaskSession(session);
+    const branchStatus = branch ? getBranchTaskStatus(session) : "";
+    const workflowState = normalizeWorkflowState(session?.workflowState || "");
+    const persistentKind = getSidebarPersistentKind(session);
+    const persistentDockGroupKey = getPersistentDockGroupKey(session);
+    const groupInfo = getSessionGroupInfo(session);
+    const needsReview = isSidebarCompletionReviewSession(session, options);
+
+    let hiddenReason = "";
+    if (!session?.id) {
+      hiddenReason = "missing_id";
+    } else if (branch && ["parked", "resolved", "merged", "done", "closed"].includes(branchStatus)) {
+      hiddenReason = "closed_branch";
+    } else if (!archived && workflowState === "parked") {
+      hiddenReason = "parked_mainline";
+    }
+
+    const entry = {
+      visible: hiddenReason === "",
+      hiddenReason,
+      archived,
+      branch,
+      branchStatus,
+      workflowState,
+      persistentKind,
+      persistentDockGroupKey,
+      groupInfo,
+      needsReview,
+    };
+    return {
+      ...entry,
+      badges: getSessionListBadges(session, entry),
+    };
+  }
+
   root.MelodySyncSessionListModel = {
     TASK_LIST_GROUPS,
     resolveTaskListGroup,
     getSessionGroupInfo,
+    getSidebarPersistentKind,
+    getPersistentDockGroupKey,
     isBranchTaskSession,
     getBranchTaskStatus,
     isClosedBranchTaskSession,
     shouldShowSessionInSidebar,
     getSessionListBadges,
+    getSessionListEntry,
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

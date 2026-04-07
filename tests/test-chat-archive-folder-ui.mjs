@@ -85,6 +85,7 @@ function createFakeDocument() {
 }
 
 const buildSessionActionConfigsSource = extractFunctionSource(sessionSurfaceSource, 'buildSessionActionConfigs');
+const getDoneWorkflowStatusInfoSource = extractFunctionSource(sessionSurfaceSource, 'getDoneWorkflowStatusInfo');
 const getSessionListTouchStatusInfoSource = extractFunctionSource(sessionSurfaceSource, 'getSessionListTouchStatusInfo');
 const getSessionListModelSource = extractFunctionSource(sessionListSource, 'getSessionListModel');
 const shouldShowSessionInSidebarForListSource = extractFunctionSource(sessionListSource, 'shouldShowSessionInSidebarForList');
@@ -141,6 +142,8 @@ const statusContext = {
   t(key) {
     return {
       'status.running': 'Running',
+      'workflow.status.done': 'Completed',
+      'workflow.status.doneTitle': 'Current task completed',
       'workflow.status.finished': 'Completed',
       'workflow.status.finishedTitle': 'Completed since last view',
     }[key] || key;
@@ -153,15 +156,35 @@ const statusContext = {
       isSessionBusy(session) {
         return session?.busy === true;
       },
+      getWorkflowStatusInfo(value) {
+        return value === 'done'
+          ? {
+              key: 'done',
+              label: 'Completed',
+              className: 'status-done',
+              itemClass: 'is-done-session',
+              title: 'Current task completed',
+            }
+          : null;
+      },
       getSessionReviewStatusInfo(session) {
-        return session?.reviewed === true ? { key: 'unread' } : null;
+        return session?.reviewed === true
+          ? {
+              key: 'unread',
+              label: 'Updated',
+              className: 'status-unread',
+              title: 'Updated since last view',
+            }
+          : null;
       },
     },
   },
 };
 statusContext.globalThis = statusContext;
 vm.runInNewContext(`
+  ${getDoneWorkflowStatusInfoSource}
   ${getSessionListTouchStatusInfoSource}
+  globalThis.getDoneWorkflowStatusInfo = getDoneWorkflowStatusInfo;
   globalThis.getSessionListTouchStatusInfo = getSessionListTouchStatusInfo;
 `, statusContext, {
   filename: 'static/frontend/session/surface-ui.js',
@@ -180,14 +203,26 @@ assert.equal(
   'busy tasks should collapse to a single running list state',
 );
 assert.equal(
-  JSON.stringify(statusContext.getSessionListTouchStatusInfo({ reviewed: true })),
+  JSON.stringify(statusContext.getSessionListTouchStatusInfo({ reviewed: true, workflowState: 'done' })),
+  JSON.stringify({
+    key: 'done',
+    label: 'Completed',
+    className: 'status-done',
+    itemClass: 'is-done-session',
+    title: 'Completed since last view',
+  }),
+  'review-pending completed tasks should keep the completed state and highlight class in sync',
+);
+assert.equal(
+  JSON.stringify(statusContext.getSessionListTouchStatusInfo({ reviewed: true, workflowState: 'waiting_user' })),
   JSON.stringify({
     key: 'finished',
     label: 'Completed',
     className: 'status-done',
+    itemClass: 'is-done-session',
     title: 'Completed since last view',
   }),
-  'review-pending tasks should collapse to a single completed list state',
+  'review-pending idle tasks should still surface the completed sidebar emphasis even when workflowState is missing',
 );
 assert.equal(
   statusContext.getSessionListTouchStatusInfo({}),
