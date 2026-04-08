@@ -21,7 +21,7 @@ export function buildPreparedContinuationContext(prepared, previousTool, effecti
   }
 
   if (continuation) {
-    if (includesCompactionHandoff) {
+    if (includesCompactionHandoff || sessionState) {
       return continuation;
     }
     const summaryLabel = sessionState

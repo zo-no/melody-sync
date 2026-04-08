@@ -76,12 +76,12 @@ export const HOOK_TASK_MAP_PLAN_POLICY_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: 'augment-default',
     label: '增强默认地图',
-    description: '这个 hook 可以在默认 continuity 地图上补充节点和边，但不能整张替换。',
+    description: '兼容模式：这个 hook 可以在默认 continuity 地图上补充节点和边，但 durable state 仍应是地图真值来源。',
   }),
   Object.freeze({
     id: 'replace-default',
     label: '替换默认地图',
-    description: '这个 hook 可以完整提供 taskMapPlan，并替换默认 continuity 地图。',
+    description: '遗留兼容模式：允许完整提供 taskMapPlan，但长期方向仍应收口到 durable state 驱动的默认投影。',
   }),
 ]);
 
@@ -102,17 +102,17 @@ export const HOOK_PROMPT_CONTEXT_POLICY_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: 'pre-run',
     label: '执行前注入',
-    description: '在当前 run 开始前，把 hook 生成的上下文片段注入主 Agent prompt。',
+    description: '兼容模式：在当前 run 开始前注入补充片段。长期应优先通过 session state、handoff 或 effect 驱动，而不是让 hook 拥有 prompt 真值。',
   }),
   Object.freeze({
     id: 'continuity',
     label: '连续性注入',
-    description: '在当前轮结束后写回隐藏连续性上下文，供后续 continuation 使用。',
+    description: '兼容模式：在当前轮结束后写回隐藏连续性上下文。长期应优先收口到 event log、session state 与标准 handoff。',
   }),
   Object.freeze({
     id: 'both',
     label: '前后都注入',
-    description: '同时支持执行前 prompt 注入和结束后连续性注入。',
+    description: '遗留兼容模式：同时支持前置 prompt 注入和结束后连续性写回，默认不应作为新能力的首选落点。',
   }),
 ]);
 

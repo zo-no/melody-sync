@@ -38,8 +38,19 @@ const {
     checkpoint: '继续压 prepared.summary 旧链',
   });
 
-  assert.match(continuation, /\[Earlier compressed summary]/);
-  assert.match(continuation, /summary still appears without a handoff/);
+  assert.doesNotMatch(continuation, /\[Earlier compressed summary]/);
+  assert.doesNotMatch(continuation, /summary still appears without a handoff/);
+}
+
+{
+  const continuation = buildPreparedContinuationContext({
+    summary: 'summary still falls back when session state is absent',
+    continuationBody: '[User]\n继续推进。',
+    includesCompactionHandoff: false,
+  }, 'codex', 'codex', null);
+
+  assert.match(continuation, /\[Conversation summary]/);
+  assert.match(continuation, /summary still falls back when session state is absent/);
 }
 
 {

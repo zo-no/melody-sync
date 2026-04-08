@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -9,6 +10,18 @@ process.env.HOME = home;
 
 const workspace = join(home, 'workspace');
 mkdirSync(workspace, { recursive: true });
+
+async function removeTreeWithRetries(target, attempts = 20, delayMs = 100) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      await rm(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+      return;
+    } catch (error) {
+      if (attempt === attempts - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
 
 const {
   createSession,
@@ -312,5 +325,5 @@ try {
   console.log('test-session-forking: ok');
 } finally {
   killAll();
-  rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+  await removeTreeWithRetries(home);
 }

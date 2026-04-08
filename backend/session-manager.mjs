@@ -1492,15 +1492,15 @@ async function buildCompactionSourcePayload(sessionId, session, { uptoSeq = 0 } 
   const handoffSeq = Number.isInteger(contextHead?.handoffSeq) ? contextHead.handoffSeq : 0;
   const sliceEvents = boundedHistory.filter((event) => (event?.seq || 0) > activeFromSeq);
   const summary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';
+  const toolIndex = buildToolActivityIndex(boundedHistory);
   const handoffEvent = handoffSeq > 0
     ? boundedHistory.find((event) => (event?.seq || 0) === handoffSeq && event?.type === 'message')
     : null;
-  const existingSummary = handoffEvent ? '' : summary;
+  const existingSummary = '';
   const existingHandoff = handoffEvent
     ? prepareConversationOnlyContinuationBody([handoffEvent])
-    : '';
+    : (summary ? buildFallbackCompactionHandoff(summary, toolIndex) : '');
   const conversationBody = prepareConversationOnlyContinuationBody(sliceEvents);
-  const toolIndex = buildToolActivityIndex(boundedHistory);
 
   if (!existingSummary && !existingHandoff && !conversationBody && !toolIndex) {
     return null;
