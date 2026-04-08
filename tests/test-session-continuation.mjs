@@ -15,6 +15,18 @@ const switchedContext = buildSessionContinuationContextFromBody('[User]\ncontinu
 });
 assert.match(switchedContext, /MelodySync session continuity handoff: the user switched tools from claude to codex/);
 
+const statefulContext = buildSessionContinuationContextFromBody('[User]\ncontinue', {
+  sessionState: {
+    goal: '重构会话主链',
+    mainGoal: '梳理会话交互流程',
+    checkpoint: '下一步收缩 continuation',
+    lineRole: 'main',
+  },
+});
+assert.match(statefulContext, /\[Session state\]/);
+assert.match(statefulContext, /Goal: 重构会话主链/);
+assert.match(statefulContext, /Checkpoint: 下一步收缩 continuation/);
+
 const attachmentBody = prepareSessionContinuationBody([
   {
     type: 'message',

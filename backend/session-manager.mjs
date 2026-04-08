@@ -1362,7 +1362,7 @@ export function broadcastSessionInvalidation(sessionId) {
   sendToClients(clients, { type: 'session_invalidated', sessionId });
 }
 
-function buildPreparedContinuationContext(prepared, previousTool, effectiveTool) {
+function buildPreparedContinuationContext(prepared, previousTool, effectiveTool, sessionState = null) {
   if (!prepared) return '';
 
   const summary = typeof prepared.summary === 'string' ? prepared.summary.trim() : '';
@@ -1373,6 +1373,7 @@ function buildPreparedContinuationContext(prepared, previousTool, effectiveTool)
     ? buildSessionContinuationContextFromBody(continuationBody, {
         fromTool: previousTool,
         toTool: effectiveTool,
+        sessionState,
       })
     : '';
 
@@ -2054,7 +2055,7 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
       snapshot || await getHistorySnapshot(sessionId),
       contextHead,
     );
-    continuationContext = buildPreparedContinuationContext(prepared, previousTool, effectiveTool);
+    continuationContext = buildPreparedContinuationContext(prepared, previousTool, effectiveTool, session?.sessionState || null);
   }
 
   let actualText = text;

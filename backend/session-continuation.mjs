@@ -147,6 +147,29 @@ function buildContinuationIntro(options = {}) {
     : 'MelodySync session continuity handoff for this existing conversation.';
 }
 
+function buildSessionStateSection(sessionState = null) {
+  const goal = normalizeText(sessionState?.goal);
+  const mainGoal = normalizeText(sessionState?.mainGoal);
+  const checkpoint = normalizeText(sessionState?.checkpoint);
+  const branchFrom = normalizeText(sessionState?.branchFrom);
+  const lineRole = normalizeText(sessionState?.lineRole) || 'main';
+  const needsUser = sessionState?.needsUser === true;
+
+  if (!goal && !mainGoal && !checkpoint && !branchFrom && lineRole === 'main' && !needsUser) {
+    return '';
+  }
+
+  return [
+    '[Session state]',
+    goal ? `Goal: ${goal}` : '',
+    mainGoal ? `Main goal: ${mainGoal}` : '',
+    checkpoint ? `Checkpoint: ${checkpoint}` : '',
+    `Line role: ${lineRole}`,
+    branchFrom ? `Branch from: ${branchFrom}` : '',
+    needsUser ? 'Needs user: true' : '',
+  ].filter(Boolean).join('\n');
+}
+
 export function prepareSessionContinuationBody(events) {
   const segments = (events || [])
     .map(formatContinuationEvent)
@@ -160,14 +183,16 @@ export function prepareSessionContinuationBody(events) {
 export function buildSessionContinuationContextFromBody(body, options = {}) {
   const normalizedBody = normalizeText(body);
   if (!normalizedBody) return '';
+  const sessionStateSection = buildSessionStateSection(options.sessionState);
 
   return [
     buildContinuationIntro(options),
     'Below is the prior session state reconstructed from MelodySync\'s normalized history.',
     'Treat it as the authoritative context for continuing this same session.',
+    sessionStateSection,
     '',
     normalizedBody,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 export function buildSessionContinuationContext(events, options = {}) {
