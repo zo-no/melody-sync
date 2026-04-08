@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -28,6 +28,7 @@ const {
 const {
   getRunManifest,
 } = await import('../backend/runs.mjs');
+const config = await import('../lib/config.mjs');
 
 try {
   const parent = await createSession(workspace, 'codex', 'Source session', {
@@ -103,11 +104,7 @@ try {
     source: 'manual',
   });
 
-  const sessionPathCandidates = [
-    join(home, '.melodysync', 'sessions', 'chat-sessions.json'),
-    join(home, '.config', 'melody-sync', 'chat-sessions.json'),
-  ];
-  const sessionsPath = sessionPathCandidates.find((candidate) => existsSync(candidate)) || sessionPathCandidates[0];
+  const sessionsPath = config.CHAT_SESSIONS_FILE;
   const storedSessions = JSON.parse(readFileSync(sessionsPath, 'utf8'));
   const parentRecord = storedSessions.find((entry) => entry.id === parent.id);
   assert.ok(parentRecord, 'parent session record should exist');
@@ -240,6 +237,40 @@ try {
   });
   const manifest = await getRunManifest(promptOutcome.run.id);
   assert.match(manifest?.prompt || '', /SENTINEL FORK CONTEXT/, 'first child turn should reuse the prepared fork context');
+
+  const compactionParent = await createSession(workspace, 'codex', 'Compaction parent', {
+    group: 'Painting',
+    description: 'Forked child should reuse handoff rather than copied summary',
+  });
+  await appendEvents(compactionParent.id, [
+    {
+      type: 'message',
+      role: 'user',
+      content: 'Compress this context.',
+      timestamp: 20,
+    },
+    {
+      type: 'message',
+      role: 'assistant',
+      content: '# Auto Compress\n\n## Continue from here\n- Resume from handoff.',
+      timestamp: 21,
+      source: 'context_compaction_handoff',
+    },
+  ]);
+  await setContextHead(compactionParent.id, {
+    mode: 'summary',
+    summary: 'Legacy summary should not be copied into child handoff state.',
+    activeFromSeq: 2,
+    compactedThroughSeq: 2,
+    handoffSeq: 2,
+    updatedAt: '2026-03-12T00:00:00.000Z',
+    source: 'context_compaction',
+  });
+  const compactionChild = await forkSession(compactionParent.id);
+  assert.ok(compactionChild, 'fork should succeed for compaction-backed parent sessions');
+  const compactionChildContext = await getContextHead(compactionChild.id);
+  assert.equal(compactionChildContext?.summary || '', '', 'forked child should not carry forward legacy summary when a handoff already exists');
+  assert.equal(compactionChildContext?.handoffSeq, 2, 'forked child should keep the handoff reference');
 
   console.log('test-session-forking: ok');
 } finally {

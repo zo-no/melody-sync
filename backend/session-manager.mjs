@@ -3999,9 +3999,12 @@ export async function forkSession(sessionId) {
   }
 
   if (contextHead) {
+    const copiedContextHead = Number.isInteger(contextHead?.handoffSeq) && contextHead.handoffSeq > 0
+      ? { ...contextHead, summary: '' }
+      : contextHead;
     await setContextHead(child.id, {
-      ...contextHead,
-      updatedAt: contextHead.updatedAt || nowIso(),
+      ...copiedContextHead,
+      updatedAt: copiedContextHead.updatedAt || nowIso(),
     });
   } else {
     await clearContextHead(child.id);
