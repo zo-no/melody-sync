@@ -126,6 +126,7 @@ const {
   createSession,
   getSession,
   sendMessage,
+  updateSessionTaskCard,
   killAll,
 } = sessionManager;
 const { setContextHead } = history;
@@ -180,10 +181,36 @@ try {
   assert.match(promptLog, /Earlier session context:/);
   assert.match(promptLog, /Known scope router entries:/);
   assert.match(promptLog, /Current non-archived sessions:/);
-  assert.match(promptLog, /MelodySync session grouping, rename prompts/);
+  assert.match(promptLog, /Main goal: Make it feel…/);
   assert.match(promptLog, /- MelodySync — code repo/);
   assert.match(promptLog, /\[MelodySync\] Naming Flow — Refactor session naming and grouping\./);
   assert.match(promptLog, /\[Video Workflow\] Rough Cut Review — Review edit decisions for the current draft\./);
+
+  const stateOnlyTarget = await createSession(tempHome, 'fake-codex', '', {
+  });
+  await updateSessionTaskCard(stateOnlyTarget.id, {
+    mainGoal: '梳理 MelodySync 会话架构',
+    goal: '优化自动命名和分组',
+    checkpoint: '继续把命名提示改成 sessionState 优先',
+  });
+
+  await sendMessage(stateOnlyTarget.id, 'Keep the naming flow under the same project context.', [], {
+    tool: 'fake-codex',
+    model: 'fake-model',
+    effort: 'low',
+  });
+
+  await waitFor(
+    async () => {
+      const current = await getSession(stateOnlyTarget.id);
+      return current?.name === 'Prompt Tuning'
+        && current?.group === 'MelodySync';
+    },
+    'session should use sessionState-driven prompt context when no legacy summary exists',
+  );
+
+  const updatedPromptLog = readFileSync(promptLogPath, 'utf8');
+  assert.match(updatedPromptLog, /Checkpoint: 继续把命名提示改成 sessionState 优先/);
 
   await waitFor(
     async () => (await getSession(target.id))?.activity?.run?.state === 'idle',

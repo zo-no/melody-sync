@@ -10,6 +10,7 @@ import {
   normalizeSessionGroup,
   normalizeSessionName,
 } from './session-naming.mjs';
+import { resolveSessionStateFromSession } from './session-runtime/session-state.mjs';
 
 const PROJECTS_MD = join(MEMORY_DIR, 'projects.md');
 const MAX_CONTEXT_SUMMARY_CHARS = 900;
@@ -31,6 +32,23 @@ function clipText(value, maxChars) {
   }
   if (maxChars === 1) return '…';
   return `${text.slice(0, maxChars - 1).trimEnd()}…`;
+}
+
+function buildSessionStateContextSummary(sessionMeta) {
+  const state = resolveSessionStateFromSession(sessionMeta);
+  const parts = [];
+
+  if (state.mainGoal) {
+    parts.push(`Main goal: ${state.mainGoal}`);
+  }
+  if (state.goal && state.goal !== state.mainGoal) {
+    parts.push(`Current goal: ${state.goal}`);
+  }
+  if (state.checkpoint) {
+    parts.push(`Checkpoint: ${state.checkpoint}`);
+  }
+
+  return clipText(parts.join(' '), MAX_CONTEXT_SUMMARY_CHARS);
 }
 
 function extractInlineCodeTokens(value) {
@@ -275,7 +293,8 @@ export async function loadSessionLabelPromptContext(sessionMeta, turnText) {
     readOptionalText(PROJECTS_MD),
   ]);
 
-  const contextSummary = clipText(contextHead?.summary || '', MAX_CONTEXT_SUMMARY_CHARS);
+  const contextSummary = buildSessionStateContextSummary(sessionMeta)
+    || clipText(contextHead?.summary || '', MAX_CONTEXT_SUMMARY_CHARS);
   const scopeRouter = buildScopeRouterPromptContext(projectsMarkdown, {
     folder: sessionMeta?.folder || '',
     name: sessionMeta?.name || '',
