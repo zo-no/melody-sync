@@ -106,6 +106,9 @@ function classifyProviderFailureText(value) {
   if (/connection (closed|reset|terminated|was forcibly closed)|socket hang up|EPIPE|ECONNRESET/i.test(text)) {
     return `Provider transport disrupted before result completion: ${text}`;
   }
+  if (/api_retry/i.test(text)) {
+    return `Provider is retrying API calls without returning assistant output: ${text}`;
+  }
   return '';
 }
 
@@ -469,7 +472,8 @@ async function main() {
     const combinedText = collectRawFallbackText();
     if (!combinedText) return;
 
-    forcedFailureReason = `Provider exited without structured output despite raw content: ${combinedText}`;
+    forcedFailureReason = classifyProviderFailureText(combinedText)
+      || `Provider exited without structured output despite raw content: ${combinedText}`;
     await updateRun(runId, (current) => ({
       ...current,
       failureReason: forcedFailureReason,

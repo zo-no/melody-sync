@@ -68,6 +68,8 @@ restart_launchd() {
   local label="$1"
   local plist="$HOME/Library/LaunchAgents/${label}.plist"
   local name="$2"
+  local uid
+  uid="$(id -u)"
 
   if [ ! -f "$plist" ]; then
     echo "  $name: plist not found, skipping"
@@ -75,9 +77,13 @@ restart_launchd() {
   fi
 
   if launchctl list | grep -q "$label"; then
-    launchctl stop "$label" 2>/dev/null || true
-    sleep 1
-    echo "  $name: restarted ($(launchctl list | grep "$label" | awk '{print "pid="$1}'))"
+    if launchctl kickstart -k "gui/${uid}/${label}" >/dev/null 2>&1; then
+      echo "  $name: restarted"
+    else
+      launchctl stop "$label" 2>/dev/null || true
+      sleep 1
+      echo "  $name: restarted ($(launchctl list | grep "$label" | awk '{print "pid="$1}'))"
+    fi
   else
     launchctl load "$plist" 2>/dev/null
     echo "  $name: loaded"
