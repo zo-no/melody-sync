@@ -176,10 +176,14 @@ try {
   );
 
   const overflowContextHead = readPersistedContextHead(overflowSession.id);
-  assert.match(
+  assert.equal(
     overflowContextHead?.summary || '',
-    /Carry forward only the compacted continuation summary\./,
-    'overflow session should store the compaction summary as the continuation head',
+    '',
+    'overflow session should not persist the legacy compaction summary once a handoff is available',
+  );
+  assert.ok(
+    Number.isInteger(overflowContextHead?.handoffSeq) && overflowContextHead.handoffSeq > 0,
+    'overflow session should persist the handoff event boundary instead of a summary blob',
   );
 
   const overflowHistory = await getHistory(overflowSession.id);

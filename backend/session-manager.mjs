@@ -2183,7 +2183,7 @@ async function applyCompactionWorkerResult(targetSessionId, run, manifest) {
 
   await setContextHead(targetSessionId, {
     mode: 'summary',
-    summary,
+    summary: '',
     toolIndex: manifest?.compactionToolIndex || '',
     activeFromSeq: compactEvent.seq,
     compactedThroughSeq: Number.isInteger(manifest?.compactionSourceSeq) ? manifest.compactionSourceSeq : compactEvent.seq,
