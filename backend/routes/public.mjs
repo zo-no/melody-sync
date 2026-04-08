@@ -1,5 +1,5 @@
 import { readFile } from 'fs/promises';
-import { SESSION_EXPIRY } from '../lib/config.mjs';
+import { SESSION_EXPIRY } from '../../lib/config.mjs';
 import {
   sessions,
   saveAuthSessionsAsync,
@@ -9,14 +9,14 @@ import {
   parseCookies,
   setCookie,
   clearCookie,
-} from '../lib/auth.mjs';
-import { readBody } from '../lib/utils.mjs';
+} from '../../lib/auth.mjs';
+import { readBody } from '../../lib/utils.mjs';
 import {
   getClientIp,
   isRateLimited,
   recordFailedAttempt,
   clearFailedAttempts,
-} from './middleware.mjs';
+} from '../middleware.mjs';
 
 export async function handlePublicRoutes({
   req,

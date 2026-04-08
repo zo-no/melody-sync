@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
 const { handleSystemRoutes } = await import(
-  pathToFileURL(join(repoRoot, 'backend/router-system-routes.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend/routes/system.mjs')).href
 );
 
 const baseParameters = {

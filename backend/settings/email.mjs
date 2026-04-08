@@ -1,7 +1,7 @@
 import {
   persistEmailSettings,
   readEmailSettings,
-} from '../email-settings-store.mjs';
+} from './email-store.mjs';
 
 export async function readEmailSettingsPayload() {
   return readEmailSettings();

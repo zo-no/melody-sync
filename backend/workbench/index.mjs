@@ -1,4 +1,4 @@
-import { readGeneralSettings } from '../settings-store.mjs';
+import { readGeneralSettings } from '../settings/general-store.mjs';
 import {
   ensureDir,
   pathExists,

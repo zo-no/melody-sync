@@ -16,8 +16,8 @@ import {
   resolveMelodySyncDefaultAgentsPath,
   resolveMelodySyncAppRoot,
   resolveMelodySyncRuntimeRoot,
-} from '../lib/config.mjs';
-import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from './fs-utils.mjs';
+} from '../../lib/config.mjs';
+import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from '../fs-utils.mjs';
 
 const DEFAULT_SETTINGS = Object.freeze({
   brainRoot: '',

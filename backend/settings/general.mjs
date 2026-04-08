@@ -1,7 +1,7 @@
 import {
   persistGeneralSettings,
   readGeneralSettings,
-} from '../settings-store.mjs';
+} from './general-store.mjs';
 
 export async function readGeneralSettingsPayload() {
   return readGeneralSettings();

@@ -30,7 +30,7 @@ mkdirSync(firstAppRoot, { recursive: true });
 mkdirSync(secondAppRoot, { recursive: true });
 
 try {
-  const settingsModule = await import(pathToFileURL(join(repoRoot, 'backend/settings-store.mjs')).href);
+  const settingsModule = await import(pathToFileURL(join(repoRoot, 'backend/settings/general-store.mjs')).href);
 
   const first = await settingsModule.persistGeneralSettings({ appRoot: firstAppRoot });
   assert.equal(first.configuredBrainRootPath, firstAppRoot);

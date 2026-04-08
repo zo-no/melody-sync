@@ -27,7 +27,7 @@ writeFileSync(
 );
 
 try {
-  const settingsStore = await import(pathToFileURL(join(repoRoot, 'backend/settings-store.mjs')).href);
+  const settingsStore = await import(pathToFileURL(join(repoRoot, 'backend/settings/general-store.mjs')).href);
   const runtime = await settingsStore.ensureGeneralSettingsRuntimeFiles();
 
   assert.equal(runtime.brainRoot, appRoot);

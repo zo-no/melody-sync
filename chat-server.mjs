@@ -50,8 +50,8 @@ if (!delegatedToRelease) {
     import('./backend/hooks/runtime/registry.mjs'),
     import('./backend/hooks/first-boot-memory-hook.mjs'),
     import('./backend/hooks/runtime/settings-store.mjs'),
-    import('./backend/settings-store.mjs'),
-    import('./backend/voice-settings-store.mjs'),
+    import('./backend/settings/general-store.mjs'),
+    import('./backend/settings/voice-store.mjs'),
   ]);
 
   registerBuiltinHooks();

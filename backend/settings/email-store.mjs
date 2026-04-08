@@ -1,4 +1,4 @@
-import { buildMelodySyncPaths } from '../lib/config.mjs';
+import { buildMelodySyncPaths } from '../../lib/config.mjs';
 import {
   getMailboxStatus,
   loadAllowlist,
@@ -11,9 +11,9 @@ import {
   saveMailboxAutomation,
   saveMailboxIdentity,
   saveOutboundConfig,
-} from '../lib/agent-mailbox.mjs';
-import { ensureDir } from './fs-utils.mjs';
-import { readGeneralSettings } from './settings-store.mjs';
+} from '../../lib/agent-mailbox.mjs';
+import { ensureDir } from '../fs-utils.mjs';
+import { readGeneralSettings } from './general-store.mjs';
 
 const EMAIL_PROVIDER_OPTIONS = Object.freeze([
   { value: 'apple_mail', label: 'Apple Mail' },

@@ -2,6 +2,9 @@
 
 This directory owns the canonical settings-domain helpers that power the shared settings overlay.
 
+- `general-store.mjs`: persisted machine/app-root settings store and runtime bootstrap helpers.
+- `email-store.mjs`: persisted mailbox and outbound-email settings store.
+- `voice-store.mjs`: persisted voice connector settings store.
 - `registry.mjs`: machine-readable list of settings sections shown in the UI.
 - `general.mjs`: canonical app-root settings payload and persistence helpers for the General tab.
 - `email.mjs`: canonical email settings payload and persistence helpers for the Email tab.

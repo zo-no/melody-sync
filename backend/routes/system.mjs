@@ -2,14 +2,14 @@ import { readFile, readdir } from 'fs/promises';
 import { homedir } from 'os';
 import { join, resolve, dirname, basename } from 'path';
 
-import { getAuthSession, refreshAuthSession } from '../lib/auth.mjs';
-import { getAvailableToolsAsync } from '../lib/tools.mjs';
-import { readBody } from '../lib/utils.mjs';
+import { getAuthSession, refreshAuthSession } from '../../lib/auth.mjs';
+import { getAvailableToolsAsync } from '../../lib/tools.mjs';
+import { readBody } from '../../lib/utils.mjs';
 
-import { playHostCompletionSound } from './completion-sound.mjs';
-import { getModelsForTool } from './models.mjs';
-import { getPublicKey, addSubscription } from './push.mjs';
-import { enqueueHostCompletionSpeech } from './completion-speech-queue.mjs';
+import { playHostCompletionSound } from '../completion-sound.mjs';
+import { getModelsForTool } from '../models.mjs';
+import { getPublicKey, addSubscription } from '../push.mjs';
+import { enqueueHostCompletionSpeech } from '../completion-speech-queue.mjs';
 
 function jsonError(writeJson, res, statusCode, message) {
   writeJson(res, statusCode, { error: message });

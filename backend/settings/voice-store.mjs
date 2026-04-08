@@ -1,11 +1,11 @@
 import { readFile } from 'fs/promises';
 
-import { buildMelodySyncPaths } from '../lib/config.mjs';
+import { buildMelodySyncPaths } from '../../lib/config.mjs';
 import {
   buildDefaultVoiceConnectorConfig,
   mergeVoiceConnectorConfig,
   normalizeConfig as normalizeVoiceConnectorConfig,
-} from '../lib/voice-connector-config.mjs';
+} from '../../lib/voice-connector-config.mjs';
 import {
   buildManagedVoiceConfigPatch,
   buildVoiceModeHints,
@@ -13,9 +13,9 @@ import {
   inferSimpleVoiceMode,
   inferWakePhrase,
   VOICE_SIMPLE_MODE_OPTIONS,
-} from '../lib/voice-connector-presets.mjs';
-import { ensureDir, readJson, writeJsonAtomic } from './fs-utils.mjs';
-import { readGeneralSettings } from './settings-store.mjs';
+} from '../../lib/voice-connector-presets.mjs';
+import { ensureDir, readJson, writeJsonAtomic } from '../fs-utils.mjs';
+import { readGeneralSettings } from './general-store.mjs';
 
 function trimString(value) {
   return typeof value === 'string' ? value.trim() : '';

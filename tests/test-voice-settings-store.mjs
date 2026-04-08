@@ -27,7 +27,7 @@ writeFileSync(join(configDir, 'general-settings.json'), JSON.stringify({
 
 try {
   const { readVoiceSettings, persistVoiceSettings } = await import(
-    pathToFileURL(join(repoRoot, 'backend', 'voice-settings-store.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/settings/voice-store.mjs')).href
   );
 
   const initial = await readVoiceSettings();

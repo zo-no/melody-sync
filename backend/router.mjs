@@ -47,7 +47,7 @@ import {
 } from './middleware.mjs';
 import { pathExists, statOrNull } from './fs-utils.mjs';
 import { broadcastAll } from './ws-clients.mjs';
-import { handlePublicRoutes } from './router-public-routes.mjs';
+import { handlePublicRoutes } from './routes/public.mjs';
 import { handleAssetRoutes } from './routes/assets.mjs';
 import { handleAuthRoutes } from './routes/auth.mjs';
 import { handleRunRoutes } from './routes/runs.mjs';
@@ -56,7 +56,7 @@ import { handleSessionWriteRoutes } from './routes/session-write.mjs';
 import { handleWorkbenchRoutes } from './routes/workbench.mjs';
 import { handleHooksRoutes } from './routes/hooks.mjs';
 import { handleSettingsRoutes } from './routes/settings.mjs';
-import { handleSystemRoutes } from './router-system-routes.mjs';
+import { handleSystemRoutes } from './routes/system.mjs';
 import { createWorkbenchNodeDefinitionsPayload } from './workbench/node-definitions.mjs';
 import {
   buildFileAssetDirectUrl,

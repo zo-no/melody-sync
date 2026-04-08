@@ -1,7 +1,7 @@
 import {
   persistVoiceSettings,
   readVoiceSettings,
-} from '../voice-settings-store.mjs';
+} from './voice-store.mjs';
 
 export async function readVoiceSettingsPayload() {
   return readVoiceSettings();
