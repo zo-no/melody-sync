@@ -348,6 +348,10 @@ function applyLazyBodyToNode(node, body) {
   if (!node) return;
   const renderMode = node.dataset.bodyRender || "text";
   const value = formatDecodedDisplayText(body?.value || node.dataset.preview || "");
+  if (renderMode === "assistant-message" && typeof renderAssistantMessageBodyIntoNode === "function") {
+    renderAssistantMessageBodyIntoNode(node, value);
+    return;
+  }
   if (renderMode === "markdown" && typeof renderMarkdownIntoNode === "function") {
     renderMarkdownIntoNode(node, value);
     return;
@@ -357,10 +361,6 @@ function applyLazyBodyToNode(node, body) {
 
 function cleanBase64TextForDisplay(text) {
   return String(text || "").replace(/\s+/g, "").trim();
-}
-
-function stripHiddenDisplayBlocks(text) {
-  return String(text || "");
 }
 
 function looksLikeReadableDisplayText(text) {
@@ -393,7 +393,7 @@ function tryDecodeUtf8Base64Text(text) {
 }
 
 function formatDecodedDisplayText(text) {
-  const source = stripHiddenDisplayBlocks(typeof text === "string" ? text : "");
+  const source = typeof text === "string" ? text : "";
   const marker = "Original email:";
   const markerIndex = source.indexOf(marker);
   if (markerIndex === -1) return source;

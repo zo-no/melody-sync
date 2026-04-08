@@ -129,7 +129,6 @@ try {
     'builtin.host-completion-voice',
     'builtin.email-completion',
     'builtin.branch-candidates',
-    'builtin.session-naming',
   ];
 
   for (const id of EXPECTED_HOOKS) {
@@ -168,11 +167,6 @@ try {
   assert.equal(byId['builtin.branch-candidates'].phase, 'closeout');
   assert.equal(byId['builtin.branch-candidates'].taskMapPlanPolicy, 'augment-default');
   assert.equal(byId['builtin.branch-candidates'].producesTaskMapPlan, true);
-  assert.equal(byId['builtin.session-naming'].eventPattern, 'run.completed');
-  assert.equal(byId['builtin.session-naming'].scope, 'run');
-  assert.equal(byId['builtin.session-naming'].phase, 'closeout');
-  assert.equal(byId['builtin.session-naming'].taskMapPlanPolicy, 'none');
-  assert.equal(byId['builtin.session-naming'].producesTaskMapPlan, false);
   assert.equal(byId['builtin.first-boot-memory'].owner, 'hooks');
   assert.equal(byId['builtin.first-boot-memory'].sourceModule, 'backend/hooks/first-boot-memory-hook.mjs');
   assert.equal(byId['builtin.resume-completion-targets'].owner, 'hooks');
@@ -185,9 +179,6 @@ try {
   assert.equal(byId['builtin.push-notification'].sourceModule, 'backend/hooks/push-notification-hook.mjs');
   assert.equal(byId['builtin.branch-candidates'].owner, 'hooks');
   assert.equal(byId['builtin.branch-candidates'].sourceModule, 'backend/hooks/branch-candidates-hook.mjs');
-  assert.equal(byId['builtin.session-naming'].owner, 'hooks');
-  assert.equal(byId['builtin.session-naming'].sourceModule, 'backend/hooks/session-naming-hook.mjs');
-
   // All built-ins should be enabled by default.
   for (const h of hooks) {
     assert.equal(h.enabled, true, `Hook ${h.id} should be enabled by default`);

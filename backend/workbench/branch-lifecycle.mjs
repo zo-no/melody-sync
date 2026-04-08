@@ -712,6 +712,8 @@ export async function createBranchFromNode(nodeId, payload = {}) {
       parentSession: sourceSession,
       branchContext,
       manifest: null,
+      appendEvent,
+      statusEvent,
     });
 
     return {
@@ -835,6 +837,8 @@ export async function createBranchFromSession(sessionId, payload = {}) {
       parentSession: sourceSession,
       branchContext,
       manifest: null,
+      appendEvent,
+      statusEvent,
     });
 
     return {
@@ -1072,6 +1076,8 @@ export async function mergeBranchSessionBackToMain(sessionId, payload = {}) {
         nextStep,
       },
       manifest: null,
+      appendEvent,
+      statusEvent,
     });
 
     return {

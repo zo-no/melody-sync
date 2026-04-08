@@ -2333,6 +2333,8 @@ export async function startDetachedRunObservers() {
     sessionId: '',
     session: null,
     manifest: null,
+    appendEvent,
+    statusEvent,
   });
 }
 
@@ -2692,6 +2694,8 @@ export async function createSession(folder, tool, name, extra = {}) {
       sessionId: enriched.id,
       session: enriched,
       manifest: null,
+      appendEvent,
+      statusEvent,
     });
   }
   await appendGraphBootstrapPromptContext({
@@ -3566,6 +3570,8 @@ export async function updateSessionWorkflowClassification(id, payload = {}) {
       manifest: null,
       run: completionNoticeRunId ? { id: completionNoticeRunId } : undefined,
       completionNoticeKey,
+      appendEvent,
+      statusEvent,
     };
     if (normalizeSessionWorkflowState(enriched?.workflowState || '') === SESSION_WORKFLOW_STATE_WAITING_USER) {
       await emitHook('session.waiting_user', eventPayload);
@@ -3891,6 +3897,8 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
         userEvent,
         recordedUserText,
         manifest: null,
+        appendEvent,
+        statusEvent,
       }).catch(() => {});
     }
   }
@@ -3929,6 +3937,8 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
     session,
     run,
     manifest: null,
+    appendEvent,
+    statusEvent,
   }).catch(() => {});
 
   broadcastSessionInvalidation(sessionId);

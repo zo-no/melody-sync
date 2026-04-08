@@ -37,6 +37,144 @@ function renderMarkdownIntoNode(node, markdown) {
   return !!visibleSource.trim();
 }
 
+function extractHiddenDisplayBlocks(markdown) {
+  const source = typeof markdown === "string" ? markdown : "";
+  const hiddenBlocks = [];
+  const buildHiddenBlock = (tag, rawContent) => {
+    const normalizedContent = rawContent.trim();
+    const taskCardMatch = normalizedContent.match(/^<task_card>([\s\S]*?)<(?:\\\/|\/)task_card>$/i);
+    const taskCardContent = taskCardMatch ? String(taskCardMatch[1] || "").trim() : "";
+    let formattedContent = normalizedContent;
+    let kind = tag;
+    if (taskCardMatch) {
+      kind = "task_card";
+      if (taskCardContent) {
+        try {
+          formattedContent = JSON.stringify(JSON.parse(taskCardContent), null, 2);
+        } catch {
+          formattedContent = taskCardContent;
+        }
+      } else {
+        formattedContent = "";
+      }
+    }
+    return {
+      tag,
+      kind,
+      rawContent,
+      content: taskCardMatch ? taskCardContent : normalizedContent,
+      formattedContent,
+    };
+  };
+
+  let visibleContent = source.replace(
+    /(^|\n)[ \t]*<(private|hide)>\s*([\s\S]*?)\s*<(?:\\\/|\/)\2>[ \t]*(?=\n|$)/gi,
+    (match, linePrefix, tag, rawContent) => {
+      hiddenBlocks.push(buildHiddenBlock(String(tag || "").toLowerCase(), typeof rawContent === "string" ? rawContent : ""));
+      return linePrefix;
+    },
+  );
+
+  while (true) {
+    const trimmedVisible = visibleContent.trimEnd();
+    if (!trimmedVisible) break;
+    const candidates = ["private", "hide"]
+      .map((tag) => ({ tag, index: trimmedVisible.lastIndexOf(`<${tag}>`) }))
+      .filter((entry) => entry.index >= 0)
+      .sort((left, right) => right.index - left.index);
+    if (candidates.length === 0) break;
+
+    let matchedCandidate = null;
+    let matchedContent = "";
+    for (const candidate of candidates) {
+      const fragment = trimmedVisible.slice(candidate.index);
+      const match = fragment.match(new RegExp(`^<${candidate.tag}>([\\s\\S]*?)<(?:\\\\/|/)${candidate.tag}>$`, "i"));
+      if (!match) continue;
+      matchedCandidate = candidate;
+      matchedContent = typeof match[1] === "string" ? match[1] : "";
+      break;
+    }
+    if (!matchedCandidate) break;
+
+    hiddenBlocks.push(buildHiddenBlock(matchedCandidate.tag, matchedContent));
+    visibleContent = trimmedVisible.slice(0, matchedCandidate.index);
+  }
+
+  hiddenBlocks.reverse();
+  return {
+    visibleContent,
+    hiddenBlocks,
+  };
+}
+
+function getHiddenDisplayBlockLabel(block, index = 0) {
+  return index > 0 ? `隐藏内容 ${index + 1}` : "隐藏内容";
+}
+
+function insertAssistantBodyChild(container, node) {
+  if (!container || !node) return;
+  const attachmentWrap = container.querySelector(".msg-images");
+  const sidecarWrap = container.querySelector(".msg-assistant-sidecars");
+  const anchor = sidecarWrap || attachmentWrap || null;
+  if (anchor) {
+    container.insertBefore(node, anchor);
+    return;
+  }
+  container.appendChild(node);
+}
+
+function renderAssistantMessageBodyIntoNode(container, markdown, { bodyNode = null } = {}) {
+  if (!container) return { hasVisible: false, hasSidecars: false };
+  const { visibleContent, hiddenBlocks } = extractHiddenDisplayBlocks(markdown);
+
+  let resolvedBodyNode = bodyNode || container.querySelector(".msg-assistant-body");
+  if (!resolvedBodyNode) {
+    resolvedBodyNode = document.createElement("div");
+    resolvedBodyNode.className = "msg-assistant-body";
+  }
+  resolvedBodyNode.innerHTML = "";
+  resolvedBodyNode.textContent = "";
+
+  const hasVisible = renderMarkdownIntoNode(resolvedBodyNode, visibleContent);
+  if (hasVisible) {
+    insertAssistantBodyChild(container, resolvedBodyNode);
+  } else {
+    resolvedBodyNode.remove();
+  }
+
+  container.querySelector(".msg-assistant-sidecars")?.remove();
+  if (hiddenBlocks.length > 0) {
+    const sidecarWrap = document.createElement("div");
+    sidecarWrap.className = "msg-assistant-sidecars";
+    hiddenBlocks.forEach((block, index) => {
+      const panel = document.createElement("div");
+      panel.className = "assistant-sidecar-panel";
+
+      const body = document.createElement("div");
+      body.className = "assistant-sidecar-body";
+
+      const meta = document.createElement("div");
+      meta.className = "assistant-sidecar-meta";
+      meta.textContent = `${getHiddenDisplayBlockLabel(block, index)} · ${block.kind === "task_card" ? "task_card" : block.tag}`;
+
+      const pre = document.createElement("pre");
+      pre.className = "assistant-sidecar-pre";
+      pre.textContent = block.formattedContent || block.content || "";
+
+      body.appendChild(meta);
+      body.appendChild(pre);
+      panel.appendChild(body);
+      sidecarWrap.appendChild(panel);
+    });
+    insertAssistantBodyChild(container, sidecarWrap);
+  }
+
+  return {
+    hasVisible,
+    hasSidecars: hiddenBlocks.length > 0,
+  };
+}
+
 function markLazyEventBodyNode(node, evt, { preview = "", renderMode = "text" } = {}) {
   if (!node || !evt?.bodyAvailable || evt.bodyLoaded) return false;
   if (!Number.isInteger(evt.seq) || evt.seq < 1) return false;
@@ -311,26 +449,23 @@ function renderMessageInto(container, evt, { finalizeActiveThinkingBlock = false
     if (evt.content || evt.bodyAvailable) {
       const content = document.createElement("div");
       content.className = "msg-assistant-body";
-      let shouldAppendContent = false;
+      div.appendChild(content);
+      let renderState = { hasVisible: false, hasSidecars: false };
       if (evt.content) {
-        const didRender = renderMarkdownIntoNode(content, evt.content);
-        if (didRender) {
-          shouldAppendContent = true;
-        } else if (!hasAttachments) {
+        renderState = renderAssistantMessageBodyIntoNode(div, evt.content, { bodyNode: content });
+        if (!renderState.hasVisible && !renderState.hasSidecars && !hasAttachments) {
           return null;
         }
       } else if (evt.bodyAvailable) {
         if (evt.bodyPreview) {
-          renderMarkdownIntoNode(content, evt.bodyPreview);
+          renderState = renderAssistantMessageBodyIntoNode(div, evt.bodyPreview, { bodyNode: content });
+        } else {
+          content.remove();
         }
-        shouldAppendContent = true;
       }
-      if (shouldAppendContent) {
-        div.appendChild(content);
-      }
-      if (markLazyEventBodyNode(content, evt, {
-        preview: evt.bodyPreview || "",
-        renderMode: "markdown",
+      if (markLazyEventBodyNode(div, evt, {
+        preview: evt.bodyPreview || evt.content || "",
+        renderMode: "assistant-message",
       })) {
         if (typeof queueHydrateLazyNodes === "function") {
           queueHydrateLazyNodes(div);

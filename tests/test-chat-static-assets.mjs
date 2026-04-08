@@ -1183,7 +1183,6 @@ async function main() {
       'builtin.host-completion-voice',
       'builtin.email-completion',
       'builtin.branch-candidates',
-      'builtin.session-naming',
     ]) {
       assert.ok(
         hookIds.includes(expectedHookId),

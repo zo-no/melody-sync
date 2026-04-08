@@ -137,6 +137,42 @@ function collectEntriesForEvent(sourceRegistry, event) {
   return matched;
 }
 
+async function appendHookTraceEvents(event, ctx, executed = [], failures = []) {
+  const appendEvent = typeof ctx?.appendEvent === 'function' ? ctx.appendEvent : null;
+  const statusEvent = typeof ctx?.statusEvent === 'function' ? ctx.statusEvent : null;
+  const sessionId = normalizeHookId(ctx?.sessionId);
+  if (!appendEvent || !statusEvent || !sessionId || !Array.isArray(executed) || executed.length === 0) {
+    return 0;
+  }
+
+  const failuresById = new Map(
+    (Array.isArray(failures) ? failures : []).map((failure) => [
+      normalizeHookId(failure?.id) || normalizeHookId(failure?.label),
+      failure,
+    ]),
+  );
+
+  let appendedCount = 0;
+  for (const hook of executed) {
+    const hookId = normalizeHookId(hook?.id) || normalizeHookId(hook?.label);
+    const hookLabel = String(hook?.label || hookId || '').trim() || hookId || 'anonymous';
+    const failure = failuresById.get(hookId);
+    const content = failure
+      ? `hook: ${event} · ${hookLabel} [failed] ${failure.reason}`
+      : `hook: ${event} · ${hookLabel}`;
+    await appendEvent(sessionId, statusEvent(content, {
+      statusKind: 'hook_trace',
+      hookEvent: event,
+      hookId,
+      hookLabel,
+      hookOutcome: failure ? 'failed' : 'completed',
+      ...(failure ? { hookFailureReason: failure.reason } : {}),
+    }));
+    appendedCount += 1;
+  }
+  return appendedCount;
+}
+
 export async function emit(event, ctx) {
   const hooks = collectHooks(event);
   if (hooks.length === 0) {
@@ -145,6 +181,7 @@ export async function emit(event, ctx) {
       hookCount: 0,
       executed: [],
       failures: [],
+      traceAppendedCount: 0,
     };
   }
 
@@ -174,10 +211,13 @@ export async function emit(event, ctx) {
     }
   }
 
+  const traceAppendedCount = await appendHookTraceEvents(event, ctx, executed, failures);
+
   return {
     event,
     hookCount: hooks.length,
     executed,
     failures,
+    traceAppendedCount,
   };
 }

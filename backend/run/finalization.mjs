@@ -24,11 +24,15 @@ function collectHookTraceMeta(...hookResults) {
   const hookIds = [];
   const hookLabels = [];
   let failureCount = 0;
+  let traceAppendedCount = 0;
 
   for (const result of hookResults) {
     if (!result || typeof result !== 'object') continue;
     if (Array.isArray(result.failures)) {
       failureCount += result.failures.length;
+    }
+    if (Number.isInteger(result.traceAppendedCount) && result.traceAppendedCount > 0) {
+      traceAppendedCount += result.traceAppendedCount;
     }
     const executed = Array.isArray(result.executed) ? result.executed : [];
     for (const hook of executed) {
@@ -47,6 +51,7 @@ function collectHookTraceMeta(...hookResults) {
     hookIds,
     hookLabels,
     failureCount,
+    traceAppendedCount,
   };
 }
 
@@ -54,7 +59,9 @@ function buildHookTraceStatusEvent(statusEvent, {
   hookIds = [],
   hookLabels = [],
   failureCount = 0,
+  traceAppendedCount = 0,
 } = {}) {
+  if (traceAppendedCount > 0) return null;
   if (!Array.isArray(hookLabels) || hookLabels.length === 0) return null;
   const maxVisibleHooks = 8;
   const visibleLabels = hookLabels.slice(0, maxVisibleHooks);
@@ -384,6 +391,8 @@ export async function finalizeDetachedRunWithDeps(deps, {
     branchCandidateEvents,
     manifest,
     completionNoticeKey,
+    appendEvent,
+    statusEvent,
   };
   let branchSuggestedHookResult = null;
   if (branchCandidateEvents.length > 0) {
