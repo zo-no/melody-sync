@@ -22,7 +22,7 @@
 - `backend/routes/runs.mjs`
 - `backend/routes/assets.mjs`
 - `backend/routes/workbench.mjs`
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/history.mjs`
 - `backend/run/store.mjs`
 - `backend/run/supervisor.mjs`
@@ -152,7 +152,7 @@
 
 ### 第 4 步：最后再拆大文件
 
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/workbench/index.mjs`
 - `frontend/workbench/controller.js`
 

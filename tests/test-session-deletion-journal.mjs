@@ -82,7 +82,7 @@ try {
         },
         {
           type: 'file_change',
-          filePath: '/Users/kualshown/Desktop/melody-sync/backend/session-manager.mjs',
+          filePath: '/Users/kualshown/Desktop/melody-sync/backend/session/manager.mjs',
           timestamp: Date.parse('2026-04-05T12:21:00+08:00'),
         },
       ],

@@ -55,7 +55,7 @@ Suggested material:
 Read against these files:
 
 - `chat-server.mjs`
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/process-runner.mjs`
 - `backend/run/supervisor.mjs`
 
@@ -84,7 +84,7 @@ Suggested material:
 
 Read against these files:
 
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/run/store.mjs`
 - `backend/ws.mjs`
 - `frontend/core/realtime.js`
@@ -215,7 +215,7 @@ Read against these files:
 - `lib/auth.mjs`
 - `backend/router.mjs`
 - `backend/system-prompt.mjs`
-- owner-side session flows in `backend/session-manager.mjs`
+- owner-side session flows in `backend/session/manager.mjs`
 
 Practice task:
 

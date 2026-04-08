@@ -162,7 +162,7 @@
 当前落点：
 
 - `backend/hooks/email-completion-hook.mjs`
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 
 ### 4.4 部署/实例/连接器配置
 

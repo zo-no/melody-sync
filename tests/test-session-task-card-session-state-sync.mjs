@@ -22,7 +22,7 @@ async function main() {
     createSession,
     getSession,
     updateSessionTaskCard,
-  } = await importFromRepo('backend/session-manager.mjs');
+  } = await importFromRepo('backend/session/manager.mjs');
 
   const session = await createSession(workdir, 'codex', '主线会话', {});
   assert.ok(session?.id, 'session should be created');

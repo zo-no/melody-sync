@@ -127,7 +127,7 @@ writeCodexMetrics('overflow-thread', 101, 100);
 writeCodexMetrics('exact-thread', 100, 100);
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href
 );
 const history = await import(
   pathToFileURL(join(repoRoot, 'backend', 'history.mjs')).href

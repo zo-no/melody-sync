@@ -30,7 +30,7 @@ MelodySync is now an owner-operated AI task workspace.
 - serves auth/build/runtime/session APIs
 - still contains some retired compatibility stubs that should be pruned during cleanup
 
-`backend/session-manager.mjs`
+`backend/session/manager.mjs`
 
 - session CRUD
 - history/event persistence
@@ -174,7 +174,7 @@ Vault-backed app root shape:
 ## Current Constraints
 
 - The system is owner-only. Do not reintroduce visitor/share assumptions into auth, routing, or frontend state.
-- `backend/session-manager.mjs` is still the biggest complexity hotspot.
+- `backend/session/manager.mjs` is still the biggest complexity hotspot.
 - Frontend state is split but still mostly global-script driven.
 - Legacy `appId` / `appName` / `userId` / `userName` fields may still appear in stored session metadata, but they are not shipped product systems anymore.
 - Workbench and integrations remain valuable, but they should stay layered on the core session/run path rather than drive the primary architecture.

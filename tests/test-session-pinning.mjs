@@ -11,7 +11,7 @@ const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-session-pinning-'));
 process.env.HOME = tempHome;
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href
 );
 
 const {

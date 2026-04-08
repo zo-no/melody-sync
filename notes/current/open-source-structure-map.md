@@ -89,7 +89,7 @@
 
 1. `backend/workbench/index.mjs`
    - 先拆成 4 个责任文件最值
-2. `backend/session-manager.mjs`
+2. `backend/session/manager.mjs`
    - 继续把 run finalize 后的派生动作往 hooks / finalize helpers 外移
 3. `backend/router.mjs`
    - 继续薄化，只保留路由拼装

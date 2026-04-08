@@ -36,7 +36,7 @@ Browser / mobile shell
 ### Backend
 
 - [`backend/router.mjs`](backend/router.mjs): main HTTP surface
-- [`backend/session-manager.mjs`](backend/session-manager.mjs): session and run orchestration
+- [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration
 - [`backend/run/store.mjs`](backend/run/store.mjs): durable run manifests, spool, status, result
 - [`backend/run/supervisor.mjs`](backend/run/supervisor.mjs): detached runner launcher
 - [`backend/run/sidecar.mjs`](backend/run/sidecar.mjs): detached executor entry

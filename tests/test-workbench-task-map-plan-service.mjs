@@ -13,7 +13,7 @@ process.env.HOME = tempHome;
 
 try {
   const sessionManager = await import(
-    pathToFileURL(join(repoRoot, 'backend/session-manager.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/session/manager.mjs')).href
   );
   const nodeSettingsStore = await import(
     pathToFileURL(join(repoRoot, 'backend/workbench/node-settings-store.mjs')).href

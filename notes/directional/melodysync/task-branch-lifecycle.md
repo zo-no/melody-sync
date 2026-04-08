@@ -229,7 +229,7 @@ GTD 分组是任务列表的组织视图，不是生命周期状态本身。
 
 - `backend/workbench/index.mjs`
 - `backend/router.mjs`
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/history.mjs`
 - `frontend/workbench/controller.js`
 - `frontend/session/surface-ui.js`

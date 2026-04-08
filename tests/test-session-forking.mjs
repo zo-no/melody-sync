@@ -30,7 +30,7 @@ const {
   getSession,
   killAll,
   submitHttpMessage,
-} = await import('../backend/session-manager.mjs');
+} = await import('../backend/session/manager.mjs');
 const {
   appendEvents,
   getForkContext,

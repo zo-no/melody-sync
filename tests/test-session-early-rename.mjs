@@ -70,7 +70,7 @@ process.env.HOME = tempHome;
 process.env.PATH = `${tempBin}:${process.env.PATH}`;
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href
 );
 
 const {

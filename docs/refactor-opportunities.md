@@ -78,7 +78,7 @@ const branchHistories = await Promise.all(
 
 ### P2 — `finalizeDetachedRun` 有大量串行 await
 
-**文件**：`backend/session-manager.mjs:2540`
+**文件**：`backend/session/manager.mjs:2540`
 
 **现状**：Run 完成后约 18 个串行 await，其中多个互不依赖：
 
@@ -129,7 +129,7 @@ function getWorkbenchQueue(scopeKey) {
 
 ### P3 — `buildPromptForToolInvocation` 中 context 有重复查询
 
-**文件**：`backend/session-manager.mjs:2218`
+**文件**：`backend/session/manager.mjs:2218`
 
 **现状**：
 ```javascript
@@ -174,7 +174,7 @@ const prepared = await getOrPrepareForkContext(
 
 ### P3 — "AI Hooks"是硬编码的，没有扩展点
 
-**文件**：`backend/session-manager.mjs:2540`（`finalizeDetachedRun`）
+**文件**：`backend/session/manager.mjs:2540`（`finalizeDetachedRun`）
 
 **现状**：所有后置处理都写死在一个 300 行的大函数里：
 - 写历史事件

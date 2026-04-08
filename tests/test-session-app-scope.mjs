@@ -13,7 +13,7 @@ const workspace = join(tempHome, 'workspace');
 mkdirSync(workspace, { recursive: true });
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href
 );
 const config = await import(
   pathToFileURL(join(repoRoot, 'lib', 'config.mjs')).href

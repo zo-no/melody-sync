@@ -30,7 +30,7 @@ try {
   // Import session-manager — this registers module-level code but not
   // registerSessionManagerHooks yet (that's called in startDetachedRunObservers)
   const { startDetachedRunObservers, killAll } = await import(
-    pathToFileURL(join(repoRoot, 'backend/session-manager.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/session/manager.mjs')).href
   );
 
   // Trigger startup registration (same as chat-server.mjs does).

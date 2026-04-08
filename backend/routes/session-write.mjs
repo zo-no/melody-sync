@@ -14,7 +14,7 @@ import {
   saveAttachments,
   sendMessage,
   submitHttpMessage,
-} from '../session-manager.mjs';
+} from '../session/manager.mjs';
 import { createSessionDetail } from '../session/api-shapes.mjs';
 import { pathExists, statOrNull } from '../fs-utils.mjs';
 import { getFileAsset } from '../file-assets.mjs';

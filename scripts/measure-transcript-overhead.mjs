@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import process from 'process';
-import { getSession, getSessionTimelineEvents } from '../backend/session-manager.mjs';
+import { getSession, getSessionTimelineEvents } from '../backend/session/manager.mjs';
 import { buildSessionDisplayEvents } from '../backend/session/display-events.mjs';
 
 function parseArgs(argv) {

@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const realtimeSource = readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'realtime-render.js'), 'utf8');
-const uiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session', 'transcript-ui.js'), 'utf8');
+const realtimeSource = readFileSync(join(repoRoot, 'frontend', 'core', 'realtime-render.js'), 'utf8');
+const uiSource = readFileSync(join(repoRoot, 'frontend', 'session', 'transcript-ui.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -82,22 +82,22 @@ vm.runInNewContext(
 
 assert.equal(
   context.formatDecodedDisplayText('Visible text\n<private>internal only</private>\nTail'),
-  'Visible text\n<private>internal only</private>\nTail',
-  'display formatting should preserve hidden UI blocks so the transcript can show the full assistant output',
+  'Visible text\n\nTail',
+  'display formatting should remove hidden private blocks from visible transcript text',
 );
 
 assert.equal(
   context.formatDecodedDisplayText('Visible text\n<private>internal only<\\/private>\nTail'),
-  'Visible text\n<private>internal only<\\/private>\nTail',
-  'display formatting should preserve hidden UI blocks even when the closing tag slash is escaped',
+  'Visible text\n\nTail',
+  'display formatting should remove hidden private blocks even when the closing tag slash is escaped',
 );
 
 const node = { innerHTML: '', textContent: '' };
 assert.equal(
   context.renderMarkdownIntoNode(node, 'Hello\n<hide>secret</hide>\nworld'),
   true,
-  'markdown rendering should still succeed when hidden blocks are present',
+  'markdown rendering should still succeed when hidden blocks are stripped first',
 );
-assert.equal(parsedInputs[0], 'Hello\n<hide>secret</hide>\nworld', 'markdown rendering should receive the full text');
+assert.equal(parsedInputs[0], 'Hello\n\nworld', 'markdown rendering should not receive hidden blocks');
 
 console.log('test-chat-hidden-display-blocks: ok');

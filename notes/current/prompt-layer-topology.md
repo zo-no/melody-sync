@@ -127,5 +127,5 @@ Turn-level reminders still matter, but they should stay light. They should reinf
 - `backend/runtime-policy.mjs` should express boundary, ownership, and principle-first defaults.
 - `backend/system-prompt.mjs` should describe the seed layer, context topology, routing posture, and selective memory activation.
 - `backend/session/continuation.mjs` should frame handoff as continuity for the active workstream.
-- `backend/session-manager.mjs` should keep turn activation compact and principle-first.
+- `backend/session/manager.mjs` should keep turn activation compact and principle-first.
 - `backend/session/routing.mjs` should reinforce bounded-work / bounded-context routing.

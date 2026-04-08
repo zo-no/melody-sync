@@ -17,3 +17,4 @@ This directory owns session-facing projections and lightweight domain helpers.
 - `meta-store.mjs`: durable session metadata persistence and index updates.
 - `organizer.mjs`: explicit organize-task prompt and result parsing.
 - `deletion-journal.mjs`: deletion journaling into the Obsidian vault.
+- `manager.mjs`: session and run orchestration entrypoint for the session domain.

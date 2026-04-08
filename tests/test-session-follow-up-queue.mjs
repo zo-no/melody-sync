@@ -65,7 +65,7 @@ process.env.PATH = `${binDir}:${process.env.PATH}`;
 process.env.FAKE_CODEX_DELAY_MS = '120';
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href
 );
 const { mutateSessionMeta } = await import(
   pathToFileURL(join(repoRoot, 'backend', 'session', 'meta-store.mjs')).href

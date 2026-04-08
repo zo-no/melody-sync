@@ -40,7 +40,7 @@ This makes setup, debugging, and automated edits ambiguous.
 
 The main chat lifecycle is spread across large files that each carry multiple domains:
 
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/router.mjs`
 - `backend/workbench/index.mjs`
 
@@ -394,7 +394,7 @@ Important rule:
 ### Phase 1: Extract stable seams
 
 - split `backend/router.mjs` into route modules
-- split `backend/session-manager.mjs` into session service, run service, and job triggers
+- split `backend/session/manager.mjs` into session service, run service, and job triggers
 - move workbench storage behind its own service
 
 ### Phase 2: Introduce the job system
@@ -435,5 +435,5 @@ If this proposal is used as the refactor baseline, the first concrete implementa
 
 1. canonicalize naming, port, and config root
 2. extract route modules from `backend/router.mjs`
-3. extract a `job-dispatcher` from `backend/session-manager.mjs`
+3. extract a `job-dispatcher` from `backend/session/manager.mjs`
 4. move workbench-specific state and exports behind a dedicated service boundary

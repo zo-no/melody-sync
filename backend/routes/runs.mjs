@@ -1,4 +1,4 @@
-import { cancelActiveRun, getRunState } from '../session-manager.mjs';
+import { cancelActiveRun, getRunState } from '../session/manager.mjs';
 
 export async function handleRunRoutes({
   req,

@@ -22,7 +22,7 @@ async function main() {
     createSession,
     getSession,
     updateSessionTaskCard,
-  } = await importFromRepo('backend/session-manager.mjs');
+  } = await importFromRepo('backend/session/manager.mjs');
   const {
     getWorkbenchSnapshot,
     syncSessionContinuityFromSession,

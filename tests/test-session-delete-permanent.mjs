@@ -36,10 +36,10 @@ writeFileSync(
 
 try {
   const config = await import(pathToFileURL(join(repoRoot, 'lib', 'config.mjs')).href);
-  const sessionManager = await import(pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href);
+  const sessionManager = await import(pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href);
   const historyStore = await import(pathToFileURL(join(repoRoot, 'backend', 'history.mjs')).href);
   const normalizer = await import(pathToFileURL(join(repoRoot, 'backend', 'normalizer.mjs')).href);
-  const runs = await import(pathToFileURL(join(repoRoot, 'backend', 'runs.mjs')).href);
+  const runs = await import(pathToFileURL(join(repoRoot, 'backend', 'run', 'store.mjs')).href);
 
   const now = new Date();
   const year = String(now.getFullYear());
@@ -150,7 +150,7 @@ try {
     { assetId, originalName: 'report.txt', mimeType: 'text/plain' },
   ]));
   await appendEvent(rootSession.id, messageEvent('assistant', '已经定位到 history 碎文件、runs 副本和日志累积。'));
-  await appendEvent(rootSession.id, fileChangeEvent('/Users/kualshown/Desktop/melody-sync/backend/session-manager.mjs', 'update'));
+  await appendEvent(rootSession.id, fileChangeEvent('/Users/kualshown/Desktop/melody-sync/backend/session/manager.mjs', 'update'));
 
   const run = await createRun({
     status: {
@@ -199,7 +199,7 @@ try {
   const noteText = readFileSync(notePath, 'utf8');
   assert.match(noteText, /存储清理/);
   assert.match(noteText, /已定位 history 碎文件问题/);
-  assert.match(noteText, /backend\/session-manager\.mjs/);
+  assert.match(noteText, /backend\/session\/manager\.mjs/);
   assert.match(noteText, /删除任务时先写日记再清理。/);
 
   killAll();

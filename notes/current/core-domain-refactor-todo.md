@@ -4,7 +4,7 @@ This is the active refactor backlog for simplifying the shipped session-first pr
 
 ## Current priorities
 
-1. Split `backend/session-manager.mjs` by responsibility.
+1. Split `backend/session/manager.mjs` by responsibility.
    - prompt building
    - session metadata mutation
    - fork/delegate flows

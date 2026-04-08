@@ -47,7 +47,7 @@ This file maps the current MelodySync session modules into the target runtime la
 
 ### Core agent loop
 
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/system-prompt.mjs`
 
 ### Kernel hooks

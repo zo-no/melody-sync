@@ -195,7 +195,7 @@ Purpose: split large backend modules by responsibility while preserving API beha
 Targets:
 
 - create the target `backend/routes/`, `backend/sessions/`, `backend/runs/`, and `backend/workbench/` folders
-- split `backend/session-manager.mjs`
+- split `backend/session/manager.mjs`
 - thin `backend/router.mjs` into focused route registrars
 - isolate workbench logic behind a narrower facade
 

@@ -20,7 +20,7 @@ const {
   approveMessage,
   saveOutboundConfig,
 } = await import(pathToFileURL(join(repoRoot, 'lib', 'agent-mailbox.mjs')).href);
-const { createSession } = await import(pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href);
+const { createSession } = await import(pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href);
 const { appendEvent } = await import(pathToFileURL(join(repoRoot, 'backend', 'history.mjs')).href);
 const { messageEvent } = await import(pathToFileURL(join(repoRoot, 'backend', 'normalizer.mjs')).href);
 const { createRun } = await import(pathToFileURL(join(repoRoot, 'backend', 'runs.mjs')).href);

@@ -18,7 +18,7 @@ process.env.HOME = tempHome;
 
 try {
   const sessionManager = await import(
-    pathToFileURL(join(repoRoot, 'backend/session-manager.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/session/manager.mjs')).href
   );
   const history = await import(
     pathToFileURL(join(repoRoot, 'backend/history.mjs')).href

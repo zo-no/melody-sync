@@ -13,7 +13,7 @@ process.env.HOME = tempHome;
 
 try {
   const sessionManager = await import(
-    pathToFileURL(join(repoRoot, 'backend/session-manager.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend/session/manager.mjs')).href
   );
   const taskMapPlanService = await import(
     pathToFileURL(join(repoRoot, 'backend/workbench/task-map-plan-service.mjs')).href

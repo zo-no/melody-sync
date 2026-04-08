@@ -87,7 +87,7 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 
 **Main files**
 
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/session/continuation.mjs`
 - `backend/history.mjs`
 - `backend/run/store.mjs`
@@ -113,7 +113,7 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 
 **Main files**
 
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/router.mjs`
 - `cli.js`
 - `lib/session-spawn-command.mjs`
@@ -139,7 +139,7 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 
 **Main files**
 
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/history.mjs`
 - `backend/run/store.mjs`
 

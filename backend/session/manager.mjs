@@ -2,9 +2,9 @@ import { randomBytes } from 'crypto';
 import { watch } from 'fs';
 import { writeFile } from 'fs/promises';
 import { dirname, join, resolve } from 'path';
-import { CHAT_FILE_ASSET_CACHE_DIR, CHAT_IMAGES_DIR } from '../lib/config.mjs';
-import { getToolDefinitionAsync } from '../lib/tools.mjs';
-import { createToolInvocation, resolveCwd } from './process-runner.mjs';
+import { CHAT_FILE_ASSET_CACHE_DIR, CHAT_IMAGES_DIR } from '../../lib/config.mjs';
+import { getToolDefinitionAsync } from '../../lib/tools.mjs';
+import { createToolInvocation, resolveCwd } from '../process-runner.mjs';
 import {
   appendEvent,
   appendEvents,
@@ -18,48 +18,48 @@ import {
   readEventsAfter,
   setForkContext,
   setContextHead,
-} from './history.mjs';
-import { messageEvent, statusEvent } from './normalizer.mjs';
-import { buildSourceRuntimePrompt } from './source-runtime-prompts.mjs';
-import { emit as emitHook } from './hooks/runtime/registry.mjs';
-import { registerBuiltinHooks } from './hooks/runtime/register-builtins.mjs';
-import { createFollowUpQueueHelpers } from './follow-up-queue.mjs';
+} from '../history.mjs';
+import { messageEvent, statusEvent } from '../normalizer.mjs';
+import { buildSourceRuntimePrompt } from '../source-runtime-prompts.mjs';
+import { emit as emitHook } from '../hooks/runtime/registry.mjs';
+import { registerBuiltinHooks } from '../hooks/runtime/register-builtins.mjs';
+import { createFollowUpQueueHelpers } from '../follow-up-queue.mjs';
 import {
   buildSessionFolderUnavailableMessage,
   canonicalizeSessionFolder,
   inspectSessionFolder,
-} from './session/folder.mjs';
+} from './folder.mjs';
 import {
   buildSessionOrganizerPrompt,
   extractSessionOrganizerAssistantText,
   parseSessionOrganizerResult,
   SESSION_ORGANIZER_INTERNAL_OPERATION,
-} from './session/organizer.mjs';
-import { triggerSessionLabelSuggestion } from './summarizer.mjs';
-import { buildSystemContext } from './system-prompt.mjs';
-import { normalizeSessionAgreements } from './session/agreements.mjs';
+} from './organizer.mjs';
+import { triggerSessionLabelSuggestion } from '../summarizer.mjs';
+import { buildSystemContext } from '../system-prompt.mjs';
+import { normalizeSessionAgreements } from './agreements.mjs';
 import {
   buildSessionContinuationContextFromBody,
   prepareSessionContinuationBody,
-} from './session/continuation.mjs';
-import { broadcastOwners, getClientsMatching } from './ws-clients.mjs';
+} from './continuation.mjs';
+import { broadcastOwners, getClientsMatching } from '../ws-clients.mjs';
 import {
   buildTemporarySessionName,
   isSessionAutoRenamePending,
   normalizeSessionDescription,
   normalizeSessionGroup,
   resolveInitialSessionName,
-} from './session/naming.mjs';
+} from './naming.mjs';
 import {
   didSessionWorkflowTransitionToDone,
   normalizeSessionWorkflowPriority,
   normalizeSessionWorkflowState,
   SESSION_WORKFLOW_STATE_WAITING_USER,
-} from './session/workflow-state.mjs';
+} from './workflow-state.mjs';
 import {
   formatAttachmentContextLine,
   stripEventAttachmentSavedPaths,
-} from './attachment-utils.mjs';
+} from '../attachment-utils.mjs';
 import {
   buildContextCompactionPrompt,
   buildFallbackCompactionHandoff,
@@ -67,11 +67,11 @@ import {
   clipCompactionSection,
   parseCompactionWorkerOutput,
   prepareConversationOnlyContinuationBody,
-} from './session-runtime/session-compaction.mjs';
+} from '../session-runtime/session-compaction.mjs';
 import {
   buildPreparedContinuationContext,
   isPreparedForkContextCurrent,
-} from './session-runtime/session-fork-context.mjs';
+} from '../session-runtime/session-fork-context.mjs';
 import {
   createRun,
   findRunByRequest,
@@ -86,24 +86,24 @@ import {
   runDir,
   updateRun,
   writeRunResult,
-} from './run/store.mjs';
-import { readCodexSessionMetadata, readLatestCodexSessionMetrics } from './codex-session-metrics.mjs';
-import { spawnDetachedRunner } from './run/supervisor.mjs';
+} from '../run/store.mjs';
+import { readCodexSessionMetadata, readLatestCodexSessionMetrics } from '../codex-session-metrics.mjs';
+import { spawnDetachedRunner } from '../run/supervisor.mjs';
 import {
   buildSessionActivity,
   getSessionQueueCount,
   getSessionRunId,
   isSessionRunning,
   resolveSessionRunActivity,
-} from './session/activity.mjs';
+} from './activity.mjs';
 import {
   findSessionMeta,
   findSessionMetaCached,
   loadSessionsMeta,
   mutateSessionMeta,
   withSessionsMetaMutation,
-} from './session/meta-store.mjs';
-import { dispatchSessionEmailCompletionTargets, sanitizeEmailCompletionTargets } from '../lib/agent-mail-completion-targets.mjs';
+} from './meta-store.mjs';
+import { dispatchSessionEmailCompletionTargets, sanitizeEmailCompletionTargets } from '../../lib/agent-mail-completion-targets.mjs';
 import {
   applySessionCompatFields,
   normalizeAppId,
@@ -112,9 +112,9 @@ import {
   normalizeSessionUserName,
   resolveSessionSourceId,
   resolveSessionSourceName,
-} from './session-source/meta-fields.mjs';
-import { deleteFileAssets, publishLocalFileAssetFromPath } from './file-assets.mjs';
-import { ensureDir, pathExists, removePath, statOrNull } from './fs-utils.mjs';
+} from '../session-source/meta-fields.mjs';
+import { deleteFileAssets, publishLocalFileAssetFromPath } from '../file-assets.mjs';
+import { ensureDir, pathExists, removePath, statOrNull } from '../fs-utils.mjs';
 import {
   buildResultAssetReadyMessage,
   collectGeneratedResultFilesFromRun,
@@ -122,34 +122,34 @@ import {
   resolveAttachmentExtension,
   resolveAttachmentMimeType,
   sanitizeOriginalAttachmentName,
-} from './result-assets.mjs';
+} from '../result-assets.mjs';
 import {
   buildTaskCardPromptBlock,
   normalizeSessionTaskCard,
   parseTaskCardFromAssistantContent,
   projectTaskCardFromSessionState,
   stripTaskCardFromAssistantContent,
-} from './session/task-card.mjs';
-import { resolveSessionStateFromSession } from './session-runtime/session-state.mjs';
+} from './task-card.mjs';
+import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 import {
   buildNormalizedRunResultEnvelope,
   mergeRunResultWithEnvelope,
   runResultEnvelopeHasMeaningfulContent,
-} from './run/result-envelope.mjs';
-import { writeSessionDeletionJournalEntry } from './session/deletion-journal.mjs';
+} from '../run/result-envelope.mjs';
+import { writeSessionDeletionJournalEntry } from './deletion-journal.mjs';
 import {
   buildPersistentDigest,
   buildPersistentRunMessage,
   computeNextRecurringRunAt,
   normalizeSessionPersistent,
   resolvePersistentRunRuntime,
-} from './session-persistent/core.mjs';
-import { finalizeDetachedRunWithDeps } from './run/finalization.mjs';
-import { registerSessionManagerBuiltinHooks } from './hooks/runtime/register-session-manager-hooks.mjs';
-import { appendGraphBootstrapPromptContext } from './workbench/graph-prompt-context.mjs';
-import { syncSessionContinuityFromSession } from './workbench/index.mjs';
-import { workbenchQueue } from './workbench/queues.mjs';
-import { loadWorkbenchState, saveWorkbenchState } from './workbench/state-store.mjs';
+} from '../session-persistent/core.mjs';
+import { finalizeDetachedRunWithDeps } from '../run/finalization.mjs';
+import { registerSessionManagerBuiltinHooks } from '../hooks/runtime/register-session-manager-hooks.mjs';
+import { appendGraphBootstrapPromptContext } from '../workbench/graph-prompt-context.mjs';
+import { syncSessionContinuityFromSession } from '../workbench/index.mjs';
+import { workbenchQueue } from '../workbench/queues.mjs';
+import { loadWorkbenchState, saveWorkbenchState } from '../workbench/state-store.mjs';
 
 const INTERNAL_SESSION_ROLE_CONTEXT_COMPACTOR = 'context_compactor';
 const INTERNAL_SESSION_ROLE_AGENT_DELEGATE = 'agent_delegate';

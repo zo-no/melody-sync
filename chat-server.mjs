@@ -42,7 +42,7 @@ if (!delegatedToRelease) {
     import('./backend/router.mjs'),
     import('./backend/api-request-log.mjs'),
     import('./backend/ws.mjs'),
-    import('./backend/session-manager.mjs'),
+    import('./backend/session/manager.mjs'),
     import('./backend/session-persistent/scheduler.mjs'),
     import('./backend/fs-utils.mjs'),
     import('./backend/hooks/runtime/register-builtins.mjs'),

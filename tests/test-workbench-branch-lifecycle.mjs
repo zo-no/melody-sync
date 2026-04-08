@@ -26,7 +26,7 @@ async function main() {
     createSession,
     setSessionArchived,
     updateSessionTaskCard,
-  } = await importFromRepo('backend/session-manager.mjs');
+  } = await importFromRepo('backend/session/manager.mjs');
   const { registerHook } = await importFromRepo('backend/hooks/index.mjs');
   const {
     createBranchFromSession,

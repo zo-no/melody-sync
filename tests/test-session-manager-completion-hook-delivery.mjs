@@ -13,7 +13,7 @@ rmSync(hookLogPath, { force: true });
 rmSync(soundLogPath, { force: true });
 
 const sessionManager = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href
 );
 
 const session = await sessionManager.createSession('main', 'codex', 'completion hook delivery probe');

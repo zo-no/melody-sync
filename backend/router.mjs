@@ -30,7 +30,7 @@ import {
   updateSessionPersistent,
   updateSessionWorkflowClassification,
   updateSessionRuntimePreferences,
-} from './session-manager.mjs';
+} from './session/manager.mjs';
 import {
   normalizeSessionWorkflowPriority,
   normalizeSessionWorkflowState,

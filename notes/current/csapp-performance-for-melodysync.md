@@ -25,7 +25,7 @@ That makes CSAPP directly useful in four areas:
 Relevant files:
 
 - `chat-server.mjs`
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/process-runner.mjs`
 - `backend/run/supervisor.mjs`
 
@@ -60,7 +60,7 @@ Better instinct:
 
 Relevant files:
 
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/router.mjs`
 - `frontend/core/realtime.js`
 
@@ -92,7 +92,7 @@ Relevant files:
 
 - `backend/history.mjs`
 - `backend/run/store.mjs`
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
 - `backend/ws.mjs`
 - `backend/api-request-log.mjs`
 

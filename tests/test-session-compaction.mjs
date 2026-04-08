@@ -66,7 +66,7 @@ const {
   const index = buildToolActivityIndex([
     { type: 'tool_use', toolName: 'exec', toolInput: 'npm test' },
     { type: 'tool_use', toolName: 'exec', toolInput: 'git status --short' },
-    { type: 'file_change', filePath: 'backend/session-manager.mjs', changeType: 'updated' },
+    { type: 'file_change', filePath: 'backend/session/manager.mjs', changeType: 'updated' },
     { type: 'tool_result', toolName: 'exec', exitCode: 1, output: 'failed\ntrace' },
   ]);
   assert.match(index, /Tools used: exec ×2/);

@@ -21,7 +21,7 @@ async function main() {
   const {
     createSession,
     updateSessionTaskCard,
-  } = await importFromRepo('backend/session-manager.mjs');
+  } = await importFromRepo('backend/session/manager.mjs');
   const {
     appendEvent,
   } = await importFromRepo('backend/history.mjs');

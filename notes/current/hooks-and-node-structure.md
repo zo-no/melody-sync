@@ -37,7 +37,7 @@
   - 注册 repo 级内建 hooks
 - `backend/hooks/runtime/register-session-manager-hooks.mjs`
   - 注册必须依赖 session-manager 内部能力的 hooks
-- `backend/session-manager.mjs`
+- `backend/session/manager.mjs`
   - 只负责在启动和兼容入口里确保这些 hooks 已注册，不再内联 hook 实现
 
 ### 当前事件点
