@@ -123,7 +123,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
     appendEvent,
     statusEvent,
     findLatestAssistantMessageForRun,
-    extractTaggedBlock,
+    parseCompactionWorkerOutput,
     setContextHead,
     clearPersistedResumeIds,
     mutateSessionMeta,
@@ -211,7 +211,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
       }
     } else if (directCompaction && run.state === 'completed') {
       const workerEvent = await findLatestAssistantMessageForRun(sessionId, run.id);
-      const summary = extractTaggedBlock(workerEvent?.content || '', 'summary');
+      const summary = parseCompactionWorkerOutput(workerEvent?.content || '').summary;
       if (summary) {
         const compactEvent = await appendEvent(sessionId, statusEvent('Context compacted — next message will resume from summary'));
         await setContextHead(sessionId, {
