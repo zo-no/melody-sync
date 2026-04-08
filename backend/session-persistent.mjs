@@ -1,4 +1,5 @@
 import { normalizeSessionTaskCard } from './session-task-card.mjs';
+import { resolveSessionStateFromSession } from './session-runtime/session-state.mjs';
 
 const MAX_DIGEST_TEXT_CHARS = 280;
 const MAX_DIGEST_ITEM_CHARS = 140;
@@ -378,17 +379,35 @@ function extractUserMessagePreviews(history = []) {
 
 export function buildPersistentDigest(session = {}, history = []) {
   const taskCard = normalizeSessionTaskCard(session?.taskCard || {}) || {};
+  const sessionState = resolveSessionStateFromSession(session) || {};
+  const explicitSessionState = session?.sessionState && typeof session.sessionState === 'object' && !Array.isArray(session.sessionState)
+    ? session.sessionState
+    : {};
   const userMessagePreviews = extractUserMessagePreviews(history);
+  const stateMainGoal = clipText(sessionState.mainGoal || '', 120);
+  const stateGoal = clipText(sessionState.goal || '', 180);
+  const stateCheckpoint = clipText(sessionState.checkpoint || '', MAX_DIGEST_TEXT_CHARS);
+  const explicitStateCheckpoint = clipText(explicitSessionState.checkpoint || '', MAX_DIGEST_TEXT_CHARS);
   const title = clipText(
     session?.name
+      || stateMainGoal
       || taskCard.mainGoal
+      || stateGoal
       || taskCard.goal
       || '',
     120,
   );
-  const goal = clipText(taskCard.goal || taskCard.mainGoal || title, 180);
+  const goal = clipText(
+    stateGoal
+      || stateMainGoal
+      || taskCard.goal
+      || taskCard.mainGoal
+      || title,
+    180,
+  );
   const summary = clipText(
-    taskCard.summary
+    stateCheckpoint
+      || taskCard.summary
       || session?.description
       || userMessagePreviews.at(-1)
       || title,
@@ -403,7 +422,7 @@ export function buildPersistentDigest(session = {}, history = []) {
   ]);
   const recipe = normalizeList([
     ...(Array.isArray(taskCard?.nextSteps) ? taskCard.nextSteps : []),
-    ...(taskCard?.checkpoint ? [taskCard.checkpoint] : []),
+    ...((taskCard?.checkpoint || explicitStateCheckpoint) ? [taskCard.checkpoint || explicitStateCheckpoint] : []),
   ]);
   return {
     title,

@@ -107,6 +107,25 @@ assert.equal(digest.goal, '把周报整理流程长期化。');
 assert.deepEqual(digest.keyPoints, ['先看材料比先看说明更有效。', '用户偏好先看样例。']);
 assert.deepEqual(digest.recipe, ['检查 Excel 结构', '整理输出模板']);
 
+const stateDrivenDigest = buildPersistentDigest({
+  sessionState: {
+    mainGoal: '重构会话架构',
+    goal: '把 persistent digest 拉回真值层',
+    checkpoint: '优先读 sessionState，再 fallback 到 legacy summary',
+  },
+  taskCard: {
+    summary: 'legacy summary should not win',
+    goal: 'legacy goal should not win',
+  },
+}, [
+  { type: 'message', role: 'user', content: '这一轮要继续清理 digest 的旧入口。' },
+]);
+
+assert.equal(stateDrivenDigest.title, '重构会话架构');
+assert.equal(stateDrivenDigest.goal, '把 persistent digest 拉回真值层');
+assert.equal(stateDrivenDigest.summary, '优先读 sessionState，再 fallback 到 legacy summary');
+assert.deepEqual(stateDrivenDigest.recipe, ['优先读 sessionState，再 fallback 到 legacy summary']);
+
 const runMessage = buildPersistentRunMessage({
   name: '周报整理技能',
 }, {
