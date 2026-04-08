@@ -238,6 +238,12 @@ export function createHookDefinition(definition = {}) {
     || eventDefinition?.phase
     || deriveHookPhaseFromEventId(eventPattern),
   );
+  const taskMapPlanPolicy = normalizeHookTaskMapPlanPolicy(definition.taskMapPlanPolicy);
+  const promptContextPolicy = normalizeHookPromptContextPolicy(definition.promptContextPolicy);
+  const legacyCompatibilitySurfaces = Object.freeze([
+    ...(taskMapPlanPolicy !== 'none' ? ['task-map-plan'] : []),
+    ...(promptContextPolicy !== 'none' ? ['prompt-context'] : []),
+  ]);
   return Object.freeze({
     id,
     eventPattern,
@@ -248,10 +254,12 @@ export function createHookDefinition(definition = {}) {
     layer: normalizeHookLayer(definition.layer),
     scope,
     phase,
-    taskMapPlanPolicy: normalizeHookTaskMapPlanPolicy(definition.taskMapPlanPolicy),
-    producesTaskMapPlan: normalizeHookTaskMapPlanPolicy(definition.taskMapPlanPolicy) !== 'none',
-    promptContextPolicy: normalizeHookPromptContextPolicy(definition.promptContextPolicy),
-    producesPromptContext: normalizeHookPromptContextPolicy(definition.promptContextPolicy) !== 'none',
+    taskMapPlanPolicy,
+    producesTaskMapPlan: taskMapPlanPolicy !== 'none',
+    promptContextPolicy,
+    producesPromptContext: promptContextPolicy !== 'none',
+    usesLegacyCompatibilitySurface: legacyCompatibilitySurfaces.length > 0,
+    legacyCompatibilitySurfaces,
     sourceModule: normalizeText(definition.sourceModule),
     enabledByDefault: definition.enabledByDefault !== false,
   });

@@ -1102,12 +1102,12 @@ async function main() {
       'hooks api should expose hook layer definitions for the settings UI',
     );
     assert.deepEqual(
-      hooksApiJson.taskMapPlanPolicyOrder,
+      hooksApiJson.legacyCompatibility?.taskMapPlanPolicyOrder,
       ['none', 'augment-default', 'replace-default'],
       'hooks api should expose the canonical task-map plan policy order',
     );
     assert.deepEqual(
-      hooksApiJson.taskMapPlanPolicyDefinitions?.map((definition) => definition.id),
+      hooksApiJson.legacyCompatibility?.taskMapPlanPolicyDefinitions?.map((definition) => definition.id),
       ['none', 'augment-default', 'replace-default'],
       'hooks api should expose task-map plan policy definitions for architecture-aware clients',
     );
@@ -1163,14 +1163,17 @@ async function main() {
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.layer, 'boot');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.taskMapPlanPolicy, 'none');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.producesTaskMapPlan, false);
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.first-boot-memory')?.usesLegacyCompatibilitySurface, false);
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.push-notification')?.layer, 'delivery');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.host-completion-voice')?.layer, 'delivery');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.layer, 'lifecycle');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.promptContextPolicy, 'continuity');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.producesPromptContext, true);
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.graph-context-bootstrap')?.usesLegacyCompatibilitySurface, true);
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.layer, 'lifecycle');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.taskMapPlanPolicy, 'augment-default');
     assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.producesTaskMapPlan, true);
+    assert.equal(hooksApiJson.hooks.find((hook) => hook.id === 'builtin.branch-candidates')?.usesLegacyCompatibilitySurface, true);
     const hookIds = hooksApiJson.hooks.map((hook) => hook.id);
     for (const expectedHookId of [
       'builtin.first-boot-memory',

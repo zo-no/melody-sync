@@ -13,6 +13,7 @@ Files by role:
 - `*-hook.mjs`: focused hook handlers or factories. Keep them short and testable.
 - `hook-settings-store.mjs`: compatibility wrapper over `runtime/settings-store.mjs`.
 - custom hook design file: the runtime can also load JSON-defined local shell hooks from the current MelodySync app root, typically `<app-root>/hooks/custom-hooks.json` (or `custom-hooks.json` under explicit config overrides).
+- prompt-context injection and task-map replacement are legacy compatibility surfaces. They belong under the settings API's `legacyCompatibility` section, not the primary lifecycle hook contract.
 
 When adding or changing a hook:
 
