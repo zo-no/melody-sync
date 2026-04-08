@@ -106,7 +106,6 @@
 
 这些文档主要服务优化、稳定性和本地运行策略：
 
-- `csapp-performance-for-melodysync.md`
 - `performance-optimization-checklist.md`
 - `self-hosting-dev-restarts.md`
 
