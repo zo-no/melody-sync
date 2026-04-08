@@ -57,7 +57,7 @@ Read against these files:
 - `chat-server.mjs`
 - `backend/session-manager.mjs`
 - `backend/process-runner.mjs`
-- `backend/runner-supervisor.mjs`
+- `backend/run/supervisor.mjs`
 
 Practice task:
 
@@ -85,7 +85,7 @@ Suggested material:
 Read against these files:
 
 - `backend/session-manager.mjs`
-- `backend/runs.mjs`
+- `backend/run/store.mjs`
 - `backend/ws.mjs`
 - `frontend/core/realtime.js`
 
@@ -145,7 +145,7 @@ Suggested material:
 Read against these files:
 
 - `backend/history.mjs`
-- `backend/runs.mjs`
+- `backend/run/store.mjs`
 - `backend/session-meta-store.mjs`
 - `backend/session-continuation.mjs`
 

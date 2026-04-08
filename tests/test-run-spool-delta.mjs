@@ -15,7 +15,7 @@ try {
     materializeRunSpoolLine,
     readRunSpoolDelta,
     updateRun,
-  } = await import('../backend/runs.mjs');
+  } = await import('../backend/run/store.mjs');
 
   const run = await createRun({
     status: {

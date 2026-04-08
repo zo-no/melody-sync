@@ -37,11 +37,11 @@ Browser / mobile shell
 
 - [`backend/router.mjs`](backend/router.mjs): main HTTP surface
 - [`backend/session-manager.mjs`](backend/session-manager.mjs): session and run orchestration
-- [`backend/runs.mjs`](backend/runs.mjs): durable run manifests, spool, status, result
-- [`backend/runner-supervisor.mjs`](backend/runner-supervisor.mjs): detached runner launcher
-- [`backend/runner-sidecar.mjs`](backend/runner-sidecar.mjs): detached executor entry
+- [`backend/run/store.mjs`](backend/run/store.mjs): durable run manifests, spool, status, result
+- [`backend/run/supervisor.mjs`](backend/run/supervisor.mjs): detached runner launcher
+- [`backend/run/sidecar.mjs`](backend/run/sidecar.mjs): detached executor entry
 - [`backend/provider-runtime-monitor.mjs`](backend/provider-runtime-monitor.mjs): provider timeout / termination monitoring
-- [`backend/runner-sidecar-finalize.mjs`](backend/runner-sidecar-finalize.mjs): run finalization helpers
+- [`backend/run/sidecar-finalize.mjs`](backend/run/sidecar-finalize.mjs): run finalization helpers
 - [`backend/history.mjs`](backend/history.mjs): append-only event store
 - [`backend/session-meta-store.mjs`](backend/session-meta-store.mjs): session metadata persistence
 - [`backend/session-api-shapes.mjs`](backend/session-api-shapes.mjs): API projection helpers

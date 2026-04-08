@@ -39,7 +39,7 @@ MelodySync is now an owner-operated AI task workspace.
 - fork/delegate flows
 - session invalidation broadcasts
 
-`backend/runner-sidecar.mjs`
+`backend/run/sidecar.mjs`
 
 - launches provider runtimes
 - streams normalized output into the session event store

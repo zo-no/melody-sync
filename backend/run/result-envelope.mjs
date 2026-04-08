@@ -1,4 +1,4 @@
-import { normalizeAgentResultEnvelope } from './session-runtime/agent-result-envelope.mjs';
+import { normalizeAgentResultEnvelope } from '../session-runtime/agent-result-envelope.mjs';
 
 function normalizeText(value) {
   return typeof value === 'string'

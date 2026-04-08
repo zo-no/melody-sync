@@ -4,7 +4,7 @@ import {
   buildNormalizedRunResultEnvelope,
   mergeRunResultWithEnvelope,
   runResultEnvelopeHasMeaningfulContent,
-} from '../backend/run-result-envelope.mjs';
+} from '../backend/run/result-envelope.mjs';
 
 const envelope = buildNormalizedRunResultEnvelope({
   result: {

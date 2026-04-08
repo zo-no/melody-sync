@@ -86,9 +86,9 @@ import {
   runDir,
   updateRun,
   writeRunResult,
-} from './runs.mjs';
+} from './run/store.mjs';
 import { readCodexSessionMetadata, readLatestCodexSessionMetrics } from './codex-session-metrics.mjs';
-import { spawnDetachedRunner } from './runner-supervisor.mjs';
+import { spawnDetachedRunner } from './run/supervisor.mjs';
 import {
   buildSessionActivity,
   getSessionQueueCount,
@@ -135,7 +135,7 @@ import {
   buildNormalizedRunResultEnvelope,
   mergeRunResultWithEnvelope,
   runResultEnvelopeHasMeaningfulContent,
-} from './run-result-envelope.mjs';
+} from './run/result-envelope.mjs';
 import { writeSessionDeletionJournalEntry } from './session-deletion-journal.mjs';
 import {
   buildPersistentDigest,
@@ -144,7 +144,7 @@ import {
   normalizeSessionPersistent,
   resolvePersistentRunRuntime,
 } from './session-persistent/core.mjs';
-import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
+import { finalizeDetachedRunWithDeps } from './run/finalization.mjs';
 import { registerSessionManagerBuiltinHooks } from './hooks/runtime/register-session-manager-hooks.mjs';
 import { appendGraphBootstrapPromptContext } from './workbench/graph-prompt-context.mjs';
 import { syncSessionContinuityFromSession } from './workbench/index.mjs';

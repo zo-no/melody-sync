@@ -53,7 +53,7 @@ This file maps the current MelodySync session modules into the target runtime la
 ### Kernel hooks
 
 - `backend/hooks/runtime/registry.mjs`
-- `backend/run-finalization.mjs`
+- `backend/run/finalization.mjs`
 - `backend/runtime-policy.mjs`
 
 ### Runtime truth adapters

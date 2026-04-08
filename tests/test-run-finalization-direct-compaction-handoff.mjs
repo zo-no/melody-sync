@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { finalizeDetachedRunWithDeps } from '../backend/run-finalization.mjs';
+import { finalizeDetachedRunWithDeps } from '../backend/run/finalization.mjs';
 
 const sessionId = 'sess_direct_compact';
 const run = {

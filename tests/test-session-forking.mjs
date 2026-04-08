@@ -40,7 +40,7 @@ const {
 } = await import('../backend/history.mjs');
 const {
   getRunManifest,
-} = await import('../backend/runs.mjs');
+} = await import('../backend/run/store.mjs');
 const config = await import('../lib/config.mjs');
 
 try {

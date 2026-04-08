@@ -1,4 +1,4 @@
-import { getRun, isTerminalRunState } from './runs.mjs';
+import { getRun, isTerminalRunState } from './run/store.mjs';
 
 export async function resolveSessionRunActivity(meta) {
   if (meta?.activeRunId) {

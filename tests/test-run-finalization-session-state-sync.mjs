@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { finalizeDetachedRunWithDeps } from '../backend/run-finalization.mjs';
+import { finalizeDetachedRunWithDeps } from '../backend/run/finalization.mjs';
 
 const sessionId = 'sess_state_sync';
 const finalizedRun = {

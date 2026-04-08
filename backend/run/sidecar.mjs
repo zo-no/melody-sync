@@ -3,31 +3,31 @@ import { spawn } from 'child_process';
 import { createInterface } from 'readline';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { createToolInvocation, prependAttachmentPaths, resolveCommand, resolveCwd } from './process-runner.mjs';
-import { materializeFileAssetAttachments } from './file-assets.mjs';
+import { createToolInvocation, prependAttachmentPaths, resolveCommand, resolveCwd } from '../process-runner.mjs';
+import { materializeFileAssetAttachments } from '../file-assets.mjs';
 import {
   buildCodexContextMetricsPayload,
   readLatestCodexSessionMetrics,
-} from './codex-session-metrics.mjs';
-import { CHAT_PORT } from '../lib/config.mjs';
+} from '../codex-session-metrics.mjs';
+import { CHAT_PORT } from '../../lib/config.mjs';
 import {
   appendRunSpoolRecord,
   getRun,
   getRunManifest,
   updateRun,
-} from './runs.mjs';
-import { buildToolProcessEnv } from '../lib/user-shell-env.mjs';
-import { applyManagedRuntimeEnv } from './runtime-policy.mjs';
+} from './store.mjs';
+import { buildToolProcessEnv } from '../../lib/user-shell-env.mjs';
+import { applyManagedRuntimeEnv } from '../runtime-policy.mjs';
 import {
   finalizeSidecarRunError,
   finalizeSidecarRunExit,
-} from './runner-sidecar-finalize.mjs';
+} from './sidecar-finalize.mjs';
 import {
   createCodexTransportMonitor,
   createTerminationController,
   getProviderTerminationGraceMs,
   getProviderTransportFailureGraceMs,
-} from './provider-runtime-monitor.mjs';
+} from '../provider-runtime-monitor.mjs';
 
 const runId = process.argv[2];
 const __dirname = dirname(fileURLToPath(import.meta.url));

@@ -90,7 +90,7 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 - `backend/session-manager.mjs`
 - `backend/session-continuation.mjs`
 - `backend/history.mjs`
-- `backend/runs.mjs`
+- `backend/run/store.mjs`
 
 **Acceptance**
 
@@ -141,7 +141,7 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 
 - `backend/session-manager.mjs`
 - `backend/history.mjs`
-- `backend/runs.mjs`
+- `backend/run/store.mjs`
 
 **Acceptance**
 

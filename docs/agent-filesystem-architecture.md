@@ -96,7 +96,7 @@ memory/
 - `backend/system-prompt.mjs`
 - `backend/hooks/first-boot-memory-hook.mjs`
 - `backend/history.mjs`
-- `backend/runs.mjs`
+- `backend/run/store.mjs`
 - `backend/session-meta-store.mjs`
 
 ---
@@ -195,7 +195,7 @@ melody-sync-instance/
 
 结构来自：
 
-- `backend/runs.mjs`
+- `backend/run/store.mjs`
 
 每个 run 目录下至少有：
 
@@ -448,7 +448,7 @@ memory/
 2. `backend/system-prompt.mjs`
 3. `backend/hooks/first-boot-memory-hook.mjs`
 4. `backend/history.mjs`
-5. `backend/runs.mjs`
+5. `backend/run/store.mjs`
 6. `docs/project-architecture.md`
 7. `docs/hooks-node-architecture.md`
 8. `notes/current/hooks-and-node-structure.md`

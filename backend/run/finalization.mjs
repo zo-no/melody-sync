@@ -1,5 +1,5 @@
-import { normalizeAgentResultEnvelope } from './session-runtime/agent-result-envelope.mjs';
-import { resolveSessionStateFromSession } from './session-runtime/session-state.mjs';
+import { normalizeAgentResultEnvelope } from '../session-runtime/agent-result-envelope.mjs';
+import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 
 function buildRunTerminalStatusEvent(statusEvent, run) {
   if (run?.state === 'cancelled') {

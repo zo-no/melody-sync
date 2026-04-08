@@ -3,7 +3,7 @@ import {
   getRun,
   updateRun,
   writeRunResult,
-} from './runs.mjs';
+} from './store.mjs';
 
 export async function finalizeSidecarRunError(runId, {
   nowIso,

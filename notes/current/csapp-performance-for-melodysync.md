@@ -27,7 +27,7 @@ Relevant files:
 - `chat-server.mjs`
 - `backend/session-manager.mjs`
 - `backend/process-runner.mjs`
-- `backend/runner-supervisor.mjs`
+- `backend/run/supervisor.mjs`
 
 CSAPP framing:
 
@@ -91,7 +91,7 @@ Rule of thumb:
 Relevant files:
 
 - `backend/history.mjs`
-- `backend/runs.mjs`
+- `backend/run/store.mjs`
 - `backend/session-manager.mjs`
 - `backend/ws.mjs`
 - `backend/api-request-log.mjs`

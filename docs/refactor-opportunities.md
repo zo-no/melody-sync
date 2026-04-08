@@ -9,7 +9,7 @@
 
 ### P0 — Runner stdout 无背压控制（可能导致进程挂起）
 
-**文件**：`backend/runner-sidecar.mjs:238`
+**文件**：`backend/run/sidecar.mjs:238`
 
 **现状**：
 ```javascript

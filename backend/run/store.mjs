@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 import { appendFile, open, readFile, readdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { StringDecoder } from 'string_decoder';
-import { CHAT_RUNS_DIR } from '../lib/config.mjs';
+import { CHAT_RUNS_DIR } from '../../lib/config.mjs';
 import {
   createKeyedTaskQueue,
   ensureDir,
@@ -10,7 +10,7 @@ import {
   statOrNull,
   writeJsonAtomic,
   writeTextAtomic,
-} from './fs-utils.mjs';
+} from '../fs-utils.mjs';
 
 const TERMINAL_STATES = new Set(['completed', 'failed', 'cancelled']);
 const SPOOL_READ_CHUNK_BYTES = 1024 * 1024;

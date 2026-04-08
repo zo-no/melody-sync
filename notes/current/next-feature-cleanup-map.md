@@ -24,10 +24,10 @@
 - `backend/routes/workbench.mjs`
 - `backend/session-manager.mjs`
 - `backend/history.mjs`
-- `backend/runs.mjs`
-- `backend/runner-supervisor.mjs`
-- `backend/runner-sidecar.mjs`
-- `backend/runner-sidecar-finalize.mjs`
+- `backend/run/store.mjs`
+- `backend/run/supervisor.mjs`
+- `backend/run/sidecar.mjs`
+- `backend/run/sidecar-finalize.mjs`
 - `backend/provider-runtime-monitor.mjs`
 - `backend/session-meta-store.mjs`
 - `backend/session-api-shapes.mjs`
