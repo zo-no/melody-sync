@@ -35,12 +35,15 @@ const {
   const prompt = buildContextCompactionPrompt({
     session: { systemPrompt: 'Read AGENTS first.' },
     existingSummary: 'Existing summary',
+    existingHandoff: '[Assistant]\n# Auto Compress\n\n## Continue from here\n- Resume from the handoff.',
     conversationBody: '[User]\nNeed next step',
     toolIndex: 'Tools used: exec ×1',
     automatic: true,
   });
   assert.match(prompt, /Compaction trigger: automatic auto-compress/);
+  assert.match(prompt, /When a previous handoff is present, treat it as the primary carry-forward context/);
   assert.match(prompt, /Parent session instructions:\nRead AGENTS first\./);
+  assert.match(prompt, /Previously carried handoff:\n\[Assistant]\n# Auto Compress/);
   assert.match(prompt, /Previously carried summary:\nExisting summary/);
   assert.match(prompt, /New conversation slice since the last compaction:\n\[User]/);
   assert.match(prompt, /Earlier tool activity index:\nTools used: exec ×1/);

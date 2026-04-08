@@ -1488,18 +1488,26 @@ async function buildCompactionSourcePayload(sessionId, session, { uptoSeq = 0 } 
   const targetSeq = uptoSeq > 0 ? uptoSeq : (history.at(-1)?.seq || 0);
   const boundedHistory = history.filter((event) => (event?.seq || 0) <= targetSeq);
   const activeFromSeq = Number.isInteger(contextHead?.activeFromSeq) ? contextHead.activeFromSeq : 0;
+  const handoffSeq = Number.isInteger(contextHead?.handoffSeq) ? contextHead.handoffSeq : 0;
   const sliceEvents = boundedHistory.filter((event) => (event?.seq || 0) > activeFromSeq);
   const existingSummary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';
+  const handoffEvent = handoffSeq > 0
+    ? boundedHistory.find((event) => (event?.seq || 0) === handoffSeq && event?.type === 'message')
+    : null;
+  const existingHandoff = handoffEvent
+    ? prepareConversationOnlyContinuationBody([handoffEvent])
+    : '';
   const conversationBody = prepareConversationOnlyContinuationBody(sliceEvents);
   const toolIndex = buildToolActivityIndex(boundedHistory);
 
-  if (!existingSummary && !conversationBody && !toolIndex) {
+  if (!existingSummary && !existingHandoff && !conversationBody && !toolIndex) {
     return null;
   }
 
   return {
     targetSeq,
     existingSummary,
+    existingHandoff,
     conversationBody,
     toolIndex,
   };
@@ -2077,6 +2085,7 @@ async function queueContextCompaction(sessionId, session, run, { automatic = fal
     await sendMessage(compactorSession.id, buildContextCompactionPrompt({
       session,
       existingSummary: compactionSource.existingSummary,
+      existingHandoff: compactionSource.existingHandoff,
       conversationBody: compactionSource.conversationBody,
       toolIndex: compactionSource.toolIndex,
       automatic,

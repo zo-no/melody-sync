@@ -44,9 +44,10 @@ export function buildFallbackCompactionHandoff(summary, toolIndex) {
   return parts.join('\n');
 }
 
-export function buildContextCompactionPrompt({ session, existingSummary, conversationBody, toolIndex, automatic = false }) {
+export function buildContextCompactionPrompt({ session, existingSummary, existingHandoff, conversationBody, toolIndex, automatic = false }) {
   const sessionInstructions = clipCompactionSection(session?.systemPrompt || '', 6000);
   const priorSummary = clipCompactionSection(existingSummary || '', 12000);
+  const priorHandoff = clipCompactionSection(existingHandoff || '', 12000);
   const conversationSlice = clipCompactionSection(conversationBody || '', 18000);
   const toolActivity = clipCompactionSection(toolIndex || '', 10000);
 
@@ -66,6 +67,7 @@ export function buildContextCompactionPrompt({ session, existingSummary, convers
     '- Do not call tools unless absolutely necessary.',
     '- Do not include full raw tool output.',
     '- Mark uncertainty clearly.',
+    '- When a previous handoff is present, treat it as the primary carry-forward context and use the prior summary only as fallback.',
     '- The user-visible handoff must explicitly say that older messages above the marker are no longer in live context.',
     '',
     'Return exactly two tagged blocks:',
@@ -86,6 +88,9 @@ export function buildContextCompactionPrompt({ session, existingSummary, convers
     '',
     'Parent session instructions:',
     sessionInstructions || '[none]',
+    '',
+    'Previously carried handoff:',
+    priorHandoff || '[none]',
     '',
     'Previously carried summary:',
     priorSummary || '[none]',
