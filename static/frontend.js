@@ -46,7 +46,7 @@
     "/chat/workbench/task-list-ui.js",
     "/chat/workbench/branch-actions.js",
     "/chat/workbench/operation-record-ui.js",
-    "/chat/vendor/panzoom.min.js",
+    "/chat/panzoom.min.js",
     "/chat/workbench/controller.js",
     "/chat/session/compose.js",
     "/chat/core/gestures.js",
