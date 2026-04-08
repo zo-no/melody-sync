@@ -1,5 +1,5 @@
-import { buildTemplateFreshnessNotice } from './session-continuation.mjs';
-import { formatAttachmentContextLine } from './attachment-utils.mjs';
+import { buildTemplateFreshnessNotice } from '../session-continuation.mjs';
+import { formatAttachmentContextLine } from '../attachment-utils.mjs';
 
 export function clipCompactionSection(value, maxChars = 12000) {
   const text = typeof value === 'string' ? value.trim() : '';

@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const forkContext = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-fork-context.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session-runtime/session-fork-context.mjs')).href
 );
 
 const {

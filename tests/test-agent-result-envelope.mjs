@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { normalizeAgentResultEnvelope } from '../backend/agent-result-envelope.mjs';
+import { normalizeAgentResultEnvelope } from '../backend/session-runtime/agent-result-envelope.mjs';
 
 const envelope = normalizeAgentResultEnvelope({
   reply: '已完成第一刀',

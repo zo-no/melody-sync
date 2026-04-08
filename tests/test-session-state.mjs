@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { resolveSessionStateFromSession } from '../backend/session-state.mjs';
+import { resolveSessionStateFromSession } from '../backend/session-runtime/session-state.mjs';
 
 const fallbackSession = {
   name: '整理会话流程',

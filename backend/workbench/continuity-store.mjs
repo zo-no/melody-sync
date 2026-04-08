@@ -7,7 +7,7 @@ import {
   sortByCreatedAsc,
   sortByUpdatedDesc,
 } from './shared.mjs';
-import { resolveSessionStateFromSession } from '../session-state.mjs';
+import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 
 function getStableBranchEntryTimestamp(entry) {
   return Date.parse(

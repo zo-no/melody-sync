@@ -1,4 +1,4 @@
-import { resolveSessionStateFromSession } from './session-state.mjs';
+import { resolveSessionStateFromSession } from './session-runtime/session-state.mjs';
 import { projectTaskCardFromSessionState } from './session-task-card.mjs';
 
 function cloneJson(value) {

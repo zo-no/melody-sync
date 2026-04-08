@@ -67,11 +67,11 @@ import {
   clipCompactionSection,
   parseCompactionWorkerOutput,
   prepareConversationOnlyContinuationBody,
-} from './session-compaction.mjs';
+} from './session-runtime/session-compaction.mjs';
 import {
   buildPreparedContinuationContext,
   isPreparedForkContextCurrent,
-} from './session-fork-context.mjs';
+} from './session-runtime/session-fork-context.mjs';
 import {
   createRun,
   findRunByRequest,
@@ -130,7 +130,7 @@ import {
   projectTaskCardFromSessionState,
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
-import { resolveSessionStateFromSession } from './session-state.mjs';
+import { resolveSessionStateFromSession } from './session-runtime/session-state.mjs';
 import {
   buildNormalizedRunResultEnvelope,
   mergeRunResultWithEnvelope,

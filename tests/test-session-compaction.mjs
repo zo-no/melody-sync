@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const compaction = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-compaction.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session-runtime/session-compaction.mjs')).href
 );
 
 const {
