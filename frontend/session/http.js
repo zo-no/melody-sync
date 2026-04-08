@@ -1318,16 +1318,16 @@ async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
 
   const request = (async () => {
     try {
-    let run = null;
-    try {
-      const quickActionSession = await resolveSessionListOrganizerAiQuickAction(payload);
-      if (quickActionSession?.id) {
-        run = await runSessionListOrganizerAiQuickAction(quickActionSession.id, payload);
+      let run = null;
+      try {
+        const quickActionSession = await resolveSessionListOrganizerAiQuickAction(payload);
+        if (quickActionSession?.id) {
+          run = await runSessionListOrganizerAiQuickAction(quickActionSession.id, payload);
+        }
+      } catch (error) {
+        clearSessionListOrganizerAiQuickActionSessionId();
+        console.warn("[sessions] Failed to run organizer AI quick action:", error?.message || error);
       }
-    } catch (error) {
-      clearSessionListOrganizerAiQuickActionSessionId();
-      console.warn("[sessions] Failed to run organizer AI quick action:", error?.message || error);
-    }
 
       if (!run) {
         const data = await createSessionListOrganizerRun(payload);

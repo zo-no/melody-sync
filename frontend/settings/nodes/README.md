@@ -9,4 +9,4 @@ Rules:
 
 - Keep node settings mounted through the shared settings overlay, not through a separate workbench modal.
 - Keep the settings-facing fetch contract under `/api/settings/nodes`.
-- Keep runtime node rendering logic in `static/frontend/workbench/`; this directory is only for the owner-facing settings surface.
+- Keep runtime node rendering logic in `frontend/workbench/`; this directory is only for the owner-facing settings surface.

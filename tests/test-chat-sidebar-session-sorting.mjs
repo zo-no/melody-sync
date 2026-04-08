@@ -87,7 +87,7 @@ context.globalThis = context;
 vm.runInNewContext(
   `${getSessionSortTimeSource}\n${getSessionPinSortRankSource}\n${compareSessionListSessionsSource}\n${sortSessionsInPlaceSource}`,
   context,
-  { filename: 'static/frontend/core/bootstrap-session-catalog.js' },
+  { filename: 'frontend/core/bootstrap-session-catalog.js' },
 );
 
 context.sortSessionsInPlace();

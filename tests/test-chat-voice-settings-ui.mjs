@@ -7,9 +7,9 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const settingsUiSource = readFileSync(join(repoRoot, 'static/frontend/settings/ui.js'), 'utf8');
-const voiceModelSource = readFileSync(join(repoRoot, 'static/frontend/settings/voice/model.js'), 'utf8');
-const voiceUiSource = readFileSync(join(repoRoot, 'static/frontend/settings/voice/ui.js'), 'utf8');
+const settingsUiSource = readFileSync(join(repoRoot, 'frontend/settings/ui.js'), 'utf8');
+const voiceModelSource = readFileSync(join(repoRoot, 'frontend/settings/voice/model.js'), 'utf8');
+const voiceUiSource = readFileSync(join(repoRoot, 'frontend/settings/voice/ui.js'), 'utf8');
 
 function makeClassList() {
   const tokens = new Set();
@@ -242,9 +242,9 @@ const context = {
 context.window = context;
 context.globalThis = context;
 
-vm.runInNewContext(settingsUiSource, context, { filename: 'static/frontend/settings/ui.js' });
-vm.runInNewContext(voiceModelSource, context, { filename: 'static/frontend/settings/voice/model.js' });
-vm.runInNewContext(voiceUiSource, context, { filename: 'static/frontend/settings/voice/ui.js' });
+vm.runInNewContext(settingsUiSource, context, { filename: 'frontend/settings/ui.js' });
+vm.runInNewContext(voiceModelSource, context, { filename: 'frontend/settings/voice/model.js' });
+vm.runInNewContext(voiceUiSource, context, { filename: 'frontend/settings/voice/ui.js' });
 
 hooksSettingsBtn.click();
 await flushMicrotasks();

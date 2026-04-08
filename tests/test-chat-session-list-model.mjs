@@ -53,8 +53,8 @@ context.window.MelodySyncSessionStateModel = context.MelodySyncSessionStateModel
 context.globalThis = context;
 context.self = context;
 
-vm.runInNewContext(contractSource, context, { filename: 'static/frontend/session-list/contract.js' });
-vm.runInNewContext(source, context, { filename: 'static/frontend/session-list/model.js' });
+vm.runInNewContext(contractSource, context, { filename: 'frontend/session-list/contract.js' });
+vm.runInNewContext(source, context, { filename: 'frontend/session-list/model.js' });
 
 const model = context.MelodySyncSessionListModel;
 assert.ok(model, 'session list model should register itself on the global object');

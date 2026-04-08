@@ -8,8 +8,8 @@ import vm from 'vm';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
-const surfaceUiSource = readFileSync(join(repoRoot, 'static/frontend/session/surface-ui.js'), 'utf8');
-const sessionListUiSource = readFileSync(join(repoRoot, 'static/frontend/session-list/ui.js'), 'utf8');
+const surfaceUiSource = readFileSync(join(repoRoot, 'frontend/session/surface-ui.js'), 'utf8');
+const sessionListUiSource = readFileSync(join(repoRoot, 'frontend/session-list/ui.js'), 'utf8');
 
 function sliceBetween(source, startToken, endToken) {
   const start = source.indexOf(startToken);

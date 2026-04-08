@@ -107,7 +107,7 @@ vm.runInNewContext(
     'globalThis.createComposerAttachmentPreviewNode = createComposerAttachmentPreviewNode;',
   ].join('\n\n'),
   context,
-  { filename: 'static/frontend/session/transcript-ui.js' },
+  { filename: 'frontend/session/transcript-ui.js' },
 );
 
 assert.match(

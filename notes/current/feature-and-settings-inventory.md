@@ -61,9 +61,9 @@
 ### 当前主流程落点
 
 - 模板：`templates/chat.html`
-- Session 列表 UI：`static/frontend/session-list/ui.js`
-- Session 行动作：`static/frontend/session/surface-ui.js`
-- 发送/草稿/附件：`static/frontend/session/compose.js`
+- Session 列表 UI：`frontend/session-list/ui.js`
+- Session 行动作：`frontend/session/surface-ui.js`
+- 发送/草稿/附件：`frontend/session/compose.js`
 
 ## 3. 当前侧边工作流功能
 
@@ -86,9 +86,9 @@
 
 ### 当前落点
 
-- `static/frontend/workbench/controller.js`
-- `static/frontend/workbench/task-map-model.js`
-- `static/frontend/workbench/node-contract.js`
+- `frontend/workbench/controller.js`
+- `frontend/workbench/task-map-model.js`
+- `frontend/workbench/node-contract.js`
 - `backend/workbench/index.mjs`
 - `backend/routes/workbench.mjs`
 
@@ -113,7 +113,7 @@
 当前落点：
 
 - `templates/chat.html` 中 `hooksSettingsBtn`
-- `static/frontend/settings/hooks/ui.js`
+- `frontend/settings/hooks/ui.js`
 - `backend/routes/hooks.mjs`
 
 ### 4.2 Runtime 偏好
@@ -142,7 +142,7 @@
 当前落点：
 
 - `templates/chat.html`
-- `static/frontend/session/tooling.js`
+- `frontend/session/tooling.js`
 - `lib/runtime-selection.mjs`
 - `backend/router.mjs` 的 `/api/runtime-selection`
 
@@ -229,9 +229,9 @@
 
 主要落点：
 
-- `static/frontend/core/bootstrap.js`
-- `static/frontend/core/bootstrap-session-catalog.js`
-- `static/frontend/session/compose.js`
+- `frontend/core/bootstrap.js`
+- `frontend/core/bootstrap-session-catalog.js`
+- `frontend/session/compose.js`
 
 ### 6.2 delegate / fork 的表面定义还不干净
 
@@ -290,7 +290,7 @@
 推荐方向：
 
 ```text
-static/frontend/
+frontend/
   sessions/
   compose/
   workbench/

@@ -78,7 +78,7 @@ vm.runInNewContext(`
   ${playCompletionSoundSource}
   globalThis.playCompletionSound = playCompletionSound;
 `, context, {
-  filename: 'static/frontend/session/http.js',
+  filename: 'frontend/session/http.js',
 });
 
 context.playCompletionSound();

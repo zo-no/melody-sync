@@ -106,7 +106,7 @@ backend/
 Target frontend shape:
 
 ```text
-static/frontend/
+frontend/
   core/
     bootstrap.js
     init.js
@@ -174,10 +174,10 @@ Targets:
 Primary files:
 
 - `templates/chat.html`
-- `static/frontend/core/bootstrap.js`
-- `static/frontend/core/bootstrap-session-catalog.js`
-- `static/frontend/session-list/sidebar-ui.js`
-- `static/frontend/core/i18n.js`
+- `frontend/core/bootstrap.js`
+- `frontend/core/bootstrap-session-catalog.js`
+- `frontend/session-list/sidebar-ui.js`
+- `frontend/core/i18n.js`
 - `backend/router.mjs`
 - `backend/compat/apps.mjs`
 - `backend/users.mjs`
@@ -226,8 +226,8 @@ Canonical frontend state buckets:
 
 Rules:
 
-- create grouped frontend folders before moving logic out of the flat `static/frontend/` root
-- `static/frontend/session/http.js` stays the canonical fetch/update path
+- create grouped frontend folders before moving logic out of the flat `frontend/` root
+- `frontend/session/http.js` stays the canonical fetch/update path
 - realtime code only invalidates or refreshes
 - deleted filters and settings must not linger in globals or translations
 

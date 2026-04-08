@@ -24,12 +24,12 @@
 当前建议把两个扩展入口都固定成单一 contract 文件：
 
 - hooks contract：`backend/hooks/hook-contract.mjs`
-- node contract：`static/frontend/workbench/node-contract.js`
+- node contract：`frontend/workbench/node-contract.js`
 
 同时把 GTD 任务列表本身也固定成独立 contract，而不是让 hooks 或 node 间接拥有它：
 
-- session list contract：`static/frontend/session-list/contract.js`
-- session list order contract：`static/frontend/session-list/order-contract.js`
+- session list contract：`frontend/session-list/contract.js`
+- session list order contract：`frontend/session-list/order-contract.js`
 
 ## 2. 顶层原则
 
@@ -404,20 +404,20 @@ config/hooks/<hook-id>.json
 
 当前主线已经有一个更轻的过渡层：
 
-- `static/frontend/workbench/node-effects.js`
+- `frontend/workbench/node-effects.js`
 
 它先把 `main / branch / candidate / done` 的计数、交互、边类型和 compact 布局规则收口成共享语义，再由 `task-map-model.js` 和 `task-map-ui.js` 共同消费。
 
 当前主线也已经开始把 composition 规则直接透出到 node contract：
 
 - `backend/workbench/node-definitions.mjs`
-- `static/frontend/workbench/node-contract.js`
+- `frontend/workbench/node-contract.js`
 
 当前主线还新增了一层可选 overlay：
 
 - `backend/workbench/task-map-plans.mjs`
 - `backend/workbench/task-map-plan-contract.mjs`
-- `static/frontend/workbench/task-map-plan.js`
+- `frontend/workbench/task-map-plan.js`
 
 这层的作用不是替代 continuity，而是把“默认 continuity 图”和“未来 hook / AI 规划图”明确分开。
 
@@ -570,9 +570,9 @@ config/hooks/<hook-id>.json
 
 目标是只动这几处：
 
-1. `static/frontend/workbench/node-contract.js`
+1. `frontend/workbench/node-contract.js`
    - 加新的 node kind definition
-2. `static/frontend/workbench/task-map-model.js`
+2. `frontend/workbench/task-map-model.js`
    - 在 projection 里决定何时产出这种 node
 3. 对应 UI renderer
    - 只有当新 node 需要新的视觉表达时才改
@@ -655,7 +655,7 @@ backend/
 前端：
 
 ```text
-static/frontend/workbench/
+frontend/workbench/
   node-contract.js
   node-definition-store.js
   node-projection.js

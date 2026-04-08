@@ -234,4 +234,4 @@ MelodySync 因此需要把“持续聊天”升级成“可维护、可回溯、
 当前实现对齐：
 - 后端能力：`backend/workbench/branch-lifecycle.mjs`
 - 地图与状态：`backend/workbench/task-map-graph-service.mjs`
-- 前端交互：`static/frontend/workbench/task-map-ui.js`、`static/frontend/workbench/controller.js`
+- 前端交互：`frontend/workbench/task-map-ui.js`、`frontend/workbench/controller.js`

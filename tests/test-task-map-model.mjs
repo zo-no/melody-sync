@@ -22,28 +22,28 @@ const context = {
 };
 context.globalThis = context;
 vm.runInNewContext(nodeContractSource, context, {
-  filename: 'static/frontend/workbench/node-contract.js',
+  filename: 'frontend/workbench/node-contract.js',
 });
 vm.runInNewContext(nodeEffectsSource, context, {
-  filename: 'static/frontend/workbench/node-effects.js',
+  filename: 'frontend/workbench/node-effects.js',
 });
 vm.runInNewContext(nodeInstanceSource, context, {
-  filename: 'static/frontend/workbench/node-instance.js',
+  filename: 'frontend/workbench/node-instance.js',
 });
 vm.runInNewContext(graphModelSource, context, {
-  filename: 'static/frontend/workbench/graph-model.js',
+  filename: 'frontend/workbench/graph-model.js',
 });
 vm.runInNewContext(taskMapPlanSource, context, {
-  filename: 'static/frontend/workbench/task-map-plan.js',
+  filename: 'frontend/workbench/task-map-plan.js',
 });
 vm.runInNewContext(taskMapClustersSource, context, {
-  filename: 'static/frontend/workbench/task-map-clusters.js',
+  filename: 'frontend/workbench/task-map-clusters.js',
 });
 vm.runInNewContext(taskMapMockPresetsSource, context, {
-  filename: 'static/frontend/workbench/task-map-mock-presets.js',
+  filename: 'frontend/workbench/task-map-mock-presets.js',
 });
 vm.runInNewContext(source, context, {
-  filename: 'static/frontend/workbench/task-map-model.js',
+  filename: 'frontend/workbench/task-map-model.js',
 });
 
 const { buildTaskMapProjection, applyTaskMapMockPreset, NODE_KINDS } = context.window.MelodySyncTaskMapModel;

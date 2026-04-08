@@ -48,4 +48,4 @@ Boundary rules:
 - Keep task-card patch derivation centralized in `node-task-card.mjs`; hook/AI flows should not invent ad hoc patch precedence rules.
 - Keep plan-to-session task-card writeback centralized in `node-task-card-sync.mjs`; producer and hook modules should pass managed binding keys, not hand-roll merge logic.
 - Keep rich canvas rendering declarative in plan/node metadata. Backend stores node/view intent; frontend renderer owns actual DOM/iframe rendering.
-- Keep task-map projection logic in `static/frontend/workbench/task-map-model.js`, not in backend store modules.
+- Keep task-map projection logic in `frontend/workbench/task-map-model.js`, not in backend store modules.

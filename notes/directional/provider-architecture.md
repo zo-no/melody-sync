@@ -13,7 +13,7 @@
 - `lib/tools.mjs` 管可用工具列表
 - `backend/models.mjs` 管模型列表
 - `backend/process-runner.mjs` + `backend/adapters/*.mjs` 管 runtime
-- `static/frontend.js` 还带着部分 reasoning UI 协议
+- `frontend.js` 还带着部分 reasoning UI 协议
 
 结果是：
 

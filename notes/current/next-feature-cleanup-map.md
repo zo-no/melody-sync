@@ -36,22 +36,22 @@
 ### 前端主链
 
 - `templates/chat.html`
-- `static/frontend.js`
-- `static/frontend/core/bootstrap.js`
-- `static/frontend/core/bootstrap-data.js`
-- `static/frontend/core/bootstrap-session-catalog.js`
-- `static/frontend/session/http.js`
-- `static/frontend/session/http-helpers.js`
-- `static/frontend/session/http-list-state.js`
-- `static/frontend/core/realtime.js`
-- `static/frontend/core/realtime-render.js`
-- `static/frontend/session/surface-ui.js`
-- `static/frontend/session-list/ui.js`
-- `static/frontend/session-list/sidebar-ui.js`
-- `static/frontend/session/compose.js`
-- `static/frontend/workbench/controller.js`
-- `static/frontend/workbench/task-map-model.js`
-- `static/frontend/settings/hooks/ui.js`
+- `frontend.js`
+- `frontend/core/bootstrap.js`
+- `frontend/core/bootstrap-data.js`
+- `frontend/core/bootstrap-session-catalog.js`
+- `frontend/session/http.js`
+- `frontend/session/http-helpers.js`
+- `frontend/session/http-list-state.js`
+- `frontend/core/realtime.js`
+- `frontend/core/realtime-render.js`
+- `frontend/session/surface-ui.js`
+- `frontend/session-list/ui.js`
+- `frontend/session-list/sidebar-ui.js`
+- `frontend/session/compose.js`
+- `frontend/workbench/controller.js`
+- `frontend/workbench/task-map-model.js`
+- `frontend/settings/hooks/ui.js`
 
 ### 基础支撑
 
@@ -144,7 +144,7 @@
 ### 第 2 步：再删前端死挂点
 
 - 删 UI 上已经没有入口的 DOM / CSS / 全局状态
-- 每删一块都保持 `templates/chat.html` 和 `static/frontend/*.js` 一起收口
+- 每删一块都保持 `templates/chat.html` 和 `frontend/*.js` 一起收口
 
 ### 第 3 步：再削路由兼容壳
 
@@ -155,7 +155,7 @@
 
 - `backend/session-manager.mjs`
 - `backend/workbench/index.mjs`
-- `static/frontend/workbench/controller.js`
+- `frontend/workbench/controller.js`
 
 这一步应该在“功能残留删干净”后再做，否则只是在给旧逻辑换目录。
 

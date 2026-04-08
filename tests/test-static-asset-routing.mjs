@@ -111,14 +111,14 @@ async function main() {
   const { home } = setupTempHome();
   const port = randomPort();
   const probeName = `__static_probe_${Date.now().toString(36)}.js`;
-  const probePath = join(repoRoot, 'static', 'frontend', probeName);
+  const probePath = join(repoRoot, 'frontend', probeName);
   writeFileSync(probePath, 'window.__MELODYSYNC_STATIC_PROBE__ = true;\n', 'utf8');
 
   const server = await startServer({ home, port });
   try {
     const page = await request(port, '/');
     assert.equal(page.status, 200, 'chat page should render');
-    assert.match(page.text, /<script src="\/chat\/core\/icons\.js(?:\?v=[^"]+)?"/);
+    assert.match(page.text, /<script src="\/chat\.js(?:\?v=[^"]+)?"/);
 
     const probe = await request(port, `/chat/${probeName}`);
     assert.equal(probe.status, 200, 'new static asset should load without router filename changes');

@@ -104,7 +104,7 @@ const context = {
 context.globalThis = context;
 
 vm.runInNewContext(`${snippet}\nglobalThis.fetchSessionsList = fetchSessionsList;`, context, {
-  filename: 'static/frontend/session/http.js',
+  filename: 'frontend/session/http.js',
 });
 
 await context.fetchSessionsList();

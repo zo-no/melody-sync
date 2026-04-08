@@ -87,7 +87,7 @@ Read against these files:
 - `backend/session-manager.mjs`
 - `backend/runs.mjs`
 - `backend/ws.mjs`
-- `static/frontend/core/realtime.js`
+- `frontend/core/realtime.js`
 
 Practice task:
 

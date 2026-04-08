@@ -97,7 +97,7 @@ vm.runInNewContext(
     'globalThis.renderHiddenBlockEventsInto = renderHiddenBlockEventsInto;',
   ].join('\n\n'),
   context,
-  { filename: 'static/frontend/session/transcript-ui.js' },
+  { filename: 'frontend/session/transcript-ui.js' },
 );
 
 context.renderHiddenBlockEventsInto({}, [

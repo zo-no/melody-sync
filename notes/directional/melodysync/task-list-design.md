@@ -288,12 +288,12 @@ MelodySync 的前台主对象不是 `session`，而是 `task`。
 
 这一设计主要对应到：
 
-- `static/frontend/session/surface-ui.js`
-- `static/frontend/session-list/ui.js`
-- `static/frontend/chat-sidebar.css`
-- `static/frontend/workbench/controller.js`
-- `static/frontend/session/http.js`
-- `static/frontend/session-list/sidebar-ui.js`
+- `frontend/session/surface-ui.js`
+- `frontend/session-list/ui.js`
+- `frontend/chat-sidebar.css`
+- `frontend/workbench/controller.js`
+- `frontend/session/http.js`
+- `frontend/session-list/sidebar-ui.js`
 
 阅读顺序建议：
 

@@ -7,9 +7,9 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const settingsUiSource = readFileSync(join(repoRoot, 'static/frontend/settings/ui.js'), 'utf8');
-const hooksModelSource = readFileSync(join(repoRoot, 'static/frontend/settings/hooks/model.js'), 'utf8');
-const hooksUiSource = readFileSync(join(repoRoot, 'static/frontend/settings/hooks/ui.js'), 'utf8');
+const settingsUiSource = readFileSync(join(repoRoot, 'frontend/settings/ui.js'), 'utf8');
+const hooksModelSource = readFileSync(join(repoRoot, 'frontend/settings/hooks/model.js'), 'utf8');
+const hooksUiSource = readFileSync(join(repoRoot, 'frontend/settings/hooks/ui.js'), 'utf8');
 
 function makeClassList() {
   const tokens = new Set();
@@ -237,9 +237,9 @@ const context = {
 context.window = context;
 context.globalThis = context;
 
-vm.runInNewContext(settingsUiSource, context, { filename: 'static/frontend/settings/ui.js' });
-vm.runInNewContext(hooksModelSource, context, { filename: 'static/frontend/settings/hooks/model.js' });
-vm.runInNewContext(hooksUiSource, context, { filename: 'static/frontend/settings/hooks/ui.js' });
+vm.runInNewContext(settingsUiSource, context, { filename: 'frontend/settings/ui.js' });
+vm.runInNewContext(hooksModelSource, context, { filename: 'frontend/settings/hooks/model.js' });
+vm.runInNewContext(hooksUiSource, context, { filename: 'frontend/settings/hooks/ui.js' });
 
 hooksSettingsBtn.click();
 await flushMicrotasks();

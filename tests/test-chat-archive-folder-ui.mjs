@@ -113,7 +113,7 @@ vm.runInNewContext(`
   ${buildSessionActionConfigsSource}
   globalThis.buildSessionActionConfigs = buildSessionActionConfigs;
 `, actionContext, {
-  filename: 'static/frontend/session/surface-ui.js',
+  filename: 'frontend/session/surface-ui.js',
 });
 
 assert.equal(
@@ -187,7 +187,7 @@ vm.runInNewContext(`
   globalThis.getDoneWorkflowStatusInfo = getDoneWorkflowStatusInfo;
   globalThis.getSessionListTouchStatusInfo = getSessionListTouchStatusInfo;
 `, statusContext, {
-  filename: 'static/frontend/session/surface-ui.js',
+  filename: 'frontend/session/surface-ui.js',
 });
 assert.equal(
   JSON.stringify(statusContext.getSessionListTouchStatusInfo({
@@ -307,7 +307,7 @@ vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, renderContext, {
-  filename: 'static/frontend/session-list/ui.js',
+  filename: 'frontend/session-list/ui.js',
 });
 
 renderContext.renderArchivedSection();
@@ -370,7 +370,7 @@ vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, loadingContext, {
-  filename: 'static/frontend/session-list/ui.js',
+  filename: 'frontend/session-list/ui.js',
 });
 
 loadingContext.renderArchivedSection();
@@ -429,7 +429,7 @@ vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, emptyContext, {
-  filename: 'static/frontend/session-list/ui.js',
+  filename: 'frontend/session-list/ui.js',
 });
 
 emptyContext.renderArchivedSection();

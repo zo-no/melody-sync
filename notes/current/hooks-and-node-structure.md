@@ -6,9 +6,9 @@
 
 - hooks contract：`backend/hooks/hook-contract.mjs`
 - backend node definitions：`backend/workbench/node-definitions.mjs`
-- frontend node contract：`static/frontend/workbench/node-contract.js`
-- session list contract：`static/frontend/session-list/contract.js`
-- session list order contract：`static/frontend/session-list/order-contract.js`
+- frontend node contract：`frontend/workbench/node-contract.js`
+- session list contract：`frontend/session-list/contract.js`
+- session list order contract：`frontend/session-list/order-contract.js`
 
 如果你要看下一步目标架构，而不是当前实现快照，请同时阅读：
 
@@ -170,22 +170,22 @@
   - 维护用户新增的 custom node kind 持久化
   - 当前只允许扩展自定义节点，不直接改写 builtin 节点
   - 当前也允许 custom node kind 保留 composition metadata，但设置 UI 还没有把这层完全开放出来
-- `static/frontend/workbench/node-contract.js`
+- `frontend/workbench/node-contract.js`
   - 读取 backend 透出的 node definitions，并在前端做兜底校验与暴露
   - 当前已经包含 composition contract：root 能力、父子 kind 约束、默认交互、默认边类型、布局变体和统计口径
-- `static/frontend/workbench/node-effects.js`
+- `frontend/workbench/node-effects.js`
   - 统一维护 task map 当前内建 node 的公共语义
   - 当前收口的效果包括：计数口径、compact 布局、候选边、开启支线动作、已收束徽标、surfaceBindings、taskCardBindings 和默认 view.type
-- `static/frontend/workbench/node-instance.js`
+- `frontend/workbench/node-instance.js`
   - 统一维护前端 graph node instance contract
   - 当前负责把 `capabilities / surfaceBindings / taskCardBindings / origin / view` 收成稳定实例，避免 renderer、surface 和 capability 层各自拼 node payload
-- `static/frontend/workbench/graph-model.js`
+- `frontend/workbench/graph-model.js`
   - 统一维护前端 task-map 的 graph node / edge collection 结构
   - 当前同时服务默认 continuity 投影和 task-map plan overlay，避免两边各自拼匿名节点集合
-- `static/frontend/workbench/graph-client.js`
+- `frontend/workbench/graph-client.js`
   - 统一维护前端 canonical graph 读侧
   - 当前负责读取 backend `task-map-graph`，并优先把正式 graph payload 还原成前端 projection；拿不到时再回退到本地 continuity 投影
-- `static/frontend/workbench/node-capabilities.js`
+- `frontend/workbench/node-capabilities.js`
   - 把 node capability 变成显式执行层
   - 当前负责把 `create-branch / open-session` 这类 node action 从 renderer 内联逻辑里抽出来
 - `backend/workbench/task-map-plans.mjs`
@@ -221,30 +221,30 @@
 - `backend/workbench/task-map-surface-service.mjs`
   - 统一暴露 session-scoped canonical surface 读入口
   - 当前负责把 graph node 的 `surfaceBindings` 投影成稳定 slot payload，先服务 `composer-suggestions`
-- `static/frontend/workbench/task-map-plan.js`
+- `frontend/workbench/task-map-plan.js`
   - 把 task-map plan 归一化并叠加到默认 continuity 投影上
   - 当前支持两种模式：`replace-default` 和 `augment-default`
   - 当前 `augment-default` 也会按 node id 合并已有默认节点，所以 hook plan 可以给 continuity 默认节点补 `summary / surfaceBindings / view.type`
   - 当前也会保留 node `origin`（`projection` vs `plan`）和 `taskCardBindings`，让后续 hook / AI graph plan 保持 provenance 和字段绑定能力
   - 当前也提供 surface-node 收集能力，供 composer 等非地图表面优先读取 `composer-suggestions` 这类 node surface
-- `static/frontend/workbench/surface-projection.js`
+- `frontend/workbench/surface-projection.js`
   - 把 workbench graph 的 surfaceBindings 变成显式读侧选择器
   - 当前先服务 composer suggestion surface，避免 session UI 直接认识 task-map plan 细节
-- `static/frontend/workbench/task-map-clusters.js`
+- `frontend/workbench/task-map-clusters.js`
   - 把 synthetic cluster 生成、branch child 排序和当前 branch lineage 解析从默认投影器里抽出来
   - 当前负责默认 continuity 图的 quest source 准备
-- `static/frontend/workbench/task-map-mock-presets.js`
+- `frontend/workbench/task-map-mock-presets.js`
   - 把 cinema demo 这类 mock 图谱注入从默认投影器里抽出来
   - 当前让 `task-map-model.js` 不再同时承担真实投影和 demo augment
-- `static/frontend/workbench/node-rich-view-ui.js`
+- `frontend/workbench/node-rich-view-ui.js`
   - 把 markdown / html / iframe 这类 rich node view 渲染从 workbench 总控里抽出来
   - 当前负责 node canvas 的安全嵌入和 markdown 回退渲染
-- `static/frontend/workbench/node-canvas-ui.js`
+- `frontend/workbench/node-canvas-ui.js`
   - 把右侧 node canvas 收成独立 UI 层
   - 当前负责把选中的 rich-view node 渲染到 taskMapRail 下半部分，而不是继续把内容直接塞进 flow node 本体
-- `static/frontend/settings/nodes/model.js`
+- `frontend/settings/nodes/model.js`
   - 把 node definitions payload 归一化成地图域可消费的设置模型
-- `static/frontend/settings/nodes/ui.js`
+- `frontend/settings/nodes/ui.js`
   - 把 node 设置入口放在 task map rail 上，并用对称弹窗做编辑
 - `main`
   - 主任务根节点，对应主 session
@@ -396,7 +396,7 @@
 - route 文件：`backend/routes/workbench.mjs`
 - projection：`backend/workbench/operation-records.mjs`
 - state 读写：`backend/workbench/state-store.mjs`
-- 前端面板：`static/frontend/workbench/operation-record-ui.js`
+- 前端面板：`frontend/workbench/operation-record-ui.js`
 
 ### 当前展示内容
 

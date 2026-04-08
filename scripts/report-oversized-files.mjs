@@ -21,7 +21,7 @@ export const IGNORED_PATH_SEGMENTS = new Set([
 ]);
 export const IGNORED_PATHS = new Set([
   'package-lock.json',
-  'static/marked.min.js',
+  'public/marked.min.js',
 ]);
 
 export const DEFAULT_WARN_LINE_LIMITS = {

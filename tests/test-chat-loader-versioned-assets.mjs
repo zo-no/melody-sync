@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const loaderSource = readFileSync(join(repoRoot, 'static/frontend.js'), 'utf8');
+const loaderSource = readFileSync(join(repoRoot, 'frontend.js'), 'utf8');
 
 function createScriptElement() {
   return {
@@ -170,7 +170,7 @@ const expectedBuild123Assets = [
 const expectedInlineAssets = expectedBuild123Assets.map((path) => path.replace('build-123', 'inline-build-456'));
 
 const fallbackContext = createContext();
-vm.runInNewContext(loaderSource, fallbackContext, { filename: 'static/frontend.js' });
+vm.runInNewContext(loaderSource, fallbackContext, { filename: 'frontend.js' });
 await waitForLoaderWork();
 
 assert.equal(
@@ -194,7 +194,7 @@ assert.deepEqual(
 assert.deepEqual(fallbackContext.loggedErrors, [], 'compatibility loader should not log load errors during the happy path');
 
 const inlineContext = createContext({ inlineAssetVersion: 'inline-build-456' });
-vm.runInNewContext(loaderSource, inlineContext, { filename: 'static/frontend.js' });
+vm.runInNewContext(loaderSource, inlineContext, { filename: 'frontend.js' });
 await waitForLoaderWork();
 
 assert.deepEqual(

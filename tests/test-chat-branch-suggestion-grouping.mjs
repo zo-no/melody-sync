@@ -204,7 +204,7 @@ vm.runInNewContext(
     'globalThis.renderStatusInto = renderStatusInto;',
   ].join('\n\n'),
   context,
-  { filename: 'static/frontend/session/transcript-ui.js' },
+  { filename: 'frontend/session/transcript-ui.js' },
 );
 
 const userWrap = makeElement('div');

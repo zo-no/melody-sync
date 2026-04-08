@@ -102,7 +102,7 @@ vm.runInNewContext(
     'globalThis.renderMessageInto = renderMessageInto;',
   ].join('\n\n'),
   context,
-  { filename: 'static/frontend/session/transcript-ui.js' },
+  { filename: 'frontend/session/transcript-ui.js' },
 );
 
 const container = makeElement('div');

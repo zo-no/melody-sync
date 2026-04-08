@@ -8,13 +8,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
 const sources = {
-  messages: readFileSync(join(repoRoot, 'static/frontend/chat-messages.css'), 'utf8'),
-  workbench: readFileSync(join(repoRoot, 'static/frontend/chat-workbench.css'), 'utf8'),
-  sidebar: readFileSync(join(repoRoot, 'static/frontend/chat-sidebar.css'), 'utf8'),
-  input: readFileSync(join(repoRoot, 'static/frontend/chat-input.css'), 'utf8'),
-  responsive: readFileSync(join(repoRoot, 'static/frontend/chat-responsive.css'), 'utf8'),
-  base: readFileSync(join(repoRoot, 'static/frontend/chat-base.css'), 'utf8'),
-  workbenchUI: readFileSync(join(repoRoot, 'static/frontend/workbench/controller.js'), 'utf8'),
+  messages: readFileSync(join(repoRoot, 'frontend/chat-messages.css'), 'utf8'),
+  workbench: readFileSync(join(repoRoot, 'frontend/chat-workbench.css'), 'utf8'),
+  sidebar: readFileSync(join(repoRoot, 'frontend/chat-sidebar.css'), 'utf8'),
+  input: readFileSync(join(repoRoot, 'frontend/chat-input.css'), 'utf8'),
+  responsive: readFileSync(join(repoRoot, 'frontend/chat-responsive.css'), 'utf8'),
+  base: readFileSync(join(repoRoot, 'frontend/chat-base.css'), 'utf8'),
+  workbenchUI: readFileSync(join(repoRoot, 'frontend/workbench/controller.js'), 'utf8'),
 };
 
 assert.ok(!/Flat visual cleanup|Flat high-contrast|Flat UI cleanup|Flat responsive cleanup|UI cleanup high-contrast/.test(sources.base + sources.messages + sources.input + sources.workbench + sources.sidebar + sources.responsive), 'legacy one-off flat cleanup blocks should be removed');

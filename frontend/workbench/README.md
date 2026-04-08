@@ -48,6 +48,6 @@ Design rules:
 - Treat `GET/POST/DELETE /api/workbench/sessions/:id/task-map-plans` as the formal session-scoped plan entry. UI and future AI/manual tooling should write plan metadata there instead of patching workbench state files directly.
 - Treat `GET /api/workbench/sessions/:id/task-map-graph` as the canonical backend quest-graph read entry. Consumers that need the current graph should read that payload instead of reconstructing continuity + plan overlay on their own.
 - Treat `GET /api/workbench/sessions/:id/task-map-surfaces/:slot` as the canonical backend surface read entry. Slot consumers should prefer that payload when they do not need the whole graph.
-- Keep runtime node rendering logic here; owner-facing node settings now live in `static/frontend/settings/nodes/`.
+- Keep runtime node rendering logic here; owner-facing node settings now live in `frontend/settings/nodes/`.
 - Put new visual rendering into a focused `*-ui.js` module.
 - Put derived state in selectors like `quest-state.js`, not inline in render code.

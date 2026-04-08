@@ -186,7 +186,7 @@ async function main() {
       '子任务',
       'bootstrap payload should expose canonical labeled node definitions',
     );
-    assert.match(page.text, /<script src="\/chat\.js"/, 'chat page should load the split-asset loader');
+    assert.match(page.text, /<script src="\/chat\.js(?:\?v=[^"]+)?"/, 'chat page should load the split-asset loader');
     assert.doesNotMatch(page.text, /<script src="\/chat\/voice-input\.js(?:\?v=[^"]*)?"/);
     assert.doesNotMatch(page.text, /id="appFilterSelect"/);
     assert.doesNotMatch(page.text, /id="sourceFilterSelect"/);
@@ -305,7 +305,7 @@ async function main() {
     assert.match(combinedChatStyles, /body\.keyboard-open \.messages/);
     assert.match(combinedChatStyles, /body\.keyboard-open \.input-area/);
     assert.doesNotMatch(combinedChatStyles, /--app-top-offset/);
-    assert.ok(!page.text.includes('/chat.js?v='), 'chat page should not pin the chat frontend to a versioned URL');
+    assert.match(page.text, /\/chat\.js\?v=/, 'chat page should fingerprint the chat frontend URL so releases invalidate correctly');
     assert.match(page.text, /\/manifest\.json\?v=/, 'chat page should fingerprint the manifest URL so installed PWAs refresh policy changes');
     assert.match(page.text, /title="Attach files"/, 'chat page should advertise file uploads in the composer');
     assert.match(page.text, /accept="\*\/\*"/, 'chat page should allow arbitrary file selection');
@@ -395,7 +395,7 @@ async function main() {
     assert.equal(sessionHttpAsset.status, 200, 'session http asset should load');
     const bootstrapCatalogAsset = await request(port, 'GET', '/chat/core/bootstrap-session-catalog.js');
     assert.equal(bootstrapCatalogAsset.status, 200, 'bootstrap session catalog asset should load');
-    assert.match(bootstrapCatalogAsset.text, /function getEffectiveSessionSourceId\(/);
+    assert.match(bootstrapCatalogAsset.text, /function getEffectiveSessionSourceName\(/);
     assert.match(bootstrapCatalogAsset.text, /function sortSessionsInPlace\(/);
     assert.doesNotMatch(sessionHttpAsset.text, /getEffectiveSessionAppId\(/);
 

@@ -73,7 +73,7 @@ vm.runInNewContext(
     'globalThis.derivePreferredToolId = derivePreferredToolId;',
   ].join('\n\n'),
   context,
-  { filename: 'static/frontend/core/layout-tooling.js' },
+  { filename: 'frontend/core/layout-tooling.js' },
 );
 
 const ordered = context.prioritizeToolOptions([

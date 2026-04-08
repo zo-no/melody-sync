@@ -50,22 +50,22 @@ Browser / mobile shell
 ### Frontend
 
 - [`templates/chat.html`](templates/chat.html): main shell
-- [`static/frontend.js`](static/frontend.js): versioned loader
-- [`static/frontend/core/bootstrap.js`](static/frontend/core/bootstrap.js): bootstrap/runtime globals
-- [`static/frontend/core/bootstrap-data.js`](static/frontend/core/bootstrap-data.js): bootstrap payload helpers
-- [`static/frontend/core/bootstrap-session-catalog.js`](static/frontend/core/bootstrap-session-catalog.js): session/source/user catalog helpers
-- [`static/frontend/core/realtime.js`](static/frontend/core/realtime.js): WS invalidation / reconnect logic
-- [`static/frontend/core/realtime-render.js`](static/frontend/core/realtime-render.js): transcript refresh/render helpers
-- [`static/frontend/session/http.js`](static/frontend/session/http.js): canonical session HTTP client
-- [`static/frontend/session/tooling.js`](static/frontend/session/tooling.js): runtime/tool/model controls
-- [`static/frontend/session/compose.js`](static/frontend/session/compose.js): composer interactions
-- [`static/frontend/session/transcript-ui.js`](static/frontend/session/transcript-ui.js): transcript/event rendering and attachment UI
-- [`static/frontend/session/surface-ui.js`](static/frontend/session/surface-ui.js): session detail rendering
-- [`static/frontend/session/state-model.js`](static/frontend/session/state-model.js): session derived state helpers
-- [`static/frontend/session-list/model.js`](static/frontend/session-list/model.js): session list grouping, badges, and lightweight branch semantics
-- [`static/frontend/session-list/ui.js`](static/frontend/session-list/ui.js): session list rendering
-- [`static/frontend/session-list/sidebar-ui.js`](static/frontend/session-list/sidebar-ui.js): sidebar interactions
-- [`static/frontend/workbench/controller.js`](static/frontend/workbench/controller.js): workbench coordinator
+- [`frontend.js`](frontend.js): versioned loader
+- [`frontend/core/bootstrap.js`](frontend/core/bootstrap.js): bootstrap/runtime globals
+- [`frontend/core/bootstrap-data.js`](frontend/core/bootstrap-data.js): bootstrap payload helpers
+- [`frontend/core/bootstrap-session-catalog.js`](frontend/core/bootstrap-session-catalog.js): session/source/user catalog helpers
+- [`frontend/core/realtime.js`](frontend/core/realtime.js): WS invalidation / reconnect logic
+- [`frontend/core/realtime-render.js`](frontend/core/realtime-render.js): transcript refresh/render helpers
+- [`frontend/session/http.js`](frontend/session/http.js): canonical session HTTP client
+- [`frontend/session/tooling.js`](frontend/session/tooling.js): runtime/tool/model controls
+- [`frontend/session/compose.js`](frontend/session/compose.js): composer interactions
+- [`frontend/session/transcript-ui.js`](frontend/session/transcript-ui.js): transcript/event rendering and attachment UI
+- [`frontend/session/surface-ui.js`](frontend/session/surface-ui.js): session detail rendering
+- [`frontend/session/state-model.js`](frontend/session/state-model.js): session derived state helpers
+- [`frontend/session-list/model.js`](frontend/session-list/model.js): session list grouping, badges, and lightweight branch semantics
+- [`frontend/session-list/ui.js`](frontend/session-list/ui.js): session list rendering
+- [`frontend/session-list/sidebar-ui.js`](frontend/session-list/sidebar-ui.js): sidebar interactions
+- [`frontend/workbench/controller.js`](frontend/workbench/controller.js): workbench coordinator
 
 ### Shared
 

@@ -62,9 +62,9 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 **Main files**
 
 - `templates/chat.html`
-- `static/frontend/session/transcript-ui.js`
-- `static/frontend/session/compose.js`
-- `static/frontend/session/state-model.js`
+- `frontend/session/transcript-ui.js`
+- `frontend/session/compose.js`
+- `frontend/session/state-model.js`
 
 **Acceptance**
 

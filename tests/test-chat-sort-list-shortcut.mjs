@@ -60,7 +60,7 @@ function createHarness({ organizeResult = true } = {}) {
   context.globalThis = context;
   vm.runInNewContext(`${createSortSessionListShortcutSource}
 globalThis.createSortSessionListShortcut = createSortSessionListShortcut;`, context, {
-    filename: 'static/frontend/session-list/sidebar-ui.js',
+    filename: 'frontend/session-list/sidebar-ui.js',
   });
   return { context, state };
 }

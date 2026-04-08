@@ -17,14 +17,15 @@ const tempRoot = mkdtempSync(join(tmpdir(), 'melodysync-oversized-files-'));
 
 try {
   mkdirSync(join(tempRoot, 'backend'), { recursive: true });
-  mkdirSync(join(tempRoot, 'static', 'frontend'), { recursive: true });
+  mkdirSync(join(tempRoot, 'frontend'), { recursive: true });
+  mkdirSync(join(tempRoot, 'public'), { recursive: true });
   mkdirSync(join(tempRoot, 'node_modules', 'ignored-package'), { recursive: true });
 
   writeFileSync(join(tempRoot, 'backend', 'healthy.mjs'), createText(3), 'utf8');
   writeFileSync(join(tempRoot, 'backend', 'warn.mjs'), createText(5), 'utf8');
-  writeFileSync(join(tempRoot, 'static', 'frontend', 'fail.css'), createText(9), 'utf8');
+  writeFileSync(join(tempRoot, 'frontend', 'fail.css'), createText(9), 'utf8');
   writeFileSync(join(tempRoot, 'node_modules', 'ignored-package', 'skip.mjs'), createText(20), 'utf8');
-  writeFileSync(join(tempRoot, 'static', 'marked.min.js'), createText(20), 'utf8');
+  writeFileSync(join(tempRoot, 'public', 'marked.min.js'), createText(20), 'utf8');
 
   const report = scanOversizedFiles(tempRoot, {
     warnLineLimits: {
@@ -41,7 +42,7 @@ try {
   assert.deepEqual(
     report.oversizedFiles.map((entry) => ({ path: entry.path, severity: entry.severity, lines: entry.lines })),
     [
-      { path: 'static/frontend/fail.css', severity: 'fail', lines: 9 },
+      { path: 'frontend/fail.css', severity: 'fail', lines: 9 },
       { path: 'backend/warn.mjs', severity: 'warn', lines: 5 },
     ],
     'scanner should classify warned and failing files by line thresholds',
@@ -49,12 +50,12 @@ try {
 
   const formatted = formatOversizedFilesReport(report, { githubActions: true });
   assert.match(formatted.text, /Oversized source file report: 2 file\(s\) flagged/);
-  assert.match(formatted.text, /static\/frontend\/fail\.css 9 lines/);
+  assert.match(formatted.text, /frontend\/fail\.css 9 lines/);
   assert.match(formatted.text, /backend\/warn\.mjs 5 lines/);
   assert.deepEqual(
     formatted.annotations,
     [
-      '::warning file=static/frontend/fail.css::Oversized source file (9 lines; warn 4, fail 8)',
+      '::warning file=frontend/fail.css::Oversized source file (9 lines; warn 4, fail 8)',
       '::warning file=backend/warn.mjs::Oversized source file (5 lines; warn 4, fail 8)',
     ],
     'formatter should emit GitHub Actions warnings when requested',
@@ -65,7 +66,7 @@ try {
     JSON.stringify({
       files: {
         'backend/warn.mjs': 5,
-        'static/frontend/fail.css': 9,
+        'frontend/fail.css': 9,
       },
     }, null, 2),
     'utf8',

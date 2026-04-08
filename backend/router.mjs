@@ -71,7 +71,9 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const chatTemplatePath = join(__dirname, '..', 'templates', 'chat.html');
 const loginTemplatePath = join(__dirname, '..', 'templates', 'login.html');
-const staticDir = join(__dirname, '..', 'static');
+const frontendDir = join(__dirname, '..', 'frontend');
+const frontendLoaderPath = join(__dirname, '..', 'frontend.js');
+const publicDir = join(__dirname, '..', 'public');
 const packageJsonPath = join(__dirname, '..', 'package.json');
 const releaseMetadataPath = join(__dirname, '..', '.melody-sync-release.json');
 const gitRepositoryMarkerPath = join(__dirname, '..', '.git');
@@ -88,7 +90,9 @@ const serviceBuildStatusPaths = ['backend', 'lib', 'chat-server.mjs', 'package.j
 const BUILD_INFO = loadBuildInfo();
 const pageBuildRoots = [
   join(__dirname, '..', 'templates'),
-  staticDir,
+  frontendDir,
+  frontendLoaderPath,
+  publicDir,
 ];
 let cachedPageBuildInfo = null;
 const frontendBuildWatchers = [];
@@ -164,7 +168,9 @@ const staticMimeTypesByExtension = {
   '.woff2': 'font/woff2',
 };
 
-const staticDirResolved = resolve(staticDir);
+const frontendDirResolved = resolve(frontendDir);
+const frontendLoaderPathResolved = resolve(frontendLoaderPath);
+const publicDirResolved = resolve(publicDir);
 const compressibleContentTypes = [
   'application/javascript',
   'application/json',
@@ -554,13 +560,17 @@ function hasVersionedAssetTag(query = {}) {
 async function resolveStaticAsset(pathname, query = {}) {
   if (!pathname.startsWith('/')) return null;
 
+  let rootDirResolved = publicDirResolved;
   let staticName = pathname.slice(1);
   if (pathname === '/chat.js' || pathname === '/frontend.js') {
-    staticName = 'frontend.js';
+    rootDirResolved = dirname(frontendLoaderPathResolved);
+    staticName = basename(frontendLoaderPathResolved);
   } else if (pathname.startsWith('/chat/')) {
-    staticName = `frontend/${pathname.slice('/chat/'.length)}`;
+    rootDirResolved = frontendDirResolved;
+    staticName = pathname.slice('/chat/'.length);
   } else if (pathname.startsWith('/frontend/')) {
-    staticName = `frontend/${pathname.slice('/frontend/'.length)}`;
+    rootDirResolved = frontendDirResolved;
+    staticName = pathname.slice('/frontend/'.length);
   }
   if (!staticName || staticName.endsWith('/')) return null;
 
@@ -569,8 +579,8 @@ async function resolveStaticAsset(pathname, query = {}) {
     return null;
   }
 
-  const filepath = resolve(staticDirResolved, staticName);
-  const relativePath = relative(staticDirResolved, filepath);
+  const filepath = resolve(rootDirResolved, staticName);
+  const relativePath = relative(rootDirResolved, filepath);
   if (!relativePath || relativePath.startsWith('..') || isAbsolute(relativePath)) {
     return null;
   }

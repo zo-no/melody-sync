@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const modelSource = readFileSync(join(repoRoot, 'static/frontend/settings/nodes/model.js'), 'utf8');
-const uiSource = readFileSync(join(repoRoot, 'static/frontend/settings/nodes/ui.js'), 'utf8');
+const modelSource = readFileSync(join(repoRoot, 'frontend/settings/nodes/model.js'), 'utf8');
+const uiSource = readFileSync(join(repoRoot, 'frontend/settings/nodes/ui.js'), 'utf8');
 
 function makeClassList() {
   const tokens = new Set();
@@ -119,8 +119,8 @@ const context = {
 context.globalThis = context;
 context.window = context;
 
-vm.runInNewContext(modelSource, context, { filename: 'static/frontend/settings/nodes/model.js' });
-vm.runInNewContext(uiSource, context, { filename: 'static/frontend/settings/nodes/ui.js' });
+vm.runInNewContext(modelSource, context, { filename: 'frontend/settings/nodes/model.js' });
+vm.runInNewContext(uiSource, context, { filename: 'frontend/settings/nodes/ui.js' });
 
 const controller = context.MelodySyncTaskMapNodeSettingsUi.createController({
   bodyEl,

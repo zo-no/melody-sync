@@ -72,7 +72,7 @@ backend/
 lib/
   config.mjs     实例根、config、memory 等路径定义
 
-static/frontend/
+frontend/
   session-list/  任务列表 contract、排序 contract、model、UI
   workbench/     任务地图、tracker、操作记录、支线动作 UI
   ...            其余前端 bootstrap/session/composer/runtime 模块

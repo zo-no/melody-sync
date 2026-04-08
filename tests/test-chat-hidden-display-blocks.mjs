@@ -77,7 +77,7 @@ vm.runInNewContext(
     'globalThis.renderMarkdownIntoNode = renderMarkdownIntoNode;',
   ].join('\n\n'),
   context,
-  { filename: 'static/frontend/session/transcript-ui.js' },
+  { filename: 'frontend/session/transcript-ui.js' },
 );
 
 assert.equal(

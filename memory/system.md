@@ -56,7 +56,7 @@ Universal learnings and patterns that apply to all MelodySync deployments, regar
 ### Similar UI Totals Often Have Separate Code Paths (2026-03-11)
 - In MelodySync, session row counts, folder counts, archive counts, and app-filter totals can look like one product concept while still coming from different frontend functions.
 - When a screenshot reports a "count bug", first identify the exact UI surface and trace that specific DOM/data path; fixing an adjacent counter can create false confidence while the real bug remains.
-- For the session sidebar specifically, per-session row counts live in `static/frontend/session/transcript-ui.js`, while the app-filter totals are computed separately in `static/frontend/core/bootstrap.js`.
+- For the session sidebar specifically, per-session row counts live in `frontend/session/transcript-ui.js`, while the app-filter totals are computed separately in `frontend/core/bootstrap.js`.
 
 ### Template-Literal Prompt Edits Can Break Server Boot (2026-03-11)
 - `backend/system-prompt.mjs` builds a large template literal, so inserting raw backticks inside the embedded prompt text creates a syntax error that prevents `chat-server.mjs` from starting.
@@ -133,7 +133,7 @@ Universal learnings and patterns that apply to all MelodySync deployments, regar
 - When a non-persistent session still points at an unavailable directory, surface a concrete `working directory does not exist on this machine` error instead of collapsing into a generic structured-runtime failure.
 
 ### Browser-Only Frontend Validation Without A Test Harness (2026-03-06)
-- For `static/*.js` browser IIFEs that hide internal functions, a low-friction regression check is: load the real source into a temporary `jsdom`, patch the final `})();` in-memory to expose the target functions, and exercise them against a minimal DOM fixture.
+- For browser IIFEs shipped from `frontend.js` or `public/*.js` that hide internal functions, a low-friction regression check is: load the real source into a temporary `jsdom`, patch the final `})();` in-memory to expose the target functions, and exercise them against a minimal DOM fixture.
 - This validates the actual shipped file and DOM mutations without adding permanent test dependencies or modifying the repo.
 
 ### `nettop` Byte Logging Requires CSV Mode (2026-03-06)
@@ -175,7 +175,7 @@ Universal learnings and patterns that apply to all MelodySync deployments, regar
 
 ### Visitor Mode Must Propagate Across Bootstrap (2026-03-12)
 - Visitor-mode requests should carry an explicit signal (currently `?visitor=1`) across initial page loads, API fetches, and WebSocket upgrades when owner and visitor cookies can coexist.
-- Frontend test harnesses may load `static/frontend/session/http.js` or other modules without `bootstrap.js`; any visitor-flag helpers introduced in `bootstrap.js` need a local fallback to avoid undefined globals during tests.
+- Frontend test harnesses may load `frontend/session/http.js` or other modules without `bootstrap.js`; any visitor-flag helpers introduced in `bootstrap.js` need a local fallback to avoid undefined globals during tests.
 
 ### Owner Session Cookies Should Use PWA-Compatible Defaults (2026-03-12)
 - For owner login persistence in installed PWAs, prefer standard web-cookie defaults: `HttpOnly`, `Secure` when HTTPS, `SameSite=Lax`, and both `Max-Age` plus `Expires`.
@@ -256,7 +256,7 @@ Universal learnings and patterns that apply to all MelodySync deployments, regar
 
 ### PWA Frontend Freshness Needs Dynamic Asset Fingerprints (2026-03-12)
 - Reading HTML templates from disk on every request is not enough if the page injects a build or asset version that was frozen when the server process started.
-- For MelodySync's no-build-step frontend, compute a page asset fingerprint from the latest mtime under `templates/` and `static/`, and inject that per request into HTML so script, icon, manifest, and service-worker URLs change as soon as frontend files change.
+- For MelodySync's no-build-step frontend, compute a page asset fingerprint from the latest mtime under `templates/`, `frontend/`, and `public/`, and inject that per request into HTML so script, icon, manifest, and service-worker URLs change as soon as frontend files change.
 - When the app already keeps a WebSocket open, prefer sending the current page build info on socket connect and rebroadcasting it on frontend file changes; existing pages can then reload from push without adding extra focus/visibility polling.
 - Keep versioned static asset URLs (`?v=` or hashed filenames) on long-lived immutable caching, and let only non-versioned assets or `sw.js` stay on revalidation/no-store policies.
 

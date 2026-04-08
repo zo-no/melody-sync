@@ -51,11 +51,11 @@ MelodySync is now an owner-operated AI task workspace.
 
 - owner-facing chat shell
 
-`static/frontend.js`
+`frontend.js`
 
 - loader for split frontend assets
 
-`static/frontend/`
+`frontend/`
 
 - `core/`: bootstrap payloads, app state, i18n/icons, layout, websocket invalidation, gestures, app init
 - `session/`: HTTP fetch/update helpers, derived session state, tooling, composer, transcript rendering, and attached session surface
@@ -121,7 +121,7 @@ Persistence:
 ### Boot and load
 
 1. Browser loads `chat.html`.
-2. `static/frontend.js` loads the split frontend.
+2. `frontend.js` loads the split frontend.
 3. Frontend calls `/api/auth/me`, `/api/tools`, `/api/sessions`, and related owner APIs.
 4. WebSocket connects to `/ws`.
 5. The selected session is hydrated by HTTP, then kept fresh by invalidation messages.

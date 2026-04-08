@@ -10,41 +10,41 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
 const filesToParse = [
-  join(repoRoot, 'static', 'frontend.js'),
-  join(repoRoot, 'static', 'frontend', 'core', 'bootstrap-data.js'),
-  join(repoRoot, 'static', 'frontend', 'core', 'i18n.js'),
-  join(repoRoot, 'static', 'frontend', 'core', 'bootstrap.js'),
-  join(repoRoot, 'static', 'frontend', 'core', 'bootstrap-session-catalog.js'),
-  join(repoRoot, 'static', 'frontend', 'core', 'layout-tooling.js'),
-  join(repoRoot, 'static', 'frontend', 'session/tooling.js'),
-  join(repoRoot, 'static', 'frontend', 'session-list', 'order-contract.js'),
-  join(repoRoot, 'static', 'frontend', 'session-list', 'contract.js'),
-  join(repoRoot, 'static', 'frontend', 'session-list', 'model.js'),
-  join(repoRoot, 'static', 'frontend', 'session-list', 'ui.js'),
-  join(repoRoot, 'static', 'frontend', 'session-list', 'sidebar-ui.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench/node-contract.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench/node-effects.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-instance.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'graph-model.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'graph-client.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench/node-capabilities.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-task-card.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench/task-map-plan.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-clusters.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-mock-presets.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench/task-map-model.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'quest-state.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-tracker-ui.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-rich-view-ui.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-canvas-ui.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-ui.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-list-ui.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'branch-actions.js'),
-  join(repoRoot, 'static', 'frontend', 'workbench', 'operation-record-ui.js'),
-  join(repoRoot, 'static', 'frontend', 'settings', 'hooks', 'model.js'),
-  join(repoRoot, 'static', 'frontend', 'settings', 'voice', 'ui.js'),
-  join(repoRoot, 'static', 'frontend', 'settings/hooks/ui.js'),
-  join(repoRoot, 'static', 'frontend', 'session/compose.js'),
+  join(repoRoot, 'frontend.js'),
+  join(repoRoot, 'frontend', 'core', 'bootstrap-data.js'),
+  join(repoRoot, 'frontend', 'core', 'i18n.js'),
+  join(repoRoot, 'frontend', 'core', 'bootstrap.js'),
+  join(repoRoot, 'frontend', 'core', 'bootstrap-session-catalog.js'),
+  join(repoRoot, 'frontend', 'core', 'layout-tooling.js'),
+  join(repoRoot, 'frontend', 'session/tooling.js'),
+  join(repoRoot, 'frontend', 'session-list', 'order-contract.js'),
+  join(repoRoot, 'frontend', 'session-list', 'contract.js'),
+  join(repoRoot, 'frontend', 'session-list', 'model.js'),
+  join(repoRoot, 'frontend', 'session-list', 'ui.js'),
+  join(repoRoot, 'frontend', 'session-list', 'sidebar-ui.js'),
+  join(repoRoot, 'frontend', 'workbench/node-contract.js'),
+  join(repoRoot, 'frontend', 'workbench/node-effects.js'),
+  join(repoRoot, 'frontend', 'workbench', 'node-instance.js'),
+  join(repoRoot, 'frontend', 'workbench', 'graph-model.js'),
+  join(repoRoot, 'frontend', 'workbench', 'graph-client.js'),
+  join(repoRoot, 'frontend', 'workbench/node-capabilities.js'),
+  join(repoRoot, 'frontend', 'workbench', 'node-task-card.js'),
+  join(repoRoot, 'frontend', 'workbench/task-map-plan.js'),
+  join(repoRoot, 'frontend', 'workbench', 'task-map-clusters.js'),
+  join(repoRoot, 'frontend', 'workbench', 'task-map-mock-presets.js'),
+  join(repoRoot, 'frontend', 'workbench/task-map-model.js'),
+  join(repoRoot, 'frontend', 'workbench', 'quest-state.js'),
+  join(repoRoot, 'frontend', 'workbench', 'task-tracker-ui.js'),
+  join(repoRoot, 'frontend', 'workbench', 'node-rich-view-ui.js'),
+  join(repoRoot, 'frontend', 'workbench', 'node-canvas-ui.js'),
+  join(repoRoot, 'frontend', 'workbench', 'task-map-ui.js'),
+  join(repoRoot, 'frontend', 'workbench', 'task-list-ui.js'),
+  join(repoRoot, 'frontend', 'workbench', 'branch-actions.js'),
+  join(repoRoot, 'frontend', 'workbench', 'operation-record-ui.js'),
+  join(repoRoot, 'frontend', 'settings', 'hooks', 'model.js'),
+  join(repoRoot, 'frontend', 'settings', 'voice', 'ui.js'),
+  join(repoRoot, 'frontend', 'settings/hooks/ui.js'),
+  join(repoRoot, 'frontend', 'session/compose.js'),
 ];
 
 for (const filePath of filesToParse) {
@@ -347,8 +347,8 @@ const orderedFiles = [
 ];
 
 for (const fileName of orderedFiles) {
-  const source = readFileSync(join(repoRoot, 'static', 'frontend', fileName), 'utf8');
-  vm.runInNewContext(source, context, { filename: `static/frontend/${fileName}` });
+  const source = readFileSync(join(repoRoot, 'frontend', fileName), 'utf8');
+  vm.runInNewContext(source, context, { filename: `frontend/${fileName}` });
 }
 
 await new Promise((resolve) => setTimeout(resolve, 0));

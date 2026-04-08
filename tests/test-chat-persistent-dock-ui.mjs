@@ -154,7 +154,7 @@ vm.runInNewContext(`
   globalThis.getPersistentDockGroupKey = getPersistentDockGroupKey;
   globalThis.renderSessionList = renderSessionList;
 `, routingContext, {
-  filename: 'static/frontend/session-list/ui.js',
+  filename: 'frontend/session-list/ui.js',
 });
 
 assert.equal(
@@ -221,7 +221,7 @@ vm.runInNewContext(`
   ${renderPersistentSessionDockSource}
   globalThis.renderPersistentSessionDock = renderPersistentSessionDock;
 `, footerContext, {
-  filename: 'static/frontend/session-list/ui.js',
+  filename: 'frontend/session-list/ui.js',
 });
 
 footerContext.renderPersistentSessionDock({

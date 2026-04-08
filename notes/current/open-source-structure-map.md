@@ -34,9 +34,9 @@
 
 当前已经补上的基础：
 
-- `static/frontend/workbench/node-contract.js`
+- `frontend/workbench/node-contract.js`
   - 统一维护 task map node kind 定义
-- `static/frontend/workbench/task-map-model.js`
+- `frontend/workbench/task-map-model.js`
   - 只负责从 session/workbench snapshot 派生 projection
 
 这里最重要的边界是：
@@ -66,19 +66,19 @@
   - 负责 continuity / taskClusters 的读侧投影
 - `backend/workbench/exporters.mjs`
   - 负责 summary / markdown / obsidian export / branch seed prompt
-- `static/frontend/workbench/task-tracker-ui.js`
+- `frontend/workbench/task-tracker-ui.js`
   - 负责顶部 tracker 的标题、状态、详情渲染
-- `static/frontend/workbench/quest-state.js`
+- `frontend/workbench/quest-state.js`
   - 负责 quest state / cluster / context / lineage 派生
-- `static/frontend/workbench/task-map-ui.js`
+- `frontend/workbench/task-map-ui.js`
   - 负责 flow-board 任务地图渲染
-- `static/frontend/workbench/task-list-ui.js`
+- `frontend/workbench/task-list-ui.js`
   - 负责任务列表 / 树视图渲染和展开状态
-- `static/frontend/workbench/branch-actions.js`
+- `frontend/workbench/branch-actions.js`
   - 负责支线收束、挂起、回主线和 tracker 动作按钮
-- `static/frontend/workbench/operation-record-ui.js`
+- `frontend/workbench/operation-record-ui.js`
   - 负责右侧操作记录面板交互
-- `static/frontend/session-list/model.js`
+- `frontend/session-list/model.js`
   - 负责左侧任务列表的分组和轻量支线标记，不再依赖 workbench 关系树
 
 现在剩下最值得继续拆的热点，主要回到了 continuity 写侧和 knowledge 这两块。
@@ -111,32 +111,32 @@
 
 ### 前端优先级
 
-1. `static/frontend/workbench/controller.js`
+1. `frontend/workbench/controller.js`
    - 当前还混了 quest state、snapshot 协调和各子模块接线
-2. `static/frontend/`
+2. `frontend/`
    - 目录仍然偏平，不利于新 contributor 定位
-3. `static/frontend/settings/hooks/ui.js`
+3. `frontend/settings/hooks/ui.js`
    - 还可以继续靠近 hooks contract，避免 UI 侧再次长出独立规则
 
 ### 建议先拆出的 frontend 模块
 
-- `static/frontend/workbench/task-map-ui.js`
+- `frontend/workbench/task-map-ui.js`
   - 只负责地图渲染和交互
-- `static/frontend/workbench/quest-state.js`
+- `frontend/workbench/quest-state.js`
   - 只负责 session/snapshot 到 quest state 的 selector 派生
-- `static/frontend/workbench/task-list-ui.js`
+- `frontend/workbench/task-list-ui.js`
   - 只负责任务列表 / 树视图渲染
-- `static/frontend/workbench/task-tracker-ui.js`
+- `frontend/workbench/task-tracker-ui.js`
   - 只负责顶部 tracker
-- `static/frontend/workbench/operation-record-ui.js`
+- `frontend/workbench/operation-record-ui.js`
   - 只负责右侧操作记录面板
-- `static/frontend/workbench/branch-actions.js`
+- `frontend/workbench/branch-actions.js`
   - 只负责结束、挂起、回主线等动作
-- `static/frontend/session-list/model.js`
+- `frontend/session-list/model.js`
   - 只负责左侧任务列表的 group / badge / light list semantics
-- `static/frontend/workbench/task-map-model.js`
+- `frontend/workbench/task-map-model.js`
   - 保持纯 projection
-- `static/frontend/workbench/node-contract.js`
+- `frontend/workbench/node-contract.js`
   - 保持纯契约
 
 ## 3. 推荐目录形态
@@ -176,7 +176,7 @@ backend/
 ### frontend
 
 ```text
-static/frontend/
+frontend/
   core/
     bootstrap-data.js
     app-state.js
@@ -226,28 +226,28 @@ static/frontend/
   - `backend/workbench/operation-records.mjs`
   - `backend/workbench/exporters.mjs`
 - frontend 已经有：
-  - `static/frontend/core/bootstrap.js`
-  - `static/frontend/core/bootstrap-session-catalog.js`
-  - `static/frontend/core/realtime.js`
-  - `static/frontend/core/realtime-render.js`
-  - `static/frontend/session/state-model.js`
-  - `static/frontend/session/http.js`
-  - `static/frontend/session/tooling.js`
-  - `static/frontend/session/compose.js`
-  - `static/frontend/session/surface-ui.js`
-  - `static/frontend/session-list/sidebar-ui.js`
-  - `static/frontend/settings/hooks/ui.js`
-  - `static/frontend/workbench/node-contract.js`
-  - `static/frontend/workbench/task-map-model.js`
-  - `static/frontend/workbench/quest-state.js`
-  - `static/frontend/workbench/task-tracker-ui.js`
-  - `static/frontend/workbench/task-map-ui.js`
-  - `static/frontend/workbench/task-list-ui.js`
-  - `static/frontend/workbench/branch-actions.js`
-  - `static/frontend/workbench/operation-record-ui.js`
+  - `frontend/core/bootstrap.js`
+  - `frontend/core/bootstrap-session-catalog.js`
+  - `frontend/core/realtime.js`
+  - `frontend/core/realtime-render.js`
+  - `frontend/session/state-model.js`
+  - `frontend/session/http.js`
+  - `frontend/session/tooling.js`
+  - `frontend/session/compose.js`
+  - `frontend/session/surface-ui.js`
+  - `frontend/session-list/sidebar-ui.js`
+  - `frontend/settings/hooks/ui.js`
+  - `frontend/workbench/node-contract.js`
+  - `frontend/workbench/task-map-model.js`
+  - `frontend/workbench/quest-state.js`
+  - `frontend/workbench/task-tracker-ui.js`
+  - `frontend/workbench/task-map-ui.js`
+  - `frontend/workbench/task-list-ui.js`
+  - `frontend/workbench/branch-actions.js`
+  - `frontend/workbench/operation-record-ui.js`
 - 旧入口仍然保留：
   - `backend/workbench/index.mjs`
-  - `static/frontend/workbench/controller.js`
+  - `frontend/workbench/controller.js`
 
 这样做的目的不是保留双份实现，而是先让目录边界出现，再继续把剩余责任从旧入口往下搬。
 

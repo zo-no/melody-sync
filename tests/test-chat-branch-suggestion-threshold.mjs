@@ -123,7 +123,7 @@ context.globalThis = context;
 vm.runInNewContext(
   `${createBranchSuggestionItemSource}\nglobalThis.createBranchSuggestionItem = createBranchSuggestionItem;`,
   context,
-  { filename: 'static/frontend/workbench/controller.js' },
+  { filename: 'frontend/workbench/controller.js' },
 );
 
 const suppressedAuto = context.createBranchSuggestionItem({

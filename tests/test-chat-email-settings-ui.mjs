@@ -7,9 +7,9 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const settingsUiSource = readFileSync(join(repoRoot, 'static/frontend/settings/ui.js'), 'utf8');
-const emailModelSource = readFileSync(join(repoRoot, 'static/frontend/settings/email/model.js'), 'utf8');
-const emailUiSource = readFileSync(join(repoRoot, 'static/frontend/settings/email/ui.js'), 'utf8');
+const settingsUiSource = readFileSync(join(repoRoot, 'frontend/settings/ui.js'), 'utf8');
+const emailModelSource = readFileSync(join(repoRoot, 'frontend/settings/email/model.js'), 'utf8');
+const emailUiSource = readFileSync(join(repoRoot, 'frontend/settings/email/ui.js'), 'utf8');
 
 function makeClassList() {
   const tokens = new Set();
@@ -215,9 +215,9 @@ const context = {
 context.window = context;
 context.globalThis = context;
 
-vm.runInNewContext(settingsUiSource, context, { filename: 'static/frontend/settings/ui.js' });
-vm.runInNewContext(emailModelSource, context, { filename: 'static/frontend/settings/email/model.js' });
-vm.runInNewContext(emailUiSource, context, { filename: 'static/frontend/settings/email/ui.js' });
+vm.runInNewContext(settingsUiSource, context, { filename: 'frontend/settings/ui.js' });
+vm.runInNewContext(emailModelSource, context, { filename: 'frontend/settings/email/model.js' });
+vm.runInNewContext(emailUiSource, context, { filename: 'frontend/settings/email/ui.js' });
 
 hooksSettingsBtn.click();
 await flushMicrotasks();

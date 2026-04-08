@@ -62,7 +62,7 @@ Relevant files:
 
 - `backend/session-manager.mjs`
 - `backend/router.mjs`
-- `static/frontend/core/realtime.js`
+- `frontend/core/realtime.js`
 
 CSAPP framing:
 
@@ -73,7 +73,7 @@ CSAPP framing:
 Project mapping:
 
 - the Node server multiplexes requests, session refreshes, websocket invalidations, and filesystem work on one event loop
-- the browser reconnect loop in `static/frontend/core/realtime.js` is intentionally simple because HTTP is the source of truth and WebSocket is only an invalidation hint
+- the browser reconnect loop in `frontend/core/realtime.js` is intentionally simple because HTTP is the source of truth and WebSocket is only an invalidation hint
 - any synchronous CPU-heavy transform or oversized JSON materialization in the server can create head-of-line blocking
 
 Optimization implications:
@@ -125,7 +125,7 @@ Relevant files:
 - `backend/history.mjs`
 - `backend/session-meta-store.mjs`
 - `backend/session-activity.mjs`
-- `static/frontend/session/state-model.js`
+- `frontend/session/state-model.js`
 
 CSAPP framing:
 

@@ -83,7 +83,7 @@ vm.runInNewContext(`
   globalThis.handleCompletionAlerts = handleCompletionAlerts;
   globalThis.refreshCompletionAlertsOnForeground = refreshCompletionAlertsOnForeground;
 `, context, {
-  filename: 'static/frontend/session/http.js',
+  filename: 'frontend/session/http.js',
 });
 
 assert.equal(

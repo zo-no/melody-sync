@@ -8,6 +8,6 @@
     "tests/test-http-runtime-phase1.mjs": 1007,
     "scripts/github-ci-auto-repair.mjs": 973,
     "scripts/doubao-fast-agent.mjs": 867,
-    "static/frontend/session/transcript-ui.js": 808
+    "frontend/session/transcript-ui.js": 808
   }
 }

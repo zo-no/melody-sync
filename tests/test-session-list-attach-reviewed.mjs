@@ -96,7 +96,7 @@ vm.runInNewContext(`
   ${attachSessionSource}
   globalThis.attachSession = attachSession;
 `, context, {
-  filename: 'static/frontend/session-list/ui.js',
+  filename: 'frontend/session-list/ui.js',
 });
 
 await context.attachSession('session-with-update', null);
