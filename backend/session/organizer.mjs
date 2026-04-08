@@ -1,5 +1,5 @@
-import { loadHistory } from './history.mjs';
-import { buildSessionDisplayEvents } from './session/display-events.mjs';
+import { loadHistory } from '../history.mjs';
+import { buildSessionDisplayEvents } from './display-events.mjs';
 
 export const SESSION_ORGANIZER_INTERNAL_OPERATION = 'session_organize';
 

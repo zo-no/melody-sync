@@ -43,7 +43,7 @@ Browser / mobile shell
 - [`backend/provider-runtime-monitor.mjs`](backend/provider-runtime-monitor.mjs): provider timeout / termination monitoring
 - [`backend/run/sidecar-finalize.mjs`](backend/run/sidecar-finalize.mjs): run finalization helpers
 - [`backend/history.mjs`](backend/history.mjs): append-only event store
-- [`backend/session-meta-store.mjs`](backend/session-meta-store.mjs): session metadata persistence
+- [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs): session metadata persistence
 - [`backend/session/api-shapes.mjs`](backend/session/api-shapes.mjs): API projection helpers
 - [`backend/workbench/index.mjs`](backend/workbench/index.mjs): task/workbench domain entry layered on sessions
 

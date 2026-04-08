@@ -8,7 +8,7 @@ For the shipped architecture, start with `../../docs/project-architecture.md`.
 
 | Domain object | Main files | Persistence |
 |---|---|---|
-| `Session` | `backend/session-manager.mjs`, `backend/router.mjs`, `backend/history.mjs`, `backend/session-meta-store.mjs` | `chat-sessions.json`, `chat-history/<sessionId>/` |
+| `Session` | `backend/session-manager.mjs`, `backend/router.mjs`, `backend/history.mjs`, `backend/session/meta-store.mjs` | `chat-sessions.json`, `chat-history/<sessionId>/` |
 | `Run` | `backend/session-manager.mjs`, `backend/run/store.mjs`, `backend/runner-sidecar*.mjs` | `chat-runs/<runId>/` |
 | `Source metadata` | `backend/session-manager.mjs`, connector scripts, `backend/router.mjs` | embedded in `chat-sessions.json` |
 | `Hooks lifecycle contract + runtime` | `backend/hooks/contract/scopes.mjs`, `backend/hooks/contract/phases.mjs`, `backend/hooks/contract/events.mjs`, `backend/hooks/runtime/registry.mjs`, `backend/hooks/runtime/settings-store.mjs`, `backend/hooks/runtime/register-custom-hooks.mjs`, `backend/hooks/builtin-hook-catalog.mjs`, `frontend/settings/ui.js`, `frontend/settings/hooks/model.js`, `frontend/settings/hooks/ui.js` | layered on hook settings plus `custom-hooks.json` under the current storage root |

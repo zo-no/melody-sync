@@ -1,4 +1,4 @@
-import { formatAttachmentContextLine } from './attachment-utils.mjs';
+import { formatAttachmentContextLine } from '../attachment-utils.mjs';
 
 const MAX_EVENT_CHARS = 4000;
 const MAX_CONTEXT_CHARS = 24000;

@@ -1,5 +1,5 @@
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
-import { projectTaskCardFromSessionState } from '../session-task-card.mjs';
+import { projectTaskCardFromSessionState } from './task-card.mjs';
 
 function cloneJson(value) {
   if (value === null || value === undefined) return value;

@@ -146,8 +146,8 @@ Read against these files:
 
 - `backend/history.mjs`
 - `backend/run/store.mjs`
-- `backend/session-meta-store.mjs`
-- `backend/session-continuation.mjs`
+- `backend/session/meta-store.mjs`
+- `backend/session/continuation.mjs`
 
 Practice task:
 

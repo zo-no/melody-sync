@@ -1,4 +1,4 @@
-import { buildSessionContinuationContextFromBody } from '../session-continuation.mjs';
+import { buildSessionContinuationContextFromBody } from '../session/continuation.mjs';
 
 export function buildPreparedContinuationContext(prepared, previousTool, effectiveTool, sessionState = null) {
   if (!prepared) return '';

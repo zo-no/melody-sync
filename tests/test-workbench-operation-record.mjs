@@ -30,7 +30,7 @@ async function main() {
   } = await importFromRepo('backend/normalizer.mjs');
   const {
     mutateSessionMeta,
-  } = await importFromRepo('backend/session-meta-store.mjs');
+  } = await importFromRepo('backend/session/meta-store.mjs');
   const {
     createBranchFromSession,
     getSessionOperationRecords,

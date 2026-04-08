@@ -59,8 +59,8 @@ This file maps the current MelodySync session modules into the target runtime la
 ### Runtime truth adapters
 
 - `backend/session-runtime/session-state.mjs`
-- `backend/session-task-card.mjs` (legacy adapter / compatibility surface)
-- `backend/session-continuation.mjs` (derived handoff text only)
+- `backend/session/task-card.mjs` (legacy adapter / compatibility surface)
+- `backend/session/continuation.mjs` (derived handoff text only)
 
 ### Projection
 

@@ -7,7 +7,7 @@ import {
 } from './session-ports.mjs';
 import { appendEvent, getHistorySnapshot } from '../history.mjs';
 import { messageEvent, statusEvent } from '../normalizer.mjs';
-import { normalizeSessionTaskCard } from '../session-task-card.mjs';
+import { normalizeSessionTaskCard } from '../session/task-card.mjs';
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 import {
   createWorkbenchId,

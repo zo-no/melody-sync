@@ -123,7 +123,7 @@ Practical CSAPP lens:
 Relevant files:
 
 - `backend/history.mjs`
-- `backend/session-meta-store.mjs`
+- `backend/session/meta-store.mjs`
 - `backend/session/activity.mjs`
 - `frontend/session/state-model.js`
 

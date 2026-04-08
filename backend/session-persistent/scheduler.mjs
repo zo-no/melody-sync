@@ -1,4 +1,4 @@
-import { loadSessionsMeta } from '../session-meta-store.mjs';
+import { loadSessionsMeta } from '../session/meta-store.mjs';
 import { isPersistentRecurringDue } from './core.mjs';
 import { getSession, runSessionPersistent } from '../session-manager.mjs';
 

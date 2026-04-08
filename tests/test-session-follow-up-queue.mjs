@@ -68,7 +68,7 @@ const sessionManager = await import(
   pathToFileURL(join(repoRoot, 'backend', 'session-manager.mjs')).href
 );
 const { mutateSessionMeta } = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-meta-store.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session', 'meta-store.mjs')).href
 );
 
 const {

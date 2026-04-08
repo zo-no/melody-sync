@@ -1,6 +1,6 @@
 import { NODE_TASK_CARD_BINDING_KEYS } from './node-definitions.mjs';
 import { buildTaskCardPatchForSourceSession } from './node-task-card.mjs';
-import { normalizeSessionTaskCard } from '../session-task-card.mjs';
+import { normalizeSessionTaskCard } from '../session/task-card.mjs';
 import { trimText } from './shared.mjs';
 
 const ARRAY_BINDING_KEYS = new Set(['candidateBranches', 'nextSteps']);

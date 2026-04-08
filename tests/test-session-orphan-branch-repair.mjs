@@ -29,7 +29,7 @@ async function main() {
   } = await importFromRepo('backend/workbench/index.mjs');
   const {
     mutateSessionMeta,
-  } = await importFromRepo('backend/session-meta-store.mjs');
+  } = await importFromRepo('backend/session/meta-store.mjs');
 
   const mainSession = await createSession(workdir, 'codex', '初始化任务', {});
   assert.ok(mainSession?.id, 'main session should be created');

@@ -8,7 +8,7 @@ import {
   projectTaskCardFromSessionState,
   stripTaskCardFromAssistantContent,
   shouldSurfaceTaskCardBranchCandidate,
-} from '../backend/session-task-card.mjs';
+} from '../backend/session/task-card.mjs';
 
 const normalized = normalizeSessionTaskCard({
   mode: 'project',

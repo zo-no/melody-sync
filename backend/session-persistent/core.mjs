@@ -1,4 +1,4 @@
-import { normalizeSessionTaskCard } from '../session-task-card.mjs';
+import { normalizeSessionTaskCard } from '../session/task-card.mjs';
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 
 const MAX_DIGEST_TEXT_CHARS = 280;

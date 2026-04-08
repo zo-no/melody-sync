@@ -88,7 +88,7 @@ Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 **Main files**
 
 - `backend/session-manager.mjs`
-- `backend/session-continuation.mjs`
+- `backend/session/continuation.mjs`
 - `backend/history.mjs`
 - `backend/run/store.mjs`
 

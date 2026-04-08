@@ -34,14 +34,14 @@ import {
   extractSessionOrganizerAssistantText,
   parseSessionOrganizerResult,
   SESSION_ORGANIZER_INTERNAL_OPERATION,
-} from './session-organizer.mjs';
+} from './session/organizer.mjs';
 import { triggerSessionLabelSuggestion } from './summarizer.mjs';
 import { buildSystemContext } from './system-prompt.mjs';
 import { normalizeSessionAgreements } from './session/agreements.mjs';
 import {
   buildSessionContinuationContextFromBody,
   prepareSessionContinuationBody,
-} from './session-continuation.mjs';
+} from './session/continuation.mjs';
 import { broadcastOwners, getClientsMatching } from './ws-clients.mjs';
 import {
   buildTemporarySessionName,
@@ -102,7 +102,7 @@ import {
   loadSessionsMeta,
   mutateSessionMeta,
   withSessionsMetaMutation,
-} from './session-meta-store.mjs';
+} from './session/meta-store.mjs';
 import { dispatchSessionEmailCompletionTargets, sanitizeEmailCompletionTargets } from '../lib/agent-mail-completion-targets.mjs';
 import {
   applySessionCompatFields,
@@ -129,14 +129,14 @@ import {
   parseTaskCardFromAssistantContent,
   projectTaskCardFromSessionState,
   stripTaskCardFromAssistantContent,
-} from './session-task-card.mjs';
+} from './session/task-card.mjs';
 import { resolveSessionStateFromSession } from './session-runtime/session-state.mjs';
 import {
   buildNormalizedRunResultEnvelope,
   mergeRunResultWithEnvelope,
   runResultEnvelopeHasMeaningfulContent,
 } from './run/result-envelope.mjs';
-import { writeSessionDeletionJournalEntry } from './session-deletion-journal.mjs';
+import { writeSessionDeletionJournalEntry } from './session/deletion-journal.mjs';
 import {
   buildPersistentDigest,
   buildPersistentRunMessage,

@@ -49,7 +49,7 @@ writeFileSync(
 
 try {
   const journalModule = await import(
-    pathToFileURL(join(repoRoot, 'backend', 'session-deletion-journal.mjs')).href
+    pathToFileURL(join(repoRoot, 'backend', 'session', 'deletion-journal.mjs')).href
   );
 
   const { writeSessionDeletionJournalEntry } = journalModule;

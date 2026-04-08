@@ -1,5 +1,5 @@
 import { dirname } from 'path';
-import { CHAT_SESSIONS_FILE, CHAT_SESSIONS_INDEX_FILE } from '../lib/config.mjs';
+import { CHAT_SESSIONS_FILE, CHAT_SESSIONS_INDEX_FILE } from '../../lib/config.mjs';
 import {
   createSerialTaskQueue,
   ensureDir,
@@ -7,16 +7,16 @@ import {
   statOrNull,
   writeJsonAtomic,
   writeTextAtomic,
-} from './fs-utils.mjs';
+} from '../fs-utils.mjs';
 import {
   normalizeSessionWorkflowPriority,
   normalizeSessionWorkflowState,
-} from './session/workflow-state.mjs';
-import { normalizeSessionAgreements } from './session/agreements.mjs';
-import { normalizeSessionPersistent } from './session-persistent/core.mjs';
-import { canonicalizeSessionFolder, inspectSessionFolder } from './session/folder.mjs';
-import { normalizeSessionTaskCard } from './session-task-card.mjs';
-import { buildSessionsIndexMarkdown } from './session/list-index.mjs';
+} from './workflow-state.mjs';
+import { normalizeSessionAgreements } from './agreements.mjs';
+import { normalizeSessionPersistent } from '../session-persistent/core.mjs';
+import { canonicalizeSessionFolder, inspectSessionFolder } from './folder.mjs';
+import { normalizeSessionTaskCard } from './task-card.mjs';
+import { buildSessionsIndexMarkdown } from './list-index.mjs';
 
 let sessionsMetaCache = null;
 let sessionsMetaCacheMtimeMs = null;

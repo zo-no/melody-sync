@@ -1,9 +1,9 @@
 import { spawn } from 'child_process';
 import { readFile } from 'fs/promises';
 import { dirname, join } from 'path';
-import { MELODYSYNC_APP_ROOT } from '../lib/config.mjs';
-import { pathExists, writeTextAtomic } from './fs-utils.mjs';
-import { normalizeSessionTaskCard, stripTaskCardFromAssistantContent } from './session-task-card.mjs';
+import { MELODYSYNC_APP_ROOT } from '../../lib/config.mjs';
+import { pathExists, writeTextAtomic } from '../fs-utils.mjs';
+import { normalizeSessionTaskCard, stripTaskCardFromAssistantContent } from './task-card.mjs';
 
 const JOURNAL_DIR_SEGMENTS = ['02-📓journal', '04-📂日记'];
 const AGENT_NOTES_HEADING = '## Agent Notes';

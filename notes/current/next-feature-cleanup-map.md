@@ -29,7 +29,7 @@
 - `backend/run/sidecar.mjs`
 - `backend/run/sidecar-finalize.mjs`
 - `backend/provider-runtime-monitor.mjs`
-- `backend/session-meta-store.mjs`
+- `backend/session/meta-store.mjs`
 - `backend/session/api-shapes.mjs`
 - `backend/workbench/index.mjs`
 
