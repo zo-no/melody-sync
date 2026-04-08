@@ -33,6 +33,7 @@ async function main() {
     getWorkbenchSnapshot,
     getWorkbenchTrackerSnapshot,
     mergeBranchSessionBackToMain,
+    reparentSession,
     setBranchSessionStatus,
     syncSessionContinuityFromSession,
   } = await importFromRepo('backend/workbench/index.mjs');
@@ -172,6 +173,98 @@ async function main() {
 
   await setSessionArchived(branchSession.id, true);
   await setSessionArchived(mainSession.id, true);
+
+  const reparentMainA = await createSession(workdir, 'codex', '规划周会节奏', {});
+  const reparentMainB = await createSession(workdir, 'codex', '梳理发布流程', {});
+  const reparentMainASeeded = await updateSessionTaskCard(reparentMainA.id, {
+    goal: '规划周会节奏',
+    mainGoal: '规划周会节奏',
+    lineRole: 'main',
+  });
+  const reparentMainBSeeded = await updateSessionTaskCard(reparentMainB.id, {
+    goal: '梳理发布流程',
+    mainGoal: '梳理发布流程',
+    lineRole: 'main',
+  });
+  await syncSessionContinuityFromSession(reparentMainASeeded, { taskCard: reparentMainASeeded.taskCard });
+  await syncSessionContinuityFromSession(reparentMainBSeeded, { taskCard: reparentMainBSeeded.taskCard });
+
+  const { session: reparentee } = await createBranchFromSession(reparentMainA.id, {
+    goal: '拆解会前准备',
+    branchReason: '需要先把周会前准备单独理顺',
+    checkpointSummary: '先列出议程、材料和主持口径',
+  });
+  const { session: reparenteeChild } = await createBranchFromSession(reparentee.id, {
+    goal: '补充主持人口径',
+    branchReason: '这是会前准备下的一条细分支线',
+    checkpointSummary: '先明确主持人开场和收束方式',
+  });
+
+  const reparentOutcome = await reparentSession(reparentee.id, {
+    targetSessionId: reparentMainB.id,
+  });
+  assert.equal(reparentOutcome?.session?.taskCard?.lineRole, 'branch', 'reparented session should stay a branch');
+  assert.equal(
+    reparentOutcome?.session?.taskCard?.branchFrom,
+    '梳理发布流程',
+    'reparented session should point branchFrom at the new parent session',
+  );
+
+  let reparentSnapshot = await getWorkbenchSnapshot();
+  let originalCluster = (reparentSnapshot.taskClusters || []).find((entry) => entry.mainSessionId === reparentMainA.id);
+  let targetCluster = (reparentSnapshot.taskClusters || []).find((entry) => entry.mainSessionId === reparentMainB.id);
+  assert.equal(
+    (originalCluster?.branchSessionIds || []).includes(reparentee.id),
+    false,
+    'reparented session should disappear from the old main cluster',
+  );
+  assert.equal(
+    (targetCluster?.branchSessionIds || []).includes(reparentee.id),
+    true,
+    'reparented session should appear under the new main cluster',
+  );
+  assert.equal(
+    (targetCluster?.branchSessionIds || []).includes(reparenteeChild.id),
+    true,
+    'reparent should move the whole subtree into the new cluster',
+  );
+  assert.equal(
+    (targetCluster?.branchSessions || []).find((entry) => entry.id === reparentee.id)?._branchParentSessionId,
+    reparentMainB.id,
+    'reparented parent branch should now point at the new parent session',
+  );
+  assert.equal(
+    (targetCluster?.branchSessions || []).find((entry) => entry.id === reparenteeChild.id)?._branchParentSessionId,
+    reparentee.id,
+    'nested child branches should keep their original parent after reparent',
+  );
+
+  const detachOutcome = await reparentSession(reparentee.id, {});
+  assert.equal(detachOutcome?.session?.taskCard?.lineRole, 'main', 'detaching should promote the session back to main');
+
+  reparentSnapshot = await getWorkbenchSnapshot();
+  targetCluster = (reparentSnapshot.taskClusters || []).find((entry) => entry.mainSessionId === reparentMainB.id);
+  const detachedCluster = (reparentSnapshot.taskClusters || []).find((entry) => entry.mainSessionId === reparentee.id);
+  assert.equal(
+    (targetCluster?.branchSessionIds || []).includes(reparentee.id),
+    false,
+    'detached session should leave the previous parent cluster',
+  );
+  assert.equal(
+    Boolean(detachedCluster),
+    true,
+    'detached session should become its own main cluster',
+  );
+  assert.equal(
+    (detachedCluster?.branchSessionIds || []).includes(reparenteeChild.id),
+    true,
+    'detached session should keep its existing child subtree',
+  );
+
+  await setSessionArchived(reparenteeChild.id, true);
+  await setSessionArchived(reparentee.id, true);
+  await setSessionArchived(reparentMainA.id, true);
+  await setSessionArchived(reparentMainB.id, true);
   rmSync(home, { recursive: true, force: true });
   rmSync(workdir, { recursive: true, force: true });
   console.log('test-workbench-branch-lifecycle: ok');

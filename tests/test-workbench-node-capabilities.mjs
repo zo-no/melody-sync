@@ -1,28 +1,28 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const nodeContractSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-contract.js'),
-  'utf8',
-);
-const nodeEffectsSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-effects.js'),
-  'utf8',
-);
-const nodeInstanceSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-instance.js'),
-  'utf8',
-);
-const nodeCapabilitiesSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-capabilities.js'),
-  'utf8',
-);
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const nodeContractSource = readWorkbenchFrontendSource('node-contract.js');
+const nodeEffectsSource = readWorkbenchFrontendSource('node-effects.js');
+const nodeInstanceSource = readWorkbenchFrontendSource('node-instance.js');
+const nodeCapabilitiesSource = readWorkbenchFrontendSource('node-capabilities.js');
 
 const context = { console };
 context.globalThis = context;
@@ -58,6 +58,7 @@ assert.equal(api.hasNodeCapability(sessionNode, 'open-session'), true);
 assert.equal(api.resolvePrimaryAction(sessionNode), 'open-session');
 assert.equal(api.isNodeDirectlyInteractive(sessionNode), true);
 assert.equal(api.canCreateManualBranch(sessionNode), true);
+assert.equal(api.canReparentSession(sessionNode), true);
 assert.deepEqual(
   JSON.parse(JSON.stringify(api.buildManualBranchCreationPayload(sessionNode))),
   {
@@ -74,6 +75,7 @@ assert.equal(
 
 const controllerCalls = [];
 const attachedSessions = [];
+const reparentCalls = [];
 const controller = api.createController({
   collapseTaskMapAfterAction() {
     controllerCalls.push('collapse');
@@ -86,6 +88,9 @@ const controller = api.createController({
   },
   attachSession(sessionId, sessionRecord) {
     attachedSessions.push({ sessionId, sessionRecord });
+  },
+  async reparentSession(sourceSessionId, payload) {
+    reparentCalls.push({ sourceSessionId, payload });
   },
 });
 
@@ -146,6 +151,23 @@ assert.deepEqual(
     },
   ],
   'capability controller should route open-session nodes through attachSession',
+);
+
+await controller.executeReparentSession(sessionNode, 'main-2', {
+  branchReason: '挂到新的主线下面',
+});
+assert.deepEqual(
+  JSON.parse(JSON.stringify(reparentCalls)),
+  [
+    {
+      sourceSessionId: 'branch-1',
+      payload: {
+        targetSessionId: 'main-2',
+        branchReason: '挂到新的主线下面',
+      },
+    },
+  ],
+  'reparent action should route through the injected reparentSession handler',
 );
 
 console.log('test-workbench-node-capabilities: ok');

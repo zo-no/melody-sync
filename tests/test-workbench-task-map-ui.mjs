@@ -1,28 +1,28 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const nodeContractSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-contract.js'),
-  'utf8',
-);
-const taskRunStatusSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-run-status.js'),
-  'utf8',
-);
-const nodeEffectsSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-effects.js'),
-  'utf8',
-);
-const taskMapUiSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-ui.js'),
-  'utf8',
-);
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const nodeContractSource = readWorkbenchFrontendSource('node-contract.js');
+const taskRunStatusSource = readWorkbenchFrontendSource('task-run-status.js');
+const nodeEffectsSource = readWorkbenchFrontendSource('node-effects.js');
+const taskMapUiSource = readWorkbenchFrontendSource('task-map-ui.js');
 
 function makeClassList(owner) {
   const tokens = new Set();
@@ -62,13 +62,14 @@ function makeStyle() {
 }
 
 function makeElement(tagName = 'div') {
+  const listeners = new Map();
   const element = {
     tagName: String(tagName || 'div').toUpperCase(),
     children: [],
+    parentNode: null,
     dataset: {},
     hidden: false,
     textContent: '',
-    innerHTML: '',
     title: '',
     scrollLeft: 0,
     scrollTop: 0,
@@ -79,11 +80,18 @@ function makeElement(tagName = 'div') {
     style: makeStyle(),
     _className: '',
     appendChild(child) {
+      child.parentNode = this;
       this.children.push(child);
       return child;
     },
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener(type, handler) {
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type).push(handler);
+    },
+    removeEventListener(type, handler) {
+      if (!listeners.has(type)) return;
+      listeners.set(type, listeners.get(type).filter((entry) => entry !== handler));
+    },
     setAttribute(name, value) {
       if (String(name) === 'class') {
         this.className = String(value);
@@ -91,9 +99,33 @@ function makeElement(tagName = 'div') {
       }
       this[name] = String(value);
     },
-    remove() {},
+    remove() {
+      if (!this.parentNode) return;
+      this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
+      this.parentNode = null;
+    },
     closest() { return null; },
+    focus() {},
+    select() {},
+    dispatchEvent(event = {}) {
+      const type = String(event.type || '');
+      for (const handler of listeners.get(type) || []) {
+        handler({
+          preventDefault() {},
+          stopPropagation() {},
+          ...event,
+        });
+      }
+    },
   };
+  Object.defineProperty(element, 'innerHTML', {
+    get() {
+      return '';
+    },
+    set(_value) {
+      element.children = [];
+    },
+  });
   element.classList = makeClassList(element);
   Object.defineProperty(element, 'className', {
     get() {
@@ -134,6 +166,16 @@ function findFlowNodeByTitle(root, title) {
   return null;
 }
 
+function findFirst(root, predicate) {
+  if (!root) return null;
+  if (predicate(root)) return root;
+  for (const child of Array.isArray(root.children) ? root.children : []) {
+    const match = findFirst(child, predicate);
+    if (match) return match;
+  }
+  return null;
+}
+
 const documentRef = {
   createElement(tagName) {
     return makeElement(tagName);
@@ -145,6 +187,10 @@ const documentRef = {
 };
 
 const windowRef = {
+  requestAnimationFrame(callback) {
+    callback();
+    return 0;
+  },
   setTimeout(callback) {
     callback();
     return 0;
@@ -171,6 +217,18 @@ const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
   windowRef,
   clipText(value) {
     return String(value || '').trim();
+  },
+  listReparentTargets() {
+    return [
+      {
+        mode: 'attach',
+        sessionId: 'main-2',
+        title: '目标任务',
+        path: '目标任务 / 方案讨论',
+        displayPath: '最近使用 · 目标任务 / 方案讨论',
+        searchText: '目标任务 方案讨论',
+      },
+    ];
   },
 });
 
@@ -224,7 +282,18 @@ const idleNode = {
   status: 'active',
 };
 
-rootNode.childNodeIds.push(idleNode.id);
+const editableNode = {
+  id: 'session:branch-editable',
+  kind: 'branch',
+  parentNodeId: 'session:main-1',
+  sessionId: 'branch-editable',
+  title: '可改挂节点',
+  status: 'active',
+  isCurrent: true,
+  isCurrentPath: true,
+};
+
+rootNode.childNodeIds.push(idleNode.id, editableNode.id);
 
 const nodeMap = new Map([
   [rootNode.id, rootNode],
@@ -232,6 +301,7 @@ const nodeMap = new Map([
   [waitingNode.id, waitingNode],
   [completedNode.id, completedNode],
   [idleNode.id, idleNode],
+  [editableNode.id, editableNode],
 ]);
 
 const board = renderer.renderFlowBoard({
@@ -242,6 +312,7 @@ const board = renderer.renderFlowBoard({
       { fromNodeId: rootNode.id, toNodeId: waitingNode.id, type: 'structural' },
       { fromNodeId: rootNode.id, toNodeId: completedNode.id, type: 'structural' },
       { fromNodeId: rootNode.id, toNodeId: idleNode.id, type: 'structural' },
+      { fromNodeId: rootNode.id, toNodeId: editableNode.id, type: 'structural' },
     ],
   },
   nodeMap,
@@ -253,11 +324,13 @@ const runningFlowNode = findFlowNodeByTitle(board, '运行节点');
 const waitingFlowNode = findFlowNodeByTitle(board, '等待节点');
 const completedFlowNode = findFlowNodeByTitle(board, '完成节点');
 const idleFlowNode = findFlowNodeByTitle(board, '空闲节点');
+const editableFlowNode = findFlowNodeByTitle(board, '可改挂节点');
 
 assert.ok(runningFlowNode, 'running flow node should render');
 assert.ok(waitingFlowNode, 'waiting flow node should render');
 assert.ok(completedFlowNode, 'completed flow node should render');
 assert.ok(idleFlowNode, 'idle flow node should render');
+assert.ok(editableFlowNode, 'editable flow node should render');
 
 assert.equal(runningFlowNode.classList.contains('is-status-running'), true);
 assert.equal(waitingFlowNode.classList.contains('is-status-waiting-user'), true);
@@ -274,6 +347,18 @@ assert.equal(
   findFirstByClass(idleFlowNode, 'quest-task-flow-node-badge')?.textContent,
   '空闲',
   'non-current flow nodes should keep rendering a stable idle status badge',
+);
+
+const reparentActionBtn = findFirst(editableFlowNode, (node) => node?.textContent === '挂到...');
+assert.ok(reparentActionBtn, 'current active session nodes should expose a lightweight reparent entry');
+reparentActionBtn.dispatchEvent({ type: 'click' });
+
+const reparentComposer = findFirstByClass(editableFlowNode, 'quest-task-flow-reparent-composer');
+assert.ok(reparentComposer, 'clicking the reparent action should open the inline chooser composer');
+assert.equal(
+  findFirstByClass(reparentComposer, 'quest-task-flow-reparent-option-path')?.textContent,
+  '最近使用 · 目标任务 / 方案讨论',
+  'reparent chooser should render the display path used for recent targets',
 );
 
 console.log('test-workbench-task-map-ui: ok');

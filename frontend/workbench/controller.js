@@ -42,6 +42,7 @@
   const SUPPRESSED_PREFIX = "melodysyncSuppressedBranch";
   const TASK_MAP_MOCK_STORAGE_KEY = "melodysyncTaskMapMockPreset";
   const TASK_MAP_DESKTOP_WIDTH_STORAGE_KEY = "melodysyncTaskMapDesktopWidth";
+  const RECENT_REPARENT_TARGETS_STORAGE_KEY = "melodysyncRecentReparentTargets";
   const TASK_MAP_DESKTOP_MIN_WIDTH = 260;
   const TASK_MAP_DESKTOP_MAX_WIDTH = 960;
   const TASK_MAP_DESKTOP_MAIN_RESERVE = 320;
@@ -158,6 +159,45 @@
       .replace(/[：:·•，。,.;；、!?！？]/g, "")
       .trim()
       .toLowerCase();
+  }
+
+  function readRecentReparentTargetIds() {
+    try {
+      const raw = String(localStorage.getItem(RECENT_REPARENT_TARGETS_STORAGE_KEY) || "").trim();
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((entry) => normalizeSessionId(entry))
+        .filter(Boolean)
+        .slice(0, 6);
+    } catch {
+      return [];
+    }
+  }
+
+  function writeRecentReparentTargetIds(targetSessionIds = []) {
+    try {
+      const normalized = Array.isArray(targetSessionIds)
+        ? targetSessionIds.map((entry) => normalizeSessionId(entry)).filter(Boolean).slice(0, 6)
+        : [];
+      if (!normalized.length) {
+        localStorage.removeItem(RECENT_REPARENT_TARGETS_STORAGE_KEY);
+        return;
+      }
+      localStorage.setItem(RECENT_REPARENT_TARGETS_STORAGE_KEY, JSON.stringify(normalized));
+    } catch {
+    }
+  }
+
+  function rememberRecentReparentTarget(targetSessionId) {
+    const normalizedTargetSessionId = normalizeSessionId(targetSessionId);
+    if (!normalizedTargetSessionId) return;
+    const deduped = [
+      normalizedTargetSessionId,
+      ...readRecentReparentTargetIds().filter((entry) => entry !== normalizedTargetSessionId),
+    ];
+    writeRecentReparentTargetIds(deduped);
   }
 
   function isRedundantTrackerText(value, ...comparisons) {
@@ -942,6 +982,18 @@
         }
       }
     }
+    for (const session of getSessionRecords()) {
+      const sessionId = normalizeSessionId(session?.id || "");
+      if (!sessionId || entriesById.has(sessionId)) continue;
+      entriesById.set(sessionId, {
+        sessionId,
+        session,
+        parentSessionId: "",
+        clusterRootSessionId: sessionId,
+        depth: 0,
+        title: getSessionDisplayName(session),
+      });
+    }
     return {
       entriesById,
       childrenByParent,
@@ -986,6 +1038,11 @@
     const sourceEntry = entriesById.get(normalizedSourceSessionId) || null;
     const sourceClusterRootSessionId = normalizeSessionId(sourceEntry?.clusterRootSessionId || "");
     const sourceSubtreeIds = collectSessionSubtreeIds(normalizedSourceSessionId, childrenByParent);
+    const recentTargetIds = readRecentReparentTargetIds();
+    const recentTargetIndex = new Map();
+    recentTargetIds.forEach((sessionId, index) => {
+      recentTargetIndex.set(sessionId, index);
+    });
     const targets = [];
 
     if (normalizeSessionId(sourceEntry?.parentSessionId || "")) {
@@ -1003,12 +1060,20 @@
     for (const entry of entriesById.values()) {
       if (!entry?.sessionId || sourceSubtreeIds.has(entry.sessionId)) continue;
       const path = buildSessionPathLabel(entry.sessionId, entriesById);
+      const recentIndex = recentTargetIndex.has(entry.sessionId)
+        ? recentTargetIndex.get(entry.sessionId)
+        : Number.POSITIVE_INFINITY;
+      const isRecent = Number.isFinite(recentIndex);
       targets.push({
         mode: "attach",
         sessionId: entry.sessionId,
         title: entry.title || getSessionDisplayName(entry.session),
         path,
+        displayPath: isRecent
+          ? `最近使用 · ${path === "顶层任务" ? (entry.title || "顶层任务") : path}`
+          : path,
         sameCluster: normalizeSessionId(entry.clusterRootSessionId) === sourceClusterRootSessionId,
+        recentIndex,
         depth: Number.isFinite(entry.depth) ? entry.depth : 0,
         searchText: normalizeComparableText(`${entry.title || ""} ${path}`),
       });
@@ -1016,6 +1081,9 @@
 
     return targets.sort((left, right) => {
       if (left.mode !== right.mode) return left.mode === "detach" ? -1 : 1;
+      const leftRecentIndex = Number.isFinite(left.recentIndex) ? left.recentIndex : Number.POSITIVE_INFINITY;
+      const rightRecentIndex = Number.isFinite(right.recentIndex) ? right.recentIndex : Number.POSITIVE_INFINITY;
+      if (leftRecentIndex !== rightRecentIndex) return leftRecentIndex - rightRecentIndex;
       if (left.sameCluster !== right.sameCluster) return left.sameCluster ? -1 : 1;
       if ((left.depth || 0) !== (right.depth || 0)) return (left.depth || 0) - (right.depth || 0);
       return String(left.title || "").localeCompare(String(right.title || ""), "zh-Hans-CN");
@@ -1437,17 +1505,21 @@
   async function reparentSessionUnderTarget(sessionId, options = {}) {
     const normalizedSessionId = normalizeSessionId(sessionId);
     if (!normalizedSessionId) return null;
+    const normalizedTargetSessionId = normalizeSessionId(options?.targetSessionId || "");
     const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(normalizedSessionId)}/reparent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        targetSessionId: normalizeSessionId(options?.targetSessionId || ""),
+        targetSessionId: normalizedTargetSessionId,
         branchReason: String(options?.branchReason || "").trim(),
       }),
     });
     snapshot = response?.snapshot || snapshot;
     if (response?.session) {
       replaceSessionRecord(response.session);
+    }
+    if (normalizedTargetSessionId) {
+      rememberRecentReparentTarget(normalizedTargetSessionId);
     }
     if (typeof fetchSessionsList === "function") {
       await fetchSessionsList();

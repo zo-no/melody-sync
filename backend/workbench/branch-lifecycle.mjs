@@ -49,6 +49,42 @@ function getActiveSessionContext(state, sessionId) {
   )) || null;
 }
 
+function trimText(value) {
+  return normalizeNullableText(value);
+}
+
+function clipText(value, max = 64) {
+  const text = trimText(value);
+  if (!text) return '';
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
+function toConciseGoal(value, max = 64) {
+  const compact = trimText(value);
+  if (!compact) return '';
+  const firstSegment = compact
+    .split(/[。！？.!?\n]/)
+    .map((entry) => entry.trim())
+    .find(Boolean);
+  return clipText(firstSegment || compact, max);
+}
+
+function getSessionTitle(session) {
+  const name = trimText(session?.name || '');
+  const goal = trimText(session?.taskCard?.goal || '');
+  const mainGoal = trimText(session?.taskCard?.mainGoal || '');
+  const lineRole = normalizeLineRole(
+    session?.taskCard?.lineRole
+    || (session?.sourceContext?.parentSessionId ? 'branch' : 'main'),
+  );
+  return toConciseGoal(
+    lineRole === 'branch'
+      ? (goal || name || mainGoal || '当前任务')
+      : (name || mainGoal || goal || '当前任务'),
+    64,
+  );
+}
+
 function buildActiveParentSessionMap(state, sessions = []) {
   const parentMap = new Map();
   for (const session of Array.isArray(sessions) ? sessions : []) {

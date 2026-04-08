@@ -828,7 +828,7 @@
 
               const path = documentRef.createElement("div");
               path.className = "quest-task-flow-reparent-option-path";
-              path.textContent = entry.path || "顶层任务";
+              path.textContent = entry.displayPath || entry.path || "顶层任务";
 
               option.appendChild(title);
               option.appendChild(path);
