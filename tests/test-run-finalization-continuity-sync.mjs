@@ -90,5 +90,17 @@ assert.deepEqual(
   },
   'continuity sync should receive the stabilized task card from the main flow',
 );
+assert.deepEqual(
+  continuityCalls[0].options.sessionState,
+  {
+    goal: '产出第一版电影史路线',
+    mainGoal: '产出第一版电影史路线',
+    checkpoint: '主线已收束成古典→现代→当代',
+    needsUser: false,
+    lineRole: 'main',
+    branchFrom: '',
+  },
+  'continuity sync should also receive normalized session state so workbench projection can stop depending on taskCard as truth',
+);
 
 console.log('test-run-finalization-continuity-sync: ok');

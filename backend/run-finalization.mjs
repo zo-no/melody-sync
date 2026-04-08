@@ -96,11 +96,13 @@ async function syncContinuityProjection({
   getSession,
   syncSessionContinuityFromSession,
   taskCard,
+  sessionState,
 } = {}) {
   const sessionForContinuity = await getSession(sessionId);
   if (!sessionForContinuity) return;
   await syncSessionContinuityFromSession(sessionForContinuity, {
     taskCard: taskCard || sessionForContinuity.taskCard || null,
+    sessionState: sessionState || sessionForContinuity.sessionState || null,
   }).catch((error) => {
     console.error(`[workbench] continuity sync ${sessionId}: ${error.message}`);
   });
@@ -316,6 +318,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
       getSession,
       syncSessionContinuityFromSession,
       taskCard: stabilizedTaskCard,
+      sessionState: nextSessionState,
     });
   }
 

@@ -8,6 +8,7 @@ import {
 import { appendEvent, getHistorySnapshot } from '../history.mjs';
 import { messageEvent, statusEvent } from '../normalizer.mjs';
 import { normalizeSessionTaskCard } from '../session-task-card.mjs';
+import { resolveSessionStateFromSession } from '../session-state.mjs';
 import {
   createWorkbenchId,
   dedupeTexts,
@@ -413,20 +414,35 @@ function upsertSessionContext(state, payload = {}) {
   return nextContext;
 }
 
-function syncSessionContinuityState(state, session, taskCardInput, now = nowIso()) {
+function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(), sessionStateInput = null) {
   const taskCard = normalizeSessionTaskCard(taskCardInput || session.taskCard || {});
   const project = upsertProject(state, session, taskCard, now);
 
   const existingContext = getActiveSessionContext(state, session.id);
   const parentSessionId = getRecordedParentSessionId(session, existingContext);
-  const lineRole = parentSessionId ? 'branch' : 'main';
-  const mainGoal = pickMainGoal(session, taskCard, {
+  const sessionState = resolveSessionStateFromSession({
+    ...session,
+    taskCard,
+    sessionState: sessionStateInput || session?.sessionState || null,
+  }, {
+    ...(existingContext || {}),
+    parentSessionId,
+  });
+  const lineRole = normalizeLineRole(sessionState.lineRole || (parentSessionId ? 'branch' : 'main'));
+  const mainGoal = normalizeNullableText(
+    sessionState.mainGoal
+    || pickMainGoal(session, taskCard, {
     context: existingContext,
     lineRole,
-  }) || project.title;
-  const currentGoal = normalizeNullableText(taskCard?.goal || session.name || mainGoal);
+  })
+    || project.title
+  );
+  const currentGoal = normalizeNullableText(sessionState.goal || taskCard?.goal || session.name || mainGoal);
   const nextStep = normalizeNullableText((taskCard?.nextSteps || [])[0]);
-  const checkpoint = pickCheckpoint(taskCard, currentGoal || mainGoal);
+  const checkpoint = normalizeNullableText(
+    sessionState.checkpoint
+    || pickCheckpoint(taskCard, currentGoal || mainGoal)
+  );
   const sourceNodeId = normalizeNullableText(session?.sourceContext?.nodeId);
   const sourceNode = sourceNodeId ? getNodeById(state, sourceNodeId) : null;
 
@@ -438,7 +454,7 @@ function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(
     title: mainGoal,
     type: 'task',
     summary: lineRole === 'main'
-      ? normalizeNullableText(taskCard?.summary || checkpoint)
+      ? normalizeNullableText(taskCard?.summary || sessionState.checkpoint || checkpoint)
       : normalizeNullableText(rootNode?.summary || mainGoal),
     nextAction: lineRole === 'main'
       ? nextStep
@@ -474,7 +490,7 @@ function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(
   let returnToNodeId = '';
 
   if (lineRole === 'branch') {
-    branchFrom = normalizeNullableText(taskCard?.branchFrom || sourceNode?.title || mainGoal);
+    branchFrom = normalizeNullableText(sessionState.branchFrom || taskCard?.branchFrom || sourceNode?.title || mainGoal);
     branchReason = normalizeNullableText(taskCard?.branchReason);
     const latestActiveContext = getActiveSessionContext(state, session.id);
     const latestBranchNode = latestActiveContext && normalizeLineRole(latestActiveContext.lineRole) === 'branch'
@@ -487,7 +503,7 @@ function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(
       parentId: branchParentId,
       title: currentGoal,
       type: 'task',
-      summary: normalizeNullableText(taskCard?.summary || checkpoint),
+      summary: normalizeNullableText(taskCard?.summary || sessionState.checkpoint || checkpoint),
       nextAction: nextStep,
       state: 'active',
       now,
@@ -509,7 +525,7 @@ function syncSessionContinuityState(state, session, taskCardInput, now = nowIso(
     branchReason,
     returnToNodeId,
     checkpointSummary: checkpoint,
-    resumeHint: normalizeNullableText(taskCard?.checkpoint || nextStep || checkpoint),
+    resumeHint: normalizeNullableText(sessionState.checkpoint || taskCard?.checkpoint || nextStep || checkpoint),
     nextStep,
     snoozedUntil: existingContext?.snoozedUntil || '',
     now,
@@ -537,7 +553,7 @@ export async function syncSessionContinuityFromSession(sessionLike, options = {}
 
     const now = nowIso();
     const state = await loadState();
-    const result = syncSessionContinuityState(state, session, options.taskCard, now);
+    const result = syncSessionContinuityState(state, session, options.taskCard, now, options.sessionState);
     await saveState(state);
     return result;
   });
