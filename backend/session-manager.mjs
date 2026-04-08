@@ -69,6 +69,10 @@ import {
   prepareConversationOnlyContinuationBody,
 } from './session-compaction.mjs';
 import {
+  buildPreparedContinuationContext,
+  isPreparedForkContextCurrent,
+} from './session-fork-context.mjs';
+import {
   createRun,
   findRunByRequest,
   getRun,
@@ -1369,66 +1373,41 @@ export function broadcastSessionInvalidation(sessionId) {
   sendToClients(clients, { type: 'session_invalidated', sessionId });
 }
 
-function buildPreparedContinuationContext(prepared, previousTool, effectiveTool, sessionState = null) {
-  if (!prepared) return '';
-
-  const summary = typeof prepared.summary === 'string' ? prepared.summary.trim() : '';
-  const continuationBody = typeof prepared.continuationBody === 'string'
-    ? prepared.continuationBody.trim()
-    : '';
-  const continuation = continuationBody
-    ? buildSessionContinuationContextFromBody(continuationBody, {
-        fromTool: previousTool,
-        toTool: effectiveTool,
-        sessionState,
-      })
-    : '';
-
-  if (!summary) {
-    return continuation;
-  }
-
-  if (continuation) {
-    const summaryLabel = sessionState
-      ? '[Earlier compressed summary]'
-      : '[Conversation summary]';
-    return `${continuation}\n\n---\n\n${summaryLabel}\n\n${summary}`;
-  }
-
-  return `[Conversation summary]\n\n${summary}`;
-}
-
-function isPreparedForkContextCurrent(prepared, snapshot, contextHead) {
-  if (!prepared) return false;
-
-  const summary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';
-  const activeFromSeq = Number.isInteger(contextHead?.activeFromSeq) ? contextHead.activeFromSeq : 0;
-  const expectedMode = summary ? 'summary' : 'history';
-
-  return (prepared.mode || 'history') === expectedMode
-    && (prepared.summary || '') === summary
-    && (prepared.activeFromSeq || 0) === activeFromSeq
-    && (prepared.preparedThroughSeq || 0) === (snapshot?.latestSeq || 0);
-}
-
 async function prepareForkContextSnapshot(sessionId, snapshot, contextHead) {
   const summary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';
   const activeFromSeq = Number.isInteger(contextHead?.activeFromSeq) ? contextHead.activeFromSeq : 0;
+  const handoffSeq = Number.isInteger(contextHead?.handoffSeq) ? contextHead.handoffSeq : 0;
   const preparedThroughSeq = snapshot?.latestSeq || 0;
 
   if (summary) {
-    const recentEvents = preparedThroughSeq > activeFromSeq
-      ? await loadHistory(sessionId, {
-          fromSeq: Math.max(1, activeFromSeq + 1),
-          includeBodies: true,
-        })
-      : [];
-    const continuationBody = prepareSessionContinuationBody(recentEvents);
+    const [recentEvents, handoffHistory] = await Promise.all([
+      preparedThroughSeq > activeFromSeq
+        ? loadHistory(sessionId, {
+            fromSeq: Math.max(1, activeFromSeq + 1),
+            includeBodies: true,
+          })
+        : [],
+      handoffSeq > 0
+        ? loadHistory(sessionId, {
+            fromSeq: handoffSeq,
+            includeBodies: true,
+          })
+        : [],
+    ]);
+    const handoffEvent = handoffSeq > 0
+      ? handoffHistory.find((event) => (event?.seq || 0) === handoffSeq && event?.type === 'message')
+      : null;
+    const continuationEvents = handoffEvent
+      ? [handoffEvent, ...recentEvents]
+      : recentEvents;
+    const continuationBody = prepareSessionContinuationBody(continuationEvents);
     return {
       mode: 'summary',
       summary,
       continuationBody,
       activeFromSeq,
+      handoffSeq,
+      includesCompactionHandoff: Boolean(handoffEvent),
       preparedThroughSeq,
       contextUpdatedAt: contextHead?.updatedAt || null,
       updatedAt: nowIso(),
@@ -1451,6 +1430,8 @@ async function prepareForkContextSnapshot(sessionId, snapshot, contextHead) {
     summary: '',
     continuationBody,
     activeFromSeq: 0,
+    handoffSeq: 0,
+    includesCompactionHandoff: false,
     preparedThroughSeq,
     contextUpdatedAt: null,
     updatedAt: nowIso(),
