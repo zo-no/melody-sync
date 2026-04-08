@@ -5,7 +5,7 @@ import {
   MELODYSYNC_APP_ROOT,
 } from '../../../lib/config.mjs';
 import { readJson } from '../../fs-utils.mjs';
-import { createHookDefinition } from '../hook-contract.mjs';
+import { createHookDefinition } from '../contract/index.mjs';
 import { registerHook } from './registry.mjs';
 
 let customHooksRegistered = false;

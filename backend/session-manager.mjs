@@ -226,7 +226,6 @@ function normalizeSessionTaskCardManagedBindings(value) {
   const allowed = new Set([
     'mainGoal',
     'goal',
-    'summary',
     'candidateBranches',
     'checkpoint',
     'nextSteps',
@@ -1927,7 +1926,6 @@ function stabilizeSessionTaskCard(sessionMeta, taskCard, options = {}) {
       .map((value) => trimString(value))
       .filter(Boolean),
   );
-  const shouldPreserveManagedSummary = managedBindingKeys.has('summary');
   const shouldPreserveManagedMainGoal = managedBindingKeys.has('mainGoal') || managedBindingKeys.has('goal');
   const shouldPreserveManagedCandidateBranches = managedBindingKeys.has('candidateBranches');
   const shouldPreserveManagedLineRole = managedBindingKeys.has('lineRole');

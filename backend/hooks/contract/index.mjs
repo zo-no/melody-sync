@@ -2,21 +2,21 @@ import {
   HOOK_EVENT_DEFINITIONS,
   getHookEventDefinition,
   listHookEventDefinitions,
-} from './contract/events.mjs';
+} from './events.mjs';
 import {
   deriveHookScopeFromEventPattern,
   HOOK_SCOPE_DEFINITIONS,
   HOOK_SCOPE_ORDER,
   listHookScopeDefinitions,
   normalizeHookScope,
-} from './contract/scopes.mjs';
+} from './scopes.mjs';
 import {
   deriveHookPhaseFromEventId,
   HOOK_PHASE_DEFINITIONS,
   HOOK_PHASE_ORDER,
   listHookPhaseDefinitions,
   normalizeHookPhase,
-} from './contract/phases.mjs';
+} from './phases.mjs';
 
 function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';

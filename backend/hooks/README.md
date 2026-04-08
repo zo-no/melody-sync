@@ -4,11 +4,10 @@ This directory owns MelodySync hook architecture.
 
 Files by role:
 
-- `contract/`: lifecycle scopes, user-facing phases, and lifecycle event definitions.
+- `contract/`: lifecycle scopes, user-facing phases, event definitions, and the canonical hook contract surface.
 - `runtime/`: hook registry, persisted enable/disable state, and builtin registration wiring.
 - `index.mjs`: canonical hook entry that registers builtin/custom hooks and re-exports the registry surface.
 - `registry.mjs`: canonical registry re-export surface for callers that only need event registration helpers.
-- `hook-contract.mjs`: compatibility export surface for the hook contract.
 - `builtin-hook-catalog.mjs`: builtin hook metadata. Labels, ids, and supported targets belong here.
 - `register-builtin-hooks.mjs` and `register-session-manager-hooks.mjs`: compatibility wrappers over `runtime/`.
 - `*-hook.mjs`: focused hook handlers or factories. Keep them short and testable.

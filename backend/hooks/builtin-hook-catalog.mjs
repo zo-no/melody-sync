@@ -1,4 +1,4 @@
-import { createHookDefinition } from './hook-contract.mjs';
+import { createHookDefinition } from './contract/index.mjs';
 
 const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
   createHookDefinition({

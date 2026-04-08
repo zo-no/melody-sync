@@ -13,7 +13,7 @@ import {
   listHookTaskMapPlanPolicyDefinitions,
   listHookUiReservedTruths,
   listHookUiTargetDefinitions,
-} from '../hooks/hook-contract.mjs';
+} from '../hooks/contract/index.mjs';
 import {
   HOOK_EVENTS,
   listHookEventDefinitions,
@@ -62,4 +62,3 @@ export async function updateHookEnabledState(hookId, enabled) {
   await persistHookEnabledState(normalizedHookId, enabled);
   return { hooks: listHooks() };
 }
-

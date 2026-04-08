@@ -23,7 +23,7 @@
 
 当前建议把两个扩展入口都固定成单一 contract 文件：
 
-- hooks contract：`backend/hooks/hook-contract.mjs`
+- hooks contract：`backend/hooks/contract/index.mjs`
 - node contract：`frontend/workbench/node-contract.js`
 
 同时把 GTD 任务列表本身也固定成独立 contract，而不是让 hooks 或 node 间接拥有它：
@@ -164,7 +164,7 @@ durable state + optional taskMapPlan
 
 目标是只动这几处：
 
-1. `backend/hooks/hook-contract.mjs`
+1. `backend/hooks/contract/index.mjs`
    - 只有在新增 lifecycle layer 或 lifecycle event 时才改
 2. `backend/hooks/builtin-hook-catalog.mjs`
    - 加 metadata definition

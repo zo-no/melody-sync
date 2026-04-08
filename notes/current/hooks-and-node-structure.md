@@ -4,7 +4,7 @@
 
 当前与 hooks / node 相关的集中 contract 有三份：
 
-- hooks contract：`backend/hooks/hook-contract.mjs`
+- hooks contract：`backend/hooks/contract/index.mjs`
 - backend node definitions：`backend/workbench/node-definitions.mjs`
 - frontend node contract：`frontend/workbench/node-contract.js`
 - session list contract：`frontend/session-list/contract.js`
@@ -25,7 +25,7 @@
 
 - `backend/hooks/index.mjs`
   - 只负责初始化并导出 hooks registry
-- `backend/hooks/hook-contract.mjs`
+- `backend/hooks/contract/index.mjs`
   - 统一维护 hooks 的 layer/event contract
 - `backend/hooks/registry.mjs`
   - 维护事件定义、注册、启停和 emit
