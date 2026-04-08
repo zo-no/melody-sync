@@ -118,6 +118,7 @@ import {
   parseTaskCardFromAssistantContent,
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
+import { resolveSessionStateFromSession } from './session-state.mjs';
 import {
   buildNormalizedRunResultEnvelope,
   mergeRunResultWithEnvelope,
@@ -3297,7 +3298,25 @@ export async function updateSessionTaskCard(id, taskCard, options = {}) {
       managedBindingKeys: nextManagedBindings,
     });
     const managedBindingsChanged = JSON.stringify(currentManagedBindings) !== JSON.stringify(nextManagedBindings);
-    if (JSON.stringify(currentTaskCard) === JSON.stringify(nextTaskCard) && !managedBindingsChanged) {
+    const nextSessionState = resolveSessionStateFromSession({
+      ...session,
+      taskCard: nextTaskCard || null,
+    });
+    const hasMeaningfulSessionState = nextSessionState && (
+      nextSessionState.goal
+      || nextSessionState.mainGoal
+      || nextSessionState.checkpoint
+      || nextSessionState.needsUser === true
+      || nextSessionState.lineRole === 'branch'
+      || nextSessionState.branchFrom
+    );
+    const currentSessionStateJson = JSON.stringify(session.sessionState || null);
+    const nextSessionStateJson = JSON.stringify(hasMeaningfulSessionState ? nextSessionState : null);
+    if (
+      JSON.stringify(currentTaskCard) === JSON.stringify(nextTaskCard)
+      && !managedBindingsChanged
+      && currentSessionStateJson === nextSessionStateJson
+    ) {
       return false;
     }
 
@@ -3311,6 +3330,12 @@ export async function updateSessionTaskCard(id, taskCard, options = {}) {
       session.taskCardManagedBindings = nextManagedBindings;
     } else if (session.taskCardManagedBindings) {
       delete session.taskCardManagedBindings;
+    }
+
+    if (hasMeaningfulSessionState) {
+      session.sessionState = nextSessionState;
+    } else if (session.sessionState) {
+      delete session.sessionState;
     }
 
     session.updatedAt = nowIso();
