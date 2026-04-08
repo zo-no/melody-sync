@@ -93,8 +93,6 @@
 
 优先归档或降级，而不是继续让它们和当前主线并列：
 
-- `notes/current/capability-first-shipping-plan.md`
-- `notes/current/remove-board-and-rewrite-main-flow.md`
 - `notes/current/operator-throughput-control-surface.md`
 - `notes/current/ai-era-hard-skills-roadmap.md`
 

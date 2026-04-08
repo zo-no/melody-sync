@@ -59,7 +59,6 @@
 当前对应文档：
 
 - `session-run-closure-requirements.md`
-- `capability-first-shipping-plan.md`
 
 要求：
 
@@ -320,8 +319,6 @@
 
 当前主流程类文档存在重叠：
 
-- `capability-first-shipping-plan.md`
-- `remove-board-and-rewrite-main-flow.md`
 - `session-run-closure-requirements.md`
 
 后续应明确：
@@ -357,7 +354,7 @@
 1. 把 `session-run-closure-requirements.md` 作为后续产品方向总纲
 2. 把 `core-domain-contract.md` 和 `session-first-workflow-surfaces.md` 作为边界约束，不轻易改动
 3. 把 `core-domain-refactor-todo.md` 作为当前重构执行面，随着重构推进及时回写
-4. 把 `capability-first-shipping-plan.md`、`remove-board-and-rewrite-main-flow.md` 视为阶段文档，不再和主线文档并列竞争
+4. 阶段性执行包应及时归档或删除，不再和主线文档并列竞争
 5. 把专项方案文档只保留在对应专题入口，不作为日常主线阅读材料
 
 ## 建议的文档治理规则
