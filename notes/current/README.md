@@ -26,12 +26,11 @@
 4. `../docs/agent-filesystem-architecture.md`
 5. `../docs/hooks-node-architecture.md`
 6. `feature-and-settings-inventory.md`
-7. `open-source-structure-map.md`
-8. `next-feature-cleanup-map.md`
-9. `session-first-workflow-surfaces.md`
-10. `product-surface-lifecycle.md`
-11. `session-run-closure-requirements.md`
-12. `core-domain-refactor-todo.md`
+7. `next-feature-cleanup-map.md`
+8. `session-first-workflow-surfaces.md`
+9. `product-surface-lifecycle.md`
+10. `session-run-closure-requirements.md`
+11. `core-domain-refactor-todo.md`
 
 ### 各自作用与管理方式
 
@@ -56,9 +55,6 @@
 - `feature-and-settings-inventory.md`
   - 当前功能盘点表，明确哪些留在主流程、哪些属于设置、哪些是隐藏能力、哪些已经进入删除复核区
   - 管理方式：产品表面、设置边界或删除候选判断发生变化时同步更新
-- `open-source-structure-map.md`
-  - 面向开源继续收口时，哪些模块最值得先抽、目录应该往哪种责任划分靠
-  - 管理方式：目录结构或模块拆分主方向变化时同步更新
 - `next-feature-cleanup-map.md`
   - 下一轮删旧上新前，哪些是主骨架、哪些是外围裁剪区、推荐按什么顺序收口
   - 管理方式：进入新一轮清理或新增大功能前同步更新
@@ -134,11 +130,10 @@
 4. `../docs/agent-filesystem-architecture.md`
 5. `../docs/hooks-node-architecture.md`
 6. `feature-and-settings-inventory.md`
-7. `open-source-structure-map.md`
-8. `next-feature-cleanup-map.md`
-9. `session-first-workflow-surfaces.md`
-10. `core-domain-refactor-todo.md`
-11. `session-run-closure-requirements.md`
+7. `next-feature-cleanup-map.md`
+8. `session-first-workflow-surfaces.md`
+9. `core-domain-refactor-todo.md`
+10. `session-run-closure-requirements.md`
 
 这样能先掌握：
 
