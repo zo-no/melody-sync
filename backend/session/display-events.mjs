@@ -1,8 +1,8 @@
-import { stripEventAttachmentSavedPaths } from './attachment-utils.mjs';
+import { stripEventAttachmentSavedPaths } from '../attachment-utils.mjs';
 import {
   parseTaskCardFromAssistantContent,
   stripTaskCardFromAssistantContent,
-} from './session-task-card.mjs';
+} from '../session-task-card.mjs';
 
 const HIDDEN_EVENT_TYPES = new Set(['reasoning', 'manager_context', 'tool_use', 'tool_result', 'file_change']);
 const SELF_CHECK_STATUS_PREFIX = 'assistant self-check:';

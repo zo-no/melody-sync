@@ -1,5 +1,5 @@
 import { listWorkbenchSessions } from './session-ports.mjs';
-import { createSessionListItem } from '../session-api-shapes.mjs';
+import { createSessionListItem } from '../session/api-shapes.mjs';
 import { loadWorkbenchState } from './state-store.mjs';
 import {
   normalizeBranchContextStatus,

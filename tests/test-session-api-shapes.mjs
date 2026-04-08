@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { createSessionDetail, createSessionListItem } from '../backend/session-api-shapes.mjs';
+import { createSessionDetail, createSessionListItem } from '../backend/session/api-shapes.mjs';
 
 const sourceSession = {
   id: 'session-1',

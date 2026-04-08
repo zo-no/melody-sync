@@ -95,7 +95,7 @@ import {
   getSessionRunId,
   isSessionRunning,
   resolveSessionRunActivity,
-} from './session-activity.mjs';
+} from './session/activity.mjs';
 import {
   findSessionMeta,
   findSessionMetaCached,

@@ -1,5 +1,5 @@
 import { readBody } from '../../lib/utils.mjs';
-import { createSessionDetail } from '../session-api-shapes.mjs';
+import { createSessionDetail } from '../session/api-shapes.mjs';
 import {
   createCustomNodeKind,
   deleteCustomNodeKind,

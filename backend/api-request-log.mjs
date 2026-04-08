@@ -2,7 +2,7 @@ import { createWriteStream } from 'fs';
 import { join } from 'path';
 import { parse as parseUrl } from 'url';
 import { API_REQUEST_LOGS_DIR, CHAT_PORT } from '../lib/config.mjs';
-import { parseSessionGetRoute } from './session-route-utils.mjs';
+import { parseSessionGetRoute } from './session/route-utils.mjs';
 import { ensureDir } from './fs-utils.mjs';
 
 let currentDateKey = '';

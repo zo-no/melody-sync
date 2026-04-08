@@ -16,7 +16,7 @@ import { normalizeSessionAgreements } from './session-agreements.mjs';
 import { normalizeSessionPersistent } from './session-persistent/core.mjs';
 import { canonicalizeSessionFolder, inspectSessionFolder } from './session-folder.mjs';
 import { normalizeSessionTaskCard } from './session-task-card.mjs';
-import { buildSessionsIndexMarkdown } from './session-list-index.mjs';
+import { buildSessionsIndexMarkdown } from './session/list-index.mjs';
 
 let sessionsMetaCache = null;
 let sessionsMetaCacheMtimeMs = null;

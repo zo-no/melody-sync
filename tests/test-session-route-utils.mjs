@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { parseSessionGetRoute } from '../backend/session-route-utils.mjs';
+import { parseSessionGetRoute } from '../backend/session/route-utils.mjs';
 
 assert.deepEqual(
   parseSessionGetRoute('/api/sessions'),

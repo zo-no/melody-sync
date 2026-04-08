@@ -2,7 +2,7 @@
 
 import process from 'process';
 import { getSession, getSessionTimelineEvents } from '../backend/session-manager.mjs';
-import { buildSessionDisplayEvents } from '../backend/session-display-events.mjs';
+import { buildSessionDisplayEvents } from '../backend/session/display-events.mjs';
 
 function parseArgs(argv) {
   const parsed = {

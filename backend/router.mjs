@@ -37,9 +37,9 @@ import {
 } from './session-workflow-state.mjs';
 import { appendEvent, readEventBody } from './history.mjs';
 import { messageEvent } from './normalizer.mjs';
-import { createSessionDetail, createSessionListItem } from './session-api-shapes.mjs';
-import { buildEventBlockEvents, buildSessionDisplayEvents } from './session-display-events.mjs';
-import { parseSessionGetRoute } from './session-route-utils.mjs';
+import { createSessionDetail, createSessionListItem } from './session/api-shapes.mjs';
+import { buildEventBlockEvents, buildSessionDisplayEvents } from './session/display-events.mjs';
+import { parseSessionGetRoute } from './session/route-utils.mjs';
 import { escapeHtml, readBody } from '../lib/utils.mjs';
 import {
   getClientIp, isRateLimited, recordFailedAttempt, clearFailedAttempts,
