@@ -32,9 +32,11 @@ const mainSession = {
   id: 'main-2',
   name: '整理写作计划',
   updatedAt: '2026-04-03T10:00:00.000Z',
-  taskCard: {
+  sessionState: {
     goal: '整理写作计划',
+    mainGoal: '整理写作计划',
     checkpoint: '先拆出提纲和素材',
+    lineRole: 'main',
   },
 };
 
@@ -43,10 +45,11 @@ const branchSession = {
   name: 'Branch · 提纲拆解',
   updatedAt: '2026-04-03T10:10:00.000Z',
   sourceContext: { parentSessionId: 'main-2' },
-  taskCard: {
+  sessionState: {
     goal: '提纲拆解',
     mainGoal: '整理写作计划',
     lineRole: 'branch',
+    branchFrom: '整理写作计划',
     checkpoint: '先把章节结构列出来',
   },
 };
@@ -56,7 +59,7 @@ const nestedBranchSession = {
   name: 'Branch · 第一章',
   updatedAt: '2026-04-03T10:20:00.000Z',
   sourceContext: { parentSessionId: 'branch-2' },
-  taskCard: {
+  sessionState: {
     goal: '第一章',
     mainGoal: '整理写作计划',
     lineRole: 'branch',
@@ -69,7 +72,7 @@ const finishedBranchSession = {
   updatedAt: '2026-04-03T10:30:00.000Z',
   workflowState: 'done',
   sourceContext: { parentSessionId: 'main-2' },
-  taskCard: {
+  sessionState: {
     goal: '已完成支线',
     mainGoal: '整理写作计划',
     lineRole: 'branch',

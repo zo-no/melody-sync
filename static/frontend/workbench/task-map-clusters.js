@@ -9,6 +9,12 @@
     return trimText(value).replace(/\s+/g, " ").toLowerCase();
   }
 
+  function getSessionState(session) {
+    return session && typeof session.sessionState === "object" && session.sessionState
+      ? session.sessionState
+      : null;
+  }
+
   function getTaskRunStatusApi() {
     return root?.MelodySyncTaskRunStatus || root?.window?.MelodySyncTaskRunStatus || null;
   }
@@ -30,6 +36,9 @@
   }
 
   function getLineRole(session) {
+    const sessionState = getSessionState(session);
+    const lineRole = trimText(sessionState?.lineRole || "");
+    if (lineRole === "branch" || lineRole === "main") return lineRole;
     return trimText(session?._branchParentSessionId || session?.sourceContext?.parentSessionId) ? "branch" : "main";
   }
 
@@ -139,7 +148,14 @@
         _isSynthetic: true,
         mainSessionId: session.id,
         mainSession: session,
-        mainGoal: trimText(session?.taskCard?.mainGoal || session?.taskCard?.goal || session?.name || "当前任务"),
+        mainGoal: trimText(
+          getSessionState(session)?.mainGoal
+          || getSessionState(session)?.goal
+          || session?.taskCard?.mainGoal
+          || session?.taskCard?.goal
+          || session?.name
+          || "当前任务"
+        ),
         currentBranchSessionId: "",
         branchSessionIds: [],
         branchSessions: collectBranchSessions(session.id),
