@@ -39,10 +39,11 @@ export function isPreparedForkContextCurrent(prepared, snapshot, contextHead) {
   const summary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';
   const activeFromSeq = Number.isInteger(contextHead?.activeFromSeq) ? contextHead.activeFromSeq : 0;
   const handoffSeq = Number.isInteger(contextHead?.handoffSeq) ? contextHead.handoffSeq : 0;
-  const expectedMode = summary ? 'summary' : 'history';
+  const expectedMode = (summary || handoffSeq > 0) ? 'summary' : 'history';
+  const expectedSummary = handoffSeq > 0 ? '' : summary;
 
   return (prepared.mode || 'history') === expectedMode
-    && (prepared.summary || '') === summary
+    && (prepared.summary || '') === expectedSummary
     && (prepared.activeFromSeq || 0) === activeFromSeq
     && (prepared.handoffSeq || 0) === handoffSeq
     && (prepared.preparedThroughSeq || 0) === (snapshot?.latestSeq || 0);

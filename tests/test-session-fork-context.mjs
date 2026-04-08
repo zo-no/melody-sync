@@ -47,7 +47,7 @@ const {
     isPreparedForkContextCurrent(
       {
         mode: 'summary',
-        summary: 'same summary',
+        summary: '',
         activeFromSeq: 12,
         handoffSeq: 10,
         preparedThroughSeq: 20,
@@ -60,6 +60,25 @@ const {
       },
     ),
     true,
+  );
+
+  assert.equal(
+    isPreparedForkContextCurrent(
+      {
+        mode: 'summary',
+        summary: 'stale summary should not survive handoff mode',
+        activeFromSeq: 12,
+        handoffSeq: 10,
+        preparedThroughSeq: 20,
+      },
+      { latestSeq: 20 },
+      {
+        summary: 'same summary',
+        activeFromSeq: 12,
+        handoffSeq: 10,
+      },
+    ),
+    false,
   );
 
   assert.equal(

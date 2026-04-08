@@ -1403,7 +1403,7 @@ async function prepareForkContextSnapshot(sessionId, snapshot, contextHead) {
     const continuationBody = prepareSessionContinuationBody(continuationEvents);
     return {
       mode: 'summary',
-      summary,
+      summary: handoffEvent ? '' : summary,
       continuationBody,
       activeFromSeq,
       handoffSeq,
