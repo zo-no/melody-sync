@@ -210,7 +210,7 @@ melody-sync-instance/
 
 实现：
 
-- `backend/hooks/hook-settings-store.mjs`
+- `backend/hooks/runtime/settings-store.mjs`
 
 当前只持久化：
 

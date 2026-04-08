@@ -10,7 +10,7 @@
 
 当前已经补上的基础：
 
-- `backend/hooks/registry.mjs`
+- `backend/hooks/runtime/registry.mjs`
   - 统一维护 hooks event contract
 - `backend/hooks/builtin-hook-catalog.mjs`
   - 统一维护所有内建 hook 的定义信息

@@ -27,15 +27,15 @@
   - 只负责初始化并导出 hooks registry
 - `backend/hooks/contract/index.mjs`
   - 统一维护 hooks 的 layer/event contract
-- `backend/hooks/registry.mjs`
+- `backend/hooks/runtime/registry.mjs`
   - 维护事件定义、注册、启停和 emit
 - `backend/hooks/builtin-hook-catalog.mjs`
   - 统一维护所有内建 hook 的 metadata contract
-- `backend/hooks/hook-settings-store.mjs`
+- `backend/hooks/runtime/settings-store.mjs`
   - 维护 hooks 启停配置的持久化读写
-- `backend/hooks/register-builtin-hooks.mjs`
+- `backend/hooks/runtime/register-builtins.mjs`
   - 注册 repo 级内建 hooks
-- `backend/hooks/register-session-manager-hooks.mjs`
+- `backend/hooks/runtime/register-session-manager-hooks.mjs`
   - 注册必须依赖 session-manager 内部能力的 hooks
 - `backend/session-manager.mjs`
   - 只负责在启动和兼容入口里确保这些 hooks 已注册，不再内联 hook 实现
