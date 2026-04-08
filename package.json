@@ -91,6 +91,10 @@
   },
   "dependencies": {
     "@panzoom/panzoom": "^4.6.1",
+    "@xyflow/react": "^12.10.2",
+    "esbuild": "^0.28.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "web-push": "^3.6.7",
     "ws": "^8.19.0"
   }
