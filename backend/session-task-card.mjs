@@ -418,6 +418,36 @@ export function buildTaskCardPromptBlock(taskCard, options = {}) {
   ].filter(Boolean).join('\n\n---\n\n');
 }
 
+export function projectTaskCardFromSessionState(sessionState, options = {}) {
+  const goal = clipText(
+    sessionState?.goal || options?.sessionTitle || options?.taskTitle || '',
+    MAX_TASK_CARD_GOAL_CHARS,
+  );
+  const mainGoal = clipText(
+    sessionState?.mainGoal || goal || options?.sessionTitle || options?.taskTitle || '',
+    MAX_TASK_CARD_GOAL_CHARS,
+  );
+  const checkpoint = clipText(sessionState?.checkpoint || '', MAX_TASK_CARD_TEXT_CHARS);
+  const lineRole = normalizeTaskCardLineRole(sessionState?.lineRole || 'main');
+  const branchFrom = lineRole === 'branch'
+    ? clipText(sessionState?.branchFrom || mainGoal || goal || '', MAX_TASK_CARD_ITEM_CHARS)
+    : '';
+
+  if (!goal && !mainGoal && !checkpoint && lineRole === 'main' && !branchFrom) {
+    return null;
+  }
+
+  return normalizeSessionTaskCard({
+    mode: 'task',
+    summary: checkpoint || goal || mainGoal,
+    goal,
+    mainGoal: mainGoal || goal,
+    lineRole,
+    branchFrom,
+    checkpoint,
+  });
+}
+
 export function parseTaskCardFromAssistantContent(content) {
   const block = extractTaggedBlock(content, TASK_CARD_TAG);
   if (block) {

@@ -5,6 +5,7 @@ import {
   buildTaskCardPromptBlock,
   normalizeSessionTaskCard,
   parseTaskCardFromAssistantContent,
+  projectTaskCardFromSessionState,
   stripTaskCardFromAssistantContent,
   shouldSurfaceTaskCardBranchCandidate,
 } from '../backend/session-task-card.mjs';
@@ -121,6 +122,17 @@ assert.match(promptBlock, /Do not escape the slash as <\\\/task_card> or <\\\/pr
 assert.match(promptBlock, /task-bar subtitle rather than a full sentence description/);
 assert.match(promptBlock, /no more than 10 Chinese characters/i);
 assert.match(promptBlock, /Prefer a compact verb \+ object form/);
+
+const projectedFromSessionState = projectTaskCardFromSessionState({
+  goal: '收敛会话流程',
+  mainGoal: '重构会话系统',
+  checkpoint: '下一步拆 finalize',
+  lineRole: 'main',
+});
+
+assert.equal(projectedFromSessionState?.goal, '收敛会话流程');
+assert.equal(projectedFromSessionState?.mainGoal, '重构会话系统');
+assert.equal(projectedFromSessionState?.checkpoint, '下一步拆 finalize');
 
 const inferredProject = normalizeSessionTaskCard({
   summary: '材料较多，需要拆步骤推进。',

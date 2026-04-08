@@ -116,6 +116,7 @@ import {
   buildTaskCardPromptBlock,
   normalizeSessionTaskCard,
   parseTaskCardFromAssistantContent,
+  projectTaskCardFromSessionState,
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
 import { resolveSessionStateFromSession } from './session-state.mjs';
@@ -2059,9 +2060,12 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
   let actualText = text;
   if (promptMode === 'default') {
     const turnSections = [];
+    const promptTaskCard = session?.taskCard || projectTaskCardFromSessionState(session?.sessionState, {
+      sessionTitle: session?.name || '',
+    });
     const taskCardPromptBlock = options.internalOperation
       ? ''
-      : buildTaskCardPromptBlock(session?.taskCard, {
+      : buildTaskCardPromptBlock(promptTaskCard, {
           sessionTitle: session?.name || '',
         });
 

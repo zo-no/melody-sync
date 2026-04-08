@@ -167,4 +167,28 @@ assert.match(promptWithTaskCard, /sales\.xlsx/);
 assert.match(promptWithTaskCard, /append exactly one final hidden <private><task_card> JSON block/i);
 assert.match(promptWithTaskCard, /keep goal and mainGoal anchored to the fixed session task title/i);
 
+const promptWithSessionStateOnly = await buildPrompt(
+  'session-test-8',
+  {
+    ...baseSession,
+    name: '收口会话主链',
+    sessionState: {
+      goal: '重构会话主链',
+      mainGoal: '梳理会话交互流程',
+      checkpoint: '下一步把 continuation 降为派生文本',
+      lineRole: 'main',
+    },
+  },
+  '继续推进。',
+  'codex',
+  'codex',
+  null,
+  { skipSessionContinuation: true },
+);
+
+assert.match(promptWithSessionStateOnly, /Current carried task card/);
+assert.match(promptWithSessionStateOnly, /Fixed session task title: 收口会话主链/);
+assert.match(promptWithSessionStateOnly, /重构会话主链/);
+assert.match(promptWithSessionStateOnly, /下一步把 continuation 降为派生文本/);
+
 console.log('test-session-manager-build-prompt: ok');
