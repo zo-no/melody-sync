@@ -118,6 +118,11 @@ import {
   parseTaskCardFromAssistantContent,
   stripTaskCardFromAssistantContent,
 } from './session-task-card.mjs';
+import {
+  buildNormalizedRunResultEnvelope,
+  mergeRunResultWithEnvelope,
+  runResultEnvelopeHasMeaningfulContent,
+} from './run-result-envelope.mjs';
 import { writeSessionDeletionJournalEntry } from './session-deletion-journal.mjs';
 import {
   buildPersistentDigest,
@@ -1010,6 +1015,19 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
     if (reconciled) {
       run = reconciled;
       result = await getRunResult(runId);
+    }
+  }
+  const resultEnvelope = buildNormalizedRunResultEnvelope({
+    result,
+    normalizedEvents,
+    parseTaskCardFromAssistantContent,
+  });
+  if (runResultEnvelopeHasMeaningfulContent(resultEnvelope)) {
+    const mergedResult = mergeRunResultWithEnvelope(result, resultEnvelope);
+    if (JSON.stringify(mergedResult) !== JSON.stringify(result || {})) {
+      result = await writeRunResult(runId, mergedResult);
+    } else {
+      result = mergedResult;
     }
   }
   const inferredState = deriveRunStateFromResult(run, result);

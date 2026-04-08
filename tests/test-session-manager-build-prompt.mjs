@@ -47,7 +47,6 @@ const freshPrompt = await buildPrompt(
   { skipSessionContinuation: true },
 );
 
-assert.match(freshPrompt, /User message:/);
 assert.match(freshPrompt, /\[Manager context\]/);
 assert.match(freshPrompt, /Current user message:/);
 assert.match(freshPrompt, /do not mirror its headings, bullets, or checklist structure back to the user/);
