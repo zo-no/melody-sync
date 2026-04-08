@@ -4,8 +4,6 @@ Status: implementation note from 2026-03-18; partially superseded as a product h
 
 Use this note for the session-first/main-flow implementation details, but treat multi-session fan-out and cross-session freshness as enabling capabilities rather than the primary top-level product promise.
 
-Concrete execution companion: `notes/current/session-main-flow-next-push.md`
-
 Historical board-first hypothesis: `notes/archive/board-fanout-next-push.md`
 
 ## Decision

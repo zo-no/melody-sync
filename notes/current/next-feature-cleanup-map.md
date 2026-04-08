@@ -95,7 +95,6 @@
 
 - `notes/current/capability-first-shipping-plan.md`
 - `notes/current/remove-board-and-rewrite-main-flow.md`
-- `notes/current/session-main-flow-next-push.md`
 - `notes/current/operator-throughput-control-surface.md`
 - `notes/current/ai-era-hard-skills-roadmap.md`
 

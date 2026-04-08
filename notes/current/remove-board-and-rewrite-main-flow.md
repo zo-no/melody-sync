@@ -5,7 +5,6 @@ Status: current decision record as of 2026-03-18
 Related notes:
 
 - `notes/current/capability-first-shipping-plan.md`
-- `notes/current/session-main-flow-next-push.md`
 - `notes/current/session-first-workflow-surfaces.md`
 
 ## Decision

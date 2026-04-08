@@ -84,7 +84,6 @@
 
 - `capability-first-shipping-plan.md`
 - `remove-board-and-rewrite-main-flow.md`
-- `session-main-flow-next-push.md`
 - `session-state-audit.md`
 - `operator-throughput-control-surface.md`
 
@@ -177,7 +176,6 @@
 1. 主流程相关文档存在一定重叠：
    - `capability-first-shipping-plan.md`
    - `remove-board-and-rewrite-main-flow.md`
-   - `session-main-flow-next-push.md`
    - `session-run-closure-requirements.md`
 
 2. 如果后续任务闭环路线成为新的顶层产品方向，应考虑：
