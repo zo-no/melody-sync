@@ -28,7 +28,7 @@ import {
   buildSessionFolderUnavailableMessage,
   canonicalizeSessionFolder,
   inspectSessionFolder,
-} from './session-folder.mjs';
+} from './session/folder.mjs';
 import {
   buildSessionOrganizerPrompt,
   extractSessionOrganizerAssistantText,
@@ -37,7 +37,7 @@ import {
 } from './session-organizer.mjs';
 import { triggerSessionLabelSuggestion } from './summarizer.mjs';
 import { buildSystemContext } from './system-prompt.mjs';
-import { normalizeSessionAgreements } from './session-agreements.mjs';
+import { normalizeSessionAgreements } from './session/agreements.mjs';
 import {
   buildSessionContinuationContextFromBody,
   prepareSessionContinuationBody,
@@ -49,13 +49,13 @@ import {
   normalizeSessionDescription,
   normalizeSessionGroup,
   resolveInitialSessionName,
-} from './session-naming.mjs';
+} from './session/naming.mjs';
 import {
   didSessionWorkflowTransitionToDone,
   normalizeSessionWorkflowPriority,
   normalizeSessionWorkflowState,
   SESSION_WORKFLOW_STATE_WAITING_USER,
-} from './session-workflow-state.mjs';
+} from './session/workflow-state.mjs';
 import {
   formatAttachmentContextLine,
   stripEventAttachmentSavedPaths,

@@ -3,7 +3,7 @@ import assert from 'assert/strict';
 import {
   buildSessionAgreementsPromptBlock,
   normalizeSessionAgreements,
-} from '../backend/session-agreements.mjs';
+} from '../backend/session/agreements.mjs';
 
 const normalized = normalizeSessionAgreements([
   '  默认用自然段表达  ',

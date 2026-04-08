@@ -7,7 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
 const workflowState = await import(
-  pathToFileURL(join(repoRoot, 'backend', 'session-workflow-state.mjs')).href
+  pathToFileURL(join(repoRoot, 'backend', 'session', 'workflow-state.mjs')).href
 );
 
 assert.equal(

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
 
-const { analyzeTurnRouting, buildTurnRoutingHint } = await import('../backend/session-routing.mjs');
+const { analyzeTurnRouting, buildTurnRoutingHint } = await import('../backend/session/routing.mjs');
 
 const routed = analyzeTurnRouting(`现在手上都有哪些任务，我觉得需要关注两点：
 1. 现在都积压了哪些任务，我们看下接下来做什么

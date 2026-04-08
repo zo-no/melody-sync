@@ -11,10 +11,10 @@ import {
 import {
   normalizeSessionWorkflowPriority,
   normalizeSessionWorkflowState,
-} from './session-workflow-state.mjs';
-import { normalizeSessionAgreements } from './session-agreements.mjs';
+} from './session/workflow-state.mjs';
+import { normalizeSessionAgreements } from './session/agreements.mjs';
 import { normalizeSessionPersistent } from './session-persistent/core.mjs';
-import { canonicalizeSessionFolder, inspectSessionFolder } from './session-folder.mjs';
+import { canonicalizeSessionFolder, inspectSessionFolder } from './session/folder.mjs';
 import { normalizeSessionTaskCard } from './session-task-card.mjs';
 import { buildSessionsIndexMarkdown } from './session/list-index.mjs';
 

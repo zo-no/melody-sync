@@ -34,7 +34,7 @@ import {
 import {
   normalizeSessionWorkflowPriority,
   normalizeSessionWorkflowState,
-} from './session-workflow-state.mjs';
+} from './session/workflow-state.mjs';
 import { appendEvent, readEventBody } from './history.mjs';
 import { messageEvent } from './normalizer.mjs';
 import { createSessionDetail, createSessionListItem } from './session/api-shapes.mjs';

@@ -9,7 +9,7 @@ import {
   normalizeSessionDescription,
   normalizeSessionGroup,
   normalizeSessionName,
-} from '../session-naming.mjs';
+} from '../session/naming.mjs';
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 
 const PROJECTS_MD = join(MEMORY_DIR, 'projects.md');

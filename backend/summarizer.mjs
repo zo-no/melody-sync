@@ -8,14 +8,14 @@ import {
   isSessionAutoRenamePending,
   normalizeSessionDescription,
   normalizeSessionGroup,
-} from './session-naming.mjs';
+} from './session/naming.mjs';
 import { loadSessionLabelPromptContext } from './session-prompt/label-context.mjs';
 import {
   inferSessionWorkflowPriorityFromText,
   inferSessionWorkflowStateFromText,
   normalizeSessionWorkflowPriority,
   normalizeSessionWorkflowState,
-} from './session-workflow-state.mjs';
+} from './session/workflow-state.mjs';
 
 function clipPromptText(value, maxChars) {
   const text = typeof value === 'string' ? value.trim() : '';
