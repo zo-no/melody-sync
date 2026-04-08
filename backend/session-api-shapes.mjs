@@ -1,3 +1,5 @@
+import { resolveSessionStateFromSession } from './session-state.mjs';
+
 function cloneJson(value) {
   if (value === null || value === undefined) return value;
   return JSON.parse(JSON.stringify(value));
@@ -7,6 +9,7 @@ function stripSessionShape(session, {
   includeQueuedMessages = false,
 } = {}) {
   if (!session || typeof session !== 'object') return null;
+  const sessionState = resolveSessionStateFromSession(session, session?.sourceContext || null);
   const cloned = cloneJson(session);
   delete cloned.board;
   delete cloned.task;
@@ -16,6 +19,7 @@ function stripSessionShape(session, {
   if (!includeQueuedMessages) {
     delete cloned.queuedMessages;
   }
+  cloned.sessionState = sessionState;
   return cloned;
 }
 
