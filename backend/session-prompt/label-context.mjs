@@ -1,16 +1,16 @@
 import { readFile } from 'fs/promises';
 import { homedir } from 'os';
 import { join } from 'path';
-import { CHAT_SESSIONS_FILE, MEMORY_DIR } from '../lib/config.mjs';
-import { getContextHead } from './history.mjs';
-import { readJson } from './fs-utils.mjs';
+import { CHAT_SESSIONS_FILE, MEMORY_DIR } from '../../lib/config.mjs';
+import { getContextHead } from '../history.mjs';
+import { readJson } from '../fs-utils.mjs';
 import {
   DEFAULT_SESSION_NAME,
   normalizeSessionDescription,
   normalizeSessionGroup,
   normalizeSessionName,
-} from './session-naming.mjs';
-import { resolveSessionStateFromSession } from './session-runtime/session-state.mjs';
+} from '../session-naming.mjs';
+import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 
 const PROJECTS_MD = join(MEMORY_DIR, 'projects.md');
 const MAX_CONTEXT_SUMMARY_CHARS = 900;

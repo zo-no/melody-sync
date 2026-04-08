@@ -9,7 +9,7 @@ import {
   normalizeSessionDescription,
   normalizeSessionGroup,
 } from './session-naming.mjs';
-import { loadSessionLabelPromptContext } from './session-label-context.mjs';
+import { loadSessionLabelPromptContext } from './session-prompt/label-context.mjs';
 import {
   inferSessionWorkflowPriorityFromText,
   inferSessionWorkflowStateFromText,
