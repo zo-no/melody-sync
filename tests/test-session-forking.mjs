@@ -272,8 +272,45 @@ try {
   assert.equal(compactionChildContext?.summary || '', '', 'forked child should not carry forward legacy summary when a handoff already exists');
   assert.equal(compactionChildContext?.handoffSeq, 2, 'forked child should keep the handoff reference');
 
+  const handoffOnlyParent = await createSession(workspace, 'missing-tool', 'Handoff-only parent', {
+    group: 'Painting',
+    description: 'Forked child should still reuse handoff when legacy summary is empty',
+  });
+  await appendEvents(handoffOnlyParent.id, [
+    {
+      type: 'message',
+      role: 'user',
+      content: 'Keep only the handoff as carry-forward context.',
+      timestamp: 30,
+    },
+    {
+      type: 'message',
+      role: 'assistant',
+      content: '# Auto Compress\n\n## Continue from here\n- Resume from handoff only.',
+      timestamp: 31,
+      source: 'context_compaction_handoff',
+    },
+  ]);
+  await setContextHead(handoffOnlyParent.id, {
+    mode: 'summary',
+    summary: '',
+    activeFromSeq: 2,
+    compactedThroughSeq: 2,
+    handoffSeq: 2,
+    updatedAt: '2026-03-13T00:00:00.000Z',
+    source: 'context_compaction',
+  });
+  const handoffOnlyChild = await forkSession(handoffOnlyParent.id);
+  assert.ok(handoffOnlyChild, 'fork should succeed for handoff-only parent sessions');
+  const handoffOnlyOutcome = await submitHttpMessage(handoffOnlyChild.id, 'Continue from the handoff only.', [], {
+    requestId: 'req_handoff_only_fork',
+    queueIfBusy: false,
+  });
+  const handoffOnlyManifest = await getRunManifest(handoffOnlyOutcome.run.id);
+  assert.match(handoffOnlyManifest?.prompt || '', /# Auto Compress/, 'forked child should still reuse an existing handoff even when legacy summary is empty');
+
   console.log('test-session-forking: ok');
 } finally {
   killAll();
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
 }

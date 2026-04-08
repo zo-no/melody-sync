@@ -1378,8 +1378,9 @@ async function prepareForkContextSnapshot(sessionId, snapshot, contextHead) {
   const activeFromSeq = Number.isInteger(contextHead?.activeFromSeq) ? contextHead.activeFromSeq : 0;
   const handoffSeq = Number.isInteger(contextHead?.handoffSeq) ? contextHead.handoffSeq : 0;
   const preparedThroughSeq = snapshot?.latestSeq || 0;
+  const hasCarryForwardContext = Boolean(summary) || handoffSeq > 0;
 
-  if (summary) {
+  if (hasCarryForwardContext) {
     const [recentEvents, handoffHistory] = await Promise.all([
       preparedThroughSeq > activeFromSeq
         ? loadHistory(sessionId, {
@@ -1490,10 +1491,11 @@ async function buildCompactionSourcePayload(sessionId, session, { uptoSeq = 0 } 
   const activeFromSeq = Number.isInteger(contextHead?.activeFromSeq) ? contextHead.activeFromSeq : 0;
   const handoffSeq = Number.isInteger(contextHead?.handoffSeq) ? contextHead.handoffSeq : 0;
   const sliceEvents = boundedHistory.filter((event) => (event?.seq || 0) > activeFromSeq);
-  const existingSummary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';
+  const summary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';
   const handoffEvent = handoffSeq > 0
     ? boundedHistory.find((event) => (event?.seq || 0) === handoffSeq && event?.type === 'message')
     : null;
+  const existingSummary = handoffEvent ? '' : summary;
   const existingHandoff = handoffEvent
     ? prepareConversationOnlyContinuationBody([handoffEvent])
     : '';
