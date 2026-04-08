@@ -22,7 +22,6 @@ Current examples:
 - `current/core-domain-refactor-todo.md`
 - `current/core-domain-session-prompts.md`
 - `current/memory-activation-architecture.md`
-- `current/performance-optimization-checklist.md`
 - `current/self-hosting-dev-restarts.md`
 
 ### `directional/`
