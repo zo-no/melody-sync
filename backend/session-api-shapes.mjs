@@ -1,4 +1,5 @@
 import { resolveSessionStateFromSession } from './session-state.mjs';
+import { projectTaskCardFromSessionState } from './session-task-card.mjs';
 
 function cloneJson(value) {
   if (value === null || value === undefined) return value;
@@ -20,6 +21,14 @@ function stripSessionShape(session, {
     delete cloned.queuedMessages;
   }
   cloned.sessionState = sessionState;
+  if (!cloned.taskCard || typeof cloned.taskCard !== 'object') {
+    const projectedTaskCard = projectTaskCardFromSessionState(sessionState, {
+      sessionTitle: cloned.name || '',
+    });
+    if (projectedTaskCard) {
+      cloned.taskCard = projectedTaskCard;
+    }
+  }
   return cloned;
 }
 
