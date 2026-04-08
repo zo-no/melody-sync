@@ -1960,9 +1960,6 @@ function stabilizeSessionTaskCard(sessionMeta, taskCard, options = {}) {
 
     return normalizeSessionTaskCard({
       ...parsedTaskCard,
-      summary: shouldPreserveManagedSummary
-        ? parsedTaskCard.summary
-        : (currentTaskCard?.summary || parsedTaskCard.summary),
       goal: anchoredMainGoal,
       mainGoal: anchoredMainGoal,
       lineRole: shouldPreserveManagedLineRole ? resolvedLineRole : 'main',

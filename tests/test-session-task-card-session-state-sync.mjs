@@ -49,6 +49,18 @@ async function main() {
     'updating taskCard should also keep sessionState synchronized with the stabilized task-card projection so legacy task-card writes do not fork the state truth',
   );
 
+  await updateSessionTaskCard(session.id, {
+    goal: '收敛会话架构第二轮',
+    mainGoal: '重构会话系统',
+  });
+
+  const refreshed = await getSession(session.id);
+  assert.equal(
+    refreshed?.taskCard?.summary,
+    '',
+    'taskCard summary should stop carrying forward a legacy summary when the latest task-card payload does not provide one',
+  );
+
   rmSync(home, { recursive: true, force: true });
   rmSync(workdir, { recursive: true, force: true });
   console.log('test-session-task-card-session-state-sync: ok');
