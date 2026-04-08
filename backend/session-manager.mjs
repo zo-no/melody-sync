@@ -1397,17 +1397,23 @@ async function prepareForkContextSnapshot(sessionId, snapshot, contextHead) {
     const handoffEvent = handoffSeq > 0
       ? handoffHistory.find((event) => (event?.seq || 0) === handoffSeq && event?.type === 'message')
       : null;
+    const fallbackHandoffEvent = !handoffEvent && summary
+      ? messageEvent('assistant', buildFallbackCompactionHandoff(summary, ''), undefined, {
+          source: 'context_compaction_handoff',
+          synthetic: true,
+        })
+      : null;
     const continuationEvents = handoffEvent
       ? [handoffEvent, ...recentEvents]
-      : recentEvents;
+      : (fallbackHandoffEvent ? [fallbackHandoffEvent, ...recentEvents] : recentEvents);
     const continuationBody = prepareSessionContinuationBody(continuationEvents);
     return {
       mode: 'summary',
-      summary: handoffEvent ? '' : summary,
+      summary: '',
       continuationBody,
       activeFromSeq,
       handoffSeq,
-      includesCompactionHandoff: Boolean(handoffEvent),
+      includesCompactionHandoff: Boolean(handoffEvent || fallbackHandoffEvent),
       preparedThroughSeq,
       contextUpdatedAt: contextHead?.updatedAt || null,
       updatedAt: nowIso(),

@@ -21,13 +21,7 @@ export function buildPreparedContinuationContext(prepared, previousTool, effecti
   }
 
   if (continuation) {
-    if (includesCompactionHandoff || sessionState) {
-      return continuation;
-    }
-    const summaryLabel = sessionState
-      ? '[Earlier compressed summary]'
-      : '[Conversation summary]';
-    return `${continuation}\n\n---\n\n${summaryLabel}\n\n${summary}`;
+    return continuation;
   }
 
   return `[Conversation summary]\n\n${summary}`;
@@ -40,7 +34,7 @@ export function isPreparedForkContextCurrent(prepared, snapshot, contextHead) {
   const activeFromSeq = Number.isInteger(contextHead?.activeFromSeq) ? contextHead.activeFromSeq : 0;
   const handoffSeq = Number.isInteger(contextHead?.handoffSeq) ? contextHead.handoffSeq : 0;
   const expectedMode = (summary || handoffSeq > 0) ? 'summary' : 'history';
-  const expectedSummary = handoffSeq > 0 ? '' : summary;
+  const expectedSummary = '';
 
   return (prepared.mode || 'history') === expectedMode
     && (prepared.summary || '') === expectedSummary

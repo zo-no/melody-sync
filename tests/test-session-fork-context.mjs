@@ -49,8 +49,40 @@ const {
     includesCompactionHandoff: false,
   }, 'codex', 'codex', null);
 
+  assert.doesNotMatch(continuation, /\[Conversation summary]/);
+  assert.doesNotMatch(continuation, /summary still falls back when session state is absent/);
+}
+
+{
+  const continuation = buildPreparedContinuationContext({
+    summary: 'summary still falls back when continuation is absent',
+    continuationBody: '',
+    includesCompactionHandoff: false,
+  }, 'codex', 'codex', null);
+
   assert.match(continuation, /\[Conversation summary]/);
-  assert.match(continuation, /summary still falls back when session state is absent/);
+  assert.match(continuation, /summary still falls back when continuation is absent/);
+}
+
+{
+  assert.equal(
+    isPreparedForkContextCurrent(
+      {
+        mode: 'summary',
+        summary: '',
+        activeFromSeq: 12,
+        handoffSeq: 0,
+        preparedThroughSeq: 20,
+      },
+      { latestSeq: 20 },
+      {
+        summary: 'legacy summary should be normalized into handoff-only prepared state',
+        activeFromSeq: 12,
+        handoffSeq: 0,
+      },
+    ),
+    true,
+  );
 }
 
 {
