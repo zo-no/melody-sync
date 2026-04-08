@@ -32,7 +32,6 @@
 10. `product-surface-lifecycle.md`
 11. `session-run-closure-requirements.md`
 12. `core-domain-refactor-todo.md`
-13. `documentation-flywheel.md`
 
 ### 各自作用与管理方式
 
@@ -72,9 +71,6 @@
 - `core-domain-refactor-todo.md`
   - 当前重构待办和代码拆分主方向
   - 管理方式：当前重构期间持续更新，阶段结束后收口
-- `documentation-flywheel.md`
-  - 文档如何服务产品目标、重构执行、实现和测试，形成项目飞轮
-  - 管理方式：长期保留，作为文档治理规则
 
 ## B. 阶段性主流程文档
 
@@ -143,7 +139,6 @@
 9. `session-first-workflow-surfaces.md`
 10. `core-domain-refactor-todo.md`
 11. `session-run-closure-requirements.md`
-12. `documentation-flywheel.md`
 
 这样能先掌握：
 

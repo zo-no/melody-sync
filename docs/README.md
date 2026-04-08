@@ -30,10 +30,6 @@ For the current internal note grouping, also see:
 
 - `../notes/current/README.md`
 
-If you want to understand how the docs should be managed as a project system rather than a file pile, also read:
-
-- `../notes/current/documentation-flywheel.md`
-
 ## Keep These In Sync
 
 When the system changes, update the matching surface instead of letting discussion notes carry the only truth:
@@ -77,7 +73,6 @@ For setup, deployment, connector, and feature-rollout docs, assume the operator 
 ### Product Direction And Internal Maps
 
 - `../notes/current/README.md` — current internal note map and grouping
-- `../notes/current/documentation-flywheel.md` — how docs should drive product, refactor, implementation, and cleanup
 - `../notes/current/core-domain-contract.md` — current domain contract
 - `../notes/current/core-domain-implementation-mapping.md` — current code/object mapping
 - `../notes/current/core-domain-refactor-todo.md` — active refactor backlog
