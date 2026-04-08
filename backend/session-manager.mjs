@@ -1381,11 +1381,14 @@ function buildPreparedContinuationContext(prepared, previousTool, effectiveTool,
     return continuation;
   }
 
-  let full = `[Conversation summary]\n\n${summary}`;
   if (continuation) {
-    full = `${full}\n\n---\n\n${continuation}`;
+    const summaryLabel = sessionState
+      ? '[Earlier compressed summary]'
+      : '[Conversation summary]';
+    return `${continuation}\n\n---\n\n${summaryLabel}\n\n${summary}`;
   }
-  return full;
+
+  return `[Conversation summary]\n\n${summary}`;
 }
 
 function isPreparedForkContextCurrent(prepared, snapshot, contextHead) {
