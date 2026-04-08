@@ -100,6 +100,34 @@ await writeFile(tempConfigPath, `${JSON.stringify({
   connectorId: 'living-room-speaker',
   roomName: 'Living Room',
   chatBaseUrl: 'http://127.0.0.1:7690',
+  sessionFolder: repoRoot,
+  wake: {
+    mode: 'stdin',
+    keyword: 'Hey Rowan',
+  },
+  tts: {
+    enabled: true,
+    mode: 'xfyun',
+    voice: 'x4_xiaoyan',
+    env: {
+      XFYUN_APP_ID: 'test-app-id',
+      XFYUN_API_KEY: 'test-api-key',
+      XFYUN_API_SECRET: 'test-api-secret',
+    },
+  },
+}, null, 2)}\n`, 'utf8')
+const xfyunConfig = await loadConfig(tempConfigPath)
+assert.equal(xfyunConfig.tts.mode, 'xfyun')
+assert.equal(xfyunConfig.tts.enabled, true)
+assert.equal(xfyunConfig.tts.voice, 'x4_xiaoyan')
+assert.equal(xfyunConfig.tts.env.XFYUN_APP_ID, 'test-app-id')
+assert.equal(xfyunConfig.tts.env.XFYUN_API_KEY, 'test-api-key')
+assert.equal(xfyunConfig.tts.env.XFYUN_API_SECRET, 'test-api-secret')
+
+await writeFile(tempConfigPath, `${JSON.stringify({
+  connectorId: 'living-room-speaker',
+  roomName: 'Living Room',
+  chatBaseUrl: 'http://127.0.0.1:7690',
   sessionFolder: '/definitely/missing/melodysync/voice-folder',
   wake: {
     mode: 'stdin',

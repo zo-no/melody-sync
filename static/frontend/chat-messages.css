@@ -514,6 +514,35 @@
 .change-type.edit, .change-type.update { background: var(--bg-tertiary); color: var(--text-secondary); }
 .change-type.delete { background: var(--error-bg); color: var(--error); }
 
+/* Tool/file card visual de-emphasis */
+.tool-card,
+.file-card {
+  background: color-mix(in srgb, var(--tool-bg) 64%, var(--bg));
+  border-color: color-mix(in srgb, var(--border) 72%, transparent);
+}
+.tool-header {
+  color: color-mix(in srgb, var(--text-secondary) 78%, var(--bg));
+}
+.tool-header .tool-name {
+  color: color-mix(in srgb, var(--text) 74%, var(--bg));
+  font-weight: 450;
+}
+.tool-header .tool-toggle {
+  color: color-mix(in srgb, var(--text-muted) 78%, transparent);
+}
+.tool-body pre,
+.tool-result {
+  background: color-mix(in srgb, var(--bg-tertiary) 72%, var(--bg));
+  color: color-mix(in srgb, var(--text-secondary) 88%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+}
+.tool-result-label {
+  color: color-mix(in srgb, var(--text-muted) 84%, var(--bg));
+}
+.file-path {
+  color: color-mix(in srgb, var(--text) 76%, var(--bg));
+}
+
 /* ---- MelodySync soft-card refresh ---- */
 .messages {
   padding: 18px var(--chat-gutter) 12px;
@@ -807,4 +836,52 @@
   .context-barrier {
     background: var(--tool-bg);
   }
+}
+
+/* ---- Compact transcript spacing ---- */
+.messages-inner {
+  gap: 0;
+  padding-bottom: 0;
+}
+
+.msg-user,
+.msg-assistant,
+.thinking-block,
+.usage-info,
+.msg-system,
+.manager-context,
+.reasoning,
+.tool-card,
+.file-card,
+.context-barrier,
+.turn-collapse-drawer {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.msg-images {
+  margin-bottom: 0;
+}
+
+.msg-timestamp,
+.msg-assistant-time,
+.msg-user-time,
+.tool-result-label {
+  margin-top: 2px;
+  margin-bottom: 0;
+}
+
+.thinking-body {
+  margin-left: 0;
+  padding-top: 0;
+}
+
+.md-content p,
+.md-content ul,
+.md-content ol,
+.md-content pre,
+.md-content blockquote,
+.md-content table {
+  margin-top: 0;
+  margin-bottom: 0;
 }

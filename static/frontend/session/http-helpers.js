@@ -211,6 +211,7 @@ async function fetchJsonOrRedirect(url, options = {}) {
     ...requestOptions,
     method,
     headers,
+    cache: "no-store",
   });
   const redirectedToLogin =
     res.redirected && new URL(res.url, window.location.href).pathname === "/login";

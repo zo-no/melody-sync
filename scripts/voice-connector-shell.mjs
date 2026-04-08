@@ -142,6 +142,64 @@ async function runSay(text, ttsConfig, options = {}) {
   })
 }
 
+async function runAfplay(audioPath, options = {}) {
+  const normalizedPath = trimString(audioPath)
+  if (!normalizedPath) {
+    throw new Error('Audio path is required')
+  }
+  await new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn('/usr/bin/afplay', [normalizedPath], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+    })
+    if (typeof options.onSpawn === 'function') {
+      try {
+        options.onSpawn(child)
+      } catch {}
+    }
+
+    let stderr = ''
+    let settled = false
+    let timeoutHandle = null
+
+    const settle = (error) => {
+      if (settled) return
+      settled = true
+      if (timeoutHandle) clearTimeout(timeoutHandle)
+      if (error) {
+        rejectPromise(error)
+        return
+      }
+      resolvePromise()
+    }
+
+    if (options.timeoutMs > 0) {
+      timeoutHandle = setTimeout(() => {
+        child.kill('SIGTERM')
+        settle(new Error(`afplay timed out after ${options.timeoutMs}ms`))
+      }, options.timeoutMs)
+    }
+
+    child.on('error', (error) => {
+      settle(error)
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString()
+    })
+    child.on('close', (code, signal) => {
+      if (settled) return
+      if (options.allowInterrupt === true && ['SIGTERM', 'SIGINT'].includes(signal || '')) {
+        settle(null)
+        return
+      }
+      if (code !== 0) {
+        settle(new Error(`afplay failed (${code}${signal ? `/${signal}` : ''}): ${trimString(stderr) || 'unknown error'}`))
+        return
+      }
+      settle(null)
+    })
+  })
+}
+
 function parseCommandPayload(text) {
   const normalized = trimString(text)
   if (!normalized) return null
@@ -156,6 +214,7 @@ function parseCommandPayload(text) {
 
 export {
   parseCommandPayload,
+  runAfplay,
   runSay,
   runShellCommand,
 }

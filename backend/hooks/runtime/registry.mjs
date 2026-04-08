@@ -139,8 +139,7 @@ export function getHookEnabledOverrides() {
 
 function collectHooks(event) {
   return collectEntriesForEvent(registry, event)
-    .filter((entry) => entry.meta?.enabled !== false)
-    .map((entry) => entry.fn);
+    .filter((entry) => entry.meta?.enabled !== false);
 }
 
 function collectEntriesForEvent(sourceRegistry, event) {
@@ -160,18 +159,47 @@ function collectEntriesForEvent(sourceRegistry, event) {
 
 export async function emit(event, ctx) {
   const hooks = collectHooks(event);
-  if (hooks.length === 0) return;
+  if (hooks.length === 0) {
+    return {
+      event,
+      hookCount: 0,
+      executed: [],
+      failures: [],
+    };
+  }
 
   const fullCtx = { event, ...ctx };
-  const results = await Promise.allSettled(hooks.map((hook) => hook(fullCtx)));
+  const results = await Promise.allSettled(hooks.map((entry) => entry.fn(fullCtx)));
+  const executed = [];
+  const failures = [];
 
-  for (const result of results) {
+  for (let index = 0; index < results.length; index += 1) {
+    const result = results[index];
+    const entry = hooks[index];
+    const hookId = normalizeHookId(entry?.meta?.id) || `hook_${index + 1}`;
+    const hookLabel = String(entry?.meta?.label || hookId || '').trim() || hookId;
+    executed.push({
+      id: hookId,
+      label: hookLabel,
+      eventPattern: entry?.meta?.eventPattern || event,
+    });
     if (result.status === 'rejected') {
-      console.error(
-        `[session-hooks] ${event} ${ctx.sessionId || ''}: ${result.reason?.message ?? result.reason}`,
-      );
+      const reason = result.reason?.message ?? result.reason;
+      failures.push({
+        id: hookId,
+        label: hookLabel,
+        reason: typeof reason === 'string' ? reason : String(reason),
+      });
+      console.error(`[session-hooks] ${event} ${ctx.sessionId || ''}: ${reason}`);
     }
   }
+
+  return {
+    event,
+    hookCount: hooks.length,
+    executed,
+    failures,
+  };
 }
 
 export async function collectPromptContexts(event, ctx) {

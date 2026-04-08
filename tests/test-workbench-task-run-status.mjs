@@ -65,6 +65,17 @@ assert.deepEqual(
 );
 
 assert.equal(
+  api.getTaskRunStatusResolvedNodeClassName('completed'),
+  'is-resolved',
+  'completed statuses should map to terminal is-resolved node style for shared UI semantics',
+);
+assert.equal(
+  api.getTaskRunStatusResolvedNodeClassName('parked'),
+  'is-parked',
+  'parked statuses should map to shared is-parked terminal style',
+);
+
+assert.equal(
   api.getTaskRunStatusClassName('rename_failed', 'is-status'),
   'is-status-rename-failed',
   'class-name helper should normalize underscores for downstream consumers',

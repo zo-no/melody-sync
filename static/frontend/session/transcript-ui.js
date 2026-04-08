@@ -774,7 +774,7 @@ function renderThinkingBlockEvent(evt) {
 
   const sessionId = currentSessionId;
   const running = isRunningThinkingBlockEvent(evt);
-  const expandedByDefault = running && renderedEventState?.runningBlockExpanded === true;
+  const expandedByDefault = true;
   const thinking = createDeferredThinkingBlock(getThinkingBlockLabel(evt), {
     collapsed: !expandedByDefault,
   });
@@ -824,13 +824,18 @@ function renderToolResult(evt) {
 }
 
 function renderFileChange(evt) {
-  const container = getThinkingBody();
+  const container = messagesInner;
   renderFileChangeInto(container, evt);
 }
 
 function renderReasoning(evt) {
-  const container = getThinkingBody();
+  const container = messagesInner;
   renderReasoningInto(container, evt);
+}
+
+function renderManagerContext(evt) {
+  const container = messagesInner;
+  renderManagerContextInto(container, evt);
 }
 
 function renderStatusInto(container, evt) {

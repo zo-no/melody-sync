@@ -17,9 +17,22 @@ const TASK_CARD_KEYS = new Set([
   'memory',
   'needsFromUser',
 ]);
-const MAX_TASK_CARD_TEXT_CHARS = 360;
-const MAX_TASK_CARD_ITEM_CHARS = 180;
-const MAX_TASK_CARD_ITEMS = 5;
+
+function resolveTaskCardLimit(value, fallback) {
+  const parsed = Number.parseInt(String(value || '').trim(), 10);
+  if (Number.isInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return fallback;
+}
+
+const MAX_TASK_CARD_TEXT_CHARS = resolveTaskCardLimit(process.env.MELODYSYNC_TASK_CARD_TEXT_CHARS, 2400);
+const MAX_TASK_CARD_GOAL_CHARS = resolveTaskCardLimit(process.env.MELODYSYNC_TASK_CARD_GOAL_CHARS, MAX_TASK_CARD_TEXT_CHARS);
+const MAX_TASK_CARD_ITEM_CHARS = resolveTaskCardLimit(process.env.MELODYSYNC_TASK_CARD_ITEM_CHARS, 420);
+const MAX_TASK_CARD_ITEMS = resolveTaskCardLimit(process.env.MELODYSYNC_TASK_CARD_ITEMS, 16);
+const MAX_TASK_CARD_NEXT_STEP_ITEMS = resolveTaskCardLimit(process.env.MELODYSYNC_TASK_CARD_NEXT_STEP_ITEMS, 12);
+const MAX_TASK_CARD_CANDIDATE_BRANCH_ITEMS = resolveTaskCardLimit(process.env.MELODYSYNC_TASK_CARD_CANDIDATE_BRANCH_ITEMS, 3);
+const MAX_TASK_CARD_CANDIDATE_BRANCH_CHARS = resolveTaskCardLimit(process.env.MELODYSYNC_TASK_CARD_CANDIDATE_BRANCH_CHARS, 220);
 
 function clipText(value, maxChars) {
   const text = typeof value === 'string'
@@ -262,15 +275,15 @@ export function normalizeSessionTaskCard(value, options = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
   const summary = clipText(value.summary || value.taskSummary || value.brief || '', MAX_TASK_CARD_TEXT_CHARS);
-  const goal = clipText(value.goal || value.objective || '', 240);
-  const mainGoal = clipText(value.mainGoal || value.primaryGoal || value.mainlineGoal || '', 240);
+  const goal = clipText(value.goal || value.objective || '', MAX_TASK_CARD_GOAL_CHARS);
+  const mainGoal = clipText(value.mainGoal || value.primaryGoal || value.mainlineGoal || '', MAX_TASK_CARD_GOAL_CHARS);
   const lineRole = normalizeTaskCardLineRole(value.lineRole || value.branchState || value.threadRole);
   const branchFrom = clipText(value.branchFrom || value.parentGoal || value.mainline || '', MAX_TASK_CARD_ITEM_CHARS);
   const branchReason = clipText(value.branchReason || value.driftReason || '', MAX_TASK_CARD_ITEM_CHARS);
   const checkpoint = clipText(value.checkpoint || value.resumePoint || value.returnPoint || value.reentryPoint || '', MAX_TASK_CARD_TEXT_CHARS);
   const candidateBranches = normalizeTaskCardList(
     value.candidateBranches || value.branchCandidates || value.sideQuests || value.sideLines,
-    { maxItems: 3, maxChars: 120 },
+    { maxItems: MAX_TASK_CARD_CANDIDATE_BRANCH_ITEMS, maxChars: MAX_TASK_CARD_CANDIDATE_BRANCH_CHARS },
   );
   const background = normalizeTaskCardList(value.background || value.contextBackground || value.backgroundContext);
   const rawMaterials = normalizeTaskCardList(value.rawMaterials || value.materials || value.inputs);
@@ -279,7 +292,7 @@ export function normalizeSessionTaskCard(value, options = {}) {
     value.knownConclusions || value.conclusions || value.knownFindings || value.findings,
   );
   const nextSteps = normalizeTaskCardList(value.nextSteps || value.nextActions || value.actions, {
-    maxItems: 3,
+    maxItems: MAX_TASK_CARD_NEXT_STEP_ITEMS,
   });
   const memory = normalizeTaskCardList(value.memory || value.userMemory || value.reusableContext || value.durableMemory);
   const needsFromUser = normalizeTaskCardList(
@@ -339,34 +352,33 @@ export function shouldSurfaceTaskCardBranchCandidate(taskCard, branchTitle) {
   return taskCardSupportsAutoBranchNormalized(normalizeSessionTaskCard(taskCard), branchTitle);
 }
 
-export function buildTaskCardPromptBlock(taskCard, options = {}) {
-  const normalized = normalizeSessionTaskCard(taskCard);
-  const fixedTaskTitle = clipText(options?.sessionTitle || options?.taskTitle || '', 160);
-  const currentCardBlock = normalized
-    ? [
-        'Current carried task card (this tracks the session-level task anchor, not a per-message recap):',
-        fixedTaskTitle ? `Fixed session task title: ${fixedTaskTitle}` : '',
-        `Execution mode: ${normalized.mode}`,
-        normalized.summary ? `Summary: ${normalized.summary}` : '',
-        normalized.goal ? `Current goal: ${normalized.goal}` : '',
-        normalized.mainGoal ? `Main goal: ${normalized.mainGoal}` : '',
-        `Line role: ${normalized.lineRole}`,
-        normalized.branchFrom ? `Branch from: ${normalized.branchFrom}` : '',
-        normalized.branchReason ? `Branch reason: ${normalized.branchReason}` : '',
-        normalized.checkpoint ? `Checkpoint: ${normalized.checkpoint}` : '',
-        formatTaskCardList('Candidate branches', normalized.candidateBranches),
-        formatTaskCardList('Background', normalized.background),
-        formatTaskCardList('Raw materials', normalized.rawMaterials),
-        formatTaskCardList('Assumptions', normalized.assumptions),
-        formatTaskCardList('Known conclusions', normalized.knownConclusions),
-        formatTaskCardList('Next steps', normalized.nextSteps),
-        formatTaskCardList('Durable user memory', normalized.memory),
-        formatTaskCardList('Needs from user', normalized.needsFromUser),
-      ].filter(Boolean).join('\n\n')
-    : '';
-
+function buildTaskCardStateBlock(normalized, fixedTaskTitle) {
+  if (!normalized) return '';
   return [
-    currentCardBlock,
+    'Current carried task card (this tracks the session-level task anchor, not a per-message recap):',
+    fixedTaskTitle ? `Fixed session task title: ${fixedTaskTitle}` : '',
+    `Execution mode: ${normalized.mode}`,
+    normalized.summary ? `Summary: ${normalized.summary}` : '',
+    normalized.goal ? `Current goal: ${normalized.goal}` : '',
+    normalized.mainGoal ? `Main goal: ${normalized.mainGoal}` : '',
+    `Line role: ${normalized.lineRole}`,
+    normalized.branchFrom ? `Branch from: ${normalized.branchFrom}` : '',
+    normalized.branchReason ? `Branch reason: ${normalized.branchReason}` : '',
+    normalized.checkpoint ? `Checkpoint: ${normalized.checkpoint}` : '',
+    formatTaskCardList('Candidate branches', normalized.candidateBranches),
+    formatTaskCardList('Background', normalized.background),
+    formatTaskCardList('Raw materials', normalized.rawMaterials),
+    formatTaskCardList('Assumptions', normalized.assumptions),
+    formatTaskCardList('Known conclusions', normalized.knownConclusions),
+    formatTaskCardList('Next steps', normalized.nextSteps),
+    formatTaskCardList('Durable user memory', normalized.memory),
+    formatTaskCardList('Needs from user', normalized.needsFromUser),
+  ].filter(Boolean).join('\n\n');
+}
+
+function buildTaskCardReplyContractBlock(normalized, fixedTaskTitle) {
+  return [
+    '[Task-card reply contract]',
     'After every user-facing reply, append exactly one final hidden <private><task_card> JSON block at the very end of the reply.',
     'Keep the normal answer natural and user-facing. Put the hidden task-card block after that answer so the client can update the session task bar and branch recommendations without leaking raw JSON into the visible reply.',
     'Never append raw task-card JSON directly to the visible prose body.',
@@ -395,6 +407,15 @@ export function buildTaskCardPromptBlock(taskCard, options = {}) {
       ? 'This session is already in project mode. Own the workspace, notes, artifacts, and intermediate outputs without asking the user to organize them.'
       : 'This session is still in lightweight task mode. Keep the summary, next step, and checkpoint current without making the user manage project structure.',
   ].filter(Boolean).join('\n\n');
+}
+
+export function buildTaskCardPromptBlock(taskCard, options = {}) {
+  const normalized = normalizeSessionTaskCard(taskCard);
+  const fixedTaskTitle = clipText(options?.sessionTitle || options?.taskTitle || '', 160);
+  return [
+    buildTaskCardStateBlock(normalized, fixedTaskTitle),
+    buildTaskCardReplyContractBlock(normalized, fixedTaskTitle),
+  ].filter(Boolean).join('\n\n---\n\n');
 }
 
 export function parseTaskCardFromAssistantContent(content) {

@@ -19,6 +19,7 @@ export const MANAGER_RUNTIME_BOUNDARY_SECTION = [
   'Use only the memory, context, and workflow conventions explicitly activated in this session, and do not import extra provider-native personas, house styles, or helper workflows unless the current task explicitly needs them.',
   'For normal conversation and conceptual discussion, default to natural connected prose. Use headings, bullet lists, JSON, or checklists only when the user explicitly asks for them or when clarity truly requires them.',
   'For summaries and handoffs, default to state-first reorientation: current execution state, whether the user is needed now, or whether the work can stay parked for later.',
+  'Do not send user-facing progress reports just because work is underway. Keep executing until you finish a meaningful chunk or genuinely need user input to continue.',
 ].join('\n');
 
 export const MANAGER_TURN_POLICY_REMINDER = [
@@ -27,6 +28,7 @@ export const MANAGER_TURN_POLICY_REMINDER = [
   'Unless the user explicitly asks for a structured format such as headings, bullet lists, JSON, tables, or checklists, answer in natural connected prose with ordinary paragraph flow.',
   'Do not mirror the manager prompt structure or provider-native report formatting back to the user by default.',
   'In summaries or handoffs, lead with the current execution state, then whether the user is needed now or the work can stay parked for later.',
+  'Do not stop to send progress-only updates while meaningful execution can continue; only surface a reply when a meaningful chunk is complete or the user is actually needed.',
 ].join(' ');
 
 export const DEFAULT_CODEX_DEVELOPER_INSTRUCTIONS = [
@@ -42,6 +44,8 @@ export const DEFAULT_CODEX_DEVELOPER_INSTRUCTIONS = [
   'Do not mirror the manager prompt structure, section headers, or provider-native handoff template back to the user by default.',
   'For short explanations, conceptual discussion, and back-and-forth conversation, answer in natural paragraphs instead of list form.',
   'For summaries and handoffs, lead with current execution state, then whether the user is needed now or the work can stay parked for later.',
+  'Do not send progress-only user-facing updates while you can continue working.',
+  'Keep executing until you either finish a meaningful chunk or truly need user input, approval, credentials, a choice, or manual verification that only the user can provide.',
   'If the task explicitly asks for structured output, code, JSON, tables, checklists, or another format, follow that format exactly.',
   'Treat unstated preferences as open and adaptable; let the user and session context shape tone and working style over time.',
 ].join(' ');

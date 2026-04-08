@@ -185,15 +185,15 @@ const runningSession = {
 
 assert.equal(
   context.shouldFetchSessionEventsForRefresh('current-session', runningSession),
-  false,
-  'collapsed running sessions should skip event refreshes when a rendered snapshot already exists',
+  true,
+  'running sessions should keep refreshing so new raw events can render directly',
 );
 
 context.renderedEventState.runningBlockExpanded = true;
 assert.equal(
   context.shouldFetchSessionEventsForRefresh('current-session', runningSession),
   true,
-  'expanding the running hidden block should re-enable event refreshes',
+  'running sessions should still refresh when a legacy running block is marked expanded',
 );
 
 context.renderedEventState.runState = 'idle';
@@ -201,7 +201,7 @@ context.renderedEventState.runningBlockExpanded = false;
 assert.equal(
   context.shouldFetchSessionEventsForRefresh('current-session', runningSession),
   true,
-  'the first refresh after entering running should fetch once to install the collapsed running snapshot',
+  'the first refresh after entering running should fetch so raw events can render immediately',
 );
 
 assert.equal(

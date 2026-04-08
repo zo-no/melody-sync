@@ -262,6 +262,7 @@ assert.ok(idleFlowNode, 'idle flow node should render');
 assert.equal(runningFlowNode.classList.contains('is-status-running'), true);
 assert.equal(waitingFlowNode.classList.contains('is-status-waiting-user'), true);
 assert.equal(completedFlowNode.classList.contains('is-status-completed'), true);
+assert.equal(completedFlowNode.classList.contains('is-resolved'), true);
 assert.equal(idleFlowNode.classList.contains('is-status-idle'), true);
 assert.equal(completedFlowNode.classList.contains('is-current'), true);
 assert.equal(

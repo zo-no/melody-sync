@@ -2,47 +2,45 @@
 
 [中文](README.zh.md) | English
 
-**A cross-surface AI workbench for handing messy recurring digital work to AI and keeping long-running work continuous.**
+**A cross-surface AI workbench for recurring work that should stay executable, not forgotten.**
 
-MelodySync is for people who have repetitive digital work but are not automation specialists. It is built for the moment when someone knows a task keeps coming back, has a screenshot or sample file that explains the problem, but does not yet have a clean automation spec.
+MelodySync is for people who have repetitive digital work, partial context, and no clean automation spec yet.
 
-A user can start from phone or desktop with that messy input. MelodySync helps turn it into executable work, lets strong local executors such as `codex`, `claude`, and compatible tools do the machine-side execution, and keeps the work thread durable enough to resume later instead of restarting from zero.
+It turns messy inputs into durable execution sessions. Start from phone or desktop, hand over screenshots/files/notes, and keep running the same work thread without re-explaining everything.
 
-> Current baseline: `v0.3` — an owner-first session runtime, durable on-disk history, executor adapters, and a no-build web UI that works across phone and desktop.
-
-> Reach the same work thread from desktop, phone, and optional integration surfaces without changing the core session workflow.
+Current baseline: `v0.3` — owner-first sessions, durable on-disk history, executor adapters, and a no-build web UI that works across phone and desktop.
 
 ## Product overview
 
 ### What MelodySync is
 
-MelodySync is an AI automation workbench that sits above strong executors running on a real machine. It is designed for the common situation where someone knows a job is worth automating, but still needs help clarifying the inputs, outputs, and constraints before any executor should run.
+MelodySync is a practical AI workbench for recurring digital work.
+It converts fuzzy inputs into execution-ready context.
 
 The product is deliberately cross-surface: collect context from a phone, continue from a desktop, and let the host machine do the heavy work while the thread stays recoverable.
 
 ### How MelodySync works
 
-1. Start with a recurring job, a screenshot, or a sample file.
-2. MelodySync helps clarify the task, gather the missing context, and shape the problem into an execution brief.
-3. A strong local executor such as `codex`, `claude`, or another compatible tool runs on the host machine.
-4. Session history, run state, and outputs stay durable so the next step can continue later without re-explaining everything.
+1. Capture: start with a recurring task, screenshot, or sample file.
+2. Clarify: tighten the task into a concrete execution brief.
+3. Execute: local executor (`codex`, `claude`, or compatible tool) runs on the host machine.
+4. Continue: session history, run state, and outputs are durable and resumable.
 
 ### Why it is different from a normal AI chat tool
 
-- The goal is not to open more chat tabs; it is to get repetitive digital work into a form that can actually be executed.
-- The user does not need product-manager-grade prompts; MelodySync is supposed to help with clarification before execution.
-- The first screen should lead toward one concrete job worth automating, not drop a new user into an empty session list.
-- Phone + desktop + real-machine execution + durable continuity is the product advantage.
-- `Session` remains the shipped public object because recoverable work threads are the current product center; richer workflow language can layer on later.
+- It is not a chat first. It is an execution pipeline built around durable sessions.
+- It helps users go from partial context to machine-ready execution without perfect prompts.
+- The first screen is guided toward one concrete job, not an empty inbox of sessions.
+- Phone + desktop + local execution + continuity is the product combination.
+- `Session` is the stable public object; deeper workflow semantics come after this foundation.
 
 ### What you can do today
 
-- start a session from phone or desktop while the agent works on your real machine
-- keep durable history even if the browser disconnects
-- recover long-running work after control-plane restarts
-- let the agent auto-title and auto-group sessions in the sidebar
-- paste screenshots directly into the chat
-- let the UI follow your system light/dark appearance automatically
+- Start a session from phone or desktop and run tasks on the host machine.
+- Move from rough input to executable context without writing full specs.
+- Keep work history and run continuity even after disconnect or restart.
+- Paste screenshots, files, and notes directly into the flow.
+- Continue later from the same thread instead of starting over.
 
 ## Quick install
 

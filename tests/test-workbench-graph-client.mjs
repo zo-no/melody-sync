@@ -7,6 +7,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
+const taskRunStatusSource = readFileSync(
+  join(repoRoot, 'static', 'frontend', 'workbench', 'task-run-status.js'),
+  'utf8',
+);
 const source = readFileSync(
   join(repoRoot, 'static', 'frontend', 'workbench', 'graph-client.js'),
   'utf8',
@@ -41,6 +45,7 @@ const context = {
 context.globalThis = context;
 context.window = context;
 
+vm.runInNewContext(taskRunStatusSource, context, { filename: 'workbench/task-run-status.js' });
 vm.runInNewContext(source, context, { filename: 'workbench/graph-client.js' });
 
 const api = context.MelodySyncWorkbenchGraphClient;

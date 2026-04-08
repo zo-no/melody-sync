@@ -1,6 +1,7 @@
 import { open, readdir } from 'fs/promises';
 import { homedir } from 'os';
 import { join } from 'path';
+import { CODEX_MANAGED_HOME_DIR } from '../lib/config.mjs';
 import { statOrNull } from './fs-utils.mjs';
 
 const SESSION_LOG_CACHE = new Map();
@@ -9,9 +10,13 @@ const MAX_TAIL_SCAN_BYTES = 2 * 1024 * 1024;
 let cachedSessionsDir = '';
 
 function getCodexSessionsDir() {
+  const codeHomeOverride = typeof process.env.CODEX_HOME === 'string' ? process.env.CODEX_HOME.trim() : '';
   const homeOverride = typeof process.env.HOME === 'string' ? process.env.HOME.trim() : '';
   const homeDir = homeOverride || homedir();
-  const sessionsDir = join(homeDir, '.codex', 'sessions');
+  const sessionsDir = join(
+    codeHomeOverride || CODEX_MANAGED_HOME_DIR || join(homeDir, '.codex'),
+    'sessions',
+  );
   if (sessionsDir !== cachedSessionsDir) {
     cachedSessionsDir = sessionsDir;
     SESSION_LOG_CACHE.clear();
@@ -111,6 +116,50 @@ async function readLastMatchingJsonLine(filePath, predicate) {
   } finally {
     await handle.close();
   }
+}
+
+async function readFirstMatchingJsonLine(filePath, predicate) {
+  const handle = await open(filePath, 'r');
+  try {
+    const stats = await handle.stat();
+    const chunkSize = Math.min(stats.size, TAIL_CHUNK_BYTES);
+    if (chunkSize <= 0) return null;
+    const buffer = Buffer.alloc(chunkSize);
+    const { bytesRead } = await handle.read(buffer, 0, chunkSize, 0);
+    if (bytesRead <= 0) return null;
+
+    for (const rawLine of buffer.toString('utf8', 0, bytesRead).split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      try {
+        const parsed = JSON.parse(line);
+        if (predicate(parsed)) return parsed;
+      } catch {}
+    }
+    return null;
+  } finally {
+    await handle.close();
+  }
+}
+
+export async function readCodexSessionMetadata(threadId) {
+  const sessionLogPath = await findCodexSessionLog(threadId);
+  if (!sessionLogPath) return null;
+
+  const sessionMetaRecord = await readFirstMatchingJsonLine(
+    sessionLogPath,
+    (record) => record?.type === 'session_meta' && record?.payload?.id === threadId,
+  );
+  if (!sessionMetaRecord?.payload || typeof sessionMetaRecord.payload !== 'object') {
+    return null;
+  }
+
+  return {
+    threadId,
+    sessionLogPath,
+    cwd: typeof sessionMetaRecord.payload.cwd === 'string' ? sessionMetaRecord.payload.cwd.trim() : '',
+    timestamp: typeof sessionMetaRecord.timestamp === 'string' ? sessionMetaRecord.timestamp : null,
+  };
 }
 
 export async function readLatestCodexSessionMetrics(threadId) {

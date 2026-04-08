@@ -126,6 +126,12 @@ Universal learnings and patterns that apply to all MelodySync deployments, regar
 - When a user says another machine should "just use the latest updates," verify whether those commits only live on a feature branch; either fast-forward the default branch or communicate the exact branch to pull.
 - Any constraint that must apply from the very first assistant turn (for example output language or branch selection) must be stated in the bootstrap handoff prompt itself, not only in memory that gets imported later.
 
+### Persistent Session Working Directories Need Portable Storage (2026-04-08)
+- A long-lived session or persistent item should not store the current machine's absolute home path as its only working-directory truth. Paths under the current home should be canonicalized to `~` so username changes do not break runs after migration.
+- When loading old session metadata, safe repairs should be conservative: canonicalize valid current-home paths and rebase old `/Users/<name>/...` or `/home/<name>/...` paths onto the current home only when the equivalent directory actually exists.
+- When a persistent item is triggered and its saved working directory is still unavailable, auto-fallback to `~` is a pragmatic recovery path because it preserves usability without requiring a blocking repair step; persist that repair once the user actually runs the item.
+- When a non-persistent session still points at an unavailable directory, surface a concrete `working directory does not exist on this machine` error instead of collapsing into a generic structured-runtime failure.
+
 ### Browser-Only Frontend Validation Without A Test Harness (2026-03-06)
 - For `static/*.js` browser IIFEs that hide internal functions, a low-friction regression check is: load the real source into a temporary `jsdom`, patch the final `})();` in-memory to expose the target functions, and exercise them against a minimal DOM fixture.
 - This validates the actual shipped file and DOM mutations without adding permanent test dependencies or modifying the repo.

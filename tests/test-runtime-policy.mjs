@@ -79,6 +79,11 @@ try {
     'default Codex developer instructions should enforce state-first summaries and handoffs',
   );
   assert.match(
+    DEFAULT_CODEX_DEVELOPER_INSTRUCTIONS,
+    /Do not send progress-only user-facing updates while you can continue working/,
+    'default Codex developer instructions should keep the agent working until the user is actually needed',
+  );
+  assert.match(
     MANAGER_TURN_POLICY_REMINDER,
     /Do not mirror the manager prompt structure or provider-native report formatting back to the user by default/,
     'turn-level policy reminder should explicitly block prompt-structure mirroring',
@@ -92,6 +97,11 @@ try {
     MANAGER_TURN_POLICY_REMINDER,
     /lead with the current execution state, then whether the user is needed now or the work can stay parked for later/,
     'turn-level policy reminder should enforce state-first reorientation',
+  );
+  assert.match(
+    MANAGER_TURN_POLICY_REMINDER,
+    /Do not stop to send progress-only updates while meaningful execution can continue/,
+    'turn-level policy reminder should block progress-only interruptions',
   );
 
   console.log('test-runtime-policy: ok');

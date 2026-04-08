@@ -498,6 +498,9 @@ const SESSION_LIST_ORGANIZER_POLL_INTERVAL_MS = 1200;
 const SESSION_LIST_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 const SESSION_LIST_ORGANIZER_INTERNAL_ROLE = "session_list_organizer";
 const DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL = "整理任务";
+const SESSION_LIST_ORGANIZER_SESSION_NAME = "sort session list";
+const SESSION_LIST_ORGANIZER_QUICK_ACTION_STORAGE_KEY = "melodysyncSessionListOrganizerQuickActionId";
+const SESSION_LIST_ORGANIZER_QUICK_ACTION_PROMPT = "整理当前非归档任务：先读取最新任务列表，再按规则更新分组与排序，避免改动只读字段。";
 const SESSION_ORGANIZER_POLL_INTERVAL_MS = 1200;
 const SESSION_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 let sessionListOrganizerInFlight = null;
@@ -553,6 +556,126 @@ function setSortSessionListButtonState(label = DEFAULT_SORT_SESSION_LIST_BUTTON_
   if (!sortSessionListBtn) return;
   sortSessionListBtn.textContent = label || DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL;
   sortSessionListBtn.disabled = busy;
+}
+
+function getSessionListOrganizerQuickActionSessionId() {
+  try {
+    return String(localStorage.getItem(SESSION_LIST_ORGANIZER_QUICK_ACTION_STORAGE_KEY) || "")
+      .trim();
+  } catch {
+    return "";
+  }
+}
+
+function setSessionListOrganizerQuickActionSessionId(sessionId = "") {
+  const normalized = String(sessionId || "").trim();
+  try {
+    if (!normalized) {
+      localStorage.removeItem(SESSION_LIST_ORGANIZER_QUICK_ACTION_STORAGE_KEY);
+    } else {
+      localStorage.setItem(SESSION_LIST_ORGANIZER_QUICK_ACTION_STORAGE_KEY, normalized);
+    }
+  } catch {}
+}
+
+function clearSessionListOrganizerQuickActionSessionId() {
+  setSessionListOrganizerQuickActionSessionId("");
+}
+
+function isSessionListOrganizerQuickActionCandidate(session = null) {
+  if (!session?.id) return false;
+  const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
+  const prompt = String(session?.systemPrompt || "");
+  return session?.archived !== true
+    && kind === "skill"
+    && prompt.includes("You are MelodySync's hidden session-list organizer.");
+}
+
+function getSessionListOrganizerQuickActionSessionFromStore() {
+  const quickActionSessionId = getSessionListOrganizerQuickActionSessionId();
+  if (!quickActionSessionId) return null;
+  const byId = (Array.isArray(sessions) ? sessions : []).find((entry) => entry?.id === quickActionSessionId);
+  if (!isSessionListOrganizerQuickActionCandidate(byId)) {
+    clearSessionListOrganizerQuickActionSessionId();
+    return null;
+  }
+  return byId;
+}
+
+async function createSessionListOrganizerQuickActionSeedSession(payload) {
+  const data = await fetchJsonOrRedirect("/api/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      folder: "~",
+      tool: payload?.tool || "codex",
+      name: SESSION_LIST_ORGANIZER_SESSION_NAME,
+      systemPrompt: SESSION_LIST_ORGANIZER_SYSTEM_PROMPT,
+      internalRole: SESSION_LIST_ORGANIZER_INTERNAL_ROLE,
+      sourceId: typeof DEFAULT_APP_ID === "string" ? DEFAULT_APP_ID : "chat",
+      sourceName: typeof DEFAULT_APP_NAME === "string" ? DEFAULT_APP_NAME : "Chat",
+    }),
+  });
+  return data?.session || null;
+}
+
+async function promoteSessionListOrganizerQuickAction(sessionId = "") {
+  const normalizedSessionId = String(sessionId || "").trim();
+  if (!normalizedSessionId) return null;
+  const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(normalizedSessionId)}/promote-persistent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      kind: "skill",
+      execution: {
+        runPrompt: SESSION_LIST_ORGANIZER_QUICK_ACTION_PROMPT,
+      },
+    }),
+  });
+  return data?.session || null;
+}
+
+async function runSessionListOrganizerQuickAction(sessionId = "", payload = null) {
+  const normalizedSessionId = String(sessionId || "").trim();
+  if (!normalizedSessionId) {
+    return null;
+  }
+  const messageResponse = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(normalizedSessionId)}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: buildSessionListOrganizerTask(payload?.sessions || []),
+      ...(payload?.model ? { model: payload.model } : {}),
+      ...(payload?.effort ? { effort: payload.effort } : {}),
+      ...(payload?.thinking ? { thinking: true } : {}),
+    }),
+  });
+  const runId = typeof messageResponse?.run?.id === "string" ? messageResponse.run.id.trim() : "";
+  if (!runId) {
+    return null;
+  }
+  return waitForSessionListOrganizerRun(runId);
+}
+
+async function resolveSessionListOrganizerQuickAction(payload) {
+  const existing = getSessionListOrganizerQuickActionSessionFromStore();
+  if (existing) {
+    return existing;
+  }
+
+  const seedSession = await createSessionListOrganizerQuickActionSeedSession(payload);
+  const seedSessionId = typeof seedSession?.id === "string" ? seedSession.id.trim() : "";
+  if (!seedSessionId) {
+    throw new Error("Failed to create the organizer quick action");
+  }
+
+  const promotedSession = await promoteSessionListOrganizerQuickAction(seedSessionId);
+  const promotedSessionId = typeof promotedSession?.id === "string" ? promotedSession.id.trim() : "";
+  if (!promotedSessionId) {
+    throw new Error("Failed to promote the organizer quick action");
+  }
+  setSessionListOrganizerQuickActionSessionId(promotedSessionId);
+  return promotedSession;
 }
 
 function clipSessionListOrganizerText(value, maxChars = 240) {
@@ -827,11 +950,7 @@ function hasRenderedEventSnapshot(sessionId) {
 }
 
 function shouldFetchSessionEventsForRefresh(sessionId, session) {
-  const runState = getSessionRunState(session);
-  if (runState !== "running") return true;
-  if (!hasRenderedEventSnapshot(sessionId)) return true;
-  if (renderedEventState.runState !== "running") return true;
-  return renderedEventState.runningBlockExpanded === true;
+  return true;
 }
 
 function getEventRenderPlan(sessionId, events) {
@@ -1208,16 +1327,30 @@ async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
 
   const request = (async () => {
     try {
-      const data = await createSessionListOrganizerRun(payload);
-      const runId = typeof data?.run?.id === "string" ? data.run.id.trim() : "";
-      if (runId) {
-        const run = await waitForSessionListOrganizerRun(runId);
-        if (run?.state !== "completed") {
-          throw new Error(run?.failureReason || `Sort list ${run?.state || "failed"}`);
+      let run = null;
+      try {
+        const quickActionSession = await resolveSessionListOrganizerQuickAction(payload);
+        if (quickActionSession?.id) {
+          run = await runSessionListOrganizerQuickAction(quickActionSession.id, payload);
         }
-      } else {
-        throw new Error("Sort list did not start a run");
+      } catch (error) {
+        clearSessionListOrganizerQuickActionSessionId();
+        console.warn("[sessions] Failed to run organizer quick action:", error?.message || error);
       }
+
+      if (!run) {
+        const data = await createSessionListOrganizerRun(payload);
+        const runId = typeof data?.run?.id === "string" ? data.run.id.trim() : "";
+        if (!runId) {
+          throw new Error("Sort list did not start a run");
+        }
+        run = await waitForSessionListOrganizerRun(runId);
+      }
+
+      if (run?.state !== "completed") {
+        throw new Error(run?.failureReason || `Sort list ${run?.state || "failed"}`);
+      }
+
       await fetchSessionsList();
       if (closeSidebar && !isDesktop) {
         closeSidebarFn();
@@ -1315,7 +1448,7 @@ async function fetchSessionEvents(sessionId, { runState = "idle", viewportIntent
     !hadRenderedMessages ||
     messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 120;
   const data = await fetchJsonOrRedirect(
-    `/api/sessions/${encodeURIComponent(sessionId)}/events?filter=visible`,
+    `/api/sessions/${encodeURIComponent(sessionId)}/events?filter=all`,
   );
   const events = data.events || [];
   if (currentSessionId !== sessionId) return events;

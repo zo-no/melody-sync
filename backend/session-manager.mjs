@@ -4,7 +4,7 @@ import { writeFile } from 'fs/promises';
 import { dirname, join, resolve } from 'path';
 import { CHAT_FILE_ASSET_CACHE_DIR, CHAT_IMAGES_DIR } from '../lib/config.mjs';
 import { getToolDefinitionAsync } from '../lib/tools.mjs';
-import { createToolInvocation } from './process-runner.mjs';
+import { createToolInvocation, resolveCwd } from './process-runner.mjs';
 import {
   appendEvent,
   appendEvents,
@@ -24,6 +24,11 @@ import { buildSourceRuntimePrompt } from './source-runtime-prompts.mjs';
 import { emit as emitHook } from './hooks/runtime/registry.mjs';
 import { registerBuiltinHooks } from './hooks/runtime/register-builtins.mjs';
 import { createFollowUpQueueHelpers } from './follow-up-queue.mjs';
+import {
+  buildSessionFolderUnavailableMessage,
+  canonicalizeSessionFolder,
+  inspectSessionFolder,
+} from './session-folder.mjs';
 import {
   buildSessionOrganizerPrompt,
   extractSessionOrganizerAssistantText,
@@ -71,7 +76,7 @@ import {
   updateRun,
   writeRunResult,
 } from './runs.mjs';
-import { readLatestCodexSessionMetrics } from './codex-session-metrics.mjs';
+import { readCodexSessionMetadata, readLatestCodexSessionMetrics } from './codex-session-metrics.mjs';
 import { spawnDetachedRunner } from './runner-supervisor.mjs';
 import {
   buildSessionActivity,
@@ -202,7 +207,19 @@ function normalizeSuppressedBranchTitles(value) {
 
 function normalizeSessionTaskCardManagedBindings(value) {
   const source = Array.isArray(value) ? value : [];
-  const allowed = new Set(['mainGoal', 'goal', 'summary', 'candidateBranches', 'checkpoint', 'nextSteps']);
+  const allowed = new Set([
+    'mainGoal',
+    'goal',
+    'summary',
+    'candidateBranches',
+    'checkpoint',
+    'nextSteps',
+    'lineRole',
+    'branchFrom',
+    'branchReason',
+    'memory',
+    'knownConclusions',
+  ]);
   const normalized = [];
   const seen = new Set();
   for (const entry of source) {
@@ -434,6 +451,15 @@ async function collectRunOutputPreview(runId, maxLines = 3) {
 
 async function deriveStructuredRuntimeFailureReason(runId, previewText = '') {
   const preview = clipFailurePreview(previewText) || await collectRunOutputPreview(runId);
+  if (!preview) {
+    const manifest = await getRunManifest(runId);
+    const folderState = inspectSessionFolder(manifest?.folder || '', {
+      allowPersistentFallback: false,
+    });
+    if (!folderState.available) {
+      return buildSessionFolderUnavailableMessage(manifest?.folder || '');
+    }
+  }
   if (preview && /(请登录|登录超时|auth|authentication|sso|sign in|login)/i.test(preview)) {
     return `Provider requires interactive login before MelodySync can use it: ${preview}`;
   }
@@ -497,6 +523,39 @@ function buildDelegationNoticeMessage(task, childSession) {
 
 function trimString(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+async function ensureSessionFolderReady(sessionId, session) {
+  const folderState = inspectSessionFolder(session?.folder || '', {
+    allowPersistentFallback: Boolean(session?.persistent),
+  });
+  if (!folderState.available) {
+    const error = new Error(buildSessionFolderUnavailableMessage(session?.folder || ''));
+    error.code = 'SESSION_FOLDER_UNAVAILABLE';
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (!folderState.changed || !folderState.storedFolder) {
+    return session;
+  }
+
+  const updatedFolderMeta = await mutateSessionMeta(sessionId, (draft) => {
+    if ((draft?.folder || '') === folderState.storedFolder) return false;
+    draft.folder = folderState.storedFolder;
+    draft.updatedAt = nowIso();
+    return true;
+  });
+
+  if (updatedFolderMeta.meta) {
+    const nextSession = await enrichSessionMeta(updatedFolderMeta.meta);
+    if (nextSession) return nextSession;
+  }
+
+  return {
+    ...session,
+    folder: folderState.storedFolder,
+  };
 }
 
 function pushUnique(values, candidate) {
@@ -1943,6 +2002,28 @@ function resolveResumeState(toolId, session, options = {}) {
   };
 }
 
+async function shouldResetCodexResumeThread(session, options = {}) {
+  if (options.freshThread === true) return false;
+  const codexThreadId = typeof session?.codexThreadId === 'string' ? session.codexThreadId.trim() : '';
+  if (!codexThreadId) return false;
+
+  const metadata = await readCodexSessionMetadata(codexThreadId);
+  const loggedCwd = typeof metadata?.cwd === 'string' ? metadata.cwd.trim() : '';
+  if (!loggedCwd) return false;
+
+  const expectedCwd = resolveCwd(typeof session?.folder === 'string' ? session.folder : '');
+  const resumeCwd = resolveCwd(loggedCwd);
+  if (!expectedCwd || !resumeCwd) return false;
+  return expectedCwd !== resumeCwd;
+}
+
+function buildPromptSection(title, body) {
+  const sectionTitle = typeof title === 'string' ? title.trim() : '';
+  const sectionBody = typeof body === 'string' ? body.trim() : '';
+  if (!sectionTitle || !sectionBody) return '';
+  return `[${sectionTitle}]\n\n${sectionBody}`;
+}
+
 export async function buildPrompt(sessionId, session, text, previousTool, effectiveTool, snapshot = null, options = {}) {
   const toolDefinition = await getToolDefinitionAsync(effectiveTool);
   const promptMode = toolDefinition?.promptMode === 'bare-user'
@@ -1964,12 +2045,6 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
     continuationContext = buildPreparedContinuationContext(prepared, previousTool, effectiveTool);
   }
 
-  if (contextToolIndex) {
-    continuationContext = continuationContext
-      ? `${continuationContext}\n\n---\n\n[Earlier tool activity index]\n\n${contextToolIndex}`
-      : `[Earlier tool activity index]\n\n${contextToolIndex}`;
-  }
-
   let actualText = text;
   if (promptMode === 'default') {
     const turnSections = [];
@@ -1980,11 +2055,12 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
         });
 
     if (continuationContext) {
-      turnSections.push(continuationContext);
-      turnSections.push(`Current user message:\n${text}`);
-    } else {
-      turnSections.push(`${hasResume ? 'Current user message' : 'User message'}:\n${text}`);
+      turnSections.push(buildPromptSection('Session continuity', continuationContext));
     }
+    if (contextToolIndex) {
+      turnSections.push(buildPromptSection('Earlier tool activity index', contextToolIndex));
+    }
+    turnSections.push(`Current user message:\n${text}`);
     if (taskCardPromptBlock) {
       turnSections.push(taskCardPromptBlock);
     }
@@ -1993,15 +2069,15 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
 
     if (!hasResume) {
       const systemContext = await buildSystemContext({ sessionId });
-      let preamble = systemContext;
+      const preambleSections = [buildPromptSection('Manager context', systemContext)];
       const sourceRuntimePrompt = buildSourceRuntimePrompt(session);
       if (sourceRuntimePrompt) {
-        preamble += `\n\n---\n\nSource/runtime instructions (backend-owned for this session source):\n${sourceRuntimePrompt}`;
+        preambleSections.push(buildPromptSection('Source/runtime instructions', sourceRuntimePrompt));
       }
       if (session.systemPrompt) {
-        preamble += `\n\n---\n\nApp instructions (follow these for this session):\n${session.systemPrompt}`;
+        preambleSections.push(buildPromptSection('App instructions', session.systemPrompt));
       }
-      actualText = `${preamble}\n\n---\n\n${actualText}`;
+      actualText = [...preambleSections, actualText].filter(Boolean).join('\n\n---\n\n');
     }
 
   } else if (flattenPrompt) {
@@ -2024,19 +2100,15 @@ function sanitizeAssistantRunEvents(events = []) {
 
     const content = typeof event.content === 'string' ? event.content : '';
     const parsedTaskCard = parseTaskCardFromAssistantContent(content);
-    const strippedContent = stripTaskCardFromAssistantContent(content);
-    if (!parsedTaskCard && content === strippedContent) {
+    if (!parsedTaskCard) {
       return event;
     }
 
-    if (parsedTaskCard) {
-      latestTaskCard = parsedTaskCard;
-    }
+    latestTaskCard = parsedTaskCard;
 
     return {
       ...event,
-      ...(parsedTaskCard ? { taskCard: parsedTaskCard } : {}),
-      ...(content !== strippedContent ? { content: strippedContent } : {}),
+      taskCard: parsedTaskCard,
     };
   });
 
@@ -2066,6 +2138,9 @@ function stabilizeSessionTaskCard(sessionMeta, taskCard, options = {}) {
   const shouldPreserveManagedSummary = managedBindingKeys.has('summary');
   const shouldPreserveManagedMainGoal = managedBindingKeys.has('mainGoal') || managedBindingKeys.has('goal');
   const shouldPreserveManagedCandidateBranches = managedBindingKeys.has('candidateBranches');
+  const shouldPreserveManagedLineRole = managedBindingKeys.has('lineRole');
+  const shouldPreserveManagedBranchFrom = managedBindingKeys.has('branchFrom');
+  const shouldPreserveManagedBranchReason = managedBindingKeys.has('branchReason');
   const normalizeTaskCardOptions = shouldPreserveManagedCandidateBranches
     ? { preserveCandidateBranches: true }
     : undefined;
@@ -2075,8 +2150,12 @@ function stabilizeSessionTaskCard(sessionMeta, taskCard, options = {}) {
   const currentTaskCard = normalizeSessionTaskCard(sessionMeta?.taskCard || null);
   const stableSessionTitle = trimString(sessionMeta?.name);
   const canPersistBranchRole = Boolean(getSessionParentSessionId(sessionMeta));
+  const explicitLineRole = taskCard && Object.prototype.hasOwnProperty.call(taskCard, 'lineRole');
+  const resolvedLineRole = canPersistBranchRole && !explicitLineRole && currentTaskCard?.lineRole === 'branch'
+    ? 'branch'
+    : parsedTaskCard.lineRole;
 
-  if (parsedTaskCard.lineRole !== 'branch' || !canPersistBranchRole) {
+  if (resolvedLineRole !== 'branch' || !canPersistBranchRole) {
     const anchoredMainGoal = trimString(
       shouldPreserveManagedMainGoal
         ? (parsedTaskCard.mainGoal || parsedTaskCard.goal || currentTaskCard?.mainGoal || currentTaskCard?.goal || stableSessionTitle)
@@ -2094,9 +2173,13 @@ function stabilizeSessionTaskCard(sessionMeta, taskCard, options = {}) {
         : (currentTaskCard?.summary || parsedTaskCard.summary),
       goal: anchoredMainGoal,
       mainGoal: anchoredMainGoal,
-      lineRole: 'main',
-      branchFrom: '',
-      branchReason: '',
+      lineRole: shouldPreserveManagedLineRole ? resolvedLineRole : 'main',
+      branchFrom: shouldPreserveManagedBranchFrom
+        ? (parsedTaskCard.branchFrom || currentTaskCard?.branchFrom || '')
+        : '',
+      branchReason: shouldPreserveManagedBranchReason
+        ? (parsedTaskCard.branchReason || currentTaskCard?.branchReason || '')
+        : '',
     }, normalizeTaskCardOptions);
   }
 
@@ -2114,7 +2197,13 @@ function stabilizeSessionTaskCard(sessionMeta, taskCard, options = {}) {
   return normalizeSessionTaskCard({
     ...parsedTaskCard,
     mainGoal: anchoredParentGoal,
-    branchFrom: trimString(parsedTaskCard.branchFrom || anchoredParentGoal),
+    lineRole: shouldPreserveManagedLineRole ? resolvedLineRole : 'branch',
+    branchFrom: shouldPreserveManagedBranchFrom
+      ? (parsedTaskCard.branchFrom || currentTaskCard?.branchFrom || anchoredParentGoal)
+      : trimString(parsedTaskCard.branchFrom || anchoredParentGoal),
+    branchReason: shouldPreserveManagedBranchReason
+      ? (parsedTaskCard.branchReason || currentTaskCard?.branchReason || '')
+      : '',
   }, normalizeTaskCardOptions);
 }
 
@@ -2531,6 +2620,7 @@ export async function organizeSession(sessionId, options = {}) {
 
 export async function createSession(folder, tool, name, extra = {}) {
   ensureSessionManagerBuiltinHooksRegistered();
+  const normalizedFolder = canonicalizeSessionFolder(folder);
   const externalTriggerId = typeof extra.externalTriggerId === 'string' ? extra.externalTriggerId.trim() : '';
   const {
     requestedAppId,
@@ -2583,6 +2673,11 @@ export async function createSession(folder, tool, name, extra = {}) {
 
         if (requestedDescription && updated.description !== requestedDescription) {
           updated.description = requestedDescription;
+          changed = true;
+        }
+
+        if (updated.folder !== normalizedFolder) {
+          updated.folder = normalizedFolder;
           changed = true;
         }
 
@@ -2731,7 +2826,7 @@ export async function createSession(folder, tool, name, extra = {}) {
 
     const session = {
       id,
-      folder,
+      folder: normalizedFolder,
       tool,
       name: initialNaming.name,
       autoRenamePending: initialNaming.autoRenamePending,
@@ -3831,9 +3926,24 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
     };
   }
 
+  session = await ensureSessionFolderReady(sessionId, session);
+
   const snapshot = await getHistorySnapshot(sessionId);
   const previousTool = session.tool;
   const effectiveTool = options.tool || session.tool;
+  if (effectiveTool === 'codex' && await shouldResetCodexResumeThread(session, options)) {
+    options = { ...options, freshThread: true };
+    const updatedResumeMeta = await mutateSessionMeta(sessionId, (draft) => {
+      if (!draft.codexThreadId) return false;
+      delete draft.codexThreadId;
+      draft.updatedAt = nowIso();
+      return true;
+    });
+    if (updatedResumeMeta.meta) {
+      session = await enrichSessionMeta(updatedResumeMeta.meta);
+      sessionMeta = updatedResumeMeta.meta;
+    }
+  }
   const recordedUserText = typeof options.recordedUserText === 'string' && options.recordedUserText.trim()
     ? options.recordedUserText.trim()
     : normalizedText;

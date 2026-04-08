@@ -14,6 +14,7 @@ import {
 } from './session-workflow-state.mjs';
 import { normalizeSessionAgreements } from './session-agreements.mjs';
 import { normalizeSessionPersistent } from './session-persistent.mjs';
+import { canonicalizeSessionFolder, inspectSessionFolder } from './session-folder.mjs';
 import { normalizeSessionTaskCard } from './session-task-card.mjs';
 import { buildSessionsIndexMarkdown } from './session-list-index.mjs';
 
@@ -139,6 +140,22 @@ function normalizeStoredSessionMeta(meta) {
       delete normalized.persistent;
       changed = true;
     }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'folder')) {
+    const folderState = inspectSessionFolder(normalized.folder, {
+      allowPersistentFallback: false,
+    });
+    const nextFolder = folderState.available
+      ? folderState.storedFolder
+      : canonicalizeSessionFolder(normalized.folder);
+    if (nextFolder && normalized.folder !== nextFolder) {
+      normalized.folder = nextFolder;
+      changed = true;
+    }
+  } else {
+    normalized.folder = '~';
+    changed = true;
   }
 
   if (

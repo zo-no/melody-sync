@@ -16,6 +16,63 @@ function buildRunTerminalStatusEvent(statusEvent, run) {
   return null;
 }
 
+function collectHookTraceMeta(...hookResults) {
+  const seen = new Set();
+  const hookIds = [];
+  const hookLabels = [];
+  let failureCount = 0;
+
+  for (const result of hookResults) {
+    if (!result || typeof result !== 'object') continue;
+    if (Array.isArray(result.failures)) {
+      failureCount += result.failures.length;
+    }
+    const executed = Array.isArray(result.executed) ? result.executed : [];
+    for (const hook of executed) {
+      const hookId = String(hook?.id || '').trim();
+      const hookLabel = String(hook?.label || hookId || '').trim();
+      if (!hookLabel && !hookId) continue;
+      const dedupeKey = hookId || hookLabel;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      if (hookId) hookIds.push(hookId);
+      hookLabels.push(hookLabel || hookId);
+    }
+  }
+
+  return {
+    hookIds,
+    hookLabels,
+    failureCount,
+  };
+}
+
+function buildHookTraceStatusEvent(statusEvent, {
+  hookIds = [],
+  hookLabels = [],
+  failureCount = 0,
+} = {}) {
+  if (!Array.isArray(hookLabels) || hookLabels.length === 0) return null;
+  const maxVisibleHooks = 8;
+  const visibleLabels = hookLabels.slice(0, maxVisibleHooks);
+  const visibleIds = Array.isArray(hookIds) ? hookIds.slice(0, maxVisibleHooks) : [];
+  const overflow = Math.max(0, hookLabels.length - visibleLabels.length);
+  let content = `hooks: ${visibleLabels.join(', ')}`;
+  if (overflow > 0) content += ` (+${overflow})`;
+  if (failureCount > 0) content += ` [${failureCount} failed]`;
+
+  const event = {
+    ...statusEvent(content),
+    statusKind: 'hook_trace',
+    hookCount: hookLabels.length,
+    hookLabels: visibleLabels,
+    hookIds: visibleIds,
+  };
+  if (overflow > 0) event.hookOverflow = overflow;
+  if (failureCount > 0) event.hookFailures = failureCount;
+  return event;
+}
+
 const FINALIZE_DEBUG = process.env.MELODYSYNC_STARTUP_SYNC_DEBUG === '1';
 
 function clearCompactionPendingFlags(liveSessions, {
@@ -275,16 +332,28 @@ export async function finalizeDetachedRunWithDeps(deps, {
     manifest,
     completionNoticeKey,
   };
+  let branchSuggestedHookResult = null;
   if (branchCandidateEvents.length > 0) {
-    await emitHook('branch.suggested', hookContext);
+    branchSuggestedHookResult = await emitHook('branch.suggested', hookContext);
   }
   if (FINALIZE_DEBUG) {
     console.log('[startup-finalize] running hooks and asset publish');
   }
-  const [assetsPublished] = await Promise.all([
+  const [assetsPublished, runLifecycleHookResult] = await Promise.all([
     maybePublishRunResultAssets(sessionId, finalizedRun, manifest, finalizedEvents),
     emitHook(runEvent, hookContext),
   ]);
+
+  const hookTraceMeta = collectHookTraceMeta(
+    branchSuggestedHookResult,
+    runLifecycleHookResult,
+  );
+  const hookTraceEvent = buildHookTraceStatusEvent(statusEvent, hookTraceMeta);
+  if (hookTraceEvent) {
+    await appendEvent(sessionId, hookTraceEvent);
+    historyChanged = true;
+  }
+
   historyChanged = assetsPublished || historyChanged;
 
   if (branchCandidateEvents.length > 0) {

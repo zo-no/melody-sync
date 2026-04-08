@@ -209,9 +209,9 @@
 .task-map-node-id,
 .task-map-node-field-note,
 .task-map-node-form-error {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.5;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .task-map-node-settings-list {
@@ -223,10 +223,10 @@
 
 .task-map-node-section {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   margin: 0 18px;
-  padding: 12px 14px;
-  border-radius: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
   border: 1px solid var(--workbench-settings-stroke);
   background: var(--workbench-settings-surface);
   box-shadow: inset 0 1px 0 var(--workbench-settings-inset-highlight);
@@ -234,7 +234,9 @@
 
 .task-map-node-section-body {
   display: grid;
-  gap: 0;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--workbench-settings-divider);
 }
 
 .task-map-node-section-header {
@@ -242,12 +244,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 2px;
+  padding: 0 2px 2px;
 }
 
 .task-map-node-section-title {
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.35;
   font-weight: 800;
   color: var(--text);
 }
@@ -271,7 +273,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 0;
+  padding: 12px 0;
 }
 
 .task-map-node-row + .task-map-node-row {
@@ -293,7 +295,7 @@
 }
 
 .task-map-node-row-label {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.4;
   font-weight: 700;
   color: var(--text);
@@ -323,7 +325,7 @@
 
 .task-map-node-form {
   margin: 0;
-  padding-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid var(--workbench-settings-divider);
 }
 
@@ -332,7 +334,7 @@
   font-size: 12px;
   line-height: 1.4;
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-secondary);
 }
 
 .task-map-node-field {
@@ -3899,16 +3901,18 @@ button.quest-task-flow-node {
 .hooks-overlay[hidden] { display: none !important; }
 
 .hooks-panel {
-  background: color-mix(in srgb, var(--bg) 94%, var(--bg-secondary) 6%);
-  border: 1px solid var(--workbench-settings-stroke);
-  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg) 96%, var(--bg-secondary) 4%);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 18px;
   width: 100%;
   max-width: 760px;
   max-height: 82vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: var(--workbench-settings-panel-shadow);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 /* Header — no divider line, matches sidebar-header style */
@@ -3916,37 +3920,41 @@ button.quest-task-flow-node {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 18px 10px;
+  padding: 18px 20px 10px;
   flex-shrink: 0;
 }
 .hooks-panel-tabs {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 0 18px 0;
+  gap: 8px;
+  padding: 0 20px 12px;
   border-bottom: 1px solid var(--workbench-settings-divider);
   flex-shrink: 0;
 }
 .hooks-panel-tab {
   position: relative;
-  padding: 10px 0 11px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.4;
-  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: 0.01em;
   cursor: pointer;
   font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .hooks-panel-tab:hover {
   color: var(--text-secondary);
+  background: color-mix(in srgb, var(--workbench-settings-surface-muted) 72%, transparent);
 }
 .hooks-panel-tab.is-active {
   color: var(--text);
-  border-bottom-color: var(--text);
+  border-color: var(--workbench-settings-divider);
+  background: var(--workbench-settings-surface-muted);
+  box-shadow: inset 0 1px 0 var(--workbench-settings-inset-highlight);
 }
 .hooks-panel-title {
   font-size: 14px;
@@ -3971,7 +3979,7 @@ button.quest-task-flow-node {
 
 .hooks-panel-body {
   overflow-y: auto;
-  padding: 8px 0 16px;
+  padding: 10px 0 18px;
   flex: 1;
 }
 
@@ -4050,9 +4058,8 @@ button.quest-task-flow-node {
 }
 
 .hooks-phase-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  gap: 12px;
   margin: 0 18px;
 }
 
@@ -4061,25 +4068,28 @@ button.quest-task-flow-node {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 2px;
+  padding: 0 2px 12px;
+  border-bottom: 1px solid var(--workbench-settings-divider);
 }
 
 .hooks-phase-heading {
   display: grid;
-  gap: 2px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .hooks-phase-title {
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 13px;
+  line-height: 1.35;
   font-weight: 800;
   color: var(--text);
 }
 
 .hooks-phase-desc {
   font-size: 12px;
-  line-height: 1.45;
-  color: var(--text-muted);
+  line-height: 1.55;
+  color: var(--text-secondary);
+  max-width: 760px;
 }
 
 .hooks-phase-count {
@@ -4099,24 +4109,32 @@ button.quest-task-flow-node {
 .hooks-event-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .hooks-event-card {
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid var(--workbench-settings-stroke);
-  background: var(--workbench-settings-surface);
-  box-shadow: inset 0 1px 0 var(--workbench-settings-inset-highlight);
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .hooks-event-card.is-empty {
-  background: var(--workbench-settings-surface-muted);
+  background: transparent;
+}
+.hooks-event-card + .hooks-event-card {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--workbench-settings-divider);
 }
 .hooks-event-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  padding-top: 0;
 }
 .hooks-event-card-heading {
   min-width: 0;
@@ -4152,7 +4170,7 @@ button.quest-task-flow-node {
   padding: 4px 0 0;
 }
 .hooks-event-body {
-  margin-top: 10px;
+  margin-top: 0;
   padding-top: 10px;
   border-top: 1px solid var(--workbench-settings-divider);
   display: flex;

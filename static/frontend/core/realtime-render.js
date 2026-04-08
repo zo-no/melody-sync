@@ -104,6 +104,10 @@ function renderEvent(evt, autoScroll) {
       rendered = true;
       renderReasoning(evt);
       break;
+    case "manager_context":
+      rendered = true;
+      renderManagerContext(evt);
+      break;
     case "status":
       rendered = true;
       renderStatusMsg(evt);
@@ -356,10 +360,7 @@ function cleanBase64TextForDisplay(text) {
 }
 
 function stripHiddenDisplayBlocks(text) {
-  return String(text || "")
-    .replace(/<private>[\s\S]*?<(?:\\\/|\/)private>/gi, "")
-    .replace(/<hide>[\s\S]*?<(?:\\\/|\/)hide>/gi, "")
-    .trim();
+  return String(text || "");
 }
 
 function looksLikeReadableDisplayText(text) {

@@ -30,6 +30,39 @@
     return "";
   }
 
+  function resolveBranchLikeStatus(...values) {
+    let sawActive = false;
+    let sawParked = false;
+    let sawResolved = false;
+    let sawMerged = false;
+
+    for (const value of values) {
+      const normalized = normalizeStatusToken(value);
+      if (!normalized) continue;
+      if (normalized === "merged") {
+        sawMerged = true;
+        continue;
+      }
+      if (["resolved", "done", "closed", "complete", "completed", "finished", "完成", "已完成", "运行完毕"].includes(normalized)) {
+        sawResolved = true;
+        continue;
+      }
+      if (["parked", "paused", "pause", "backlog", "todo", "待处理", "挂起"].includes(normalized)) {
+        sawParked = true;
+        continue;
+      }
+      if (["active", "running", "current", "main", "waiting", "等待", "等待用户", "等待用户输入"].includes(normalized)) {
+        sawActive = true;
+      }
+    }
+
+    if (sawMerged) return "merged";
+    if (sawResolved) return "resolved";
+    if (sawParked) return "parked";
+    if (sawActive) return "active";
+    return "active";
+  }
+
   function getTaskRunStateKey({
     status = "",
     workflowState = "",
@@ -101,6 +134,18 @@
     return `${String(prefix || "status").trim()}-${normalizedKey}`;
   }
 
+  function getTaskRunStatusResolvedNodeClassName(key, prefix = "is-") {
+    const normalizedKey = normalizeStatusToken(key).replace(/_/g, "-");
+    if (!normalizedKey) return "";
+    if (["completed", "resolved", "merged", "done"].includes(normalizedKey)) {
+      return `${String(prefix || "is-").trim()}resolved`;
+    }
+    if (normalizedKey === "parked") {
+      return `${String(prefix || "is-").trim()}parked`;
+    }
+    return "";
+  }
+
   function getTaskRunStatusPresentation(options = {}) {
     const statusUi = getTaskRunStatusUi(options);
     const key = String(statusUi?.key || "").trim();
@@ -114,9 +159,11 @@
 
   window.MelodySyncTaskRunStatus = Object.freeze({
     getTaskRunStatusClassName,
+    getTaskRunStatusResolvedNodeClassName,
     getTaskRunStatusPresentation,
     getTaskRunStateKey,
     getTaskRunStatusUi,
+    resolveBranchLikeStatus,
     normalizeActivityState,
     normalizeStatusToken,
     normalizeWorkflowState,

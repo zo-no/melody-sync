@@ -321,7 +321,7 @@ export async function handleSessionWriteRoutes({
           session: createClientSessionDetail(outcome.session),
         });
       } catch (error) {
-        const statusCode = error?.code === 'SESSION_ARCHIVED' ? 409 : 400;
+        const statusCode = error?.statusCode || (error?.code === 'SESSION_ARCHIVED' ? 409 : 400);
         writeJson(res, statusCode, { error: error.message || 'Failed to submit message' });
       }
       return true;

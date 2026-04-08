@@ -48,10 +48,14 @@ const freshPrompt = await buildPrompt(
 );
 
 assert.match(freshPrompt, /User message:/);
+assert.match(freshPrompt, /\[Manager context\]/);
+assert.match(freshPrompt, /Current user message:/);
 assert.match(freshPrompt, /do not mirror its headings, bullets, or checklist structure back to the user/);
 assert.match(freshPrompt, /melodysync session-spawn --task "<focused task>" --wait --internal --output-mode final-only --json/);
 assert.match(freshPrompt, /suppresses the visible parent handoff note and returns only the child session's final reply to stdout/);
+assert.match(freshPrompt, /Do not send user-facing progress reports just because work is underway/);
 assert.match(freshPrompt, /append exactly one final hidden <private><task_card> JSON block/i);
+assert.match(freshPrompt, /\[Task-card reply contract\]/);
 assert.doesNotMatch(freshPrompt, /active working agreements/);
 assert.doesNotMatch(freshPrompt, /Routing principle for this turn/);
 assert.doesNotMatch(freshPrompt, /Current carried task card/);
@@ -71,6 +75,7 @@ const resumedPrompt = await buildPrompt(
 
 assert.match(resumedPrompt, /Current user message:/);
 assert.match(resumedPrompt, /append exactly one final hidden <private><task_card> JSON block/i);
+assert.match(resumedPrompt, /\[Task-card reply contract\]/);
 assert.doesNotMatch(resumedPrompt, /Memory System — Pointer-First Activation/);
 assert.doesNotMatch(resumedPrompt, /active working agreements/);
 
@@ -87,7 +92,7 @@ const splitPrompt = await buildPrompt(
 );
 
 assert.doesNotMatch(splitPrompt, /Routing principle for this turn/);
-assert.match(splitPrompt, /User message:/);
+assert.match(splitPrompt, /Current user message:/);
 assert.match(splitPrompt, /append exactly one final hidden <private><task_card> JSON block/i);
 
 const observerSourcePrompt = await buildPrompt(
@@ -157,6 +162,7 @@ const promptWithTaskCard = await buildPrompt(
 );
 
 assert.match(promptWithTaskCard, /Current carried task card/);
+assert.match(promptWithTaskCard, /\[Task-card reply contract\]/);
 assert.match(promptWithTaskCard, /Fixed session task title: 整理销售周报流程/);
 assert.match(promptWithTaskCard, /sales\.xlsx/);
 assert.match(promptWithTaskCard, /append exactly one final hidden <private><task_card> JSON block/i);

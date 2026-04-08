@@ -38,45 +38,7 @@ let currentThinkingBlock = null; // { el, body, tools: Set }
 let inThinkingBlock = false;
 
 function registerHiddenMarkdownExtensions() {
-  const hiddenTagStart = /<(private|hide)\b/i;
-  const hiddenBlockPattern = /^(?: {0,3})<(private|hide)\b[^>]*>[\s\S]*?<(?:\\\/|\/)\1>(?:\n+|$)/i;
-  const hiddenInlinePattern = /^<(private|hide)\b[^>]*>[\s\S]*?<(?:\\\/|\/)\1>/i;
-  marked.use({
-    extensions: [
-      {
-        name: "hiddenUiBlock",
-        level: "block",
-        start(src) {
-          const match = src.match(hiddenTagStart);
-          return match ? match.index : undefined;
-        },
-        tokenizer(src) {
-          const match = src.match(hiddenBlockPattern);
-          if (!match) return undefined;
-          return { type: "hiddenUiBlock", raw: match[0] };
-        },
-        renderer() {
-          return "";
-        },
-      },
-      {
-        name: "hiddenUiInline",
-        level: "inline",
-        start(src) {
-          const match = src.match(hiddenTagStart);
-          return match ? match.index : undefined;
-        },
-        tokenizer(src) {
-          const match = src.match(hiddenInlinePattern);
-          if (!match) return undefined;
-          return { type: "hiddenUiInline", raw: match[0] };
-        },
-        renderer() {
-          return "";
-        },
-      },
-    ],
-  });
+  return;
 }
 
 function initializePushNotifications() {

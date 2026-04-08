@@ -110,6 +110,7 @@ assert.equal(
 
 const promptBlock = buildTaskCardPromptBlock(parsed);
 assert.match(promptBlock, /Current carried task card/);
+assert.match(promptBlock, /\[Task-card reply contract\]/);
 assert.match(promptBlock, /Execution mode: task/);
 assert.match(promptBlock, /Raw materials:/);
 assert.match(promptBlock, /weekly\.xlsx/);

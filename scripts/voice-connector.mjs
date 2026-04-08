@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { appendFile, mkdir } from 'fs/promises'
+import { appendFile, mkdir, rm } from 'fs/promises'
 import { createInterface } from 'readline'
 import { spawn } from 'child_process'
 import { randomUUID } from 'crypto'
@@ -29,8 +29,10 @@ import {
   normalizeSpokenReplyText,
   readOwnerToken,
 } from './voice-connector-melodysync.mjs'
+import { synthesizeSpeechWithXfyun } from '../backend/xfyun-completion-tts.mjs'
 import {
   parseCommandPayload,
+  runAfplay,
   runSay,
   runShellCommand,
 } from './voice-connector-shell.mjs'
@@ -50,6 +52,9 @@ const CAPTURE_RECOVERABLE_ERROR_PATTERNS = [
 ]
 const MAX_CAPTURE_ATTEMPTS = 2
 const MAX_STT_ATTEMPTS = 2
+const DEFAULT_XFYUN_SPEED = 50
+const DEFAULT_XFYUN_VOLUME = 100
+const DEFAULT_XFYUN_PITCH = 50
 
 function isRecoverableCaptureError(error) {
   const message = trimString(error?.message || error)
@@ -64,6 +69,40 @@ function parseBooleanish(value) {
   if (['1', 'true', 'yes', 'on'].includes(normalized)) return true
   if (['0', 'false', 'no', 'off'].includes(normalized)) return false
   return undefined
+}
+
+function parseFiniteNumber(value, fallback) {
+  if (typeof value === 'string' && !trimString(value)) return fallback
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function mapSayRateToXfyunSpeed(rate) {
+  const mapped = Math.round((Math.max(0, Math.min(300, Number(rate || DEFAULT_TTS_RATE))) - 100) / 1.5)
+  if (!Number.isFinite(mapped) || mapped <= 0) return DEFAULT_XFYUN_SPEED
+  return Math.min(100, Math.max(0, mapped))
+}
+
+function estimateAudioPlaybackTimeoutMs(text, fallbackTimeoutMs) {
+  const normalized = trimString(text)
+  const estimatedMs = normalized
+    ? Math.min(90000, Math.max(20000, 8000 + (normalized.length * 220)))
+    : 20000
+  return Math.max(estimatedMs, Number.isFinite(fallbackTimeoutMs) ? fallbackTimeoutMs : 0)
+}
+
+function resolveXfyunTtsOptions(ttsConfig) {
+  const env = ttsConfig?.env || {}
+  return {
+    appId: trimString(env.XFYUN_APP_ID || process.env.XFYUN_APP_ID),
+    apiKey: trimString(env.XFYUN_API_KEY || process.env.XFYUN_API_KEY),
+    apiSecret: trimString(env.XFYUN_API_SECRET || process.env.XFYUN_API_SECRET),
+    host: trimString(env.XFYUN_HOST || process.env.XFYUN_HOST) || undefined,
+    voice: trimString(env.XFYUN_VOICE || ttsConfig?.voice || process.env.XFYUN_VOICE),
+    speed: parseFiniteNumber(env.XFYUN_SPEED, mapSayRateToXfyunSpeed(ttsConfig?.rate)),
+    volume: parseFiniteNumber(env.XFYUN_VOLUME, DEFAULT_XFYUN_VOLUME),
+    pitch: parseFiniteNumber(env.XFYUN_PITCH, DEFAULT_XFYUN_PITCH),
+  }
 }
 
 function isCaptureExplicitlyOptional(summary) {
@@ -128,24 +167,8 @@ async function playTranscriptAck(runtime, summary) {
       || ''
   )
   if (ackText) {
-    if (runtime.config.tts.mode === 'say') {
-      await runSay(ackText, runtime.config.tts, {
-        allowInterrupt: true,
-        onSpawn: (child) => trackActiveSpeech(runtime, child),
-      })
-      return
-    }
-    if (runtime.config.tts.mode === 'command') {
-      await runShellCommand(runtime.config.tts.command, {
-        env: {
-          ...runtime.config.tts.env,
-          ...buildProcessEnv(runtime, summary, { replyText: ackText }),
-        },
-        stdin: ackText,
-        timeoutMs: runtime.config.tts.timeoutMs,
-      })
-      return
-    }
+    await speakText(runtime, ackText, summary)
+    return
   }
 
   const cuePath = trimString(
@@ -527,6 +550,10 @@ async function resolveTranscript(runtime, summary) {
 }
 
 async function speakReply(runtime, replyText, summary) {
+  await speakText(runtime, replyText, summary)
+}
+
+async function speakText(runtime, replyText, summary) {
   if (!runtime.config.tts.enabled || !trimString(replyText)) return
   if (runtime.config.tts.mode === 'say') {
     await runSay(replyText, runtime.config.tts, {
@@ -544,6 +571,23 @@ async function speakReply(runtime, replyText, summary) {
       stdin: replyText,
       timeoutMs: runtime.config.tts.timeoutMs,
     })
+    return
+  }
+  if (runtime.config.tts.mode === 'xfyun') {
+    const synthesis = await synthesizeSpeechWithXfyun({
+      text: replyText,
+      timeoutMs: runtime.config.tts.timeoutMs,
+      ...resolveXfyunTtsOptions(runtime.config.tts),
+    })
+    try {
+      await runAfplay(synthesis.soundPath, {
+        allowInterrupt: true,
+        onSpawn: (child) => trackActiveSpeech(runtime, child),
+        timeoutMs: estimateAudioPlaybackTimeoutMs(replyText, runtime.config.tts.timeoutMs),
+      })
+    } finally {
+      await rm(synthesis.soundPath, { force: true }).catch(() => {})
+    }
   }
 }
 

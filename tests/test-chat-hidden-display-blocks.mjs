@@ -82,14 +82,14 @@ vm.runInNewContext(
 
 assert.equal(
   context.formatDecodedDisplayText('Visible text\n<private>internal only</private>\nTail'),
-  'Visible text\n\nTail',
-  'display formatting should strip hidden UI blocks before rendering visible text',
+  'Visible text\n<private>internal only</private>\nTail',
+  'display formatting should preserve hidden UI blocks so the transcript can show the full assistant output',
 );
 
 assert.equal(
   context.formatDecodedDisplayText('Visible text\n<private>internal only<\\/private>\nTail'),
-  'Visible text\n\nTail',
-  'display formatting should also strip hidden UI blocks when the closing tag slash is escaped',
+  'Visible text\n<private>internal only<\\/private>\nTail',
+  'display formatting should preserve hidden UI blocks even when the closing tag slash is escaped',
 );
 
 const node = { innerHTML: '', textContent: '' };
@@ -98,6 +98,6 @@ assert.equal(
   true,
   'markdown rendering should still succeed when hidden blocks are present',
 );
-assert.equal(parsedInputs[0], 'Hello\n\nworld', 'markdown rendering should receive only the visible text');
+assert.equal(parsedInputs[0], 'Hello\n<hide>secret</hide>\nworld', 'markdown rendering should receive the full text');
 
 console.log('test-chat-hidden-display-blocks: ok');

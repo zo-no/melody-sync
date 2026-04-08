@@ -9,47 +9,23 @@
     return trimText(value).replace(/\s+/g, " ").toLowerCase();
   }
 
+  function getTaskRunStatusApi() {
+    return root?.MelodySyncTaskRunStatus || root?.window?.MelodySyncTaskRunStatus || null;
+  }
+
   function normalizeWorkflowState(value) {
-    const normalized = normalizeKey(value);
-    if (!normalized) return "";
-    if (["done", "complete", "completed", "finished"].includes(normalized)) return "done";
-    if (["parked", "paused", "pause", "backlog", "todo"].includes(normalized)) return "parked";
-    if (["waiting", "waiting_user", "waiting_for_user", "waiting_on_user", "needs_user", "needs_input"].includes(normalized)) {
-      return "waiting_user";
+    const api = getTaskRunStatusApi();
+    if (typeof api?.normalizeWorkflowState === "function") {
+      return api.normalizeWorkflowState(value);
     }
     return "";
   }
 
   function resolveBranchLikeStatus(...values) {
-    let sawActive = false;
-    let sawParked = false;
-    let sawResolved = false;
-    let sawMerged = false;
-
-    for (const value of values) {
-      const normalized = normalizeKey(value);
-      if (!normalized) continue;
-      if (normalized === "merged") {
-        sawMerged = true;
-        continue;
-      }
-      if (["resolved", "done", "closed", "complete", "completed", "finished"].includes(normalized)) {
-        sawResolved = true;
-        continue;
-      }
-      if (["parked", "paused", "pause", "backlog", "todo"].includes(normalized)) {
-        sawParked = true;
-        continue;
-      }
-      if (["active", "running", "current", "main", "waiting", "waiting_user"].includes(normalized)) {
-        sawActive = true;
-      }
+    const api = getTaskRunStatusApi();
+    if (typeof api?.resolveBranchLikeStatus === "function") {
+      return api.resolveBranchLikeStatus(...values);
     }
-
-    if (sawMerged) return "merged";
-    if (sawResolved) return "resolved";
-    if (sawParked) return "parked";
-    if (sawActive) return "active";
     return "active";
   }
 

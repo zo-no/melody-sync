@@ -7,6 +7,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
+const taskRunStatusSource = readFileSync(
+  join(repoRoot, 'static', 'frontend', 'workbench', 'task-run-status.js'),
+  'utf8',
+);
 const source = readFileSync(
   join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-clusters.js'),
   'utf8',
@@ -16,6 +20,7 @@ const context = { console };
 context.globalThis = context;
 context.window = context;
 
+vm.runInNewContext(taskRunStatusSource, context, { filename: 'workbench/task-run-status.js' });
 vm.runInNewContext(source, context, { filename: 'workbench/task-map-clusters.js' });
 
 const api = context.MelodySyncTaskMapClusters;
