@@ -259,7 +259,6 @@ function hasMeaningfulTaskCard(card) {
   return Boolean(
     card.goal
     || card.mainGoal
-    || card.summary
     || (card.background || []).length > 0
     || (card.rawMaterials || []).length > 0
     || (card.assumptions || []).length > 0
@@ -274,13 +273,14 @@ function hasMeaningfulTaskCard(card) {
 export function normalizeSessionTaskCard(value, options = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
-  const summary = clipText(value.summary || value.taskSummary || value.brief || '', MAX_TASK_CARD_TEXT_CHARS);
   const goal = clipText(value.goal || value.objective || '', MAX_TASK_CARD_GOAL_CHARS);
   const mainGoal = clipText(value.mainGoal || value.primaryGoal || value.mainlineGoal || '', MAX_TASK_CARD_GOAL_CHARS);
+  const legacySummary = clipText(value.summary || value.taskSummary || value.brief || '', MAX_TASK_CARD_TEXT_CHARS);
   const lineRole = normalizeTaskCardLineRole(value.lineRole || value.branchState || value.threadRole);
   const branchFrom = clipText(value.branchFrom || value.parentGoal || value.mainline || '', MAX_TASK_CARD_ITEM_CHARS);
   const branchReason = clipText(value.branchReason || value.driftReason || '', MAX_TASK_CARD_ITEM_CHARS);
   const checkpoint = clipText(value.checkpoint || value.resumePoint || value.returnPoint || value.reentryPoint || '', MAX_TASK_CARD_TEXT_CHARS);
+  const summary = clipText(checkpoint || goal || mainGoal || legacySummary, MAX_TASK_CARD_TEXT_CHARS);
   const candidateBranches = normalizeTaskCardList(
     value.candidateBranches || value.branchCandidates || value.sideQuests || value.sideLines,
     { maxItems: MAX_TASK_CARD_CANDIDATE_BRANCH_ITEMS, maxChars: MAX_TASK_CARD_CANDIDATE_BRANCH_CHARS },

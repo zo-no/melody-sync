@@ -62,7 +62,7 @@ const parsedTrailingJson = parseTaskCardFromAssistantContent([
   '{"mode":"project","summary":"规划任务线","goal":"把主线和支线理顺","candidateBranches":["预算方案","执行清单"],"nextSteps":["先定主线"]}',
 ].join('\n'));
 
-assert.equal(parsedTrailingJson?.summary, '规划任务线');
+assert.equal(parsedTrailingJson?.summary, '把主线和支线理顺');
 assert.deepEqual(parsedTrailingJson?.candidateBranches, ['预算方案', '执行清单']);
 
 assert.equal(

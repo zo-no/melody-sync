@@ -294,7 +294,8 @@ export async function loadSessionLabelPromptContext(sessionMeta, turnText) {
   ]);
 
   const contextSummary = buildSessionStateContextSummary(sessionMeta)
-    || clipText(contextHead?.summary || '', MAX_CONTEXT_SUMMARY_CHARS);
+    || clipText(sessionMeta?.description || '', MAX_CONTEXT_SUMMARY_CHARS)
+    || '';
   const scopeRouter = buildScopeRouterPromptContext(projectsMarkdown, {
     folder: sessionMeta?.folder || '',
     name: sessionMeta?.name || '',

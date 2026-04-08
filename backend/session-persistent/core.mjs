@@ -407,7 +407,9 @@ export function buildPersistentDigest(session = {}, history = []) {
   );
   const summary = clipText(
     stateCheckpoint
-      || taskCard.summary
+      || taskCard.checkpoint
+      || taskCard.goal
+      || taskCard.mainGoal
       || session?.description
       || userMessagePreviews.at(-1)
       || title,
