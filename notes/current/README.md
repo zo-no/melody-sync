@@ -83,13 +83,11 @@
 它们不应继续与当前主线并列竞争，而应作为背景或过渡文档来看待。
 
 - `session-state-audit.md`
-- `operator-throughput-control-surface.md`
 
 ### 当前作用
 
 - 这组文档多数围绕“移除 board 后的主流程重建”和“session-first 主路径”展开
 - `session-state-audit.md` 仍然对 session 状态契约清理有参考价值
-- `operator-throughput-control-surface.md` 更像产品问题意识来源，而不是当前实现总纲
 
 ### 管理方式
 

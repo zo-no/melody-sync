@@ -93,7 +93,6 @@
 
 优先归档或降级，而不是继续让它们和当前主线并列：
 
-- `notes/current/operator-throughput-control-surface.md`
 
 ### B. 前端旧状态和样式残留
 
