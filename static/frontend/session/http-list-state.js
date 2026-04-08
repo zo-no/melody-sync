@@ -41,7 +41,6 @@ function applySessionListState(nextSessions, {
   if (Number.isInteger(nextArchivedCount) && nextArchivedCount >= 0) {
     archivedSessionCount = nextArchivedCount;
   }
-  refreshAppCatalog();
   renderSessionList();
   if (currentSessionId && !sessions.some((session) => session.id === currentSessionId)) {
     currentSessionId = null;
@@ -77,7 +76,6 @@ function applyArchivedSessionListState(nextSessions, {
   archivedSessionCount = Number.isInteger(nextArchivedCount) && nextArchivedCount >= 0
     ? nextArchivedCount
     : archivedSessions.length;
-  refreshAppCatalog();
   renderSessionList();
   if (typeof syncMelodySyncAppState === "function") {
     syncMelodySyncAppState();

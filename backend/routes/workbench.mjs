@@ -25,6 +25,7 @@ import {
   getWorkbenchTrackerSnapshot,
   mergeBranchSessionBackToMain,
   promoteCaptureItem,
+  reparentSession,
   setBranchCandidateSuppressed,
   setBranchSessionStatus,
   setSessionReminderSnooze,
@@ -280,6 +281,20 @@ export async function handleWorkbenchRoutes({
         session: createClientSessionDetail(outcome.session),
         branchContext: outcome.branchContext,
         snapshot: await getWorkbenchSnapshot(),
+      });
+      return true;
+    }
+
+    if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'reparent') {
+      const sessionId = parts[3];
+      if (!requireSessionAccess(res, authSession, sessionId)) return true;
+      const targetSessionId = typeof payload?.targetSessionId === 'string' ? payload.targetSessionId.trim() : '';
+      if (targetSessionId && !requireSessionAccess(res, authSession, targetSessionId)) return true;
+      const outcome = await reparentSession(sessionId, payload);
+      writeJson(res, 200, {
+        session: createClientSessionDetail(outcome.session),
+        branchContext: outcome.branchContext,
+        snapshot: outcome.snapshot || await getWorkbenchSnapshot(),
       });
       return true;
     }

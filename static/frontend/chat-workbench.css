@@ -2204,6 +2204,61 @@ button.quest-task-flow-node {
   border-top: 1px solid color-mix(in srgb, var(--border) 56%, transparent);
 }
 
+.quest-task-flow-reparent-composer {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 56%, transparent);
+}
+
+.quest-task-flow-reparent-list {
+  display: grid;
+  gap: 4px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.quest-task-flow-reparent-option {
+  appearance: none;
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg) 76%, transparent);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.quest-task-flow-reparent-option:hover,
+.quest-task-flow-reparent-option.is-selected {
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 18%, var(--bg-secondary));
+}
+
+.quest-task-flow-reparent-option-title {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.quest-task-flow-reparent-option-path,
+.quest-task-flow-reparent-confirm-text,
+.quest-task-flow-reparent-empty {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.quest-task-flow-reparent-confirm {
+  display: grid;
+  gap: 6px;
+  padding-top: 2px;
+}
+
 .quest-task-flow-branch-input {
   width: 100%;
   min-width: 0;

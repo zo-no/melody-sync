@@ -18,17 +18,18 @@ delete process.env.MELODYSYNC_OBSIDIAN_PATH;
 
 const configDir = join(tempHome, '.config', 'melody-sync');
 const vaultPath = join(tempHome, 'vault', '00-🤖agent');
+const runtimeHooksDir = join(tempHome, '.melodysync', 'runtime', 'hooks');
 const outputPath = join(tempHome, 'hook-output.txt');
 
 mkdirSync(configDir, { recursive: true });
-mkdirSync(join(vaultPath, 'hooks'), { recursive: true });
+mkdirSync(runtimeHooksDir, { recursive: true });
 writeFileSync(
   join(configDir, 'general-settings.json'),
   JSON.stringify({ appRoot: vaultPath }, null, 2),
   'utf8',
 );
 writeFileSync(
-  join(vaultPath, 'hooks', 'custom-hooks.json'),
+  join(runtimeHooksDir, 'custom-hooks.json'),
   JSON.stringify([
     {
       id: 'custom.open-obsidian-script',

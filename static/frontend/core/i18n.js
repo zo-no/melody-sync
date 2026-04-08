@@ -192,8 +192,8 @@
       "persistent.kind.recurringTaskTitle": "Recurring task",
       "persistent.kind.recurringPaused": "recurring paused",
       "persistent.kind.recurringPausedTitle": "Recurring task paused",
-      "persistent.kind.skill": "quick action",
-      "persistent.kind.skillTitle": "Reusable quick action",
+      "persistent.kind.skill": "AI quick action",
+      "persistent.kind.skillTitle": "Reusable AI quick action",
       "persistent.sectionTitle": "Long-lived",
     },
     "zh-CN": {
@@ -382,8 +382,8 @@
       "persistent.kind.recurringTaskTitle": "会按设定时间执行的长期任务",
       "persistent.kind.recurringPaused": "长期任务已暂停",
       "persistent.kind.recurringPausedTitle": "长期任务当前已暂停自动执行",
-      "persistent.kind.skill": "快捷按钮",
-      "persistent.kind.skillTitle": "可一键触发的快捷按钮",
+      "persistent.kind.skill": "AI快捷按钮",
+      "persistent.kind.skillTitle": "可一键触发并由 AI 执行的快捷按钮",
       "persistent.sectionTitle": "长期项",
     },
   };

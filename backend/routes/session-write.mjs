@@ -434,8 +434,6 @@ export async function handleSessionWriteRoutes({
         folder,
         tool,
         name,
-        appId,
-        appName,
         userId,
         userName,
         sourceId,
@@ -460,8 +458,6 @@ export async function handleSessionWriteRoutes({
         return true;
       }
       const createOptions = {
-        appId: typeof appId === 'string' ? appId : '',
-        appName: typeof appName === 'string' ? appName : '',
         userId: typeof userId === 'string' ? userId : '',
         userName: typeof userName === 'string' ? userName : '',
         sourceId: typeof sourceId === 'string' ? sourceId : '',

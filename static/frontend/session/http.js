@@ -499,8 +499,8 @@ const SESSION_LIST_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 const SESSION_LIST_ORGANIZER_INTERNAL_ROLE = "session_list_organizer";
 const DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL = "整理任务";
 const SESSION_LIST_ORGANIZER_SESSION_NAME = "sort session list";
-const SESSION_LIST_ORGANIZER_QUICK_ACTION_STORAGE_KEY = "melodysyncSessionListOrganizerQuickActionId";
-const SESSION_LIST_ORGANIZER_QUICK_ACTION_PROMPT = "整理当前非归档任务：先读取最新任务列表，再按规则更新分组与排序，避免改动只读字段。";
+const SESSION_LIST_ORGANIZER_AI_QUICK_ACTION_STORAGE_KEY = "melodysyncSessionListOrganizerAiQuickActionId";
+const SESSION_LIST_ORGANIZER_AI_QUICK_ACTION_PROMPT = "整理当前非归档任务：先读取最新任务列表，再按规则更新分组与排序，避免改动只读字段。";
 const SESSION_ORGANIZER_POLL_INTERVAL_MS = 1200;
 const SESSION_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 let sessionListOrganizerInFlight = null;
@@ -558,31 +558,31 @@ function setSortSessionListButtonState(label = DEFAULT_SORT_SESSION_LIST_BUTTON_
   sortSessionListBtn.disabled = busy;
 }
 
-function getSessionListOrganizerQuickActionSessionId() {
+function getSessionListOrganizerAiQuickActionSessionId() {
   try {
-    return String(localStorage.getItem(SESSION_LIST_ORGANIZER_QUICK_ACTION_STORAGE_KEY) || "")
+    return String(localStorage.getItem(SESSION_LIST_ORGANIZER_AI_QUICK_ACTION_STORAGE_KEY) || "")
       .trim();
   } catch {
     return "";
   }
 }
 
-function setSessionListOrganizerQuickActionSessionId(sessionId = "") {
+function setSessionListOrganizerAiQuickActionSessionId(sessionId = "") {
   const normalized = String(sessionId || "").trim();
   try {
     if (!normalized) {
-      localStorage.removeItem(SESSION_LIST_ORGANIZER_QUICK_ACTION_STORAGE_KEY);
+      localStorage.removeItem(SESSION_LIST_ORGANIZER_AI_QUICK_ACTION_STORAGE_KEY);
     } else {
-      localStorage.setItem(SESSION_LIST_ORGANIZER_QUICK_ACTION_STORAGE_KEY, normalized);
+      localStorage.setItem(SESSION_LIST_ORGANIZER_AI_QUICK_ACTION_STORAGE_KEY, normalized);
     }
   } catch {}
 }
 
-function clearSessionListOrganizerQuickActionSessionId() {
-  setSessionListOrganizerQuickActionSessionId("");
+function clearSessionListOrganizerAiQuickActionSessionId() {
+  setSessionListOrganizerAiQuickActionSessionId("");
 }
 
-function isSessionListOrganizerQuickActionCandidate(session = null) {
+function isSessionListOrganizerAiQuickActionCandidate(session = null) {
   if (!session?.id) return false;
   const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
   const prompt = String(session?.systemPrompt || "");
@@ -591,18 +591,18 @@ function isSessionListOrganizerQuickActionCandidate(session = null) {
     && prompt.includes("You are MelodySync's hidden session-list organizer.");
 }
 
-function getSessionListOrganizerQuickActionSessionFromStore() {
-  const quickActionSessionId = getSessionListOrganizerQuickActionSessionId();
+function getSessionListOrganizerAiQuickActionSessionFromStore() {
+  const quickActionSessionId = getSessionListOrganizerAiQuickActionSessionId();
   if (!quickActionSessionId) return null;
   const byId = (Array.isArray(sessions) ? sessions : []).find((entry) => entry?.id === quickActionSessionId);
-  if (!isSessionListOrganizerQuickActionCandidate(byId)) {
-    clearSessionListOrganizerQuickActionSessionId();
+  if (!isSessionListOrganizerAiQuickActionCandidate(byId)) {
+    clearSessionListOrganizerAiQuickActionSessionId();
     return null;
   }
   return byId;
 }
 
-async function createSessionListOrganizerQuickActionSeedSession(payload) {
+async function createSessionListOrganizerAiQuickActionSeedSession(payload) {
   const data = await fetchJsonOrRedirect("/api/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -613,13 +613,12 @@ async function createSessionListOrganizerQuickActionSeedSession(payload) {
       systemPrompt: SESSION_LIST_ORGANIZER_SYSTEM_PROMPT,
       internalRole: SESSION_LIST_ORGANIZER_INTERNAL_ROLE,
       sourceId: typeof DEFAULT_APP_ID === "string" ? DEFAULT_APP_ID : "chat",
-      sourceName: typeof DEFAULT_APP_NAME === "string" ? DEFAULT_APP_NAME : "Chat",
     }),
   });
   return data?.session || null;
 }
 
-async function promoteSessionListOrganizerQuickAction(sessionId = "") {
+async function promoteSessionListOrganizerAiQuickAction(sessionId = "") {
   const normalizedSessionId = String(sessionId || "").trim();
   if (!normalizedSessionId) return null;
   const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(normalizedSessionId)}/promote-persistent`, {
@@ -628,14 +627,14 @@ async function promoteSessionListOrganizerQuickAction(sessionId = "") {
     body: JSON.stringify({
       kind: "skill",
       execution: {
-        runPrompt: SESSION_LIST_ORGANIZER_QUICK_ACTION_PROMPT,
+        runPrompt: SESSION_LIST_ORGANIZER_AI_QUICK_ACTION_PROMPT,
       },
     }),
   });
   return data?.session || null;
 }
 
-async function runSessionListOrganizerQuickAction(sessionId = "", payload = null) {
+async function runSessionListOrganizerAiQuickAction(sessionId = "", payload = null) {
   const normalizedSessionId = String(sessionId || "").trim();
   if (!normalizedSessionId) {
     return null;
@@ -657,24 +656,24 @@ async function runSessionListOrganizerQuickAction(sessionId = "", payload = null
   return waitForSessionListOrganizerRun(runId);
 }
 
-async function resolveSessionListOrganizerQuickAction(payload) {
-  const existing = getSessionListOrganizerQuickActionSessionFromStore();
+async function resolveSessionListOrganizerAiQuickAction(payload) {
+  const existing = getSessionListOrganizerAiQuickActionSessionFromStore();
   if (existing) {
     return existing;
   }
 
-  const seedSession = await createSessionListOrganizerQuickActionSeedSession(payload);
+  const seedSession = await createSessionListOrganizerAiQuickActionSeedSession(payload);
   const seedSessionId = typeof seedSession?.id === "string" ? seedSession.id.trim() : "";
   if (!seedSessionId) {
-    throw new Error("Failed to create the organizer quick action");
+    throw new Error("Failed to create the organizer AI quick action");
   }
 
-  const promotedSession = await promoteSessionListOrganizerQuickAction(seedSessionId);
+  const promotedSession = await promoteSessionListOrganizerAiQuickAction(seedSessionId);
   const promotedSessionId = typeof promotedSession?.id === "string" ? promotedSession.id.trim() : "";
   if (!promotedSessionId) {
-    throw new Error("Failed to promote the organizer quick action");
+    throw new Error("Failed to promote the organizer AI quick action");
   }
-  setSessionListOrganizerQuickActionSessionId(promotedSessionId);
+  setSessionListOrganizerAiQuickActionSessionId(promotedSessionId);
   return promotedSession;
 }
 
@@ -738,7 +737,6 @@ async function ensureInitialInboxSession() {
           name: getInitialInboxSessionName(),
           group: getInboxGroupLabel(),
           sourceId: typeof DEFAULT_APP_ID === "string" ? DEFAULT_APP_ID : "chat",
-          sourceName: typeof DEFAULT_APP_NAME === "string" ? DEFAULT_APP_NAME : "Chat",
         }),
       });
       const session = data?.session || null;
@@ -1159,14 +1157,8 @@ function normalizeSessionRecord(session, previous = null) {
     ? session.activity.queue.count
     : 0;
   const normalized = { ...session };
-  const compatAppId = typeof session?.appId === "string" ? session.appId.trim() : "";
-  if (compatAppId) normalized.appId = compatAppId;
-  else delete normalized.appId;
-  const compatAppName = typeof session?.appName === "string"
-    ? session.appName.trim()
-    : "";
-  if (compatAppName) normalized.appName = compatAppName;
-  else delete normalized.appName;
+  delete normalized.appId;
+  delete normalized.appName;
   if (!Object.prototype.hasOwnProperty.call(session || {}, "queuedMessages")) {
     if (queueCount > 0 && Array.isArray(previous?.queuedMessages)) {
       normalized.queuedMessages = previous.queuedMessages;
@@ -1245,7 +1237,6 @@ function upsertSession(session) {
   }
   assignSessionListOrderHints(sessions, previous ? new Map([[session.id, previous]]) : null);
   sortSessionsInPlace();
-  refreshAppCatalog();
   if (typeof syncMelodySyncAppState === "function") {
     syncMelodySyncAppState();
   }
@@ -1327,16 +1318,16 @@ async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
 
   const request = (async () => {
     try {
-      let run = null;
-      try {
-        const quickActionSession = await resolveSessionListOrganizerQuickAction(payload);
-        if (quickActionSession?.id) {
-          run = await runSessionListOrganizerQuickAction(quickActionSession.id, payload);
-        }
-      } catch (error) {
-        clearSessionListOrganizerQuickActionSessionId();
-        console.warn("[sessions] Failed to run organizer quick action:", error?.message || error);
+    let run = null;
+    try {
+      const quickActionSession = await resolveSessionListOrganizerAiQuickAction(payload);
+      if (quickActionSession?.id) {
+        run = await runSessionListOrganizerAiQuickAction(quickActionSession.id, payload);
       }
+    } catch (error) {
+      clearSessionListOrganizerAiQuickActionSessionId();
+      console.warn("[sessions] Failed to run organizer AI quick action:", error?.message || error);
+    }
 
       if (!run) {
         const data = await createSessionListOrganizerRun(payload);
@@ -1596,7 +1587,6 @@ async function refreshSidebarSession(sessionId) {
         const nextSessions = sessions.filter((session) => session.id !== sessionId);
         if (nextSessions.length !== sessions.length) {
           sessions = nextSessions;
-          refreshAppCatalog();
           renderSessionList();
         }
         return null;

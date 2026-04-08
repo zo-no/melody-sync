@@ -12,6 +12,18 @@ import {
 
 export { HOOK_EVENT_DEFINITIONS, HOOK_EVENTS, listHookEventDefinitions };
 
+export function registerLifecycleHook(eventPattern, hook, meta = {}) {
+  registerHook(eventPattern, hook, meta);
+}
+
+export async function emitLifecycleHooks(event, ctx) {
+  return emit(event, ctx);
+}
+
+export function registerLegacyPromptContextHook(eventPattern, hook, meta = {}) {
+  registerPromptContextHook(eventPattern, hook, meta);
+}
+
 /**
  * Map from event pattern -> list of hook entries.
  * Patterns: exact event name, 'run.*', or '*'.

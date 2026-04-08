@@ -475,7 +475,6 @@ function applyOptimisticSessionArchiveState(sessionId, archived) {
     assignSessionListOrderHints(sessions, new Map([[sessionId, previous]]));
   }
   sortSessionsInPlace();
-  refreshAppCatalog();
   if (currentSessionId === sessionId) {
     applyAttachedSessionState(sessionId, next);
   } else {
@@ -520,7 +519,6 @@ function removeSessionsFromClientState(sessionIds = []) {
     hasAttachedSession = false;
   }
   sortSessionsInPlace();
-  refreshAppCatalog();
   renderSessionList();
   if (shouldClearCurrent && typeof showEmpty === "function") {
     showEmpty();
@@ -555,7 +553,6 @@ function restoreOptimisticSessionSnapshot(session) {
     assignSessionListOrderHints(sessions, current ? new Map([[session.id, current]]) : null);
   }
   sortSessionsInPlace();
-  refreshAppCatalog();
   if (currentSessionId === session.id) {
     applyAttachedSessionState(session.id, session);
   } else {

@@ -479,6 +479,8 @@
     translate,
     collapseTaskMapAfterAction,
     enterBranchFromSession,
+    reparentSession: reparentSessionUnderTarget,
+    listReparentTargets: ({ sourceSessionId }) => listReparentTargets(sourceSessionId),
     getSessionRecord,
     attachSession,
     selectTaskCanvasNode,
@@ -904,6 +906,122 @@
     return raw.replace(/^(?:Branch\s*[·•-]\s*|支线\s*[·•:-]\s*)/i, "").trim() || raw;
   }
 
+  function collectTaskMapSessionEntries() {
+    const entriesById = new Map();
+    const childrenByParent = new Map();
+    for (const cluster of Array.isArray(snapshot?.taskClusters) ? snapshot.taskClusters : []) {
+      const rootSessionId = normalizeSessionId(cluster?.mainSessionId || cluster?.mainSession?.id || "");
+      const rootSession = cluster?.mainSession || getSessionRecord(rootSessionId) || null;
+      if (rootSessionId && rootSession) {
+        entriesById.set(rootSessionId, {
+          sessionId: rootSessionId,
+          session: rootSession,
+          parentSessionId: "",
+          clusterRootSessionId: rootSessionId,
+          depth: 0,
+          title: getSessionDisplayName(rootSession),
+        });
+      }
+      for (const branchSession of Array.isArray(cluster?.branchSessions) ? cluster.branchSessions : []) {
+        const sessionId = normalizeSessionId(branchSession?.id || "");
+        if (!sessionId) continue;
+        const parentSessionId = normalizeSessionId(branchSession?._branchParentSessionId || rootSessionId);
+        entriesById.set(sessionId, {
+          sessionId,
+          session: branchSession,
+          parentSessionId,
+          clusterRootSessionId: rootSessionId || parentSessionId,
+          depth: Number.isFinite(branchSession?._branchDepth) ? branchSession._branchDepth : 1,
+          title: getBranchDisplayName(branchSession),
+        });
+        if (parentSessionId) {
+          if (!childrenByParent.has(parentSessionId)) {
+            childrenByParent.set(parentSessionId, []);
+          }
+          childrenByParent.get(parentSessionId).push(sessionId);
+        }
+      }
+    }
+    return {
+      entriesById,
+      childrenByParent,
+    };
+  }
+
+  function collectSessionSubtreeIds(sourceSessionId, childrenByParent = new Map()) {
+    const normalizedSourceSessionId = normalizeSessionId(sourceSessionId);
+    const subtreeIds = new Set();
+    if (!normalizedSourceSessionId) return subtreeIds;
+    const stack = [normalizedSourceSessionId];
+    while (stack.length > 0) {
+      const currentSessionId = normalizeSessionId(stack.pop());
+      if (!currentSessionId || subtreeIds.has(currentSessionId)) continue;
+      subtreeIds.add(currentSessionId);
+      for (const childSessionId of childrenByParent.get(currentSessionId) || []) {
+        stack.push(childSessionId);
+      }
+    }
+    return subtreeIds;
+  }
+
+  function buildSessionPathLabel(sessionId, entriesById = new Map()) {
+    const segments = [];
+    const visited = new Set();
+    let cursorId = normalizeSessionId(sessionId);
+    while (cursorId && !visited.has(cursorId)) {
+      visited.add(cursorId);
+      const entry = entriesById.get(cursorId);
+      if (!entry) break;
+      segments.unshift(entry.title || getSessionDisplayName(entry.session));
+      cursorId = normalizeSessionId(entry.parentSessionId);
+    }
+    if (segments.length <= 1) return "顶层任务";
+    return segments.join(" / ");
+  }
+
+  function listReparentTargets(sourceSessionId) {
+    const normalizedSourceSessionId = normalizeSessionId(sourceSessionId);
+    if (!normalizedSourceSessionId) return [];
+    const { entriesById, childrenByParent } = collectTaskMapSessionEntries();
+    const sourceEntry = entriesById.get(normalizedSourceSessionId) || null;
+    const sourceClusterRootSessionId = normalizeSessionId(sourceEntry?.clusterRootSessionId || "");
+    const sourceSubtreeIds = collectSessionSubtreeIds(normalizedSourceSessionId, childrenByParent);
+    const targets = [];
+
+    if (normalizeSessionId(sourceEntry?.parentSessionId || "")) {
+      targets.push({
+        mode: "detach",
+        sessionId: "",
+        title: "移出为主线",
+        path: "从当前父任务下移出",
+        sameCluster: true,
+        depth: -1,
+        searchText: normalizeComparableText("移出为主线 从当前父任务下移出"),
+      });
+    }
+
+    for (const entry of entriesById.values()) {
+      if (!entry?.sessionId || sourceSubtreeIds.has(entry.sessionId)) continue;
+      const path = buildSessionPathLabel(entry.sessionId, entriesById);
+      targets.push({
+        mode: "attach",
+        sessionId: entry.sessionId,
+        title: entry.title || getSessionDisplayName(entry.session),
+        path,
+        sameCluster: normalizeSessionId(entry.clusterRootSessionId) === sourceClusterRootSessionId,
+        depth: Number.isFinite(entry.depth) ? entry.depth : 0,
+        searchText: normalizeComparableText(`${entry.title || ""} ${path}`),
+      });
+    }
+
+    return targets.sort((left, right) => {
+      if (left.mode !== right.mode) return left.mode === "detach" ? -1 : 1;
+      if (left.sameCluster !== right.sameCluster) return left.sameCluster ? -1 : 1;
+      if ((left.depth || 0) !== (right.depth || 0)) return (left.depth || 0) - (right.depth || 0);
+      return String(left.title || "").localeCompare(String(right.title || ""), "zh-Hans-CN");
+    });
+  }
+
   function getTaskCard(session) {
     return session?.taskCard && typeof session.taskCard === "object" ? session.taskCard : null;
   }
@@ -1314,6 +1432,28 @@
   function canOpenManualBranch() {
     const state = deriveQuestState();
     return Boolean(state.hasSession);
+  }
+
+  async function reparentSessionUnderTarget(sessionId, options = {}) {
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!normalizedSessionId) return null;
+    const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(normalizedSessionId)}/reparent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetSessionId: normalizeSessionId(options?.targetSessionId || ""),
+        branchReason: String(options?.branchReason || "").trim(),
+      }),
+    });
+    snapshot = response?.snapshot || snapshot;
+    if (response?.session) {
+      replaceSessionRecord(response.session);
+    }
+    if (typeof fetchSessionsList === "function") {
+      await fetchSessionsList();
+    }
+    await refreshTrackerSnapshot(normalizedSessionId);
+    return response?.session || null;
   }
 
   function createBranchSuggestionItem(evt) {

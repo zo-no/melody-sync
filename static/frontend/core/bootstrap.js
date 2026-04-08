@@ -171,7 +171,6 @@ const SESSION_REVIEW_MARKERS_STORAGE_KEY = "sessionReviewedAtById";
 const SESSION_REVIEW_BASELINES_STORAGE_KEY = "sessionReviewBaselineAtById";
 const SESSION_REVIEW_BASELINE_AT_STORAGE_KEY = "sessionReviewBaselineAt";
 const DEFAULT_APP_ID = "chat";
-const DEFAULT_APP_NAME = "Chat";
 const sessionStateModel = window.MelodySyncSessionStateModel;
 if (!sessionStateModel) {
   throw new Error("MelodySyncSessionStateModel must load before bootstrap.js");

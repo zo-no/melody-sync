@@ -215,7 +215,6 @@ function createNewSessionShortcut({ closeSidebar = true } = {}) {
     tool,
     group: t("sidebar.group.inbox"),
     sourceId: DEFAULT_APP_ID,
-    sourceName: DEFAULT_APP_NAME,
   });
 }
 

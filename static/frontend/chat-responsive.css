@@ -53,10 +53,6 @@ body::before {
     --workspace-max-width: min(980px, 100%);
   }
 
-  .gesture-pill {
-    display: none !important;
-  }
-
   .app-shell {
     padding: 0;
     gap: 0;

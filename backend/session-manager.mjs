@@ -94,16 +94,14 @@ import {
 } from './session-meta-store.mjs';
 import { dispatchSessionEmailCompletionTargets, sanitizeEmailCompletionTargets } from '../lib/agent-mail-completion-targets.mjs';
 import {
-  DEFAULT_APP_ID,
   applySessionCompatFields,
   normalizeAppId,
-  normalizeSessionAppName,
   normalizeSessionCompatInput,
   normalizeSessionSourceName,
   normalizeSessionUserName,
   resolveSessionSourceId,
   resolveSessionSourceName,
-} from './compat/session-meta-compat.mjs';
+} from './session-source/meta-fields.mjs';
 import { deleteFileAssets, publishLocalFileAssetFromPath } from './file-assets.mjs';
 import { ensureDir, pathExists, removePath, statOrNull } from './fs-utils.mjs';
 import {
@@ -1223,8 +1221,6 @@ async function enrichSessionMeta(meta, _options = {}) {
     recentFollowUpRequestIds,
     activeRunId,
     activeRun,
-    appId: _legacyAppId,
-    appName: _legacyAppName,
     sourceId: _rawSourceId,
     sourceName: _rawSourceName,
     visitorId: _legacyVisitorId,
@@ -1233,14 +1229,10 @@ async function enrichSessionMeta(meta, _options = {}) {
     taskCardManagedBindings: _taskCardManagedBindings,
     ...rest
   } = meta;
-  const compatAppId = normalizeAppId(meta?.appId);
-  const compatAppName = normalizeSessionAppName(meta?.appName);
   const sourceId = resolveSessionSourceId(meta);
   return {
     ...rest,
     ...(taskCard ? { taskCard } : {}),
-    ...(compatAppId ? { appId: compatAppId } : {}),
-    ...(compatAppName ? { appName: compatAppName } : {}),
     sourceId,
     sourceName: resolveSessionSourceName(meta, sourceId),
     latestSeq: snapshot.latestSeq,
@@ -2623,8 +2615,6 @@ export async function createSession(folder, tool, name, extra = {}) {
   const normalizedFolder = canonicalizeSessionFolder(folder);
   const externalTriggerId = typeof extra.externalTriggerId === 'string' ? extra.externalTriggerId.trim() : '';
   const {
-    requestedAppId,
-    requestedAppName,
     requestedSourceId,
     requestedSourceName,
     requestedUserId,
@@ -2707,11 +2697,6 @@ export async function createSession(folder, tool, name, extra = {}) {
           changed = true;
         }
 
-        if (requestedAppName && updated.appName !== requestedAppName) {
-          updated.appName = requestedAppName;
-          changed = true;
-        }
-
         if (requestedSourceId && updated.sourceId !== requestedSourceId) {
           updated.sourceId = requestedSourceId;
           changed = true;
@@ -2788,8 +2773,6 @@ export async function createSession(folder, tool, name, extra = {}) {
           userName: updated.userName || '',
         });
         applySessionCompatFields(updated, {
-          requestedAppId,
-          requestedAppName,
           requestedSourceId,
           requestedSourceName,
           requestedUserId,
@@ -2834,8 +2817,6 @@ export async function createSession(folder, tool, name, extra = {}) {
       updatedAt: now,
     };
     applySessionCompatFields(session, {
-      requestedAppId,
-      requestedAppName,
       requestedSourceId,
       requestedSourceName,
       requestedUserId,

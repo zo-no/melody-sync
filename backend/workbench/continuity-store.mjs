@@ -7,6 +7,7 @@ import {
   sortByCreatedAsc,
   sortByUpdatedDesc,
 } from './shared.mjs';
+import { resolveSessionStateFromSession } from '../session-state.mjs';
 
 function getStableBranchEntryTimestamp(entry) {
   return Date.parse(
@@ -42,10 +43,10 @@ export function getLatestBranchContextEntry(state, sessionId) {
 }
 
 function getSessionClusterGoal(session, context = null) {
+  const state = resolveSessionStateFromSession(session, context);
   return normalizeNullableText(
-    context?.mainGoal
-    || session?.taskCard?.mainGoal
-    || session?.taskCard?.goal
+    state.mainGoal
+    || state.goal
     || session?.name
   );
 }
@@ -58,7 +59,7 @@ function getRecordedParentSessionId(session, context = null) {
 }
 
 function getSessionClusterLineRole(session, context = null) {
-  return getRecordedParentSessionId(session, context) ? 'branch' : 'main';
+  return resolveSessionStateFromSession(session, context).lineRole;
 }
 
 export function buildTaskClusters(state, sessions = []) {

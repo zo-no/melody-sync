@@ -77,11 +77,18 @@
     return !isClosedNodeStatus(node?.status);
   }
 
+  function canReparentSession(node, { isRichView = false, isDone = false } = {}) {
+    if (!node || isDone || isRichView) return false;
+    if (!isSessionBackedNode(node)) return false;
+    return !isClosedNodeStatus(node?.status);
+  }
+
   function createController({
     collapseTaskMapAfterAction = null,
     enterBranchFromSession = null,
     getSessionRecord = null,
     attachSession = null,
+    reparentSession = null,
   } = {}) {
     async function executeCreateBranch(node, { nodeMap = new Map() } = {}) {
       const sourceSessionId = getNodeInstanceApi()?.resolveNodeSourceSessionId?.(node)
@@ -133,6 +140,17 @@
       return false;
     }
 
+    async function executeReparentSession(node, targetSessionId = "", context = {}) {
+      const sourceSessionId = getNodeInstanceApi()?.resolveNodeSourceSessionId?.(node)
+        || trimText(node?.sourceSessionId || node?.sessionId);
+      if (!sourceSessionId || typeof reparentSession !== "function") return false;
+      await reparentSession(sourceSessionId, {
+        targetSessionId: trimText(targetSessionId),
+        branchReason: trimText(context?.branchReason),
+      });
+      return true;
+    }
+
     return Object.freeze({
       getNodeCapabilities,
       hasNodeCapability,
@@ -141,7 +159,9 @@
       buildBranchCreationPayload,
       buildManualBranchCreationPayload,
       canCreateManualBranch,
+      canReparentSession,
       executeManualBranch,
+      executeReparentSession,
       executePrimaryAction,
     });
   }
@@ -154,6 +174,7 @@
     buildBranchCreationPayload,
     buildManualBranchCreationPayload,
     canCreateManualBranch,
+    canReparentSession,
     createController,
   });
 

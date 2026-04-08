@@ -37,10 +37,6 @@ function refreshSessionAttentionUi(sessionId = currentSessionId) {
 let currentThinkingBlock = null; // { el, body, tools: Set }
 let inThinkingBlock = false;
 
-function registerHiddenMarkdownExtensions() {
-  return;
-}
-
 function initializePushNotifications() {
   if (!("Notification" in window)) return;
   if (Notification.permission === "default") {
@@ -61,8 +57,6 @@ function initializePushNotifications() {
     });
   }
 }
-
-registerHiddenMarkdownExtensions();
 
 function persistActiveSessionId(sessionId) {
   if (sessionId) {
@@ -115,41 +109,16 @@ function syncBrowserState(state = {}) {
   }
 }
 
-function normalizeAppId(appId, { fallbackDefault = false } = {}) {
-  const trimmed = typeof appId === "string" ? appId.trim() : "";
-  if (!trimmed) {
-    return fallbackDefault ? DEFAULT_APP_ID : "";
-  }
-  const normalizedDefault = trimmed.toLowerCase();
-  if (normalizedDefault === DEFAULT_APP_ID) return DEFAULT_APP_ID;
-  return trimmed;
-}
-
-function formatAppNameFromId(appId) {
-  const normalized = normalizeAppId(appId);
-  if (!normalized) return DEFAULT_APP_NAME;
-  if (normalized === DEFAULT_APP_ID) return DEFAULT_APP_NAME;
-  return normalized
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function getEffectiveSessionSourceId(session) {
-  const explicitSourceId = normalizeAppId(session?.sourceId);
-  if (explicitSourceId) return explicitSourceId;
-  return DEFAULT_APP_ID;
-}
-
 function getEffectiveSessionSourceName(session) {
   const explicitSourceName = typeof session?.sourceName === "string"
     ? session.sourceName.trim()
     : "";
   if (explicitSourceName) return explicitSourceName;
-  return formatAppNameFromId(getEffectiveSessionSourceId(session));
-}
-
-function refreshAppCatalog() {
-  // Legacy sidebar filters were removed from the shipped template.
+  const sourceId = typeof session?.sourceId === "string"
+    ? session.sourceId.trim()
+    : "";
+  if (!sourceId || sourceId.toLowerCase() === DEFAULT_APP_ID) return "";
+  return sourceId;
 }
 
 function getVisibleActiveSessions() {
@@ -163,12 +132,6 @@ function getVisiblePinnedSessions() {
 function getVisibleArchivedSessions() {
   return getArchivedSessions();
 }
-
-function syncSidebarFiltersVisibility(showingSessions = null) {
-  // Legacy sidebar filters were removed from the shipped template.
-}
-
-refreshAppCatalog();
 
 function getSessionSortTime(session) {
   if (typeof sessionStateModel.getSessionSortTime === "function") {

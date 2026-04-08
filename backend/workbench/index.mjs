@@ -25,6 +25,7 @@ export {
   createBranchFromNode,
   createBranchFromSession,
   mergeBranchSessionBackToMain,
+  reparentSession,
   setBranchSessionStatus,
   setSessionReminderSnooze,
   syncSessionContinuityFromSession,

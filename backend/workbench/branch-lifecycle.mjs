@@ -1,6 +1,7 @@
 import {
   createWorkbenchSession,
   getWorkbenchSession,
+  listWorkbenchSessions,
   submitWorkbenchSessionMessage,
   updateWorkbenchSessionTaskCard,
 } from './session-ports.mjs';
@@ -17,7 +18,7 @@ import {
   normalizeNodeType,
   normalizeNullableText,
 } from './shared.mjs';
-import { getLatestBranchContextEntry } from './continuity-store.mjs';
+import { getLatestBranchContextEntry, getWorkbenchSnapshot } from './continuity-store.mjs';
 import { buildBranchSeedPrompt } from './exporters.mjs';
 import {
   loadWorkbenchState as loadState,
@@ -45,6 +46,86 @@ function getActiveSessionContext(state, sessionId) {
     normalizeNullableText(entry.sessionId) === normalized
     && normalizeBranchContextStatus(entry.status) === 'active'
   )) || null;
+}
+
+function buildActiveParentSessionMap(state, sessions = []) {
+  const parentMap = new Map();
+  for (const session of Array.isArray(sessions) ? sessions : []) {
+    const sessionId = normalizeNullableText(session?.id);
+    if (!sessionId) continue;
+    const context = getLatestBranchContextEntry(state, sessionId);
+    const parentSessionId = getRecordedParentSessionId(session, context);
+    if (!parentSessionId) continue;
+    parentMap.set(sessionId, parentSessionId);
+  }
+  return parentMap;
+}
+
+function collectSessionSubtreeIds(rootSessionId, parentMap = new Map()) {
+  const normalizedRootSessionId = normalizeNullableText(rootSessionId);
+  const subtreeIds = new Set();
+  if (!normalizedRootSessionId) return subtreeIds;
+  const childrenByParent = new Map();
+  for (const [sessionId, parentSessionId] of parentMap.entries()) {
+    if (!childrenByParent.has(parentSessionId)) {
+      childrenByParent.set(parentSessionId, []);
+    }
+    childrenByParent.get(parentSessionId).push(sessionId);
+  }
+  const stack = [normalizedRootSessionId];
+  while (stack.length > 0) {
+    const currentSessionId = stack.pop();
+    if (!currentSessionId || subtreeIds.has(currentSessionId)) continue;
+    subtreeIds.add(currentSessionId);
+    for (const childSessionId of childrenByParent.get(currentSessionId) || []) {
+      stack.push(childSessionId);
+    }
+  }
+  return subtreeIds;
+}
+
+function buildReparentedTaskCard(sourceSession, {
+  targetSession = null,
+  targetMainGoal = '',
+  branchReason = '',
+} = {}) {
+  const current = normalizeSessionTaskCard(sourceSession?.taskCard || {}) || {};
+  const currentGoal = normalizeNullableText(
+    current.goal
+    || sourceSession?.name
+    || current.mainGoal
+    || '当前任务'
+  );
+  if (!targetSession) {
+    return normalizeSessionTaskCard({
+      ...current,
+      goal: currentGoal,
+      mainGoal: normalizeNullableText(
+        sourceSession?.name
+        || current.goal
+        || current.mainGoal
+        || currentGoal
+      ),
+      lineRole: 'main',
+      branchFrom: '',
+      branchReason: '',
+    });
+  }
+  const targetTitle = getSessionTitle(targetSession);
+  return normalizeSessionTaskCard({
+    ...current,
+    goal: currentGoal,
+    mainGoal: normalizeNullableText(
+      targetMainGoal
+      || current.mainGoal
+      || current.goal
+      || targetTitle
+      || currentGoal
+    ),
+    lineRole: 'branch',
+    branchFrom: targetTitle,
+    branchReason: normalizeNullableText(branchReason) || `挂到「${targetTitle}」下`,
+  });
 }
 
 function pickProjectTitle(session, taskCard) {
@@ -743,6 +824,138 @@ export async function createBranchFromSession(sessionId, payload = {}) {
     return {
       session: resolvedBranchSession,
       branchContext,
+    };
+  });
+}
+
+export async function reparentSession(sessionId, payload = {}) {
+  return workbenchQueue(async () => {
+    const sourceSessionId = normalizeNullableText(sessionId);
+    if (!sourceSessionId) {
+      throw new Error('sessionId is required');
+    }
+    const targetParentSessionId = normalizeNullableText(
+      payload?.targetSessionId
+      || payload?.parentSessionId
+    );
+    if (targetParentSessionId && targetParentSessionId === sourceSessionId) {
+      throw new Error('Cannot attach a task under itself');
+    }
+
+    const sourceSession = await getWorkbenchSession(sourceSessionId);
+    if (!sourceSession) {
+      throw new Error('Source session not found');
+    }
+
+    const targetSession = targetParentSessionId
+      ? await getWorkbenchSession(targetParentSessionId)
+      : null;
+    if (targetParentSessionId && !targetSession) {
+      throw new Error('Target session not found');
+    }
+
+    const sessions = await listWorkbenchSessions({ includeArchived: true });
+    const state = await loadState();
+    const now = nowIso();
+
+    syncSessionContinuityState(state, sourceSession, sourceSession.taskCard, now);
+    if (targetSession) {
+      syncSessionContinuityState(state, targetSession, targetSession.taskCard, now);
+    }
+
+    const parentMap = buildActiveParentSessionMap(state, sessions);
+    const sourceSubtreeIds = collectSessionSubtreeIds(sourceSessionId, parentMap);
+    if (targetParentSessionId && sourceSubtreeIds.has(targetParentSessionId)) {
+      throw new Error('Cannot attach a task under itself or its descendants');
+    }
+
+    const sourceContext = getActiveSessionContext(state, sourceSessionId)
+      || getLatestBranchContextEntry(state, sourceSessionId);
+    if (!sourceContext) {
+      throw new Error('Source continuity context not found');
+    }
+
+    let nextContextPayload = {
+      projectId: sourceContext.projectId,
+      nodeId: sourceContext.nodeId,
+      mainNodeId: sourceContext.mainNodeId,
+      sessionId: sourceSessionId,
+      parentSessionId: '',
+      lineRole: 'main',
+      status: normalizeBranchContextStatus(sourceContext.status),
+      goal: normalizeNullableText(sourceContext.goal),
+      mainGoal: normalizeNullableText(
+        sourceSession?.name
+        || sourceSession?.taskCard?.goal
+        || sourceSession?.taskCard?.mainGoal
+        || sourceContext.mainGoal
+      ),
+      branchFrom: '',
+      branchReason: '',
+      returnToNodeId: '',
+      checkpointSummary: normalizeNullableText(sourceContext.checkpointSummary),
+      resumeHint: normalizeNullableText(sourceContext.resumeHint),
+      nextStep: normalizeNullableText(sourceContext.nextStep),
+      snoozedUntil: normalizeNullableText(sourceContext.snoozedUntil),
+      now,
+    };
+
+    if (targetSession) {
+      const targetContext = getActiveSessionContext(state, targetParentSessionId)
+        || getLatestBranchContextEntry(state, targetParentSessionId);
+      const targetTitle = getSessionTitle(targetSession);
+      nextContextPayload = {
+        ...nextContextPayload,
+        projectId: normalizeNullableText(targetContext?.projectId || nextContextPayload.projectId),
+        mainNodeId: normalizeNullableText(targetContext?.mainNodeId || targetContext?.nodeId || nextContextPayload.mainNodeId),
+        parentSessionId: targetParentSessionId,
+        lineRole: 'branch',
+        mainGoal: normalizeNullableText(
+          targetContext?.mainGoal
+          || targetSession?.taskCard?.mainGoal
+          || targetSession?.taskCard?.goal
+          || targetSession?.name
+          || nextContextPayload.mainGoal
+        ),
+        branchFrom: targetTitle,
+        branchReason: normalizeNullableText(payload?.branchReason) || `挂到「${targetTitle}」下`,
+        returnToNodeId: normalizeNullableText(
+          targetContext?.nodeId
+          || targetContext?.mainNodeId
+          || nextContextPayload.returnToNodeId
+        ),
+      };
+    }
+
+    const branchContext = upsertSessionContext(state, nextContextPayload);
+    await saveState(state);
+
+    const nextTaskCard = buildReparentedTaskCard(sourceSession, {
+      targetSession,
+      targetMainGoal: branchContext.mainGoal,
+      branchReason: branchContext.branchReason,
+    });
+    const updatedSession = await updateWorkbenchSessionTaskCard(sourceSessionId, nextTaskCard)
+      || await getWorkbenchSession(sourceSessionId)
+      || sourceSession;
+
+    if (targetSession) {
+      const targetTitle = getSessionTitle(targetSession);
+      await appendEvent(sourceSessionId, statusEvent(`已挂到：${targetTitle}`, {
+        statusKind: 'branch_reparented',
+        parentSessionId: targetParentSessionId,
+        parentTitle: targetTitle,
+      }));
+    } else {
+      await appendEvent(sourceSessionId, statusEvent('已移出为主线', {
+        statusKind: 'branch_promoted_main',
+      }));
+    }
+
+    return {
+      session: updatedSession,
+      branchContext,
+      snapshot: await getWorkbenchSnapshot(),
     };
   });
 }

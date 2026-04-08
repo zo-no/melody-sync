@@ -1,8 +1,8 @@
-import { access, appendFile, constants as fsConstants, mkdir } from 'fs/promises';
+import { access, appendFile, constants as fsConstants, mkdir, readFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { spawn } from 'child_process';
 
-import { VOICE_LOGS_DIR } from '../lib/config.mjs';
+import { VOICE_CONFIG_FILE, VOICE_LOGS_DIR } from '../lib/config.mjs';
 import { buildToolProcessEnv } from '../lib/user-shell-env.mjs';
 import { isXfyunAvailable, synthesizeSpeechWithXfyun } from './xfyun-completion-tts.mjs';
 
@@ -32,6 +32,38 @@ async function appendCompletionSoundLog(message) {
     await mkdir(dirname(COMPLETION_SOUND_LOG), { recursive: true });
     await appendFile(COMPLETION_SOUND_LOG, `${new Date().toISOString()} ${message}\n`, 'utf8');
   } catch {}
+}
+
+function trimString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function parseFiniteNumber(value, fallback) {
+  if (typeof value === 'string' && !trimString(value)) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+async function readRuntimeVoiceXfyunConfig(configPath = VOICE_CONFIG_FILE) {
+  try {
+    const raw = await readFile(configPath, 'utf8');
+    const config = JSON.parse(raw);
+    const tts = config?.tts && typeof config.tts === 'object' ? config.tts : {};
+    const env = tts?.env && typeof tts.env === 'object' ? tts.env : {};
+    return {
+      appId: trimString(env.XFYUN_APP_ID),
+      apiKey: trimString(env.XFYUN_API_KEY),
+      apiSecret: trimString(env.XFYUN_API_SECRET),
+      host: trimString(env.XFYUN_HOST),
+      voice: trimString(env.XFYUN_VOICE || tts.voice),
+      speed: parseFiniteNumber(env.XFYUN_SPEED, undefined),
+      volume: parseFiniteNumber(env.XFYUN_VOLUME, undefined),
+      pitch: parseFiniteNumber(env.XFYUN_PITCH, undefined),
+      afplayVolume: parseFiniteNumber(env.COMPLETION_AFP_PLAY_VOLUME, undefined),
+    };
+  } catch {
+    return {};
+  }
 }
 
 function runCommand(command, args = [], options = {}) {
@@ -119,23 +151,36 @@ async function playXfyunSpeech({
   voice,
   rate,
   timeoutMs,
+  xfyunConfig = {},
 }) {
   const synthesis = await synthesizeSpeechWithXfyun({
     text: speechText,
-    voice: String(process.env.XFYUN_VOICE || mapVoiceToXfyun(voice)),
+    appId: trimString(process.env.XFYUN_APP_ID || xfyunConfig.appId),
+    apiKey: trimString(process.env.XFYUN_API_KEY || xfyunConfig.apiKey),
+    apiSecret: trimString(process.env.XFYUN_API_SECRET || xfyunConfig.apiSecret),
+    host: trimString(process.env.XFYUN_HOST || xfyunConfig.host) || undefined,
+    voice: String(process.env.XFYUN_VOICE || xfyunConfig.voice || mapVoiceToXfyun(voice)),
     speed: Number.isFinite(Number(process.env.XFYUN_SPEED))
       ? Number(process.env.XFYUN_SPEED)
+      : Number.isFinite(xfyunConfig.speed)
+        ? xfyunConfig.speed
       : mapSayRateToXfyunSpeed(rate),
     volume: Number.isFinite(Number(process.env.XFYUN_VOLUME))
       ? Number(process.env.XFYUN_VOLUME)
+      : Number.isFinite(xfyunConfig.volume)
+        ? xfyunConfig.volume
       : DEFAULT_XFYUN_VOLUME,
     pitch: Number.isFinite(Number(process.env.XFYUN_PITCH))
       ? Number(process.env.XFYUN_PITCH)
+      : Number.isFinite(xfyunConfig.pitch)
+        ? xfyunConfig.pitch
       : DEFAULT_XFYUN_PITCH,
     timeoutMs,
   });
   const afplayVolume = Number.isFinite(Number(process.env.COMPLETION_AFP_PLAY_VOLUME))
     ? Number(process.env.COMPLETION_AFP_PLAY_VOLUME)
+    : Number.isFinite(xfyunConfig.afplayVolume)
+      ? xfyunConfig.afplayVolume
     : DEFAULT_AFP_PLAY_VOLUME;
   const afplayArgs = Number.isFinite(afplayVolume) && afplayVolume > 0
     ? ['-v', String(afplayVolume), synthesis.soundPath]
@@ -183,11 +228,16 @@ export async function playHostCompletionSound(options = {}) {
     options.fallbackToSay ?? process.env.COMPLETION_TTS_FALLBACK_TO_SAY,
     DEFAULT_TTS_FALLBACK_TO_SAY,
   );
+  const xfyunConfig = await readRuntimeVoiceXfyunConfig();
   const useXfyun = preference === 'xfyun'
     ? true
     : preference === 'say'
       ? false
-      : isXfyunAvailable();
+      : isXfyunAvailable({
+        appId: process.env.XFYUN_APP_ID || xfyunConfig.appId,
+        apiKey: process.env.XFYUN_API_KEY || xfyunConfig.apiKey,
+        apiSecret: process.env.XFYUN_API_SECRET || xfyunConfig.apiSecret,
+      });
 
   let finalMode = 'say';
   let finalSoundPath = '';
@@ -210,6 +260,7 @@ export async function playHostCompletionSound(options = {}) {
             voice,
             rate,
             timeoutMs: options.timeoutMs,
+            xfyunConfig,
           });
           finalMode = 'xfyun';
           finalSoundPath = xfyun.soundPath || '';

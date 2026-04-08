@@ -7,6 +7,8 @@
     translate = (key) => key,
     collapseTaskMapAfterAction = null,
     enterBranchFromSession = null,
+    reparentSession = null,
+    listReparentTargets = null,
     getSessionRecord = null,
     attachSession = null,
     selectTaskCanvasNode = null,
@@ -51,6 +53,19 @@
         isNodeDirectlyInteractive(node, options = {}) {
           return this.resolvePrimaryAction(node, options) === "open-session";
         },
+        canReparentSession(node, { isRichView = false, isDone = false } = {}) {
+          if (isRichView || isDone) return false;
+          return Boolean(node?.sourceSessionId || node?.sessionId);
+        },
+        async executeReparentSession(node, targetSessionId = "", options = {}) {
+          const sourceSessionId = String(node?.sourceSessionId || node?.sessionId || "").trim();
+          if (!sourceSessionId || typeof reparentSession !== "function") return false;
+          await reparentSession(sourceSessionId, {
+            targetSessionId: String(targetSessionId || "").trim(),
+            branchReason: options?.branchReason || "",
+          });
+          return true;
+        },
         async executePrimaryAction(node, { state = null, nodeMap = new Map(), isRichView = false, isDone = false } = {}) {
           const action = this.resolvePrimaryAction(node, { isRichView, isDone });
           if (action === "create-branch") {
@@ -84,6 +99,7 @@
           enterBranchFromSession,
           getSessionRecord,
           attachSession,
+          reparentSession,
         });
       }
       return createFallbackNodeActionController();
@@ -534,10 +550,19 @@
 
       const nodeActionController = getNodeActionController();
       let activeManualBranchComposer = null;
+      let activeReparentComposer = null;
 
       const closeManualBranchComposer = () => {
         const composerState = activeManualBranchComposer;
         activeManualBranchComposer = null;
+        if (!composerState) return;
+        composerState.button.hidden = false;
+        composerState.composer.remove();
+      };
+
+      const closeReparentComposer = () => {
+        const composerState = activeReparentComposer;
+        activeReparentComposer = null;
         if (!composerState) return;
         composerState.button.hidden = false;
         composerState.composer.remove();
@@ -584,6 +609,7 @@
             return;
           }
 
+          closeReparentComposer();
           closeManualBranchComposer();
 
           const composer = documentRef.createElement("div");
@@ -687,6 +713,215 @@
         return actionBtn;
       };
 
+      const createReparentAction = (node, nodeEl, actionContext = {}) => {
+        const actionBtn = documentRef.createElement("button");
+        actionBtn.type = "button";
+        actionBtn.className = "quest-branch-btn quest-branch-btn-secondary quest-task-flow-node-action quest-task-flow-node-action-secondary panzoom-exclude";
+        actionBtn.textContent = "挂到...";
+        actionBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          event.preventDefault();
+
+          if (activeReparentComposer?.nodeId === node?.id) {
+            activeReparentComposer.input.focus();
+            activeReparentComposer.input.select();
+            return;
+          }
+
+          closeManualBranchComposer();
+          closeReparentComposer();
+
+          const composer = documentRef.createElement("div");
+          composer.className = "quest-task-flow-reparent-composer panzoom-exclude";
+
+          const input = documentRef.createElement("input");
+          input.type = "text";
+          input.className = "quest-task-flow-branch-input";
+          input.placeholder = "搜索任务标题或路径";
+          input.setAttribute("aria-label", "挂靠目标");
+
+          const list = documentRef.createElement("div");
+          list.className = "quest-task-flow-reparent-list";
+
+          const confirm = documentRef.createElement("div");
+          confirm.className = "quest-task-flow-reparent-confirm";
+          confirm.hidden = true;
+
+          const confirmText = documentRef.createElement("div");
+          confirmText.className = "quest-task-flow-reparent-confirm-text";
+
+          const actions = documentRef.createElement("div");
+          actions.className = "quest-task-flow-branch-actions";
+
+          const confirmBtn = documentRef.createElement("button");
+          confirmBtn.type = "button";
+          confirmBtn.className = "quest-branch-btn quest-branch-btn-primary panzoom-exclude";
+          confirmBtn.textContent = "确认";
+          confirmBtn.disabled = true;
+
+          const cancelBtn = documentRef.createElement("button");
+          cancelBtn.type = "button";
+          cancelBtn.className = "quest-branch-btn quest-branch-btn-secondary panzoom-exclude";
+          cancelBtn.textContent = "取消";
+
+          const rawTargets = typeof listReparentTargets === "function"
+            ? listReparentTargets({
+              sourceSessionId: String(node?.sourceSessionId || node?.sessionId || "").trim(),
+              node,
+              state,
+              nodeMap,
+            })
+            : [];
+          let selectedTarget = null;
+
+          const setBusy = (busy) => {
+            input.disabled = busy;
+            confirmBtn.disabled = busy || !selectedTarget;
+            cancelBtn.disabled = busy;
+            actionBtn.disabled = busy;
+          };
+
+          const renderConfirm = () => {
+            if (!selectedTarget) {
+              confirm.hidden = true;
+              confirmBtn.disabled = true;
+              return;
+            }
+            confirm.hidden = false;
+            const selectedTargetLabel = selectedTarget.mode === "detach"
+              ? ""
+              : (
+                selectedTarget.path && selectedTarget.path !== "顶层任务"
+                  ? selectedTarget.path
+                  : (selectedTarget.title || "目标任务")
+              );
+            confirmText.textContent = selectedTarget.mode === "detach"
+              ? "移出后会恢复为主线"
+              : `挂到「${selectedTargetLabel}」下，会保留当前下级结构`;
+            confirmBtn.disabled = false;
+          };
+
+          const renderTargets = () => {
+            const query = String(input.value || "").trim().toLowerCase();
+            const filteredTargets = (Array.isArray(rawTargets) ? rawTargets : [])
+              .filter((entry) => !query || String(entry?.searchText || "").toLowerCase().includes(query))
+              .slice(0, 8);
+            list.innerHTML = "";
+            if (!filteredTargets.length) {
+              const empty = documentRef.createElement("div");
+              empty.className = "quest-task-flow-reparent-empty";
+              empty.textContent = "没有可挂靠的任务";
+              list.appendChild(empty);
+              return;
+            }
+            for (const entry of filteredTargets) {
+              const option = documentRef.createElement("button");
+              option.type = "button";
+              option.className = "quest-task-flow-reparent-option";
+              if (selectedTarget?.mode === entry.mode && selectedTarget?.sessionId === entry.sessionId) {
+                option.classList.add("is-selected");
+              }
+
+              const title = documentRef.createElement("div");
+              title.className = "quest-task-flow-reparent-option-title";
+              title.textContent = entry.title || "未命名任务";
+
+              const path = documentRef.createElement("div");
+              path.className = "quest-task-flow-reparent-option-path";
+              path.textContent = entry.path || "顶层任务";
+
+              option.appendChild(title);
+              option.appendChild(path);
+              option.addEventListener("click", (optionEvent) => {
+                optionEvent.stopPropagation();
+                optionEvent.preventDefault();
+                selectedTarget = entry;
+                renderTargets();
+                renderConfirm();
+              });
+              list.appendChild(option);
+            }
+          };
+
+          const execute = async () => {
+            if (!selectedTarget) return;
+            setBusy(true);
+            try {
+              const executed = await nodeActionController.executeReparentSession?.(
+                node,
+                selectedTarget.mode === "detach" ? "" : selectedTarget.sessionId,
+                actionContext,
+              );
+              if (executed) {
+                closeReparentComposer();
+              }
+            } finally {
+              setBusy(false);
+            }
+          };
+
+          cancelBtn.addEventListener("click", (cancelEvent) => {
+            cancelEvent.stopPropagation();
+            cancelEvent.preventDefault();
+            closeReparentComposer();
+          });
+          confirmBtn.addEventListener("click", (confirmEvent) => {
+            confirmEvent.stopPropagation();
+            confirmEvent.preventDefault();
+            void execute();
+          });
+          input.addEventListener("input", () => {
+            renderTargets();
+          });
+          input.addEventListener("keydown", (keyEvent) => {
+            if (keyEvent.key === "Escape") {
+              keyEvent.preventDefault();
+              keyEvent.stopPropagation();
+              closeReparentComposer();
+            } else if (keyEvent.key === "Enter" && selectedTarget) {
+              keyEvent.preventDefault();
+              keyEvent.stopPropagation();
+              void execute();
+            }
+          });
+          composer.addEventListener("click", (composerEvent) => {
+            composerEvent.stopPropagation();
+          });
+
+          actions.appendChild(confirmBtn);
+          actions.appendChild(cancelBtn);
+          confirm.appendChild(confirmText);
+          confirm.appendChild(actions);
+          composer.appendChild(input);
+          composer.appendChild(list);
+          composer.appendChild(confirm);
+          nodeEl.appendChild(composer);
+
+          actionBtn.hidden = true;
+          activeReparentComposer = {
+            nodeId: node?.id || "",
+            composer,
+            input,
+            button: actionBtn,
+          };
+
+          renderTargets();
+
+          const focusInput = () => {
+            input.focus();
+            input.select();
+          };
+          if (typeof windowRef?.requestAnimationFrame === "function") {
+            windowRef.requestAnimationFrame(focusInput);
+          } else if (typeof windowRef?.setTimeout === "function") {
+            windowRef.setTimeout(focusInput, 0);
+          } else {
+            focusInput();
+          }
+        });
+        return actionBtn;
+      };
+
       for (const entry of entries) {
         const node = entry.node;
         const nodeEffect = getNodeEffect(node);
@@ -699,7 +934,9 @@
         const isCandidate = nodeActionController.hasNodeCapability(node, "create-branch");
         const canCreateManualBranch = node?.isCurrent === true
           && nodeActionController.canCreateManualBranch?.(node, { isRichView, isDone }) === true;
-        const hostsInlineActions = nodePrimaryAction === "create-branch" || canCreateManualBranch;
+        const canReparentSession = node?.isCurrent === true
+          && nodeActionController.canReparentSession?.(node, { isRichView, isDone }) === true;
+        const hostsInlineActions = nodePrimaryAction === "create-branch" || canCreateManualBranch || canReparentSession;
         const isNonInteractive = !nodeActionController.isNodeDirectlyInteractive(node, { isRichView, isDone });
         const isCanvasSelected = isRichView
           && String(getSelectedTaskCanvasNodeId?.() || "").trim() === String(node?.id || "").trim();
@@ -759,13 +996,23 @@
 
         if (nodePrimaryAction === "create-branch") {
           nodeEl.appendChild(createCandidateAction(node));
-        } else if (canCreateManualBranch) {
-          nodeEl.appendChild(createManualBranchAction(node, nodeEl, {
-            state,
-            nodeMap,
-            isRichView,
-            isDone,
-          }));
+        } else if (canCreateManualBranch || canReparentSession) {
+          if (canCreateManualBranch) {
+            nodeEl.appendChild(createManualBranchAction(node, nodeEl, {
+              state,
+              nodeMap,
+              isRichView,
+              isDone,
+            }));
+          }
+          if (canReparentSession) {
+            nodeEl.appendChild(createReparentAction(node, nodeEl, {
+              state,
+              nodeMap,
+              isRichView,
+              isDone,
+            }));
+          }
         } else if (nodePrimaryAction === "open-session" && !isDone && node.sessionId) {
           nodeEl.addEventListener("click", () => {
             void nodeActionController.executePrimaryAction(node, {
