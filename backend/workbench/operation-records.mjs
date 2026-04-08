@@ -1,5 +1,5 @@
 import { loadHistory } from '../history.mjs';
-import { buildPersistentDigest } from '../session-persistent.mjs';
+import { buildPersistentDigest } from '../session-persistent/core.mjs';
 import { getWorkbenchSession, listWorkbenchSessions } from './session-ports.mjs';
 import { loadWorkbenchState } from './state-store.mjs';
 import {

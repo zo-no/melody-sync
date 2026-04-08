@@ -8,7 +8,7 @@ import {
   isPersistentRecurringDue,
   normalizeSessionPersistent,
   resolvePersistentRunRuntime,
-} from '../backend/session-persistent.mjs';
+} from '../backend/session-persistent/core.mjs';
 
 const normalizedRecurring = normalizeSessionPersistent({
   kind: 'recurring_task',

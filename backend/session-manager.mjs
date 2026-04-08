@@ -143,7 +143,7 @@ import {
   computeNextRecurringRunAt,
   normalizeSessionPersistent,
   resolvePersistentRunRuntime,
-} from './session-persistent.mjs';
+} from './session-persistent/core.mjs';
 import { finalizeDetachedRunWithDeps } from './run-finalization.mjs';
 import { registerSessionManagerBuiltinHooks } from './hooks/runtime/register-session-manager-hooks.mjs';
 import { appendGraphBootstrapPromptContext } from './workbench/graph-prompt-context.mjs';

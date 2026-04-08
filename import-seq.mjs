@@ -4,7 +4,7 @@ const modules = [
   './backend/api-request-log.mjs',
   './backend/ws.mjs',
   './backend/session-manager.mjs',
-  './backend/session-persistent-scheduler.mjs',
+  './backend/session-persistent/scheduler.mjs',
   './backend/fs-utils.mjs',
   './backend/hooks/runtime/register-builtins.mjs',
   './backend/hooks/runtime/register-custom-hooks.mjs',

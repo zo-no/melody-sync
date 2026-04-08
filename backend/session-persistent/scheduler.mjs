@@ -1,6 +1,6 @@
-import { loadSessionsMeta } from './session-meta-store.mjs';
-import { isPersistentRecurringDue } from './session-persistent.mjs';
-import { getSession, runSessionPersistent } from './session-manager.mjs';
+import { loadSessionsMeta } from '../session-meta-store.mjs';
+import { isPersistentRecurringDue } from './core.mjs';
+import { getSession, runSessionPersistent } from '../session-manager.mjs';
 
 const DEFAULT_SCAN_INTERVAL_MS = 30 * 1000;
 
