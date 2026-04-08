@@ -2108,25 +2108,51 @@ async function queueContextCompaction(sessionId, session, run, { automatic = fal
 async function maybeAutoCompact(sessionId, session, run, manifest) {
   if (!session || !run || manifest?.internalOperation) return false;
   if (getSessionQueueCount(session) > 0) return false;
-  let contextTokens = getRunLiveContextTokens(run);
-  let autoCompactTokens = getAutoCompactContextTokens(run);
-  if (!Number.isInteger(contextTokens) || !Number.isFinite(autoCompactTokens)) {
-    const refreshed = await refreshCodexContextMetrics(run);
-    if (refreshed) {
-      const syntheticRun = {
-        ...run,
-        contextInputTokens: refreshed.contextTokens,
-        ...(Number.isInteger(refreshed.contextWindowTokens)
-          ? { contextWindowTokens: refreshed.contextWindowTokens }
-          : {}),
-      };
-      contextTokens = refreshed.contextTokens;
-      autoCompactTokens = getAutoCompactContextTokens(syntheticRun);
+  if (STARTUP_SYNC_DEBUG) {
+    console.log('[auto-compact] start', {
+      sessionId,
+      runId: run.id,
+      codexThreadId: run.codexThreadId || null,
+      contextInputTokens: run.contextInputTokens ?? null,
+      contextWindowTokens: run.contextWindowTokens ?? null,
+    });
+  }
+  let metricsBackedRun = run;
+  const refreshed = await refreshCodexContextMetrics(run);
+  if (refreshed) {
+    if (STARTUP_SYNC_DEBUG) {
+      console.log('[auto-compact] refreshed metrics', refreshed);
     }
+    metricsBackedRun = {
+      ...run,
+      contextInputTokens: refreshed.contextTokens,
+      ...(Number.isInteger(refreshed.contextWindowTokens)
+        ? { contextWindowTokens: refreshed.contextWindowTokens }
+        : {}),
+    };
+  }
+  let contextTokens = getRunLiveContextTokens(metricsBackedRun);
+  let autoCompactTokens = getAutoCompactContextTokens(metricsBackedRun);
+  if (!Number.isInteger(contextTokens) || !Number.isFinite(autoCompactTokens)) {
+    contextTokens = getRunLiveContextTokens(metricsBackedRun);
+    autoCompactTokens = getAutoCompactContextTokens(metricsBackedRun);
+  }
+  if (STARTUP_SYNC_DEBUG) {
+    console.log('[auto-compact] thresholds', {
+      contextTokens,
+      autoCompactTokens,
+      contextWindowTokens: metricsBackedRun.contextWindowTokens ?? null,
+    });
   }
   if (!Number.isInteger(contextTokens) || !Number.isFinite(autoCompactTokens)) return false;
   if (contextTokens <= autoCompactTokens) return false;
-  return queueContextCompaction(sessionId, session, run, { automatic: true });
+  if (STARTUP_SYNC_DEBUG) {
+    console.log('[auto-compact] queueing compaction', {
+      sessionId,
+      runId: run.id,
+    });
+  }
+  return queueContextCompaction(sessionId, session, metricsBackedRun, { automatic: true });
 }
 
 async function applyCompactionWorkerResult(targetSessionId, run, manifest) {

@@ -7,21 +7,24 @@ import { statOrNull } from './fs-utils.mjs';
 const SESSION_LOG_CACHE = new Map();
 const TAIL_CHUNK_BYTES = 128 * 1024;
 const MAX_TAIL_SCAN_BYTES = 2 * 1024 * 1024;
-let cachedSessionsDir = '';
+let cachedSessionsKey = '';
 
-function getCodexSessionsDir() {
+function getCodexSessionsDirs() {
   const codeHomeOverride = typeof process.env.CODEX_HOME === 'string' ? process.env.CODEX_HOME.trim() : '';
   const homeOverride = typeof process.env.HOME === 'string' ? process.env.HOME.trim() : '';
   const homeDir = homeOverride || homedir();
-  const sessionsDir = join(
-    codeHomeOverride || CODEX_MANAGED_HOME_DIR || join(homeDir, '.codex'),
-    'sessions',
-  );
-  if (sessionsDir !== cachedSessionsDir) {
-    cachedSessionsDir = sessionsDir;
+  const candidates = [
+    codeHomeOverride ? join(codeHomeOverride, 'sessions') : '',
+    CODEX_MANAGED_HOME_DIR ? join(CODEX_MANAGED_HOME_DIR, 'sessions') : '',
+    homeDir ? join(homeDir, '.codex', 'sessions') : '',
+  ].filter(Boolean);
+  const uniqueDirs = [...new Set(candidates)];
+  const nextKey = uniqueDirs.join('::');
+  if (nextKey !== cachedSessionsKey) {
+    cachedSessionsKey = nextKey;
     SESSION_LOG_CACHE.clear();
   }
-  return sessionsDir;
+  return uniqueDirs;
 }
 
 function pickNonNegativeInt(value) {
@@ -57,16 +60,18 @@ async function findSessionLogRecursive(rootDir, threadId) {
 export async function findCodexSessionLog(threadId) {
   if (!threadId) return null;
 
-  const sessionsDir = getCodexSessionsDir();
+  const sessionsDirs = getCodexSessionsDirs();
   const cached = SESSION_LOG_CACHE.get(threadId);
   if (cached && await statOrNull(cached)) {
     return cached;
   }
 
-  const located = await findSessionLogRecursive(sessionsDir, threadId);
-  if (located) {
-    SESSION_LOG_CACHE.set(threadId, located);
-    return located;
+  for (const sessionsDir of sessionsDirs) {
+    const located = await findSessionLogRecursive(sessionsDir, threadId);
+    if (located) {
+      SESSION_LOG_CACHE.set(threadId, located);
+      return located;
+    }
   }
 
   SESSION_LOG_CACHE.delete(threadId);

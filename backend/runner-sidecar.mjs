@@ -145,11 +145,25 @@ function captureResume(run, parsed) {
 
 async function appendCodexContextMetrics(runId) {
   const current = await getRun(runId);
-  if (!current?.codexThreadId) return null;
+  if (!current?.codexThreadId) {
+    if (process.env.MELODYSYNC_STARTUP_SYNC_DEBUG === '1') {
+      console.log('[runner-sidecar] skip codex context metrics: missing codexThreadId', { runId });
+    }
+    return null;
+  }
 
   const metrics = await readLatestCodexSessionMetrics(current.codexThreadId);
   const payload = buildCodexContextMetricsPayload(metrics);
-  if (!payload) return null;
+  if (!payload) {
+    if (process.env.MELODYSYNC_STARTUP_SYNC_DEBUG === '1') {
+      console.log('[runner-sidecar] skip codex context metrics: no payload', {
+        runId,
+        codexThreadId: current.codexThreadId,
+        metrics,
+      });
+    }
+    return null;
+  }
 
   const line = JSON.stringify(payload);
   await appendRunSpoolRecord(runId, {
@@ -243,6 +257,12 @@ async function main() {
   const apiRetryEvents = [];
   let hasAssistantMessage = false;
   let transportAbortRequested = false;
+  let outputDrain = Promise.resolve();
+  const queueOutputDrain = (work) => {
+    const next = outputDrain.then(() => work());
+    outputDrain = next.catch(() => {});
+    return next;
+  };
   const terminationController = createTerminationController(proc, {
     terminationGraceMs: providerTerminationGraceMs,
   });
@@ -467,10 +487,10 @@ async function main() {
   const rl = createInterface({ input: proc.stdout });
   rl.on('line', (line) => {
     rl.pause();
-    recordStdoutLine(line).finally(() => rl.resume());
+    queueOutputDrain(() => recordStdoutLine(line)).finally(() => rl.resume());
   });
   proc.stderr.on('data', (chunk) => {
-    void recordStderrText(chunk.toString());
+    void queueOutputDrain(() => recordStderrText(chunk.toString()));
   });
 
   proc.on('error', (error) => {
@@ -506,6 +526,7 @@ async function main() {
         clearInterval(transportWatchdog);
         clearInterval(apiRetryWatchdog);
         terminationController.clearTerminateTimer();
+        await outputDrain;
         if (!forcedFailureReason) {
           await markClaudeRawFailureFromFallback();
         }
