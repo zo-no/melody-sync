@@ -20,17 +20,12 @@ export async function emitLifecycleHooks(event, ctx) {
   return emit(event, ctx);
 }
 
-export function registerLegacyPromptContextHook(eventPattern, hook, meta = {}) {
-  registerPromptContextHook(eventPattern, hook, meta);
-}
-
 /**
  * Map from event pattern -> list of hook entries.
  * Patterns: exact event name, 'run.*', or '*'.
  * @type {Map<string, Array<{ fn: (ctx: object) => Promise<void>, meta: object }>>}
  */
 const registry = new Map();
-const promptRegistry = new Map();
 const enabledOverrides = new Map();
 
 function normalizeHookId(value) {
@@ -63,41 +58,18 @@ export function registerHook(eventPattern, hook, meta = {}) {
   registry.get(eventPattern).push(entry);
 }
 
-export function registerPromptContextHook(eventPattern, hook, meta = {}) {
-  if (typeof hook !== 'function') return;
-  if (!promptRegistry.has(eventPattern)) promptRegistry.set(eventPattern, []);
-  const entry = {
-    fn: hook,
-    meta: {
-      ...meta,
-      id: meta.id || hook.name || 'anonymous',
-      label: meta.label || hook.name || 'Anonymous hook',
-      description: meta.description || '',
-      builtIn: meta.builtIn === true,
-      eventPattern,
-      enabled: meta.enabled !== false,
-    },
-  };
-  applyEnabledOverrideToEntry(entry);
-  promptRegistry.get(eventPattern).push(entry);
-}
-
 export function listHooks() {
   const hookMetaById = new Map();
-  const collect = (sourceRegistry) => {
-    for (const entries of sourceRegistry.values()) {
-      for (const entry of entries) {
-        const hookId = normalizeHookId(entry?.meta?.id);
-        if (!hookId) continue;
-        hookMetaById.set(hookId, {
-          ...(hookMetaById.get(hookId) || {}),
-          ...entry.meta,
-        });
-      }
+  for (const entries of registry.values()) {
+    for (const entry of entries) {
+      const hookId = normalizeHookId(entry?.meta?.id);
+      if (!hookId) continue;
+      hookMetaById.set(hookId, {
+        ...(hookMetaById.get(hookId) || {}),
+        ...entry.meta,
+      });
     }
-  };
-  collect(registry);
-  collect(promptRegistry);
+  }
   return [...hookMetaById.values()].map((meta) => ({ ...meta }));
 }
 
@@ -105,13 +77,11 @@ export function setHookEnabled(hookId, enabled) {
   const normalizedHookId = normalizeHookId(hookId);
   if (!normalizedHookId) return false;
   let found = false;
-  for (const sourceRegistry of [registry, promptRegistry]) {
-    for (const entries of sourceRegistry.values()) {
-      for (const entry of entries) {
-        if (entry.meta?.id === normalizedHookId) {
-          entry.meta.enabled = Boolean(enabled);
-          found = true;
-        }
+  for (const entries of registry.values()) {
+    for (const entry of entries) {
+      if (entry.meta?.id === normalizedHookId) {
+        entry.meta.enabled = Boolean(enabled);
+        found = true;
       }
     }
   }
@@ -136,11 +106,9 @@ export function applyHookEnabledOverrides(overrides = {}) {
     enabledOverrides.set(hookId, enabled);
   }
 
-  for (const sourceRegistry of [registry, promptRegistry]) {
-    for (const entries of sourceRegistry.values()) {
-      for (const entry of entries) {
-        applyEnabledOverrideToEntry(entry);
-      }
+  for (const entries of registry.values()) {
+    for (const entry of entries) {
+      applyEnabledOverrideToEntry(entry);
     }
   }
 }
@@ -212,39 +180,4 @@ export async function emit(event, ctx) {
     executed,
     failures,
   };
-}
-
-export async function collectPromptContexts(event, ctx) {
-  const fullCtx = { event, ...ctx };
-  const matchedEntries = collectEntriesForEvent(promptRegistry, event)
-    .filter((entry) => entry.meta?.enabled !== false);
-  if (matchedEntries.length === 0) return [];
-
-  const results = await Promise.allSettled(
-    matchedEntries.map(async (entry) => {
-      const result = await entry.fn(fullCtx);
-      const content = typeof result === 'string'
-        ? result.trim()
-        : (typeof result?.content === 'string' ? result.content.trim() : '');
-      if (!content) return null;
-      return {
-        id: entry.meta?.id || '',
-        label: entry.meta?.label || entry.meta?.id || 'Prompt Hook',
-        eventPattern: entry.meta?.eventPattern || event,
-        content,
-      };
-    }),
-  );
-
-  const sections = [];
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      if (result.value) sections.push(result.value);
-      continue;
-    }
-    console.error(
-      `[session-hooks] prompt-context ${event} ${ctx?.sessionId || ''}: ${result.reason?.message ?? result.reason}`,
-    );
-  }
-  return sections;
 }
