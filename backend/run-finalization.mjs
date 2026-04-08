@@ -1,3 +1,6 @@
+import { normalizeAgentResultEnvelope } from './agent-result-envelope.mjs';
+import { resolveSessionStateFromSession } from './session-state.mjs';
+
 function buildRunTerminalStatusEvent(statusEvent, run) {
   if (run?.state === 'cancelled') {
     return {
@@ -261,6 +264,22 @@ export async function finalizeDetachedRunWithDeps(deps, {
     ? stabilizeSessionTaskCard(currentSessionMeta, latestTaskCard)
     : null;
 
+  const nextSessionState = !sessionOrganizing
+    ? resolveSessionStateFromSession({
+      ...(currentSessionMeta || {}),
+      taskCard: stabilizedTaskCard || currentSessionMeta?.taskCard || null,
+    })
+    : null;
+
+  const hasMeaningfulSessionState = nextSessionState && (
+    nextSessionState.goal
+    || nextSessionState.mainGoal
+    || nextSessionState.checkpoint
+    || nextSessionState.needsUser === true
+    || nextSessionState.lineRole === 'branch'
+    || nextSessionState.branchFrom
+  );
+
   let branchCandidateEvents = [];
   if (!sessionOrganizing && latestTaskCard) {
     if (FINALIZE_DEBUG) {
@@ -274,6 +293,18 @@ export async function finalizeDetachedRunWithDeps(deps, {
       nextTaskCard: stabilizedTaskCard,
       suppressedBranchTitles: currentSessionMeta?.suppressedBranchTitles || [],
     });
+  }
+
+  if (hasMeaningfulSessionState) {
+    const sessionStateMeta = await mutateSessionMeta(sessionId, (session) => {
+      const previousState = JSON.stringify(session?.sessionState || null);
+      const nextState = JSON.stringify(nextSessionState);
+      if (previousState === nextState) return false;
+      session.sessionState = nextSessionState;
+      session.updatedAt = nowIso();
+      return true;
+    });
+    sessionChanged = sessionChanged || sessionStateMeta.changed;
   }
 
   if (!sessionOrganizing && !compacting) {
@@ -325,6 +356,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
     sessionId,
     session: latestSession,
     run: finalizedRun,
+    resultEnvelope: normalizeAgentResultEnvelope(finalizedRun?.result || {}),
     events: finalizedEvents,
     taskCard: latestTaskCard,
     previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),

@@ -8,6 +8,14 @@ const finalizedRun = {
   sessionId,
   state: 'completed',
   requestId: 'req_branch_suggested',
+  result: {
+    reply: '已完成支线候选整理',
+    statePatch: {
+      goal: '梳理电影史主线',
+      checkpoint: '准备拆出片单支线',
+      lineRole: 'main',
+    },
+  },
 };
 
 const emittedEvents = [];
@@ -59,6 +67,8 @@ const deps = {
     emittedEvents.push({
       event,
       branchCandidateEvents: Array.isArray(ctx?.branchCandidateEvents) ? ctx.branchCandidateEvents.length : 0,
+      assistantMessage: ctx?.resultEnvelope?.assistantMessage || '',
+      checkpoint: ctx?.resultEnvelope?.statePatch?.checkpoint || '',
     });
   },
   normalizeSessionTaskCard: (value) => value,
@@ -76,10 +86,20 @@ await finalizeDetachedRunWithDeps(deps, {
 assert.deepEqual(
   emittedEvents,
   [
-    { event: 'branch.suggested', branchCandidateEvents: 1 },
-    { event: 'run.completed', branchCandidateEvents: 1 },
+    {
+      event: 'branch.suggested',
+      branchCandidateEvents: 1,
+      assistantMessage: '已完成支线候选整理',
+      checkpoint: '准备拆出片单支线',
+    },
+    {
+      event: 'run.completed',
+      branchCandidateEvents: 1,
+      assistantMessage: '已完成支线候选整理',
+      checkpoint: '准备拆出片单支线',
+    },
   ],
-  'run finalization should emit branch.suggested before the broader run.completed hook',
+  'run finalization should emit branch.suggested before the broader run.completed hook and include the normalized result envelope in hook context',
 );
 
 console.log('test-run-finalization-branch-suggested-hook: ok');
