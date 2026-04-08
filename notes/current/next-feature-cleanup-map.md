@@ -111,10 +111,9 @@
 
 先 grep 再删，重点检查：
 
-- `backend/compat/apps.mjs`
-- `backend/router-public-routes.mjs`
-- `backend/router-system-routes.mjs`
-- `backend/compat/session-meta-compat.mjs`
+- `backend/session-source/meta-fields.mjs`
+- `backend/routes/public.mjs`
+- `backend/routes/system.mjs`
 
 这些文件不一定都该立刻删除，但它们属于“历史兼容 / 外围壳 / 非主链路由”的高概率裁剪区。
 

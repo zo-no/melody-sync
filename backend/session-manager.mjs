@@ -1253,8 +1253,6 @@ async function enrichSessionMeta(meta, _options = {}) {
     activeRun,
     sourceId: _rawSourceId,
     sourceName: _rawSourceName,
-    visitorId: _legacyVisitorId,
-    visitorName: _legacyVisitorName,
     taskCard: _rawTaskCard,
     taskCardManagedBindings: _taskCardManagedBindings,
     ...rest

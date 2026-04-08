@@ -179,7 +179,7 @@ Primary files:
 - `frontend/session-list/sidebar-ui.js`
 - `frontend/core/i18n.js`
 - `backend/router.mjs`
-- `backend/compat/apps.mjs`
+- `backend/session-source/meta-fields.mjs`
 - `backend/users.mjs`
 - `lib/trigger-command.mjs`
 
