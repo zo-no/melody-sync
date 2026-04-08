@@ -121,6 +121,10 @@ export async function finalizeDetachedRunWithDeps(deps, {
     sanitizeAssistantRunEvents,
     appendEvents,
     appendEvent,
+    AUTO_COMPACT_MARKER_TEXT,
+    createContextBarrierEvent,
+    buildFallbackCompactionHandoff,
+    messageEvent,
     statusEvent,
     findLatestAssistantMessageForRun,
     parseCompactionWorkerOutput,
@@ -211,17 +215,31 @@ export async function finalizeDetachedRunWithDeps(deps, {
       }
     } else if (directCompaction && run.state === 'completed') {
       const workerEvent = await findLatestAssistantMessageForRun(sessionId, run.id);
-      const summary = parseCompactionWorkerOutput(workerEvent?.content || '').summary;
+      const parsed = parseCompactionWorkerOutput(workerEvent?.content || '');
+      const summary = parsed.summary;
       if (summary) {
-        const compactEvent = await appendEvent(sessionId, statusEvent('Context compacted — next message will resume from summary'));
+        const barrierEvent = await appendEvent(sessionId, createContextBarrierEvent(AUTO_COMPACT_MARKER_TEXT, {
+          automatic: false,
+          compactionSessionId: sessionId,
+        }));
+        const handoffContent = parsed.handoff || buildFallbackCompactionHandoff(summary, '');
+        const handoffEvent = await appendEvent(sessionId, messageEvent('assistant', handoffContent, undefined, {
+          source: 'context_compaction_handoff',
+          compactionRunId: run.id,
+        }));
+        const compactEvent = await appendEvent(sessionId, statusEvent('Context compacted — continue from the handoff below'));
         await setContextHead(sessionId, {
           mode: 'summary',
-          summary,
+          summary: '',
+          toolIndex: '',
           activeFromSeq: compactEvent.seq,
           compactedThroughSeq: compactEvent.seq,
           inputTokens: run.contextInputTokens || null,
           updatedAt: nowIso(),
           source: 'context_compaction',
+          barrierSeq: barrierEvent.seq,
+          handoffSeq: handoffEvent.seq,
+          compactionSessionId: sessionId,
         });
         const cleared = await clearPersistedResumeIds(sessionId);
         sessionChanged = sessionChanged || cleared;
