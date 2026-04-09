@@ -51,7 +51,7 @@ AI 应该尽量在最开始一轮把这些信息问全：
 ## AI 负责的流程
 
 - 使用 `gh api` 轮询仓库的 `issues` 列表，并按 `updated_at` 抓最近变化的条目。
-- 使用 `scripts/github-auto-triage.mjs` 跑完整链路。
+- 使用 `scripts/github-ci/github-auto-triage.mjs` 跑完整链路。
 - 开始前先把 repo、maintainers、发布策略、模型参数这些上下文一次性收齐，避免频繁打断人。
 - 默认先 `dry-run`，确认回复草稿质量再进入真正发布。
 - 如需常驻 rollout，创建本地 wrapper + scheduler；先不要为了这条链路直接改服务端接 webhook。
@@ -78,7 +78,7 @@ AI 应该尽量在最开始一轮把这些信息问全：
 先 `dry-run`：
 
 ```bash
-node scripts/github-auto-triage.mjs --repo zo-no/melody-sync --bootstrap-hours 72
+node scripts/github-ci/github-auto-triage.mjs --repo zo-no/melody-sync --bootstrap-hours 72
 ```
 
 这一步不会真的发评论，只会：
@@ -90,19 +90,19 @@ node scripts/github-auto-triage.mjs --repo zo-no/melody-sync --bootstrap-hours 7
 确认 `dry-run` 没问题后，才进入真正自动回复：
 
 ```bash
-node scripts/github-auto-triage.mjs --repo zo-no/melody-sync --post
+node scripts/github-ci/github-auto-triage.mjs --repo zo-no/melody-sync --post
 ```
 
 如果要手动验证维护者线程，可显式打开测试开关：
 
 ```bash
-node scripts/github-auto-triage.mjs --repo zo-no/melody-sync --only 4 --reply-to-maintainers --post
+node scripts/github-ci/github-auto-triage.mjs --repo zo-no/melody-sync --only 4 --reply-to-maintainers --post
 ```
 
 如果只想安全预览某个线程“按现在规则会怎么回”，但不真的发评论：
 
 ```bash
-node scripts/github-auto-triage.mjs --repo zo-no/melody-sync --only 2 --force-draft
+node scripts/github-ci/github-auto-triage.mjs --repo zo-no/melody-sync --only 2 --force-draft
 ```
 
 ## 成功标准

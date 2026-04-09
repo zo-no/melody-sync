@@ -297,9 +297,9 @@ Minimum usable layout:
 
 ## Ad-hoc extra instances
 
-- `scripts/chat-instance.sh` now supports `--instance-root`, `--config-dir`, and `--memory-dir` in addition to the older `--home` mode.
+- `scripts/local-service/chat-instance.sh` now supports `--instance-root`, `--config-dir`, and `--memory-dir` in addition to the older `--home` mode.
 - Use `--instance-root` when you want a second instance to keep the same machine `HOME` (so provider auth keeps working) while isolating MelodySync's own runtime data and memory.
-- Example: `scripts/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melodysync/instances/companion --secure-cookies 1`
+- Example: `scripts/local-service/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melodysync/instances/companion --secure-cookies 1`
 
 ## Security
 

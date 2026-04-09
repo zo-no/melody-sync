@@ -5,11 +5,11 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFile
 import { homedir, tmpdir } from 'os';
 import { dirname, join, relative } from 'path';
 import { fileURLToPath } from 'url';
-import { AUTH_FILE, CHAT_PORT } from '../lib/config.mjs';
-import { selectAssistantReplyEvent } from '../lib/reply-selection.mjs';
+import { AUTH_FILE, CHAT_PORT } from '../../lib/config.mjs';
+import { selectAssistantReplyEvent } from '../../lib/reply-selection.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, '..');
+const PROJECT_ROOT = join(__dirname, '../..');
 const MARKER = '<!-- melodysync-github-auto-triage -->';
 const DEFAULT_CHAT_BASE_URL = `http://127.0.0.1:${CHAT_PORT}`;
 const DEFAULT_SESSION_TOOL = 'codex';
@@ -35,7 +35,7 @@ let cachedKnowledgeSections = null;
 
 function usage(exitCode = 0) {
   const message = `Usage:
-  node scripts/github-auto-triage.mjs --repo <owner/repo> [options]
+  node scripts/github-ci/github-auto-triage.mjs --repo <owner/repo> [options]
 
 Options:
   --repo <owner/repo>         GitHub repository to watch

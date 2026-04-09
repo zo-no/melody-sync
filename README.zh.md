@@ -302,9 +302,9 @@ melodysync --help               显示帮助
 
 ## 手动起第二实例
 
-- `scripts/chat-instance.sh` 现在除了旧的 `--home` 模式，也支持 `--instance-root`、`--config-dir`、`--memory-dir`。
+- `scripts/local-service/chat-instance.sh` 现在除了旧的 `--home` 模式，也支持 `--instance-root`、`--config-dir`、`--memory-dir`。
 - 如果你想让第二实例继续复用当前机器的 provider 登录状态、但把 MelodySync 自己的数据和 memory 完全隔离，优先用 `--instance-root`。
-- 示例：`scripts/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melodysync/instances/companion --secure-cookies 1`
+- 示例：`scripts/local-service/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melodysync/instances/companion --secure-cookies 1`
 
 ## 故障排查
 

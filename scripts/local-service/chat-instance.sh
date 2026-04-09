@@ -4,7 +4,7 @@ set -euo pipefail
 ACTION="${1:-}"
 shift || true
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/melody-sync"
 
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -30,7 +30,7 @@ RESOLVED_INSTANCE_MEMORY_DIR=""
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/chat-instance.sh <start|stop|restart|status|logs|sync> [options]
+  scripts/local-service/chat-instance.sh <start|stop|restart|status|logs|sync> [options]
 
 Options:
   --port <port>    Chat server port (required for non-sync actions)
@@ -50,13 +50,13 @@ Options:
                     Override SECURE_COOKIES for the instance runtime
 
 Examples:
-  scripts/chat-instance.sh restart --port 7695 --name scratch
-  scripts/chat-instance.sh start --port 7692 --name staging --home ~/.melodysync/instances/staging-home --sync-from-home ~ --secure-cookies 0
-  scripts/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melodysync/instances/companion --secure-cookies 1
-  scripts/chat-instance.sh sync --home ~/.melodysync/instances/staging-home --sync-from-home ~
-  scripts/chat-instance.sh sync --instance-root ~/.melodysync/instances/companion --sync-from-home ~
-  scripts/chat-instance.sh status --port 7695
-  scripts/chat-instance.sh logs --port 7695
+  scripts/local-service/chat-instance.sh restart --port 7695 --name scratch
+  scripts/local-service/chat-instance.sh start --port 7692 --name staging --home ~/.melodysync/instances/staging-home --sync-from-home ~ --secure-cookies 0
+  scripts/local-service/chat-instance.sh start --port 7692 --name companion --instance-root ~/.melodysync/instances/companion --secure-cookies 1
+  scripts/local-service/chat-instance.sh sync --home ~/.melodysync/instances/staging-home --sync-from-home ~
+  scripts/local-service/chat-instance.sh sync --instance-root ~/.melodysync/instances/companion --sync-from-home ~
+  scripts/local-service/chat-instance.sh status --port 7695
+  scripts/local-service/chat-instance.sh logs --port 7695
 
 Notes:
   - This is for optional ad-hoc chat-server instances started manually on arbitrary ports.

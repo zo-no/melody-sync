@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
 function runScript(args) {
-  return spawnSync('bash', ['scripts/chat-instance.sh', ...args], {
+  return spawnSync('bash', ['scripts/local-service/chat-instance.sh', ...args], {
     cwd: repoRoot,
     encoding: 'utf8',
   });
