@@ -73,7 +73,6 @@
 
 - 任务地图
 - 顶部任务追踪条
-- 操作记录面板
 - 建议支线的“开启支线”
 - 子任务结束/挂起/带回主线
 - 主线与支线状态展示
@@ -305,7 +304,7 @@ frontend/
 - `compose/`
   - 输入、草稿、附件、发送
 - `workbench/`
-  - task map、tracker、operation record、branch action
+  - task map、tracker、branch action
 - `settings/`
   - hooks、runtime preferences、notification targets
 - `system/`

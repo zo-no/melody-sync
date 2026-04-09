@@ -68,7 +68,6 @@
       questTracker: document.getElementById("questTracker"),
       taskMapRail: document.getElementById("taskMapRail"),
       taskCanvasPanel: document.getElementById("taskCanvasPanel"),
-      operationRecordRail: document.getElementById("operationRecordRail"),
     };
   }
 

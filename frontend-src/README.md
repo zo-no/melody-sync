@@ -9,7 +9,7 @@ Read this before moving code:
 - `session/`: session-scoped fetch/update helpers, derived state, and session surface rendering.
 - `session-list/`: left sidebar task-list contract, ordering contract, list model, list UI, and sidebar shell interactions.
 - `settings/`: shared settings overlay shell plus tab-specific settings surfaces such as `hooks/`, `email/`, and `voice/`.
-- `workbench/`: node contract, node settings tab/model, task-map model, tracker, quest-state selectors, operation-record rail, and branch action UI.
+- `workbench/`: node contract, node settings tab/model, task-map model, tracker, quest-state selectors, persistent-item editing, and branch action UI.
 - Root-level files should now be limited to shared stylesheets, the split loader, and this directory map.
 
 Prefer adding new files inside a domain directory instead of reviving the root.
