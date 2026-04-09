@@ -2,6 +2,10 @@
 
 This directory holds the owner-facing backend for MelodySync.
 
+Read this first:
+
+- `ARCHITECTURE.md`: target backend structure, migration constraints, and canonical layer boundaries.
+
 Use this map before editing:
 
 - `entry/`: backend runtime and auth entry implementations. Root `chat-server.mjs`, `generate-token.mjs`, and `set-password.mjs` are now thin launch shims only.
@@ -11,6 +15,7 @@ Use this map before editing:
 - `session/manager.mjs`: session and run orchestration. Prefer extracting helpers instead of adding more inline lifecycle branches.
 - `result-assets.mjs`: result-file discovery and attachment publishing helpers used by run finalization and follow-up flows.
 - `history.mjs`, `run/store.mjs`, `session/meta-store.mjs`: durable truth for session events, run manifests, and session metadata.
+- `controllers/run/`, `services/run/`, `models/run/`, `runtime/run/`, `runtime/providers/`: canonical run-module migration targets. `run/`, `routes/runs.mjs`, `adapters/`, `process-runner.mjs`, and `provider-runtime-monitor.mjs` remain compatibility surfaces during migration.
 - `hooks/contract/`: lifecycle scope and event definitions.
 - `hooks/runtime/`: hook registry, settings persistence, and builtin registration wiring.
 - `hooks/index.mjs`: canonical hook entry surface for bootstrap/runtime callers.
@@ -20,6 +25,8 @@ Use this map before editing:
 
 Edit rules:
 
+- Preserve external behavior during refactors: routes, WS event names, payload shapes, persistence formats, settings keys, and root entry names should stay stable unless explicitly approved.
 - If a change is about durable truth, start from `session/meta-store.mjs`, `history.mjs`, `run/store.mjs`, or `workbench/`.
 - If a change is about lifecycle side effects, start from `hooks/` instead of inlining behavior into `session/manager.mjs`.
 - If a change is about HTTP shape only, keep it inside `routes/`.
+- When in doubt about placement, prefer the target structure in `ARCHITECTURE.md`: controllers -> services -> models -> views, with runtime, contracts, and shared kept explicit.
