@@ -5,11 +5,12 @@ This directory contains focused workbench backend modules.
 Current split:
 
 - `index.mjs`: thin workbench domain entry; re-exports continuity/branch orchestration and wraps project-record operations.
+- `../services/workbench/read-service.mjs`: HTTP-facing snapshot/tracker read orchestration so controllers do not import the workbench entry module.
+- `output-metrics-service.mjs`: aggregate task/workflow output metrics used by the workbench summary surface.
 - `branch-lifecycle.mjs`: branch creation, merge-back, status changes, reminder snooze, and continuity sync.
 - `queues.mjs`: shared serial queue coordinator for workbench writes.
 - `state-store.mjs`: load/save workbench durable state.
 - `continuity-store.mjs`: mainline/branch continuity and task-cluster projections.
-- `operation-records.mjs`: operation-record projection for the right rail.
 - `exporters.mjs`: markdown, summary, obsidian, and other export-oriented output.
 - `project-records.mjs`: capture/project/node/summary/obsidian write operations that do not belong in branch-lifecycle orchestration.
 - `node-definitions.mjs`: canonical current node-kind exposure for bootstrap and HTTP clients, including composition metadata such as capabilities, surface bindings, and default right-canvas view types.

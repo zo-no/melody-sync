@@ -60,6 +60,8 @@ Browser / mobile shell
 - [`backend/controllers/system/write-routes.mjs`](backend/controllers/system/write-routes.mjs): system HTTP mutation controller
 - [`backend/controllers/workbench/read-routes.mjs`](backend/controllers/workbench/read-routes.mjs): workbench HTTP read controller
 - [`backend/controllers/workbench/write-routes.mjs`](backend/controllers/workbench/write-routes.mjs): workbench HTTP mutation controller
+- [`backend/services/workbench/read-service.mjs`](backend/services/workbench/read-service.mjs): workbench snapshot/tracker HTTP read orchestration
+- [`backend/workbench/output-metrics-service.mjs`](backend/workbench/output-metrics-service.mjs): workbench output and workflow metrics aggregation
 - [`backend/follow-up-queue.mjs`](backend/follow-up-queue.mjs): session follow-up queue normalization and dispatch text helpers
 - [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration
 - [`backend/models/session/queries/session-query.mjs`](backend/models/session/queries/session-query.mjs): session read-side reconciliation, timeline projection, and list/detail queries

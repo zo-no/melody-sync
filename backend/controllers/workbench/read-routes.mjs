@@ -5,17 +5,17 @@ import {
   buildWorkbenchTaskMapSurfaceResponse,
 } from '../../services/workbench/http-service.mjs';
 import {
+  getWorkbenchOutputMetricsForRead,
+  getWorkbenchSnapshotForRead,
+  getWorkbenchTrackerSnapshotForRead,
+} from '../../services/workbench/read-service.mjs';
+import {
   getWorkbenchNodeDefinitionsResponse,
 } from '../../services/workbench/node-definitions-http-service.mjs';
 import { createTaskMapPlanContractPayload } from '../../workbench/task-map-plan-contract.mjs';
 import { listTaskMapPlansForSession } from '../../workbench/task-map-plan-service.mjs';
 import { getTaskMapGraphForSession } from '../../workbench/task-map-graph-service.mjs';
 import { getTaskMapSurfaceForSession } from '../../workbench/task-map-surface-service.mjs';
-import {
-  getSessionOperationRecords,
-  getWorkbenchSnapshot,
-  getWorkbenchTrackerSnapshot,
-} from '../../workbench/index.mjs';
 
 export async function handleWorkbenchReadRoutes({
   req,
@@ -36,8 +36,14 @@ export async function handleWorkbenchReadRoutes({
   }
 
   if (pathname === '/api/workbench' && req?.method === 'GET') {
-    const snapshot = await getWorkbenchSnapshot();
+    const snapshot = await getWorkbenchSnapshotForRead();
     writeJson(res, 200, snapshot);
+    return true;
+  }
+
+  if (pathname === '/api/workbench/output-metrics' && req?.method === 'GET') {
+    const metrics = await getWorkbenchOutputMetricsForRead();
+    writeJson(res, 200, metrics);
     return true;
   }
 
@@ -50,20 +56,8 @@ export async function handleWorkbenchReadRoutes({
   if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'tracker') {
     const sessionId = parts[3];
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
-    const trackerSnapshot = await getWorkbenchTrackerSnapshot(sessionId);
+    const trackerSnapshot = await getWorkbenchTrackerSnapshotForRead(sessionId);
     writeJson(res, 200, trackerSnapshot);
-    return true;
-  }
-
-  if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'operation-record') {
-    const sessionId = parts[3];
-    if (!requireSessionAccess(res, authSession, sessionId)) return true;
-    try {
-      const result = await getSessionOperationRecords(sessionId);
-      writeJson(res, 200, result);
-    } catch (error) {
-      writeJson(res, 400, { error: error.message || 'Failed to build operation record' });
-    }
     return true;
   }
 

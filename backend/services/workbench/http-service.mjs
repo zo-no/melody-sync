@@ -1,4 +1,4 @@
-import { getWorkbenchSnapshot } from '../../workbench/index.mjs';
+import { getWorkbenchSnapshot } from '../../workbench/continuity-store.mjs';
 import {
   createWorkbenchSessionPayload,
   createWorkbenchTaskMapGraphPayload,
