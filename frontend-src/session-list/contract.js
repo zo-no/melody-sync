@@ -107,16 +107,39 @@
     return definition ? { ...definition } : null;
   }
 
+  function createCustomTaskListGroup(groupValue = "") {
+    const label = trimText(groupValue);
+    const normalized = normalizeKey(label);
+    if (!label || !normalized) {
+      return cloneDefinition(TASK_LIST_GROUP_DEFINITIONS[0]);
+    }
+    return {
+      id: `custom:${normalized}`,
+      key: `group:custom:${normalized}`,
+      storageValue: label,
+      label,
+      title: label,
+      aliases: [normalized],
+      order: 100,
+      gtdBucket: "",
+    };
+  }
+
   function listTaskListGroups() {
     return TASK_LIST_GROUP_DEFINITIONS.map(cloneDefinition);
   }
 
-  function resolveTaskListGroup(groupValue = "") {
+  function resolveTaskListGroup(groupValue = "", options = {}) {
     const normalized = normalizeKey(groupValue);
-    return cloneDefinition(
+    const matched = cloneDefinition(
       TASK_LIST_GROUP_DEFINITIONS.find((entry) => entry.aliases.includes(normalized))
-      || TASK_LIST_GROUP_DEFINITIONS[0],
+      || null,
     );
+    if (matched) return matched;
+    if (options?.allowCustom === true && normalized) {
+      return createCustomTaskListGroup(groupValue);
+    }
+    return cloneDefinition(TASK_LIST_GROUP_DEFINITIONS[0]);
   }
 
   function listTaskListOrganizerMutableFields() {
@@ -154,6 +177,7 @@
     TASK_LIST_GROUP_DEFINITIONS,
     SESSION_LIST_AI_MUTABLE_FIELD_DEFINITIONS,
     SESSION_LIST_READONLY_SNAPSHOT_FIELD_DEFINITIONS,
+    createCustomTaskListGroup,
     listTaskListGroups,
     resolveTaskListGroup,
     listTaskListOrganizerMutableFields,

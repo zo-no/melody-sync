@@ -56,7 +56,12 @@ import {
   normalizeSessionWorkflowState,
   SESSION_WORKFLOW_STATE_WAITING_USER,
 } from './workflow-state.mjs';
-import { isContextCompactorSession, shouldExposeSession } from './visibility.mjs';
+import {
+  isContextCompactorSession,
+  normalizeSessionTaskListOrigin,
+  normalizeSessionTaskListVisibility,
+  shouldExposeSession,
+} from './visibility.mjs';
 import { formatAttachmentContextLine } from '../attachment-utils.mjs';
 import {
   buildContextCompactionPrompt,
@@ -229,6 +234,21 @@ function normalizeSessionSidebarOrder(value) {
     ? value
     : parseInt(String(value || '').trim(), 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+async function getNextSidebarOrderForGroup(group = '', {
+  excludeSessionId = '',
+} = {}) {
+  const normalizedGroup = normalizeSessionGroup(group || '');
+  if (!normalizedGroup) return 0;
+  const metas = await loadSessionsMeta();
+  const maxOrder = metas.reduce((currentMax, meta) => {
+    if (!meta || meta.archived === true) return currentMax;
+    if (excludeSessionId && meta.id === excludeSessionId) return currentMax;
+    if (normalizeSessionGroup(meta.group || '') !== normalizedGroup) return currentMax;
+    return Math.max(currentMax, normalizeSessionSidebarOrder(meta.sidebarOrder));
+  }, 0);
+  return maxOrder > 0 ? maxOrder + 1 : 1;
 }
 
 function getNextSessionOrdinal(metas = []) {
@@ -2208,11 +2228,13 @@ export async function listSessions({
   includeArchived = true,
   sourceId = '',
   includeQueuedMessages = false,
+  taskListVisibility = 'all',
 } = {}) {
   return listSessionsQuery({
     includeArchived,
     sourceId,
     includeQueuedMessages,
+    taskListVisibility,
   });
 }
 
@@ -2282,6 +2304,8 @@ export async function createSession(folder, tool, name, extra = {}) {
   } = normalizeSessionCompatInput(extra);
   const requestedGroup = normalizeSessionGroup(extra.group || '');
   const requestedDescription = normalizeSessionDescription(extra.description || '');
+  const requestedTaskListOrigin = normalizeSessionTaskListOrigin(extra.taskListOrigin);
+  const requestedTaskListVisibility = normalizeSessionTaskListVisibility(extra.taskListVisibility);
   const hasRequestedSystemPrompt = Object.prototype.hasOwnProperty.call(extra, 'systemPrompt');
   const requestedSystemPrompt = typeof extra.systemPrompt === 'string' ? extra.systemPrompt : '';
   const hasRequestedModel = Object.prototype.hasOwnProperty.call(extra, 'model');
@@ -2323,6 +2347,16 @@ export async function createSession(folder, tool, name, extra = {}) {
 
         if (requestedDescription && updated.description !== requestedDescription) {
           updated.description = requestedDescription;
+          changed = true;
+        }
+
+        if (requestedTaskListOrigin && updated.taskListOrigin !== requestedTaskListOrigin) {
+          updated.taskListOrigin = requestedTaskListOrigin;
+          changed = true;
+        }
+
+        if (requestedTaskListVisibility && updated.taskListVisibility !== requestedTaskListVisibility) {
+          updated.taskListVisibility = requestedTaskListVisibility;
           changed = true;
         }
 
@@ -2486,6 +2520,8 @@ export async function createSession(folder, tool, name, extra = {}) {
 
     if (requestedGroup) session.group = requestedGroup;
     if (requestedDescription) session.description = requestedDescription;
+    if (requestedTaskListOrigin) session.taskListOrigin = requestedTaskListOrigin;
+    if (requestedTaskListVisibility) session.taskListVisibility = requestedTaskListVisibility;
     if (workflowState) session.workflowState = workflowState;
     if (workflowPriority) session.workflowPriority = workflowPriority;
     if (requestedSystemPrompt) session.systemPrompt = requestedSystemPrompt;
@@ -2881,16 +2917,19 @@ export async function renameSession(id, name, options = {}) {
 export async function updateSessionGrouping(id, patch = {}) {
   const result = await mutateSessionMeta(id, (session) => {
     let changed = false;
+    let groupChanged = false;
     if (Object.prototype.hasOwnProperty.call(patch, 'group')) {
       const nextGroup = normalizeSessionGroup(patch.group || '');
       if (nextGroup) {
         if (session.group !== nextGroup) {
           session.group = nextGroup;
           changed = true;
+          groupChanged = true;
         }
       } else if (session.group) {
         delete session.group;
         changed = true;
+        groupChanged = true;
       }
     }
     if (Object.prototype.hasOwnProperty.call(patch, 'description')) {
@@ -2929,6 +2968,13 @@ export async function updateSessionGrouping(id, patch = {}) {
         changed = true;
       }
     }
+    if (
+      groupChanged
+      && !Object.prototype.hasOwnProperty.call(patch, 'sidebarOrder')
+      && session.group
+    ) {
+      delete session.sidebarOrder;
+    }
     if (changed) {
       session.updatedAt = nowIso();
     }
@@ -2936,10 +2982,32 @@ export async function updateSessionGrouping(id, patch = {}) {
   });
 
   if (!result.meta) return null;
+  let finalMeta = result.meta;
+  if (
+    result.changed
+    && Object.prototype.hasOwnProperty.call(patch, 'group')
+    && finalMeta.group
+    && !Object.prototype.hasOwnProperty.call(patch, 'sidebarOrder')
+  ) {
+    const nextSidebarOrder = await getNextSidebarOrderForGroup(finalMeta.group, {
+      excludeSessionId: id,
+    });
+    if (nextSidebarOrder > 0) {
+      const sidebarOrderResult = await mutateSessionMeta(id, (session) => {
+        if (normalizeSessionSidebarOrder(session.sidebarOrder) === nextSidebarOrder) return false;
+        session.sidebarOrder = nextSidebarOrder;
+        session.updatedAt = nowIso();
+        return true;
+      });
+      if (sidebarOrderResult?.meta) {
+        finalMeta = sidebarOrderResult.meta;
+      }
+    }
+  }
   if (result.changed) {
     broadcastSessionInvalidation(id);
   }
-  return enrichSessionMeta(result.meta);
+  return enrichSessionMeta(finalMeta);
 }
 
 export async function updateSessionTaskCard(id, taskCard, options = {}) {
@@ -3175,6 +3243,8 @@ export async function promoteSessionToPersistent(id, payload = {}) {
       forkedFromSeq: session.latestSeq || 0,
       rootSessionId: session.rootSessionId || session.id,
       persistent: nextPersistent,
+      taskListOrigin: 'user',
+      taskListVisibility: 'primary',
     },
   );
 
@@ -3851,6 +3921,8 @@ export async function forkSession(sessionId) {
     forkedFromSeq: source.latestSeq || 0,
     rootSessionId: source.rootSessionId || source.id,
     forkedAt: nowIso(),
+    taskListOrigin: 'user',
+    taskListVisibility: 'secondary',
   });
   if (!child) return null;
 
@@ -3911,6 +3983,12 @@ export async function delegateSession(sessionId, payload = {}) {
     thinking: inheritRuntimePreferences && source.thinking === true,
     userId: source.userId || '',
     userName: source.userName || '',
+    sourceContext: {
+      kind: 'delegate_session',
+      parentSessionId: source.id,
+    },
+    taskListOrigin: runInternally ? 'system' : 'assistant',
+    taskListVisibility: runInternally ? 'hidden' : 'secondary',
     ...(runInternally ? { internalRole: INTERNAL_SESSION_ROLE_AGENT_DELEGATE } : {}),
   });
   if (!child) return null;

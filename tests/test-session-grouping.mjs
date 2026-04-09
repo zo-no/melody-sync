@@ -54,9 +54,11 @@ assert.equal(
 
 let regrouped = await updateSessionGrouping(seeded.id, {
   group: 'Frontend',
+  manualGroup: '手动项目组',
   description: 'Track the display group and hidden session description.',
 });
 assert.equal(regrouped.group, 'Frontend', 'group updates should persist');
+assert.equal(regrouped.manualGroup, '手动项目组', 'manualGroup updates should persist alongside AI grouping');
 assert.equal(
   regrouped.description,
   'Track the display group and hidden session description.',
@@ -65,14 +67,16 @@ assert.equal(
 
 loaded = (await listSessions()).find((session) => session.id === seeded.id);
 assert.equal(loaded?.group, 'Frontend', 'listSessions should expose updated group metadata');
+assert.equal(loaded?.manualGroup, '手动项目组', 'listSessions should expose updated manual group metadata');
 assert.equal(
   loaded?.description,
   'Track the display group and hidden session description.',
   'listSessions should expose updated description metadata',
 );
 
-const cleared = await updateSessionGrouping(seeded.id, { group: '', description: '' });
+const cleared = await updateSessionGrouping(seeded.id, { group: '', manualGroup: '', description: '' });
 assert.equal(cleared?.group, undefined, 'blank group updates should clear stored grouping');
+assert.equal(cleared?.manualGroup, undefined, 'blank manualGroup updates should clear stored manual grouping');
 assert.equal(cleared?.description, undefined, 'blank description updates should clear stored description');
 
 killAll();

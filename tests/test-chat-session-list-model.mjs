@@ -19,11 +19,25 @@ const source = readFileSync(sessionListModelSourcePath, 'utf8');
 const translations = {
   'sidebar.group.inbox': 'Capture',
   'sidebar.group.shortTerm': 'Short-term',
+  'sidebar.group.uncategorized': 'Uncategorized',
   'sidebar.branchTag': 'Branch',
 };
 
+const localStorageState = new Map();
+
 const context = {
   console,
+  localStorage: {
+    getItem(key) {
+      return localStorageState.has(key) ? localStorageState.get(key) : null;
+    },
+    setItem(key, value) {
+      localStorageState.set(key, String(value));
+    },
+    removeItem(key) {
+      localStorageState.delete(key);
+    },
+  },
   MelodySyncWorkbench: {
     getSnapshot() {
       return {
@@ -65,9 +79,9 @@ vm.runInNewContext(source, context, { filename: 'frontend-src/session-list/model
 const model = context.MelodySyncSessionListModel;
 assert.ok(model, 'session list model should register itself on the global object');
 assert.equal(
-  model.getSessionGroupInfo({ group: '短期任务' }).key,
+  model.getSessionGroupInfo({ group: '短期任务' }, { groupingMode: 'ai' }).key,
   'group:short-term',
-  'session list model should normalize known task groups',
+  'AI grouping mode should still normalize the known built-in task groups',
 );
 assert.equal(
   model.resolveTaskListGroup('收件箱').storageValue,
@@ -75,9 +89,49 @@ assert.equal(
   'session list model should delegate GTD aliases to the shared contract',
 );
 assert.equal(
-  model.getSessionGroupInfo({ group: 'unknown bucket' }).label,
-  'Capture',
-  'unknown groups should fall back to inbox/capture',
+  model.getSessionGroupInfo({ group: 'unknown bucket' }, { groupingMode: 'ai' }).label,
+  'unknown bucket',
+  'unknown groups in AI mode should stay visible as AI-owned custom groups',
+);
+assert.equal(
+  model.getSessionGroupingMode(),
+  'user',
+  'session list grouping mode should default to user/template mode',
+);
+assert.equal(
+  model.setSessionGroupingMode('ai'),
+  'ai',
+  'session list grouping mode setter should persist AI mode',
+);
+assert.equal(
+  model.getSessionGroupingMode(),
+  'ai',
+  'session list grouping mode getter should read back the persisted AI mode',
+);
+assert.equal(
+  JSON.stringify(model.setSessionGroupingTemplateGroups(['项目 Alpha', '项目 Beta'])),
+  JSON.stringify(['项目 Alpha', '项目 Beta']),
+  'template grouping should normalize and persist user template groups',
+);
+assert.match(
+  model.getSessionGroupInfo({ group: '项目 Alpha' }, { groupingMode: 'user' }).key,
+  /^group:template:/,
+  'user template mode should resolve configured template groups into dedicated sidebar buckets',
+);
+assert.equal(
+  model.getSessionGroupInfo({ group: '不在模板里' }, { groupingMode: 'user' }).label,
+  'Uncategorized',
+  'user template mode should route unmatched groups into the uncategorized fallback bucket',
+);
+assert.match(
+  model.getSessionGroupInfo({ group: '研究任务' }, { groupingMode: 'ai' }).key,
+  /^group:custom:/,
+  'AI free grouping mode should allow custom group labels owned by AI',
+);
+assert.equal(
+  model.getSessionGroupInfo({ group: '研究任务' }, { groupingMode: 'ai' }).label,
+  '研究任务',
+  'AI free grouping mode should keep the AI-generated custom group label visible',
 );
 assert.equal(
   model.isBranchTaskSession({ taskCard: { lineRole: 'branch' } }),
@@ -168,6 +222,16 @@ assert.equal(
   model.getSessionListEntry({ id: 'entry-merged', taskCard: { lineRole: 'branch' }, _branchStatus: 'merged' }).hiddenReason,
   'closed_branch',
   'sidebar entry classification should explain when a branch is hidden for being closed',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'entry-secondary', taskListVisibility: 'secondary', taskCard: { lineRole: 'main' } }),
+  false,
+  'secondary task-list sessions should stay out of the primary sidebar list',
+);
+assert.equal(
+  model.getSessionListEntry({ id: 'entry-secondary', taskListVisibility: 'secondary', taskCard: { lineRole: 'main' } }).hiddenReason,
+  'secondary_task',
+  'sidebar entry classification should explain when a session is hidden because it is not a primary task',
 );
 assert.equal(
   model.getSessionListEntry({ id: 'entry-recurring', persistent: { kind: 'recurring_task' } }).persistentDockGroupKey,

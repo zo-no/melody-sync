@@ -27,6 +27,8 @@ const DEFAULT_SETTINGS = Object.freeze({
 
 const DEFAULT_APP_SCOPED_SETTINGS = Object.freeze({});
 const DEFAULT_COMPLETION_SOUND_ENABLED = true;
+const TASK_LIST_TEMPLATE_GROUP_MAX_ITEMS = 12;
+const TASK_LIST_TEMPLATE_GROUP_MAX_CHARS = 32;
 
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -81,14 +83,47 @@ function readCompletionSoundEnabled(value = {}) {
   );
 }
 
+function normalizeTaskListTemplateGroup(value) {
+  const normalized = trimText(value).replace(/\s+/g, ' ');
+  if (!normalized) return '';
+  return Array.from(normalized).slice(0, TASK_LIST_TEMPLATE_GROUP_MAX_CHARS).join('');
+}
+
+function readTaskListTemplateGroups(value = {}) {
+  const source = (
+    value?.taskListTemplateGroups
+    ?? value?.sessionListTemplateGroups
+    ?? value?.taskListGroupingTemplates
+    ?? value?.sessionGroupingTemplateGroups
+  );
+  const entries = Array.isArray(source)
+    ? source
+    : (typeof source === 'string' ? source.split(/[\n,，]+/u) : []);
+  const seen = new Set();
+  const groups = [];
+  for (const entry of entries) {
+    const normalized = normalizeTaskListTemplateGroup(entry);
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    groups.push(normalized);
+    if (groups.length >= TASK_LIST_TEMPLATE_GROUP_MAX_ITEMS) break;
+  }
+  return groups;
+}
+
 function normalizeAppScopedSettings(value = {}) {
   const completionSoundEnabled = readCompletionSoundEnabled(value);
-  return completionSoundEnabled === null
-    ? { ...DEFAULT_APP_SCOPED_SETTINGS }
-    : {
-      ...DEFAULT_APP_SCOPED_SETTINGS,
-      completionSoundEnabled,
-    };
+  const taskListTemplateGroups = readTaskListTemplateGroups(value);
+  const normalized = { ...DEFAULT_APP_SCOPED_SETTINGS };
+  if (completionSoundEnabled !== null) {
+    normalized.completionSoundEnabled = completionSoundEnabled;
+  }
+  if (taskListTemplateGroups.length > 0) {
+    normalized.taskListTemplateGroups = taskListTemplateGroups;
+  }
+  return normalized;
 }
 
 function buildPathsFromMetadata(metadata = {}) {
@@ -335,6 +370,9 @@ export async function readGeneralSettings() {
   return {
     ...appScoped,
     completionSoundEnabled,
+    taskListTemplateGroups: Array.isArray(appScoped.taskListTemplateGroups)
+      ? appScoped.taskListTemplateGroups.slice()
+      : [],
     ...bootstrapNormalized,
     ...metadata,
   };
@@ -361,7 +399,8 @@ export async function persistGeneralSettings(payload = {}) {
     runtimeRoot: metadata.runtimeRoot,
     appRoot: metadata.brainRoot,
   });
-  await writeJsonAtomic(paths.generalSettingsFile, normalizeAppScopedSettings(payload));
+  const appScopedPayload = normalizeAppScopedSettings(payload);
+  await writeJsonAtomic(paths.generalSettingsFile, appScopedPayload);
   await ensureAgentsFile(metadata.agentsPath);
   await ensureHooksFile(paths.customHooksFile);
 
@@ -370,6 +409,9 @@ export async function persistGeneralSettings(payload = {}) {
     completionSoundEnabled: completionSoundEnabled === null
       ? DEFAULT_COMPLETION_SOUND_ENABLED
       : completionSoundEnabled,
+    taskListTemplateGroups: Array.isArray(appScopedPayload.taskListTemplateGroups)
+      ? appScopedPayload.taskListTemplateGroups.slice()
+      : [],
     ...normalized,
     ...metadata,
   };

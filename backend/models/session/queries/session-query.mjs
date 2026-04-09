@@ -2,7 +2,12 @@ import { getHistorySnapshot, loadHistory } from '../../../history.mjs';
 import { getRun, getRunManifest, isTerminalRunState } from '../../../run/store.mjs';
 import { buildSessionActivity, resolveSessionRunActivity } from '../../../session/activity.mjs';
 import { loadSessionsMeta, findSessionMeta } from '../../../session/meta-store.mjs';
-import { shouldExposeSession } from '../../../session/visibility.mjs';
+import {
+  getSessionTaskListOrigin,
+  getSessionTaskListVisibility,
+  shouldExposeSession,
+  shouldIncludeSessionInPrimaryTaskList,
+} from '../../../session/visibility.mjs';
 import {
   normalizeAppId,
   resolveSessionSourceId,
@@ -94,6 +99,8 @@ export function createSessionQueryHelpers({
     return {
       ...rest,
       ...(taskCard ? { taskCard } : {}),
+      taskListOrigin: getSessionTaskListOrigin(meta),
+      taskListVisibility: getSessionTaskListVisibility(meta),
       sourceId,
       sourceName: resolveSessionSourceName(meta, sourceId),
       latestSeq: snapshot.latestSeq,
@@ -172,11 +179,17 @@ export function createSessionQueryHelpers({
     includeArchived = true,
     sourceId = '',
     includeQueuedMessages = false,
+    taskListVisibility = 'all',
   } = {}) {
     const metas = await reconcileSessionsMetaList(await loadSessionsMeta());
     const normalizedSourceId = normalizeAppId(sourceId);
     const filtered = metas
       .filter((meta) => shouldExposeSession(meta))
+      .filter((meta) => (
+        taskListVisibility === 'primary'
+          ? shouldIncludeSessionInPrimaryTaskList(meta)
+          : true
+      ))
       .filter((meta) => includeArchived || !meta.archived)
       .filter((meta) => !normalizedSourceId || resolveSessionSourceId(meta) === normalizedSourceId)
       .sort((a, b) => (

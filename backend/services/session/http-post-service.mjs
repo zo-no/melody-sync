@@ -118,6 +118,8 @@ export async function createSessionForHttp(payload = {}) {
     description: description || '',
     completionTargets: Array.isArray(completionTargets) ? completionTargets : [],
     externalTriggerId: typeof externalTriggerId === 'string' ? externalTriggerId : '',
+    taskListOrigin: 'user',
+    taskListVisibility: 'primary',
   };
   if (Object.prototype.hasOwnProperty.call(payload, 'systemPrompt')) {
     createOptions.systemPrompt = typeof systemPrompt === 'string' ? systemPrompt : '';

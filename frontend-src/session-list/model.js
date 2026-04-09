@@ -1,5 +1,11 @@
 (function sessionListModelModule(root) {
   const sessionListContract = root.MelodySyncSessionListContract || null;
+  const SESSION_GROUPING_MODE_STORAGE_KEY = "melodysyncSessionGroupingMode";
+  const SESSION_GROUPING_TEMPLATE_GROUPS_STORAGE_KEY = "melodysyncSessionGroupingTemplateGroups";
+  const SESSION_GROUPING_MODE_USER = "user";
+  const SESSION_GROUPING_MODE_AI = "ai";
+  const SESSION_GROUPING_TEMPLATE_GROUP_MAX_ITEMS = 12;
+  const SESSION_GROUPING_TEMPLATE_GROUP_MAX_CHARS = 32;
   const TASK_LIST_GROUPS = Array.isArray(sessionListContract?.listTaskListGroups?.())
     ? sessionListContract.listTaskListGroups()
     : [
@@ -23,6 +29,125 @@
 
   function normalizeKey(value) {
     return trimText(value).replace(/\s+/g, " ").toLowerCase();
+  }
+
+  function clipText(value, maxChars = SESSION_GROUPING_TEMPLATE_GROUP_MAX_CHARS) {
+    const normalized = trimText(value).replace(/\s+/g, " ");
+    if (!normalized) return "";
+    return Array.from(normalized).slice(0, maxChars).join("");
+  }
+
+  function getStorage() {
+    return root?.localStorage
+      || root?.window?.localStorage
+      || null;
+  }
+
+  function normalizeSessionGroupingMode(value) {
+    return normalizeKey(value) === SESSION_GROUPING_MODE_AI
+      ? SESSION_GROUPING_MODE_AI
+      : SESSION_GROUPING_MODE_USER;
+  }
+
+  function getSessionGroupingMode() {
+    try {
+      return normalizeSessionGroupingMode(getStorage()?.getItem?.(SESSION_GROUPING_MODE_STORAGE_KEY));
+    } catch {
+      return SESSION_GROUPING_MODE_USER;
+    }
+  }
+
+  function setSessionGroupingMode(mode) {
+    const normalized = normalizeSessionGroupingMode(mode);
+    try {
+      getStorage()?.setItem?.(SESSION_GROUPING_MODE_STORAGE_KEY, normalized);
+    } catch {}
+    return normalized;
+  }
+
+  function normalizeSessionGroupingTemplateGroups(value) {
+    const entries = Array.isArray(value)
+      ? value
+      : (typeof value === "string" ? value.split(/[\n,，]+/u) : []);
+    const seen = new Set();
+    const groups = [];
+    for (const entry of entries) {
+      const normalized = clipText(entry);
+      if (!normalized) continue;
+      const key = normalizeKey(normalized);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      groups.push(normalized);
+      if (groups.length >= SESSION_GROUPING_TEMPLATE_GROUP_MAX_ITEMS) break;
+    }
+    return groups;
+  }
+
+  function getSessionGroupingTemplateGroups() {
+    try {
+      const raw = getStorage()?.getItem?.(SESSION_GROUPING_TEMPLATE_GROUPS_STORAGE_KEY);
+      if (!raw) return [];
+      return normalizeSessionGroupingTemplateGroups(JSON.parse(raw));
+    } catch {
+      return [];
+    }
+  }
+
+  function setSessionGroupingTemplateGroups(groups) {
+    const normalized = normalizeSessionGroupingTemplateGroups(groups);
+    try {
+      if (normalized.length === 0) {
+        getStorage()?.removeItem?.(SESSION_GROUPING_TEMPLATE_GROUPS_STORAGE_KEY);
+      } else {
+        getStorage()?.setItem?.(
+          SESSION_GROUPING_TEMPLATE_GROUPS_STORAGE_KEY,
+          JSON.stringify(normalized),
+        );
+      }
+    } catch {}
+    return normalized.slice();
+  }
+
+  function getUncategorizedTaskListGroup(order = 99997) {
+    const label = trimText(translate("sidebar.group.uncategorized")) || "未分类";
+    return {
+      id: "uncategorized",
+      key: "group:uncategorized",
+      storageValue: label,
+      label,
+      title: label,
+      aliases: [normalizeKey(label), "未分类", "uncategorized", "other"],
+      order,
+    };
+  }
+
+  function buildTemplateTaskListGroups(groups = []) {
+    const normalized = normalizeSessionGroupingTemplateGroups(groups);
+    const templateGroups = normalized.map((label, index) => {
+      const key = normalizeKey(label) || `group-${index + 1}`;
+      return {
+        id: `template:${key}`,
+        key: `group:template:${key}`,
+        storageValue: label,
+        label,
+        title: label,
+        aliases: [key],
+        order: index + 1,
+      };
+    });
+    const fallback = getUncategorizedTaskListGroup(templateGroups.length + 1);
+    if (!templateGroups.some((entry) => entry.aliases.includes(normalizeKey(fallback.storageValue)))) {
+      templateGroups.push(fallback);
+    }
+    return templateGroups;
+  }
+
+  function resolveTemplateTaskListGroup(groupValue = "", templateGroups = []) {
+    const definitions = buildTemplateTaskListGroups(templateGroups);
+    const normalized = normalizeKey(groupValue);
+    return definitions.find((entry) => entry.aliases.includes(normalized))
+      || definitions[definitions.length - 1]
+      || getUncategorizedTaskListGroup();
   }
 
   function getWorkbenchSnapshot() {
@@ -56,30 +181,67 @@
     return "";
   }
 
+  function getTaskListVisibility(session) {
+    const normalized = normalizeKey(session?.taskListVisibility || "");
+    if (normalized === "secondary") return "secondary";
+    if (normalized === "hidden") return "hidden";
+    return "primary";
+  }
+
   function isVoiceSession(session) {
     const sourceId = normalizeKey(session?.sourceId || "");
     return sourceId === "voice";
   }
 
-  function resolveTaskListGroup(groupValue = "") {
+  function resolveTaskListGroup(groupValue = "", options = {}) {
     if (typeof sessionListContract?.resolveTaskListGroup === "function") {
-      return sessionListContract.resolveTaskListGroup(groupValue);
+      return sessionListContract.resolveTaskListGroup(groupValue, options);
     }
     const normalized = normalizeKey(groupValue);
-    return TASK_LIST_GROUPS.find((entry) => entry.aliases.includes(normalized)) || TASK_LIST_GROUPS[0];
+    const matched = TASK_LIST_GROUPS.find((entry) => entry.aliases.includes(normalized));
+    if (matched) return matched;
+    if (options?.allowCustom === true && normalized) {
+      return {
+        id: `custom:${normalized}`,
+        key: `group:custom:${normalized}`,
+        storageValue: trimText(groupValue),
+        label: trimText(groupValue),
+        title: trimText(groupValue),
+        aliases: [normalized],
+        order: 100,
+      };
+    }
+    return TASK_LIST_GROUPS[0];
   }
 
-  function getSessionGroupInfo(session) {
+  function getSessionGroupInfo(session, options = {}) {
+    return getSessionGroupInfoWithOptions(session, options);
+  }
+
+  function getSessionGroupInfoWithOptions(session, options = {}) {
     const persistentKind = normalizeKey(session?.persistent?.kind || "");
+    const groupingMode = normalizeSessionGroupingMode(options?.groupingMode || getSessionGroupingMode());
+    const templateGroups = normalizeSessionGroupingTemplateGroups(
+      options?.templateGroups || getSessionGroupingTemplateGroups(),
+    );
     const effectiveGroupValue = persistentKind === "skill"
       ? "快捷按钮"
-      : (persistentKind === "recurring_task" ? "长期任务" : trimText(session?.group));
-    const group = resolveTaskListGroup(effectiveGroupValue);
-    const label = translate(group.labelKey);
+      : (persistentKind === "recurring_task"
+        ? "长期任务"
+        : trimText(session?.group));
+    const group = groupingMode === SESSION_GROUPING_MODE_USER
+      ? resolveTemplateTaskListGroup(effectiveGroupValue, templateGroups)
+      : resolveTaskListGroup(effectiveGroupValue, { allowCustom: true });
+    const label = trimText(group?.label)
+      || (trimText(group?.labelKey) ? translate(group.labelKey) : "")
+      || trimText(group?.storageValue)
+      || translate(groupingMode === SESSION_GROUPING_MODE_USER
+        ? "sidebar.group.uncategorized"
+        : "sidebar.group.inbox");
     return {
       key: group.key,
       label,
-      title: label,
+      title: trimText(group?.title) || label,
       order: Number.isInteger(group.order)
         ? group.order
         : TASK_LIST_GROUPS.findIndex((entry) => entry.key === group.key),
@@ -219,14 +381,17 @@
     const branch = isBranchTaskSession(session);
     const branchStatus = branch ? getBranchTaskStatus(session) : "";
     const workflowState = normalizeWorkflowState(session?.workflowState || "");
+    const taskListVisibility = getTaskListVisibility(session);
     const persistentKind = getSidebarPersistentKind(session);
     const persistentDockGroupKey = getPersistentDockGroupKey(session);
-    const groupInfo = getSessionGroupInfo(session);
+    const groupInfo = getSessionGroupInfoWithOptions(session, options);
     const needsReview = isSidebarCompletionReviewSession(session, options);
 
     let hiddenReason = "";
     if (!session?.id) {
       hiddenReason = "missing_id";
+    } else if (!archived && taskListVisibility !== "primary") {
+      hiddenReason = "secondary_task";
     } else if (branch && ["parked", "resolved", "merged", "done", "closed"].includes(branchStatus)) {
       hiddenReason = "closed_branch";
     } else if (!archived && workflowState === "parked") {
@@ -240,6 +405,7 @@
       branch,
       branchStatus,
       workflowState,
+      taskListVisibility,
       persistentKind,
       persistentDockGroupKey,
       groupInfo,
@@ -253,10 +419,21 @@
 
   root.MelodySyncSessionListModel = {
     TASK_LIST_GROUPS,
+    normalizeSessionGroupingMode,
+    normalizeSessionGroupingTemplateGroups,
+    getSessionGroupingMode,
+    setSessionGroupingMode,
+    getSessionGroupingTemplateGroups,
+    setSessionGroupingTemplateGroups,
+    buildTemplateTaskListGroups,
+    resolveTemplateTaskListGroup,
+    getUncategorizedTaskListGroup,
     resolveTaskListGroup,
     getSessionGroupInfo,
+    getSessionGroupInfoWithOptions,
     getSidebarPersistentKind,
     getPersistentDockGroupKey,
+    getTaskListVisibility,
     isBranchTaskSession,
     getBranchTaskStatus,
     isClosedBranchTaskSession,

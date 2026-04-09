@@ -14,6 +14,7 @@ export async function getSessionCatalogListForClient({
   const sessionList = await listSessionListItemsForClient({
     includeArchived: true,
     sourceId,
+    taskListVisibility: 'primary',
   });
   const filtered = folder
     ? sessionList.filter((session) => session.folder === folder)

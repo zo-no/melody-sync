@@ -7,16 +7,27 @@ function getSessionListModel() {
   return window.MelodySyncSessionListModel || null;
 }
 
+function getSessionGroupingModeForList() {
+  const model = getSessionListModel();
+  return typeof model?.getSessionGroupingMode === "function"
+    ? model.getSessionGroupingMode()
+    : "user";
+}
+
 function getSessionGroupInfoForList(session, options = {}) {
   const model = getSessionListModel();
   const entry = model?.getSessionListEntry?.(session, options);
   if (entry?.groupInfo) return entry.groupInfo;
-  return model?.getSessionGroupInfo?.(session) || {
+  return model?.getSessionGroupInfo?.(session, options) || {
     key: "group:inbox",
     label: t("sidebar.group.inbox"),
     title: t("sidebar.group.inbox"),
     order: 0,
   };
+}
+
+function isUserTemplateFolderGroup(groupKey = "") {
+  return String(groupKey || "").startsWith("group:template:");
 }
 
 function isBranchTaskSessionForList(session, options = {}) {
@@ -107,7 +118,7 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
       startRename(itemEl, currentSession);
     },
   };
-  const actionList = renameAction ? [renameAction, ...visibleBaseActions] : visibleBaseActions;
+  const actionList = [renameAction, ...visibleBaseActions].filter(Boolean);
   if (!canRunSidebarQuickAction(session, { archived })) {
     return actionList;
   }
@@ -341,7 +352,16 @@ function persistCollapsedGroupState(groupKey, collapsed) {
   );
 }
 
+function getSessionListGroupPriority(groupEntry) {
+  const groupKey = String(groupEntry?.key || "").trim();
+  if (groupKey === "group:quick-actions") return -2;
+  if (groupKey === "group:long-term") return -1;
+  return 0;
+}
+
 function renderSessionList() {
+  const groupingMode = getSessionGroupingModeForList();
+  const showGroupingFolderControls = groupingMode === "user";
   const pinnedSessions = getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session));
   const visibleSessions = getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session));
 
@@ -353,16 +373,24 @@ function renderSessionList() {
       ? getPersistentSidebarGroupInfo(persistentDockGroupKey)
       : getSessionGroupInfoForList(session);
     if (!groups.has(groupInfo.key)) {
-      groups.set(groupInfo.key, { ...groupInfo, sessions: [] });
+      groups.set(groupInfo.key, { ...groupInfo, sessions: [], insertOrder: groups.size });
     }
     groups.get(groupInfo.key).sessions.push(session);
   }
 
   const showGroupHeaders = groups.size > 0;
   const orderedGroups = [...groups.entries()].sort(([, left], [, right]) => {
+    const leftPriority = getSessionListGroupPriority(left);
+    const rightPriority = getSessionListGroupPriority(right);
+    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
     const leftOrder = Number.isInteger(left?.order) ? left.order : 100000;
     const rightOrder = Number.isInteger(right?.order) ? right.order : 100000;
     if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+    if (groupingMode === "ai") {
+      const leftInsertOrder = Number.isInteger(left?.insertOrder) ? left.insertOrder : 0;
+      const rightInsertOrder = Number.isInteger(right?.insertOrder) ? right.insertOrder : 0;
+      if (leftInsertOrder !== rightInsertOrder) return leftInsertOrder - rightInsertOrder;
+    }
     return String(left?.label || "").localeCompare(String(right?.label || ""));
   });
 
@@ -390,8 +418,15 @@ function renderSessionList() {
         title: groupEntry.title,
         sessions: groupEntry.sessions,
         collapsed: collapsedFolders[groupKey] === true,
+        canDelete: showGroupingFolderControls && isUserTemplateFolderGroup(groupKey),
       })),
       showGroupHeaders,
+      grouping: {
+        mode: groupingMode,
+        showCreateFolder: showGroupingFolderControls,
+        createFolderLabel: payloadSafeTranslate("sidebar.grouping.createFolder", "创建分组"),
+        deleteFolderLabel: payloadSafeTranslate("sidebar.grouping.deleteFolder", "删除分组"),
+      },
       archived: {
         sessions: archivedSessions,
         shouldRenderSection: shouldRenderArchivedSection,
@@ -412,6 +447,12 @@ function renderSessionList() {
       actions: {
         setGroupCollapsed(groupKey, collapsed) {
           persistCollapsedGroupState(groupKey, collapsed);
+        },
+        openGroupingCreate(anchorEl) {
+          window.openSessionGroupingTemplatePopoverAtAnchor?.(anchorEl, { runAfterSave: false });
+        },
+        removeTemplateFolder(groupLabel) {
+          void window.removeSessionGroupingTemplateGroup?.(groupLabel, { runAfterSave: false });
         },
         ensureArchivedLoaded() {
           if (!archivedSessionsLoaded && !archivedSessionsLoading && archivedSessionCount > 0) {
@@ -460,6 +501,20 @@ function renderSessionList() {
       header.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
         <span class="folder-name" title="${esc(groupEntry.title)}">${esc(groupEntry.label)}</span>
         <span class="folder-count">${groupSessions.length}</span>`;
+      if (showGroupingFolderControls && isUserTemplateFolderGroup(groupKey)) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "folder-group-delete";
+        deleteBtn.title = payloadSafeTranslate("sidebar.grouping.deleteFolder", "删除分组");
+        deleteBtn.setAttribute("aria-label", deleteBtn.title);
+        deleteBtn.innerHTML = renderUiIcon("trash");
+        deleteBtn.addEventListener("click", (event) => {
+          event.preventDefault?.();
+          event.stopPropagation?.();
+          void window.removeSessionGroupingTemplateGroup?.(groupEntry.label, { runAfterSave: false });
+        });
+        header.appendChild(deleteBtn);
+      }
       header.addEventListener("click", () => {
       header.classList.toggle("collapsed");
         persistCollapsedGroupState(groupKey, header.classList.contains("collapsed"));
@@ -477,8 +532,28 @@ function renderSessionList() {
     sessionList.appendChild(group);
   }
 
+  if (showGroupingFolderControls) {
+    const createSection = document.createElement("div");
+    createSection.className = "session-grouping-create-section";
+    const createBtn = document.createElement("button");
+    createBtn.type = "button";
+    createBtn.className = "session-grouping-create-btn";
+    createBtn.textContent = `+ ${payloadSafeTranslate("sidebar.grouping.createFolder", "创建分组")}`;
+    createBtn.addEventListener("click", (event) => {
+      window.openSessionGroupingTemplatePopoverAtAnchor?.(event.currentTarget, { runAfterSave: false });
+    });
+    createSection.appendChild(createBtn);
+    sessionList.appendChild(createSection);
+  }
+
   renderPersistentSessionDock(Object.create(null));
   renderArchivedSection();
+}
+
+function payloadSafeTranslate(key, fallback) {
+  if (typeof t !== "function") return fallback;
+  const translated = t(key);
+  return translated && translated !== key ? translated : fallback;
 }
 
 function renderArchivedSection() {

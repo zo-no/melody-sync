@@ -77,6 +77,25 @@
             }),
             h("span", { className: "folder-name", title: group?.title || "" }, group?.label || ""),
             h("span", { className: "folder-count" }, String(Array.isArray(group?.sessions) ? group.sessions.length : 0)),
+            group?.canDelete
+              ? h(
+                  "button",
+                  {
+                    type: "button",
+                    className: "folder-group-delete",
+                    title: payload?.grouping?.deleteFolderLabel || "删除分组",
+                    "aria-label": payload?.grouping?.deleteFolderLabel || "删除分组",
+                    onClick: (event) => {
+                      event.preventDefault?.();
+                      event.stopPropagation?.();
+                      payload?.actions?.removeTemplateFolder?.(group?.label || "");
+                    },
+                  },
+                  h("span", {
+                    dangerouslySetInnerHTML: { __html: renderUiIconHtml(payload, "trash") },
+                  }),
+                )
+              : null,
           )
         : null,
       h("div", {
@@ -84,6 +103,25 @@
         hidden: showGroupHeaders && isCollapsed,
         ref: itemsRef,
       }),
+    );
+  }
+
+  function renderCreateFolderSectionReact(payload) {
+    if (payload?.grouping?.showCreateFolder !== true) return null;
+    return h(
+      "div",
+      { className: "session-grouping-create-section" },
+      h(
+        "button",
+        {
+          type: "button",
+          className: "session-grouping-create-btn",
+          onClick: (event) => {
+            payload?.actions?.openGroupingCreate?.(event.currentTarget);
+          },
+        },
+        `+ ${payload?.grouping?.createFolderLabel || "创建分组"}`,
+      ),
     );
   }
 
@@ -173,6 +211,7 @@
             group,
           }))
         : []),
+      renderCreateFolderSectionReact(payload),
       renderArchivedSectionReact(payload),
     );
 
@@ -229,6 +268,20 @@
       header.innerHTML = `<span class="folder-chevron">${renderUiIconHtml(payload, "chevron-down")}</span>
         <span class="folder-name" title="${payload.helpers.esc(group.title)}">${payload.helpers.esc(group.label)}</span>
         <span class="folder-count">${group.sessions.length}</span>`;
+      if (group?.canDelete) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "folder-group-delete";
+        deleteBtn.title = payload?.grouping?.deleteFolderLabel || "删除分组";
+        deleteBtn.setAttribute("aria-label", deleteBtn.title);
+        deleteBtn.innerHTML = renderUiIconHtml(payload, "trash");
+        deleteBtn.addEventListener("click", (event) => {
+          event.preventDefault?.();
+          event.stopPropagation?.();
+          payload?.actions?.removeTemplateFolder?.(group?.label || "");
+        });
+        header.appendChild(deleteBtn);
+      }
       header.addEventListener("click", () => {
         const nextCollapsed = !header.classList.contains("collapsed");
         header.classList.toggle("collapsed", nextCollapsed);
@@ -240,6 +293,21 @@
 
     groupEl.appendChild(items);
     payload.sessionListEl.appendChild(groupEl);
+  }
+
+  function appendCreateFolderSectionDom(payload) {
+    if (payload?.grouping?.showCreateFolder !== true) return;
+    const section = document.createElement("div");
+    section.className = "session-grouping-create-section";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "session-grouping-create-btn";
+    button.textContent = `+ ${payload?.grouping?.createFolderLabel || "创建分组"}`;
+    button.addEventListener("click", (event) => {
+      payload?.actions?.openGroupingCreate?.(event.currentTarget);
+    });
+    section.appendChild(button);
+    payload.sessionListEl.appendChild(section);
   }
 
   function appendArchivedSectionDom(payload) {
@@ -301,16 +369,30 @@
     for (const group of payload.groups || []) {
       appendGroupSectionDom(payload, group);
     }
+    appendCreateFolderSectionDom(payload);
     appendArchivedSectionDom(payload);
     return true;
   }
 
-  const api = {
-    renderSessionList(payload) {
-      if (renderSessionListReact(payload)) return true;
-      return renderSessionListDom(payload);
-    },
-  };
+  function renderSessionList(payload) {
+    if (renderSessionListReact(payload)) return true;
+    return renderSessionListDom(payload);
+  }
 
-  globalThisRef.MelodySyncSessionListReactUi = Object.freeze(api);
+  function createSessionListRenderer() {
+    return Object.freeze({
+      renderSessionList,
+      renderSessionCollections(payload = {}) {
+        return renderSessionList(payload);
+      },
+    });
+  }
+
+  const api = Object.freeze({
+    renderSessionList,
+    createSessionListRenderer,
+  });
+
+  globalThisRef.MelodySyncSessionListReactUi = api;
+  globalThisRef.MelodySyncSessionListUi = api;
 })(window);

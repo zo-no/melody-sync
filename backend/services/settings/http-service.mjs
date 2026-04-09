@@ -54,6 +54,9 @@ export async function updateGeneralSettingsForClient(payload, { scheduleConfigRe
     completionSoundEnabled: Object.prototype.hasOwnProperty.call(payload, 'completionSoundEnabled')
       ? payload.completionSoundEnabled
       : (current?.completionSoundEnabled === false ? false : undefined),
+    taskListTemplateGroups: Object.prototype.hasOwnProperty.call(payload, 'taskListTemplateGroups')
+      ? payload.taskListTemplateGroups
+      : (Array.isArray(current?.taskListTemplateGroups) ? current.taskListTemplateGroups : undefined),
   };
   const next = await persistGeneralSettingsPayload(nextPayload);
   const rootsChanged = (
