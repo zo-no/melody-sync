@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { basename, dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { AUTH_FILE, CHAT_PORT } from '../lib/config.mjs';
+import { AUTH_FILE, CHAT_PORT } from '../../lib/config.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -23,7 +23,7 @@ const FAILURE_CONCLUSIONS = new Set(['failure', 'timed_out', 'action_required', 
 
 function usage(exitCode = 0) {
   const message = `Usage:
-  node scripts/github-ci-auto-repair.mjs --repo <owner/repo> [options]
+  node scripts/github-ci/github-ci-auto-repair.mjs --repo <owner/repo> [options]
 
 Options:
   --repo <owner/repo>         GitHub repository to watch

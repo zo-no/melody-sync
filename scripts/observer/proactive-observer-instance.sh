@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+ROOT_DIR="$(cd -- "$(dirname -- "$0")/../.." && pwd)"
 ACTION="${1:-start}"
 CONFIG_DIR="$HOME/.config/melody-sync/proactive-observer"
 PID_FILE="$CONFIG_DIR/observer.pid"
@@ -47,7 +47,7 @@ start_instance() {
       HOME="$HOME" \
       USER="${USER:-}" \
       SHELL="${SHELL:-/bin/bash}" \
-      "$NODE_BIN" scripts/proactive-observer.mjs >> "$LOG_PATH" 2>&1 < /dev/null &
+      "$NODE_BIN" scripts/observer/proactive-observer.mjs >> "$LOG_PATH" 2>&1 < /dev/null &
     echo $! > "$PID_FILE"
   )
 

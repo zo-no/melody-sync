@@ -1,6 +1,6 @@
 # GitHub CI Auto Repair
 
-`scripts/github-ci-auto-repair.mjs` watches the latest GitHub Actions runs for selected branches and starts a MelodySync repair session when the newest matching branch CI run is red.
+`scripts/github-ci/github-ci-auto-repair.mjs` watches the latest GitHub Actions runs for selected branches and starts a MelodySync repair session when the newest matching branch CI run is red.
 
 ## Why this shape
 
@@ -33,7 +33,7 @@ npm run github:ci:repair -- \
 To watch both `main` and `master`:
 
 ```bash
-node scripts/github-ci-auto-repair.mjs \
+node scripts/github-ci/github-ci-auto-repair.mjs \
   --repo zo-no/melody-sync \
   --branch main \
   --branch master \
@@ -53,8 +53,8 @@ Useful options:
 
 This repo now ships a small helper that installs a macOS `LaunchAgent` for scheduled polling:
 
-- helper: `scripts/github-ci-auto-repair-instance.sh`
-- runner: `scripts/github-ci-auto-repair-runner.mjs`
+- helper: `scripts/github-ci/github-ci-auto-repair-instance.sh`
+- runner: `scripts/github-ci/github-ci-auto-repair-runner.mjs`
 - config: `~/.config/melody-sync/github-ci-auto-repair/config.json`
 - launch agent: `~/Library/LaunchAgents/com.melodysync.github-ci-auto-repair.plist`
 
@@ -63,17 +63,17 @@ Those path names still reflect the current legacy compatibility layout.
 Install and start it:
 
 ```bash
-./scripts/github-ci-auto-repair-instance.sh install
+./scripts/github-ci/github-ci-auto-repair-instance.sh install
 ```
 
 Useful operations:
 
 ```bash
-./scripts/github-ci-auto-repair-instance.sh status
-./scripts/github-ci-auto-repair-instance.sh run-now
-./scripts/github-ci-auto-repair-instance.sh logs
-./scripts/github-ci-auto-repair-instance.sh restart
-./scripts/github-ci-auto-repair-instance.sh stop
+./scripts/github-ci/github-ci-auto-repair-instance.sh status
+./scripts/github-ci/github-ci-auto-repair-instance.sh run-now
+./scripts/github-ci/github-ci-auto-repair-instance.sh logs
+./scripts/github-ci/github-ci-auto-repair-instance.sh restart
+./scripts/github-ci/github-ci-auto-repair-instance.sh stop
 ```
 
 Default behavior on this machine:

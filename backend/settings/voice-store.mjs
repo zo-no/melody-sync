@@ -123,9 +123,9 @@ async function buildVoiceSettingsPayload({ general, paths, normalizedConfig }) {
     },
     status,
     commands: {
-      start: './scripts/voice-connector-instance.sh start',
-      stop: './scripts/voice-connector-instance.sh stop',
-      status: './scripts/voice-connector-instance.sh status',
+      start: './scripts/voice/voice-connector-instance.sh start',
+      stop: './scripts/voice/voice-connector-instance.sh stop',
+      status: './scripts/voice/voice-connector-instance.sh status',
       testText: `npm run voice:connect -- --config "${commandPath}" --text "你好" --no-speak`,
     },
     options: {

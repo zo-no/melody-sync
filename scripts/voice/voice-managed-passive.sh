@@ -10,7 +10,7 @@ if [[ ! -x "$PYTHON_BIN" ]]; then
 fi
 
 cd "$ROOT_DIR"
-exec "$PYTHON_BIN" scripts/voice-utterance-loop.py \
+exec "$PYTHON_BIN" scripts/voice/voice-utterance-loop.py \
   --language "${VOICE_LANGUAGE:-zh}" \
   --cooldown-ms "${VOICE_PASSIVE_COOLDOWN_MS:-1200}" \
   --speech-start-timeout-ms "${VOICE_PASSIVE_SPEECH_START_TIMEOUT_MS:-5000}" \

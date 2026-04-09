@@ -47,13 +47,13 @@ try {
 
   assert.equal(saved.simpleConfig.mode, 'passive');
   assert.equal(saved.config.wake.mode, 'command');
-  assert.equal(saved.config.wake.command, 'bash scripts/voice-managed-passive.sh');
+  assert.equal(saved.config.wake.command, 'bash scripts/voice/voice-managed-passive.sh');
   assert.equal(saved.config.wake.keyword, '');
   assert.equal(saved.config.capture.command, '');
   assert.equal(saved.config.stt.command, '');
   assert.equal(saved.config.tts.enabled, false);
   assert.equal(saved.config.tts.mode, 'disabled');
-  assert.equal(saved.commands.start, './scripts/voice-connector-instance.sh start');
+  assert.equal(saved.commands.start, './scripts/voice/voice-connector-instance.sh start');
 
   const wakeSaved = await persistVoiceSettings({
     mode: 'wake',
@@ -62,9 +62,9 @@ try {
   });
   assert.equal(wakeSaved.simpleConfig.mode, 'wake');
   assert.equal(wakeSaved.simpleConfig.wakePhrase, '嘿 Melody');
-  assert.equal(wakeSaved.config.wake.command, 'bash scripts/voice-managed-wake.sh');
+  assert.equal(wakeSaved.config.wake.command, 'bash scripts/voice/voice-managed-wake.sh');
   assert.equal(wakeSaved.config.wake.keyword, '嘿 Melody');
-  assert.equal(wakeSaved.config.capture.command, 'bash scripts/voice-managed-capture.sh');
+  assert.equal(wakeSaved.config.capture.command, 'bash scripts/voice/voice-managed-capture.sh');
   assert.equal(wakeSaved.config.stt.command, '');
   assert.equal(wakeSaved.config.tts.enabled, true);
   assert.equal(wakeSaved.config.tts.mode, 'say');

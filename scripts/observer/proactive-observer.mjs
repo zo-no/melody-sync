@@ -9,8 +9,8 @@ import { basename, dirname, extname, join, resolve } from 'path'
 import { setTimeout as delay } from 'timers/promises'
 import { fileURLToPath, pathToFileURL } from 'url'
 
-import { AUTH_FILE, CHAT_PORT } from '../lib/config.mjs'
-import { selectAssistantReplyEvent, stripHiddenBlocks } from '../lib/reply-selection.mjs'
+import { AUTH_FILE, CHAT_PORT } from '../../lib/config.mjs'
+import { selectAssistantReplyEvent, stripHiddenBlocks } from '../../lib/reply-selection.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = join(__dirname, '..')
@@ -290,7 +290,7 @@ export async function loadConfig(configPath = DEFAULT_CONFIG_PATH) {
 
 function printUsage(exitCode = 0) {
   const message = `Usage:
-  node scripts/proactive-observer.mjs [options]
+  node scripts/observer/proactive-observer.mjs [options]
 
 Options:
   --config <path>         Config path (default: ${DEFAULT_CONFIG_PATH})
@@ -308,7 +308,7 @@ Normal mode:
   - exposes a tiny local HTTP API for manual event injection and status
 
 Manual smoke example:
-  node scripts/proactive-observer.mjs --event arrival --transcript "我今天情绪挺好，给我放首歌"
+  node scripts/observer/proactive-observer.mjs --event arrival --transcript "我今天情绪挺好，给我放首歌"
 `
   console.log(message)
   process.exit(exitCode)

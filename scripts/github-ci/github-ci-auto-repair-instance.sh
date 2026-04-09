@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+ROOT_DIR="$(cd -- "$(dirname -- "$0")/../.." && pwd)"
 ACTION="${1:-install}"
 LABEL="com.melodysync.github-ci-auto-repair"
 CONFIG_DIR="$HOME/.config/melody-sync/github-ci-auto-repair"
@@ -80,7 +80,7 @@ render_plist() {
     <key>ProgramArguments</key>
     <array>
         <string>$NODE_BIN</string>
-        <string>$ROOT_DIR/scripts/github-ci-auto-repair-runner.mjs</string>
+        <string>$ROOT_DIR/scripts/github-ci/github-ci-auto-repair-runner.mjs</string>
         <string>--config</string>
         <string>$CONFIG_PATH</string>
     </array>
@@ -162,7 +162,7 @@ show_logs() {
 }
 
 run_now() {
-  "$NODE_BIN" "$ROOT_DIR/scripts/github-ci-auto-repair-runner.mjs" --config "$CONFIG_PATH"
+  "$NODE_BIN" "$ROOT_DIR/scripts/github-ci/github-ci-auto-repair-runner.mjs" --config "$CONFIG_PATH"
 }
 
 sync_agent() {

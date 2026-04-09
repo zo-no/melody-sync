@@ -110,7 +110,7 @@ function parseArgs(argv = []) {
 
 function printHelp() {
   console.log(`Usage:
-  node scripts/github-ci-auto-repair-runner.mjs [options]
+  node scripts/github-ci/github-ci-auto-repair-runner.mjs [options]
 
 Options:
   --config <path>            Config file path (default: ${DEFAULT_CONFIG_PATH})

@@ -9,8 +9,8 @@ import {
   loadBridge,
   mailboxPaths,
   summarizeQueueItem,
-} from '../lib/agent-mailbox.mjs';
-import { matchesWebhookToken, normalizeIp } from '../lib/agent-mail-http-bridge.mjs';
+} from '../../lib/agent-mailbox.mjs';
+import { matchesWebhookToken, normalizeIp } from '../../lib/agent-mail-http-bridge.mjs';
 
 const HOST = process.env.AGENT_MAILBOX_HOST || '127.0.0.1';
 const PORT = Number.parseInt(process.env.AGENT_MAILBOX_PORT || '7694', 10);

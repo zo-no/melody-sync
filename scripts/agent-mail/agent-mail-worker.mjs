@@ -5,7 +5,7 @@ import { homedir } from 'os';
 import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { AUTH_FILE } from '../lib/config.mjs';
+import { AUTH_FILE } from '../../lib/config.mjs';
 import {
   APPROVED_QUEUE,
   DEFAULT_ROOT_DIR,
@@ -18,9 +18,9 @@ import {
   loadMailboxAutomation,
   listQueue,
   updateQueueItem,
-} from '../lib/agent-mailbox.mjs';
-import { resolveExternalRuntimeSelection } from '../lib/external-runtime-selection.mjs';
-import { loadUiRuntimeSelection } from '../lib/runtime-selection.mjs';
+} from '../../lib/agent-mailbox.mjs';
+import { resolveExternalRuntimeSelection } from '../../lib/external-runtime-selection.mjs';
+import { loadUiRuntimeSelection } from '../../lib/runtime-selection.mjs';
 
 const DEFAULT_OWNER_CONFIG_DIR = join(homedir(), '.config', 'melody-sync');
 const DEFAULT_GUEST_REGISTRY_FILE = join(DEFAULT_OWNER_CONFIG_DIR, 'guest-instances.json');
@@ -93,11 +93,11 @@ function readJsonFile(filePath, fallbackValue) {
 
 function printUsage() {
   console.log(`Usage:
-  node scripts/agent-mail-worker.mjs [--root <dir>] [--chat-base-url <url>] [--auth-file <path>] [--interval-ms <ms>] [--once]
+  node scripts/agent-mail/agent-mail-worker.mjs [--root <dir>] [--chat-base-url <url>] [--auth-file <path>] [--interval-ms <ms>] [--once]
 
 Examples:
-  node scripts/agent-mail-worker.mjs --once
-  node scripts/agent-mail-worker.mjs --interval-ms 5000`);
+  node scripts/agent-mail/agent-mail-worker.mjs --once
+  node scripts/agent-mail/agent-mail-worker.mjs --interval-ms 5000`);
 }
 
 function readOwnerToken(authFile = AUTH_FILE) {

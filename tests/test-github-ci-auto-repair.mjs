@@ -6,7 +6,7 @@ import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { buildSessionMessage, selectLatestFailureCandidates, truncateLogText } from '../scripts/github-ci-auto-repair.mjs';
+import { buildSessionMessage, selectLatestFailureCandidates, truncateLogText } from '../scripts/github-ci/github-ci-auto-repair.mjs';
 
 const testsRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(testsRoot, '..');

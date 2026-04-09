@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+ROOT_DIR="$(cd -- "$(dirname -- "$0")/../.." && pwd)"
 ACTION="${1:-start}"
 NODE_BIN="${NODE_BIN:-$(command -v node)}"
 START_MODE="${VOICE_CONNECTOR_START_MODE:-auto}"
@@ -88,7 +88,7 @@ start_instance_nohup() {
       HOME="$HOME" \
       USER="${USER:-}" \
       SHELL="${SHELL:-/bin/bash}" \
-      "$NODE_BIN" scripts/voice-connector.mjs --config "$CONFIG_PATH" >> "$LOG_PATH" 2>&1 < /dev/null &
+      "$NODE_BIN" scripts/voice/voice-connector.mjs --config "$CONFIG_PATH" >> "$LOG_PATH" 2>&1 < /dev/null &
     echo $! > "$PID_FILE"
   )
 }
@@ -104,7 +104,7 @@ exec env \
   HOME="$HOME" \
   USER="${USER:-}" \
   SHELL="${SHELL:-/bin/bash}" \
-  "$NODE_BIN" scripts/voice-connector.mjs --config "$CONFIG_PATH" >> "$LOG_PATH" 2>&1
+  "$NODE_BIN" scripts/voice/voice-connector.mjs --config "$CONFIG_PATH" >> "$LOG_PATH" 2>&1
 EOF
   chmod +x "$LAUNCHER_PATH"
 
@@ -134,7 +134,7 @@ nohup env \
   HOME="$HOME" \
   USER="${USER:-}" \
   SHELL="${SHELL:-/bin/bash}" \
-  "$NODE_BIN" scripts/voice-connector.mjs --config "$CONFIG_PATH" >> "$LOG_PATH" 2>&1 < /dev/null &
+  "$NODE_BIN" scripts/voice/voice-connector.mjs --config "$CONFIG_PATH" >> "$LOG_PATH" 2>&1 < /dev/null &
 echo \$! > "$PID_FILE"
 exit 0
 EOF

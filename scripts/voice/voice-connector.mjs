@@ -19,7 +19,7 @@ import {
   loadConfig,
   normalizeConfig,
   resolveHomePath,
-} from '../lib/voice-connector-config.mjs'
+} from '../../lib/voice-connector-config.mjs'
 import {
   buildExternalTriggerId,
   buildMelodySyncMessage,
@@ -29,7 +29,7 @@ import {
   normalizeSpokenReplyText,
   readOwnerToken,
 } from './voice-connector-melodysync.mjs'
-import { synthesizeSpeechWithXfyun } from '../backend/xfyun-completion-tts.mjs'
+import { synthesizeSpeechWithXfyun } from '../../backend/xfyun-completion-tts.mjs'
 import {
   parseCommandPayload,
   runAfplay,
@@ -184,7 +184,7 @@ async function playTranscriptAck(runtime, summary) {
 function printUsage(exitCode) {
   const output = exitCode === 0 ? console.log : console.error
   output(`Usage:
-  node scripts/voice-connector.mjs [options]
+  node scripts/voice/voice-connector.mjs [options]
 
 Options:
   --config <path>        Config file path (default: ${DEFAULT_CONFIG_PATH})

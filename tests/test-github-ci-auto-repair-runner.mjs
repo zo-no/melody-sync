@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { buildMonitorArgv } from '../scripts/github-ci-auto-repair-runner.mjs';
+import { buildMonitorArgv } from '../scripts/github-ci/github-ci-auto-repair-runner.mjs';
 
 const argv = buildMonitorArgv({
   repo: 'zo-no/melody-sync',

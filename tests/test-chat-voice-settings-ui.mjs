@@ -179,10 +179,10 @@ const context = {
             wake: {
               mode: 'command',
               keyword: '小罗小罗',
-              command: 'bash scripts/voice-managed-wake.sh',
+              command: 'bash scripts/voice/voice-managed-wake.sh',
             },
             capture: {
-              command: 'bash scripts/voice-managed-capture.sh',
+              command: 'bash scripts/voice/voice-managed-capture.sh',
               timeoutMs: 90000,
             },
             stt: {
@@ -209,9 +209,9 @@ const context = {
             label: '未运行',
           },
           commands: {
-            start: './scripts/voice-connector-instance.sh start',
-            stop: './scripts/voice-connector-instance.sh stop',
-            status: './scripts/voice-connector-instance.sh status',
+            start: './scripts/voice/voice-connector-instance.sh start',
+            stop: './scripts/voice/voice-connector-instance.sh stop',
+            status: './scripts/voice/voice-connector-instance.sh status',
             testText: 'npm run voice:connect -- --config "/Users/test/vault/00-🤖agent/voice/config.json" --text "你好" --no-speak',
           },
           options: {

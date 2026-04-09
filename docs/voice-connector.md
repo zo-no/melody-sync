@@ -53,7 +53,7 @@ Constraints:
 Please:
 1. install or verify the needed local dependencies
 2. create or update <runtimeRoot>/voice/config.json
-3. wire the wake/capture/stt/tts commands into scripts/voice-connector.mjs
+3. wire the wake/capture/stt/tts commands into scripts/voice/voice-connector.mjs
 4. validate with a dry run using --text or --stdin
 5. start the persistent connector process
 6. report the final command, config path, and validation result
@@ -92,13 +92,13 @@ Everything else should stay inside the AI session.
 
 ## Connector Contract
 
-The shipped implementation lives in `scripts/voice-connector.mjs`.
+The shipped implementation lives in `scripts/voice/voice-connector.mjs`.
 
 Current product integration:
 
 - `设置 -> Voice` manages the local voice config
 - the durable config file lives at `<runtimeRoot>/voice/config.json`
-- `scripts/voice-connector-instance.sh` reads the current `runtimeRoot` automatically
+- `scripts/voice/voice-connector-instance.sh` reads the current `runtimeRoot` automatically
 
 It supports three operating modes:
 
@@ -183,7 +183,7 @@ This one-stage setup is the simplest validation path:
 - `ffmpeg` reads the microphone
 - `mlx_whisper` transcribes each short chunk locally
 - the wake loop emits a JSON event that already includes `transcript`
-- `scripts/voice-connector.mjs` sends that transcript straight into a new MelodySync session
+- `scripts/voice/voice-connector.mjs` sends that transcript straight into a new MelodySync session
 
 `capture.command` and `stt.command` stay available for more advanced flows, but they are not required for the first hello-world demo.
 
@@ -196,7 +196,7 @@ This repo now ships a generic Python wake path that keeps the core logic outside
 - `scripts/voice-capture-until-silence.py` — one-shot follow-up capture that waits for speech and stops after trailing silence
 - `scripts/voice-record-once.py` — one-shot microphone capture helper using `sounddevice` when available, with `ffmpeg` fallback
 - `scripts/voice-transcribe-mlx.py` — one-shot local transcription helper using `mlx_whisper`
-- `scripts/voice-connector-instance.sh` — start/stop/status helper for the persistent connector process
+- `scripts/voice/voice-connector-instance.sh` — start/stop/status helper for the persistent connector process
 
 On macOS, microphone permissions are app-context-sensitive. A fully headless `nohup` process launched from a non-authorized host can look "alive" while actually recording zeros. The default instance helper therefore uses `Terminal.app` only as a short permission bootstrap on startup, then detaches the real connector into the background and closes the Terminal window.
 
@@ -273,7 +273,7 @@ Example machine-local config for that macOS-only prototype shape:
 Start the persistent demo instance with:
 
 ```bash
-./scripts/voice-connector-instance.sh start
+./scripts/voice/voice-connector-instance.sh start
 ```
 
 On macOS, the instance helper may launch the connector through `Terminal.app` when you explicitly choose that mode, but the generic `ffmpeg + mlx_whisper` path does not require Swift as the core runtime.

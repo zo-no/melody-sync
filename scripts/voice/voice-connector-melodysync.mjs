@@ -2,8 +2,8 @@ import { readFile } from 'fs/promises'
 import { randomUUID } from 'crypto'
 import { setTimeout as delay } from 'timers/promises'
 
-import { AUTH_FILE } from '../lib/config.mjs'
-import { selectAssistantReplyEvent, stripHiddenBlocks } from '../lib/reply-selection.mjs'
+import { AUTH_FILE } from '../../lib/config.mjs'
+import { selectAssistantReplyEvent, stripHiddenBlocks } from '../../lib/reply-selection.mjs'
 
 const RUN_POLL_INTERVAL_MS = 300
 const RUN_POLL_TIMEOUT_MS = 10 * 60 * 1000

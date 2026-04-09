@@ -25,7 +25,7 @@ For the first prototype, the target flow is:
 
 ## Architecture
 
-The implementation lives in `scripts/proactive-observer.mjs` and is intentionally decoupled from the main MelodySync server process.
+The implementation lives in `scripts/observer/proactive-observer.mjs` and is intentionally decoupled from the main MelodySync server process.
 
 Layers:
 
@@ -51,17 +51,17 @@ This means the service stays session-first while still being proactive.
 
 ## Files
 
-- `scripts/proactive-observer.mjs` — standalone local service + CLI + HTTP control surface
-- `scripts/proactive-observer-instance.sh` — start/stop/status/log helper
-- `scripts/proactive-observer-human-detect.swift` — local human-presence detector using Apple Vision
-- `scripts/proactive-observer-listen-once.swift` — one-shot speech capture/transcription using macOS Speech
+- `scripts/observer/proactive-observer.mjs` — standalone local service + CLI + HTTP control surface
+- `scripts/observer/proactive-observer-instance.sh` — start/stop/status/log helper
+- `scripts/observer/proactive-observer-human-detect.swift` — local human-presence detector using Apple Vision
+- `scripts/observer/proactive-observer-listen-once.swift` — one-shot speech capture/transcription using macOS Speech
 
 ## Config
 
 Print a starter config with:
 
 ```bash
-node scripts/proactive-observer.mjs --print-config
+node scripts/observer/proactive-observer.mjs --print-config
 ```
 
 Write it to:
@@ -96,7 +96,7 @@ If the camera appears there, set `camera.avfoundationDevice` to the video index.
 Before trusting the real camera loop, validate the episode flow manually:
 
 ```bash
-node scripts/proactive-observer.mjs --event arrival --transcript "我今天情绪挺好，给我放首歌" --no-speak
+node scripts/observer/proactive-observer.mjs --event arrival --transcript "我今天情绪挺好，给我放首歌" --no-speak
 ```
 
 That does:
@@ -111,7 +111,7 @@ That does:
 If the camera is configured, capture and analyze one frame with:
 
 ```bash
-node scripts/proactive-observer.mjs --once-camera --no-speak
+node scripts/observer/proactive-observer.mjs --once-camera --no-speak
 ```
 
 ## Service mode
@@ -119,13 +119,13 @@ node scripts/proactive-observer.mjs --once-camera --no-speak
 Run directly:
 
 ```bash
-node scripts/proactive-observer.mjs
+node scripts/observer/proactive-observer.mjs
 ```
 
 Or via the helper:
 
 ```bash
-./scripts/proactive-observer-instance.sh start
+./scripts/observer/proactive-observer-instance.sh start
 ```
 
 HTTP endpoints:
