@@ -23,6 +23,7 @@ This directory owns session-facing projections and lightweight domain helpers.
 - `../services/session/catalog-read-service.mjs`: session list/detail catalog orchestration for HTTP controllers.
 - `../services/session/event-read-service.mjs`: session event/source-context read orchestration for HTTP controllers.
 - `../services/session/creation-service.mjs`: session create/reuse metadata orchestration, including external-trigger reuse and session-created bootstrap side effects.
+- `../services/session/deletion-service.mjs`: permanent session deletion planning and durable artifact cleanup extracted from the manager.
 - `../services/session/prompt-service.mjs`: prompt shaping, resume detection, and continuation-aware preamble assembly extracted from the manager.
 - `../services/session/fork-context-service.mjs`: prepared fork-context snapshot creation and reuse for prompting and session forks.
 - `../services/session/branching-service.mjs`: fork/delegate branching orchestration layered on the canonical session manager entrypoints.
