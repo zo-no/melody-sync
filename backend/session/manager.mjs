@@ -114,8 +114,10 @@ import {
 } from '../services/session/deletion-service.mjs';
 import { createSessionMetadataMutationService } from '../services/session/metadata-service.mjs';
 import { createSessionMessageSubmissionService } from '../services/session/message-submission-service.mjs';
+import { createSessionOrganizerService } from '../services/session/organizer-service.mjs';
 import { createSessionPersistentService } from '../services/session/persistent-service.mjs';
 import { buildPrompt, resolveResumeState } from '../services/session/prompt-service.mjs';
+import { createResultAssetPublicationService } from '../services/session/result-asset-publication-service.mjs';
 import { createSessionWorkflowRuntimeService } from '../services/session/workflow-runtime-service.mjs';
 import {
   normalizeSessionSourceName,
@@ -509,6 +511,22 @@ const {
   sessionWorkflowStateWaitingUser: SESSION_WORKFLOW_STATE_WAITING_USER,
   shouldExposeSession,
   statusEvent,
+});
+
+const {
+  finalizeSessionOrganizerRun,
+  triggerAutomaticSessionLabeling,
+} = createSessionOrganizerService({
+  extractSessionOrganizerAssistantText,
+  getSession,
+  getSessionQueueCount,
+  isSessionAutoRenamePending,
+  parseSessionOrganizerResult,
+  renameSession,
+  triggerSessionLabelSuggestion,
+  updateRun,
+  updateSessionGrouping,
+  updateSessionWorkflowClassification,
 });
 
 const {
@@ -975,188 +993,6 @@ async function findLatestAssistantMessageForRun(sessionId, runId) {
     return event;
   }
   return null;
-}
-
-async function findResultAssetMessageForRun(sessionId, runId) {
-  const events = await loadHistory(sessionId, { includeBodies: false });
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index];
-    if (event?.type !== 'message' || event.role !== 'assistant') continue;
-    if (event?.source !== 'result_file_assets') continue;
-    if (event?.resultRunId !== runId) continue;
-    return event;
-  }
-  return null;
-}
-
-async function applySessionOrganizerPatch(sessionId, patch = {}) {
-  let session = await getSession(sessionId);
-  if (!session) return null;
-
-  const nextName = typeof patch?.name === 'string' ? patch.name.trim() : '';
-  if (nextName && nextName !== session.name) {
-    session = await renameSession(sessionId, nextName) || session;
-  }
-
-  const nextGroup = typeof patch?.group === 'string' ? patch.group : '';
-  const nextDescription = typeof patch?.description === 'string' ? patch.description : '';
-  if ((nextGroup && nextGroup !== (session.group || '')) || (nextDescription && nextDescription !== (session.description || ''))) {
-    session = await updateSessionGrouping(sessionId, {
-      ...(nextGroup ? { group: nextGroup } : {}),
-      ...(nextDescription ? { description: nextDescription } : {}),
-    }) || session;
-  }
-
-  const nextWorkflowState = typeof patch?.workflowState === 'string' ? patch.workflowState : '';
-  const nextWorkflowPriority = typeof patch?.workflowPriority === 'string' ? patch.workflowPriority : '';
-  if (
-    (nextWorkflowState && nextWorkflowState !== (session.workflowState || ''))
-    || (nextWorkflowPriority && nextWorkflowPriority !== (session.workflowPriority || ''))
-  ) {
-    session = await updateSessionWorkflowClassification(sessionId, {
-      ...(nextWorkflowState ? { workflowState: nextWorkflowState } : {}),
-      ...(nextWorkflowPriority ? { workflowPriority: nextWorkflowPriority } : {}),
-    }) || session;
-  }
-
-  return session;
-}
-
-async function finalizeSessionOrganizerRun(sessionId, run, normalizedEvents = []) {
-  const assistantText = extractSessionOrganizerAssistantText(normalizedEvents);
-  if (!assistantText) {
-    await updateRun(run.id, (current) => ({
-      ...current,
-      state: 'failed',
-      failureReason: 'Session organizer produced no assistant output',
-    }));
-    return { session: await getSession(sessionId), changed: false };
-  }
-
-  const parsed = parseSessionOrganizerResult(assistantText);
-  if (!parsed.ok) {
-    await updateRun(run.id, (current) => ({
-      ...current,
-      state: 'failed',
-      failureReason: 'Session organizer returned invalid JSON',
-    }));
-    return { session: await getSession(sessionId), changed: false };
-  }
-
-  const before = await getSession(sessionId);
-  const updated = await applySessionOrganizerPatch(sessionId, parsed);
-  const changed = JSON.stringify({
-    name: before?.name || '',
-    group: before?.group || '',
-    description: before?.description || '',
-    workflowState: before?.workflowState || '',
-    workflowPriority: before?.workflowPriority || '',
-  }) !== JSON.stringify({
-    name: updated?.name || '',
-    group: updated?.group || '',
-    description: updated?.description || '',
-    workflowState: updated?.workflowState || '',
-    workflowPriority: updated?.workflowPriority || '',
-  });
-
-  return {
-    session: updated || before,
-    changed,
-  };
-}
-
-async function triggerAutomaticSessionLabeling(sessionId, session) {
-  const currentSession = await getSession(sessionId) || session;
-  if (!currentSession || !isSessionAutoRenamePending(currentSession)) {
-    return {
-      ok: true,
-      skipped: 'session_labels_not_needed',
-      rename: { attempted: false, renamed: false },
-    };
-  }
-  if (getSessionQueueCount(currentSession) > 0) {
-    return {
-      ok: true,
-      skipped: 'queued_follow_ups_present',
-      rename: { attempted: false, renamed: false },
-    };
-  }
-
-  const outcome = await triggerSessionLabelSuggestion(
-    currentSession,
-    async (newName) => !!(await renameSession(sessionId, newName)),
-    { skipReason: 'Auto-rename no longer needed' },
-  );
-
-  const summary = outcome?.summary;
-  if (summary && (summary.group || summary.description)) {
-    await updateSessionGrouping(sessionId, {
-      ...(summary.group ? { group: summary.group } : {}),
-      ...(summary.description ? { description: summary.description } : {}),
-    });
-  }
-  return outcome;
-}
-
-async function maybePublishRunResultAssets(sessionId, run, manifest, normalizedEvents) {
-  if (manifest?.internalOperation) {
-    return false;
-  }
-
-  let attachments = normalizePublishedResultAssetAttachments(run?.publishedResultAssets || []);
-  if (attachments.length === 0) {
-    const generatedFiles = await collectGeneratedResultFilesFromRun(run, manifest, normalizedEvents);
-    if (generatedFiles.length === 0) {
-      return false;
-    }
-
-    const publishedAssets = [];
-    for (const file of generatedFiles) {
-      try {
-        const published = await publishLocalFileAssetFromPath({
-          sessionId,
-          localPath: file.localPath,
-          originalName: file.originalName,
-          mimeType: file.mimeType,
-          createdBy: 'assistant',
-        });
-        publishedAssets.push({
-          assetId: published.id,
-          originalName: published.originalName || file.originalName,
-          mimeType: published.mimeType || file.mimeType,
-        });
-      } catch (error) {
-        console.error(`[result-file-assets] Failed to publish ${file.localPath}: ${error?.message || error}`);
-      }
-    }
-
-    if (publishedAssets.length === 0) {
-      return false;
-    }
-
-    const updatedRun = await updateRun(run.id, (current) => ({
-      ...current,
-      publishedResultAssets: Array.isArray(current.publishedResultAssets) && current.publishedResultAssets.length > 0
-        ? current.publishedResultAssets
-        : publishedAssets,
-      publishedResultAssetsAt: current.publishedResultAssetsAt || nowIso(),
-    })) || run;
-    attachments = normalizePublishedResultAssetAttachments(updatedRun.publishedResultAssets || publishedAssets);
-  }
-
-  if (attachments.length === 0) {
-    return false;
-  }
-  if (await findResultAssetMessageForRun(sessionId, run.id)) {
-    return false;
-  }
-
-  await appendEvent(sessionId, messageEvent('assistant', buildResultAssetReadyMessage(attachments), attachments, {
-    source: 'result_file_assets',
-    resultRunId: run.id,
-    ...(run.requestId ? { requestId: run.requestId } : {}),
-  }));
-  return true;
 }
 
 function hasPersistedResumeState(toolId, session) {
@@ -1890,6 +1726,19 @@ const {
   statusEvent,
   touchSessionMeta,
   updateSessionTool: updateSessionToolViaWorkflowRuntimeService,
+});
+
+const {
+  maybePublishRunResultAssets,
+} = createResultAssetPublicationService({
+  appendEvent,
+  buildResultAssetReadyMessage,
+  collectGeneratedResultFilesFromRun,
+  messageEvent,
+  normalizePublishedResultAssetAttachments,
+  nowIso,
+  publishLocalFileAssetFromPath,
+  updateRun,
 });
 
 export async function startDetachedRunObservers() {

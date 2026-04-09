@@ -60,6 +60,14 @@ MelodySync is now an owner-operated AI task workspace.
 - owns the canonical submit-message/run-start flow used by manager, follow-up queue flushes, branching, and persistent-session execution
 - keeps busy-session queueing, prompt assembly, run creation, and first-user-turn side effects out of the manager entry surface
 
+`backend/services/session/organizer-service.mjs`
+
+- owns organizer closeout patching and automatic post-run naming/grouping so those flows do not stay embedded in the manager
+
+`backend/services/session/result-asset-publication-service.mjs`
+
+- owns result-file asset publication and transcript-message emission for completed runs
+
 `backend/controllers/session/post-routes.mjs`
 
 - handles session creation plus POST-based session actions such as message submit, delegate, fork, and persistent-run entrypoints
