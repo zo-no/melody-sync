@@ -57,6 +57,11 @@ MelodySync is now an owner-operated AI task workspace.
 - projects chat/login HTML template placeholders
 - centralizes shell-safe bootstrap JSON serialization
 
+`backend/shared/http/response-cache.mjs`
+
+- provides shared ETag, compression, and cached response writers
+- keeps transport-level caching/compression logic out of route dispatch
+
 ### Frontend
 
 `templates/chat.html`

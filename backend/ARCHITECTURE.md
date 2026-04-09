@@ -80,6 +80,7 @@ backend/
   shared/
     assets/
     fs/
+    http/
     logging/
     notifications/
     utils/

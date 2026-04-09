@@ -47,6 +47,7 @@ Browser / mobile shell
 - [`backend/session/api-shapes.mjs`](backend/session/api-shapes.mjs): API projection helpers
 - [`backend/services/system/page-build-service.mjs`](backend/services/system/page-build-service.mjs): service/frontend build info, template file cache, and static asset resolution
 - [`backend/views/system/page-template.mjs`](backend/views/system/page-template.mjs): chat/login shell placeholder projection and script-safe bootstrap serialization
+- [`backend/shared/http/response-cache.mjs`](backend/shared/http/response-cache.mjs): shared HTTP ETag/compression/cached response writers
 - [`backend/workbench/index.mjs`](backend/workbench/index.mjs): task/workbench domain entry layered on sessions
 
 ### Frontend
