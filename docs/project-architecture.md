@@ -66,6 +66,17 @@ MelodySync is now an owner-operated AI task workspace.
 - `workbench/`: task-map contract/model plus focused workbench renderers
 - `workbench/controller.js`: workbench-side coordinator that wires graph, surfaces, and node canvas
 
+## AI-Oriented Read Order
+
+Use the smallest entrypoint set that matches the change you want to make.
+
+- session/run behavior: `AGENTS.md`, `backend/session/README.md`, `backend/run/README.md`, `backend/session/manager.mjs`
+- persistence or storage layout: `docs/application-storage-architecture.md`, `lib/config.mjs`, `backend/session/meta-store.mjs`, `backend/run/store.mjs`
+- routing and HTTP surfaces: `backend/router.mjs`, `backend/routes/`
+- hooks and settings: `backend/hooks/README.md`, `backend/settings/README.md`
+- workbench/task-map flows: `backend/workbench/index.mjs`, `frontend/workbench/`
+
+Do not treat `.melody-sync-runtime/releases/` or `.playwright-cli/` as source-of-truth code. They are runtime snapshots or tool artifacts and should not be hand-edited during normal feature work.
 
 ## Core Domain Objects
 
@@ -95,8 +106,8 @@ Key fields:
 
 Persistence:
 
-- metadata in `chat-sessions.json`
-- event timeline in `chat-history/<sessionId>/`
+- metadata in `sessions/chat-sessions.json`
+- event timeline in `sessions/history/<sessionId>/`
 
 ### Run
 
@@ -113,8 +124,8 @@ Key fields:
 
 Persistence:
 
-- `chat-runs/<runId>/status.json`
-- `chat-runs/<runId>/manifest.json`
+- `sessions/runs/<runId>/status.json`
+- `sessions/runs/<runId>/manifest.json`
 
 ## Main Flows
 
@@ -129,7 +140,7 @@ Persistence:
 ### Send a message
 
 1. Frontend posts to `/api/sessions/:id/messages`.
-2. `session-manager.mjs` records the user event, creates a run, and spawns a detached runner.
+2. `backend/session/manager.mjs` records the user event, creates a run, and spawns a detached runner.
 3. Provider output is normalized into session events.
 4. Session invalidation broadcasts tell owner clients to refresh the affected thread.
 

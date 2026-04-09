@@ -95,6 +95,17 @@ Important files under the active instance root:
 3. HTTP is canonical. WebSocket is an invalidation hint, not the source of truth.
 4. When removing a feature, update code, tests, and canonical docs together.
 5. Treat old fields like `appId` / `appName` as passive compatibility metadata unless the product explicitly revives that concept.
+6. Edit source modules, not generated/runtime artifacts. `.melody-sync-runtime/releases/` are immutable release snapshots and `.playwright-cli/` files are tool output, not source.
+
+## Fast Path By Change Type
+
+- session or run semantics: start with [`backend/session/README.md`](backend/session/README.md), [`backend/run/README.md`](backend/run/README.md), then open [`backend/session/manager.mjs`](backend/session/manager.mjs)
+- storage and retention: read [`docs/application-storage-architecture.md`](docs/application-storage-architecture.md), then inspect [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs) and [`backend/run/store.mjs`](backend/run/store.mjs)
+- HTTP or route changes: start at [`backend/router.mjs`](backend/router.mjs), then narrow into `backend/routes/`
+- hooks or settings: start at [`backend/hooks/README.md`](backend/hooks/README.md) or [`backend/settings/README.md`](backend/settings/README.md)
+- workbench changes: start at [`backend/workbench/index.mjs`](backend/workbench/index.mjs) and then the matching `frontend/workbench/` module
+
+This keeps AI-assisted edits close to the real domain entrypoints and reduces drift caused by opening historical notes or runtime snapshots first.
 
 ## Read These First
 
