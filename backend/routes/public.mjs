@@ -1,4 +1,3 @@
-import { readFile } from 'fs/promises';
 import { SESSION_EXPIRY } from '../../lib/config.mjs';
 import {
   sessions,
@@ -17,6 +16,15 @@ import {
   recordFailedAttempt,
   clearFailedAttempts,
 } from '../middleware.mjs';
+import {
+  loginTemplatePath,
+  readFrontendFileCached,
+  getPageBuildInfo,
+} from '../services/system/page-build-service.mjs';
+import {
+  renderPageTemplate,
+  buildTemplateReplacements,
+} from '../views/system/page-template.mjs';
 
 export async function handlePublicRoutes({
   req,
@@ -24,13 +32,8 @@ export async function handlePublicRoutes({
   parsedUrl,
   pathname,
   nonce,
-  loginTemplatePath,
-  readFrontendFileCached,
-  getPageBuildInfo,
   buildHeaders,
   prepareResponseBody,
-  renderPageTemplate,
-  buildTemplateReplacements,
   writeJsonCached,
 }) {
   const queryToken = parsedUrl.query.token;
@@ -98,9 +101,7 @@ export async function handlePublicRoutes({
     let loginHtml;
     const pageBuildInfo = await getPageBuildInfo();
     try {
-      loginHtml = readFrontendFileCached
-        ? await readFrontendFileCached(loginTemplatePath, 'utf8')
-        : await readFile(loginTemplatePath, 'utf8');
+      loginHtml = await readFrontendFileCached(loginTemplatePath, 'utf8');
     } catch {
       loginHtml = '<h1>Login template missing</h1>';
     }

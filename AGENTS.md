@@ -35,7 +35,7 @@ Browser / mobile shell
 
 ### Backend
 
-- [`backend/router.mjs`](backend/router.mjs): main HTTP surface
+- [`backend/router.mjs`](backend/router.mjs): main HTTP surface plus response/cache/static dispatch
 - [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration
 - [`backend/run/store.mjs`](backend/run/store.mjs): durable run manifests, spool, status, result
 - [`backend/run/supervisor.mjs`](backend/run/supervisor.mjs): detached runner launcher
@@ -45,6 +45,8 @@ Browser / mobile shell
 - [`backend/history.mjs`](backend/history.mjs): append-only event store
 - [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs): session metadata persistence
 - [`backend/session/api-shapes.mjs`](backend/session/api-shapes.mjs): API projection helpers
+- [`backend/services/system/page-build-service.mjs`](backend/services/system/page-build-service.mjs): service/frontend build info, template file cache, and static asset resolution
+- [`backend/views/system/page-template.mjs`](backend/views/system/page-template.mjs): chat/login shell placeholder projection and script-safe bootstrap serialization
 - [`backend/workbench/index.mjs`](backend/workbench/index.mjs): task/workbench domain entry layered on sessions
 
 ### Frontend

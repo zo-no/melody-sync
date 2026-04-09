@@ -1,7 +1,7 @@
 import { WebSocketServer } from 'ws';
 import { isAuthenticated, getAuthSession } from '../lib/auth.mjs';
 import { setWss } from './ws-clients.mjs';
-import { getPageBuildInfo } from './router.mjs';
+import { getPageBuildInfo } from './services/system/page-build-service.mjs';
 
 function sendJson(ws, payload) {
   if (ws.readyState !== 1) return;

@@ -1,3 +1,14 @@
+import {
+  chatTemplatePath,
+  getPageBuildInfo,
+  readFrontendFileCached,
+} from '../../services/system/page-build-service.mjs';
+import {
+  renderPageTemplate,
+  buildTemplateReplacements,
+  serializeJsonForScript,
+} from '../../views/system/page-template.mjs';
+
 export async function handleChatPageRequest({
   req,
   res,
@@ -6,12 +17,6 @@ export async function handleChatPageRequest({
   getAuthSession,
   refreshAuthSession,
   buildChatPageBootstrap,
-  getPageBuildInfo,
-  readFrontendFileCached,
-  chatTemplatePath,
-  renderPageTemplate,
-  buildTemplateReplacements,
-  serializeJsonForScript,
   prepareResponseBody,
   buildHeaders,
 } = {}) {

@@ -27,8 +27,8 @@ MelodySync is now an owner-operated AI task workspace.
 `backend/router.mjs`
 
 - top-level HTTP dispatcher
-- serves auth/build/runtime/session APIs
-- still contains some retired compatibility stubs that should be pruned during cleanup
+- owns request/response caching, compression, and final route handoff
+- no longer owns page-build calculation or template projection logic
 
 `backend/session/manager.mjs`
 
@@ -44,6 +44,18 @@ MelodySync is now an owner-operated AI task workspace.
 - launches provider runtimes
 - streams normalized output into the session event store
 - coordinates timeout/finalize helpers through runtime monitor modules
+
+`backend/services/system/page-build-service.mjs`
+
+- computes service/frontend build metadata
+- caches shell/template file reads
+- resolves versioned frontend/static assets
+- watches frontend/template changes and broadcasts build invalidation
+
+`backend/views/system/page-template.mjs`
+
+- projects chat/login HTML template placeholders
+- centralizes shell-safe bootstrap JSON serialization
 
 ### Frontend
 
