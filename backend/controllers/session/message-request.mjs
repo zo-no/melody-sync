@@ -1,4 +1,4 @@
-import { readBody } from '../../lib/utils.mjs';
+import { readBody } from '../../../lib/utils.mjs';
 
 const MESSAGE_SUBMISSION_MAX_BYTES = 256 * 1024 * 1024;
 
