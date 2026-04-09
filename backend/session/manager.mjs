@@ -2297,7 +2297,13 @@ export async function startDetachedRunObservers() {
   for (const meta of sessionMetaList) {
     const sessionId = trimString(meta?.id);
     const runId = trimString(meta?.activeRunId);
-    if (!sessionId || !runId) {
+    if (!sessionId) {
+      continue;
+    }
+    if (!runId) {
+      if (getFollowUpQueueCount(meta) > 0) {
+        scheduleQueuedFollowUpDispatch(sessionId);
+      }
       continue;
     }
 
