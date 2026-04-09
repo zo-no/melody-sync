@@ -43,7 +43,9 @@ function extractHiddenDisplayBlocks(markdown) {
   const buildHiddenBlock = (tag, rawContent) => {
     const normalizedContent = rawContent.trim();
     const taskCardMatch = normalizedContent.match(/^<task_card>([\s\S]*?)<(?:\\\/|\/)task_card>$/i);
+    const graphOpsMatch = normalizedContent.match(/^<graph_ops>([\s\S]*?)<(?:\\\/|\/)graph_ops>$/i);
     const taskCardContent = taskCardMatch ? String(taskCardMatch[1] || "").trim() : "";
+    const graphOpsContent = graphOpsMatch ? String(graphOpsMatch[1] || "").trim() : "";
     let formattedContent = normalizedContent;
     let kind = tag;
     if (taskCardMatch) {
@@ -57,12 +59,23 @@ function extractHiddenDisplayBlocks(markdown) {
       } else {
         formattedContent = "";
       }
+    } else if (graphOpsMatch) {
+      kind = "graph_ops";
+      if (graphOpsContent) {
+        try {
+          formattedContent = JSON.stringify(JSON.parse(graphOpsContent), null, 2);
+        } catch {
+          formattedContent = graphOpsContent;
+        }
+      } else {
+        formattedContent = "";
+      }
     }
     return {
       tag,
       kind,
       rawContent,
-      content: taskCardMatch ? taskCardContent : normalizedContent,
+      content: taskCardMatch ? taskCardContent : (graphOpsMatch ? graphOpsContent : normalizedContent),
       formattedContent,
     };
   };
@@ -111,6 +124,70 @@ function getHiddenDisplayBlockLabel(block, index = 0) {
   return index > 0 ? `隐藏内容 ${index + 1}` : "隐藏内容";
 }
 
+const appliedGraphOpsProposalKeys = new Set();
+
+function buildGraphOpsProposalKey(sessionId, sourceSeq, graphOps) {
+  const normalizedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
+  const normalizedSourceSeq = Number.isInteger(sourceSeq) ? sourceSeq : 0;
+  const serializedGraphOps = graphOps && typeof graphOps === "object"
+    ? JSON.stringify(graphOps)
+    : "";
+  return `${normalizedSessionId}::${normalizedSourceSeq}::${serializedGraphOps}`;
+}
+
+async function applyGraphOpsProposal(button, {
+  sessionId = "",
+  sourceSeq = 0,
+  graphOps = null,
+} = {}) {
+  const normalizedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
+  if (!button || !normalizedSessionId || !graphOps || typeof fetchJsonOrRedirect !== "function") return;
+  if (button.dataset.pending === "true") return;
+
+  const proposalKey = buildGraphOpsProposalKey(normalizedSessionId, sourceSeq, graphOps);
+  button.dataset.pending = "true";
+  button.disabled = true;
+  button.textContent = "应用中…";
+  button.classList.remove("is-error");
+
+  try {
+    const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(normalizedSessionId)}/graph-ops/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ graphOps }),
+    });
+    const appliedCount = Number.isInteger(response?.appliedCount) ? response.appliedCount : 0;
+    appliedGraphOpsProposalKeys.add(proposalKey);
+    button.textContent = appliedCount > 0 ? "已应用" : "无改动";
+    button.classList.add("is-applied");
+    if (typeof fetchSessionsList === "function") {
+      await fetchSessionsList().catch(() => {});
+    }
+    if (typeof fetchSessionState === "function") {
+      await fetchSessionState(normalizedSessionId).catch(() => {});
+    }
+    if (typeof fetchSessionEvents === "function") {
+      await fetchSessionEvents(normalizedSessionId, {
+        runState: "idle",
+        viewportIntent: "preserve",
+      }).catch(() => {});
+    }
+    if (window.MelodySyncWorkbench?.refresh) {
+      void window.MelodySyncWorkbench.refresh();
+    }
+    if (window.MelodySyncWorkbench?.refreshOperationRecord) {
+      void window.MelodySyncWorkbench.refreshOperationRecord();
+    }
+  } catch (error) {
+    console.warn("[graph-ops] Failed to apply proposal:", error?.message || error);
+    button.disabled = false;
+    button.dataset.pending = "";
+    button.textContent = "应用改图";
+    button.classList.add("is-error");
+    button.title = error?.message || "应用改图失败";
+  }
+}
+
 function insertAssistantBodyChild(container, node) {
   if (!container || !node) return;
   const attachmentWrap = container.querySelector(".msg-images");
@@ -123,7 +200,7 @@ function insertAssistantBodyChild(container, node) {
   container.appendChild(node);
 }
 
-function renderAssistantMessageBodyIntoNode(container, markdown, { bodyNode = null } = {}) {
+function renderAssistantMessageBodyIntoNode(container, markdown, { bodyNode = null, event = null } = {}) {
   if (!container) return { hasVisible: false, hasSidecars: false };
   const { visibleContent, hiddenBlocks } = extractHiddenDisplayBlocks(markdown);
 
@@ -155,7 +232,7 @@ function renderAssistantMessageBodyIntoNode(container, markdown, { bodyNode = nu
 
       const meta = document.createElement("div");
       meta.className = "assistant-sidecar-meta";
-      meta.textContent = `${getHiddenDisplayBlockLabel(block, index)} · ${block.kind === "task_card" ? "task_card" : block.tag}`;
+      meta.textContent = `${getHiddenDisplayBlockLabel(block, index)} · ${block.kind === "task_card" || block.kind === "graph_ops" ? block.kind : block.tag}`;
 
       const pre = document.createElement("pre");
       pre.className = "assistant-sidecar-pre";
@@ -163,6 +240,36 @@ function renderAssistantMessageBodyIntoNode(container, markdown, { bodyNode = nu
 
       body.appendChild(meta);
       body.appendChild(pre);
+      if (block.kind === "graph_ops" && event?.graphOps) {
+        const actions = document.createElement("div");
+        actions.className = "assistant-sidecar-actions";
+
+        const hint = document.createElement("div");
+        hint.className = "assistant-sidecar-hint";
+        hint.textContent = "仅在点击后生效";
+
+        const applyButton = document.createElement("button");
+        applyButton.type = "button";
+        applyButton.className = "assistant-sidecar-action-btn";
+        const proposalKey = buildGraphOpsProposalKey(currentSessionId, event?.seq, event.graphOps);
+        const alreadyApplied = appliedGraphOpsProposalKeys.has(proposalKey);
+        applyButton.textContent = alreadyApplied ? "已应用" : "应用改图";
+        applyButton.disabled = alreadyApplied || !currentSessionId || typeof fetchJsonOrRedirect !== "function";
+        if (alreadyApplied) {
+          applyButton.classList.add("is-applied");
+        }
+        applyButton.addEventListener("click", () => {
+          void applyGraphOpsProposal(applyButton, {
+            sessionId: currentSessionId,
+            sourceSeq: event?.seq,
+            graphOps: event.graphOps,
+          });
+        });
+
+        actions.appendChild(hint);
+        actions.appendChild(applyButton);
+        body.appendChild(actions);
+      }
       panel.appendChild(body);
       sidecarWrap.appendChild(panel);
     });
@@ -452,13 +559,13 @@ function renderMessageInto(container, evt, { finalizeActiveThinkingBlock = false
       div.appendChild(content);
       let renderState = { hasVisible: false, hasSidecars: false };
       if (evt.content) {
-        renderState = renderAssistantMessageBodyIntoNode(div, evt.content, { bodyNode: content });
+        renderState = renderAssistantMessageBodyIntoNode(div, evt.content, { bodyNode: content, event: evt });
         if (!renderState.hasVisible && !renderState.hasSidecars && !hasAttachments) {
           return null;
         }
       } else if (evt.bodyAvailable) {
         if (evt.bodyPreview) {
-          renderState = renderAssistantMessageBodyIntoNode(div, evt.bodyPreview, { bodyNode: content });
+          renderState = renderAssistantMessageBodyIntoNode(div, evt.bodyPreview, { bodyNode: content, event: evt });
         } else {
           content.remove();
         }

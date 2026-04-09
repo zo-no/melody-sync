@@ -10,6 +10,9 @@ const repoRoot = dirname(__dirname);
 const realtimeSource = readFileSync(join(repoRoot, 'frontend-src', 'core', 'realtime-render.js'), 'utf8');
 const uiSource = readFileSync(join(repoRoot, 'frontend-src', 'session', 'transcript-ui.js'), 'utf8');
 
+assert.match(uiSource, /应用改图/, 'assistant transcript UI should expose an explicit click-to-apply label for graph ops proposals');
+assert.match(uiSource, /graph-ops\/apply/, 'assistant transcript UI should post graph ops proposals to the explicit apply route instead of auto-applying them');
+
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
   const start = source.indexOf(marker);
@@ -94,6 +97,15 @@ assert.match(
   extracted.hiddenBlocks[0].formattedContent,
   /"goal": "排查"/,
   'task_card sidecars should be formatted as readable JSON in the folded panel',
+);
+
+const graphOpsContent = 'Visible text\n<private><graph_ops>{"operations":[{"type":"archive","source":"重复任务"}]}</graph_ops></private>';
+const extractedGraphOps = context.extractHiddenDisplayBlocks(graphOpsContent);
+assert.equal(extractedGraphOps.hiddenBlocks[0].kind, 'graph_ops', 'graph_ops sidecars should be classified explicitly');
+assert.match(
+  extractedGraphOps.hiddenBlocks[0].formattedContent,
+  /"type": "archive"/,
+  'graph_ops sidecars should be formatted as readable JSON in the folded panel',
 );
 
 const inlineLiteralContent = [

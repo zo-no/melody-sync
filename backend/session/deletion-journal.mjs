@@ -3,6 +3,7 @@ import { readFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { MELODYSYNC_APP_ROOT } from '../../lib/config.mjs';
 import { pathExists, writeTextAtomic } from '../fs-utils.mjs';
+import { stripGraphOpsFromAssistantContent } from './graph-ops.mjs';
 import { normalizeSessionTaskCard, stripTaskCardFromAssistantContent } from './task-card.mjs';
 
 const JOURNAL_DIR_SEGMENTS = ['02-📓journal', '04-📂日记'];
@@ -152,7 +153,11 @@ function extractAssistantSummaryLines(historiesBySessionId = {}, sessionIds = []
   for (const item of flattened) {
     const event = item.event;
     if (event?.type !== 'message' || event?.role !== 'assistant') continue;
-    const content = normalizeInlineMarkdown(stripTaskCardFromAssistantContent(event?.content || ''));
+    const content = normalizeInlineMarkdown(
+      stripTaskCardFromAssistantContent(
+        stripGraphOpsFromAssistantContent(event?.content || ''),
+      ),
+    );
     if (!content) continue;
     if (!pushUnique(summaries, content, 3)) break;
     if (summaries.length >= 2) break;

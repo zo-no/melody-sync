@@ -208,4 +208,40 @@ assert.equal(
   'event block payload should also expose the sanitized assistant prose instead of the raw task-card JSON tail',
 );
 
+const graphOpsHistory = [
+  { seq: 1, type: 'message', role: 'user', content: '把重复任务收一下' },
+  {
+    seq: 2,
+    type: 'message',
+    role: 'assistant',
+    content: [
+      '我已经整理好图结构。',
+      '<private><graph_ops>{"operations":[{"type":"archive","source":"重复任务","target":"主线任务","reason":"重复任务已融合"}]}</graph_ops></private>',
+      '<private><task_card>{"goal":"收任务图","checkpoint":"重复任务已归档","lineRole":"main"}</task_card></private>',
+    ].join('\n'),
+  },
+];
+
+const graphOpsDisplay = buildSessionDisplayEvents(graphOpsHistory, { sessionRunning: false });
+assert.equal(
+  graphOpsDisplay[1]?.content,
+  '我已经整理好图结构。',
+  'visible assistant prose should strip hidden graph_ops sidecars alongside task_card blocks',
+);
+assert.deepEqual(
+  graphOpsDisplay[1]?.graphOps,
+  {
+    version: 1,
+    operations: [
+      {
+        type: 'archive',
+        source: { ref: '重复任务' },
+        target: { ref: '主线任务' },
+        reason: '重复任务已融合',
+      },
+    ],
+  },
+  'visible assistant messages should preserve parsed graph_ops data for the backend/UI',
+);
+
 console.log('test-session-display-events: ok');

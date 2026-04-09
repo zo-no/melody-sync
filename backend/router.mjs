@@ -10,43 +10,12 @@ import { CHAT_IMAGES_DIR } from '../lib/config.mjs';
 import {
   getAuthSession, refreshAuthSession,
 } from '../lib/auth.mjs';
-import { saveUiRuntimeSelection } from '../lib/runtime-selection.mjs';
 import {
-  deleteSessionPermanently,
   getHistory,
-  getSessionEventsAfter,
-  getSessionSourceContext,
-  getSessionTimelineEvents,
-  renameSession,
-  promoteSessionToPersistent,
-  runSessionPersistent,
-  setSessionArchived,
-  setSessionPinned,
-  updateSessionLastReviewedAt,
-  updateSessionGrouping,
-  updateSessionAgreements,
-  updateSessionPersistent,
-  updateSessionWorkflowClassification,
-  updateSessionRuntimePreferences,
 } from './session/manager.mjs';
-import {
-  normalizeSessionWorkflowPriority,
-  normalizeSessionWorkflowState,
-} from './session/workflow-state.mjs';
-import { appendEvent, readEventBody } from './history.mjs';
+import { appendEvent } from './history.mjs';
 import { messageEvent } from './normalizer.mjs';
-import { buildEventBlockEvents, buildSessionDisplayEvents } from './session/display-events.mjs';
-import {
-  getSessionForClient,
-  getSessionListItemForClient,
-  listSessionListItemsForClient,
-  listSessionsForClient,
-} from './services/session/client-session-service.mjs';
 import { parseSessionGetRoute } from './session/route-utils.mjs';
-import {
-  createClientSessionDetail,
-  createClientSessionListItem,
-} from './views/session/client.mjs';
 import { escapeHtml, readBody } from '../lib/utils.mjs';
 import {
   getClientIp, isRateLimited, recordFailedAttempt, clearFailedAttempts,
@@ -56,7 +25,6 @@ import { pathExists, statOrNull } from './fs-utils.mjs';
 import { broadcastAll } from './ws-clients.mjs';
 import { handlePublicRoutes } from './routes/public.mjs';
 import { handleAssetRoutes } from './routes/assets.mjs';
-import { handleAuthRoutes } from './routes/auth.mjs';
 import { handleRunRoutes } from './routes/runs.mjs';
 import { handleSessionReadRoutes } from './routes/session-read.mjs';
 import { handleSessionWriteRoutes } from './routes/session-write.mjs';
@@ -64,13 +32,14 @@ import { handleWorkbenchRoutes } from './routes/workbench.mjs';
 import { handleHooksRoutes } from './routes/hooks.mjs';
 import { handleSettingsRoutes } from './routes/settings.mjs';
 import { handleSystemRoutes } from './routes/system.mjs';
-import { createWorkbenchNodeDefinitionsPayload } from './workbench/node-definitions.mjs';
+import { isOwnerOnlyRoute } from './contracts/system/owner-only-routes.mjs';
+import { handleChatPageRequest } from './controllers/system/chat-page.mjs';
+import { buildChatPageBootstrap, resetChatPageBootstrapCache } from './services/system/chat-bootstrap-service.mjs';
 import {
   buildFileAssetDirectUrl,
   createFileAssetUploadIntent,
   finalizeFileAssetUpload,
   getFileAsset,
-  getFileAssetBootstrapConfig,
   getFileAssetForClient,
 } from './file-assets.mjs';
 
@@ -106,9 +75,7 @@ const frontendBuildWatchers = [];
 let frontendBuildInvalidationTimer = null;
 let configReloadScheduled = false;
 const FRONTEND_CONTENT_CACHE_TTL_MS = 250;
-const CHAT_SHARED_BOOTSTRAP_CACHE_TTL_MS = 1000;
 const frontendContentCache = new Map();
-let cachedChatPageSharedBootstrap = null;
 
 function scheduleConfigReload() {
   if (configReloadScheduled) return true;
@@ -366,36 +333,6 @@ function buildTemplateReplacements(buildInfo) {
   };
 }
 
-function buildAuthInfo(authSession) {
-  if (!authSession) return null;
-  const info = { role: 'owner' };
-  if (typeof authSession.preferredLanguage === 'string' && authSession.preferredLanguage.trim()) {
-    info.preferredLanguage = authSession.preferredLanguage.trim();
-  }
-  return info;
-}
-
-function buildChatPageBootstrap(authSession) {
-  const now = Date.now();
-  if (
-    !cachedChatPageSharedBootstrap
-    || now - cachedChatPageSharedBootstrap.cachedAt >= CHAT_SHARED_BOOTSTRAP_CACHE_TTL_MS
-  ) {
-    cachedChatPageSharedBootstrap = {
-      cachedAt: now,
-      payload: {
-        assetUploads: getFileAssetBootstrapConfig(),
-        workbench: createWorkbenchNodeDefinitionsPayload(),
-      },
-    };
-  }
-
-  return {
-    auth: buildAuthInfo(authSession),
-    ...cachedChatPageSharedBootstrap.payload,
-  };
-}
-
 async function readFrontendFileCached(filepath, encoding = null) {
   const cacheKey = `${encoding || 'buffer'}:${filepath}`;
   const cached = frontendContentCache.get(cacheKey);
@@ -410,15 +347,6 @@ async function readFrontendFileCached(filepath, encoding = null) {
   const content = encoding ? await readFile(filepath, encoding) : await readFile(filepath);
   frontendContentCache.set(cacheKey, { cachedAt: now, content });
   return content;
-}
-
-async function normalizeSessionFolderInput(folder) {
-  const trimmed = typeof folder === 'string' && folder.trim() ? folder.trim() : '~';
-  const resolvedFolder = trimmed.startsWith('~')
-    ? join(homedir(), trimmed.slice(1))
-    : resolve(trimmed);
-  if (!await isDirectoryPath(resolvedFolder)) return null;
-  return trimmed.startsWith('~') ? trimmed : resolvedFolder;
 }
 
 async function getLatestMtimeMs(path) {
@@ -490,7 +418,7 @@ export async function getPageBuildInfo() {
 
 function scheduleFrontendBuildInvalidation() {
   cachedPageBuildInfo = null;
-  cachedChatPageSharedBootstrap = null;
+  resetChatPageBootstrapCache();
   frontendContentCache.clear();
   if (frontendBuildInvalidationTimer) return;
   frontendBuildInvalidationTimer = setTimeout(async () => {
@@ -817,22 +745,6 @@ function writeJsonCached(req, res, payload, {
   });
 }
 
-function createSessionSummaryPayload(session) {
-  return { session: createClientSessionListItem(session) };
-}
-
-function createSessionSummaryEtag(session) {
-  return createEtag(createJsonBody(createSessionSummaryPayload(session)));
-}
-
-function createSessionSummaryRef(session) {
-  const projected = createClientSessionListItem(session);
-  return {
-    id: projected?.id,
-    summaryEtag: createSessionSummaryEtag(projected),
-  };
-}
-
 function writeFileCached(req, res, contentType, body, {
   cacheControl = 'public, no-cache',
   vary,
@@ -871,26 +783,6 @@ function serializeJsonForScript(value) {
     .replace(/&/g, '\\u0026')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
-}
-
-function isOwnerOnlyRoute(pathname, method) {
-  if (pathname === '/api/workbench' && method === 'GET') return true;
-  if (pathname.startsWith('/api/workbench/')) return true;
-  if (pathname === '/api/sessions' && (method === 'GET' || method === 'POST')) return true;
-  if (pathname === '/api/triggers' && (method === 'GET' || method === 'POST')) return true;
-  if (pathname.startsWith('/api/triggers/') && ['GET', 'PATCH', 'DELETE'].includes(method)) return true;
-  if (pathname.startsWith('/api/sessions/') && pathname.endsWith('/fork') && method === 'POST') return true;
-  if (pathname.startsWith('/api/sessions/') && pathname.endsWith('/delegate') && method === 'POST') return true;
-  if (pathname.startsWith('/api/sessions/') && pathname.endsWith('/organize') && method === 'POST') return true;
-  if (pathname.startsWith('/api/sessions/') && method === 'PATCH') return true;
-  if (pathname === '/api/models' && method === 'GET') return true;
-  if (pathname === '/api/tools' && (method === 'GET' || method === 'POST')) return true;
-  if (pathname === '/api/autocomplete' && method === 'GET') return true;
-  if (pathname === '/api/browse' && method === 'GET') return true;
-  if (pathname === '/api/push/vapid-public-key' && method === 'GET') return true;
-  if (pathname === '/api/push/subscribe' && method === 'POST') return true;
-  if (pathname === '/api/system/completion-sound' && method === 'POST') return true;
-  return false;
 }
 
 function parseFileAssetRoute(pathname) {
@@ -985,18 +877,8 @@ export async function handleRequest(req, res) {
     sessionGetRoute,
     authSession,
     requireSessionAccess: requireSessionAccessForReq,
-    listSessionListItemsForClient,
-    createSessionSummaryRef,
     writeJsonCached,
     writeJson: writeJsonForReq,
-    getSessionListItemForClient,
-    getSessionForClient,
-    getSessionEventsAfter,
-    getSessionTimelineEvents,
-    buildSessionDisplayEvents,
-    getSessionSourceContext,
-    buildEventBlockEvents,
-    readEventBody,
     immutablePrivateEventCacheControl: IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL,
   })) {
     return;
@@ -1023,202 +905,6 @@ export async function handleRequest(req, res) {
     return;
   }
 
-  if (pathname.startsWith('/api/sessions/') && req.method === 'PATCH') {
-    const parts = pathname.split('/').filter(Boolean);
-    const sessionId = parts[2];
-    if (parts.length !== 3 || parts[0] !== 'api' || parts[1] !== 'sessions' || !sessionId) {
-      writeJsonForReq(res, 400, { error: 'Invalid session path' });
-      return;
-    }
-    if (!requireSessionAccessForReq(res, authSession, sessionId)) return;
-    let body;
-    try { body = await readBody(req, 10240); } catch {
-      writeJsonForReq(res, 400, { error: 'Bad request' });
-      return;
-    }
-    let patch;
-    try { patch = JSON.parse(body); } catch {
-      writeJsonForReq(res, 400, { error: 'Invalid request body' });
-      return;
-    }
-    const hasArchivedPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'archived');
-    const hasPinnedPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'pinned');
-    const hasToolPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'tool');
-    const hasModelPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'model');
-    const hasEffortPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'effort');
-    const hasThinkingPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'thinking');
-    const hasGroupPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'group');
-    const hasDescriptionPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'description');
-    const hasSidebarOrderPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'sidebarOrder');
-    const hasActiveAgreementsPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'activeAgreements');
-    const hasPersistentPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'persistent');
-    const hasWorkflowStatePatch = Object.prototype.hasOwnProperty.call(patch || {}, 'workflowState');
-    const hasWorkflowPriorityPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'workflowPriority');
-    const hasLastReviewedAtPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'lastReviewedAt');
-    if (hasArchivedPatch && typeof patch.archived !== 'boolean') {
-      writeJsonForReq(res, 400, { error: 'archived must be a boolean' });
-      return;
-    }
-    if (hasPinnedPatch && typeof patch.pinned !== 'boolean') {
-      writeJsonForReq(res, 400, { error: 'pinned must be a boolean' });
-      return;
-    }
-    if (hasToolPatch && typeof patch.tool !== 'string') {
-      writeJsonForReq(res, 400, { error: 'tool must be a string' });
-      return;
-    }
-    if (hasModelPatch && typeof patch.model !== 'string') {
-      writeJsonForReq(res, 400, { error: 'model must be a string' });
-      return;
-    }
-    if (hasEffortPatch && typeof patch.effort !== 'string') {
-      writeJsonForReq(res, 400, { error: 'effort must be a string' });
-      return;
-    }
-    if (hasThinkingPatch && typeof patch.thinking !== 'boolean') {
-      writeJsonForReq(res, 400, { error: 'thinking must be a boolean' });
-      return;
-    }
-    if (hasGroupPatch && patch.group !== null && typeof patch.group !== 'string') {
-      writeJsonForReq(res, 400, { error: 'group must be a string or null' });
-      return;
-    }
-    if (hasDescriptionPatch && patch.description !== null && typeof patch.description !== 'string') {
-      writeJsonForReq(res, 400, { error: 'description must be a string or null' });
-      return;
-    }
-    if (hasSidebarOrderPatch && patch.sidebarOrder !== null && (!Number.isInteger(patch.sidebarOrder) || patch.sidebarOrder < 1)) {
-      writeJsonForReq(res, 400, { error: 'sidebarOrder must be a positive integer or null' });
-      return;
-    }
-    if (hasActiveAgreementsPatch && patch.activeAgreements !== null && !Array.isArray(patch.activeAgreements)) {
-      writeJsonForReq(res, 400, { error: 'activeAgreements must be an array of strings or null' });
-      return;
-    }
-    if (hasActiveAgreementsPatch && Array.isArray(patch.activeAgreements)) {
-      const invalidAgreement = patch.activeAgreements.find((entry) => typeof entry !== 'string');
-      if (invalidAgreement !== undefined) {
-        writeJsonForReq(res, 400, { error: 'activeAgreements must contain only strings' });
-        return;
-      }
-    }
-    if (hasPersistentPatch && patch.persistent !== null && (typeof patch.persistent !== 'object' || Array.isArray(patch.persistent))) {
-      writeJsonForReq(res, 400, { error: 'persistent must be an object or null' });
-      return;
-    }
-    if (hasWorkflowStatePatch && patch.workflowState !== null && typeof patch.workflowState !== 'string') {
-      writeJsonForReq(res, 400, { error: 'workflowState must be a string or null' });
-      return;
-    }
-    if (hasWorkflowPriorityPatch && patch.workflowPriority !== null && typeof patch.workflowPriority !== 'string') {
-      writeJsonForReq(res, 400, { error: 'workflowPriority must be a string or null' });
-      return;
-    }
-    if (hasLastReviewedAtPatch && patch.lastReviewedAt !== null && typeof patch.lastReviewedAt !== 'string') {
-      writeJsonForReq(res, 400, { error: 'lastReviewedAt must be a string or null' });
-      return;
-    }
-    if (
-      hasWorkflowStatePatch
-      && patch.workflowState !== null
-      && String(patch.workflowState).trim()
-      && !normalizeSessionWorkflowState(String(patch.workflowState))
-    ) {
-      writeJsonForReq(res, 400, { error: 'workflowState must be parked, waiting_user, or done' });
-      return;
-    }
-    if (
-      hasWorkflowPriorityPatch
-      && patch.workflowPriority !== null
-      && String(patch.workflowPriority).trim()
-      && !normalizeSessionWorkflowPriority(String(patch.workflowPriority))
-    ) {
-      writeJsonForReq(res, 400, { error: 'workflowPriority must be high, medium, or low' });
-      return;
-    }
-    if (
-      hasLastReviewedAtPatch
-      && patch.lastReviewedAt !== null
-      && String(patch.lastReviewedAt).trim()
-      && !Number.isFinite(Date.parse(String(patch.lastReviewedAt).trim()))
-    ) {
-      writeJsonForReq(res, 400, { error: 'lastReviewedAt must be a valid timestamp or null' });
-      return;
-    }
-    let session = null;
-    if (typeof patch.name === 'string' && patch.name.trim()) {
-      session = await renameSession(sessionId, patch.name.trim());
-    }
-    if (hasArchivedPatch) {
-      session = await setSessionArchived(sessionId, patch.archived) || session;
-    }
-    if (hasPinnedPatch) {
-      session = await setSessionPinned(sessionId, patch.pinned) || session;
-    }
-    if (hasGroupPatch || hasDescriptionPatch || hasSidebarOrderPatch) {
-      session = await updateSessionGrouping(sessionId, {
-        ...(hasGroupPatch ? { group: patch.group ?? '' } : {}),
-        ...(hasDescriptionPatch ? { description: patch.description ?? '' } : {}),
-        ...(hasSidebarOrderPatch ? { sidebarOrder: patch.sidebarOrder ?? null } : {}),
-      }) || session;
-    }
-    if (hasActiveAgreementsPatch) {
-      session = await updateSessionAgreements(sessionId, {
-        activeAgreements: patch.activeAgreements ?? [],
-      }) || session;
-    }
-    if (hasPersistentPatch) {
-      session = await updateSessionPersistent(sessionId, patch.persistent, {
-        recomputeNextRunAt: true,
-      }) || session;
-    }
-    if (hasWorkflowStatePatch || hasWorkflowPriorityPatch) {
-      session = await updateSessionWorkflowClassification(sessionId, {
-        ...(hasWorkflowStatePatch ? { workflowState: patch.workflowState || '' } : {}),
-        ...(hasWorkflowPriorityPatch ? { workflowPriority: patch.workflowPriority || '' } : {}),
-      }) || session;
-    }
-    if (hasToolPatch || hasModelPatch || hasEffortPatch || hasThinkingPatch) {
-      session = await updateSessionRuntimePreferences(sessionId, {
-        ...(hasToolPatch ? { tool: patch.tool } : {}),
-        ...(hasModelPatch ? { model: patch.model } : {}),
-        ...(hasEffortPatch ? { effort: patch.effort } : {}),
-        ...(hasThinkingPatch ? { thinking: patch.thinking } : {}),
-      }) || session;
-    }
-    if (hasLastReviewedAtPatch) {
-      session = await updateSessionLastReviewedAt(sessionId, patch.lastReviewedAt || '') || session;
-    }
-    if (!session) {
-      session = await getSessionForClient(sessionId);
-    }
-    if (!session) {
-      writeJsonForReq(res, 404, { error: 'Session not found' });
-      return;
-    }
-    writeJsonForReq(res, 200, { session: createClientSessionDetail(session) });
-    return;
-  }
-
-  if (pathname.startsWith('/api/sessions/') && req.method === 'DELETE') {
-    const parts = pathname.split('/').filter(Boolean);
-    const sessionId = parts[2];
-    if (parts.length !== 3 || parts[0] !== 'api' || parts[1] !== 'sessions' || !sessionId) {
-      writeJsonForReq(res, 400, { error: 'Invalid session path' });
-      return;
-    }
-    if (!requireSessionAccessForReq(res, authSession, sessionId)) return;
-    try {
-      const outcome = await deleteSessionPermanently(sessionId);
-      writeJsonForReq(res, 200, { deletedSessionIds: outcome?.deletedSessionIds || [] });
-    } catch (error) {
-      writeJsonForReq(res, error?.statusCode || 409, {
-        error: error?.message || 'Failed to delete session',
-      });
-    }
-    return;
-  }
-
   if (await handleSessionWriteRoutes({
     req,
     res,
@@ -1227,28 +913,6 @@ export async function handleRequest(req, res) {
     requireSessionAccess: requireSessionAccessForReq,
     writeJson: writeJsonForReq,
   })) {
-    return;
-  }
-
-  if (pathname === '/api/runtime-selection' && req.method === 'POST') {
-    let body;
-    try { body = await readBody(req, 4096); } catch (err) {
-      writeJsonForReq(res, err.code === 'BODY_TOO_LARGE' ? 413 : 400, { error: err.code === 'BODY_TOO_LARGE' ? 'Request body too large' : 'Bad request' });
-      return;
-    }
-    let payload;
-    try {
-      payload = JSON.parse(body);
-    } catch {
-      writeJsonForReq(res, 400, { error: 'Invalid request body' });
-      return;
-    }
-    try {
-      const selection = await saveUiRuntimeSelection(payload || {});
-      writeJsonForReq(res, 200, { selection });
-    } catch (error) {
-      writeJsonForReq(res, 400, { error: error.message || 'Failed to save runtime selection' });
-    }
     return;
   }
 
@@ -1274,7 +938,6 @@ export async function handleRequest(req, res) {
     res,
     pathname,
     parsedUrl,
-    buildAuthInfo,
     writeJson: writeJsonForReq,
     writeJsonCached,
     writeFileCached,
@@ -1286,38 +949,23 @@ export async function handleRequest(req, res) {
     return;
   }
 
-  // Main page (chat UI) — read from disk each time for hot-reload
-  if (pathname === '/') {
-    try {
-      const authSession = getAuthSession(req);
-      const pageBootstrap = buildChatPageBootstrap(authSession);
-      const [pageBuildInfo, chatPage, refreshedCookie] = await Promise.all([
-        getPageBuildInfo(),
-        readFrontendFileCached(chatTemplatePath, 'utf8'),
-        refreshAuthSession(req),
-      ]);
-      const pageResponse = prepareResponseBody(req, {
-        contentType: 'text/html; charset=utf-8',
-        body: renderPageTemplate(chatPage, nonce, {
-          ...buildTemplateReplacements(pageBuildInfo),
-          BOOTSTRAP_JSON: serializeJsonForScript(pageBootstrap),
-        }),
-        allowCompression: true,
-      });
-      res.writeHead(200, buildHeaders({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        ...(pageResponse.vary ? { Vary: pageResponse.vary } : {}),
-        ...pageResponse.headers,
-        ...(refreshedCookie ? { 'Set-Cookie': refreshedCookie } : {}),
-      }));
-      res.end(pageResponse.body);
-    } catch {
-      res.writeHead(500, buildHeaders({ 'Content-Type': 'text/plain' }));
-      res.end('Failed to load chat page');
-    }
+  if (await handleChatPageRequest({
+    req,
+    res,
+    pathname,
+    nonce,
+    getAuthSession,
+    refreshAuthSession,
+    buildChatPageBootstrap,
+    getPageBuildInfo,
+    readFrontendFileCached,
+    chatTemplatePath,
+    renderPageTemplate,
+    buildTemplateReplacements,
+    serializeJsonForScript,
+    prepareResponseBody,
+    buildHeaders,
+  })) {
     return;
   }
 

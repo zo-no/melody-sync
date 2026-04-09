@@ -174,8 +174,9 @@ export async function finalizeDetachedRunWithDeps(deps, {
   const {
     sanitizedEvents: finalizedEvents,
     latestTaskCard,
+    latestGraphOps,
   } = sessionOrganizing
-    ? { sanitizedEvents: normalizedEvents, latestTaskCard: null }
+    ? { sanitizedEvents: normalizedEvents, latestTaskCard: null, latestGraphOps: null }
     : sanitizeAssistantRunEvents(normalizedEvents);
   if (FINALIZE_DEBUG) {
     console.log(`[startup-finalize] sanitized events=${Array.isArray(finalizedEvents) ? finalizedEvents.length : 0}`);
@@ -286,15 +287,32 @@ export async function finalizeDetachedRunWithDeps(deps, {
     console.log('[startup-finalize] run finalized flag set');
   }
 
-  const currentSessionMeta = finalizedMeta.meta || await findSessionMeta(sessionId);
+  let currentSessionMeta = finalizedMeta.meta || await findSessionMeta(sessionId);
+  const previousTaskCard = normalizeSessionTaskCard(currentSessionMeta?.taskCard || null);
   const stabilizedTaskCard = !sessionOrganizing && latestTaskCard
     ? stabilizeSessionTaskCard(currentSessionMeta, latestTaskCard)
     : null;
 
+  let branchCandidateEvents = [];
+  if (!sessionOrganizing && latestTaskCard) {
+    if (FINALIZE_DEBUG) {
+      console.log('[startup-finalize] updating task card');
+    }
+    const updatedTaskCard = await updateSessionTaskCard(sessionId, stabilizedTaskCard);
+    sessionChanged = sessionChanged || !!updatedTaskCard;
+    branchCandidateEvents = buildBranchCandidateStatusEvents(finalizedRun, {
+      sourceSeq: await findLatestUserMessageSeqForRun(sessionId, finalizedRun),
+      previousTaskCard,
+      nextTaskCard: stabilizedTaskCard,
+      suppressedBranchTitles: currentSessionMeta?.suppressedBranchTitles || [],
+    });
+    currentSessionMeta = updatedTaskCard || await findSessionMeta(sessionId) || currentSessionMeta;
+  }
+
   const nextSessionState = !sessionOrganizing
     ? resolveSessionStateFromSession({
       ...(currentSessionMeta || {}),
-      taskCard: stabilizedTaskCard || currentSessionMeta?.taskCard || null,
+      taskCard: currentSessionMeta?.taskCard || stabilizedTaskCard || null,
     })
     : null;
 
@@ -306,21 +324,6 @@ export async function finalizeDetachedRunWithDeps(deps, {
     || nextSessionState.lineRole === 'branch'
     || nextSessionState.branchFrom
   );
-
-  let branchCandidateEvents = [];
-  if (!sessionOrganizing && latestTaskCard) {
-    if (FINALIZE_DEBUG) {
-      console.log('[startup-finalize] updating task card');
-    }
-    const updatedTaskCard = await updateSessionTaskCard(sessionId, stabilizedTaskCard);
-    sessionChanged = sessionChanged || !!updatedTaskCard;
-    branchCandidateEvents = buildBranchCandidateStatusEvents(finalizedRun, {
-      sourceSeq: await findLatestUserMessageSeqForRun(sessionId, finalizedRun),
-      previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
-      nextTaskCard: stabilizedTaskCard,
-      suppressedBranchTitles: currentSessionMeta?.suppressedBranchTitles || [],
-    });
-  }
 
   if (hasMeaningfulSessionState) {
     const sessionStateMeta = await mutateSessionMeta(sessionId, (session) => {
@@ -387,7 +390,9 @@ export async function finalizeDetachedRunWithDeps(deps, {
     resultEnvelope: normalizeAgentResultEnvelope(finalizedRun?.result || {}),
     events: finalizedEvents,
     taskCard: latestTaskCard,
-    previousTaskCard: normalizeSessionTaskCard(currentSessionMeta?.taskCard || null),
+    graphOps: latestGraphOps,
+    graphOpResult: null,
+    previousTaskCard,
     branchCandidateEvents,
     manifest,
     completionNoticeKey,

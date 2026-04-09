@@ -1,3 +1,4 @@
+import { existsSync } from 'fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { VOICE_DIR } from '../lib/config.mjs';
@@ -11,10 +12,20 @@ const COMPLETION_VOICE_DIR = join(VOICE_DIR, 'host-completion-voice');
 const QUEUE_DIR = join(COMPLETION_VOICE_DIR, 'queue');
 const WORKER_PID_FILE = join(COMPLETION_VOICE_DIR, 'host-completion-voice-worker.pid');
 const COMPLETION_NOTICE_INDEX_FILE = join(COMPLETION_VOICE_DIR, 'completion-notice-index.json');
-const WORKER_SCRIPT = join(REPO_ROOT, 'scripts', 'host-completion-voice-worker.mjs');
+const WORKER_SCRIPT_CANDIDATES = Object.freeze([
+  join(REPO_ROOT, 'scripts', 'voice', 'host-completion-voice-worker.mjs'),
+  join(REPO_ROOT, 'scripts', 'host-completion-voice-worker.mjs'),
+]);
 let ensureWorkerPromise = null;
 const completionNoticeInMemoryCache = new Map();
 const completionNoticeEnqueueInflight = new Map();
+
+export function resolveHostCompletionVoiceWorkerScript() {
+  for (const candidate of WORKER_SCRIPT_CANDIDATES) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return WORKER_SCRIPT_CANDIDATES[0];
+}
 
 function isPidAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
@@ -137,7 +148,7 @@ async function ensureWorker() {
     await ensureQueueDir();
     const pid = await readWorkerPid();
     if (isPidAlive(pid)) return;
-    const child = spawn(process.execPath, [WORKER_SCRIPT], {
+    const child = spawn(process.execPath, [resolveHostCompletionVoiceWorkerScript()], {
       detached: true,
       stdio: 'ignore',
       env: process.env,

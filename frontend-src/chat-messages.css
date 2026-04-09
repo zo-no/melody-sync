@@ -269,6 +269,44 @@
   line-height: 1.55;
   color: var(--text-secondary);
 }
+.assistant-sidecar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+.assistant-sidecar-hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.assistant-sidecar-action-btn {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
+  color: var(--text);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.assistant-sidecar-action-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-secondary));
+}
+.assistant-sidecar-action-btn:disabled {
+  cursor: default;
+  opacity: 0.78;
+}
+.assistant-sidecar-action-btn.is-applied {
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+  background: color-mix(in srgb, var(--success) 15%, var(--bg-secondary));
+}
+.assistant-sidecar-action-btn.is-error {
+  border-color: color-mix(in srgb, var(--error) 36%, var(--border));
+  background: color-mix(in srgb, var(--error) 12%, var(--bg-secondary));
+}
 
 /* Markdown rendered content */
 .md-content { white-space: normal; }

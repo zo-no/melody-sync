@@ -1,3 +1,17 @@
+import { readEventBody } from '../history.mjs';
+import { buildEventBlockEvents, buildSessionDisplayEvents } from '../session/display-events.mjs';
+import {
+  getSessionEventsAfter,
+  getSessionSourceContext,
+  getSessionTimelineEvents,
+} from '../session/manager.mjs';
+import {
+  getSessionForClient,
+  getSessionListItemForClient,
+  listSessionListItemsForClient,
+} from '../services/session/client-session-service.mjs';
+import { createClientSessionSummaryRef } from '../views/session/client.mjs';
+
 function getQueryStringValue(value) {
   return typeof value === 'string'
     ? String(value || '').trim()
@@ -11,18 +25,8 @@ export async function handleSessionReadRoutes({
   sessionGetRoute,
   authSession,
   requireSessionAccess,
-  listSessionListItemsForClient,
-  createSessionSummaryRef,
   writeJsonCached,
   writeJson,
-  getSessionListItemForClient,
-  getSessionForClient,
-  getSessionEventsAfter,
-  getSessionTimelineEvents,
-  buildSessionDisplayEvents,
-  getSessionSourceContext,
-  buildEventBlockEvents,
-  readEventBody,
   immutablePrivateEventCacheControl,
 } = {}) {
   if (!sessionGetRoute || req?.method !== 'GET') {
@@ -44,7 +48,7 @@ export async function handleSessionReadRoutes({
     const targetSessions = sessionGetRoute.kind === 'archived-list'
       ? archivedSessions
       : activeSessions;
-    const sessionRefs = targetSessions.map(createSessionSummaryRef).filter((ref) => ref?.id);
+    const sessionRefs = targetSessions.map(createClientSessionSummaryRef).filter((ref) => ref?.id);
     if (view === 'refs') {
       writeJsonCached(req, res, {
         sessionRefs,

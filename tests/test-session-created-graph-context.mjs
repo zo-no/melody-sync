@@ -36,11 +36,13 @@ try {
   assert.match(graphBootstrapEvent.content, /\[Graph planning bootstrap\]/);
   assert.match(graphBootstrapEvent.content, /Available node kinds:/);
   assert.match(graphBootstrapEvent.content, /main \(主任务\)/);
+  assert.match(graphBootstrapEvent.content, /<private><graph_ops>/);
 
   const prompt = await buildPrompt(session.id, session, '帮我规划一下这个任务', '', 'fake', null, {});
   assert.match(prompt, /\[Applied template context: graph-planning\]/, 'first-run prompt should include the hidden graph planning template context');
   assert.match(prompt, /Available node kinds:/);
   assert.match(prompt, /Surface slots:/);
+  assert.match(prompt, /Supported graph ops are attach, promote_main, and archive/);
 
   killAll();
   console.log('test-session-created-graph-context: ok');

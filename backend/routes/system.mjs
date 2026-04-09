@@ -3,6 +3,7 @@ import { homedir } from 'os';
 import { join, resolve, dirname, basename } from 'path';
 
 import { getAuthSession, refreshAuthSession } from '../../lib/auth.mjs';
+import { saveUiRuntimeSelection } from '../../lib/runtime-selection.mjs';
 import { getAvailableToolsAsync } from '../../lib/tools.mjs';
 import { readBody } from '../../lib/utils.mjs';
 
@@ -10,6 +11,7 @@ import { playHostCompletionSound } from '../completion-sound.mjs';
 import { getModelsForTool } from '../models.mjs';
 import { getPublicKey, addSubscription } from '../push.mjs';
 import { enqueueHostCompletionSpeech } from '../completion-speech-queue.mjs';
+import { buildAuthInfo } from '../views/system/auth.mjs';
 
 function jsonError(writeJson, res, statusCode, message) {
   writeJson(res, statusCode, { error: message });
@@ -25,7 +27,6 @@ export async function handleSystemRoutes({
   res,
   pathname,
   parsedUrl,
-  buildAuthInfo,
   writeJson,
   writeJsonCached,
   writeFileCached,
@@ -95,6 +96,30 @@ export async function handleSystemRoutes({
       writeJsonCached(req, res, { path: resolvedPath, parent, children });
     } catch {
       jsonError(writeJson, res, 500, 'Failed to browse directory');
+    }
+    return true;
+  }
+
+  if (pathname === '/api/runtime-selection' && req.method === 'POST') {
+    let body;
+    try {
+      body = await readBody(req, 4096);
+    } catch (err) {
+      jsonError(writeJson, res, err.code === 'BODY_TOO_LARGE' ? 413 : 400, err.code === 'BODY_TOO_LARGE' ? 'Request body too large' : 'Bad request');
+      return true;
+    }
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      jsonError(writeJson, res, 400, 'Invalid request body');
+      return true;
+    }
+    try {
+      const selection = await saveUiRuntimeSelection(payload || {});
+      writeJson(res, 200, { selection });
+    } catch (error) {
+      jsonError(writeJson, res, 400, error.message || 'Failed to save runtime selection');
     }
     return true;
   }

@@ -81,6 +81,10 @@ export function buildGraphBootstrapPromptContext({ session = null } = {}) {
   lines.push(
     '',
     'When you need to shape the task map, prefer declaring node-backed structure that matches this contract instead of inventing ad hoc UI.',
+    'If you can safely clean up the task map, you may append one extra hidden block before the final task_card block:',
+    '<private><graph_ops>{"operations":[{"type":"attach","source":"重复任务A","target":"主线任务","reason":"并到更合适的父任务下"},{"type":"archive","source":"重复任务B","target":"主线任务","reason":"重复任务已融合"}]}</graph_ops></private>',
+    'Supported graph ops are attach, promote_main, and archive. Prefer session titles or ids; `current`, `self`, `当前任务`, `main`, `root`, and `主线` are valid refs.',
+    'Use graph_ops only for high-confidence, reversible cleanup such as reparenting a task under a better parent or archiving obvious duplicates. The final hidden block must still be task_card.',
   );
   return lines.join('\n').trim();
 }

@@ -1,5 +1,9 @@
 import { stripEventAttachmentSavedPaths } from '../attachment-utils.mjs';
 import {
+  parseGraphOpsFromAssistantContent,
+  stripGraphOpsFromAssistantContent,
+} from './graph-ops.mjs';
+import {
   parseTaskCardFromAssistantContent,
   stripTaskCardFromAssistantContent,
 } from './task-card.mjs';
@@ -54,10 +58,16 @@ function sanitizeDisplayEvent(event) {
 
   const content = typeof next.content === 'string' ? next.content : '';
   const taskCard = parseTaskCardFromAssistantContent(content);
-  const strippedContent = stripTaskCardFromAssistantContent(content);
+  const graphOps = parseGraphOpsFromAssistantContent(content);
+  const strippedContent = stripTaskCardFromAssistantContent(
+    stripGraphOpsFromAssistantContent(content),
+  );
 
   if (taskCard) {
     next.taskCard = taskCard;
+  }
+  if (graphOps) {
+    next.graphOps = graphOps;
   }
   if (content !== strippedContent) {
     next.content = strippedContent;

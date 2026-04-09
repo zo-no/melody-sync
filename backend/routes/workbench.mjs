@@ -1,9 +1,19 @@
 import { readBody } from '../../lib/utils.mjs';
+import { applySessionGraphOps } from '../session/manager.mjs';
 import {
-  createCustomNodeKind,
-  deleteCustomNodeKind,
-  updateCustomNodeKind,
-} from '../workbench/node-settings-store.mjs';
+  buildWorkbenchSessionMutationResponse,
+  buildWorkbenchSnapshotResponse,
+  buildWorkbenchTaskMapGraphResponse,
+  buildWorkbenchTaskMapPlansMutationResponse,
+  buildWorkbenchTaskMapPlansResponse,
+  buildWorkbenchTaskMapSurfaceResponse,
+} from '../services/workbench/http-service.mjs';
+import {
+  createWorkbenchNodeDefinitionResponse,
+  deleteWorkbenchNodeDefinitionResponse,
+  getWorkbenchNodeDefinitionsResponse,
+  updateWorkbenchNodeDefinitionResponse,
+} from '../services/workbench/node-definitions-http-service.mjs';
 import { createTaskMapPlanContractPayload } from '../workbench/task-map-plan-contract.mjs';
 import {
   deleteTaskMapPlanForSession,
@@ -30,8 +40,6 @@ import {
   setSessionReminderSnooze,
   writeProjectToObsidian,
 } from '../workbench/index.mjs';
-import { createWorkbenchNodeDefinitionsPayload } from '../workbench/node-definitions.mjs';
-import { createClientSessionDetail } from '../views/session/client.mjs';
 
 async function readJsonBody(req, maxBytes = 65536) {
   const raw = await readBody(req, maxBytes);
@@ -48,7 +56,7 @@ export async function handleWorkbenchRoutes({
 } = {}) {
   // Legacy alias. The owner-facing settings surface now reads /api/settings/nodes.
   if (pathname === '/api/workbench/node-definitions' && req?.method === 'GET') {
-    writeJson(res, 200, createWorkbenchNodeDefinitionsPayload());
+    writeJson(res, 200, getWorkbenchNodeDefinitionsResponse());
     return true;
   }
 
@@ -73,8 +81,7 @@ export async function handleWorkbenchRoutes({
       return true;
     }
     try {
-      await createCustomNodeKind(payload);
-      writeJson(res, 201, createWorkbenchNodeDefinitionsPayload());
+      writeJson(res, 201, await createWorkbenchNodeDefinitionResponse(payload));
     } catch (error) {
       writeJson(res, 400, { error: error.message || 'Failed to create custom node kind' });
     }
@@ -92,8 +99,7 @@ export async function handleWorkbenchRoutes({
       return true;
     }
     try {
-      await updateCustomNodeKind(nodeKindId, payload);
-      writeJson(res, 200, createWorkbenchNodeDefinitionsPayload());
+      writeJson(res, 200, await updateWorkbenchNodeDefinitionResponse(nodeKindId, payload));
     } catch (error) {
       writeJson(res, 400, { error: error.message || 'Failed to update custom node kind' });
     }
@@ -104,8 +110,7 @@ export async function handleWorkbenchRoutes({
   if (pathname.startsWith('/api/workbench/node-definitions/') && req?.method === 'DELETE') {
     const nodeKindId = decodeURIComponent(pathname.slice('/api/workbench/node-definitions/'.length));
     try {
-      await deleteCustomNodeKind(nodeKindId);
-      writeJson(res, 200, createWorkbenchNodeDefinitionsPayload());
+      writeJson(res, 200, await deleteWorkbenchNodeDefinitionResponse(nodeKindId));
     } catch (error) {
       writeJson(res, 400, { error: error.message || 'Failed to delete custom node kind' });
     }
@@ -139,10 +144,7 @@ export async function handleWorkbenchRoutes({
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       try {
         const result = await listTaskMapPlansForSession(sessionId);
-        writeJson(res, 200, {
-          rootSessionId: result.rootSessionId,
-          taskMapPlans: result.taskMapPlans,
-        });
+        writeJson(res, 200, buildWorkbenchTaskMapPlansResponse(result));
       } catch (error) {
         writeJson(res, 400, { error: error.message || 'Failed to list task-map plans' });
       }
@@ -154,10 +156,7 @@ export async function handleWorkbenchRoutes({
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       try {
         const result = await getTaskMapGraphForSession(sessionId);
-        writeJson(res, 200, {
-          rootSessionId: result.rootSessionId,
-          taskMapGraph: result.taskMapGraph,
-        });
+        writeJson(res, 200, buildWorkbenchTaskMapGraphResponse(result));
       } catch (error) {
         writeJson(res, 400, { error: error.message || 'Failed to build task-map graph' });
       }
@@ -170,12 +169,7 @@ export async function handleWorkbenchRoutes({
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       try {
         const result = await getTaskMapSurfaceForSession(sessionId, surfaceSlot);
-        writeJson(res, 200, {
-          rootSessionId: result.rootSessionId,
-          surfaceSlot: result.surfaceSlot,
-          surfaceNodes: result.surfaceNodes,
-          entries: result.entries,
-        });
+        writeJson(res, 200, buildWorkbenchTaskMapSurfaceResponse(result));
       } catch (error) {
         writeJson(res, 400, { error: error.message || 'Failed to build task-map surface' });
       }
@@ -193,13 +187,10 @@ export async function handleWorkbenchRoutes({
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       try {
         const result = await deleteTaskMapPlanForSession(sessionId, planId);
-        writeJson(res, 200, {
+        writeJson(res, 200, await buildWorkbenchTaskMapPlansMutationResponse(result, {
           deletedPlanId: result.deletedPlanId,
-          rootSessionId: result.rootSessionId,
-          taskMapPlans: result.taskMapPlans,
           taskCardUpdates: result.taskCardUpdates,
-          snapshot: await getWorkbenchSnapshot(),
-        });
+        }));
       } catch (error) {
         writeJson(res, 400, { error: error.message || 'Failed to delete task-map plan' });
       }
@@ -224,60 +215,52 @@ export async function handleWorkbenchRoutes({
   try {
     if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'captures') {
       const captureItem = await createCaptureItem(payload);
-      writeJson(res, 201, {
+      writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         captureItem,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
     if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects') {
       const project = await createWorkbenchProject(payload);
-      writeJson(res, 201, {
+      writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         project,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
     if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'nodes') {
       const node = await createWorkbenchNode(payload);
-      writeJson(res, 201, {
+      writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         node,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'captures' && parts[4] === 'promote') {
       const captureId = parts[3];
       const outcome = await promoteCaptureItem(captureId, payload);
-      writeJson(res, 201, {
+      writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         ...outcome,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'nodes' && parts[4] === 'branch') {
       const nodeId = parts[3];
       const outcome = await createBranchFromNode(nodeId, payload);
-      writeJson(res, 201, {
-        session: createClientSessionDetail(outcome.session),
+      writeJson(res, 201, await buildWorkbenchSessionMutationResponse(outcome.session, {
         branchContext: outcome.branchContext,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'branches') {
       const sessionId = parts[3];
       const outcome = await createBranchFromSession(sessionId, payload);
-      writeJson(res, 201, {
-        session: createClientSessionDetail(outcome.session),
+      writeJson(res, 201, await buildWorkbenchSessionMutationResponse(outcome.session, {
         branchContext: outcome.branchContext,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
@@ -287,10 +270,27 @@ export async function handleWorkbenchRoutes({
       const targetSessionId = typeof payload?.targetSessionId === 'string' ? payload.targetSessionId.trim() : '';
       if (targetSessionId && !requireSessionAccess(res, authSession, targetSessionId)) return true;
       const outcome = await reparentSession(sessionId, payload);
-      writeJson(res, 200, {
-        session: createClientSessionDetail(outcome.session),
+      writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.session, {
         branchContext: outcome.branchContext,
-        snapshot: outcome.snapshot || await getWorkbenchSnapshot(),
+      }, {
+        snapshot: outcome.snapshot || undefined,
+      }));
+      return true;
+    }
+
+    if (parts.length === 6 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'graph-ops' && parts[5] === 'apply') {
+      const sessionId = parts[3];
+      if (!requireSessionAccess(res, authSession, sessionId)) return true;
+      const graphOps = payload?.graphOps && typeof payload.graphOps === 'object'
+        ? payload.graphOps
+        : payload;
+      const outcome = await applySessionGraphOps(sessionId, graphOps);
+      writeJson(res, 200, {
+        ok: true,
+        appliedCount: outcome?.appliedCount || 0,
+        historyChanged: outcome?.historyChanged === true,
+        sessionChanged: outcome?.sessionChanged === true,
+        snapshot: await getWorkbenchSnapshot(),
       });
       return true;
     }
@@ -299,13 +299,10 @@ export async function handleWorkbenchRoutes({
       const sessionId = parts[3];
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       const result = await saveTaskMapPlanForSession(sessionId, payload);
-      writeJson(res, 201, {
+      writeJson(res, 201, await buildWorkbenchTaskMapPlansMutationResponse(result, {
         taskMapPlan: result.taskMapPlan,
-        rootSessionId: result.rootSessionId,
-        taskMapPlans: result.taskMapPlans,
         taskCardUpdates: result.taskCardUpdates,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
@@ -317,62 +314,52 @@ export async function handleWorkbenchRoutes({
         return true;
       }
       const outcome = await setBranchCandidateSuppressed(sessionId, branchTitle, payload?.suppressed !== false);
-      writeJson(res, 200, {
-        session: createClientSessionDetail(outcome.session),
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.session));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'branch-status') {
       const sessionId = parts[3];
       const outcome = await setBranchSessionStatus(sessionId, payload);
-      writeJson(res, 200, {
-        session: createClientSessionDetail(outcome.session),
+      writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.session, {
         branchContext: outcome.branchContext,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'reminder') {
       const sessionId = parts[3];
       const reminder = await setSessionReminderSnooze(sessionId, payload);
-      writeJson(res, 200, {
+      writeJson(res, 200, await buildWorkbenchSnapshotResponse({
         reminder,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'merge-return') {
       const sessionId = parts[3];
       const outcome = await mergeBranchSessionBackToMain(sessionId, payload);
-      writeJson(res, 200, {
-        session: createClientSessionDetail(outcome.parentSession),
+      writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.parentSession, {
         mergeNote: outcome.mergeNote,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects' && parts[4] === 'summaries') {
       const projectId = parts[3];
       const summary = await createProjectSummary(projectId);
-      writeJson(res, 201, {
+      writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         summary,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects' && parts[4] === 'writeback') {
       const projectId = parts[3];
       const outcome = await writeProjectToObsidian(projectId, payload);
-      writeJson(res, 200, {
+      writeJson(res, 200, await buildWorkbenchSnapshotResponse({
         ...outcome,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      }));
       return true;
     }
   } catch (error) {
