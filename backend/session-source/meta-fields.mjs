@@ -1,5 +1,6 @@
 import {
   DEFAULT_APP_ID,
+  getBuiltinApp,
   normalizeAppId,
 } from './ids.mjs';
 
@@ -20,13 +21,19 @@ export function resolveSessionSourceId(meta) {
 }
 
 export function resolveSessionSourceName(meta, _sourceId = resolveSessionSourceId(meta)) {
-  return normalizeSessionSourceName(meta?.sourceName);
+  const explicit = normalizeSessionSourceName(meta?.sourceName);
+  if (explicit) return explicit;
+  return getBuiltinApp(_sourceId)?.name || '';
 }
 
 export function normalizeSessionCompatInput(extra = {}) {
   const requestedSourceId = normalizeAppId(extra.sourceId);
   const requestedSourceName = normalizeSessionSourceName(extra.sourceName);
+  const requestedAppId = normalizeAppId(extra.appId);
+  const requestedAppName = normalizeSessionSourceName(extra.appName);
   return {
+    requestedAppId,
+    requestedAppName,
     requestedSourceId,
     requestedSourceName,
     requestedUserId: typeof extra.userId === 'string' ? extra.userId.trim() : '',
@@ -37,14 +44,16 @@ export function normalizeSessionCompatInput(extra = {}) {
 export function applySessionCompatFields(session, compat = {}) {
   if (!session || typeof session !== 'object') return session;
   const {
+    requestedAppId = '',
+    requestedAppName = '',
     requestedSourceId = '',
     requestedSourceName = '',
     requestedUserId = '',
     requestedUserName = '',
   } = compat;
 
-  delete session.appId;
-  delete session.appName;
+  if (requestedAppId) session.appId = requestedAppId;
+  if (requestedAppName) session.appName = requestedAppName;
   if (requestedSourceId) session.sourceId = requestedSourceId;
   else if (!normalizeAppId(session.sourceId)) delete session.sourceId;
   if (requestedSourceName) session.sourceName = requestedSourceName;
