@@ -13,6 +13,7 @@ import {
 } from './folder.mjs';
 
 const DEFAULT_AUTO_COMPACT_CONTEXT_WINDOW_PERCENT = 100;
+const DETACHED_RESULT_SETTLE_DELAY_MS = 1000;
 
 function parsePositiveIntOrInfinity(value) {
   const trimmed = typeof value === 'string' ? value.trim() : '';
@@ -122,6 +123,16 @@ export async function collectRunOutputPreview(runId, maxLines = 3) {
   return lines.slice(-maxLines).join(' | ');
 }
 
+async function getLatestRunOutputTimestamp(runId) {
+  const records = await readRunSpoolRecords(runId);
+  if (!Array.isArray(records) || records.length === 0) return 0;
+  return records.reduce((latest, record) => {
+    const timestamp = Date.parse(record?.ts || '');
+    if (!Number.isFinite(timestamp)) return latest;
+    return Math.max(latest, timestamp);
+  }, 0);
+}
+
 export async function deriveStructuredRuntimeFailureReason(runId, previewText = '') {
   const preview = clipFailurePreview(previewText) || await collectRunOutputPreview(runId);
   if (!preview) {
@@ -196,6 +207,18 @@ export async function synthesizeDetachedRunTermination(runId, run) {
   const runnerAlive = isRecordedProcessAlive(run?.runnerProcessId);
   const toolAlive = isRecordedProcessAlive(run?.toolProcessId);
   if (runnerAlive || toolAlive) {
+    return null;
+  }
+
+  const latestOutputAt = await getLatestRunOutputTimestamp(runId);
+  const updatedAtMs = Date.parse(run?.updatedAt || '');
+  const startedAtMs = Date.parse(run?.startedAt || '');
+  const latestActivityAt = Math.max(
+    Number.isFinite(latestOutputAt) ? latestOutputAt : 0,
+    Number.isFinite(updatedAtMs) ? updatedAtMs : 0,
+    Number.isFinite(startedAtMs) ? startedAtMs : 0,
+  );
+  if (latestActivityAt > 0 && (Date.now() - latestActivityAt) < DETACHED_RESULT_SETTLE_DELAY_MS) {
     return null;
   }
 

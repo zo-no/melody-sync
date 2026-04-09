@@ -31,7 +31,6 @@ import {
   SESSION_ORGANIZER_INTERNAL_OPERATION,
 } from './organizer.mjs';
 import { triggerSessionLabelSuggestion } from '../summarizer.mjs';
-import { normalizeSessionAgreements } from './agreements.mjs';
 import {
   buildSessionContinuationContextFromBody,
 } from './continuation.mjs';
@@ -40,8 +39,6 @@ import {
   buildTemporarySessionName,
   normalizeSessionOrdinal,
   isSessionAutoRenamePending,
-  normalizeSessionDescription,
-  normalizeSessionGroup,
 } from './naming.mjs';
 import {
   didSessionWorkflowTransitionToDone,
@@ -107,6 +104,7 @@ import { createSessionQueryHelpers } from '../models/session/queries/session-que
 import { resolveSavedAttachments, saveAttachments } from '../services/session/attachment-storage-service.mjs';
 import { createSessionBranchingService } from '../services/session/branching-service.mjs';
 import { createSessionWithDeps } from '../services/session/creation-service.mjs';
+import { createDetachedRunObserverService } from '../services/session/detached-run-observer-service.mjs';
 import {
   assertSessionCanBeDeletedPermanently,
   buildPermanentSessionDeletionPlan,
@@ -114,6 +112,7 @@ import {
   deleteSessionTreeMetadata,
   writePermanentSessionDeletionJournal,
 } from '../services/session/deletion-service.mjs';
+import { createSessionMetadataMutationService } from '../services/session/metadata-service.mjs';
 import { buildPrompt, resolveResumeState } from '../services/session/prompt-service.mjs';
 import {
   normalizeSessionSourceName,
@@ -136,7 +135,6 @@ import {
   parseTaskCardFromAssistantContent,
   stripTaskCardFromAssistantContent,
 } from './task-card.mjs';
-import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 import {
   buildNormalizedRunResultEnvelope,
   mergeRunResultWithEnvelope,
@@ -167,6 +165,7 @@ const CONTEXT_COMPACTOR_SYSTEM_PROMPT = [
 const FOLLOW_UP_FLUSH_DELAY_MS = 1500;
 const MAX_RECENT_FOLLOW_UP_REQUEST_IDS = 100;
 const OBSERVED_RUN_POLL_INTERVAL_MS = 250;
+const STRUCTURED_OUTPUT_SETTLE_DELAY_MS = 1000;
 const RESULT_FILE_MAX_ATTACHMENTS = 4;
 const RESULT_FILE_COMMAND_OUTPUT_FLAGS = new Set(['-o', '--output', '--out', '--export']);
 const STARTUP_SYNC_DEBUG = process.env.MELODYSYNC_STARTUP_SYNC_DEBUG === '1';
@@ -218,28 +217,6 @@ const {
   organizerInternalOperation: SESSION_ORGANIZER_INTERNAL_OPERATION,
 });
 
-function normalizeSessionSidebarOrder(value) {
-  const parsed = typeof value === 'number'
-    ? value
-    : parseInt(String(value || '').trim(), 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
-}
-
-async function getNextSidebarOrderForGroup(group = '', {
-  excludeSessionId = '',
-} = {}) {
-  const normalizedGroup = normalizeSessionGroup(group || '');
-  if (!normalizedGroup) return 0;
-  const metas = await loadSessionsMeta();
-  const maxOrder = metas.reduce((currentMax, meta) => {
-    if (!meta || meta.archived === true) return currentMax;
-    if (excludeSessionId && meta.id === excludeSessionId) return currentMax;
-    if (normalizeSessionGroup(meta.group || '') !== normalizedGroup) return currentMax;
-    return Math.max(currentMax, normalizeSessionSidebarOrder(meta.sidebarOrder));
-  }, 0);
-  return maxOrder > 0 ? maxOrder + 1 : 1;
-}
-
 function getNextSessionOrdinal(metas = []) {
   return (Array.isArray(metas) ? metas : []).reduce(
     (maxOrdinal, entry) => Math.max(maxOrdinal, normalizeSessionOrdinal(entry?.ordinal)),
@@ -263,31 +240,6 @@ function normalizeSuppressedBranchTitles(value) {
     if (next.length >= 12) break;
   }
   return next;
-}
-
-function normalizeSessionTaskCardManagedBindings(value) {
-  const source = Array.isArray(value) ? value : [];
-  const allowed = new Set([
-    'mainGoal',
-    'goal',
-    'candidateBranches',
-    'checkpoint',
-    'nextSteps',
-    'lineRole',
-    'branchFrom',
-    'branchReason',
-    'memory',
-    'knownConclusions',
-  ]);
-  const normalized = [];
-  const seen = new Set();
-  for (const entry of source) {
-    const key = trimString(entry);
-    if (!key || !allowed.has(key) || seen.has(key)) continue;
-    seen.add(key);
-    normalized.push(key);
-  }
-  return normalized;
 }
 
 const liveSessions = new Map();
@@ -516,6 +468,25 @@ const {
   submitHttpMessage,
 });
 
+const {
+  renameSession: renameSessionViaMetadataService,
+  setSessionArchived: setSessionArchivedViaMetadataService,
+  setSessionPinned: setSessionPinnedViaMetadataService,
+  updateSessionAgreements: updateSessionAgreementsViaMetadataService,
+  updateSessionGrouping: updateSessionGroupingViaMetadataService,
+  updateSessionLastReviewedAt: updateSessionLastReviewedAtViaMetadataService,
+  updateSessionTaskCard: updateSessionTaskCardViaMetadataService,
+} = createSessionMetadataMutationService({
+  broadcastSessionInvalidation,
+  broadcastSessionsInvalidation,
+  clearRenameState,
+  enrichSessionMeta,
+  findSessionMeta,
+  mutateSessionMeta,
+  nowIso,
+  stabilizeSessionTaskCard,
+});
+
 function ensureLiveSession(sessionId) {
   let live = liveSessions.get(sessionId);
   if (!live) {
@@ -523,85 +494,6 @@ function ensureLiveSession(sessionId) {
     liveSessions.set(sessionId, live);
   }
   return live;
-}
-
-function stopObservedRun(runId) {
-  const observed = observedRuns.get(runId);
-  if (!observed) return;
-  if (observed.timer) {
-    clearTimeout(observed.timer);
-  }
-  if (observed.poller) {
-    clearInterval(observed.poller);
-  }
-  try {
-    observed.watcher?.close();
-  } catch {}
-  observedRuns.delete(runId);
-}
-
-function scheduleObservedRunSync(runId, delayMs = 40) {
-  const observed = observedRuns.get(runId);
-  if (!observed) return;
-  if (observed.timer) {
-    clearTimeout(observed.timer);
-  }
-  observed.timer = setTimeout(() => {
-    const current = observedRuns.get(runId);
-    if (!current) return;
-    current.timer = null;
-    void (async () => {
-      try {
-        const run = await syncDetachedRun(current.sessionId, runId);
-        if (!run || isTerminalRunState(run.state)) {
-          stopObservedRun(runId);
-        }
-      } catch (error) {
-        console.error(`[runs] observer sync failed for ${runId}: ${error.message}`);
-      }
-    })();
-  }, delayMs);
-  if (typeof observed.timer.unref === 'function') {
-    observed.timer.unref();
-  }
-}
-
-function observeDetachedRun(sessionId, runId, { initialSync = true } = {}) {
-  if (!runId) return false;
-  const existing = observedRuns.get(runId);
-  if (existing) {
-    existing.sessionId = sessionId;
-    return true;
-  }
-  try {
-    const watcher = watch(runDir(runId), (_eventType, filename) => {
-      if (filename) {
-        const changed = String(filename);
-        if (!['spool.jsonl', 'status.json', 'result.json'].includes(changed)) {
-          return;
-        }
-      }
-      scheduleObservedRunSync(runId);
-    });
-    watcher.on('error', (error) => {
-      console.error(`[runs] observer error for ${runId}: ${error.message}`);
-      stopObservedRun(runId);
-    });
-    const poller = setInterval(() => {
-      scheduleObservedRunSync(runId, 0);
-    }, OBSERVED_RUN_POLL_INTERVAL_MS);
-    if (typeof poller.unref === 'function') {
-      poller.unref();
-    }
-    observedRuns.set(runId, { sessionId, watcher, timer: null, poller });
-    if (initialSync) {
-      scheduleObservedRunSync(runId, 0);
-    }
-    return true;
-  } catch (error) {
-    console.error(`[runs] failed to observe ${runId}: ${error.message}`);
-    return false;
-  }
 }
 
 function parseRecordTimestamp(record) {
@@ -771,6 +663,20 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
     ? result.completedAt
     : null;
   const hasAssistantMessage = normalizedEvents.some((event) => event?.type === 'message' && event.role === 'assistant');
+  const completedAtMs = completedAt ? Date.parse(completedAt) : NaN;
+  const shouldWaitForStructuredOutput = (
+    isStructuredRuntime
+    && inferredState === 'completed'
+    && (normalizedEvents.length === 0 || !hasAssistantMessage)
+    && Number.isFinite(completedAtMs)
+    && (Date.now() - completedAtMs) < STRUCTURED_OUTPUT_SETTLE_DELAY_MS
+  );
+  if (shouldWaitForStructuredOutput) {
+    if (STARTUP_SYNC_DEBUG) {
+      console.log(`[startup-sync] delaying finalization for structured output runId=${runId}`);
+    }
+    return run;
+  }
   const zeroStructuredOutputReason = (
     isStructuredRuntime
     && inferredState === 'completed'
@@ -835,7 +741,7 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
       void flushQueuedFollowUps(sessionId);
     }
   }
-  if (isTerminalRunState(run.state)) {
+  if (isTerminalRunState(run.state) && run.finalizedAt) {
     stopObservedRun(runId);
   }
   return run;
@@ -910,13 +816,6 @@ async function clearPersistedResumeIds(sessionId) {
     }
     return changed;
   })).changed;
-}
-
-function normalizeSessionReviewedAt(value) {
-  const trimmed = typeof value === 'string' ? value.trim() : '';
-  if (!trimmed) return '';
-  const time = Date.parse(trimmed);
-  return Number.isFinite(time) ? new Date(time).toISOString() : '';
 }
 
 function clearRenameState(sessionId, { broadcast = false } = {}) {
@@ -1898,58 +1797,28 @@ function ensureSessionManagerBuiltinHooksRegistered() {
   });
 }
 
+const {
+  observeDetachedRun,
+  startDetachedRunObservers: startDetachedRunObserversViaObserverService,
+  stopObservedRun,
+} = createDetachedRunObserverService({
+  ensureSessionManagerBuiltinHooksRegistered,
+  flushQueuedFollowUps,
+  getFollowUpQueueCount,
+  getRun,
+  isTerminalRunState,
+  loadSessionsMeta,
+  observedRunPollIntervalMs: OBSERVED_RUN_POLL_INTERVAL_MS,
+  observedRuns,
+  runDir,
+  startupSyncDebug: STARTUP_SYNC_DEBUG,
+  syncDetachedRun,
+  trimString,
+  watch,
+});
+
 export async function startDetachedRunObservers() {
-  ensureSessionManagerBuiltinHooksRegistered();
-  console.log('startup: startDetachedRunObservers enter');
-  const sessionMetaList = await loadSessionsMeta();
-  console.log(`startup: startDetachedRunObservers loaded ${sessionMetaList.length} sessions`);
-  for (const meta of sessionMetaList) {
-    const sessionId = trimString(meta?.id);
-    const runId = trimString(meta?.activeRunId);
-    if (!sessionId) {
-      continue;
-    }
-    if (!runId) {
-      if (getFollowUpQueueCount(meta) > 0) {
-        void flushQueuedFollowUps(sessionId);
-      }
-      continue;
-    }
-
-    const startTs = Date.now();
-    let run = await getRun(runId);
-
-    if (run && !isTerminalRunState(run.state)) {
-      observeDetachedRun(sessionId, runId, { initialSync: false });
-      console.log(`Startup observed active detached run for session ${sessionId} (run ${runId})`);
-      continue;
-    }
-
-    if (run && isTerminalRunState(run.state)) {
-      if (!run.finalizedAt) {
-        void syncDetachedRun(sessionId, runId).finally(() => {
-          if (STARTUP_SYNC_DEBUG) {
-            console.log(`Startup finalize-sync for completed run ${runId} in session ${sessionId} completed in ${Date.now() - startTs}ms`);
-          }
-        }).catch((error) => {
-          console.error(`Failed to sync completed detached run for session ${sessionId} (run ${runId}): ${error.message}`);
-        });
-        continue;
-      }
-      if (getFollowUpQueueCount(meta) > 0) {
-        void flushQueuedFollowUps(sessionId);
-      }
-      continue;
-    }
-
-    void syncDetachedRun(sessionId, runId).finally(() => {
-      if (STARTUP_SYNC_DEBUG) {
-        console.log(`Startup sync for session ${sessionId} completed in ${Date.now() - startTs}ms`);
-      }
-    }).catch((error) => {
-      console.error(`Failed to sync detached run for session ${sessionId} (run ${runId}): ${error.message}`);
-    });
-  }
+  await startDetachedRunObserversViaObserverService();
   await emitHook('instance.resume', {
     sessionId: '',
     session: null,
@@ -2040,34 +1909,7 @@ export async function createSession(folder, tool, name, extra = {}) {
 }
 
 export async function setSessionArchived(id, archived = true) {
-  const shouldArchive = archived === true;
-  const current = await findSessionMeta(id);
-  if (!current) return null;
-
-  const result = await mutateSessionMeta(id, (session) => {
-    const isArchived = session.archived === true;
-    if (isArchived === shouldArchive) return false;
-    if (shouldArchive) {
-      session.archived = true;
-      delete session.pinned;
-      session.archivedAt = nowIso();
-      return true;
-    }
-    delete session.archived;
-    delete session.archivedAt;
-    return true;
-  });
-
-  if (!result.meta) return null;
-  if (!result.changed) {
-    return enrichSessionMeta(result.meta);
-  }
-
-  if (shouldExposeSession(current)) {
-    broadcastSessionsInvalidation();
-  }
-  broadcastSessionInvalidation(id);
-  return enrichSessionMeta(result.meta);
+  return setSessionArchivedViaMetadataService(id, archived);
 }
 
 async function clearDeletedSessionRuntimeState(sessionIds = []) {
@@ -2123,207 +1965,19 @@ export async function deleteSessionPermanently(id) {
 }
 
 export async function setSessionPinned(id, pinned = true) {
-  const shouldPin = pinned === true;
-  const result = await mutateSessionMeta(id, (session) => {
-    if (session.archived && shouldPin) return false;
-    const isPinned = session.pinned === true;
-    if (isPinned === shouldPin) return false;
-    if (shouldPin) {
-      session.pinned = true;
-    } else {
-      delete session.pinned;
-    }
-    return true;
-  });
-
-  if (!result.meta) return null;
-  if (result.changed && shouldExposeSession(result.meta)) {
-    broadcastSessionsInvalidation();
-  }
-  if (result.changed) {
-    broadcastSessionInvalidation(id);
-  }
-  return enrichSessionMeta(result.meta);
+  return setSessionPinnedViaMetadataService(id, pinned);
 }
 
 export async function renameSession(id, name, options = {}) {
-  const nextName = typeof name === 'string' ? name.trim() : '';
-  if (!nextName) return null;
-
-  const result = await mutateSessionMeta(id, (session) => {
-    const preserveAutoRename = options.preserveAutoRename === true;
-    const nextPending = preserveAutoRename;
-    const changed = session.name !== nextName || session.autoRenamePending !== nextPending;
-    if (!changed) return false;
-    session.name = nextName;
-    session.autoRenamePending = nextPending;
-    session.updatedAt = nowIso();
-    return true;
-  });
-
-  if (!result.meta) return null;
-  clearRenameState(id);
-  broadcastSessionInvalidation(id);
-  return enrichSessionMeta(result.meta);
+  return renameSessionViaMetadataService(id, name, options);
 }
 
 export async function updateSessionGrouping(id, patch = {}) {
-  const result = await mutateSessionMeta(id, (session) => {
-    let changed = false;
-    let groupChanged = false;
-    if (Object.prototype.hasOwnProperty.call(patch, 'group')) {
-      const nextGroup = normalizeSessionGroup(patch.group || '');
-      if (nextGroup) {
-        if (session.group !== nextGroup) {
-          session.group = nextGroup;
-          changed = true;
-          groupChanged = true;
-        }
-      } else if (session.group) {
-        delete session.group;
-        changed = true;
-        groupChanged = true;
-      }
-    }
-    if (Object.prototype.hasOwnProperty.call(patch, 'description')) {
-      const nextDescription = normalizeSessionDescription(patch.description || '');
-      if (nextDescription) {
-        if (session.description !== nextDescription) {
-          session.description = nextDescription;
-          changed = true;
-        }
-      } else if (session.description) {
-        delete session.description;
-        changed = true;
-      }
-    }
-    if (Object.prototype.hasOwnProperty.call(patch, 'manualGroup')) {
-      const nextManualGroup = normalizeSessionGroup(patch.manualGroup || '');
-      if (nextManualGroup) {
-        if (session.manualGroup !== nextManualGroup) {
-          session.manualGroup = nextManualGroup;
-          changed = true;
-        }
-      } else if (session.manualGroup) {
-        delete session.manualGroup;
-        changed = true;
-      }
-    }
-    if (Object.prototype.hasOwnProperty.call(patch, 'sidebarOrder')) {
-      const nextSidebarOrder = normalizeSessionSidebarOrder(patch.sidebarOrder);
-      if (nextSidebarOrder) {
-        if (session.sidebarOrder !== nextSidebarOrder) {
-          session.sidebarOrder = nextSidebarOrder;
-          changed = true;
-        }
-      } else if (session.sidebarOrder) {
-        delete session.sidebarOrder;
-        changed = true;
-      }
-    }
-    if (
-      groupChanged
-      && !Object.prototype.hasOwnProperty.call(patch, 'sidebarOrder')
-      && session.group
-    ) {
-      delete session.sidebarOrder;
-    }
-    if (changed) {
-      session.updatedAt = nowIso();
-    }
-    return changed;
-  });
-
-  if (!result.meta) return null;
-  let finalMeta = result.meta;
-  if (
-    result.changed
-    && Object.prototype.hasOwnProperty.call(patch, 'group')
-    && finalMeta.group
-    && !Object.prototype.hasOwnProperty.call(patch, 'sidebarOrder')
-  ) {
-    const nextSidebarOrder = await getNextSidebarOrderForGroup(finalMeta.group, {
-      excludeSessionId: id,
-    });
-    if (nextSidebarOrder > 0) {
-      const sidebarOrderResult = await mutateSessionMeta(id, (session) => {
-        if (normalizeSessionSidebarOrder(session.sidebarOrder) === nextSidebarOrder) return false;
-        session.sidebarOrder = nextSidebarOrder;
-        session.updatedAt = nowIso();
-        return true;
-      });
-      if (sidebarOrderResult?.meta) {
-        finalMeta = sidebarOrderResult.meta;
-      }
-    }
-  }
-  if (result.changed) {
-    broadcastSessionInvalidation(id);
-  }
-  return enrichSessionMeta(finalMeta);
+  return updateSessionGroupingViaMetadataService(id, patch);
 }
 
 export async function updateSessionTaskCard(id, taskCard, options = {}) {
-  const result = await mutateSessionMeta(id, (session) => {
-    const nextManagedBindings = normalizeSessionTaskCardManagedBindings(options?.managedBindingKeys);
-    const currentManagedBindings = normalizeSessionTaskCardManagedBindings(session.taskCardManagedBindings);
-    const currentTaskCard = stabilizeSessionTaskCard(session, session.taskCard, {
-      managedBindingKeys: currentManagedBindings,
-    });
-    const nextTaskCard = stabilizeSessionTaskCard(session, taskCard, {
-      ...options,
-      managedBindingKeys: nextManagedBindings,
-    });
-    const managedBindingsChanged = JSON.stringify(currentManagedBindings) !== JSON.stringify(nextManagedBindings);
-    const nextSessionState = resolveSessionStateFromSession({
-      ...session,
-      taskCard: nextTaskCard || null,
-    });
-    const hasMeaningfulSessionState = nextSessionState && (
-      nextSessionState.goal
-      || nextSessionState.mainGoal
-      || nextSessionState.checkpoint
-      || nextSessionState.needsUser === true
-      || nextSessionState.lineRole === 'branch'
-      || nextSessionState.branchFrom
-    );
-    const currentSessionStateJson = JSON.stringify(session.sessionState || null);
-    const nextSessionStateJson = JSON.stringify(hasMeaningfulSessionState ? nextSessionState : null);
-    if (
-      JSON.stringify(currentTaskCard) === JSON.stringify(nextTaskCard)
-      && !managedBindingsChanged
-      && currentSessionStateJson === nextSessionStateJson
-    ) {
-      return false;
-    }
-
-    if (nextTaskCard) {
-      session.taskCard = nextTaskCard;
-    } else if (session.taskCard) {
-      delete session.taskCard;
-    }
-
-    if (nextManagedBindings.length > 0) {
-      session.taskCardManagedBindings = nextManagedBindings;
-    } else if (session.taskCardManagedBindings) {
-      delete session.taskCardManagedBindings;
-    }
-
-    if (hasMeaningfulSessionState) {
-      session.sessionState = nextSessionState;
-    } else if (session.sessionState) {
-      delete session.sessionState;
-    }
-
-    session.updatedAt = nowIso();
-    return true;
-  });
-
-  if (!result.meta) return null;
-  if (result.changed) {
-    broadcastSessionInvalidation(id);
-  }
-  return enrichSessionMeta(result.meta);
+  return updateSessionTaskCardViaMetadataService(id, taskCard, options);
 }
 
 function mergeObjectShape(current, patch) {
@@ -2609,29 +2263,7 @@ export async function updateSessionAgreements(id, patch = {}) {
   if (!hasActiveAgreements) {
     return getSession(id);
   }
-
-  const nextActiveAgreements = normalizeSessionAgreements(patch.activeAgreements);
-  const result = await mutateSessionMeta(id, (session) => {
-    const currentActiveAgreements = normalizeSessionAgreements(session.activeAgreements || []);
-    if (JSON.stringify(currentActiveAgreements) === JSON.stringify(nextActiveAgreements)) {
-      return false;
-    }
-
-    if (nextActiveAgreements.length > 0) {
-      session.activeAgreements = nextActiveAgreements;
-    } else if (session.activeAgreements) {
-      delete session.activeAgreements;
-    }
-
-    session.updatedAt = nowIso();
-    return true;
-  });
-
-  if (!result.meta) return null;
-  if (result.changed) {
-    broadcastSessionInvalidation(id);
-  }
-  return enrichSessionMeta(result.meta);
+  return updateSessionAgreementsViaMetadataService(id, patch);
 }
 
 export async function updateSessionWorkflowState(id, workflowState) {
@@ -2643,30 +2275,7 @@ export async function updateSessionWorkflowPriority(id, workflowPriority) {
 }
 
 export async function updateSessionLastReviewedAt(id, lastReviewedAt) {
-  const nextLastReviewedAt = normalizeSessionReviewedAt(lastReviewedAt || '');
-  const result = await mutateSessionMeta(id, (session) => {
-    const currentLastReviewedAt = normalizeSessionReviewedAt(session.lastReviewedAt || '');
-    if (nextLastReviewedAt) {
-      if (currentLastReviewedAt !== nextLastReviewedAt) {
-        session.lastReviewedAt = nextLastReviewedAt;
-        return true;
-      }
-      return false;
-    }
-
-    if (currentLastReviewedAt) {
-      delete session.lastReviewedAt;
-      return true;
-    }
-
-    return false;
-  });
-
-  if (!result.meta) return null;
-  if (result.changed) {
-    broadcastSessionInvalidation(id);
-  }
-  return enrichSessionMeta(result.meta);
+  return updateSessionLastReviewedAtViaMetadataService(id, lastReviewedAt);
 }
 
 export async function updateSessionWorkflowClassification(id, payload = {}) {

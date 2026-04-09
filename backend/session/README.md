@@ -27,6 +27,8 @@ This directory owns session-facing projections and lightweight domain helpers.
 - `../services/session/prompt-service.mjs`: prompt shaping, resume detection, and continuation-aware preamble assembly extracted from the manager.
 - `../services/session/fork-context-service.mjs`: prepared fork-context snapshot creation and reuse for prompting and session forks.
 - `../services/session/branching-service.mjs`: fork/delegate branching orchestration layered on the canonical session manager entrypoints.
+- `../services/session/metadata-service.mjs`: session metadata mutation orchestration for rename/archive/pin/grouping/task-card/reviewed-at/agreement updates extracted from the manager.
+- `../services/session/detached-run-observer-service.mjs`: detached-run watcher/poller/startup restore orchestration extracted from the manager while the manager keeps run-finalization semantics.
 - `../services/session/http-mutation-service.mjs`: session PATCH/DELETE mutation orchestration shared by HTTP controllers.
 - `../services/session/http-post-service.mjs`: session POST action orchestration for create/fork/delegate/organize/persistent flows.
 - `../follow-up-queue.mjs`: follow-up queue serialization, dedupe, and dispatch-text helpers shared by session orchestration.
