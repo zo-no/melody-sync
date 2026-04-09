@@ -2,6 +2,7 @@ import { homedir } from 'os';
 import { join, resolve } from 'path';
 import { readBody } from '../../lib/utils.mjs';
 import { readSessionMessagePayload } from '../controllers/session/message-request.mjs';
+import { readJsonRequestBody } from '../shared/http/request-body.mjs';
 import {
   cancelActiveRun,
   createSession,
@@ -51,8 +52,7 @@ export async function handleSessionWriteRoutes({
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       let payload = {};
       try {
-        const body = await readBody(req, 8192);
-        payload = body ? JSON.parse(body) : {};
+        payload = await readJsonRequestBody(req, 8192);
       } catch {
         writeJson(res, 400, { error: 'Invalid request body' });
         return true;
@@ -96,8 +96,7 @@ export async function handleSessionWriteRoutes({
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       let payload = {};
       try {
-        const body = await readBody(req, 16384);
-        payload = body ? JSON.parse(body) : {};
+        payload = await readJsonRequestBody(req, 16384);
       } catch {
         writeJson(res, 400, { error: 'Invalid request body' });
         return true;
@@ -123,8 +122,7 @@ export async function handleSessionWriteRoutes({
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       let payload = {};
       try {
-        const body = await readBody(req, 16384);
-        payload = body ? JSON.parse(body) : {};
+        payload = await readJsonRequestBody(req, 16384);
       } catch {
         writeJson(res, 400, { error: 'Invalid request body' });
         return true;
@@ -235,8 +233,7 @@ export async function handleSessionWriteRoutes({
 
       let payload = {};
       try {
-        const body = await readBody(req, 32768);
-        payload = body ? JSON.parse(body) : {};
+        payload = await readJsonRequestBody(req, 32768);
       } catch {
         writeJson(res, 400, { error: 'Invalid request body' });
         return true;
@@ -289,19 +286,12 @@ export async function handleSessionWriteRoutes({
 
     let body;
     try {
-      body = await readBody(req, 10240);
+      body = await readJsonRequestBody(req, 10240);
     } catch {
       writeJson(res, 400, { error: 'Bad request' });
       return true;
     }
-
-    let patch;
-    try {
-      patch = JSON.parse(body);
-    } catch {
-      writeJson(res, 400, { error: 'Invalid request body' });
-      return true;
-    }
+    const patch = body;
 
     const hasArchivedPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'archived');
     const hasPinnedPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'pinned');
