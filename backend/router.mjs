@@ -1,6 +1,4 @@
-import { join, dirname } from 'path';
-import { parse as parseUrl, fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import { parse as parseUrl } from 'url';
 import { CHAT_IMAGES_DIR } from '../lib/config.mjs';
 import {
   getAuthSession, refreshAuthSession,
@@ -29,6 +27,7 @@ import { handleSystemRoutes } from './routes/system.mjs';
 import { isOwnerOnlyRoute } from './contracts/system/owner-only-routes.mjs';
 import { handleChatPageRequest } from './controllers/system/chat-page.mjs';
 import { buildChatPageBootstrap } from './services/system/chat-bootstrap-service.mjs';
+import { scheduleConfigReload } from './services/system/config-reload-service.mjs';
 import {
   SERVICE_BUILD_INFO,
   readFrontendFileCached,
@@ -42,34 +41,6 @@ import {
   getFileAsset,
   getFileAssetForClient,
 } from './file-assets.mjs';
-
-// Paths are resolved from the active runtime root on each request.
-const __dirname = dirname(fileURLToPath(import.meta.url));
-let configReloadScheduled = false;
-
-function scheduleConfigReload() {
-  if (configReloadScheduled) return true;
-  configReloadScheduled = true;
-  if (!process.env.XPC_SERVICE_NAME) {
-    const restartEnv = {
-      ...process.env,
-      MELODYSYNC_RESTART_NODE: process.execPath,
-      MELODYSYNC_RESTART_ENTRY: process.argv[1] || join(__dirname, '..', 'chat-server.mjs'),
-    };
-    const child = spawn('/bin/sh', ['-lc', 'sleep 0.4; exec "$MELODYSYNC_RESTART_NODE" "$MELODYSYNC_RESTART_ENTRY"'], {
-      cwd: process.cwd(),
-      env: restartEnv,
-      detached: true,
-      stdio: 'ignore',
-    });
-    child.unref();
-  }
-  const timer = setTimeout(() => {
-    process.kill(process.pid, 'SIGTERM');
-  }, 150);
-  timer.unref?.();
-  return true;
-}
 
 const uploadedMediaMimeTypes = {
   gif: 'image/gif',

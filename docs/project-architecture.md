@@ -52,6 +52,11 @@ MelodySync is now an owner-operated AI task workspace.
 - resolves versioned frontend/static assets
 - watches frontend/template changes and broadcasts build invalidation
 
+`backend/services/system/config-reload-service.mjs`
+
+- owns deferred process restart when settings require config reload
+- keeps process-management behavior out of route dispatch
+
 `backend/views/system/page-template.mjs`
 
 - projects chat/login HTML template placeholders
