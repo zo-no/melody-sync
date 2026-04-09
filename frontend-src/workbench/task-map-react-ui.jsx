@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   BaseEdge,
+  EdgeLabelRenderer,
   Handle,
   NodeToolbar,
   Position,
@@ -23,6 +24,7 @@ import {
 import { getTaskMapInteractionConfig } from './task-map-interaction-config.js';
 
 const STYLE_ELEMENT_ID = 'melodysync-task-map-react-ui-style';
+const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
 const REACT_FLOW_EXTRA_CSS = `
 .quest-task-flow-react-shell {
   position: relative;
@@ -38,6 +40,123 @@ const REACT_FLOW_EXTRA_CSS = `
   width: 100%;
   height: 100%;
   min-height: 100%;
+}
+
+.quest-task-flow-react-global-actions {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 9;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.quest-task-flow-react-global-actions > * {
+  pointer-events: auto;
+}
+
+.quest-task-flow-react-global-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quest-task-flow-react-global-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--notice) 16%, transparent);
+  color: var(--notice);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.quest-task-flow-react-global-panel {
+  width: min(320px, calc(100vw - 32px));
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg)) 94%, transparent);
+  box-shadow: 0 18px 42px color-mix(in srgb, #0b1520 14%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.quest-task-flow-react-global-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.quest-task-flow-react-global-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.quest-task-flow-react-global-panel-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.quest-task-flow-react-global-list {
+  display: grid;
+  gap: 8px;
+}
+
+.quest-task-flow-react-global-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 14%, var(--border));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+}
+
+.quest-task-flow-react-global-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quest-task-flow-react-global-item-title {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.quest-task-flow-react-global-item-title-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quest-task-flow-react-global-item-kind {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.quest-task-flow-react-global-item-reason {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.quest-task-flow-react-global-item-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .quest-task-flow-react-canvas .react-flow,
@@ -184,8 +303,132 @@ const REACT_FLOW_EXTRA_CSS = `
 }
 `;
 
+function ensureCompatElement(element, documentRef = document) {
+  if (!element || typeof element !== 'object') return element;
+  if (typeof element.nodeType !== 'number') {
+    element.nodeType = 1;
+  }
+  if (!element.nodeName) {
+    element.nodeName = String(element.tagName || 'div').toUpperCase();
+  }
+  if (!element.ownerDocument) {
+    element.ownerDocument = documentRef || globalThis?.document || null;
+  }
+  if (!element.namespaceURI) {
+    element.namespaceURI = HTML_NAMESPACE;
+  }
+  if (typeof element.appendChild !== 'function') {
+    element.children = Array.isArray(element.children) ? element.children : [];
+    element.appendChild = function appendChild(child) {
+      if (!child) return child;
+      child.parentNode = this;
+      this.children.push(child);
+      return child;
+    };
+  }
+  if (typeof element.insertBefore !== 'function') {
+    element.insertBefore = function insertBefore(child, beforeChild) {
+      if (!child) return child;
+      child.parentNode = this;
+      const currentChildren = Array.isArray(this.children) ? this.children : (this.children = []);
+      const index = beforeChild ? currentChildren.indexOf(beforeChild) : -1;
+      if (index < 0) {
+        currentChildren.push(child);
+      } else {
+        currentChildren.splice(index, 0, child);
+      }
+      return child;
+    };
+  }
+  if (typeof element.removeChild !== 'function') {
+    element.removeChild = function removeChild(child) {
+      if (!child || !Array.isArray(this.children)) return child;
+      this.children = this.children.filter((entry) => entry !== child);
+      if (child.parentNode === this) child.parentNode = null;
+      return child;
+    };
+  }
+  if (typeof element.getAttribute !== 'function') {
+    element.getAttribute = function getAttribute(name) {
+      return this[name];
+    };
+  }
+  if (typeof element.hasAttribute !== 'function') {
+    element.hasAttribute = function hasAttribute(name) {
+      return Object.prototype.hasOwnProperty.call(this, name);
+    };
+  }
+  if (typeof element.removeAttribute !== 'function') {
+    element.removeAttribute = function removeAttribute(name) {
+      delete this[name];
+    };
+  }
+  return element;
+}
+
+function createCompatTextNode(documentRef = document, text = '') {
+  return {
+    nodeType: 3,
+    nodeName: '#text',
+    ownerDocument: documentRef || globalThis?.document || null,
+    parentNode: null,
+    nodeValue: String(text),
+    textContent: String(text),
+    remove() {
+      if (!this.parentNode?.removeChild) return;
+      this.parentNode.removeChild(this);
+    },
+  };
+}
+
+function ensureReactDocumentCompat(documentRef = document) {
+  const doc = documentRef || globalThis?.document || null;
+  if (!doc || typeof doc !== 'object' || doc.__melodysyncReactCompatPatched === true) {
+    return doc;
+  }
+  const originalCreateElement = typeof doc.createElement === 'function'
+    ? doc.createElement.bind(doc)
+    : null;
+  if (originalCreateElement) {
+    doc.createElement = function patchedCreateElement(...args) {
+      return ensureCompatElement(originalCreateElement(...args), doc);
+    };
+  }
+  const originalCreateElementNs = typeof doc.createElementNS === 'function'
+    ? doc.createElementNS.bind(doc)
+    : null;
+  if (originalCreateElementNs) {
+    doc.createElementNS = function patchedCreateElementNS(namespaceUri, ...args) {
+      const element = ensureCompatElement(originalCreateElementNs(namespaceUri, ...args), doc);
+      if (namespaceUri && !element.namespaceURI) {
+        element.namespaceURI = namespaceUri;
+      }
+      return element;
+    };
+  }
+  if (typeof doc.createTextNode !== 'function') {
+    doc.createTextNode = function patchedCreateTextNode(text) {
+      return createCompatTextNode(doc, text);
+    };
+  }
+  if (!doc.documentElement && originalCreateElement) {
+    doc.documentElement = ensureCompatElement(originalCreateElement('html'), doc);
+  }
+  if (!doc.head && originalCreateElement) {
+    doc.head = ensureCompatElement(originalCreateElement('head'), doc);
+  }
+  if (!doc.body && originalCreateElement) {
+    doc.body = ensureCompatElement(originalCreateElement('body'), doc);
+  }
+  if (!doc.defaultView) {
+    doc.defaultView = globalThis?.window || null;
+  }
+  doc.__melodysyncReactCompatPatched = true;
+  return doc;
+}
+
 function ensureReactFlowStyles(documentRef = document) {
-  const doc = documentRef || globalThis?.document;
+  const doc = ensureReactDocumentCompat(documentRef || globalThis?.document);
   if (!doc?.createElement) return;
   if (doc.getElementById?.(STYLE_ELEMENT_ID)) return;
   const styleEl = doc.createElement('style');
@@ -324,6 +567,7 @@ function createRichViewRenderer({
   documentRef = document,
   windowRef = window,
 } = {}) {
+  ensureReactDocumentCompat(documentRef);
   return Object.freeze({
     renderMarkdownContent(target, markdown) {
       if (!target) return;
@@ -336,7 +580,7 @@ function createRichViewRenderer({
     },
     createRichViewSurface(node = {}, view = null) {
       const resolvedView = resolveNodeCanvasView(node, view);
-      const container = documentRef.createElement('div');
+      const container = ensureCompatElement(documentRef.createElement('div'), documentRef);
       container.className = getNodeCanvasShellClassName(resolvedView.type);
       const root = createRoot(container);
       root.render(
@@ -593,6 +837,25 @@ function TrackerDetailList({ items = [] }) {
   );
 }
 
+function TrackerCandidateBranchActionsContent({
+  candidateBranches = [],
+  onEnter = null,
+}) {
+  return (
+    <>
+      {candidateBranches.map((branchTitle) => (
+        <div key={branchTitle} className="quest-branch-suggestion-item">
+          <BranchSuggestionItemChildren
+            branchTitle={branchTitle}
+            branchReason=""
+            onEnter={() => onEnter?.(branchTitle)}
+          />
+        </div>
+      ))}
+    </>
+  );
+}
+
 function TrackerPersistentActionsContent({ buttons = [] }) {
   return (
     <>
@@ -625,7 +888,12 @@ function createTrackerRenderer({
   trackerConclusionsListEl = null,
   trackerMemoryRowEl = null,
   trackerMemoryListEl = null,
+  trackerCandidateBranchesRowEl = null,
+  trackerCandidateBranchesListEl = null,
   getPersistentActionsEl = () => null,
+  getCurrentSessionSafe = () => null,
+  isSuppressed = () => false,
+  enterBranchFromCurrentSession = async () => null,
   clipText: clipTextImpl = (value) => String(value || '').trim(),
   toConciseGoal = (value) => String(value || '').trim(),
   isMobileQuestTracker = () => false,
@@ -633,8 +901,11 @@ function createTrackerRenderer({
   getCurrentTaskSummary = () => '',
   getBranchDisplayName = (session) => String(session?.name || '').trim(),
 } = {}) {
+  ensureReactDocumentCompat(documentRef);
+
   function ensureRoot(host) {
     if (!host || typeof createRoot !== 'function') return null;
+    ensureCompatElement(host, documentRef);
     if (host.__melodysyncReactRoot) return host.__melodysyncReactRoot;
     host.__melodysyncReactRoot = createRoot(host);
     return host.__melodysyncReactRoot;
@@ -643,6 +914,13 @@ function createTrackerRenderer({
   function getTrackerVisualStatus(state) {
     if (!state?.hasSession || !state?.session) {
       return { key: '', label: '', dotClassName: '' };
+    }
+    if (state?.taskMapVisualStatus?.label) {
+      return {
+        key: String(state.taskMapVisualStatus.key || '').trim(),
+        label: String(state.taskMapVisualStatus.label || '').trim(),
+        dotClassName: String(state.taskMapVisualStatus.dotClassName || '').trim(),
+      };
     }
     const taskRunStatus = getTaskRunStatusApi(window)?.getTaskRunStatusPresentation?.({
       status: state?.branchStatus || '',
@@ -719,7 +997,31 @@ function createTrackerRenderer({
     ensureRoot(host)?.render(<TrackerDetailList items={items} />);
   }
 
-  function renderDetail(taskCard, expanded) {
+  function listVisibleCandidateBranches(taskCard, session = null) {
+    const sourceSession = session?.id ? session : getCurrentSessionSafe();
+    const sessionId = trimText(sourceSession?.id || '');
+    return Array.isArray(taskCard?.candidateBranches)
+      ? taskCard.candidateBranches
+        .filter((entry) => typeof entry === 'string' && trimText(entry))
+        .filter((entry) => !sessionId || !isSuppressed(sessionId, entry))
+      : [];
+  }
+
+  function renderCandidateBranchActions(host, candidateBranches = []) {
+    if (!host) return;
+    ensureRoot(host)?.render(
+      candidateBranches.length > 0 ? (
+        <TrackerCandidateBranchActionsContent
+          candidateBranches={candidateBranches}
+          onEnter={(branchTitle) => enterBranchFromCurrentSession(branchTitle, {
+            checkpointSummary: branchTitle,
+          })}
+        />
+      ) : null,
+    );
+  }
+
+  function renderDetail(taskCard, expanded, session = null) {
     if (!trackerDetailEl) return;
     const goal = taskCard?.goal || '';
     const showGoal = Boolean(goal);
@@ -734,7 +1036,11 @@ function createTrackerRenderer({
     renderDetailList(trackerMemoryListEl, memory);
     if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = memory.length === 0;
 
-    const hasAny = showGoal || conclusions.length > 0 || memory.length > 0;
+    const candidateBranches = listVisibleCandidateBranches(taskCard, session);
+    renderCandidateBranchActions(trackerCandidateBranchesListEl, candidateBranches);
+    if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = candidateBranches.length === 0;
+
+    const hasAny = showGoal || conclusions.length > 0 || memory.length > 0 || candidateBranches.length > 0;
     if (trackerDetailToggleBtn) {
       trackerDetailToggleBtn.hidden = !hasAny;
       trackerDetailToggleBtn.textContent = expanded ? '详情 ▾' : '详情 ▸';
@@ -829,9 +1135,13 @@ function createTaskListController({
   getTaskMapProjection = () => null,
   taskMapFlowRenderer = null,
 } = {}) {
+  ensureReactDocumentCompat(documentRef);
+
   let lastRenderKey = '';
   let currentBoard = null;
-  const reactRoot = trackerTaskListEl ? createRoot(trackerTaskListEl) : null;
+  const reactRoot = trackerTaskListEl
+    ? createRoot(ensureCompatElement(trackerTaskListEl, documentRef))
+    : null;
 
   const flowRenderer = taskMapFlowRenderer && typeof taskMapFlowRenderer.renderFlowBoard === 'function'
     ? taskMapFlowRenderer
@@ -1054,9 +1364,11 @@ function createStatusCardRenderer({
   enterBranchFromCurrentSession = async () => null,
   clipText: clipTextImpl = clipText,
 } = {}) {
+  ensureReactDocumentCompat(documentRef);
+
   function mountIntoHost(host, element) {
     if (!host) return null;
-    const root = createRoot(host);
+    const root = createRoot(ensureCompatElement(host, documentRef));
     root.render(element);
     host.__melodysyncCleanup = () => {
       root.unmount();
@@ -1238,6 +1550,9 @@ function PersistentEditorModal({
         draft.scheduleRuntime = cloneJson(currentRuntime);
       }
     }
+    if (draft.mode !== 'configure') {
+      draft.editorStep = 'details';
+    }
     rerender();
   }
 
@@ -1254,15 +1569,20 @@ function PersistentEditorModal({
   }
 
   const cadence = normalizeRecurringCadence(draft?.recurring?.cadence);
+  const editorStep = draft?.editorStep === 'details' ? 'details' : 'pick_kind';
   const dialogTitle = draft?.mode === 'configure' ? '长期项设置' : '沉淀为长期项';
   const leadText = draft
-    ? (draft.mode === 'configure' ? '只保留类型、名称、摘要和提示词。' : '已根据当前会话自动生成一版长期项摘要。')
+    ? (draft.mode === 'configure'
+      ? '只保留类型、名称、摘要和提示词。'
+      : (editorStep === 'details'
+        ? '沉淀后会出现在任务列表顶部的长期区。'
+        : '先选择要沉淀成哪种长期能力。'))
     : '正在整理当前会话内容…';
 
   return (
-    <div className="modal persistent-editor-modal" role="dialog" aria-modal="true">
-      <div className="modal-header persistent-editor-modal-header">
-        <div className="modal-title persistent-editor-modal-title">{dialogTitle}</div>
+    <section className="operation-record-persistent-editor persistent-editor-popover" role="group" aria-label={dialogTitle}>
+      <div className="operation-record-persistent-editor-header persistent-editor-modal-header">
+        <div className="operation-record-persistent-editor-title persistent-editor-modal-title">{dialogTitle}</div>
         <button
           type="button"
           className="modal-close"
@@ -1272,169 +1592,211 @@ function PersistentEditorModal({
           ×
         </button>
       </div>
-      <div className="modal-lead persistent-editor-modal-lead">{leadText}</div>
-      <div className="modal-body persistent-editor-modal-body">
+      <div className="operation-record-persistent-editor-lead persistent-editor-modal-lead">{leadText}</div>
+      <div className="persistent-editor-modal-body">
         {isLoading || !draft ? (
           <div className="persistent-editor-modal-loading">正在加载…</div>
         ) : (
-          <div className="persistent-editor-modal-form">
-            <PersistentEditorField label="类型">
-              <div className="operation-record-persistent-kind-row persistent-editor-modal-kind-row">
-                {[
-                  { kind: 'recurring_task', label: '长期任务' },
-                  { kind: 'skill', label: '快捷按钮' },
-                ].map((entry) => (
-                  <button
-                    key={entry.kind}
-                    type="button"
-                    className={`operation-record-kind-btn${draft.kind === entry.kind ? ' is-active' : ''}`}
-                    onClick={() => updateKind(entry.kind)}
-                  >
-                    {entry.label}
-                  </button>
-                ))}
-              </div>
-            </PersistentEditorField>
+          draft.mode !== 'configure' && editorStep !== 'details' ? (
+            <div className="persistent-editor-kind-grid">
+              {[
+                {
+                  kind: 'skill',
+                  label: 'AI快捷按钮',
+                  description: '手动点击后触发，由 AI 执行一段可复用动作。',
+                },
+                {
+                  kind: 'recurring_task',
+                  label: '长期任务',
+                  description: '按固定周期自动执行，适合巡检、整理和定时跟进。',
+                },
+              ].map((entry) => (
+                <button
+                  key={entry.kind}
+                  type="button"
+                  className="persistent-editor-kind-card"
+                  onClick={() => updateKind(entry.kind)}
+                >
+                  <span className="persistent-editor-kind-card-title">{entry.label}</span>
+                  <span className="persistent-editor-kind-card-description">{entry.description}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="persistent-editor-modal-form">
+              <PersistentEditorField label="类型">
+                <div className="operation-record-persistent-kind-row persistent-editor-modal-kind-row">
+                  {[
+                    { kind: 'recurring_task', label: '长期任务' },
+                    { kind: 'skill', label: 'AI快捷按钮' },
+                  ].map((entry) => (
+                    <button
+                      key={entry.kind}
+                      type="button"
+                      className={`operation-record-kind-btn${draft.kind === entry.kind ? ' is-active' : ''}`}
+                      onClick={() => updateKind(entry.kind)}
+                    >
+                      {entry.label}
+                    </button>
+                  ))}
+                </div>
+              </PersistentEditorField>
 
-            <PersistentEditorField label="名称">
-              <input
-                type="text"
-                className="operation-record-persistent-input"
-                defaultValue={draft.digestTitle}
-                placeholder="给这个长期项起个名字"
-                onInput={(event) => {
-                  draft.digestTitle = event.currentTarget.value;
-                }}
-              />
-            </PersistentEditorField>
+              <PersistentEditorField label="名称">
+                <input
+                  type="text"
+                  className="operation-record-persistent-input"
+                  defaultValue={draft.digestTitle}
+                  placeholder="给这个长期项起个名字"
+                  onInput={(event) => {
+                    draft.digestTitle = event.currentTarget.value;
+                  }}
+                />
+              </PersistentEditorField>
 
-            <PersistentEditorField label="摘要">
-              <textarea
-                className="operation-record-persistent-textarea"
-                rows={4}
-                defaultValue={draft.digestSummary}
-                placeholder="保留这次会话沉淀下来的核心摘要"
-                onInput={(event) => {
-                  draft.digestSummary = event.currentTarget.value;
-                }}
-              />
-            </PersistentEditorField>
+              <PersistentEditorField label="摘要">
+                <textarea
+                  className="operation-record-persistent-textarea"
+                  rows={3}
+                  defaultValue={draft.digestSummary}
+                  placeholder="保留这次会话沉淀下来的核心摘要"
+                  onInput={(event) => {
+                    draft.digestSummary = event.currentTarget.value;
+                  }}
+                />
+              </PersistentEditorField>
 
-            <PersistentEditorField label="提示词">
-              <textarea
-                className="operation-record-persistent-textarea"
-                rows={4}
-                defaultValue={draft.runPrompt}
-                placeholder="触发时默认要执行什么"
-                onInput={(event) => {
-                  draft.runPrompt = event.currentTarget.value;
-                }}
-              />
-            </PersistentEditorField>
+              <PersistentEditorField label={draft.kind === 'skill' ? '触发动作' : '执行动作'}>
+                <textarea
+                  className="operation-record-persistent-textarea"
+                  rows={4}
+                  defaultValue={draft.runPrompt}
+                  placeholder={draft.kind === 'skill' ? '点击后默认交给 AI 执行什么' : '执行时默认要做什么'}
+                  onInput={(event) => {
+                    draft.runPrompt = event.currentTarget.value;
+                  }}
+                />
+              </PersistentEditorField>
 
-            {draft.kind === 'recurring_task' ? (
-              <>
-                <PersistentEditorField label="触发周期">
-                  <select
-                    className="operation-record-persistent-select"
-                    value={cadence}
-                    onChange={(event) => {
-                      draft.recurring.cadence = event.target.value;
-                      rerender();
-                    }}
-                  >
-                    <option value="hourly">每小时</option>
-                    <option value="daily">每天</option>
-                    <option value="weekly">每周</option>
-                  </select>
-                </PersistentEditorField>
-
-                <PersistentEditorField label={cadence === 'hourly' ? '触发分钟' : '触发时间'}>
-                  <input
-                    type="time"
-                    className="operation-record-persistent-input"
-                    defaultValue={normalizeTimeOfDay(draft.recurring?.timeOfDay)}
-                    onInput={(event) => {
-                      draft.recurring.timeOfDay = normalizeTimeOfDay(event.currentTarget.value);
-                    }}
-                  />
-                </PersistentEditorField>
-
-                {cadence === 'weekly' ? (
-                  <PersistentEditorField label="每周日期">
-                    <div className="operation-record-weekday-row">
-                      {['日', '一', '二', '三', '四', '五', '六'].map((label, day) => {
-                        const active = normalizeWeekdays(draft.recurring?.weekdays).includes(day);
-                        return (
-                          <button
-                            key={label}
-                            type="button"
-                            className={`operation-record-weekday-btn${active ? ' is-active' : ''}`}
-                            onClick={() => toggleWeekday(day)}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
+              {draft.kind === 'recurring_task' ? (
+                <>
+                  <PersistentEditorField label="触发周期">
+                    <select
+                      className="operation-record-persistent-select"
+                      value={cadence}
+                      onChange={(event) => {
+                        draft.recurring.cadence = event.target.value;
+                        rerender();
+                      }}
+                    >
+                      <option value="hourly">每小时</option>
+                      <option value="daily">每天</option>
+                      <option value="weekly">每周</option>
+                    </select>
                   </PersistentEditorField>
-                ) : null}
-              </>
-            ) : null}
 
-            <PersistentRuntimeSection
-              title="手动触发"
-              mode={draft.manualMode}
-              allowedModes={['follow_current', 'session_default', 'pinned']}
-              runtime={draft.manualRuntime}
-              onModeChange={(value) => {
-                draft.manualMode = value;
-                if (value === 'pinned' && !draft.manualRuntime?.tool && currentRuntime?.tool) {
-                  draft.manualRuntime = cloneJson(currentRuntime);
-                }
-                rerender();
-              }}
-              onPinCurrent={() => pinRuntime('manualRuntime')}
-              formatRuntimeSummary={formatRuntimeSummary}
-            />
+                  <PersistentEditorField label={cadence === 'hourly' ? '触发分钟' : '触发时间'}>
+                    <input
+                      type="time"
+                      className="operation-record-persistent-input"
+                      defaultValue={normalizeTimeOfDay(draft.recurring?.timeOfDay)}
+                      onInput={(event) => {
+                        draft.recurring.timeOfDay = normalizeTimeOfDay(event.currentTarget.value);
+                      }}
+                    />
+                  </PersistentEditorField>
 
-            {draft.kind === 'recurring_task' ? (
+                  {cadence === 'weekly' ? (
+                    <PersistentEditorField label="每周日期">
+                      <div className="operation-record-weekday-row">
+                        {['日', '一', '二', '三', '四', '五', '六'].map((label, day) => {
+                          const active = normalizeWeekdays(draft.recurring?.weekdays).includes(day);
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              className={`operation-record-weekday-btn${active ? ' is-active' : ''}`}
+                              onClick={() => toggleWeekday(day)}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </PersistentEditorField>
+                  ) : null}
+                </>
+              ) : null}
+
               <PersistentRuntimeSection
-                title="周期执行"
-                mode={draft.scheduleMode}
-                allowedModes={['session_default', 'pinned']}
-                runtime={draft.scheduleRuntime}
+                title="手动触发"
+                mode={draft.manualMode}
+                allowedModes={['follow_current', 'session_default', 'pinned']}
+                runtime={draft.manualRuntime}
                 onModeChange={(value) => {
-                  draft.scheduleMode = value;
-                  if (value === 'pinned' && !draft.scheduleRuntime?.tool && currentRuntime?.tool) {
-                    draft.scheduleRuntime = cloneJson(currentRuntime);
+                  draft.manualMode = value;
+                  if (value === 'pinned' && !draft.manualRuntime?.tool && currentRuntime?.tool) {
+                    draft.manualRuntime = cloneJson(currentRuntime);
                   }
                   rerender();
                 }}
-                onPinCurrent={() => pinRuntime('scheduleRuntime')}
+                onPinCurrent={() => pinRuntime('manualRuntime')}
                 formatRuntimeSummary={formatRuntimeSummary}
               />
-            ) : null}
-          </div>
+
+              {draft.kind === 'recurring_task' ? (
+                <PersistentRuntimeSection
+                  title="周期执行"
+                  mode={draft.scheduleMode}
+                  allowedModes={['session_default', 'pinned']}
+                  runtime={draft.scheduleRuntime}
+                  onModeChange={(value) => {
+                    draft.scheduleMode = value;
+                    if (value === 'pinned' && !draft.scheduleRuntime?.tool && currentRuntime?.tool) {
+                      draft.scheduleRuntime = cloneJson(currentRuntime);
+                    }
+                    rerender();
+                  }}
+                  onPinCurrent={() => pinRuntime('scheduleRuntime')}
+                  formatRuntimeSummary={formatRuntimeSummary}
+                />
+              ) : null}
+            </div>
+          )
         )}
       </div>
-      <div className="modal-footer persistent-editor-modal-footer">
+      <div className="operation-record-persistent-editor-footer persistent-editor-modal-footer">
         {!isLoading && draft ? (
           <>
             <button type="button" className="modal-btn" onClick={() => onClose?.()}>
               取消
             </button>
-            <button type="button" className="modal-btn primary" onClick={() => onSave?.()}>
-              {draft.mode === 'configure' ? '保存' : '保存为长期项'}
-            </button>
+            {draft.mode !== 'configure' && editorStep === 'details' ? (
+              <button
+                type="button"
+                className="modal-btn"
+                onClick={() => {
+                  draft.editorStep = 'pick_kind';
+                  rerender();
+                }}
+              >
+                返回
+              </button>
+            ) : null}
+            {draft.mode === 'configure' || editorStep === 'details' ? (
+              <button type="button" className="modal-btn primary" onClick={() => onSave?.()}>
+                {draft.mode === 'configure' ? '保存' : '保存为长期项'}
+              </button>
+            ) : null}
           </>
         ) : null}
       </div>
-    </div>
+    </section>
   );
 }
 
 function createPersistentEditorRenderer({
+  documentRef = document,
   cloneJson = (value) => (value == null ? value : JSON.parse(JSON.stringify(value))),
   formatRuntimeSummary = (value) => String(value?.tool || '').trim() || '未固定',
   normalizeRecurringCadence = (value) => {
@@ -1449,8 +1811,11 @@ function createPersistentEditorRenderer({
   },
   normalizeWeekdays = (value) => (Array.isArray(value) ? value : []),
 } = {}) {
+  ensureReactDocumentCompat(documentRef);
+
   function ensureRoot(host) {
     if (!host || typeof createRoot !== 'function') return null;
+    ensureCompatElement(host, documentRef);
     if (host.__melodysyncReactRoot) return host.__melodysyncReactRoot;
     host.__melodysyncReactRoot = createRoot(host);
     return host.__melodysyncReactRoot;
@@ -1564,9 +1929,11 @@ function createOperationRecordSummaryRenderer({
   documentRef = document,
   clipText: clipTextImpl = clipText,
 } = {}) {
+  ensureReactDocumentCompat(documentRef);
+
   function mountIntoHost(host, element) {
     if (!host) return null;
-    const root = createRoot(host);
+    const root = createRoot(ensureCompatElement(host, documentRef));
     root.render(element);
     host.__melodysyncCleanup = () => {
       root.unmount();
@@ -1816,9 +2183,11 @@ function createOperationRecordListRenderer({
   attachSession = null,
   getFocusedSessionId = () => '',
 } = {}) {
+  ensureReactDocumentCompat(documentRef);
+
   function mountIntoHost(host, element) {
     if (!host) return null;
-    const root = createRoot(host);
+    const root = createRoot(ensureCompatElement(host, documentRef));
     root.render(element);
     host.__melodysyncCleanup = () => {
       root.unmount();
@@ -2040,7 +2409,7 @@ function PersistentSessionDock({
   quickActionSessions = [],
   sectionTitle = '长期项',
   longTermLabel = '长期任务',
-  quickActionsLabel = '快捷动作',
+  quickActionsLabel = 'AI快捷按钮',
   isCollapsed = false,
   isSectionCollapsed = () => false,
   onToggleDock = null,
@@ -2147,8 +2516,11 @@ function createSessionListRenderer({
   renderUiIcon = () => '',
   createSessionItem = null,
 } = {}) {
+  ensureReactDocumentCompat(documentRef);
+
   function ensureRoot(host) {
     if (!host || typeof createRoot !== 'function') return null;
+    ensureCompatElement(host, documentRef);
     if (host.__melodysyncReactRoot) return host.__melodysyncReactRoot;
     host.innerHTML = '';
     host.__melodysyncReactRoot = createRoot(host);
@@ -2430,6 +2802,75 @@ function getProjectedTaskFlowNodeSummary(windowRef, node, activeQuest, clipTextI
   return clipTextImpl(node.summary || nodeEffect?.fallbackSummary || '', 72);
 }
 
+function getGraphOpsUi(windowRef = window) {
+  return windowRef?.MelodySyncGraphOpsUi
+    || windowRef?.window?.MelodySyncGraphOpsUi
+    || null;
+}
+
+function getGraphProposalForNode(windowRef, sessionId = '', node = null) {
+  const normalizedSessionId = trimText(sessionId);
+  if (!normalizedSessionId || !node) return null;
+  return getGraphOpsUi(windowRef)?.getLatestProposalForNode?.(normalizedSessionId, node) || null;
+}
+
+function clipTaskMapUiText(value, maxChars = 80) {
+  const text = trimText(value);
+  if (!text || !Number.isInteger(maxChars) || maxChars <= 0 || text.length <= maxChars) return text;
+  if (maxChars === 1) return '…';
+  return `${text.slice(0, maxChars - 1).trimEnd()}…`;
+}
+
+function getGraphProposalRefLabel(ref) {
+  if (!ref) return '';
+  if (typeof ref === 'string') return trimText(ref);
+  return trimText(ref?.title || ref?.ref || ref?.sessionId || ref?.id || '');
+}
+
+function getGraphProposalKindLabel(operation) {
+  const type = trimText(operation?.type).toLowerCase();
+  if (type === 'attach') return '建议挂接';
+  if (type === 'archive') return '建议归档';
+  if (type === 'promote_main') return '建议提主线';
+  return '建议调整';
+}
+
+function getGraphProposalReasonText(proposal) {
+  const operation = proposal?.matchedOperation || proposal?.graphOps?.operations?.[0] || null;
+  const reason = clipTaskMapUiText(operation?.reason || '', 84);
+  if (reason) return reason;
+  const type = trimText(operation?.type).toLowerCase();
+  if (type === 'attach') {
+    const targetLabel = getGraphProposalRefLabel(operation?.target);
+    return targetLabel ? `建议挂到「${targetLabel}」下面` : '建议挂到更合适的父任务下';
+  }
+  if (type === 'archive') {
+    return '建议归档明显重复的任务';
+  }
+  if (type === 'promote_main') {
+    return '建议把当前任务提回主线';
+  }
+  return '建议调整当前任务图结构';
+}
+
+function collectPendingGraphSuggestions(flowNodes = []) {
+  const suggestions = new Map();
+  for (const flowNode of Array.isArray(flowNodes) ? flowNodes : []) {
+    const proposal = flowNode?.data?.graphProposal;
+    const proposalKey = trimText(proposal?.proposalKey || '');
+    if (!proposal || !proposalKey || suggestions.has(proposalKey)) continue;
+    suggestions.set(proposalKey, {
+      proposalKey,
+      proposal,
+      nodeId: trimText(flowNode?.id || ''),
+      nodeTitle: trimText(flowNode?.data?.rawTitle || flowNode?.data?.title || ''),
+      kindLabel: getGraphProposalKindLabel(proposal?.matchedOperation),
+      reasonText: getGraphProposalReasonText(proposal),
+    });
+  }
+  return [...suggestions.values()];
+}
+
 function createFallbackNodeActionController({
   collapseTaskMapAfterAction = null,
   enterBranchFromSession = null,
@@ -2446,8 +2887,11 @@ function createFallbackNodeActionController({
     },
     resolvePrimaryAction(node, { isRichView = false, isDone = false } = {}) {
       if (isRichView || isDone) return 'none';
-      if (this.hasNodeCapability(node, 'create-branch')) return 'create-branch';
-      if (this.hasNodeCapability(node, 'open-session') && node?.sessionId) return 'open-session';
+      const effectInteraction = trimText(getNodeEffect(window, node)?.interaction || '');
+      if (this.hasNodeCapability(node, 'create-branch') || effectInteraction === 'create-branch') return 'create-branch';
+      if ((this.hasNodeCapability(node, 'open-session') || effectInteraction === 'open-session' || trimText(node?.sessionId)) && node?.sessionId) {
+        return 'open-session';
+      }
       return 'none';
     },
     isNodeDirectlyInteractive(node, options = {}) {
@@ -2503,6 +2947,16 @@ function createFallbackNodeActionController({
       }
       return false;
     },
+    async executeGraphProposal(proposal, { sessionId = '' } = {}) {
+      const normalizedSessionId = trimText(sessionId);
+      if (!normalizedSessionId || !proposal?.graphOps) return false;
+      await getGraphOpsUi(window)?.applyProposal?.({
+        sessionId: normalizedSessionId,
+        sourceSeq: proposal?.sourceSeq,
+        graphOps: proposal.graphOps,
+      });
+      return true;
+    },
   };
 }
 
@@ -2512,6 +2966,50 @@ function getNodeActionController(windowRef, options = {}) {
     return api.createController(options);
   }
   return createFallbackNodeActionController(options);
+}
+
+function createTaskHandoffController({
+  buildTaskHandoffPreview = null,
+  handoffSessionTaskData = null,
+} = {}) {
+  return Object.freeze({
+    canHandoff(edgeData = null) {
+      return Boolean(
+        edgeData
+        && trimText(edgeData?.sourceSessionId || '')
+        && trimText(edgeData?.targetSessionId || '')
+        && trimText(edgeData?.sourceSessionId || '') !== trimText(edgeData?.targetSessionId || '')
+        && typeof handoffSessionTaskData === 'function'
+      );
+    },
+    buildPreview(edgeData = null, direction = 'forward') {
+      if (!this.canHandoff(edgeData) || typeof buildTaskHandoffPreview !== 'function') return null;
+      const reverse = trimText(direction).toLowerCase() === 'reverse';
+      const sourceSessionId = reverse
+        ? trimText(edgeData?.targetSessionId || '')
+        : trimText(edgeData?.sourceSessionId || '');
+      const targetSessionId = reverse
+        ? trimText(edgeData?.sourceSessionId || '')
+        : trimText(edgeData?.targetSessionId || '');
+      return buildTaskHandoffPreview(sourceSessionId, targetSessionId, {
+        sourceTitle: reverse ? edgeData?.targetTitle : edgeData?.sourceTitle,
+        targetTitle: reverse ? edgeData?.sourceTitle : edgeData?.targetTitle,
+      });
+    },
+    async executeHandoff(edgeData = null, direction = 'forward') {
+      if (!this.canHandoff(edgeData) || typeof handoffSessionTaskData !== 'function') return null;
+      const reverse = trimText(direction).toLowerCase() === 'reverse';
+      const sourceSessionId = reverse
+        ? trimText(edgeData?.targetSessionId || '')
+        : trimText(edgeData?.sourceSessionId || '');
+      const targetSessionId = reverse
+        ? trimText(edgeData?.sourceSessionId || '')
+        : trimText(edgeData?.targetSessionId || '');
+      return handoffSessionTaskData(sourceSessionId, {
+        targetSessionId,
+      });
+    },
+  });
 }
 
 function buildBoardSnapshot({
@@ -2560,6 +3058,11 @@ function buildBoardSnapshot({
       && rendererApi?.nodeActionController?.canCreateManualBranch?.(node, { isRichView, isDone }) === true;
     const canReparentSession = node?.isCurrent === true
       && rendererApi?.nodeActionController?.canReparentSession?.(node, { isRichView, isDone }) === true;
+    const graphProposal = getGraphProposalForNode(
+      windowRef,
+      rendererApi?.getCurrentSessionId?.() || '',
+      node,
+    );
     const statusAliasClassName = trimText(
       taskRunStatusApi?.getTaskRunStatusResolvedNodeClassName?.(nodeStatusUi?.key || '', 'is-') || '',
     );
@@ -2609,6 +3112,7 @@ function buildBoardSnapshot({
         primaryAction,
         canCreateManualBranch,
         canReparentSession,
+        graphProposal,
         isDone,
         isRichView,
         className: nodeClasses.join(' '),
@@ -2626,18 +3130,40 @@ function buildBoardSnapshot({
 
   const flowEdges = edges
     .filter((edge) => edge.fromNodeId && edge.toNodeId)
-    .map((edge) => ({
-      id: edge.id,
-      source: edge.fromNodeId,
-      target: edge.toNodeId,
-      type: 'melody-edge',
-      selectable: false,
-      focusable: false,
-      data: {
-        current: edge.current === true,
-        variant: trimText(edge.variant || 'structural') || 'structural',
-      },
-    }));
+    .map((edge) => {
+      const sourceNode = nodeMap.get(trimText(edge.fromNodeId || '')) || null;
+      const targetNode = nodeMap.get(trimText(edge.toNodeId || '')) || null;
+      const sourceSessionId = trimText(sourceNode?.sessionId || '');
+      const targetSessionId = trimText(targetNode?.sessionId || '');
+      return {
+        id: edge.id,
+        source: edge.fromNodeId,
+        target: edge.toNodeId,
+        type: 'melody-edge',
+        selectable: false,
+        focusable: false,
+        data: {
+          current: edge.current === true,
+          variant: trimText(edge.variant || 'structural') || 'structural',
+          sourceNodeId: trimText(edge.fromNodeId || ''),
+          targetNodeId: trimText(edge.toNodeId || ''),
+          sourceSessionId,
+          targetSessionId,
+          sourceTitle: trimText(sourceNode?.title || ''),
+          targetTitle: trimText(targetNode?.title || ''),
+          canHandoff: Boolean(
+            sourceSessionId
+            && targetSessionId
+            && sourceSessionId !== targetSessionId
+            && rendererApi?.taskHandoffController?.canHandoff?.({
+              sourceSessionId,
+              targetSessionId,
+            }) === true
+          ),
+          rendererApi,
+        },
+      };
+    });
 
   const pathNodeIds = flowNodes
     .filter((node) => node?.data?.node?.isCurrentPath)
@@ -2665,6 +3191,12 @@ function stopPropagation(event) {
   event?.stopPropagation?.();
 }
 
+function getEdgeHandoffDirectionLabel(preview = null) {
+  const sourceTitle = clipText(trimText(preview?.sourceTitle || '源任务'), 20) || '源任务';
+  const targetTitle = clipText(trimText(preview?.targetTitle || '目标任务'), 20) || '目标任务';
+  return `${sourceTitle} -> ${targetTitle}`;
+}
+
 function MelodyEdge({
   sourceX,
   sourceY,
@@ -2680,7 +3212,7 @@ function MelodyEdge({
     data?.current === true ? 'is-current' : '',
     data?.variant === 'suggestion' ? 'is-candidate' : '',
   ].filter(Boolean).join(' ');
-  const [edgePath] = getBezierPath({
+  const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -2689,11 +3221,127 @@ function MelodyEdge({
     targetPosition,
     curvature: 0.32,
   });
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [direction, setDirection] = useState('forward');
+  const [handoffBusy, setHandoffBusy] = useState(false);
+  const handoffController = data?.rendererApi?.taskHandoffController || null;
+  const canHandoff = data?.canHandoff === true && handoffController?.canHandoff?.(data) === true;
+  const forwardPreview = canHandoff ? handoffController.buildPreview(data, 'forward') : null;
+  const reversePreview = canHandoff ? handoffController.buildPreview(data, 'reverse') : null;
+  const selectedPreview = trimText(direction).toLowerCase() === 'reverse' ? reversePreview : forwardPreview;
+
+  async function confirmHandoff(event) {
+    stopEvent(event);
+    if (!canHandoff || handoffBusy) return;
+    setHandoffBusy(true);
+    try {
+      const outcome = await handoffController.executeHandoff(data, direction);
+      if (outcome) {
+        setComposerOpen(false);
+      }
+    } finally {
+      setHandoffBusy(false);
+    }
+  }
+
   return (
-    <BaseEdge
-      className={className}
-      path={edgePath}
-    />
+    <>
+      <BaseEdge
+        className={className}
+        path={edgePath}
+      />
+      {canHandoff ? (
+        <EdgeLabelRenderer>
+          <div
+            className={`quest-task-flow-edge-action-shell nodrag nopan${composerOpen ? ' is-open' : ''}`}
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              pointerEvents: 'all',
+            }}
+          >
+            <button
+              type="button"
+              className="quest-task-flow-edge-handoff-btn nodrag nopan"
+              onPointerDown={stopEvent}
+              onClick={(event) => {
+                stopEvent(event);
+                setComposerOpen(!composerOpen);
+              }}
+            >
+              传递
+            </button>
+            {composerOpen ? (
+              <div
+                className="quest-task-flow-edge-handoff-popover nodrag nopan"
+                onPointerDown={stopEvent}
+                onClick={stopPropagation}
+              >
+                <div className="quest-task-flow-edge-handoff-directions">
+                  <button
+                    type="button"
+                    className={`quest-task-flow-edge-handoff-direction nodrag nopan${trimText(direction).toLowerCase() === 'forward' ? ' is-active' : ''}`}
+                    onPointerDown={stopEvent}
+                    onClick={(event) => {
+                      stopEvent(event);
+                      setDirection('forward');
+                    }}
+                  >
+                    {getEdgeHandoffDirectionLabel(forwardPreview)}
+                  </button>
+                  <button
+                    type="button"
+                    className={`quest-task-flow-edge-handoff-direction nodrag nopan${trimText(direction).toLowerCase() === 'reverse' ? ' is-active' : ''}`}
+                    onPointerDown={stopEvent}
+                    onClick={(event) => {
+                      stopEvent(event);
+                      setDirection('reverse');
+                    }}
+                  >
+                    {getEdgeHandoffDirectionLabel(reversePreview)}
+                  </button>
+                </div>
+                <div className="quest-task-flow-edge-handoff-preview">
+                  {(Array.isArray(selectedPreview?.sections) ? selectedPreview.sections : []).map((section) => (
+                    <div key={section.key || section.label} className="quest-task-flow-edge-handoff-section">
+                      <div className="quest-task-flow-edge-handoff-section-title">{String(section.label || '')}</div>
+                      <div className="quest-task-flow-edge-handoff-section-body">
+                        {(Array.isArray(section.items) ? section.items : []).map((item) => (
+                          <div key={item} className="quest-task-flow-edge-handoff-item">{String(item || '')}</div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="quest-task-flow-edge-handoff-actions">
+                  <button
+                    type="button"
+                    className="quest-branch-btn quest-branch-btn-primary nodrag nopan"
+                    onPointerDown={stopEvent}
+                    onClick={confirmHandoff}
+                    disabled={handoffBusy}
+                  >
+                    {handoffBusy ? '传递中…' : '确认传递'}
+                  </button>
+                  <button
+                    type="button"
+                    className="quest-branch-btn quest-branch-btn-secondary nodrag nopan"
+                    onPointerDown={stopEvent}
+                    onClick={(event) => {
+                      stopEvent(event);
+                      setComposerOpen(false);
+                    }}
+                    disabled={handoffBusy}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </EdgeLabelRenderer>
+      ) : null}
+    </>
   );
 }
 
@@ -2711,6 +3359,7 @@ function MelodyNode({ data }) {
     primaryAction,
     canCreateManualBranch,
     canReparentSession,
+    graphProposal,
     isDone,
     isRichView,
     className,
@@ -2718,14 +3367,16 @@ function MelodyNode({ data }) {
     actionLabel,
   } = data;
 
-  const hostsInlineActions = primaryAction === 'create-branch' || canCreateManualBranch || canReparentSession;
+  const hostsInlineActions = primaryAction === 'create-branch' || canCreateManualBranch || canReparentSession || Boolean(graphProposal);
   const manualComposerOpen = rendererApi?.activeComposer?.type === 'manual' && rendererApi?.activeComposer?.nodeId === node?.id;
   const reparentComposerOpen = rendererApi?.activeComposer?.type === 'reparent' && rendererApi?.activeComposer?.nodeId === node?.id;
+  const actionStripActive = rendererApi?.activeActionNodeId === node?.id;
   const [branchTitle, setBranchTitle] = useState('');
   const [manualBusy, setManualBusy] = useState(false);
   const [reparentQuery, setReparentQuery] = useState('');
   const [reparentSelectionKey, setReparentSelectionKey] = useState('');
   const [reparentBusy, setReparentBusy] = useState(false);
+  const [graphProposalBusy, setGraphProposalBusy] = useState(false);
   const manualInputRef = useRef(null);
   const reparentInputRef = useRef(null);
 
@@ -2743,6 +3394,10 @@ function MelodyNode({ data }) {
       setReparentBusy(false);
     }
   }, [reparentComposerOpen]);
+
+  useEffect(() => {
+    setGraphProposalBusy(false);
+  }, [graphProposal?.proposalKey]);
 
   useLayoutEffect(() => {
     if (!manualComposerOpen) return;
@@ -2802,6 +3457,7 @@ function MelodyNode({ data }) {
 
   function openManualComposer(event) {
     stopEvent(event);
+    rendererApi?.setActiveActionNodeId?.(node?.id || '');
     rendererApi?.setActiveComposer?.({ type: 'manual', nodeId: node?.id || '' });
   }
 
@@ -2822,6 +3478,7 @@ function MelodyNode({ data }) {
       });
       if (executed) {
         rendererApi?.setActiveComposer?.(null);
+        rendererApi?.setActiveActionNodeId?.('');
       }
     } finally {
       setManualBusy(false);
@@ -2830,6 +3487,7 @@ function MelodyNode({ data }) {
 
   function openReparentComposer(event) {
     stopEvent(event);
+    rendererApi?.setActiveActionNodeId?.(node?.id || '');
     rendererApi?.setActiveComposer?.({ type: 'reparent', nodeId: node?.id || '' });
   }
 
@@ -2850,14 +3508,39 @@ function MelodyNode({ data }) {
       );
       if (executed) {
         rendererApi?.setActiveComposer?.(null);
+        rendererApi?.setActiveActionNodeId?.('');
       }
     } finally {
       setReparentBusy(false);
     }
   }
 
+  async function applyGraphProposal(event) {
+    stopEvent(event);
+    if (!graphProposal || graphProposalBusy) return;
+    setGraphProposalBusy(true);
+    try {
+      const executed = await rendererApi?.nodeActionController?.executeGraphProposal?.(graphProposal, {
+        sessionId: rendererApi?.getCurrentSessionId?.() || '',
+        state,
+        nodeMap,
+      });
+      if (executed) {
+        rendererApi?.setActiveComposer?.(null);
+        rendererApi?.setActiveActionNodeId?.('');
+      }
+    } finally {
+      setGraphProposalBusy(false);
+    }
+  }
+
   async function handleBodyClick() {
-    if (hostsInlineActions) return;
+    if (hostsInlineActions) {
+      rendererApi?.setActiveActionNodeId?.(
+        actionStripActive && !manualComposerOpen && !reparentComposerOpen ? '' : (node?.id || ''),
+      );
+      return;
+    }
     if (primaryAction === 'open-session' && !isDone && node?.sessionId) {
       await rendererApi?.nodeActionController?.executePrimaryAction?.(node, {
         state,
@@ -2927,9 +3610,13 @@ function MelodyNode({ data }) {
           null
         ) : null}
       </div>
-      {(canCreateManualBranch || canReparentSession || manualComposerOpen || reparentComposerOpen) ? (
+      {(graphProposal || canCreateManualBranch || canReparentSession || manualComposerOpen || reparentComposerOpen) ? (
         <NodeToolbar
-          isVisible
+          isVisible={
+            actionStripActive
+            || manualComposerOpen
+            || reparentComposerOpen
+          }
           position={Position.Bottom}
           offset={4}
           align="center"
@@ -2939,8 +3626,22 @@ function MelodyNode({ data }) {
             onPointerDown={stopEvent}
             onClick={stopPropagation}
           >
-            {(canCreateManualBranch || canReparentSession) ? (
+            {(graphProposal || canCreateManualBranch || canReparentSession) ? (
               <div className="quest-task-flow-react-node-action-strip">
+                {graphProposal ? (
+                  <button
+                    type="button"
+                    className="quest-branch-btn quest-branch-btn-secondary quest-task-flow-node-action nodrag nopan"
+                    onPointerDown={stopEvent}
+                    onClick={applyGraphProposal}
+                    disabled={graphProposalBusy || manualBusy || reparentBusy}
+                    title="应用建议"
+                    aria-label="应用建议"
+                  >
+                    {graphProposalBusy ? '应用中…' : '应用建议'}
+                  </button>
+                ) : null}
+
                 {canCreateManualBranch ? (
                   <button
                     type="button"
@@ -2991,6 +3692,7 @@ function MelodyNode({ data }) {
                     } else if (event.key === 'Escape') {
                       stopEvent(event);
                       rendererApi?.setActiveComposer?.(null);
+                      rendererApi?.setActiveActionNodeId?.('');
                     }
                   }}
                   disabled={manualBusy}
@@ -3012,6 +3714,7 @@ function MelodyNode({ data }) {
                     onClick={(event) => {
                       stopEvent(event);
                       rendererApi?.setActiveComposer?.(null);
+                      rendererApi?.setActiveActionNodeId?.('');
                     }}
                     disabled={manualBusy}
                   >
@@ -3092,6 +3795,7 @@ function MelodyNode({ data }) {
                       onClick={(event) => {
                         stopEvent(event);
                         rendererApi?.setActiveComposer?.(null);
+                        rendererApi?.setActiveActionNodeId?.('');
                       }}
                       disabled={reparentBusy}
                     >
@@ -3150,6 +3854,8 @@ function TaskFlowBoard({
   rendererApi,
 }) {
   const [activeComposer, setActiveComposer] = useState(null);
+  const [activeActionNodeId, setActiveActionNodeId] = useState('');
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const interactionConfig = getTaskMapInteractionConfig({
     mobile: rendererApi?.isMobileQuestTracker?.() === true,
   });
@@ -3176,10 +3882,13 @@ function TaskFlowBoard({
       ...rendererApi,
       activeComposer,
       setActiveComposer,
+      activeActionNodeId,
+      setActiveActionNodeId,
     },
     positionOverrides: effectiveLayoutPositions,
   });
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(snapshot.nodes);
+  const pendingGraphSuggestions = collectPendingGraphSuggestions(snapshot.nodes);
   const topologyKey = [
     snapshot.nodes
       .map((node) => `${node.id}:${trimText(node?.data?.node?.parentNodeId || '')}`)
@@ -3190,11 +3899,17 @@ function TaskFlowBoard({
       .sort()
       .join('|'),
   ].join('||');
+
+  useEffect(() => {
+    if (pendingGraphSuggestions.length > 0) return;
+    setSuggestionsOpen(false);
+  }, [pendingGraphSuggestions.length]);
   const activeComposerKey = activeComposer
     ? `${trimText(activeComposer.type)}:${trimText(activeComposer.nodeId)}`
     : '';
   const snapshotStateKey = [
     activeComposerKey,
+    trimText(activeActionNodeId),
     snapshot.nodes.map((node) => [
       node.id,
       node.position.x,
@@ -3206,6 +3921,7 @@ function TaskFlowBoard({
       node.data?.primaryAction || '',
       node.data?.canCreateManualBranch === true ? '1' : '0',
       node.data?.canReparentSession === true ? '1' : '0',
+      node.data?.graphProposal?.proposalKey || '',
     ].join(':')).join('|'),
     snapshot.edges.map((edge) => [
       edge.id,
@@ -3305,7 +4021,11 @@ function TaskFlowBoard({
             maxZoom={interactionConfig.maxZoom}
             proOptions={{ hideAttribution: true }}
             nodeDragThreshold={interactionConfig.nodeDragThreshold}
-            onPaneClick={() => setActiveComposer(null)}
+            onPaneClick={() => {
+              setActiveComposer(null);
+              setActiveActionNodeId('');
+              setSuggestionsOpen(false);
+            }}
           >
             <FlowViewportSync
               nodes={flowNodes}
@@ -3315,6 +4035,55 @@ function TaskFlowBoard({
             />
           </ReactFlow>
         </ReactFlowProvider>
+        {pendingGraphSuggestions.length > 0 ? (
+          <div className="quest-task-flow-react-global-actions">
+            <div className="quest-task-flow-react-global-button">
+              <button
+                type="button"
+                className="quest-branch-btn quest-branch-btn-secondary nodrag nopan"
+                onClick={() => setSuggestionsOpen((value) => !value)}
+                aria-expanded={suggestionsOpen ? 'true' : 'false'}
+              >
+                整理建议
+                <span className="quest-task-flow-react-global-count">{pendingGraphSuggestions.length}</span>
+              </button>
+            </div>
+            {suggestionsOpen ? (
+              <div className="quest-task-flow-react-global-panel nodrag nopan">
+                <div className="quest-task-flow-react-global-panel-header">
+                  <div className="quest-task-flow-react-global-panel-title">当前建议</div>
+                  <div className="quest-task-flow-react-global-panel-hint">先看全图，再逐条应用</div>
+                </div>
+                <div className="quest-task-flow-react-global-list">
+                  {pendingGraphSuggestions.slice(0, 5).map((entry) => (
+                    <div key={entry.proposalKey} className="quest-task-flow-react-global-item">
+                      <div className="quest-task-flow-react-global-item-header">
+                        <div className="quest-task-flow-react-global-item-title">
+                          <span className="quest-task-flow-react-global-item-title-text">{entry.nodeTitle || '未命名任务'}</span>
+                        </div>
+                        <div className="quest-task-flow-react-global-item-kind">{entry.kindLabel}</div>
+                      </div>
+                      <div className="quest-task-flow-react-global-item-reason">{entry.reasonText}</div>
+                      <div className="quest-task-flow-react-global-item-actions">
+                        <button
+                          type="button"
+                          className="quest-branch-btn quest-branch-btn-secondary nodrag nopan"
+                          onClick={() => {
+                            setActiveComposer(null);
+                            setActiveActionNodeId(entry.nodeId);
+                            setSuggestionsOpen(false);
+                          }}
+                        >
+                          查看建议
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {snapshot.hasOnlyRoot ? (
           <div className="task-map-empty quest-task-flow-react-empty">{resolvedEmptyLabel}</div>
         ) : null}
@@ -3330,6 +4099,270 @@ function createEmptyState(documentRef = document) {
   return empty;
 }
 
+function canUseReactFlowMount(documentRef = document) {
+  return Boolean(
+    documentRef
+    && typeof documentRef.querySelector === 'function'
+    && typeof createRoot === 'function',
+  );
+}
+
+function appendStaticNodeText(documentRef, host, className, text, title = '') {
+  const normalizedText = String(text || '').trim();
+  if (!normalizedText || !host) return null;
+  const node = ensureCompatElement(documentRef.createElement('div'), documentRef);
+  node.className = className;
+  node.textContent = normalizedText;
+  if (title) node.title = String(title);
+  host.appendChild(node);
+  return node;
+}
+
+function renderStaticFlowBoard({
+  activeQuest = null,
+  nodeMap = new Map(),
+  rootNode = null,
+  state = null,
+  rendererApi = null,
+  documentRef = document,
+} = {}) {
+  const snapshot = buildBoardSnapshot({
+    activeQuest,
+    nodeMap,
+    rootNode,
+    state,
+    rendererApi,
+    positionOverrides: null,
+  });
+  const container = ensureCompatElement(documentRef.createElement('div'), documentRef);
+  container.className = 'quest-task-mindmap-board is-spine quest-task-flow-shell is-static-fallback';
+  container.dataset.taskMapRenderer = 'react-flow';
+  container.dataset.taskMapViewport = rendererApi?.isMobileQuestTracker?.() === true ? 'mobile' : 'desktop';
+
+  if (!Array.isArray(snapshot.nodes) || snapshot.nodes.length === 0) {
+    return createEmptyState(documentRef);
+  }
+
+  for (const entry of snapshot.nodes) {
+    const flowNode = ensureCompatElement(documentRef.createElement('div'), documentRef);
+    flowNode.className = String(entry?.data?.className || '').trim();
+    const primaryAction = trimText(entry?.data?.primaryAction || '');
+    const isRichView = entry?.data?.isRichView === true;
+    const isDone = entry?.data?.isDone === true;
+    if (flowNode.style?.setProperty) {
+      flowNode.style.setProperty('width', entry?.style?.width || '');
+      flowNode.style.setProperty('height', entry?.style?.height || '');
+      flowNode.style.setProperty('min-height', entry?.style?.minHeight || '');
+    }
+    appendStaticNodeText(documentRef, flowNode, entry?.data?.badgeClassName || '', entry?.data?.badgeLabel || '');
+    appendStaticNodeText(documentRef, flowNode, 'quest-task-flow-node-title', entry?.data?.title || '', entry?.data?.rawTitle || '');
+    appendStaticNodeText(documentRef, flowNode, 'quest-task-flow-node-summary', entry?.data?.summary || '', entry?.data?.summary || '');
+
+    if (primaryAction === 'open-session' || isRichView) {
+      flowNode.addEventListener('click', async (event) => {
+        stopEvent(event);
+        if (primaryAction === 'open-session' && !isDone && entry?.data?.node?.sessionId) {
+          await rendererApi?.nodeActionController?.executePrimaryAction?.(entry.data.node, {
+            state: entry?.data?.state || state,
+            nodeMap: entry?.data?.nodeMap || nodeMap,
+            isRichView,
+            isDone,
+          });
+          return;
+        }
+        if (isRichView && typeof rendererApi?.selectTaskCanvasNode === 'function') {
+          rendererApi.selectTaskCanvasNode(entry?.data?.node?.id || '', { render: true });
+        }
+      });
+    }
+
+    if (primaryAction === 'create-branch') {
+      const actionBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
+      actionBtn.type = 'button';
+      actionBtn.className = 'quest-branch-btn quest-branch-btn-primary quest-task-flow-node-action nodrag nopan';
+      actionBtn.textContent = entry?.data?.actionLabel || '开启支线';
+      actionBtn.addEventListener('click', async (event) => {
+        stopEvent(event);
+        await rendererApi?.nodeActionController?.executePrimaryAction?.(entry.data.node, {
+          state: entry?.data?.state || state,
+          nodeMap: entry?.data?.nodeMap || nodeMap,
+          isRichView,
+          isDone,
+        });
+      });
+      flowNode.appendChild(actionBtn);
+    }
+
+    const rawTargets = typeof rendererApi?.listReparentTargets === 'function'
+      ? rendererApi.listReparentTargets({
+        sourceSessionId: trimText(entry?.data?.node?.sourceSessionId || entry?.data?.node?.sessionId || ''),
+        node: entry?.data?.node || null,
+        state,
+        nodeMap,
+      })
+      : [];
+
+    if (entry?.data?.canCreateManualBranch === true || entry?.data?.canReparentSession === true) {
+      const actions = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      actions.className = 'quest-task-flow-react-node-actions nodrag nopan';
+      const strip = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      strip.className = 'quest-task-flow-react-node-action-strip';
+      actions.appendChild(strip);
+
+      if (entry?.data?.canCreateManualBranch === true) {
+        const branchBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
+        branchBtn.type = 'button';
+        branchBtn.className = 'quest-branch-btn quest-branch-btn-secondary quest-task-flow-node-action quest-task-flow-node-action-compact nodrag nopan';
+        branchBtn.textContent = '+';
+        branchBtn.title = '新建支线';
+        strip.appendChild(branchBtn);
+      }
+
+      if (entry?.data?.canReparentSession === true) {
+        const reparentBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
+        reparentBtn.type = 'button';
+        reparentBtn.className = 'quest-branch-btn quest-branch-btn-secondary quest-task-flow-node-action nodrag nopan';
+        reparentBtn.textContent = '挂到...';
+        strip.appendChild(reparentBtn);
+
+        const composer = ensureCompatElement(documentRef.createElement('div'), documentRef);
+        composer.className = 'quest-task-flow-reparent-composer nodrag nopan';
+        composer.hidden = true;
+        const list = ensureCompatElement(documentRef.createElement('div'), documentRef);
+        list.className = 'quest-task-flow-reparent-list';
+        composer.appendChild(list);
+
+        for (const target of Array.isArray(rawTargets) ? rawTargets.slice(0, 8) : []) {
+          const option = ensureCompatElement(documentRef.createElement('button'), documentRef);
+          option.type = 'button';
+          option.className = 'quest-task-flow-reparent-option nodrag nopan';
+          appendStaticNodeText(documentRef, option, 'quest-task-flow-reparent-option-title', target?.title || '未命名任务');
+          appendStaticNodeText(documentRef, option, 'quest-task-flow-reparent-option-path', target?.displayPath || target?.path || '顶层任务');
+          list.appendChild(option);
+        }
+
+        reparentBtn.addEventListener('click', (event) => {
+          stopEvent(event);
+          composer.hidden = false;
+        });
+        actions.appendChild(composer);
+      }
+
+      flowNode.appendChild(actions);
+    }
+
+    container.appendChild(flowNode);
+  }
+
+  if (rendererApi?.taskHandoffController) {
+    for (const edge of Array.isArray(snapshot.edges) ? snapshot.edges : []) {
+      if (edge?.data?.canHandoff !== true) continue;
+      const actionShell = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      actionShell.className = 'quest-task-flow-edge-action-shell is-static-fallback';
+
+      const triggerBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
+      triggerBtn.type = 'button';
+      triggerBtn.className = 'quest-task-flow-edge-handoff-btn nodrag nopan';
+      triggerBtn.textContent = '传递';
+      actionShell.appendChild(triggerBtn);
+
+      const popover = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      popover.className = 'quest-task-flow-edge-handoff-popover nodrag nopan';
+      popover.hidden = true;
+
+      const directions = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      directions.className = 'quest-task-flow-edge-handoff-directions';
+      popover.appendChild(directions);
+
+      const previewHost = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      previewHost.className = 'quest-task-flow-edge-handoff-preview';
+      popover.appendChild(previewHost);
+
+      let activeDirection = 'forward';
+      const renderPreview = () => {
+        previewHost.innerHTML = '';
+        const preview = rendererApi.taskHandoffController.buildPreview(edge.data, activeDirection);
+        for (const section of Array.isArray(preview?.sections) ? preview.sections : []) {
+          const sectionEl = ensureCompatElement(documentRef.createElement('div'), documentRef);
+          sectionEl.className = 'quest-task-flow-edge-handoff-section';
+          appendStaticNodeText(documentRef, sectionEl, 'quest-task-flow-edge-handoff-section-title', section.label || '');
+          const body = ensureCompatElement(documentRef.createElement('div'), documentRef);
+          body.className = 'quest-task-flow-edge-handoff-section-body';
+          for (const item of Array.isArray(section.items) ? section.items : []) {
+            appendStaticNodeText(documentRef, body, 'quest-task-flow-edge-handoff-item', item || '');
+          }
+          sectionEl.appendChild(body);
+          previewHost.appendChild(sectionEl);
+        }
+      };
+
+      for (const nextDirection of ['forward', 'reverse']) {
+        const preview = rendererApi.taskHandoffController.buildPreview(edge.data, nextDirection);
+        const directionBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
+        directionBtn.type = 'button';
+        directionBtn.className = `quest-task-flow-edge-handoff-direction nodrag nopan${nextDirection === activeDirection ? ' is-active' : ''}`;
+        directionBtn.textContent = getEdgeHandoffDirectionLabel(preview);
+        directionBtn.addEventListener('click', (event) => {
+          stopEvent(event);
+          activeDirection = nextDirection;
+          for (const child of directions.children || []) {
+            child.classList?.remove?.('is-active');
+          }
+          directionBtn.classList?.add?.('is-active');
+          renderPreview();
+        });
+        directions.appendChild(directionBtn);
+      }
+
+      const actions = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      actions.className = 'quest-task-flow-edge-handoff-actions';
+      const confirmBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
+      confirmBtn.type = 'button';
+      confirmBtn.className = 'quest-branch-btn quest-branch-btn-primary nodrag nopan';
+      confirmBtn.textContent = '确认传递';
+      confirmBtn.addEventListener('click', async (event) => {
+        stopEvent(event);
+        confirmBtn.disabled = true;
+        try {
+          await rendererApi.taskHandoffController.executeHandoff(edge.data, activeDirection);
+          popover.hidden = true;
+        } finally {
+          confirmBtn.disabled = false;
+        }
+      });
+      const cancelBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'quest-branch-btn quest-branch-btn-secondary nodrag nopan';
+      cancelBtn.textContent = '取消';
+      cancelBtn.addEventListener('click', (event) => {
+        stopEvent(event);
+        popover.hidden = true;
+      });
+      actions.appendChild(confirmBtn);
+      actions.appendChild(cancelBtn);
+      popover.appendChild(actions);
+
+      triggerBtn.addEventListener('click', (event) => {
+        stopEvent(event);
+        popover.hidden = !popover.hidden;
+      });
+
+      renderPreview();
+      actionShell.appendChild(popover);
+      container.appendChild(actionShell);
+    }
+  }
+
+  if (snapshot.hasOnlyRoot) {
+    const empty = ensureCompatElement(documentRef.createElement('div'), documentRef);
+    empty.className = 'task-map-empty quest-task-flow-react-empty';
+    empty.textContent = '暂无支线，后续任务流程会显示在这里。';
+    container.appendChild(empty);
+  }
+
+  return container;
+}
+
 function createRenderer({
   documentRef = document,
   windowRef = window,
@@ -3342,16 +4375,26 @@ function createRenderer({
   listReparentTargets = null,
   getSessionRecord = null,
   attachSession = null,
+  buildTaskHandoffPreview = null,
+  handoffSessionTaskData = null,
   selectTaskCanvasNode = null,
   getSelectedTaskCanvasNodeId = () => '',
+  getCurrentSessionId = () => '',
 } = {}) {
+  ensureReactDocumentCompat(documentRef);
   ensureReactFlowStyles(documentRef);
+  const supportsReactFlowMount = canUseReactFlowMount(documentRef);
   const nodeActionController = getNodeActionController(windowRef, {
     collapseTaskMapAfterAction,
     enterBranchFromSession,
     getSessionRecord,
     attachSession,
     reparentSession,
+    getCurrentSessionId,
+  });
+  const taskHandoffController = createTaskHandoffController({
+    buildTaskHandoffPreview,
+    handoffSessionTaskData,
   });
   const rendererApi = {
     documentRef,
@@ -3362,7 +4405,9 @@ function createRenderer({
     listReparentTargets,
     selectTaskCanvasNode,
     getSelectedTaskCanvasNodeId,
+    getCurrentSessionId,
     nodeActionController,
+    taskHandoffController,
   };
 
   return {
@@ -3370,10 +4415,21 @@ function createRenderer({
       return trimText(getSelectedTaskCanvasNodeId?.() || '');
     },
     renderFlowBoard({ activeQuest, nodeMap, rootNode, state }) {
-      if (!activeQuest || !(nodeMap instanceof Map) || !rootNode?.id) {
+      const hasNodeMapApi = nodeMap && typeof nodeMap.get === 'function';
+      if (!activeQuest || !hasNodeMapApi || !rootNode?.id) {
         return createEmptyState(documentRef);
       }
-      const container = documentRef.createElement('div');
+      if (!supportsReactFlowMount) {
+        return renderStaticFlowBoard({
+          activeQuest,
+          nodeMap,
+          rootNode,
+          state,
+          rendererApi,
+          documentRef,
+        });
+      }
+      const container = ensureCompatElement(documentRef.createElement('div'), documentRef);
       const interactionConfig = getTaskMapInteractionConfig({
         mobile: isMobileQuestTracker() === true,
       });

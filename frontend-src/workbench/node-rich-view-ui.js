@@ -95,10 +95,19 @@
       || null;
   }
 
+  function canUseReactRichView(options = {}) {
+    const documentRef = options?.documentRef || globalThis?.document || document;
+    return Boolean(
+      documentRef
+      && typeof documentRef.querySelector === "function"
+      && typeof documentRef.createElement === "function",
+    );
+  }
+
   function createRenderer(options = {}) {
     const windowRef = options?.windowRef || globalThis?.window || window;
     const reactFactory = getWorkbenchReactUi(windowRef)?.createRichViewRenderer;
-    if (typeof reactFactory === "function") {
+    if (typeof reactFactory === "function" && canUseReactRichView(options)) {
       return reactFactory(options);
     }
     return createFallbackRenderer(options);

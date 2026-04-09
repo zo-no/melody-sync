@@ -675,6 +675,8 @@ export async function createBranchFromNode(nodeId, payload = {}) {
         effort: sourceSession.effort || '',
         thinking: sourceSession.thinking === true,
         activeAgreements: sourceSession.activeAgreements || [],
+        taskListOrigin: 'user',
+        taskListVisibility: 'secondary',
         sourceContext: {
           kind: 'workbench_node_branch',
           projectId: project.id,
@@ -808,6 +810,8 @@ export async function createBranchFromSession(sessionId, payload = {}) {
         effort: sourceSession.effort || '',
         thinking: sourceSession.thinking === true,
         activeAgreements: sourceSession.activeAgreements || [],
+        taskListOrigin: 'user',
+        taskListVisibility: 'secondary',
         sourceContext: {
           kind: 'workbench_node_branch',
           projectId: project.id,

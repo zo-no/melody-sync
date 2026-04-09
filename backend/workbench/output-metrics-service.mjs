@@ -141,7 +141,6 @@ function buildSessionMetricRecord(session, state) {
     touchedAt,
     createdAt,
     structured,
-    messageCount: Number.isInteger(session?.messageCount) ? session.messageCount : 0,
     workflowSignals: session?.workflowSignals && typeof session.workflowSignals === 'object' && !Array.isArray(session.workflowSignals)
       ? session.workflowSignals
       : {},
@@ -217,7 +216,6 @@ function computeWindowScore({
 
 function summarizeWindow(sessionMetrics, branchContexts, { startMs, endMs }) {
   const touchedSessions = sessionMetrics.filter((entry) => isBetween(entry.touchedAt, startMs, endMs));
-  const createdSessions = sessionMetrics.filter((entry) => isBetween(entry.createdAt, startMs, endMs));
   const completedSessions = touchedSessions.filter((entry) => entry.workflowState === SESSION_WORKFLOW_STATE_DONE);
   const structuredSessions = touchedSessions.filter((entry) => entry.structured);
   const resolvedBranchIds = new Set(
@@ -235,7 +233,6 @@ function summarizeWindow(sessionMetrics, branchContexts, { startMs, endMs }) {
       structuredSessions: structuredSessions.length,
       touchedSessions: touchedSessions.length,
     }),
-    createdSessions: createdSessions.length,
     touchedSessions: touchedSessions.length,
     completedSessions: completedSessions.length,
     resolvedBranches: resolvedBranchIds.size,
@@ -296,8 +293,15 @@ function describeFocus({
 }
 
 function buildRecentWins(sessionMetrics, normalizedBranchContexts) {
+  const resolvedBranchSessionIds = new Set(
+    normalizedBranchContexts
+      .filter((entry) => RESOLVED_BRANCH_STATUSES.has(entry.status))
+      .map((entry) => entry.sessionId)
+      .filter(Boolean),
+  );
   const completedEntries = sessionMetrics
     .filter((entry) => entry.workflowState === SESSION_WORKFLOW_STATE_DONE)
+    .filter((entry) => !(entry.lineRole === 'branch' && resolvedBranchSessionIds.has(entry.id)))
     .map((entry) => ({
       type: 'session_done',
       title: entry.title,
@@ -386,7 +390,6 @@ export function buildWorkbenchOutputMetrics(state, sessions, options = {}) {
   const waitingSessions = openSessions.filter((entry) => entry.workflowState === SESSION_WORKFLOW_STATE_WAITING_USER).length;
   const parkedSessions = openSessions.filter((entry) => entry.workflowState === SESSION_WORKFLOW_STATE_PARKED).length;
   const structuredOpenSessions = openSessions.filter((entry) => entry.structured).length;
-  const doneSessions = sessionMetrics.filter((entry) => entry.workflowState === SESSION_WORKFLOW_STATE_DONE).length;
   const workflowSignals = buildWorkflowSignalSummary(sessionMetrics);
   const focusScore = computeFocusScore({
     activeMainSessions,
@@ -430,13 +433,10 @@ export function buildWorkbenchOutputMetrics(state, sessions, options = {}) {
   return {
     generatedAt: new Date(nowMs).toISOString(),
     overview: {
-      totalSessions: sessionMetrics.length,
-      openSessions: openSessions.length,
       activeMainSessions,
       activeBranchSessions,
       waitingSessions,
       parkedSessions,
-      doneSessions,
       structuredOpenSessions,
       focusScore,
       focusLabel: focus.label,

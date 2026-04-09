@@ -9,6 +9,11 @@ import vm from 'vm';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const workbenchStylesheet = readFileSync(join(repoRoot, 'frontend-src', 'chat-workbench.css'), 'utf8');
+const sidebarUiSource = readFileSync(join(repoRoot, 'frontend-src', 'session-list', 'sidebar-ui.js'), 'utf8');
+const sessionListUiSource = readFileSync(join(repoRoot, 'frontend-src', 'session-list', 'ui.js'), 'utf8');
+const sessionListReactUiSource = readFileSync(join(repoRoot, 'frontend-src', 'session-list', 'react-ui.js'), 'utf8');
+const sidebarStylesheet = readFileSync(join(repoRoot, 'frontend-src', 'chat-sidebar.css'), 'utf8');
+const chatTemplateSource = readFileSync(join(repoRoot, 'templates', 'chat.html'), 'utf8');
 
 const filesToParse = [
   join(repoRoot, 'frontend-src', 'frontend.js'),
@@ -44,10 +49,9 @@ const filesToParse = [
   join(repoRoot, 'frontend-src', 'workbench', 'task-list-ui.js'),
   join(repoRoot, 'frontend-src', 'workbench', 'status-card-ui.js'),
   join(repoRoot, 'frontend-src', 'workbench', 'persistent-editor-ui.js'),
-  join(repoRoot, 'frontend-src', 'workbench', 'operation-record-summary-ui.js'),
-  join(repoRoot, 'frontend-src', 'workbench', 'operation-record-list-ui.js'),
   join(repoRoot, 'frontend-src', 'workbench', 'branch-actions.js'),
   join(repoRoot, 'frontend-src', 'workbench', 'operation-record-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'output-panel-ui.js'),
   join(repoRoot, 'frontend-src', 'settings', 'hooks', 'model.js'),
   join(repoRoot, 'frontend-src', 'settings', 'voice', 'ui.js'),
   join(repoRoot, 'frontend-src', 'settings/hooks/ui.js'),
@@ -64,6 +68,72 @@ for (const filePath of filesToParse) {
     `${filePath} should parse cleanly.\n${result.stderr || result.stdout}`,
   );
 }
+
+assert.match(
+  sidebarUiSource,
+  /sidebar-grouping-popover/,
+  'sidebar grouping config should render a custom popover instead of relying on prompt()',
+);
+
+assert.match(
+  sidebarUiSource,
+  /sidebar-grouping-summary/,
+  'sidebar grouping toolbar should expose a visible summary of the current grouping strategy',
+);
+
+assert.match(
+  sessionListUiSource,
+  /session-grouping-create-section/,
+  'session list fallback renderer should expose an inline create-folder section above archive',
+);
+
+assert.match(
+  sessionListReactUiSource,
+  /session-grouping-create-section/,
+  'session list React renderer should expose an inline create-folder section above archive',
+);
+
+assert.match(
+  sessionListReactUiSource,
+  /folder-group-delete/,
+  'session list React renderer should expose per-folder delete actions in user mode',
+);
+
+assert.doesNotMatch(
+  sidebarUiSource,
+  /const nextValue = prompt\(/,
+  'sidebar grouping config should no longer use a blocking prompt dialog',
+);
+
+assert.doesNotMatch(
+  chatTemplateSource,
+  /sidebarGroupingConfigBtn/,
+  'sidebar toolbar should no longer keep a top-level template edit button',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.sidebar-grouping-popover\s*\{/,
+  'sidebar stylesheet should include the anchored grouping popover shell',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.sidebar-grouping-summary\s*\{/,
+  'sidebar stylesheet should include the grouping summary row beneath the toolbar',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-grouping-create-section\s*\{/,
+  'sidebar stylesheet should include the create-folder section rendered above archive',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.folder-group-delete\s*\{/,
+  'sidebar stylesheet should include the per-folder delete action styling',
+);
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

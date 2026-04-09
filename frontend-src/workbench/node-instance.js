@@ -106,6 +106,16 @@
       capabilities: nodeEffectsApi?.getNodeCapabilities?.(node) || [],
       surfaceBindings: nodeEffectsApi?.getNodeSurfaceBindings?.(node) || ["task-map"],
       taskCardBindings: nodeEffectsApi?.getNodeTaskCardBindings?.(node) || [],
+      actionPayload: (() => {
+        if (!node?.actionPayload || typeof node.actionPayload !== "object" || Array.isArray(node.actionPayload)) {
+          return null;
+        }
+        const payload = {};
+        for (const [key, value] of Object.entries(node.actionPayload)) {
+          payload[key] = value;
+        }
+        return Object.keys(payload).length > 0 ? payload : null;
+      })(),
       view: nodeEffectsApi?.getNodeView?.(node) || null,
       origin: normalizeNodeOrigin(node?.origin, origin),
     };
@@ -154,6 +164,23 @@
       taskCardBindings: Array.isArray(patchNode?.taskCardBindings) && patchNode.taskCardBindings.length > 0
         ? [...patchNode.taskCardBindings]
         : (Array.isArray(existingNode?.taskCardBindings) ? [...existingNode.taskCardBindings] : []),
+      actionPayload: (() => {
+        if (patchNode?.actionPayload && typeof patchNode.actionPayload === "object" && !Array.isArray(patchNode.actionPayload)) {
+          const payload = {};
+          for (const [key, value] of Object.entries(patchNode.actionPayload)) {
+            payload[key] = value;
+          }
+          if (Object.keys(payload).length > 0) return payload;
+        }
+        if (existingNode?.actionPayload && typeof existingNode.actionPayload === "object" && !Array.isArray(existingNode.actionPayload)) {
+          const payload = {};
+          for (const [key, value] of Object.entries(existingNode.actionPayload)) {
+            payload[key] = value;
+          }
+          return Object.keys(payload).length > 0 ? payload : null;
+        }
+        return null;
+      })(),
       view: patchNode?.view && typeof patchNode.view === "object"
         ? cloneJson(patchNode.view)
         : (existingNode?.view ? cloneJson(existingNode.view) : null),
@@ -184,6 +211,7 @@
       summary: trimText(nodeInstance.summary),
       capabilities: Array.isArray(nodeInstance.capabilities) ? [...nodeInstance.capabilities] : [],
       sourceSessionId: resolveNodeSourceSessionId(nodeInstance),
+      ...(nodeInstance.actionPayload ? { actionPayload: { ...nodeInstance.actionPayload } } : {}),
       taskCardBindings: normalizeAllowedTokenList(
         nodeInstance.taskCardBindings,
         getTaskCardBindingKeys(),

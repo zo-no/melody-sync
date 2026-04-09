@@ -139,19 +139,20 @@
       const draft = props?.draft || null;
       const isLoading = props?.isLoading === true || !draft;
       const currentRuntime = props?.currentRuntime || null;
+      const editorStep = draft?.editorStep === "details" ? "details" : "pick_kind";
       host.innerHTML = "";
       host.hidden = false;
 
-      const dialog = documentRef.createElement("div");
-      dialog.className = "modal persistent-editor-modal";
-      dialog.setAttribute("role", "dialog");
-      dialog.setAttribute("aria-modal", "true");
+      const dialog = documentRef.createElement("section");
+      dialog.className = "operation-record-persistent-editor persistent-editor-popover";
+      dialog.setAttribute("role", "group");
+      dialog.setAttribute("aria-label", draft?.mode === "configure" ? "长期项设置" : "沉淀为长期项");
 
       const header = documentRef.createElement("div");
-      header.className = "modal-header persistent-editor-modal-header";
+      header.className = "operation-record-persistent-editor-header persistent-editor-modal-header";
 
       const title = documentRef.createElement("div");
-      title.className = "modal-title persistent-editor-modal-title";
+      title.className = "operation-record-persistent-editor-title persistent-editor-modal-title";
       title.textContent = draft?.mode === "configure" ? "长期项设置" : "沉淀为长期项";
       header.appendChild(title);
 
@@ -165,18 +166,22 @@
       dialog.appendChild(header);
 
       const lead = documentRef.createElement("div");
-      lead.className = "modal-lead persistent-editor-modal-lead";
+      lead.className = "operation-record-persistent-editor-lead persistent-editor-modal-lead";
       lead.textContent = draft
-        ? (draft.mode === "configure" ? "只保留类型、名称、摘要和提示词。" : "已根据当前会话自动生成一版长期项摘要。")
+        ? (draft.mode === "configure"
+          ? "只保留类型、名称、摘要和提示词。"
+          : (editorStep === "details"
+            ? "沉淀后会出现在任务列表顶部的长期区。"
+            : "先选择要沉淀成哪种长期能力。"))
         : "正在整理当前会话内容…";
       dialog.appendChild(lead);
 
       const body = documentRef.createElement("div");
-      body.className = "modal-body persistent-editor-modal-body";
+      body.className = "persistent-editor-modal-body";
       dialog.appendChild(body);
 
       const footer = documentRef.createElement("div");
-      footer.className = "modal-footer persistent-editor-modal-footer";
+      footer.className = "operation-record-persistent-editor-footer persistent-editor-modal-footer";
       dialog.appendChild(footer);
 
       if (isLoading) {
@@ -188,149 +193,187 @@
         return;
       }
 
-      const form = documentRef.createElement("div");
-      form.className = "persistent-editor-modal-form";
-
-      const kindRow = documentRef.createElement("div");
-      kindRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
-      [
-        { kind: "recurring_task", label: "长期任务" },
-        { kind: "skill", label: "快捷按钮" },
-      ].forEach((entry) => {
-        const button = documentRef.createElement("button");
-        button.type = "button";
-        button.className = "operation-record-kind-btn";
-        button.classList.toggle("is-active", draft.kind === entry.kind);
-        button.textContent = entry.label;
-        button.addEventListener("click", () => {
-          draft.kind = entry.kind;
-          if (entry.kind === "recurring_task") {
-            if (draft.scheduleMode !== "pinned" && draft.scheduleMode !== "session_default") {
-              draft.scheduleMode = currentRuntime?.tool ? "pinned" : "session_default";
-            }
-            if (draft.scheduleMode === "pinned" && !draft.scheduleRuntime?.tool && currentRuntime?.tool) {
-              draft.scheduleRuntime = cloneJson(currentRuntime);
-            }
-          }
-          renderPersistentEditorModal(host, props);
-        });
-        kindRow.appendChild(button);
-      });
-      form.appendChild(buildField("类型", kindRow));
-
-      const titleInput = documentRef.createElement("input");
-      titleInput.type = "text";
-      titleInput.className = "operation-record-persistent-input";
-      titleInput.value = draft.digestTitle;
-      titleInput.placeholder = "给这个长期项起个名字";
-      titleInput.addEventListener("input", () => {
-        draft.digestTitle = titleInput.value;
-      });
-      form.appendChild(buildField("名称", titleInput));
-
-      const summaryInput = documentRef.createElement("textarea");
-      summaryInput.className = "operation-record-persistent-textarea";
-      summaryInput.rows = 4;
-      summaryInput.value = draft.digestSummary;
-      summaryInput.placeholder = "保留这次会话沉淀下来的核心摘要";
-      summaryInput.addEventListener("input", () => {
-        draft.digestSummary = summaryInput.value;
-      });
-      form.appendChild(buildField("摘要", summaryInput));
-
-      const promptInput = documentRef.createElement("textarea");
-      promptInput.className = "operation-record-persistent-textarea";
-      promptInput.rows = 4;
-      promptInput.value = draft.runPrompt;
-      promptInput.placeholder = "触发时默认要执行什么";
-      promptInput.addEventListener("input", () => {
-        draft.runPrompt = promptInput.value;
-      });
-      form.appendChild(buildField("提示词", promptInput));
-
-      const cadence = normalizeRecurringCadence(draft.recurring?.cadence);
-      if (draft.kind === "recurring_task") {
-        const cadenceSelect = documentRef.createElement("select");
-        cadenceSelect.className = "operation-record-persistent-select";
+      if (draft.mode !== "configure" && editorStep !== "details") {
+        const chooser = documentRef.createElement("div");
+        chooser.className = "persistent-editor-kind-grid";
         [
-          { value: "hourly", label: "每小时" },
-          { value: "daily", label: "每天" },
-          { value: "weekly", label: "每周" },
+          {
+            kind: "skill",
+            label: "AI快捷按钮",
+            description: "手动点击后触发，由 AI 执行一段可复用动作。",
+          },
+          {
+            kind: "recurring_task",
+            label: "长期任务",
+            description: "按固定周期自动执行，适合巡检、整理和定时跟进。",
+          },
         ].forEach((entry) => {
-          const option = documentRef.createElement("option");
-          option.value = entry.value;
-          option.textContent = entry.label;
-          cadenceSelect.appendChild(option);
+          const button = documentRef.createElement("button");
+          button.type = "button";
+          button.className = "persistent-editor-kind-card";
+          button.innerHTML = `<span class="persistent-editor-kind-card-title">${entry.label}</span>
+            <span class="persistent-editor-kind-card-description">${entry.description}</span>`;
+          button.addEventListener("click", () => {
+            draft.kind = entry.kind;
+            if (entry.kind === "recurring_task") {
+              if (draft.scheduleMode !== "pinned" && draft.scheduleMode !== "session_default") {
+                draft.scheduleMode = currentRuntime?.tool ? "pinned" : "session_default";
+              }
+              if (draft.scheduleMode === "pinned" && !draft.scheduleRuntime?.tool && currentRuntime?.tool) {
+                draft.scheduleRuntime = cloneJson(currentRuntime);
+              }
+            }
+            draft.editorStep = "details";
+            renderPersistentEditorModal(host, props);
+          });
+          chooser.appendChild(button);
         });
-        cadenceSelect.value = cadence;
-        cadenceSelect.addEventListener("change", () => {
-          draft.recurring.cadence = cadenceSelect.value;
-          renderPersistentEditorModal(host, props);
-        });
-        form.appendChild(buildField("触发周期", cadenceSelect));
+        body.appendChild(chooser);
+      } else {
+        const form = documentRef.createElement("div");
+        form.className = "persistent-editor-modal-form";
 
-        const timeInput = documentRef.createElement("input");
-        timeInput.type = "time";
-        timeInput.className = "operation-record-persistent-input";
-        timeInput.value = normalizeTimeOfDay(draft.recurring?.timeOfDay);
-        timeInput.addEventListener("input", () => {
-          draft.recurring.timeOfDay = normalizeTimeOfDay(timeInput.value);
+        const kindRow = documentRef.createElement("div");
+        kindRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
+        [
+          { kind: "recurring_task", label: "长期任务" },
+          { kind: "skill", label: "AI快捷按钮" },
+        ].forEach((entry) => {
+          const button = documentRef.createElement("button");
+          button.type = "button";
+          button.className = "operation-record-kind-btn";
+          button.classList.toggle("is-active", draft.kind === entry.kind);
+          button.textContent = entry.label;
+          button.addEventListener("click", () => {
+            draft.kind = entry.kind;
+            if (entry.kind === "recurring_task") {
+              if (draft.scheduleMode !== "pinned" && draft.scheduleMode !== "session_default") {
+                draft.scheduleMode = currentRuntime?.tool ? "pinned" : "session_default";
+              }
+              if (draft.scheduleMode === "pinned" && !draft.scheduleRuntime?.tool && currentRuntime?.tool) {
+                draft.scheduleRuntime = cloneJson(currentRuntime);
+              }
+            }
+            renderPersistentEditorModal(host, props);
+          });
+          kindRow.appendChild(button);
         });
-        form.appendChild(buildField(cadence === "hourly" ? "触发分钟" : "触发时间", timeInput));
+        form.appendChild(buildField("类型", kindRow));
 
-        if (cadence === "weekly") {
-          const weekdayRow = documentRef.createElement("div");
-          weekdayRow.className = "operation-record-weekday-row";
-          for (let day = 0; day <= 6; day += 1) {
-            weekdayRow.appendChild(buildWeekdayToggle(day, host, props));
+        const titleInput = documentRef.createElement("input");
+        titleInput.type = "text";
+        titleInput.className = "operation-record-persistent-input";
+        titleInput.value = draft.digestTitle;
+        titleInput.placeholder = "给这个长期项起个名字";
+        titleInput.addEventListener("input", () => {
+          draft.digestTitle = titleInput.value;
+        });
+        form.appendChild(buildField("名称", titleInput));
+
+        const summaryInput = documentRef.createElement("textarea");
+        summaryInput.className = "operation-record-persistent-textarea";
+        summaryInput.rows = 3;
+        summaryInput.value = draft.digestSummary;
+        summaryInput.placeholder = "保留这次会话沉淀下来的核心摘要";
+        summaryInput.addEventListener("input", () => {
+          draft.digestSummary = summaryInput.value;
+        });
+        form.appendChild(buildField("摘要", summaryInput));
+
+        const promptInput = documentRef.createElement("textarea");
+        promptInput.className = "operation-record-persistent-textarea";
+        promptInput.rows = 4;
+        promptInput.value = draft.runPrompt;
+        promptInput.placeholder = draft.kind === "skill" ? "点击后默认交给 AI 执行什么" : "执行时默认要做什么";
+        promptInput.addEventListener("input", () => {
+          draft.runPrompt = promptInput.value;
+        });
+        form.appendChild(buildField(draft.kind === "skill" ? "触发动作" : "执行动作", promptInput));
+
+        const cadence = normalizeRecurringCadence(draft.recurring?.cadence);
+        if (draft.kind === "recurring_task") {
+          const cadenceSelect = documentRef.createElement("select");
+          cadenceSelect.className = "operation-record-persistent-select";
+          [
+            { value: "hourly", label: "每小时" },
+            { value: "daily", label: "每天" },
+            { value: "weekly", label: "每周" },
+          ].forEach((entry) => {
+            const option = documentRef.createElement("option");
+            option.value = entry.value;
+            option.textContent = entry.label;
+            cadenceSelect.appendChild(option);
+          });
+          cadenceSelect.value = cadence;
+          cadenceSelect.addEventListener("change", () => {
+            draft.recurring.cadence = cadenceSelect.value;
+            renderPersistentEditorModal(host, props);
+          });
+          form.appendChild(buildField("触发周期", cadenceSelect));
+
+          const timeInput = documentRef.createElement("input");
+          timeInput.type = "time";
+          timeInput.className = "operation-record-persistent-input";
+          timeInput.value = normalizeTimeOfDay(draft.recurring?.timeOfDay);
+          timeInput.addEventListener("input", () => {
+            draft.recurring.timeOfDay = normalizeTimeOfDay(timeInput.value);
+          });
+          form.appendChild(buildField(cadence === "hourly" ? "触发分钟" : "触发时间", timeInput));
+
+          if (cadence === "weekly") {
+            const weekdayRow = documentRef.createElement("div");
+            weekdayRow.className = "operation-record-weekday-row";
+            for (let day = 0; day <= 6; day += 1) {
+              weekdayRow.appendChild(buildWeekdayToggle(day, host, props));
+            }
+            form.appendChild(buildField("每周日期", weekdayRow));
           }
-          form.appendChild(buildField("每周日期", weekdayRow));
         }
-      }
 
-      form.appendChild(buildRuntimeSection({
-        host,
-        props,
-        title: "手动触发",
-        mode: draft.manualMode,
-        allowedModes: ["follow_current", "session_default", "pinned"],
-        runtime: draft.manualRuntime,
-        onModeChange(value) {
-          draft.manualMode = value;
-          if (value === "pinned" && !draft.manualRuntime?.tool && currentRuntime?.tool) {
-            draft.manualRuntime = cloneJson(currentRuntime);
-          }
-        },
-        onPinCurrent() {
-          if (currentRuntime?.tool) {
-            draft.manualRuntime = cloneJson(currentRuntime);
-          }
-        },
-      }));
-
-      if (draft.kind === "recurring_task") {
         form.appendChild(buildRuntimeSection({
           host,
           props,
-          title: "周期执行",
-          mode: draft.scheduleMode,
-          allowedModes: ["session_default", "pinned"],
-          runtime: draft.scheduleRuntime,
+          title: "手动触发",
+          mode: draft.manualMode,
+          allowedModes: ["follow_current", "session_default", "pinned"],
+          runtime: draft.manualRuntime,
           onModeChange(value) {
-            draft.scheduleMode = value;
-            if (value === "pinned" && !draft.scheduleRuntime?.tool && currentRuntime?.tool) {
-              draft.scheduleRuntime = cloneJson(currentRuntime);
+            draft.manualMode = value;
+            if (value === "pinned" && !draft.manualRuntime?.tool && currentRuntime?.tool) {
+              draft.manualRuntime = cloneJson(currentRuntime);
             }
           },
           onPinCurrent() {
             if (currentRuntime?.tool) {
-              draft.scheduleRuntime = cloneJson(currentRuntime);
+              draft.manualRuntime = cloneJson(currentRuntime);
             }
           },
         }));
-      }
 
-      body.appendChild(form);
+        if (draft.kind === "recurring_task") {
+          form.appendChild(buildRuntimeSection({
+            host,
+            props,
+            title: "周期执行",
+            mode: draft.scheduleMode,
+            allowedModes: ["session_default", "pinned"],
+            runtime: draft.scheduleRuntime,
+            onModeChange(value) {
+              draft.scheduleMode = value;
+              if (value === "pinned" && !draft.scheduleRuntime?.tool && currentRuntime?.tool) {
+                draft.scheduleRuntime = cloneJson(currentRuntime);
+              }
+            },
+            onPinCurrent() {
+              if (currentRuntime?.tool) {
+                draft.scheduleRuntime = cloneJson(currentRuntime);
+              }
+            },
+          }));
+        }
+
+        body.appendChild(form);
+      }
 
       const cancelBtn = documentRef.createElement("button");
       cancelBtn.type = "button";
@@ -339,12 +382,26 @@
       cancelBtn.addEventListener("click", () => props?.onClose?.());
       footer.appendChild(cancelBtn);
 
-      const saveBtn = documentRef.createElement("button");
-      saveBtn.type = "button";
-      saveBtn.className = "modal-btn primary";
-      saveBtn.textContent = draft.mode === "configure" ? "保存" : "保存为长期项";
-      saveBtn.addEventListener("click", () => props?.onSave?.());
-      footer.appendChild(saveBtn);
+      if (draft.mode !== "configure" && editorStep === "details") {
+        const backBtn = documentRef.createElement("button");
+        backBtn.type = "button";
+        backBtn.className = "modal-btn";
+        backBtn.textContent = "返回";
+        backBtn.addEventListener("click", () => {
+          draft.editorStep = "pick_kind";
+          renderPersistentEditorModal(host, props);
+        });
+        footer.appendChild(backBtn);
+      }
+
+      if (draft.mode === "configure" || editorStep === "details") {
+        const saveBtn = documentRef.createElement("button");
+        saveBtn.type = "button";
+        saveBtn.className = "modal-btn primary";
+        saveBtn.textContent = draft.mode === "configure" ? "保存" : "保存为长期项";
+        saveBtn.addEventListener("click", () => props?.onSave?.());
+        footer.appendChild(saveBtn);
+      }
 
       host.appendChild(dialog);
     }
@@ -362,10 +419,19 @@
       || null;
   }
 
+  function canUseReactPersistentEditor(options = {}) {
+    const documentRef = options?.documentRef || globalThis?.document || document;
+    return Boolean(
+      documentRef
+      && typeof documentRef.querySelector === "function"
+      && typeof documentRef.createElement === "function",
+    );
+  }
+
   function createRenderer(options = {}) {
     const windowRef = options?.windowRef || globalThis?.window || window;
     const reactFactory = getWorkbenchReactUi(windowRef)?.createPersistentEditorRenderer;
-    if (typeof reactFactory === "function") {
+    if (typeof reactFactory === "function" && canUseReactPersistentEditor(options)) {
       return reactFactory(options);
     }
     return createFallbackRenderer(options);

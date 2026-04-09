@@ -38,6 +38,12 @@
       || Boolean(trimText(node?.sessionId || node?.sourceSessionId));
   }
 
+  function getGraphOpsUi() {
+    return globalThis?.MelodySyncGraphOpsUi
+      || globalThis?.window?.MelodySyncGraphOpsUi
+      || null;
+  }
+
   function resolvePrimaryAction(node, { isRichView = false, isDone = false } = {}) {
     if (!node || isRichView || isDone) return "none";
     if (hasNodeCapability(node, "create-branch")) return "create-branch";
@@ -89,6 +95,7 @@
     getSessionRecord = null,
     attachSession = null,
     reparentSession = null,
+    getCurrentSessionId = () => "",
   } = {}) {
     async function executeCreateBranch(node, { nodeMap = new Map() } = {}) {
       const sourceSessionId = getNodeInstanceApi()?.resolveNodeSourceSessionId?.(node)
@@ -151,6 +158,19 @@
       return true;
     }
 
+    async function executeGraphProposal(proposal, { sessionId = "" } = {}) {
+      const normalizedSessionId = trimText(sessionId) || trimText(getCurrentSessionId?.() || "");
+      if (!normalizedSessionId || !proposal?.graphOps) return false;
+      const graphOpsUi = getGraphOpsUi();
+      if (typeof graphOpsUi?.applyProposal !== "function") return false;
+      await graphOpsUi.applyProposal({
+        sessionId: normalizedSessionId,
+        sourceSeq: proposal?.sourceSeq,
+        graphOps: proposal.graphOps,
+      });
+      return true;
+    }
+
     return Object.freeze({
       getNodeCapabilities,
       hasNodeCapability,
@@ -162,6 +182,7 @@
       canReparentSession,
       executeManualBranch,
       executeReparentSession,
+      executeGraphProposal,
       executePrimaryAction,
     });
   }

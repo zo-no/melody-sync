@@ -158,6 +158,7 @@ renderer.renderPersistentEditorModal(host, {
   draft: {
     sessionId: 'session-persistent',
     mode: 'promote',
+    editorStep: 'details',
     kind: 'recurring_task',
     digestTitle: '每小时检查',
     digestSummary: '继续优化任务图',
@@ -177,8 +178,8 @@ renderer.renderPersistentEditorModal(host, {
   onSave() {},
 });
 
-assert.equal(host.hidden, false, 'rendering the modal should reveal the backdrop host');
-assert.equal(findAllByClass(host, 'persistent-editor-modal').length, 1, 'renderer should mount the modal shell');
+assert.equal(host.hidden, false, 'rendering the editor should reveal the host');
+assert.equal(findAllByClass(host, 'operation-record-persistent-editor').length, 1, 'renderer should mount the inline editor shell');
 assert.equal(findAllByClass(host, 'operation-record-kind-btn').length, 2, 'renderer should show both persistent kind buttons');
 assert.equal(findAllByClass(host, 'operation-record-weekday-btn').length, 7, 'weekly cadence should render weekday toggles');
 assert.equal(

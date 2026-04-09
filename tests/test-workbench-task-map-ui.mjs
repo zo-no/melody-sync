@@ -29,6 +29,27 @@ const taskMapReactSource = readFileSync(
   'utf8',
 );
 
+assert.match(
+  taskMapReactSource,
+  /应用建议/,
+  'task-map React UI should expose a compact apply-suggestion action from node context',
+);
+assert.match(
+  taskMapReactSource,
+  /activeActionNodeId/,
+  'task-map React UI should gate node action strips behind explicit node activation instead of always showing them',
+);
+assert.match(
+  taskMapReactSource,
+  /isVisible=\{\s*actionStripActive[\s\S]*?\|\|\s*manualComposerOpen[\s\S]*?\|\|\s*reparentComposerOpen\s*\}/s,
+  'task-map React UI should only show node action strips after explicit activation or while a composer is open',
+);
+assert.match(
+  taskMapReactSource,
+  /整理建议/,
+  'task-map React UI should expose a restrained global suggestions entry for pending graph proposals',
+);
+
 function makeClassList(owner) {
   const tokens = new Set();
   const sync = () => {
@@ -114,13 +135,15 @@ function makeElement(tagName = 'div') {
     select() {},
     dispatchEvent(event = {}) {
       const type = String(event.type || '');
+      const results = [];
       for (const handler of listeners.get(type) || []) {
-        handler({
+        results.push(handler({
           preventDefault() {},
           stopPropagation() {},
           ...event,
-        });
+        }));
       }
+      return Promise.all(results);
     },
   };
   Object.defineProperty(element, 'innerHTML', {
@@ -218,6 +241,7 @@ vm.runInNewContext(nodeEffectsSource, context, { filename: 'workbench/node-effec
 vm.runInNewContext(taskMapReactBundleSource, context, { filename: 'workbench/task-map-react.bundle.js' });
 vm.runInNewContext(taskMapUiSource, context, { filename: 'workbench/task-map-ui.js' });
 
+const handoffCalls = [];
 const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
   documentRef,
   windowRef,
@@ -235,6 +259,25 @@ const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
         searchText: '目标任务 方案讨论',
       },
     ];
+  },
+  buildTaskHandoffPreview(sourceSessionId, targetSessionId) {
+    return {
+      sourceSessionId,
+      targetSessionId,
+      sourceTitle: sourceSessionId === 'main-1' ? '主任务' : '其他任务',
+      targetTitle: targetSessionId === 'branch-running' ? '运行节点' : '其他节点',
+      sections: [
+        { key: 'conclusions', label: '结论', items: ['已经整理出需要传递的阶段信息'] },
+        { key: 'nextSteps', label: '下一步', items: ['继续推进目标任务'] },
+      ],
+    };
+  },
+  async handoffSessionTaskData(sourceSessionId, payload = {}) {
+    handoffCalls.push({
+      sourceSessionId,
+      targetSessionId: payload?.targetSessionId || '',
+    });
+    return { ok: true };
   },
 });
 
@@ -291,6 +334,7 @@ assert.match(
 const rootNode = {
   id: 'session:main-1',
   kind: 'main',
+  sessionId: 'main-1',
   title: '主任务',
   summary: '任务地图状态色应该和左栏一致',
   childNodeIds: ['session:branch-running', 'session:branch-waiting', 'session:branch-done'],
@@ -415,6 +459,27 @@ assert.equal(
   findFirstByClass(reparentComposer, 'quest-task-flow-reparent-option-path')?.textContent,
   '最近使用 · 目标任务 / 方案讨论',
   'reparent chooser should render the display path used for recent targets',
+);
+
+const handoffTrigger = findFirstByClass(board, 'quest-task-flow-edge-handoff-btn');
+assert.ok(handoffTrigger, 'task-map edges should render a visible handoff trigger when both endpoints are sessions');
+handoffTrigger.dispatchEvent({ type: 'click' });
+
+const handoffPopover = findFirstByClass(board, 'quest-task-flow-edge-handoff-popover');
+assert.ok(handoffPopover, 'clicking the edge handoff trigger should reveal the preview popover');
+assert.equal(handoffPopover.hidden, false, 'handoff preview popover should open inline in the static fallback renderer');
+
+const handoffConfirmBtn = findFirst(handoffPopover, (node) => node?.textContent === '确认传递');
+assert.ok(handoffConfirmBtn, 'handoff popover should expose a confirm action');
+await handoffConfirmBtn.dispatchEvent({ type: 'click' });
+
+assert.deepEqual(
+  handoffCalls[0],
+  {
+    sourceSessionId: 'main-1',
+    targetSessionId: 'branch-running',
+  },
+  'confirming edge handoff should call the injected task handoff action with the source and target session ids',
 );
 
 console.log('test-workbench-task-map-ui: ok');

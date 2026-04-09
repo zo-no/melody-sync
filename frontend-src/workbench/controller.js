@@ -37,6 +37,8 @@
   const trackerConclusionsListEl = document.getElementById("questTrackerConclusionsList");
   const trackerMemoryRowEl = document.getElementById("questTrackerMemoryRow");
   const trackerMemoryListEl = document.getElementById("questTrackerMemoryList");
+  const trackerCandidatesRowEl = document.getElementById("questTrackerCandidatesRow");
+  const trackerCandidatesListEl = document.getElementById("questTrackerCandidatesList");
   if (!tracker) return;
 
   const SUPPRESSED_PREFIX = "melodysyncSuppressedBranch";
@@ -80,6 +82,7 @@
   let operationRecordController = null;
   let trackerPersistentActionsEl = null;
   let selectedTaskCanvasNodeId = "";
+  let mobileTaskDetailExpanded = false;
   let taskMapResizeState = null;
   const workbenchViewModelListeners = new Set();
 
@@ -533,7 +536,12 @@
     trackerConclusionsListEl,
     trackerMemoryRowEl,
     trackerMemoryListEl,
+    trackerCandidateBranchesRowEl: trackerCandidatesRowEl,
+    trackerCandidateBranchesListEl: trackerCandidatesListEl,
     getPersistentActionsEl: ensureTrackerPersistentActionsEl,
+    getCurrentSessionSafe,
+    isSuppressed,
+    enterBranchFromCurrentSession,
     clipText,
     toConciseGoal,
     isMobileQuestTracker,
@@ -575,8 +583,11 @@
     listReparentTargets: ({ sourceSessionId }) => listReparentTargets(sourceSessionId),
     getSessionRecord,
     attachSession,
+    buildTaskHandoffPreview,
+    handoffSessionTaskData,
     selectTaskCanvasNode,
     getSelectedTaskCanvasNodeId: () => selectedTaskCanvasNodeId,
+    getCurrentSessionId: getCurrentSessionIdSafe,
   }) || {
     renderFlowBoard() {
       const empty = document.createElement("div");
@@ -616,7 +627,7 @@
 
   function renderTaskMapRail(state) {
     if (!trackerTaskListEl) return;
-    const activeQuest = getTaskMapProjection()?.activeMainQuest || null;
+    const activeQuest = state?.taskMapProjection?.activeMainQuest || getTaskMapProjection()?.activeMainQuest || null;
     if (!activeQuest) {
       clearTaskMapRailHost();
       trackerTaskListEl.hidden = true;
@@ -735,6 +746,10 @@
     return window?.MelodySyncWorkbenchGraphClient || null;
   }
 
+  function getNodeEffectsApi() {
+    return window?.MelodySyncWorkbenchNodeEffects || null;
+  }
+
   function getFocusedSessionId() {
     const normalizedFocused = normalizeSessionId(focusedSessionId);
     if (normalizedFocused) {
@@ -832,10 +847,11 @@
     activeCanvasNode = null,
   } = {}) {
     const showCanvas = Boolean(activeCanvasNode && hasTaskCanvasView(activeCanvasNode));
+    const showHeaderTaskDetailBtn = mobileTracker && !showCanvas;
     return {
       showCanvas,
-      showHeaderTaskDetailBtn: false,
-      showTracker: !showCanvas,
+      showHeaderTaskDetailBtn,
+      showTracker: showCanvas ? false : (!mobileTracker || mobileTaskDetailExpanded),
     };
   }
 
@@ -1063,6 +1079,75 @@
   function getBranchDisplayName(session) {
     const raw = getSessionDisplayName(session);
     return raw.replace(/^(?:Branch\s*[·•-]\s*|支线\s*[·•:-]\s*)/i, "").trim() || raw;
+  }
+
+  function buildTaskHandoffPreview(sourceSessionId, targetSessionId, options = {}) {
+    const sourceSession = getSessionRecord(sourceSessionId) || null;
+    const targetSession = getSessionRecord(targetSessionId) || null;
+    const sourceTaskCard = sourceSession?.taskCard && typeof sourceSession.taskCard === "object" ? sourceSession.taskCard : {};
+    const sourceTitle = normalizeTitle(options.sourceTitle || getSessionDisplayName(sourceSession) || "源任务");
+    const targetTitle = normalizeTitle(options.targetTitle || getSessionDisplayName(targetSession) || "目标任务");
+    const pickList = (key, max = 3) => (
+      Array.isArray(sourceTaskCard?.[key])
+        ? sourceTaskCard[key].map((entry) => clipText(entry, 140)).filter(Boolean).slice(0, max)
+        : []
+    );
+    const background = [...pickList("background", 2), ...pickList("rawMaterials", 2)]
+      .filter((entry, index, list) => list.indexOf(entry) === index)
+      .slice(0, 4);
+    const constraints = pickList("assumptions", 3);
+    const conclusions = [
+      ...pickList("knownConclusions", 3),
+      clipText(sourceTaskCard?.checkpoint || sourceTaskCard?.summary || sourceTaskCard?.goal || sourceSession?.name || "", 140),
+    ].filter((entry, index, list) => entry && list.indexOf(entry) === index).slice(0, 4);
+    const nextSteps = pickList("nextSteps", 3);
+    const sections = [
+      { key: "background", label: "背景", items: background },
+      { key: "constraints", label: "约束", items: constraints },
+      { key: "conclusions", label: "结论", items: conclusions },
+      { key: "nextSteps", label: "下一步", items: nextSteps },
+    ].filter((section) => section.items.length > 0);
+
+    return {
+      sourceSessionId: normalizeSessionId(sourceSessionId),
+      targetSessionId: normalizeSessionId(targetSessionId),
+      sourceTitle,
+      targetTitle,
+      summary: `${sourceTitle} -> ${targetTitle}`,
+      sections: sections.length > 0
+        ? sections
+        : [{ key: "conclusions", label: "结论", items: [`来自任务「${sourceTitle}」的阶段数据交接`] }],
+    };
+  }
+
+  async function handoffSessionTaskData(sourceSessionId, payload = {}) {
+    const normalizedSourceSessionId = normalizeSessionId(sourceSessionId);
+    const targetSessionId = normalizeSessionId(payload?.targetSessionId);
+    if (!normalizedSourceSessionId || !targetSessionId || normalizedSourceSessionId === targetSessionId) {
+      return null;
+    }
+    try {
+      const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(normalizedSourceSessionId)}/handoff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetSessionId,
+        }),
+      });
+      if (response?.session) {
+        replaceSessionRecord(response.session);
+      }
+      if (response?.snapshot) {
+        snapshot = response.snapshot;
+      }
+      await refreshTaskMapGraph(getFocusedSessionId() || getCurrentSessionIdSafe(), { force: true });
+      renderTracker();
+      renderPathPanel();
+      return response;
+    } catch (error) {
+      console.warn("[quest] Failed to handoff task data:", error?.message || error);
+      return null;
+    }
   }
 
   function collectTaskMapSessionEntries() {
@@ -1331,6 +1416,7 @@
     if (!emptyNode) return;
 
     if (!state?.hasSession) {
+      mobileTaskDetailExpanded = false;
       questHasSessionTracked = false;
       document.body?.classList?.remove?.("workbench-has-session");
       emptyNode.hidden = true;
@@ -1365,7 +1451,17 @@
   }
 
   function renderTracker() {
-    const state = deriveQuestState();
+    const taskMapProjection = getTaskMapProjection();
+    const taskMapActiveNode = taskMapProjection?.activeNode || null;
+    const taskMapVisualStatus = taskMapActiveNode
+      ? (getNodeEffectsApi()?.getNodeTaskRunStatusUi?.(taskMapActiveNode) || null)
+      : null;
+    const state = {
+      ...deriveQuestState(),
+      taskMapProjection,
+      taskMapActiveNode,
+      taskMapVisualStatus,
+    };
     // Keep suggested questions in sync with the current session state.
     if (typeof window.renderSuggestedQuestions === "function") {
       window.renderSuggestedQuestions(state.session || null);
@@ -1399,8 +1495,7 @@
     const trackerPrimaryDetail = getTrackerPrimaryDetail(state);
     const trackerSecondaryDetail = getTrackerSecondaryDetail(state, trackerPrimaryDetail);
     const mobileTracker = isMobileQuestTracker();
-    const projection = getTaskMapProjection();
-    const activeCanvasNode = renderTaskCanvas(projection, { allowAutoOpen: false });
+    const activeCanvasNode = renderTaskCanvas(taskMapProjection, { allowAutoOpen: true });
     const detailPanels = resolveWorkbenchDetailPanels({
       mobileTracker,
       activeCanvasNode,
@@ -1416,7 +1511,7 @@
       headerTaskDetailBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
     }
     if (headerTitleEl) {
-      headerTitleEl.hidden = false;
+      headerTitleEl.hidden = detailPanels.showHeaderTaskDetailBtn;
     }
     tracker.hidden = !expanded;
     trackerTitleEl.textContent = trackerTitle;
@@ -1443,12 +1538,12 @@
     renderPersistentTrackerActions(state.session);
     branchActionController?.syncTrackerButtons(state);
     renderTaskMapRail(state);
-    renderTrackerDetail(state.session?.taskCard);
+    renderTrackerDetail(state.session);
     notifyWorkbenchViewModel("render");
   }
 
-  function renderTrackerDetail(taskCard) {
-    trackerRenderer?.renderDetail(taskCard, trackerDetailExpanded);
+  function renderTrackerDetail(session) {
+    trackerRenderer?.renderDetail(session?.taskCard, trackerDetailExpanded, session);
   }
 
   function renderPathPanel() {
@@ -1717,6 +1812,7 @@
   });
 
   headerTaskDetailBtn?.addEventListener("click", () => {
+    mobileTaskDetailExpanded = !mobileTaskDetailExpanded;
     clearTaskCanvasNode({ render: false });
     renderTracker();
   });
@@ -1724,6 +1820,7 @@
   document.addEventListener("melodysync:session-change", (event) => {
     const nextFocusedSessionId = normalizeSessionId(event?.detail?.session?.id || "");
     collapseTaskMapAfterAction({ render: false });
+    mobileTaskDetailExpanded = false;
     selectedTaskCanvasNodeId = "";
     snapshot.taskMapGraph = null;
     if (nextFocusedSessionId) {
@@ -1837,11 +1934,6 @@
 
   // ── Operation Record ─────────────────────────────────────────────
 
-  const operationRecordBtn = document.getElementById("operationRecordBtn");
-  const operationRecordRail = document.getElementById("operationRecordRail");
-  const operationRecordBackdrop = document.getElementById("operationRecordBackdrop");
-  const operationRecordCloseBtn = document.getElementById("operationRecordCloseBtn");
-  const operationRecordInner = document.getElementById("operationRecordInner");
   branchActionController = window.MelodySyncBranchActions?.createController?.({
     trackerCloseBtn,
     trackerAltBtn,
@@ -1868,11 +1960,6 @@
     setCurrentBranchStatus() {},
   };
   operationRecordController = window.MelodySyncOperationRecordUi?.createController?.({
-    operationRecordBtn,
-    operationRecordRail,
-    operationRecordBackdrop,
-    operationRecordCloseBtn,
-    operationRecordInner,
     getFocusedSessionId,
     getFocusedSessionRecord,
     attachSession,
@@ -1920,8 +2007,6 @@
     getTaskMapRendererKind: () => String(taskMapFlowRenderer?.getRendererKind?.() || taskMapFlowRenderer?.rendererKind || "unknown"),
     selectTaskCanvasNode,
     clearTaskCanvasNode,
-    openOperationRecord: () => operationRecordController.setOpen(true),
-    closeOperationRecord: () => operationRecordController.setOpen(false),
     refreshOperationRecord: () => operationRecordController.refreshIfOpen(),
   };
   window.MelodySyncWorkbenchViewModel = Object.freeze({

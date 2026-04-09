@@ -325,6 +325,16 @@ function questToGraphData(quest = {}) {
       taskCardBindings: Array.isArray(node.taskCardBindings) ? [...node.taskCardBindings] : [],
       view: node.view ? JSON.parse(JSON.stringify(node.view)) : null,
       origin: node.origin ? JSON.parse(JSON.stringify(node.origin)) : null,
+      actionPayload: (() => {
+        if (!node?.actionPayload || typeof node.actionPayload !== 'object' || Array.isArray(node.actionPayload)) {
+          return null;
+        }
+        const payload = {};
+        for (const [key, value] of Object.entries(node.actionPayload)) {
+          payload[key] = value;
+        }
+        return Object.keys(payload).length > 0 ? payload : null;
+      })(),
     })),
     edges: (Array.isArray(quest.edges) ? quest.edges : []).map((edge) => ({
       id: edge.id,
@@ -498,6 +508,9 @@ function buildDefaultQuestGraph({
   function appendCandidateNodes(parentSession = null, parentNodeId = '', depth = 1, directChildSessions = []) {
     const rawCandidates = getTaskCardList(getTaskCard(parentSession), 'candidateBranches');
     if (!rawCandidates.length) return;
+    const parentTaskCard = getTaskCard(parentSession);
+    const branchReason = trimText(parentTaskCard?.branchReason || `从「${getSessionTitle(parentSession)}」继续拆出独立支线`);
+    const checkpointSummary = trimText(parentTaskCard?.checkpoint);
     const existingChildKeys = new Set();
     for (const childSession of directChildSessions) {
       for (const key of getCandidateKeysForSession(childSession)) {
@@ -522,6 +535,10 @@ function buildDefaultQuestGraph({
         title: normalizedTitle,
         summary: '建议拆成独立支线',
         status: 'candidate',
+        actionPayload: {
+          branchReason,
+          checkpointSummary: checkpointSummary || normalizedTitle,
+        },
       });
     }
   }

@@ -112,7 +112,10 @@ function hasSurfaceBinding(node = {}, surfaceSlot = '') {
 function buildComposerSuggestionEntry(node = {}) {
   const nodeInstance = createNodeInstance(node, { origin: node?.origin || null });
   if (!trimText(nodeInstance?.title)) return null;
-  return {
+  const actionPayload = nodeInstance?.actionPayload && typeof nodeInstance.actionPayload === 'object'
+    ? { ...nodeInstance.actionPayload }
+    : null;
+  const entry = {
     id: trimText(nodeInstance.id),
     text: trimText(nodeInstance.title),
     summary: trimText(nodeInstance.summary),
@@ -125,6 +128,10 @@ function buildComposerSuggestionEntry(node = {}) {
     ),
     origin: nodeInstance.origin ? { ...nodeInstance.origin } : null,
   };
+  if (actionPayload) {
+    entry.actionPayload = actionPayload;
+  }
+  return entry;
 }
 
 function createNodeInstance(node = {}, { questId = '', origin = null } = {}) {
@@ -164,6 +171,16 @@ function createNodeInstance(node = {}, { questId = '', origin = null } = {}) {
       NODE_TASK_CARD_BINDING_KEYS,
       Array.isArray(composition.taskCardBindings) ? composition.taskCardBindings : [],
     ),
+    actionPayload: (() => {
+      if (!node?.actionPayload || typeof node.actionPayload !== 'object' || Array.isArray(node.actionPayload)) {
+        return null;
+      }
+      const normalized = {};
+      for (const [key, value] of Object.entries(node.actionPayload)) {
+        normalized[key] = value;
+      }
+      return Object.keys(normalized).length > 0 ? normalized : null;
+    })(),
     view: normalizeNodeView(node.view, definition),
     origin: normalizeNodeOrigin(node.origin, origin),
   };
@@ -192,6 +209,23 @@ function mergeNodeInstances(existingNode = {}, patchNode = {}, { origin = null }
     taskCardBindings: Array.isArray(patchNode?.taskCardBindings) && patchNode.taskCardBindings.length > 0
       ? [...patchNode.taskCardBindings]
       : (Array.isArray(existingNode?.taskCardBindings) ? [...existingNode.taskCardBindings] : []),
+    actionPayload: (() => {
+      if (patchNode?.actionPayload && typeof patchNode.actionPayload === 'object' && !Array.isArray(patchNode.actionPayload)) {
+        const payload = {};
+        for (const [key, value] of Object.entries(patchNode.actionPayload)) {
+          payload[key] = value;
+        }
+        if (Object.keys(payload).length > 0) return payload;
+      }
+      if (existingNode?.actionPayload && typeof existingNode.actionPayload === 'object' && !Array.isArray(existingNode.actionPayload)) {
+        const payload = {};
+        for (const [key, value] of Object.entries(existingNode.actionPayload)) {
+          payload[key] = value;
+        }
+        return Object.keys(payload).length > 0 ? payload : null;
+      }
+      return null;
+    })(),
     view: patchNode?.view && typeof patchNode.view === 'object'
       ? { ...patchNode.view }
       : (existingNode?.view ? { ...existingNode.view } : null),

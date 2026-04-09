@@ -387,22 +387,18 @@
 
 ### 当前定位
 
-- 它是右侧的历史操作面板，不是任务地图
-- 它服务“看发生过什么”，不是“决定下一步做什么”
+- 该右侧面板已移除
+- 现存 `frontend-src/workbench/operation-record-ui.js` 只保留长期项 / persistent editor 控制器，不再承载历史记录面板
 
 ### 当前数据来源
 
-- route：`GET /api/workbench/sessions/:id/operation-record`
-- route 文件：`backend/routes/workbench.mjs`
-- projection：`backend/workbench/operation-records.mjs`
-- state 读写：`backend/workbench/state-store.mjs`
-- 前端面板：`frontend/workbench/operation-record-ui.js`
+- 原 `GET /api/workbench/sessions/:id/operation-record` 已删除
+- 原 projection `backend/workbench/operation-records.mjs` 已删除
+- 前端历史面板入口与独立 summary/list renderer 已删除
 
 ### 当前展示内容
 
-- 主线用户消息记录
-- 挂在主线消息上的支线记录
-- 支线内部自己的用户消息记录
+- 不再提供独立“操作记录面板”展示
 - 支线收束摘要
 
 ## 4. 当前判断

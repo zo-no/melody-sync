@@ -1513,12 +1513,21 @@
   gap: 8px;
 }
 
+.quest-tracker-detail-row .quest-branch-suggestion-list {
+  gap: 6px;
+}
+
 .quest-branch-suggestion-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 2px 0;
+}
+
+.quest-tracker-detail-row .quest-branch-suggestion-item {
+  align-items: flex-start;
+  padding: 0;
 }
 
 .quest-branch-suggestion-main {
@@ -3548,93 +3557,6 @@ button.quest-task-flow-node {
   }
 }
 
-.operation-record-backdrop {
-  position: fixed;
-  inset: 0;
-  border: 0;
-  background: transparent;
-  opacity: 1;
-  z-index: 120;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-.operation-record-backdrop[hidden] {
-  display: none !important;
-}
-
-.operation-record-rail {
-  position: fixed;
-  top: 8px;
-  right: 8px;
-  bottom: 8px;
-  width: min(320px, calc(100vw - 16px));
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--workbench-settings-stroke);
-  border-radius: 24px;
-  background: var(--bg);
-  box-shadow: var(--workbench-settings-panel-shadow);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  transform: translateX(calc(100% + 16px));
-  transition: transform 0.22s ease, opacity 0.22s ease;
-  opacity: 0;
-  overflow: hidden;
-  z-index: 160;
-  pointer-events: none;
-}
-
-.operation-record-rail.is-open {
-  transform: translateX(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.operation-record-rail[hidden] {
-  display: none !important;
-}
-
-.operation-record-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px 10px;
-  flex-shrink: 0;
-}
-
-.operation-record-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.operation-record-close-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-}
-
-.operation-record-close-btn:hover {
-  background: color-mix(in srgb, var(--border) 40%, transparent);
-  color: var(--text);
-}
-
-.operation-record-inner {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0 12px;
-}
-
 .operation-record-empty {
   padding: 24px 16px;
   color: var(--text-secondary);
@@ -3720,9 +3642,24 @@ button.quest-task-flow-node {
   color: var(--text-secondary);
 }
 
-.persistent-editor-modal {
-  width: min(560px, calc(100vw - 28px));
-  overflow: hidden;
+.operation-record-persistent-host {
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.operation-record-persistent-host[hidden] {
+  display: none !important;
+}
+
+.persistent-editor-popover {
+  margin: 0;
+  width: auto;
+  max-height: min(68vh, 560px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  box-shadow:
+    0 18px 38px color-mix(in srgb, #0b1520 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .persistent-editor-modal-header {
@@ -3747,6 +3684,43 @@ button.quest-task-flow-node {
 .persistent-editor-modal-form {
   display: grid;
   gap: 12px;
+}
+
+.persistent-editor-kind-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.persistent-editor-kind-card {
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 58%),
+    color-mix(in srgb, var(--surface) 96%, var(--bg-secondary));
+  color: var(--text);
+  border-radius: 16px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+.persistent-editor-kind-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+}
+
+.persistent-editor-kind-card-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.persistent-editor-kind-card-description {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
 }
 
 .persistent-editor-modal-kind-row {
@@ -3865,13 +3839,17 @@ button.quest-task-flow-node {
 }
 
 @media (max-width: 767px) {
-  .persistent-editor-modal {
-    width: min(100vw - 20px, 560px);
+  .persistent-editor-popover {
+    max-height: min(58vh, 460px);
   }
 
   .persistent-editor-modal-lead {
     padding-top: 12px;
     font-size: 11px;
+  }
+
+  .persistent-editor-kind-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -4167,6 +4145,259 @@ button.quest-task-flow-node {
 
 .hooks-panel .new-session-btn:hover {
   background: color-mix(in srgb, #ffffff 92%, var(--text) 8%);
+}
+
+.output-panel {
+  max-width: 960px;
+}
+
+.output-panel-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.output-panel-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--workbench-settings-chip-stroke);
+  background: var(--workbench-settings-chip-surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.output-panel-refresh:hover {
+  background: color-mix(in srgb, var(--workbench-settings-chip-surface) 72%, var(--surface-hover) 28%);
+}
+
+.output-panel-body {
+  padding-top: 0;
+}
+
+.output-panel-shell {
+  display: grid;
+  gap: 18px;
+  padding: 0 18px 18px;
+}
+
+.output-panel-section {
+  display: grid;
+  gap: 12px;
+}
+
+.output-panel-kicker {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.output-panel-metric-grid,
+.output-panel-section-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.output-metric-card,
+.output-panel-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 15px;
+  border-radius: 16px;
+  border: 1px solid var(--workbench-settings-stroke);
+  background: var(--workbench-settings-surface);
+  box-shadow: inset 0 1px 0 var(--workbench-settings-inset-highlight);
+}
+
+.output-metric-card.is-score {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--success) 12%, var(--workbench-settings-surface)), var(--workbench-settings-surface));
+}
+
+.output-metric-card.is-day {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--notice) 10%, var(--workbench-settings-surface)), var(--workbench-settings-surface));
+}
+
+.output-metric-card.is-focus {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, var(--workbench-settings-surface)), var(--workbench-settings-surface));
+}
+
+.output-metric-card.is-waiting {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--warning) 10%, var(--workbench-settings-surface)), var(--workbench-settings-surface));
+}
+
+.output-metric-label {
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 800;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.output-metric-value {
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.output-metric-meta,
+.output-panel-section-desc,
+.output-panel-current-subtitle,
+.output-panel-current-meta,
+.output-list-item-detail,
+.output-trend-meta {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.output-panel-section-title {
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.output-panel-current {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.output-panel-current-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.output-panel-current-title {
+  font-size: 16px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.output-panel-current-checkpoint {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--workbench-settings-surface-muted);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.output-panel-current-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.output-panel-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--workbench-settings-chip-stroke);
+  background: var(--workbench-settings-chip-surface);
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.output-panel-status-badge.is-done {
+  color: var(--success);
+}
+
+.output-panel-status-badge.is-waiting-user {
+  color: var(--warning);
+}
+
+.output-panel-status-badge.is-parked {
+  color: var(--text-muted);
+}
+
+.output-panel-status-badge.is-active {
+  color: var(--accent);
+}
+
+.output-trend-list,
+.output-list {
+  display: grid;
+  gap: 10px;
+}
+
+.output-trend-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.output-trend-label {
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.output-trend-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--workbench-settings-surface-muted);
+  overflow: hidden;
+}
+
+.output-trend-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 72%, var(--notice) 28%), var(--success));
+}
+
+.output-trend-meta {
+  grid-column: 2;
+  color: var(--text-muted);
+}
+
+.output-list-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--workbench-settings-surface-muted);
+}
+
+.output-list-item-title {
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.output-list-item-time {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.output-panel-empty-inline {
+  padding: 14px 0 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .hooks-summary {
@@ -4487,6 +4718,20 @@ button.quest-task-flow-node {
   .hooks-panel {
     max-width: 100%;
     max-height: calc(100vh - 24px);
+  }
+
+  .output-panel-shell {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .output-panel-metric-grid,
+  .output-panel-section-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .output-trend-row {
+    grid-template-columns: 46px minmax(0, 1fr);
   }
 
   .hooks-event-card-header {
@@ -4957,4 +5202,158 @@ button.quest-task-flow-node {
 .quest-task-flow-node.is-resolved,
 .quest-task-flow-node.is-parked {
   opacity: 1 !important;
+}
+
+.quest-task-flow-edge-action-shell {
+  position: absolute;
+  z-index: 7;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.quest-task-flow-edge-action-shell.is-static-fallback {
+  position: relative;
+  inset: auto;
+  transform: none !important;
+  align-items: flex-start;
+  margin: 0 0 10px 8px;
+  pointer-events: auto;
+}
+
+.quest-task-flow-edge-handoff-btn,
+.quest-task-flow-edge-handoff-direction {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
+  background: color-mix(in srgb, #ffffff 90%, var(--bg) 10%);
+  color: var(--text);
+  font: inherit;
+}
+
+.quest-task-flow-edge-handoff-btn {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 8px 24px color-mix(in srgb, #0b1520 10%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #ffffff 46%, transparent);
+  cursor: pointer;
+}
+
+.quest-task-flow-edge-handoff-btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 12%, #ffffff);
+}
+
+.quest-task-flow-edge-handoff-popover {
+  pointer-events: auto;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 10px;
+  width: min(320px, calc(100vw - 32px));
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+  background: color-mix(in srgb, #ffffff 96%, var(--bg) 4%);
+  box-shadow: 0 18px 36px color-mix(in srgb, #0b1520 12%, transparent);
+}
+
+.quest-task-flow-edge-action-shell.is-static-fallback .quest-task-flow-edge-handoff-popover {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+}
+
+.quest-task-flow-edge-handoff-directions {
+  display: grid;
+  gap: 6px;
+}
+
+.quest-task-flow-edge-handoff-direction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 32px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quest-task-flow-edge-handoff-direction:hover,
+.quest-task-flow-edge-handoff-direction.is-active {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 16%, var(--bg-secondary));
+}
+
+.quest-task-flow-edge-handoff-preview {
+  display: grid;
+  gap: 8px;
+}
+
+.quest-task-flow-edge-handoff-section {
+  display: grid;
+  gap: 5px;
+  padding: 8px 9px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+}
+
+.quest-task-flow-edge-handoff-section-title {
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.quest-task-flow-edge-handoff-section-body {
+  display: grid;
+  gap: 4px;
+}
+
+.quest-task-flow-edge-handoff-item {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.quest-task-flow-edge-handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 767px) {
+  .quest-task-flow-edge-handoff-btn {
+    min-height: 30px;
+    padding: 6px 12px;
+  }
+
+  .quest-task-flow-edge-handoff-popover {
+    width: min(300px, calc(100vw - 24px));
+    padding: 10px;
+  }
+
+  .quest-task-flow-edge-handoff-actions > .quest-branch-btn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
 }

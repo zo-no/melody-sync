@@ -131,10 +131,19 @@
       || null;
   }
 
+  function canUseReactStatusCardRenderer(options = {}) {
+    const documentRef = options?.documentRef || globalThis?.document || document;
+    return Boolean(
+      documentRef
+      && typeof documentRef.querySelector === "function"
+      && typeof documentRef.createElement === "function",
+    );
+  }
+
   function createRenderer(options = {}) {
     const windowRef = options?.windowRef || globalThis?.window || window;
     const reactFactory = getWorkbenchReactUi(windowRef)?.createStatusCardRenderer;
-    if (typeof reactFactory === "function") {
+    if (typeof reactFactory === "function" && canUseReactStatusCardRenderer(options)) {
       return reactFactory(options);
     }
     return createFallbackRenderer(options);

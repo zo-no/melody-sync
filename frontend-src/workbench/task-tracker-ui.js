@@ -12,7 +12,12 @@
     trackerConclusionsListEl = null,
     trackerMemoryRowEl = null,
     trackerMemoryListEl = null,
+    trackerCandidateBranchesRowEl = null,
+    trackerCandidateBranchesListEl = null,
     getPersistentActionsEl = () => null,
+    getCurrentSessionSafe = () => null,
+    isSuppressed = () => false,
+    enterBranchFromCurrentSession = async () => null,
     clipText = (value) => String(value || "").trim(),
     toConciseGoal = (value) => String(value || "").trim(),
     isMobileQuestTracker = () => false,
@@ -29,6 +34,13 @@
     function getTrackerVisualStatus(state) {
       if (!state?.hasSession || !state?.session) {
         return { key: "", label: "", dotClassName: "" };
+      }
+      if (state?.taskMapVisualStatus?.label) {
+        return {
+          key: String(state.taskMapVisualStatus.key || "").trim(),
+          label: String(state.taskMapVisualStatus.label || "").trim(),
+          dotClassName: String(state.taskMapVisualStatus.dotClassName || "").trim(),
+        };
       }
       const taskRunStatus = getTaskRunStatusApi()?.getTaskRunStatusPresentation?.({
         status: state?.branchStatus || "",
@@ -109,7 +121,59 @@
       }
     }
 
-    function renderDetail(taskCard, expanded) {
+    function listVisibleCandidateBranches(taskCard, session = null) {
+      const sourceSession = session?.id ? session : getCurrentSessionSafe();
+      const sessionId = String(sourceSession?.id || "").trim();
+      return Array.isArray(taskCard?.candidateBranches)
+        ? taskCard.candidateBranches
+          .filter((entry) => typeof entry === "string" && entry.trim())
+          .filter((entry) => !sessionId || !isSuppressed(sessionId, entry))
+        : [];
+    }
+
+    function renderCandidateBranchActions(container, candidateBranches, session = null) {
+      if (!container) return;
+      container.innerHTML = "";
+      const sourceSession = session?.id ? session : getCurrentSessionSafe();
+      if (!sourceSession?.id) return;
+      for (const branchTitle of candidateBranches) {
+        const row = documentRef.createElement("div");
+        row.className = "quest-branch-suggestion-item";
+
+        const main = documentRef.createElement("div");
+        main.className = "quest-branch-suggestion-main";
+
+        const title = documentRef.createElement("div");
+        title.className = "quest-branch-suggestion-title";
+        title.textContent = branchTitle;
+        main.appendChild(title);
+
+        const actions = documentRef.createElement("div");
+        actions.className = "quest-branch-suggestion-actions";
+
+        const enterBtn = documentRef.createElement("button");
+        enterBtn.type = "button";
+        enterBtn.className = "quest-branch-btn quest-branch-btn-primary";
+        enterBtn.textContent = "开启支线";
+        enterBtn.addEventListener("click", async () => {
+          enterBtn.disabled = true;
+          try {
+            await enterBranchFromCurrentSession(branchTitle, {
+              checkpointSummary: branchTitle,
+            });
+          } finally {
+            enterBtn.disabled = false;
+          }
+        });
+
+        actions.appendChild(enterBtn);
+        row.appendChild(main);
+        row.appendChild(actions);
+        container.appendChild(row);
+      }
+    }
+
+    function renderDetail(taskCard, expanded, session = null) {
       if (!trackerDetailEl) return;
       const goal = taskCard?.goal || "";
       const showGoal = Boolean(goal);
@@ -124,7 +188,11 @@
       renderDetailItems(trackerMemoryListEl, memory);
       if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = memory.length === 0;
 
-      const hasAny = showGoal || conclusions.length > 0 || memory.length > 0;
+      const candidateBranches = listVisibleCandidateBranches(taskCard, session);
+      renderCandidateBranchActions(trackerCandidateBranchesListEl, candidateBranches, session);
+      if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = candidateBranches.length === 0;
+
+      const hasAny = showGoal || conclusions.length > 0 || memory.length > 0 || candidateBranches.length > 0;
       if (trackerDetailToggleBtn) {
         trackerDetailToggleBtn.hidden = !hasAny;
         trackerDetailToggleBtn.textContent = expanded ? "详情 ▾" : "详情 ▸";
@@ -180,7 +248,7 @@
         return;
       }
       if (kind === "skill") {
-        host.appendChild(createPersistentActionButton("触发按钮", onRun));
+        host.appendChild(createPersistentActionButton("触发AI快捷按钮", onRun));
         host.appendChild(createPersistentActionButton("设置", onConfigure, { secondary: true }));
         host.hidden = false;
         return;
@@ -205,10 +273,19 @@
       || null;
   }
 
+  function canUseReactTrackerRenderer(options = {}) {
+    const documentRef = options?.documentRef || globalThis?.document || document;
+    return Boolean(
+      documentRef
+      && typeof documentRef.querySelector === "function"
+      && typeof options?.trackerStatusEl?.appendChild === "function",
+    );
+  }
+
   function createTrackerRenderer(options = {}) {
     const windowRef = options?.windowRef || globalThis?.window || window;
     const reactFactory = getWorkbenchReactUi(windowRef)?.createTrackerRenderer;
-    if (typeof reactFactory === "function") {
+    if (typeof reactFactory === "function" && canUseReactTrackerRenderer(options)) {
       return reactFactory(options);
     }
     return createFallbackTrackerRenderer(options);

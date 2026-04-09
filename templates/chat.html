@@ -29,6 +29,7 @@
   <button class="header-task-detail-btn" id="headerTaskDetailBtn" type="button" hidden>任务详情 ▸</button>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
+  <button class="header-task-map-btn" id="outputPanelBtn" type="button" aria-label="产出面板" title="产出面板">产出</button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
 </div>
@@ -72,10 +73,14 @@
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" id="tabSessions" data-i18n="nav.sessions">Tasks</button>
       </div>
+      <div class="sidebar-grouping-toolbar" id="sidebarGroupingToolbar" aria-label="任务分组模式">
+        <button class="sidebar-grouping-chip is-active" id="sidebarGroupingModeUser" type="button" data-i18n="sidebar.grouping.user">用户模板</button>
+        <button class="sidebar-grouping-chip" id="sidebarGroupingModeAi" type="button" data-i18n="sidebar.grouping.ai">AI 自由</button>
+      </div>
       <div class="sidebar-list" id="sessionList"></div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
       <div class="session-list-actions">
-        <button class="new-session-btn secondary" id="sortSessionListBtn" type="button" data-i18n="sidebar.sortList">整理任务</button>
+        <button class="new-session-btn secondary" id="sortSessionListBtn" type="button" data-i18n="sidebar.sortList.runAi">AI 分组</button>
         <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">开始任务</button>
       </div>
     </aside>
@@ -156,6 +161,21 @@
     </div>
   </div>
 
+  <div class="hooks-overlay output-panel-overlay" id="outputPanelOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="outputPanelTitle">
+    <div class="hooks-panel output-panel">
+      <div class="hooks-panel-header">
+        <span class="hooks-panel-title" id="outputPanelTitle">产出面板</span>
+        <div class="output-panel-header-actions">
+          <button class="output-panel-refresh" id="outputPanelRefreshBtn" type="button">刷新</button>
+          <button class="hooks-panel-close" id="outputPanelClose" type="button" aria-label="关闭">✕</button>
+        </div>
+      </div>
+      <div class="hooks-panel-body output-panel-body" id="outputPanelBody">
+        <div class="hooks-loading">产出面板加载中…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Chat area -->
   <main class="chat-area">
     <div class="task-manager-body">
@@ -199,8 +219,9 @@
                 <span class="quest-tracker-detail-label">记忆</span>
                 <div class="quest-tracker-detail-list" id="questTrackerMemoryList"></div>
               </div>
-              <div class="quest-tracker-detail-row quest-tracker-detail-action-row">
-                <button class="quest-tracker-detail-action" id="operationRecordBtn" type="button" aria-label="操作记录" title="操作记录" hidden>操作记录</button>
+              <div class="quest-tracker-detail-row" id="questTrackerCandidatesRow" hidden>
+                <span class="quest-tracker-detail-label">建议支线</span>
+                <div class="quest-branch-suggestion-list" id="questTrackerCandidatesList"></div>
               </div>
             </div>
           </div>
@@ -271,14 +292,6 @@
 </div>
 
 <button class="task-map-drawer-backdrop" id="taskMapDrawerBackdrop" hidden aria-label="关闭任务地图"></button>
-<aside class="operation-record-rail" id="operationRecordRail" hidden aria-label="操作记录" aria-hidden="true">
-  <div class="operation-record-header">
-    <span class="operation-record-title">操作记录</span>
-    <button class="operation-record-close-btn" id="operationRecordCloseBtn" type="button" aria-label="关闭操作记录">✕</button>
-  </div>
-  <div class="operation-record-inner" id="operationRecordInner"></div>
-</aside>
-<button class="operation-record-backdrop" id="operationRecordBackdrop" hidden aria-label="关闭操作记录"></button>
 </div>
 <div class="gesture-pill" id="gesturePill" aria-hidden="true"></div>
 

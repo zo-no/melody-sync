@@ -39,8 +39,6 @@ const taskMapUiSource = readWorkbenchFrontendSource('task-map-ui.js');
 const taskListUiSource = readWorkbenchFrontendSource('task-list-ui.js');
 const statusCardUiSource = readWorkbenchFrontendSource('status-card-ui.js');
 const persistentEditorUiSource = readWorkbenchFrontendSource('persistent-editor-ui.js');
-const operationRecordSummaryUiSource = readWorkbenchFrontendSource('operation-record-summary-ui.js');
-const operationRecordListUiSource = readWorkbenchFrontendSource('operation-record-list-ui.js');
 const branchActionsSource = readWorkbenchFrontendSource('branch-actions.js');
 const operationRecordUiSource = readWorkbenchFrontendSource('operation-record-ui.js');
 const source = readWorkbenchFrontendSource('controller.js');
@@ -204,16 +202,21 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
     'questTrackerCloseBtn',
     'questTrackerAltBtn',
     'questTrackerBackBtn',
+    'questTrackerDetail',
+    'questTrackerDetailToggle',
+    'questTrackerGoalRow',
+    'questTrackerGoalVal',
+    'questTrackerConclusionsRow',
+    'questTrackerConclusionsList',
+    'questTrackerMemoryRow',
+    'questTrackerMemoryList',
+    'questTrackerCandidatesRow',
+    'questTrackerCandidatesList',
     'questFinishPanel',
     'questFinishResolveBtn',
     'questFinishParkBtn',
     'questFinishMergeBtn',
     'questFinishSummaryInput',
-    'operationRecordBtn',
-    'operationRecordRail',
-    'operationRecordBackdrop',
-    'operationRecordCloseBtn',
-    'operationRecordInner',
     'emptyState',
   ]) {
     elements.set(id, makeElement(id));
@@ -295,7 +298,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
-  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapReactBundleSource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${operationRecordSummaryUiSource}\n${operationRecordListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapReactBundleSource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'frontend-src/workbench/controller.js',
   });
   await flushAsync(8);
@@ -340,7 +343,7 @@ async function runReactScenario({ currentSession, sessions, snapshot, innerWidth
       };
     },
   };
-  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${operationRecordSummaryUiSource}\n${operationRecordListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'frontend-src/workbench/controller.js',
   });
   await flushAsync(8);
@@ -662,6 +665,14 @@ assert.equal(
 assert.equal(candidateOnlyElements.get('questTrackerTitle').textContent, '为用户搭出一条兼顾电影史主线与美术史兴趣维度的学习路线', 'mainline tracker should keep the fixed session task title as the top-level anchor');
 assert.equal(candidateOnlyElements.get('questTrackerBranchTitle').textContent, '先明确主线骨架，再判断哪些方向值得拆成支线', 'mainline tracker should use the stable checkpoint as the task-progress detail when no next step exists yet');
 assert.equal(candidateOnlyElements.get('questTrackerNext').textContent, '发现 2 条建议支线', 'mainline tracker should surface candidate branch discovery as a separate secondary hint');
+candidateOnlyElements.get('questTrackerDetailToggle').click();
+assert.equal(candidateOnlyElements.get('questTrackerDetail').hidden, false, 'expanding the tracker detail should reveal the right-side task detail panel');
+assert.equal(candidateOnlyElements.get('questTrackerCandidatesRow').hidden, false, 'candidate-only mainline tasks should expose branch dispatch actions in the tracker detail');
+assert.deepEqual(
+  findAllByClass(candidateOnlyElements.get('questTrackerCandidatesList'), 'quest-branch-suggestion-title').map((entry) => entry?.textContent),
+  ['改成视觉风格线', '生成12周片单'],
+  'tracker detail should list the visible candidate branches in order',
+);
 
 const openedCandidateBranch = {
   id: 'session-main-candidate-branch',
@@ -707,9 +718,10 @@ const { elements: candidateOpenElements, fetchLog: candidateOpenFetchLog, attach
   },
 });
 
-const candidateNodeToOpen = findAllByClass(candidateOpenElements.get('questTaskList'), 'quest-task-flow-node')
-  .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === '改成视觉风格线');
-findFirstByClass(candidateNodeToOpen, 'quest-task-flow-node-action')?.click();
+candidateOpenElements.get('questTrackerDetailToggle').click();
+const trackerCandidateToOpen = findAllByClass(candidateOpenElements.get('questTrackerCandidatesList'), 'quest-branch-suggestion-item')
+  .find((node) => findFirstByClass(node, 'quest-branch-suggestion-title')?.textContent === '改成视觉风格线');
+findAllByTagName(trackerCandidateToOpen, 'button')[0]?.click();
 await flushAsync();
 assert.equal(
   candidateOpenFetchLog.some((entry) => (
@@ -718,12 +730,12 @@ assert.equal(
     && JSON.parse(entry.options?.body || '{}').goal === '改成视觉风格线'
   )),
   true,
-  'clicking a candidate suggestion should open a real branch through the existing branch-creation endpoint',
+  'clicking a tracker-detail candidate suggestion should open a real branch through the existing branch-creation endpoint',
 );
 assert.deepEqual(
   candidateOpenAttachCalls.map((entry) => entry.id),
   ['session-main-candidate-branch'],
-  'opening a candidate suggestion should attach the newly created branch session into the main workspace flow',
+  'opening a tracker-detail candidate suggestion should attach the newly created branch session into the main workspace flow',
 );
 
 const branchSession = {
@@ -1207,160 +1219,6 @@ assert.deepEqual(
   getFlowNodeTitles(focusElements.get('questTaskList')),
   titlesBeforeFocusSwitch,
   'changing focus should not reshuffle the rendered flow node order',
-);
-
-const operationRecordSession = {
-  id: 'operation-main',
-  name: '电影史路线规划',
-  taskCard: {
-    lineRole: 'main',
-    goal: '电影史路线规划',
-    mainGoal: '电影史路线规划',
-    nextSteps: ['先看主线再展开支线'],
-  },
-};
-
-const operationBranchSession = {
-  id: 'operation-branch',
-  name: 'Branch · 法国新浪潮',
-  sourceContext: { parentSessionId: 'operation-main' },
-  taskCard: {
-    lineRole: 'branch',
-    goal: '法国新浪潮',
-    mainGoal: '电影史路线规划',
-    nextSteps: ['补充跳切与作者论'],
-  },
-};
-
-const operationNestedBranchSession = {
-  id: 'operation-branch-child',
-  name: 'Branch · 作者论',
-  sourceContext: { parentSessionId: 'operation-branch' },
-  taskCard: {
-    lineRole: 'branch',
-    goal: '作者论',
-    mainGoal: '电影史路线规划',
-    nextSteps: ['对比特吕弗和戈达尔'],
-  },
-};
-
-const {
-  elements: operationRecordElements,
-  fetchLog: operationRecordFetchLog,
-  workbench: operationRecordWorkbench,
-} = await runScenario({
-  currentSession: operationNestedBranchSession,
-  sessions: [operationRecordSession, operationBranchSession, operationNestedBranchSession],
-  snapshot: {
-    captureItems: [],
-    projects: [],
-    nodes: [],
-    branchContexts: [],
-    taskClusters: [
-      {
-        mainSessionId: 'operation-main',
-        mainSession: operationRecordSession,
-        mainGoal: '电影史路线规划',
-        currentBranchSessionId: 'operation-branch-child',
-        branchSessionIds: ['operation-branch', 'operation-branch-child'],
-        branchSessions: [
-          {
-            ...operationBranchSession,
-            _branchDepth: 1,
-            _branchParentSessionId: 'operation-main',
-            _branchStatus: 'active',
-          },
-          {
-            ...operationNestedBranchSession,
-            _branchDepth: 2,
-            _branchParentSessionId: 'operation-branch',
-            _branchStatus: 'active',
-          },
-        ],
-      },
-    ],
-    skills: [],
-    summaries: [],
-  },
-  fetchResponder: async (url, options, { snapshot }) => {
-    if (url === '/api/workbench/sessions/operation-branch-child/operation-record') {
-      return {
-        sessionId: 'operation-main',
-        currentSessionId: 'operation-branch-child',
-        name: '电影史路线规划',
-        items: [
-          {
-            type: 'commit',
-            seq: 1,
-            preview: '先搭电影史主线',
-            timestamp: '2026-04-02T08:00:00.000Z',
-            branches: [],
-          },
-          {
-            type: 'branch',
-            branchSessionId: 'operation-branch',
-            name: 'Branch · 法国新浪潮',
-            goal: '法国新浪潮',
-            status: 'active',
-            broughtBack: '补充跳切与作者论',
-            commits: [
-              {
-                seq: 2,
-                preview: '补充法国新浪潮',
-                timestamp: '2026-04-02T08:05:00.000Z',
-              },
-            ],
-            subBranches: [
-              {
-                branchSessionId: 'operation-branch-child',
-                name: 'Branch · 作者论',
-                goal: '作者论',
-                status: 'active',
-                broughtBack: '对比特吕弗和戈达尔',
-                commits: [],
-                subBranches: [],
-              },
-            ],
-          },
-        ],
-      };
-    }
-    return snapshot;
-  },
-});
-
-await operationRecordWorkbench.openOperationRecord();
-await flushAsync(16);
-assert.equal(
-  operationRecordFetchLog.some((entry) => entry.url === '/api/workbench/sessions/operation-branch-child/operation-record'),
-  true,
-  'opening the operation record should request the focused session record payload',
-);
-assert.equal(
-  operationRecordElements.get('operationRecordBackdrop').hidden,
-  false,
-  'opening the operation record should show the clickable backdrop layer',
-);
-assert.equal(
-  operationRecordElements.get('operationRecordRail').classList.contains('is-open'),
-  true,
-  'opening the operation record should slide the rail into view',
-);
-const operationRecordCards = findAllByClass(operationRecordElements.get('operationRecordInner'), 'operation-record-branch-card');
-const nestedOperationCard = operationRecordCards.find((node) => (
-  findFirstByClass(node, 'operation-record-branch-name')?.textContent === 'Branch · 作者论'
-));
-assert.equal(Boolean(nestedOperationCard), true, 'operation record should render nested branch cards');
-assert.equal(
-  nestedOperationCard?.classList?.contains('is-expanded'),
-  true,
-  'operation record should expand the current branch path by default',
-);
-assert.equal(
-  findAllByClass(operationRecordElements.get('operationRecordInner'), 'operation-record-branch-summary')
-    .some((node) => node.textContent === '对比特吕弗和戈达尔'),
-  true,
-  'operation record should show the current branch summary even before the branch has user messages',
 );
 
 const richCanvasSession = {

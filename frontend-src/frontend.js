@@ -23,6 +23,7 @@
     "/chat/session/surface-ui.js",
     "/chat/session-list/model.js",
     "/app/task-map-react.bundle.js",
+    "/chat/session-list/react-ui.js",
     "/chat/session-list/ui.js",
     "/chat/session-list/sidebar-ui.js",
     "/chat/workbench/node-contract.js",
@@ -47,12 +48,11 @@
     "/chat/workbench/task-list-ui.js",
     "/chat/workbench/status-card-ui.js",
     "/chat/workbench/persistent-editor-ui.js",
-    "/chat/workbench/operation-record-summary-ui.js",
-    "/chat/workbench/operation-record-list-ui.js",
     "/chat/workbench/branch-actions.js",
     "/chat/workbench/operation-record-ui.js",
     "/chat/panzoom.min.js",
     "/chat/workbench/controller.js",
+    "/chat/workbench/output-panel-ui.js",
     "/chat/session/compose.js",
     "/chat/core/gestures.js",
     "/chat/settings/ui.js",
@@ -67,9 +67,7 @@
     "/chat/settings/hooks/ui.js",
     "/chat/core/init.js",
   ];
-  const optionalAssetPaths = [
-    "/chat/session-list/react-ui.js",
-  ];
+  const optionalAssetPaths = [];
 
   function normalizeAssetVersion(value) {
     if (typeof value !== "string") return "";

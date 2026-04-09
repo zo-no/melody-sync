@@ -247,10 +247,19 @@
       || null;
   }
 
+  function canUseReactNodeCanvas(options = {}) {
+    const documentRef = options?.documentRef || globalThis?.document || document;
+    return Boolean(
+      documentRef
+      && typeof documentRef.querySelector === "function"
+      && typeof documentRef.createElement === "function",
+    );
+  }
+
   function createController(options = {}) {
     const windowRef = options?.windowRef || globalThis?.window || window;
     const reactFactory = getWorkbenchReactUi(windowRef)?.createNodeCanvasController;
-    if (typeof reactFactory === "function") {
+    if (typeof reactFactory === "function" && canUseReactNodeCanvas(options)) {
       return reactFactory(options);
     }
     return createFallbackController(options);

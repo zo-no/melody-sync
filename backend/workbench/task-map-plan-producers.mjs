@@ -97,6 +97,15 @@ function getCandidateKeysForSession(session) {
   ].filter(Boolean));
 }
 
+function normalizeActionPayload(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const normalized = {};
+  for (const [key, entryValue] of Object.entries(value)) {
+    normalized[key] = entryValue;
+  }
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
 function createBranchCandidatePlanId(rootSessionId) {
   return `hook-plan:branch-candidates:${rootSessionId}`;
 }
@@ -157,6 +166,11 @@ function buildBranchCandidatePlanNodes(sessions = []) {
       if (suppressedKeys.has(candidateKey)) continue;
       if (existingChildKeys.has(candidateKey)) continue;
       seenCandidates.add(candidateKey);
+      const candidateSummary = clipText(taskCard?.branchReason || defaultSummary, 120);
+      const actionPayload = normalizeActionPayload({
+        branchReason: candidateSummary,
+        checkpointSummary: normalizedTitle,
+      });
       const candidateNode = createNodeInstance({
         id: `candidate:${sourceSessionId}:${slugify(normalizedTitle)}`,
         kind: 'candidate',
@@ -169,6 +183,7 @@ function buildBranchCandidatePlanNodes(sessions = []) {
         capabilities: Array.isArray(composition.capabilities) ? [...composition.capabilities] : ['create-branch', 'dismiss'],
         surfaceBindings: Array.isArray(composition.surfaceBindings) ? [...composition.surfaceBindings] : ['task-map', 'composer-suggestions'],
         taskCardBindings: Array.isArray(composition.taskCardBindings) ? [...composition.taskCardBindings] : ['candidateBranches'],
+        actionPayload,
         view: {
           type: trimText(composition.defaultViewType || 'flow-node') || 'flow-node',
         },

@@ -26,10 +26,8 @@ Files by role:
 - `task-list-ui.js`: workbench-side task list rendering.
 - `status-card-ui.js`: adapter for branch suggestion / merge note / branch-entered cards. It prefers the shared React bundle and falls back to the legacy DOM card builders.
 - `persistent-editor-ui.js`: adapter for the long-term-item editor modal. It prefers the shared React bundle and falls back to the legacy DOM modal builder.
-- `operation-record-summary-ui.js`: adapter for the operation-record persistent header and digest summary area. It prefers the shared React bundle and falls back to the legacy DOM builder.
-- `operation-record-list-ui.js`: adapter for the operation-record branch/commit tree. It prefers the shared React bundle and falls back to the legacy DOM tree builder.
 - `branch-actions.js`: branch lifecycle buttons and action binding.
-- `operation-record-ui.js`: right-rail operation-record rendering and open/close control.
+- `operation-record-ui.js`: persistent-item editor controller. It no longer exposes the old operation-record rail and only keeps the long-term-item editing flow alive.
 
 Design rules:
 

@@ -88,6 +88,17 @@ function normalizeTaskMapPlanSource(source = {}, { requestedMode = 'replace-defa
   };
 }
 
+function normalizeActionPayload(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const normalized = {};
+  for (const [key, entryValue] of Object.entries(value)) {
+    normalized[key] = entryValue;
+  }
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
 function normalizeTaskMapPlanNode(node = {}, { existingNodeIds = new Set() } = {}) {
   const id = trimText(node.id);
   if (!id || existingNodeIds.has(id)) return null;
@@ -114,6 +125,7 @@ function normalizeTaskMapPlanNode(node = {}, { existingNodeIds = new Set() } = {
     surfaceBindings: [...normalizedNode.surfaceBindings],
     taskCardBindings: [...normalizedNode.taskCardBindings],
     view: normalizedNode.view,
+    actionPayload: normalizeActionPayload(normalizedNode.actionPayload),
   };
 }
 

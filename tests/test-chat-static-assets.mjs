@@ -300,8 +300,6 @@ async function main() {
     assert.match(combinedChatStyles, /\.input-resize-handle\s*\{[\s\S]*?margin:\s*0 calc\(var\(--chat-gutter\) \* -1\) 8px;/, 'resize handle should mirror the current chat gutter so it does not create horizontal overflow on mobile');
     assert.doesNotMatch(combinedChatStyles, /\.sidebar-overlay\.collapsed/, 'desktop sidebar should no longer render a collapsed state');
     assert.match(combinedChatStyles, /\.modal-backdrop\s*\{[\s\S]*?padding-left:\s*calc\(var\(--sidebar-width\) \+ 24px\);/, 'desktop modals should offset against the fixed-width sidebar');
-    assert.match(chatWorkbenchStylesheet.text, /\.operation-record-backdrop\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?backdrop-filter:\s*none;/, 'operation record backdrop should no longer dim or blur the main workspace');
-    assert.match(chatWorkbenchStylesheet.text, /\.operation-record-rail\s*\{[\s\S]*?background:\s*var\(--bg\);[\s\S]*?backdrop-filter:\s*none;/, 'operation record rail should render as an opaque side panel');
     assert.match(combinedChatStyles, /body\.keyboard-open \.messages/);
     assert.match(combinedChatStyles, /body\.keyboard-open \.input-area/);
     assert.doesNotMatch(combinedChatStyles, /--app-top-offset/);
@@ -927,6 +925,10 @@ async function main() {
             hookId: '',
             planId: 'manual-plan:owner-chat:goal',
           },
+          actionPayload: {
+            branchReason: '从「Owner chat session」继续拆出独立支线',
+            checkpointSummary: '补充复盘',
+          },
         },
       ],
       'session-scoped task-map surfaces should expose composer entries from the canonical graph surface layer',
@@ -1041,16 +1043,6 @@ async function main() {
     assert.equal(persistentEditorUiAsset.status, 200, 'persistent editor ui asset should load');
     assert.match(persistentEditorUiAsset.text, /MelodySyncPersistentEditorUi/);
     assert.match(persistentEditorUiAsset.text, /createRenderer/);
-
-    const operationRecordSummaryUiAsset = await request(port, 'GET', '/chat/workbench/operation-record-summary-ui.js');
-    assert.equal(operationRecordSummaryUiAsset.status, 200, 'operation record summary ui asset should load');
-    assert.match(operationRecordSummaryUiAsset.text, /MelodySyncOperationRecordSummaryUi/);
-    assert.match(operationRecordSummaryUiAsset.text, /createRenderer/);
-
-    const operationRecordListUiAsset = await request(port, 'GET', '/chat/workbench/operation-record-list-ui.js');
-    assert.equal(operationRecordListUiAsset.status, 200, 'operation record list ui asset should load');
-    assert.match(operationRecordListUiAsset.text, /MelodySyncOperationRecordListUi/);
-    assert.match(operationRecordListUiAsset.text, /createRenderer/);
 
     const branchActionsAsset = await request(port, 'GET', '/chat/workbench/branch-actions.js');
     assert.equal(branchActionsAsset.status, 200, 'branch actions asset should load');
@@ -1239,8 +1231,8 @@ async function main() {
     const initAsset = await request(port, 'GET', '/chat/core/init.js');
     assert.equal(initAsset.status, 200, 'init asset should load');
     assert.match(initAsset.text, /typeof getBootstrapAuthInfo === "function"/);
-    assert.match(initAsset.text, /loadInlineTools\(\{ skipModelLoad: true \}\)/);
-    assert.match(initAsset.text, /bootstrapViaHttp\(\{ deferOwnerRestore: true \}\)/);
+    assert.match(initAsset.text, /loadInlineToolsFn\(\{ skipModelLoad: true \}\)/);
+    assert.match(initAsset.text, /bootstrapViaHttpFn\(\{ deferOwnerRestore: true \}\)/);
 
     const tokenLogin = await request(
       port,
