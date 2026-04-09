@@ -4,7 +4,9 @@ This directory contains focused workbench backend modules.
 
 Current split:
 
-- `index.mjs`: thin workbench domain entry; re-exports continuity/branch orchestration and wraps project-record operations.
+- `index.mjs`: thin workbench domain entry; re-exports focused continuity, branch, candidate, and project-write modules.
+- `project-write-service.mjs`: focused wrappers for capture/project/node/promotion/summary/obsidian write flows built on `project-records.mjs`.
+- `branch-candidate-service.mjs`: focused branch-candidate suppression wrapper for session-facing branch metadata writes.
 - `../services/workbench/read-service.mjs`: HTTP-facing snapshot/tracker read orchestration so controllers do not import the workbench entry module.
 - `../services/workbench/write-service.mjs`: HTTP-facing mutation orchestration so write controllers stay focused on routing, access checks, and response shaping.
 - `output-metrics-service.mjs`: aggregate task/workflow output metrics used by the workbench summary surface.
@@ -33,6 +35,8 @@ Boundary rules:
 
 - Keep persistence and projection separate.
 - Keep HTTP-facing mutation orchestration in `../services/workbench/write-service.mjs`; write controllers should not import `backend/workbench/index.mjs` directly.
+- Keep project-record-backed write wrappers in `project-write-service.mjs`; `index.mjs` should re-export them instead of owning their dependency wiring.
+- Keep branch-candidate suppression wiring in `branch-candidate-service.mjs`; avoid growing `index.mjs` with session-port wrappers.
 - Prefer adding new focused modules here rather than growing `backend/workbench/index.mjs`.
 - Keep branch lifecycle and continuity-sync logic in `branch-lifecycle.mjs`; `index.mjs` should mostly re-export or wire domain modules together.
 - Keep shared workbench serialization in `queues.mjs`; avoid recreating ad hoc per-file queue maps.

@@ -5,21 +5,23 @@ import {
   saveTaskMapPlanForSession,
 } from '../../workbench/task-map-plan-service.mjs';
 import {
-  createBranchFromSession,
-  createBranchFromNode,
   createCaptureItem,
   createNode as createWorkbenchNode,
   createProject as createWorkbenchProject,
   createProjectSummary,
-  handoffSessionData,
-  mergeBranchSessionBackToMain,
   promoteCaptureItem,
+  writeProjectToObsidian,
+} from '../../workbench/project-write-service.mjs';
+import {
+  createBranchFromSession,
+  createBranchFromNode,
+  mergeBranchSessionBackToMain,
   reparentSession,
-  setBranchCandidateSuppressed,
   setBranchSessionStatus,
   setSessionReminderSnooze,
-  writeProjectToObsidian,
-} from '../../workbench/index.mjs';
+} from '../../workbench/branch-lifecycle.mjs';
+import { setBranchCandidateSuppressed } from '../../workbench/branch-candidate-service.mjs';
+import { handoffSessionData } from '../../workbench/task-handoff.mjs';
 import { recordBranchDispatchSignal } from '../../workbench/branch-dispatch-signals.mjs';
 import { normalizeNullableText } from '../../workbench/shared.mjs';
 
