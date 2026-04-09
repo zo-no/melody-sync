@@ -36,6 +36,8 @@ Browser / mobile shell
 ### Backend
 
 - [`backend/router.mjs`](backend/router.mjs): main HTTP surface plus response/cache/static dispatch
+- [`backend/controllers/http/static-routes.mjs`](backend/controllers/http/static-routes.mjs): static frontend asset HTTP controller
+- [`backend/controllers/http/authenticated-routes.mjs`](backend/controllers/http/authenticated-routes.mjs): authenticated HTTP dispatch controller for app pages and APIs
 - [`backend/controllers/assets/read-routes.mjs`](backend/controllers/assets/read-routes.mjs): file asset HTTP read controller
 - [`backend/controllers/assets/write-routes.mjs`](backend/controllers/assets/write-routes.mjs): file asset HTTP mutation controller
 - [`backend/controllers/hooks/read-routes.mjs`](backend/controllers/hooks/read-routes.mjs): legacy hook alias HTTP read controller

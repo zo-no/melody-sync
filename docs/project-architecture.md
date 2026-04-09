@@ -75,6 +75,14 @@ MelodySync is now an owner-operated AI task workspace.
 
 - handles session event-oriented HTTP reads including visible/all events, source context, immutable event blocks, and event bodies
 
+`backend/controllers/http/static-routes.mjs`
+
+- handles versioned frontend/static asset lookup and file responses outside the authenticated app flow
+
+`backend/controllers/http/authenticated-routes.mjs`
+
+- coordinates authenticated request dispatch across sessions, runs, workbench, settings, hooks, system routes, and the chat page shell
+
 `backend/controllers/assets/read-routes.mjs`
 
 - handles file-asset HTTP reads including metadata lookup and download redirects
