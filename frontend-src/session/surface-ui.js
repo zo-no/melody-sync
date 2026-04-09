@@ -345,6 +345,25 @@ function buildSessionActionConfigs(session, options = {}) {
   ].filter(Boolean);
 }
 
+function renderSessionActionButtonHtml(session, entry, options = {}) {
+  if (!entry) return "";
+  const actionKey = esc(entry.key || entry.action || "");
+  const label = esc(entry.label || "");
+  const className = esc(
+    `session-action-btn ${entry.className || entry.key || "action"}${options.leading === true ? " session-item-leading-action archive-checkbox" : ""}`,
+  );
+  if (options.leading === true) {
+    return `
+      <button class="${className}" type="button" title="${label}" aria-label="${label}" data-id="${session.id}" data-action="${actionKey}">
+        <span class="session-action-checkbox-ring">${renderSessionIcon("check", "session-action-checkbox-icon")}</span>
+      </button>
+    `;
+  }
+  return `
+      <button class="${className}" type="button" title="${label}" aria-label="${label}" data-id="${session.id}" data-action="${actionKey}">${renderSessionIcon(entry.icon || "close")}</button>
+    `;
+}
+
 function createActiveSessionItem(session, options = {}) {
   const statusInfo = getSessionMetaStatusInfo(session);
   const touchStatusInfo = getSessionListTouchStatusInfo(session);
@@ -364,21 +383,32 @@ function createActiveSessionItem(session, options = {}) {
 
   const displayName = getSessionDisplayName(session);
   const displayTitle = getPreferredSessionDisplayName(session) || displayName;
+  const titlePrefixHtml = typeof options.titlePrefixHtml === "string"
+    ? options.titlePrefixHtml
+    : "";
   const metaHtml = typeof options.metaOverrideHtml === "string"
     ? options.metaOverrideHtml
     : buildSessionMetaParts(session, { touchStatusInfo }).join(" · ");
   const actionConfigs = options.hideActions === true ? [] : buildSessionActionConfigs(session, options);
-  const hideActions = actionConfigs.length === 0;
-  const actionsHtml = actionConfigs.map((entry) => `
-      <button class="session-action-btn ${esc(entry.className || entry.key || "action")}" type="button" title="${esc(entry.label || "")}" aria-label="${esc(entry.label || "")}" data-id="${session.id}" data-action="${esc(entry.key || entry.action || "")}">${renderSessionIcon(entry.icon || "close")}</button>
-    `).join("");
+  const leadingAction = actionConfigs.find((entry) => entry?.action === "archive" || entry?.key === "archive") || null;
+  const trailingActionConfigs = leadingAction
+    ? actionConfigs.filter((entry) => entry !== leadingAction)
+    : actionConfigs;
+  const leadingActionHtml = leadingAction
+    ? renderSessionActionButtonHtml(session, leadingAction, { leading: true })
+    : "";
+  const actionsHtml = trailingActionConfigs
+    .map((entry) => renderSessionActionButtonHtml(session, entry))
+    .join("");
+  const hasAnyActions = Boolean(leadingAction) || trailingActionConfigs.length > 0;
 
   div.innerHTML = `
+    ${leadingActionHtml}
     <div class="session-item-info">
-      <div class="session-item-name" title="${esc(displayTitle)}">${session.pinned ? `<span class="session-pin-badge" title="${esc(t("sidebar.pinned"))}">${renderSessionIcon("pinned")}</span>` : ""}${esc(displayName)}</div>
+      <div class="session-item-name" title="${esc(displayTitle)}">${titlePrefixHtml}${session.pinned ? `<span class="session-pin-badge" title="${esc(t("sidebar.pinned"))}">${renderSessionIcon("pinned")}</span>` : ""}<span class="session-item-name-text">${esc(displayName)}</span></div>
       ${metaHtml ? `<div class="session-item-meta">${metaHtml}</div>` : ""}
     </div>
-    ${hideActions ? "" : `<div class="session-item-actions">${actionsHtml}</div>`}`;
+    ${trailingActionConfigs.length === 0 ? "" : `<div class="session-item-actions">${actionsHtml}</div>`}`;
 
   div.addEventListener("click", (e) => {
     if (e.target.closest(".session-action-btn")) {
@@ -397,7 +427,7 @@ function createActiveSessionItem(session, options = {}) {
     options.onMetaReady(metaNode, div);
   }
 
-  if (!hideActions) {
+  if (hasAnyActions) {
     actionConfigs.forEach((entry) => {
       const selector = `.session-action-btn[data-action="${entry.key || entry.action || ""}"]`;
       const actionBtn = div.querySelector(selector);

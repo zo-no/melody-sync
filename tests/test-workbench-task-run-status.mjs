@@ -33,8 +33,8 @@ assert.ok(api, 'task run status api should be exposed on window');
 
 assert.deepEqual(
   JSON.parse(JSON.stringify(api.getTaskRunStatusUi({ isCurrent: true, showIdle: true }))),
-  { key: 'idle', label: '空闲', summary: '当前任务当前未在运行。' },
-  'current but non-running tasks should surface idle instead of running',
+  { key: 'idle', label: '', summary: '' },
+  'current but non-running tasks should keep the idle state key without surfacing redundant copy',
 );
 
 assert.deepEqual(
@@ -82,8 +82,8 @@ assert.deepEqual(
 
 assert.deepEqual(
   JSON.parse(JSON.stringify(api.getTaskRunStatusUi({ status: 'active', isCurrent: true, showIdle: true }))),
-  { key: 'idle', label: '空闲', summary: '当前任务当前未在运行。' },
-  'active/current alone should not be treated as running unless busy semantics or explicit activity data say so',
+  { key: 'idle', label: '', summary: '' },
+  'active/current alone should keep the idle state key without surfacing redundant idle copy',
 );
 
 assert.deepEqual(

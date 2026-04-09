@@ -15,7 +15,7 @@ The project is intentionally filesystem-first. The goal is not to introduce a da
 
 ## Why this needs to exist
 
-The current system already separates major top-level areas such as `config/`, `sessions/`, `memory/`, `workbench/`, and `logs/`.
+The current system already separates major storage areas such as the machine config root, `sessions/`, `memory/`, `workbench/`, and `logs/`.
 
 The remaining problem is not path discovery. It is storage semantics:
 
@@ -142,16 +142,17 @@ If a payload does not cleanly fit one of those classes, MelodySync should not pe
 
 The current top-level layout is already workable. The missing piece is value classification.
 
-### `config/`
+### Machine config root + `runtimeRoot/config/`
 
-Use for small operator and system configuration truth only.
+Use the machine config root for owner/device bootstrap truth, and use `runtimeRoot/config/` for runtime-scoped configuration truth.
 
 Good fits:
 
 - auth and session cookies
-- general settings
+- bootstrap general settings that point at `brainRoot` + `runtimeRoot`
 - runtime selection defaults
 - push and connector configuration
+- provider-managed homes and other runtime-scoped JSON metadata
 
 Bad fits:
 
@@ -160,7 +161,7 @@ Bad fits:
 - session event bodies
 - long-lived runtime capture
 
-`config/` should stay small, reviewable, and mostly JSON metadata.
+The machine config root and `runtimeRoot/config/` should stay small, reviewable, and mostly JSON metadata.
 
 ### `memory/`
 

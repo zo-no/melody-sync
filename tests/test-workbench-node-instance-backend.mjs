@@ -26,7 +26,7 @@ assert.equal(candidateNode.origin?.type, 'plan');
 assert.equal(candidateNode.origin?.planId, 'plan:main-1');
 
 const mergedNode = mergeNodeInstances(candidateNode, {
-  summary: '建议拆成独立支线',
+  summary: '建议拆分',
   taskCardBindings: ['candidateBranches', 'summary'],
   view: {
     type: 'markdown',
@@ -36,7 +36,7 @@ const mergedNode = mergeNodeInstances(candidateNode, {
   },
 });
 
-assert.equal(mergedNode.summary, '建议拆成独立支线');
+assert.equal(mergedNode.summary, '建议拆分');
 assert.deepEqual(mergedNode.taskCardBindings, ['candidateBranches', 'summary']);
 assert.equal(mergedNode.view?.type, 'markdown');
 assert.equal(mergedNode.view?.width, 420);

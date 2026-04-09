@@ -145,7 +145,7 @@
       case "rename_failed":
         return { key: "rename_failed", label: "重命名失败", summary: "当前任务标题同步失败。" };
       case "idle":
-        return { key: "idle", label: "空闲", summary: "当前任务当前未在运行。" };
+        return { key: "idle", label: "", summary: "" };
       default:
         return { key: "", label: "", summary: "" };
     }

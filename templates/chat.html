@@ -25,10 +25,12 @@
 <!-- Header -->
 <div class="header">
   <button class="header-btn" id="menuBtn" title="Tasks" aria-label="Tasks" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
-  <h1 id="headerTitle" data-i18n="app.chatTitle">MelodySync</h1>
+  <button class="header-task-map-btn" id="hooksSettingsBtn" type="button" title="设置" aria-label="设置" data-i18n="action.settings" data-i18n-title="action.settings" data-i18n-aria-label="action.settings">设置</button>
+  <h1 id="headerTitle" aria-hidden="true" hidden></h1>
   <button class="header-task-detail-btn" id="headerTaskDetailBtn" type="button" hidden>任务详情 ▸</button>
   <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
   <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
+  <button class="header-task-map-btn" id="persistentSessionBtn" type="button" aria-label="自动化" title="自动化" hidden>自动化</button>
   <button class="header-task-map-btn" id="outputPanelBtn" type="button" aria-label="产出面板" title="产出面板">产出</button>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
@@ -66,8 +68,6 @@
   <div class="sidebar-overlay" id="sidebarOverlay">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <h2>MelodySync</h2>
-        <button class="header-btn" id="hooksSettingsBtn" type="button" title="设置" aria-label="设置">⚙</button>
         <button class="header-btn" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
       </div>
       <div class="sidebar-tabs">
@@ -76,6 +76,7 @@
       <div class="sidebar-grouping-toolbar" id="sidebarGroupingToolbar" aria-label="任务分组模式">
         <button class="sidebar-grouping-chip is-active" id="sidebarGroupingModeUser" type="button" data-i18n="sidebar.grouping.user">用户模板</button>
         <button class="sidebar-grouping-chip" id="sidebarGroupingModeAi" type="button" data-i18n="sidebar.grouping.ai">AI 自由</button>
+        <button class="sidebar-grouping-chip" id="sidebarBranchVisibilityToggle" type="button" data-i18n="sidebar.branchVisibility.hide">隐藏支线</button>
       </div>
       <div class="sidebar-list" id="sessionList"></div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
@@ -206,6 +207,7 @@
             </div>
             <div class="quest-tracker-next" id="questTrackerNext" hidden></div>
             <div class="quest-tracker-time" id="questTrackerTime" hidden></div>
+            <div class="quest-tracker-persistent-summary" id="questTrackerPersistentSummary" hidden></div>
             <div class="quest-tracker-detail" id="questTrackerDetail" hidden>
               <div class="quest-tracker-detail-row" id="questTrackerGoalRow" hidden>
                 <span class="quest-tracker-detail-label">目标</span>

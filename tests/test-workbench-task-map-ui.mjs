@@ -28,6 +28,10 @@ const taskMapReactSource = readFileSync(
   join(repoRoot, 'frontend-src', 'workbench', 'task-map-react-ui.jsx'),
   'utf8',
 );
+const chatWorkbenchCssSource = readFileSync(
+  join(repoRoot, 'frontend-src', 'chat-workbench.css'),
+  'utf8',
+);
 
 assert.match(
   taskMapReactSource,
@@ -48,6 +52,21 @@ assert.match(
   taskMapReactSource,
   /整理建议/,
   'task-map React UI should expose a restrained global suggestions entry for pending graph proposals',
+);
+assert.match(
+  taskMapReactSource,
+  /minZoom:\s*isMobile \? 0\.25 : 0\.42/,
+  'mobile task-map fit should allow a much wider zoom-out range so dense graphs still fit on narrow screens',
+);
+assert.match(
+  chatWorkbenchCssSource,
+  /\.quest-task-flow-edge-handoff-popover[\s\S]*var\(--bg-elevated, var\(--bg-secondary, var\(--bg\)\)\)/s,
+  'edge handoff popovers should derive their surface from theme tokens so dark mode keeps the copy readable',
+);
+assert.doesNotMatch(
+  taskMapReactSource,
+  /后续任务流程会显示在这里/,
+  'task-map React UI should not hard-code a root-only empty-hint prompt',
 );
 
 function makeClassList(owner) {
@@ -420,17 +439,64 @@ const board = renderer.renderFlowBoard({
   state: {},
 });
 
+const rootOnlyNode = {
+  ...rootNode,
+  childNodeIds: [],
+};
+const rootOnlyBoard = renderer.renderFlowBoard({
+  activeQuest: {
+    id: 'quest:root-only',
+    edges: [],
+  },
+  nodeMap: new Map([[rootOnlyNode.id, rootOnlyNode]]),
+  rootNode: rootOnlyNode,
+  state: {},
+});
+
+const mobileRenderer = context.window.MelodySyncTaskMapUi.createRenderer({
+  documentRef,
+  windowRef,
+  isMobileQuestTracker: () => true,
+});
+
+const mobileBoard = mobileRenderer.renderFlowBoard({
+  activeQuest: {
+    id: 'quest:main-1',
+    edges: [
+      { fromNodeId: rootNode.id, toNodeId: runningNode.id, type: 'structural' },
+      { fromNodeId: rootNode.id, toNodeId: waitingNode.id, type: 'structural' },
+      { fromNodeId: rootNode.id, toNodeId: completedNode.id, type: 'structural' },
+      { fromNodeId: rootNode.id, toNodeId: idleNode.id, type: 'structural' },
+      { fromNodeId: rootNode.id, toNodeId: editableNode.id, type: 'structural' },
+    ],
+  },
+  nodeMap,
+  rootNode,
+  state: {},
+});
+
 const runningFlowNode = findFlowNodeByTitle(board, '运行节点');
 const waitingFlowNode = findFlowNodeByTitle(board, '等待节点');
 const completedFlowNode = findFlowNodeByTitle(board, '完成节点');
 const idleFlowNode = findFlowNodeByTitle(board, '空闲节点');
 const editableFlowNode = findFlowNodeByTitle(board, '可改挂节点');
+const mobileRootFlowNode = findFlowNodeByTitle(mobileBoard, '主任务');
+const mobileRunningFlowNode = findFlowNodeByTitle(mobileBoard, '运行节点');
 
 assert.ok(runningFlowNode, 'running flow node should render');
 assert.ok(waitingFlowNode, 'waiting flow node should render');
 assert.ok(completedFlowNode, 'completed flow node should render');
 assert.ok(idleFlowNode, 'idle flow node should render');
 assert.ok(editableFlowNode, 'editable flow node should render');
+assert.ok(mobileRootFlowNode, 'mobile flow board should still render the root node');
+assert.ok(mobileRunningFlowNode, 'mobile flow board should still render child nodes');
+assert.equal(
+  findFirstByClass(rootOnlyBoard, 'task-map-empty'),
+  null,
+  'root-only task maps should stay clean instead of showing a placeholder hint',
+);
+assert.equal(mobileRootFlowNode.style.getPropertyValue('width'), '150px', 'mobile root cards should use the compact width budget');
+assert.equal(mobileRunningFlowNode.style.getPropertyValue('width'), '128px', 'mobile child cards should use the narrower width budget so wide task maps fit better');
 
 assert.equal(runningFlowNode.classList.contains('is-status-running'), true);
 assert.equal(waitingFlowNode.classList.contains('is-status-waiting-user'), true);
@@ -444,9 +510,9 @@ assert.equal(
   'badge styling should inherit the normalized completed-status class',
 );
 assert.equal(
-  findFirstByClass(idleFlowNode, 'quest-task-flow-node-badge')?.textContent,
-  '空闲',
-  'non-current flow nodes should keep rendering a stable idle status badge',
+  findFirstByClass(idleFlowNode, 'quest-task-flow-node-badge'),
+  null,
+  'non-current idle flow nodes should avoid rendering a redundant idle badge',
 );
 
 const reparentActionBtn = findFirst(editableFlowNode, (node) => node?.textContent === '挂到...');

@@ -157,7 +157,7 @@ function buildOpportunityDispatchPayload(opportunity = {}, spec = null) {
     checkpointSummary,
     branchReason,
     pattern: 'Next Best Action',
-    label: '开启支线',
+    label: '开启',
   };
 }
 

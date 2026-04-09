@@ -210,7 +210,7 @@ function createContext({
   };
   const focusComposerCalls = [];
   const consoleMock = { ...console, warn() {} };
-  const remoteLabLayout = {
+  const sessionLayout = {
     getViewportHeight() {
       const managedHeight = windowTarget.visualViewport?.height;
       if (Number.isFinite(managedHeight) && managedHeight > 0) {
@@ -223,7 +223,7 @@ function createContext({
       return () => {};
     },
   };
-  windowTarget.MelodySyncLayout = remoteLabLayout;
+  windowTarget.MelodySyncLayout = sessionLayout;
   if (workbenchApi) {
     windowTarget.MelodySyncWorkbench = workbenchApi;
   }
@@ -515,6 +515,131 @@ assert.equal(failedSendContext.localStorage.getItem('draft_session-a'), null, 'p
 failedSendContext.restoreFailedSendState('session-a', 'retry this request', [], 'req_test');
 assert.equal(failedSendContext.msgInput.readOnly, false, 'failed sends should restore the composer input state');
 assert.equal(failedSendContext.localStorage.getItem('draft_session-a'), 'retry this request', 'failed sends should put the draft back into durable storage for retry');
+
+const directUploadContext = createContext();
+vm.runInNewContext(composeSource, directUploadContext, { filename: 'frontend-src/session/compose.js' });
+directUploadContext.getBootstrapAssetUploads = () => ({
+  enabled: true,
+  directUpload: true,
+  provider: 'test',
+});
+const uploadFinalizeCalls = [];
+const uploadResolvers = new Map();
+directUploadContext.fetchJsonOrRedirect = async (url, options = {}) => {
+  if (url === '/api/assets/upload-intents') {
+    const body = JSON.parse(options.body || '{}');
+    const assetId = `asset-${body.originalName}`;
+    return {
+      asset: {
+        id: assetId,
+        originalName: body.originalName,
+        mimeType: body.mimeType,
+      },
+      upload: {
+        url: `https://upload.test/${assetId}`,
+        method: 'PUT',
+        headers: {},
+      },
+    };
+  }
+  const finalizeMatch = url.match(/^\/api\/assets\/(.+)\/finalize$/);
+  if (finalizeMatch) {
+    const assetId = decodeURIComponent(finalizeMatch[1]);
+    uploadFinalizeCalls.push(assetId);
+    return {
+      asset: {
+        id: assetId,
+      },
+    };
+  }
+  throw new Error(`Unexpected fetchJsonOrRedirect url: ${url}`);
+};
+directUploadContext.fetch = async (url) => {
+  const assetId = String(url || '').split('/').pop();
+  return await new Promise((resolve) => {
+    uploadResolvers.set(assetId, () => {
+      resolve({
+        ok: true,
+        status: 200,
+        headers: {
+          get(name) {
+            return name === 'etag' ? `"${assetId}"` : null;
+          },
+        },
+      });
+    });
+  });
+};
+const preparedUploadsPromise = directUploadContext.prepareComposerAttachmentsForSend('session-a', [
+  {
+    file: {
+      name: 'first.png',
+      type: 'image/png',
+      size: 12,
+      async arrayBuffer() {
+        return new ArrayBuffer(12);
+      },
+    },
+    originalName: 'first.png',
+    mimeType: 'image/png',
+    objectUrl: 'blob:first',
+  },
+  {
+    assetId: 'asset-existing',
+    originalName: 'existing.pdf',
+    mimeType: 'application/pdf',
+  },
+  {
+    file: {
+      name: 'second.txt',
+      type: 'text/plain',
+      size: 8,
+      async arrayBuffer() {
+        return new ArrayBuffer(8);
+      },
+    },
+    originalName: 'second.txt',
+    mimeType: 'text/plain',
+  },
+]);
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.deepEqual(
+  [...uploadResolvers.keys()],
+  ['asset-first.png', 'asset-second.txt'],
+  'direct uploads should start all pending file uploads in parallel instead of blocking on the first attachment',
+);
+uploadResolvers.get('asset-second.txt')?.();
+uploadResolvers.get('asset-first.png')?.();
+const preparedUploads = await preparedUploadsPromise;
+assert.deepEqual(
+  JSON.parse(JSON.stringify(preparedUploads)),
+  [
+    {
+      assetId: 'asset-first.png',
+      originalName: 'first.png',
+      mimeType: 'image/png',
+      sizeBytes: 12,
+      objectUrl: 'blob:first',
+    },
+    {
+      assetId: 'asset-existing',
+      originalName: 'existing.pdf',
+      mimeType: 'application/pdf',
+    },
+    {
+      assetId: 'asset-second.txt',
+      originalName: 'second.txt',
+      mimeType: 'text/plain',
+      sizeBytes: 8,
+    },
+  ],
+  'direct uploads should preserve attachment order and existing asset references after preparation',
+);
+assert.deepEqual(
+  uploadFinalizeCalls.sort(),
+  ['asset-first.png', 'asset-second.txt'],
+  'direct uploads should finalize every newly uploaded attachment',
+);
 
 const suggestedQuestionsEl = createDomElement('div');
 const branchDispatchCalls = [];

@@ -1,14 +1,27 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const modelSource = readFileSync(join(repoRoot, 'frontend/settings/nodes/model.js'), 'utf8');
-const uiSource = readFileSync(join(repoRoot, 'frontend/settings/nodes/ui.js'), 'utf8');
+
+function readFrontendSource(...segments) {
+  const candidates = [
+    join(repoRoot, 'frontend-src', ...segments),
+    join(repoRoot, 'frontend', ...segments),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Frontend source not found for ${segments.join('/')}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const modelSource = readFrontendSource('settings', 'nodes', 'model.js');
+const uiSource = readFrontendSource('settings', 'nodes', 'ui.js');
 
 function makeClassList() {
   const tokens = new Set();
@@ -86,11 +99,12 @@ const context = {
           nodeViewTypes: ['flow-node', 'markdown', 'html', 'iframe'],
           nodeSurfaceSlots: ['task-map', 'composer-suggestions'],
           nodeTaskCardBindingKeys: ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps'],
-          builtInNodeKinds: ['main', 'branch', 'candidate', 'done'],
+          builtInNodeKinds: ['main', 'branch', 'candidate', 'note', 'done'],
           nodeKindDefinitions: [
             { id: 'main', label: '主任务', lane: 'main', role: 'state', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
             { id: 'branch', label: '子任务', lane: 'branch', role: 'state', mergePolicy: 'append', builtIn: true, editable: false, source: 'builtin' },
             { id: 'candidate', label: '建议子任务', lane: 'branch', role: 'action', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
+            { id: 'note', label: '笔记', lane: 'side', role: 'summary', mergePolicy: 'append', builtIn: true, editable: false, source: 'builtin' },
             { id: 'done', label: '收束', lane: 'main', role: 'summary', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
             {
               id: 'review-note',

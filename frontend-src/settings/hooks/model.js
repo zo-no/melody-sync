@@ -117,7 +117,7 @@
       id: 'branch.opened',
       phase: 'branch_followup',
       scope: 'branch',
-      label: '开启支线',
+      label: '开启',
       description: '新的支线任务和 branch context 已持久化并进入处理状态之后。',
     },
     'branch.merged': {

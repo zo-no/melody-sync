@@ -5,12 +5,14 @@
   const trackerStatusTextEl = document.getElementById("questTrackerStatusText");
   const headerTitleEl = document.getElementById("headerTitle");
   const headerTaskDetailBtn = document.getElementById("headerTaskDetailBtn");
+  const persistentSessionBtn = document.getElementById("persistentSessionBtn");
   const trackerTitleEl = document.getElementById("questTrackerTitle");
   const trackerBranchEl = document.getElementById("questTrackerBranch");
   const trackerBranchLabelEl = document.getElementById("questTrackerBranchLabel");
   const trackerBranchTitleEl = document.getElementById("questTrackerBranchTitle");
   const trackerNextEl = document.getElementById("questTrackerNext");
   const trackerTimeEl = document.getElementById("questTrackerTime");
+  const trackerPersistentSummaryEl = document.getElementById("questTrackerPersistentSummary");
   const trackerTaskListEl = document.getElementById("questTaskList");
   const taskMapRail = document.getElementById("taskMapRail");
   const sidebarOverlay = document.getElementById("sidebarOverlay");
@@ -717,6 +719,8 @@
       /是否撤回/i,
       /等待.*确认/i,
       /继续当前任务/i,
+      /继续把当前目标再推进一步/i,
+      /继续推进这项任务/i,
     ].some((pattern) => pattern.test(text));
   }
 
@@ -1081,10 +1085,151 @@
     return raw.replace(/^(?:Branch\s*[·•-]\s*|支线\s*[·•:-]\s*)/i, "").trim() || raw;
   }
 
+  const HANDOFF_PREVIEW_LIMITS = Object.freeze({
+    focused: Object.freeze({
+      focus: 2,
+      background: 2,
+      constraints: 2,
+      conclusions: 2,
+      nextSteps: 2,
+      integration: 2,
+    }),
+    balanced: Object.freeze({
+      focus: 2,
+      background: 3,
+      constraints: 3,
+      conclusions: 3,
+      nextSteps: 3,
+      integration: 2,
+    }),
+    full: Object.freeze({
+      focus: 3,
+      background: 4,
+      constraints: 4,
+      conclusions: 4,
+      nextSteps: 4,
+      integration: 3,
+    }),
+  });
+
+  const HANDOFF_PREVIEW_STOP_TOKENS = new Set([
+    "任务",
+    "当前",
+    "当前任务",
+    "目标",
+    "目标任务",
+    "主线",
+    "支线",
+    "继续",
+    "推进",
+    "整理",
+    "处理",
+    "阶段",
+    "总结",
+    "摘要",
+    "背景",
+    "下一步",
+    "结论",
+  ]);
+
+  function dedupePreviewItems(items = []) {
+    const results = [];
+    const seen = new Set();
+    for (const item of Array.isArray(items) ? items : []) {
+      const normalized = clipText(item, 140);
+      if (!normalized) continue;
+      const key = normalizedComparableText(normalized);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      results.push(normalized);
+    }
+    return results;
+  }
+
+  function normalizedComparableText(value) {
+    return normalizeComparableText(value)
+      .replace(/[^\p{Letter}\p{Number}\u4e00-\u9fff]+/gu, "");
+  }
+
+  function buildHandoffPreviewTokenSet(value) {
+    const comparable = normalizedComparableText(value).toLowerCase();
+    if (!comparable) return new Set();
+
+    const tokens = new Set();
+    const asciiTokens = comparable.match(/[a-z0-9]{2,}/g) || [];
+    for (const token of asciiTokens) {
+      if (tokens.size >= 72) break;
+      if (HANDOFF_PREVIEW_STOP_TOKENS.has(token)) continue;
+      tokens.add(token);
+    }
+
+    const cjk = comparable.replace(/[^\u4e00-\u9fff]/g, "");
+    for (let size = 2; size <= 4; size += 1) {
+      for (let index = 0; index <= cjk.length - size; index += 1) {
+        if (tokens.size >= 72) break;
+        const token = cjk.slice(index, index + size);
+        if (!token || HANDOFF_PREVIEW_STOP_TOKENS.has(token)) continue;
+        tokens.add(token);
+      }
+    }
+
+    return tokens;
+  }
+
+  function buildHandoffPreviewProfile(items = []) {
+    const profile = new Set();
+    for (const item of Array.isArray(items) ? items : []) {
+      for (const token of buildHandoffPreviewTokenSet(item)) {
+        profile.add(token);
+      }
+    }
+    return profile;
+  }
+
+  function scoreHandoffPreviewItem(text, profile) {
+    if (!text || !(profile instanceof Set) || profile.size === 0) return 0;
+    let score = 0;
+    for (const token of buildHandoffPreviewTokenSet(text)) {
+      if (!profile.has(token)) continue;
+      score += token.length >= 3 ? 2 : 1;
+    }
+    return score;
+  }
+
+  function prioritizeHandoffPreviewItems(items = [], profile, max = 3) {
+    const normalized = dedupePreviewItems(items);
+    if (normalized.length === 0) return [];
+    if (!(profile instanceof Set) || profile.size === 0) {
+      return normalized.slice(0, max);
+    }
+    const prioritized = normalized
+      .map((item, index) => ({
+        item,
+        index,
+        score: scoreHandoffPreviewItem(item, profile),
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort((left, right) => right.score - left.score || left.index - right.index)
+      .map((entry) => entry.item);
+    return dedupePreviewItems([
+      ...prioritized,
+      ...normalized,
+    ]).slice(0, max);
+  }
+
+  function resolveHandoffPreviewDetailLevel(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(HANDOFF_PREVIEW_LIMITS, normalized)
+      ? normalized
+      : "balanced";
+  }
+
   function buildTaskHandoffPreview(sourceSessionId, targetSessionId, options = {}) {
     const sourceSession = getSessionRecord(sourceSessionId) || null;
     const targetSession = getSessionRecord(targetSessionId) || null;
     const sourceTaskCard = sourceSession?.taskCard && typeof sourceSession.taskCard === "object" ? sourceSession.taskCard : {};
+    const targetTaskCard = targetSession?.taskCard && typeof targetSession.taskCard === "object" ? targetSession.taskCard : {};
+    const limits = HANDOFF_PREVIEW_LIMITS[resolveHandoffPreviewDetailLevel(options.detailLevel)];
     const sourceTitle = normalizeTitle(options.sourceTitle || getSessionDisplayName(sourceSession) || "源任务");
     const targetTitle = normalizeTitle(options.targetTitle || getSessionDisplayName(targetSession) || "目标任务");
     const pickList = (key, max = 3) => (
@@ -1092,19 +1237,57 @@
         ? sourceTaskCard[key].map((entry) => clipText(entry, 140)).filter(Boolean).slice(0, max)
         : []
     );
-    const background = [...pickList("background", 2), ...pickList("rawMaterials", 2)]
-      .filter((entry, index, list) => list.indexOf(entry) === index)
-      .slice(0, 4);
-    const constraints = pickList("assumptions", 3);
-    const conclusions = [
+    const targetProfile = buildHandoffPreviewProfile([
+      targetTaskCard?.goal,
+      targetTaskCard?.mainGoal,
+      targetTaskCard?.checkpoint,
+      targetTaskCard?.summary,
+      ...(Array.isArray(targetTaskCard?.nextSteps) ? targetTaskCard.nextSteps.slice(0, 2) : []),
+      ...(Array.isArray(targetTaskCard?.knownConclusions) ? targetTaskCard.knownConclusions.slice(0, 2) : []),
+    ]);
+    const background = prioritizeHandoffPreviewItems(
+      [...pickList("background", 2), ...pickList("rawMaterials", 2)],
+      targetProfile,
+      limits.background,
+    );
+    const constraints = prioritizeHandoffPreviewItems(
+      pickList("assumptions", 4),
+      targetProfile,
+      limits.constraints,
+    );
+    const conclusions = prioritizeHandoffPreviewItems([
       ...pickList("knownConclusions", 3),
       clipText(sourceTaskCard?.checkpoint || sourceTaskCard?.summary || sourceTaskCard?.goal || sourceSession?.name || "", 140),
-    ].filter((entry, index, list) => entry && list.indexOf(entry) === index).slice(0, 4);
-    const nextSteps = pickList("nextSteps", 3);
+    ], targetProfile, limits.conclusions);
+    const nextSteps = prioritizeHandoffPreviewItems(
+      pickList("nextSteps", 4),
+      targetProfile,
+      limits.nextSteps,
+    );
+    const focus = dedupePreviewItems([
+      sourceTaskCard?.goal ? `源任务目标：${clipText(sourceTaskCard.goal, 140)}` : "",
+      sourceTaskCard?.checkpoint ? `源任务检查点：${clipText(sourceTaskCard.checkpoint, 140)}` : "",
+      targetTaskCard?.goal ? `目标任务目标：${clipText(targetTaskCard.goal, 140)}` : "",
+      targetTaskCard?.checkpoint ? `目标任务接入点：${clipText(targetTaskCard.checkpoint, 140)}` : "",
+    ]).slice(0, limits.focus);
+    const targetAnchor = clipText(
+      targetTaskCard?.checkpoint
+      || (Array.isArray(targetTaskCard?.nextSteps) ? targetTaskCard.nextSteps[0] : "")
+      || targetTaskCard?.goal
+      || targetTaskCard?.mainGoal
+      || "",
+      140,
+    );
+    const integration = dedupePreviewItems([
+      conclusions[0] && targetAnchor ? `围绕「${targetAnchor}」优先吸收：${conclusions[0]}` : "",
+      nextSteps[0] ? `可并入「${targetTitle}」的下一步：${nextSteps[0]}` : "",
+    ]).slice(0, limits.integration);
     const sections = [
+      { key: "focus", label: "焦点", items: focus },
       { key: "background", label: "背景", items: background },
       { key: "constraints", label: "约束", items: constraints },
       { key: "conclusions", label: "结论", items: conclusions },
+      { key: "integration", label: "接入建议", items: integration },
       { key: "nextSteps", label: "下一步", items: nextSteps },
     ].filter((section) => section.items.length > 0);
 
@@ -1329,6 +1512,169 @@
     return `${mo}-${dy} ${hh}:${mm}`;
   }
 
+  function normalizePersistentKind(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function normalizePersistentRuntimeMode(value) {
+    return String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  }
+
+  function normalizeTimeOfDay(value) {
+    const text = String(value || "").trim();
+    if (!/^\d{1,2}:\d{2}$/.test(text)) return "";
+    const [hourText, minuteText] = text.split(":");
+    const hour = Number.parseInt(hourText, 10);
+    const minute = Number.parseInt(minuteText, 10);
+    if (!Number.isInteger(hour) || !Number.isInteger(minute)) return "";
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return "";
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
+  function formatPersistentRuntimeLabel(rule, fallbackLabel = "会话默认") {
+    const mode = normalizePersistentRuntimeMode(rule?.mode || "");
+    if (mode === "pinned") {
+      const runtime = rule?.runtime && typeof rule.runtime === "object" ? rule.runtime : {};
+      const parts = [
+        String(runtime.tool || "").trim(),
+        String(runtime.model || "").trim(),
+        String(runtime.effort || "").trim() ? `思考 ${String(runtime.effort || "").trim()}` : "",
+      ].filter(Boolean);
+      return parts.join(" · ") || "固定服务";
+    }
+    if (mode === "follow_current") return "跟随当前所选";
+    if (mode === "session_default") return "会话默认";
+    return fallbackLabel;
+  }
+
+  function formatRecurringCadenceLabel(recurring = {}) {
+    const cadence = String(recurring?.cadence || "").trim().toLowerCase();
+    const timeOfDay = normalizeTimeOfDay(recurring?.timeOfDay || "");
+    if (cadence === "hourly") return "每小时";
+    if (cadence === "weekly") {
+      const labels = ["日", "一", "二", "三", "四", "五", "六"];
+      const days = Array.isArray(recurring?.weekdays)
+        ? recurring.weekdays
+          .map((entry) => Number.parseInt(String(entry || "").trim(), 10))
+          .filter((entry) => Number.isInteger(entry) && entry >= 0 && entry <= 6)
+          .map((entry) => `周${labels[entry]}`)
+        : [];
+      const dayText = days.length > 0 ? days.join(" / ") : "每周";
+      return timeOfDay ? `${dayText} ${timeOfDay}` : dayText;
+    }
+    return timeOfDay ? `每天 ${timeOfDay}` : "每天";
+  }
+
+  function createPersistentSummaryChip(label, tone = "") {
+    const chip = document.createElement("div");
+    chip.className = `quest-tracker-persistent-chip${tone ? ` is-${tone}` : ""}`;
+    chip.textContent = label;
+    return chip;
+  }
+
+  function clearPersistentSummary() {
+    if (!trackerPersistentSummaryEl) return;
+    trackerPersistentSummaryEl.hidden = true;
+    trackerPersistentSummaryEl.innerHTML = "";
+  }
+
+  function renderPersistentSummary(session) {
+    if (!trackerPersistentSummaryEl) return;
+    const persistent = session?.persistent && typeof session.persistent === "object" ? session.persistent : null;
+    const kind = normalizePersistentKind(persistent?.kind || "");
+    if (!session?.id || !persistent || !kind) {
+      clearPersistentSummary();
+      return;
+    }
+
+    trackerPersistentSummaryEl.hidden = false;
+    trackerPersistentSummaryEl.innerHTML = "";
+
+    const kicker = document.createElement("div");
+    kicker.className = "quest-tracker-persistent-kicker";
+
+    const lead = document.createElement("div");
+    lead.className = "quest-tracker-persistent-lead";
+
+    const meta = document.createElement("div");
+    meta.className = "quest-tracker-persistent-meta";
+
+    if (kind === "recurring_task") {
+      const cadenceLabel = formatRecurringCadenceLabel(persistent.recurring || {});
+      const isPaused = String(persistent?.state || "").trim().toLowerCase() === "paused";
+      const nextRunAt = formatTrackerTime(persistent?.recurring?.nextRunAt || "");
+      const lastRunAt = formatTrackerTime(
+        persistent?.recurring?.lastRunAt
+          || persistent?.execution?.lastTriggerAt
+          || "",
+      );
+      const runtimeLabel = formatPersistentRuntimeLabel(
+        persistent?.runtimePolicy?.schedule,
+        "会话默认",
+      );
+
+      kicker.textContent = "后台任务 / 定时任务";
+      lead.textContent = isPaused
+        ? `已暂停自动执行，仍可手动运行。${cadenceLabel ? `原周期：${cadenceLabel}` : ""}`.trim()
+        : `${cadenceLabel || "按设定周期"}自动执行`;
+
+      meta.appendChild(createPersistentSummaryChip(isPaused ? "已暂停" : "自动执行中", isPaused ? "paused" : "live"));
+      if (cadenceLabel) meta.appendChild(createPersistentSummaryChip(cadenceLabel));
+      if (nextRunAt) meta.appendChild(createPersistentSummaryChip(`下次 ${nextRunAt}`));
+      if (lastRunAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastRunAt}`));
+      meta.appendChild(createPersistentSummaryChip(`调度 ${runtimeLabel}`));
+    } else if (kind === "skill") {
+      const runtimeLabel = formatPersistentRuntimeLabel(
+        persistent?.runtimePolicy?.manual,
+        "跟随当前所选",
+      );
+      const lastUsedAt = formatTrackerTime(
+        persistent?.skill?.lastUsedAt
+          || persistent?.execution?.lastTriggerAt
+          || "",
+      );
+
+      kicker.textContent = "AI 快捷按钮";
+      lead.textContent = "保留提示词和执行服务，之后可以一键手动触发。";
+
+      meta.appendChild(createPersistentSummaryChip("手动触发", "active"));
+      if (lastUsedAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastUsedAt}`));
+      meta.appendChild(createPersistentSummaryChip(`执行 ${runtimeLabel}`));
+    } else {
+      clearPersistentSummary();
+      return;
+    }
+
+    trackerPersistentSummaryEl.appendChild(kicker);
+    trackerPersistentSummaryEl.appendChild(lead);
+    trackerPersistentSummaryEl.appendChild(meta);
+  }
+
+  function syncPersistentHeaderButton(session) {
+    if (!persistentSessionBtn) return;
+    const persistent = session?.persistent && typeof session.persistent === "object" ? session.persistent : null;
+    const kind = normalizePersistentKind(persistent?.kind || "");
+    const hasSession = Boolean(session?.id && session?.archived !== true);
+    persistentSessionBtn.hidden = !hasSession;
+    if (!hasSession) {
+      persistentSessionBtn.classList.remove("is-persistent-active");
+      persistentSessionBtn.textContent = "自动化";
+      persistentSessionBtn.title = "自动化";
+      persistentSessionBtn.setAttribute("aria-label", "自动化");
+      return;
+    }
+    const label = "自动化";
+    const title = !kind
+      ? "把当前任务沉淀成长期任务或 AI 快捷按钮"
+      : (kind === "recurring_task"
+        ? "查看和修改后台任务 / 定时任务设置"
+        : "查看和修改 AI 快捷按钮设置");
+    persistentSessionBtn.classList.toggle("is-persistent-active", Boolean(kind));
+    persistentSessionBtn.textContent = label;
+    persistentSessionBtn.title = title;
+    persistentSessionBtn.setAttribute("aria-label", title);
+  }
+
   function getSuppressedStorageKey(sessionId, branchTitle) {
     return `${SUPPRESSED_PREFIX}:${sessionId}:${String(branchTitle || "").trim().toLowerCase()}`;
   }
@@ -1470,10 +1816,12 @@
       tracker.hidden = true;
       tracker.classList.remove("is-branch-focus", "is-task-complete");
       headerTaskDetailBtn?.classList?.remove?.("is-task-complete");
+      syncPersistentHeaderButton(null);
+      clearPersistentSummary();
       if (taskMapRail) taskMapRail.hidden = true;
       if (trackerTaskListEl) trackerTaskListEl.hidden = true;
       if (headerTaskDetailBtn) headerTaskDetailBtn.hidden = true;
-      if (headerTitleEl) headerTitleEl.hidden = false;
+      if (headerTitleEl) headerTitleEl.hidden = true;
       taskMapRail?.classList?.remove?.("has-node-canvas");
       taskCanvasController?.clear?.();
       syncTaskMapDrawerUi(false);
@@ -1485,6 +1833,7 @@
     tracker.hidden = false;
     scrollWorkbenchToTopIfNeeded(state);
     syncQuestEmptyState(state);
+    syncPersistentHeaderButton(state.session);
     const showBranch = Boolean(state.isBranch && state.currentGoal);
     const taskCompleted = isTrackerTaskCompleted(state);
     tracker.classList.toggle("is-branch-focus", showBranch);
@@ -1494,6 +1843,9 @@
     const trackerTitle = getTrackerPrimaryTitle(state);
     const trackerPrimaryDetail = getTrackerPrimaryDetail(state);
     const trackerSecondaryDetail = getTrackerSecondaryDetail(state, trackerPrimaryDetail);
+    tracker.classList.toggle("has-primary-detail", Boolean(trackerPrimaryDetail));
+    tracker.classList.toggle("has-secondary-detail", Boolean(trackerSecondaryDetail));
+    tracker.classList.toggle("is-detail-expanded", trackerDetailExpanded === true);
     const mobileTracker = isMobileQuestTracker();
     const activeCanvasNode = renderTaskCanvas(taskMapProjection, { allowAutoOpen: true });
     const detailPanels = resolveWorkbenchDetailPanels({
@@ -1510,9 +1862,7 @@
       headerTaskDetailBtn.setAttribute("aria-label", `${expanded ? "收起" : "展开"}任务详情：${trackerTitle || headerTaskLabel}`);
       headerTaskDetailBtn.setAttribute("aria-expanded", expanded ? "true" : "false");
     }
-    if (headerTitleEl) {
-      headerTitleEl.hidden = detailPanels.showHeaderTaskDetailBtn;
-    }
+    if (headerTitleEl) headerTitleEl.hidden = true;
     tracker.hidden = !expanded;
     trackerTitleEl.textContent = trackerTitle;
     trackerTitleEl.hidden = false;
@@ -1524,11 +1874,14 @@
       trackerBranchTitleEl.textContent = trackerPrimaryDetail;
     }
     trackerNextEl.hidden = !trackerSecondaryDetail;
+    trackerNextEl.classList.toggle("is-candidate-hint", Boolean(!showBranch && trackerSecondaryDetail));
+    trackerNextEl.classList.toggle("is-next-step-hint", Boolean(showBranch && trackerSecondaryDetail));
     trackerNextEl.textContent = trackerSecondaryDetail;
     if (trackerTimeEl) {
       trackerTimeEl.hidden = !timeText;
       trackerTimeEl.textContent = timeText;
     }
+    renderPersistentSummary(state.session);
     if (trackerToggleBtn) {
       trackerToggleBtn.hidden = true;
     }
@@ -1975,6 +2328,14 @@
     openPersistentEditor() {},
   };
 
+  persistentSessionBtn?.addEventListener("click", () => {
+    const session = getFocusedSessionRecord() || getCurrentSessionSafe();
+    if (!session?.id || session?.archived === true) return;
+    operationRecordController?.openPersistentEditor?.({
+      mode: normalizePersistentKind(session?.persistent?.kind || "") ? "configure" : "promote",
+    });
+  });
+
   // ─────────────────────────────────────────────────────────────────
 
   restoreTaskMapDesktopWidthPreference();
@@ -2003,6 +2364,7 @@
     openTaskMapDrawer: () => setTaskMapDrawerExpanded(true),
     closeTaskMapDrawer: () => setTaskMapDrawerExpanded(false),
     toggleTaskMapDrawer: () => setTaskMapDrawerExpanded(!isTaskMapExpanded()),
+    openPersistentEditor: (options = {}) => operationRecordController.openPersistentEditor(options),
     isTaskMapDrawerOpen: isMobileTaskMapDrawerOpen,
     getTaskMapRendererKind: () => String(taskMapFlowRenderer?.getRendererKind?.() || taskMapFlowRenderer?.rendererKind || "unknown"),
     selectTaskCanvasNode,

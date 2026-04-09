@@ -121,13 +121,18 @@ export function createDetachedRunObserverService({
 
       if (run && isTerminalRunState(run.state)) {
         if (!run.finalizedAt) {
-          void syncDetachedRun(sessionId, runId).finally(() => {
-            if (startupSyncDebug) {
-              console.log(`Startup finalize-sync for completed run ${runId} in session ${sessionId} completed in ${Date.now() - startTs}ms`);
-            }
-          }).catch((error) => {
-            console.error(`Failed to sync completed detached run for session ${sessionId} (run ${runId}): ${error.message}`);
-          });
+          const observing = observeDetachedRun(sessionId, runId, { initialSync: true });
+          if (!observing) {
+            void syncDetachedRun(sessionId, runId).finally(() => {
+              if (startupSyncDebug) {
+                console.log(`Startup finalize-sync for completed run ${runId} in session ${sessionId} completed in ${Date.now() - startTs}ms`);
+              }
+            }).catch((error) => {
+              console.error(`Failed to sync completed detached run for session ${sessionId} (run ${runId}): ${error.message}`);
+            });
+          } else if (startupSyncDebug) {
+            console.log(`Startup observed terminal unfinished run for session ${sessionId} (run ${runId})`);
+          }
           continue;
         }
         if (getFollowUpQueueCount(meta) > 0) {

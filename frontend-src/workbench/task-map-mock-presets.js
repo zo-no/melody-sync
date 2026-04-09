@@ -169,7 +169,7 @@
       parentNodeId: rootNodeId,
       depth: 1,
       title: "生成 12 周片单",
-      summary: "建议拆成独立支线",
+      summary: "建议拆分",
       status: "candidate",
     });
 
@@ -183,7 +183,7 @@
       parentNodeId: rootNodeId,
       depth: 1,
       title: "按亚洲线重排",
-      summary: "建议拆成独立支线",
+      summary: "建议拆分",
       status: "candidate",
     });
 
@@ -197,7 +197,7 @@
       parentNodeId: "mock:cinema:branch:visual-style",
       depth: 2,
       title: "黑色电影",
-      summary: "建议拆成独立支线",
+      summary: "建议拆分",
       status: "candidate",
     });
 

@@ -401,8 +401,8 @@ function buildTaskCardReplyContractBlock(normalized, fixedTaskTitle) {
     'Add candidateBranches when the user has already started drifting into a different goal or when there are clear independent side lines that are likely to deserve their own branch next.',
     'Use candidateBranches for branch recommendations only. Do not change the main task title just because a candidate branch appeared.',
     'Do not proactively suggest a branch for normal follow-up questions, refinements, examples, reordering, polishing, style tweaks, or deeper explanation inside the same deliverable.',
-    'Keep candidateBranches to the strongest 1-3 likely side lines. If there is any doubt, leave candidateBranches empty.',
-    'Use candidateBranches only for likely side lines that would be worth splitting into their own branch later because they are independent and would otherwise pollute the current context. Keep each item short and actionable. Do not list every sub-question or routine refinements.',
+    'Keep candidateBranches concise and reserve them for the strongest likely side lines. If there is any doubt, leave candidateBranches empty.',
+    'Use candidateBranches only for likely side lines that would be worth splitting later because they are independent and would otherwise pollute the current context. Keep each item short and actionable. Do not list every sub-question, routine refinement, or the full task map there.',
     normalized?.mode === 'project'
       ? 'This session is already in project mode. Own the workspace, notes, artifacts, and intermediate outputs without asking the user to organize them.'
       : 'This session is still in lightweight task mode. Keep the summary, next step, and checkpoint current without making the user manage project structure.',

@@ -35,11 +35,13 @@ Default layout:
 
 - `brainRoot` stores portable assets such as `AGENTS.md` and `memory/`
 - `runtimeRoot` stores machine-local runtime state such as `config/`, `email/`, `voice/`, `sessions/`, `hooks/`, `workbench/`, and `logs/`
+- `~/.config/melody-sync/` stores machine bootstrap and small owner/device config such as auth, auth sessions, push config, tool catalog, and runtime selection
 - by default MelodySync uses `~/.melodysync` for the brain and `~/.melodysync/runtime` for the runtime
 
 | Path | Purpose |
 | --- | --- |
-| `config/` | Owner auth config, runtime settings, push config, tool catalog |
+| `~/.config/melody-sync/` | Current-device bootstrap, auth, auth sessions, push config, tool catalog, runtime selection |
+| `<runtimeRoot>/config/` | Runtime-scoped settings such as app-scoped general settings and provider-managed homes |
 | `email/` | Mailbox identity, outbound, and automation config |
 | `voice/` | Local voice-ingress config and runtime artifacts |
 | `memory/` | Bootstrap/project/skills/task memory |
@@ -49,6 +51,8 @@ Default layout:
 
 ## Notes
 
+- On startup, MelodySync copy-migrates legacy top-level runtime directories found under the current brain root into the current runtime root when the split layout is active.
+- That migration is copy-based. Old files may remain in place until an operator explicitly cleans them up.
 - Legacy compatibility fields such as `appId` / `appName`, `sourceId` / `sourceName`, and `userId` / `userName` may still appear in stored session metadata.
 - Those fields are not active product surfaces. They should be treated as passive metadata unless a future product decision explicitly revives them.
 - Integrations and workbench capabilities still matter, but they layer on top of the core session/run model instead of replacing it.

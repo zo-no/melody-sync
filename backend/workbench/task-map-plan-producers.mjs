@@ -5,6 +5,7 @@ import { persistTaskMapPlansWithSessionSync } from './task-map-plan-sync.mjs';
 
 const BRANCH_CANDIDATE_HOOK_ID = 'builtin.branch-candidates';
 const BRANCH_CANDIDATE_EVENT = 'branch.suggested';
+const DEFAULT_CANDIDATE_SUMMARY = '建议拆分';
 
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -136,7 +137,7 @@ function listDirectChildSessions(sessions = [], parentSessionId = '') {
 function buildBranchCandidatePlanNodes(sessions = []) {
   const candidateDefinition = getNodeKindDefinition('candidate');
   const composition = candidateDefinition?.composition || {};
-  const defaultSummary = candidateDefinition?.description || '建议拆成独立支线';
+  const defaultSummary = DEFAULT_CANDIDATE_SUMMARY;
   const nodes = [];
 
   for (const session of sessions) {

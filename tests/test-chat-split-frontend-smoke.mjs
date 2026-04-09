@@ -9,9 +9,11 @@ import vm from 'vm';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 const workbenchStylesheet = readFileSync(join(repoRoot, 'frontend-src', 'chat-workbench.css'), 'utf8');
+const sessionSurfaceUiSource = readFileSync(join(repoRoot, 'frontend-src', 'session', 'surface-ui.js'), 'utf8');
 const sidebarUiSource = readFileSync(join(repoRoot, 'frontend-src', 'session-list', 'sidebar-ui.js'), 'utf8');
 const sessionListUiSource = readFileSync(join(repoRoot, 'frontend-src', 'session-list', 'ui.js'), 'utf8');
 const sessionListReactUiSource = readFileSync(join(repoRoot, 'frontend-src', 'session-list', 'react-ui.js'), 'utf8');
+const workbenchTaskMapReactUiSource = readFileSync(join(repoRoot, 'frontend-src', 'workbench', 'task-map-react-ui.jsx'), 'utf8');
 const sidebarStylesheet = readFileSync(join(repoRoot, 'frontend-src', 'chat-sidebar.css'), 'utf8');
 const chatTemplateSource = readFileSync(join(repoRoot, 'templates', 'chat.html'), 'utf8');
 
@@ -23,6 +25,7 @@ const filesToParse = [
   join(repoRoot, 'frontend-src', 'core', 'bootstrap-session-catalog.js'),
   join(repoRoot, 'frontend-src', 'core', 'layout-tooling.js'),
   join(repoRoot, 'frontend-src', 'session/tooling.js'),
+  join(repoRoot, 'frontend-src', 'session', 'surface-ui.js'),
   join(repoRoot, 'frontend-src', 'session-list', 'order-contract.js'),
   join(repoRoot, 'frontend-src', 'session-list', 'contract.js'),
   join(repoRoot, 'frontend-src', 'session-list', 'model.js'),
@@ -70,39 +73,63 @@ for (const filePath of filesToParse) {
 }
 
 assert.match(
-  sidebarUiSource,
-  /sidebar-grouping-popover/,
-  'sidebar grouping config should render a custom popover instead of relying on prompt()',
-);
-
-assert.match(
-  sidebarUiSource,
-  /sidebar-grouping-summary/,
-  'sidebar grouping toolbar should expose a visible summary of the current grouping strategy',
-);
-
-assert.match(
   sessionListUiSource,
   /session-grouping-create-section/,
   'session list fallback renderer should expose an inline create-folder section above archive',
 );
 
 assert.match(
+  workbenchTaskMapReactUiSource,
+  /function SessionListCreateFolderSection\(/,
+  'workbench React bundle should own the inline create-folder section',
+);
+
+assert.match(
+  workbenchTaskMapReactUiSource,
+  /renderSessionList\(payload = \{\}\)/,
+  'workbench React bundle should expose a renderSessionList entrypoint for the sidebar',
+);
+
+assert.match(
+  workbenchTaskMapReactUiSource,
+  /function ArchivedSessionSection\([\s\S]*onEnsureArchivedLoaded[\s\S]*archivedSessionsLoaded[\s\S]*onEnsureArchivedLoaded\?\.\(\)/,
+  'workbench React bundle should auto-request archived tasks when the archive section is visible before its rows are loaded',
+);
+
+assert.match(
+  workbenchTaskMapReactUiSource,
+  /folder-group-delete/,
+  'workbench React bundle should expose per-folder delete actions in user mode',
+);
+
+assert.doesNotMatch(
   sessionListReactUiSource,
-  /session-grouping-create-section/,
-  'session list React renderer should expose an inline create-folder section above archive',
+  /renderCreateFolderSectionReact|appendCreateFolderSectionDom|createSessionListRenderer/,
+  'session-list/react-ui.js should remain a thin compatibility shim instead of duplicating the renderer',
 );
 
 assert.match(
   sessionListReactUiSource,
-  /folder-group-delete/,
-  'session list React renderer should expose per-folder delete actions in user mode',
+  /MelodySyncSessionListUi/,
+  'session-list/react-ui.js should still expose the legacy global alias',
 );
 
 assert.doesNotMatch(
   sidebarUiSource,
   /const nextValue = prompt\(/,
   'sidebar grouping config should no longer use a blocking prompt dialog',
+);
+
+assert.doesNotMatch(
+  sidebarUiSource,
+  /sidebar-grouping-popover/,
+  'folder creation should no longer rely on a detached popover shell',
+);
+
+assert.doesNotMatch(
+  sidebarUiSource,
+  /AI 会按这些分组顺序整理：/,
+  'folder mode should no longer expose a visible AI ordering summary',
 );
 
 assert.doesNotMatch(
@@ -113,26 +140,44 @@ assert.doesNotMatch(
 
 assert.match(
   sidebarStylesheet,
-  /\.sidebar-grouping-popover\s*\{/,
-  'sidebar stylesheet should include the anchored grouping popover shell',
-);
-
-assert.match(
-  sidebarStylesheet,
-  /\.sidebar-grouping-summary\s*\{/,
-  'sidebar stylesheet should include the grouping summary row beneath the toolbar',
-);
-
-assert.match(
-  sidebarStylesheet,
   /\.session-grouping-create-section\s*\{/,
   'sidebar stylesheet should include the create-folder section rendered above archive',
 );
 
 assert.match(
   sidebarStylesheet,
+  /\.session-grouping-create-draft\s*\{/,
+  'sidebar stylesheet should include the inline draft folder shell',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-grouping-create-input\s*\{/,
+  'sidebar stylesheet should include the inline draft folder input',
+);
+
+assert.match(
+  sidebarStylesheet,
   /\.folder-group-delete\s*\{/,
   'sidebar stylesheet should include the per-folder delete action styling',
+);
+
+assert.match(
+  sessionSurfaceUiSource,
+  /session-item-leading-action archive-checkbox/,
+  'session surface ui should render archive as a leading checkbox-style action',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-action-btn\.session-item-leading-action\s*\{/,
+  'sidebar stylesheet should style the leading archive checkbox shell',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-action-checkbox-ring\s*\{/,
+  'sidebar stylesheet should render the archive checkbox ring',
 );
 
 function escapeRegExp(value) {

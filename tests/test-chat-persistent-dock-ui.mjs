@@ -102,7 +102,22 @@ const routingContext = {
   sessionList: createElement('div'),
   sessionListFooter: createElement('div'),
   collapsedFolders: {},
+  archivedSessionsLoading: false,
+  archivedSessionsLoaded: true,
+  archivedSessionCount: 0,
   localStorage: { setItem() {} },
+  getSessionGroupingModeForList() {
+    return 'user';
+  },
+  getSessionListGroupPriority() {
+    return 0;
+  },
+  isUserTemplateFolderGroup() {
+    return false;
+  },
+  payloadSafeTranslate(_key, fallback) {
+    return fallback;
+  },
   getVisiblePinnedSessions() {
     return [];
   },
@@ -117,6 +132,14 @@ const routingContext = {
     return session.group === '长期任务'
       ? { key: 'group:long-term', label: '长期任务', title: '长期任务', order: 99998 }
       : { key: 'group:inbox', label: '收集箱', title: '收集箱', order: 0 };
+  },
+  getPersistentSidebarGroupInfo(groupKey) {
+    return groupKey === 'group:long-term'
+      ? { key: 'group:long-term', label: '长期任务', title: '长期任务', order: 90000 }
+      : { key: 'group:quick-actions', label: 'AI快捷按钮', title: 'AI快捷按钮', order: 90001 };
+  },
+  getVisibleArchivedSessions() {
+    return [];
   },
   appendSessionItems(host, entries = []) {
     for (const session of entries) {
@@ -175,13 +198,13 @@ routingContext.renderSessionList();
 
 assert.equal(
   routingContext.sessionList.children.length,
-  1,
-  'ordinary long-term sessions should still render in the grouped session list',
+  2,
+  'fallback sidebar rendering should keep both ordinary and persistent sessions visible when the React dock renderer is absent',
 );
 assert.equal(
-  routingContext.capturedDockGroups['group:long-term']?.map((entry) => entry.id).join(','),
-  'persistent-long-term',
-  'bottom dock should only include true persistent items',
+  Object.keys(routingContext.capturedDockGroups || {}).length,
+  0,
+  'fallback sidebar rendering should leave dock grouping to the dedicated dock renderer path',
 );
 
 const footerContext = {

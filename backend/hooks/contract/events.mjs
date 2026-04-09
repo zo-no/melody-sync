@@ -73,7 +73,7 @@ export const HOOK_EVENT_DEFINITIONS = Object.freeze([
   }),
   createEventDefinition({
     id: 'branch.opened',
-    label: '开启支线',
+    label: '开启',
     description: '新的支线任务和 branch context 已持久化并进入处理状态之后。',
   }),
   createEventDefinition({

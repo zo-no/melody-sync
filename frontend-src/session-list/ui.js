@@ -57,8 +57,9 @@ function buildSessionListMetaHtml(session, options = {}) {
       : []);
   const badgeHtml = Array.isArray(badges)
     ? badges
+        .filter((badge) => !(options?.hideBranchBadge === true && badge?.key === "branch"))
         .filter((badge) => badge?.label)
-        .map((badge) => `<span class="${esc(badge.className || "session-list-badge")}" title="${esc(badge.label)}">${esc(badge.label)}</span>`)
+        .map((badge) => `<span class="${esc(badge.className || "session-list-badge")}" title="${esc(badge.title || badge.label)}">${esc(badge.label)}</span>`)
     : [];
   return [...badgeHtml, ...metaParts].join(" · ");
 }
@@ -154,10 +155,17 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
   }
   if (persistentKind === "skill") extraClassNames.push("is-quick-action-item");
   if (persistentKind === "recurring_task") extraClassNames.push("is-persistent-recurring-item");
-  const metaOverrideHtml = buildSessionListMetaHtml(session, { archived });
+  const branchBadge = Array.isArray(entry?.badges)
+    ? entry.badges.find((badge) => badge?.key === "branch" && badge?.label)
+    : null;
+  const titlePrefixHtml = isBranch
+    ? `<span class="session-title-badge session-title-badge-branch" title="${esc(branchBadge?.label || t("sidebar.branchTag"))}">${esc(branchBadge?.label || t("sidebar.branchTag"))}</span>`
+    : "";
+  const metaOverrideHtml = buildSessionListMetaHtml(session, { archived, hideBranchBadge: isBranch });
   const item = createActiveSessionItem(session, {
     extraClassName: extraClassNames.join(" "),
     actions: buildSidebarSessionActions(session, { archived }),
+    ...(titlePrefixHtml ? { titlePrefixHtml } : {}),
     ...(metaOverrideHtml ? { metaOverrideHtml } : {}),
   });
   return item;
@@ -405,6 +413,9 @@ function renderSessionList() {
   const archivedCount = hasArchivedSessionsLoaded
     ? archivedSessions.length
     : Math.max(archivedSessionTotal, archivedSessions.length);
+  const isGroupingCreateOpen = typeof window.isSessionGroupingTemplateCreateOpen === "function"
+    ? window.isSessionGroupingTemplateCreateOpen()
+    : false;
 
   const externalRenderer = window.MelodySyncSessionListReactUi;
   if (typeof externalRenderer?.renderSessionList === "function") {
@@ -424,8 +435,12 @@ function renderSessionList() {
       grouping: {
         mode: groupingMode,
         showCreateFolder: showGroupingFolderControls,
-        createFolderLabel: payloadSafeTranslate("sidebar.grouping.createFolder", "创建分组"),
-        deleteFolderLabel: payloadSafeTranslate("sidebar.grouping.deleteFolder", "删除分组"),
+        createFolderLabel: payloadSafeTranslate("sidebar.grouping.createFolder", "新建文件夹"),
+        createFolderPlaceholder: payloadSafeTranslate("sidebar.grouping.createFolderPlaceholder", "输入文件夹名称"),
+        createFolderHint: payloadSafeTranslate("sidebar.grouping.createFolderHint", "Enter 保存，Esc 取消"),
+        saveFailedLabel: payloadSafeTranslate("sidebar.grouping.saveFailed", "文件夹保存失败。"),
+        deleteFolderLabel: payloadSafeTranslate("sidebar.grouping.deleteFolder", "删除文件夹"),
+        isCreatingFolder: showGroupingFolderControls && isGroupingCreateOpen,
       },
       archived: {
         sessions: archivedSessions,
@@ -443,6 +458,7 @@ function renderSessionList() {
         esc,
         renderUiIcon,
         appendSessionItems,
+        createSessionItem: createSidebarSessionItem,
       },
       actions: {
         setGroupCollapsed(groupKey, collapsed) {
@@ -450,6 +466,18 @@ function renderSessionList() {
         },
         openGroupingCreate(anchorEl) {
           window.openSessionGroupingTemplatePopoverAtAnchor?.(anchorEl, { runAfterSave: false });
+        },
+        closeGroupingCreate() {
+          window.closeSessionGroupingTemplateCreate?.();
+        },
+        createTemplateFolder(label) {
+          if (typeof window.saveSessionGroupingTemplateGroup !== "function") {
+            return Promise.resolve({
+              ok: false,
+              reason: payloadSafeTranslate("sidebar.grouping.saveFailed", "文件夹保存失败。"),
+            });
+          }
+          return window.saveSessionGroupingTemplateGroup(label);
         },
         removeTemplateFolder(groupLabel) {
           void window.removeSessionGroupingTemplateGroup?.(groupLabel, { runAfterSave: false });
@@ -505,7 +533,7 @@ function renderSessionList() {
         const deleteBtn = document.createElement("button");
         deleteBtn.type = "button";
         deleteBtn.className = "folder-group-delete";
-        deleteBtn.title = payloadSafeTranslate("sidebar.grouping.deleteFolder", "删除分组");
+        deleteBtn.title = payloadSafeTranslate("sidebar.grouping.deleteFolder", "删除文件夹");
         deleteBtn.setAttribute("aria-label", deleteBtn.title);
         deleteBtn.innerHTML = renderUiIcon("trash");
         deleteBtn.addEventListener("click", (event) => {
@@ -535,14 +563,70 @@ function renderSessionList() {
   if (showGroupingFolderControls) {
     const createSection = document.createElement("div");
     createSection.className = "session-grouping-create-section";
-    const createBtn = document.createElement("button");
-    createBtn.type = "button";
-    createBtn.className = "session-grouping-create-btn";
-    createBtn.textContent = `+ ${payloadSafeTranslate("sidebar.grouping.createFolder", "创建分组")}`;
-    createBtn.addEventListener("click", (event) => {
-      window.openSessionGroupingTemplatePopoverAtAnchor?.(event.currentTarget, { runAfterSave: false });
-    });
-    createSection.appendChild(createBtn);
+    if (isGroupingCreateOpen) {
+      const draft = document.createElement("div");
+      draft.className = "session-grouping-create-draft";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "session-grouping-create-input";
+      input.placeholder = payloadSafeTranslate("sidebar.grouping.createFolderPlaceholder", "输入文件夹名称");
+      input.setAttribute("aria-label", payloadSafeTranslate("sidebar.grouping.createFolder", "新建文件夹"));
+      const note = document.createElement("div");
+      note.className = "session-grouping-create-note";
+      note.textContent = payloadSafeTranslate("sidebar.grouping.createFolderHint", "Enter 保存，Esc 取消");
+
+      let saving = false;
+      async function commit() {
+        if (saving) return;
+        saving = true;
+        input.disabled = true;
+        note.textContent = `${payloadSafeTranslate("action.save", "保存")}…`;
+        try {
+          const result = await window.saveSessionGroupingTemplateGroup?.(input.value);
+          if (result?.ok) return;
+          note.textContent = result?.reason || payloadSafeTranslate("sidebar.grouping.saveFailed", "文件夹保存失败。");
+          input.disabled = false;
+          input.focus();
+          input.select();
+          saving = false;
+        } catch (error) {
+          note.textContent = error?.message || payloadSafeTranslate("sidebar.grouping.saveFailed", "文件夹保存失败。");
+          input.disabled = false;
+          input.focus();
+          input.select();
+          saving = false;
+        }
+      }
+
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void commit();
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          window.closeSessionGroupingTemplateCreate?.();
+        }
+      });
+
+      draft.appendChild(input);
+      draft.appendChild(note);
+      createSection.appendChild(draft);
+      requestAnimationFrame(() => {
+        input.focus();
+        input.select();
+      });
+    } else {
+      const createBtn = document.createElement("button");
+      createBtn.type = "button";
+      createBtn.className = "session-grouping-create-btn";
+      createBtn.textContent = `+ ${payloadSafeTranslate("sidebar.grouping.createFolder", "新建文件夹")}`;
+      createBtn.addEventListener("click", (event) => {
+        window.openSessionGroupingTemplatePopoverAtAnchor?.(event.currentTarget, { runAfterSave: false });
+      });
+      createSection.appendChild(createBtn);
+    }
     sessionList.appendChild(createSection);
   }
 

@@ -66,7 +66,7 @@ vm.runInNewContext(source, context, {
 const { buildTaskMapProjection, applyTaskMapMockPreset, NODE_KINDS } = context.window.MelodySyncTaskMapModel;
 assert.equal(typeof buildTaskMapProjection, 'function', 'task map model should expose a projection builder');
 assert.equal(typeof applyTaskMapMockPreset, 'function', 'task map model should expose a mock-preset applicator');
-assert.deepEqual(JSON.parse(JSON.stringify(NODE_KINDS)), ['main', 'branch', 'candidate', 'done']);
+assert.deepEqual(JSON.parse(JSON.stringify(NODE_KINDS)), ['main', 'branch', 'candidate', 'note', 'done']);
 
 function toPlain(value) {
   return JSON.parse(JSON.stringify(value));
@@ -335,7 +335,7 @@ const augmentedProjection = buildTaskMapProjection({
             id: 'candidate:main-1:补充复盘',
             kind: 'candidate',
             title: '补充复盘',
-            summary: '建议拆成独立支线',
+            summary: '建议拆分',
             sourceSessionId: 'main-1',
             parentNodeId: 'session:main-1',
             status: 'candidate',

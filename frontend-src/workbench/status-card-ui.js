@@ -45,7 +45,7 @@
       const enterBtn = documentRef.createElement("button");
       enterBtn.type = "button";
       enterBtn.className = "quest-branch-btn quest-branch-btn-primary";
-      enterBtn.textContent = "开启支线";
+      enterBtn.textContent = "开启";
       enterBtn.addEventListener("click", async () => {
         enterBtn.disabled = true;
         try {
@@ -99,7 +99,7 @@
 
       const label = documentRef.createElement("div");
       label.className = "quest-merge-note-label";
-      label.textContent = "已开启支线任务";
+      label.textContent = "已开启";
       card.appendChild(label);
 
       const title = documentRef.createElement("div");

@@ -90,16 +90,14 @@ async function prepareComposerAttachmentsForSend(sessionId, attachments) {
     return attachments;
   }
 
-  const prepared = [];
-  for (const attachment of attachments || []) {
-    if (!(attachment && typeof attachment === "object")) continue;
+  const prepared = await Promise.all((attachments || []).map(async (attachment) => {
+    if (!(attachment && typeof attachment === "object")) return null;
     if (!attachment.file || typeof attachment.assetId === "string") {
-      prepared.push(attachment);
-      continue;
+      return attachment;
     }
-    prepared.push(await uploadComposerAttachmentToAsset(sessionId, attachment));
-  }
-  return prepared;
+    return uploadComposerAttachmentToAsset(sessionId, attachment);
+  }));
+  return prepared.filter(Boolean);
 }
 
 function hasPendingComposerSend() {
@@ -727,7 +725,7 @@ function renderSuggestedQuestions(session) {
   }
 
   suggestedQuestionsEl.innerHTML = "";
-  for (const candidate of candidates.slice(0, 3)) {
+  for (const candidate of candidates) {
     const text = candidate.text;
     const btn = document.createElement("button");
     btn.className = "suggested-question-btn";
@@ -736,7 +734,7 @@ function renderSuggestedQuestions(session) {
     if (candidate.summary) {
       btn.title = candidate.summary;
     } else if (isBranchSuggestionEntry(candidate)) {
-      btn.title = "点击直接开启支线";
+      btn.title = "点击开启";
     }
     btn.addEventListener("click", async () => {
       btn.disabled = true;

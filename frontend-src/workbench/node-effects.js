@@ -106,11 +106,11 @@
       layoutVariant: "compact",
       edgeVariant: "suggestion",
       interaction: "create-branch",
-      actionLabel: "开启支线",
+      actionLabel: "开启",
       trackAsCandidateChild: true,
       metaVariant: "candidate",
-      defaultSummary: "建议拆成独立支线",
-      fallbackSummary: "适合单独展开",
+      defaultSummary: "建议拆分",
+      fallbackSummary: "建议拆分",
       defaultViewType: "flow-node",
       capabilities: ["create-branch", "dismiss"],
       surfaceBindings: ["task-map", "composer-suggestions"],
@@ -379,7 +379,7 @@
         return "画布";
       case "branch-status":
       default:
-        return statusLabel || "空闲";
+        return statusLabel;
     }
   }
 

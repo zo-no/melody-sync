@@ -71,6 +71,7 @@ Important:
 
 - Do **not** create an extra nested `.melodysync/` under a custom `brainRoot`.
 - If the brain is synced by Obsidian or another tool, each machine still needs its **own** local device config file and runtime root.
+- When upgrading from an older layout, MelodySync copy-migrates legacy runtime directories still found under the brain root into the current runtime root.
 
 ## Minimal file layout
 
@@ -146,7 +147,7 @@ The AI should do the rest inside the conversation:
 | --- | --- |
 | Primary chat service | boot-managed owner service on `http://127.0.0.1:7760` |
 | Current device config file | `~/.config/melody-sync/general-settings.json` points to the correct app root when a custom path is used |
-| App root auth | `<app-root>/config/auth.json` exists and the token is known to the user |
+| Current device auth | `~/.config/melody-sync/auth.json` exists and the token is known to the user |
 | Defaults | new-session tool/model/effort defaults match the user's stated preference |
 
 ## Cross-machine note

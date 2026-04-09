@@ -4,6 +4,9 @@
   const SESSION_GROUPING_TEMPLATE_GROUPS_STORAGE_KEY = "melodysyncSessionGroupingTemplateGroups";
   const SESSION_GROUPING_MODE_USER = "user";
   const SESSION_GROUPING_MODE_AI = "ai";
+  const BRANCH_TASK_VISIBILITY_STORAGE_KEY = "melodysyncBranchTaskVisibility";
+  const BRANCH_TASK_VISIBILITY_SHOW = "show";
+  const BRANCH_TASK_VISIBILITY_HIDE = "hide";
   const SESSION_GROUPING_TEMPLATE_GROUP_MAX_ITEMS = 12;
   const SESSION_GROUPING_TEMPLATE_GROUP_MAX_CHARS = 32;
   const TASK_LIST_GROUPS = Array.isArray(sessionListContract?.listTaskListGroups?.())
@@ -106,6 +109,32 @@
       }
     } catch {}
     return normalized.slice();
+  }
+
+  function normalizeBranchTaskVisibilityMode(value) {
+    return normalizeKey(value) === BRANCH_TASK_VISIBILITY_HIDE
+      ? BRANCH_TASK_VISIBILITY_HIDE
+      : BRANCH_TASK_VISIBILITY_SHOW;
+  }
+
+  function getBranchTaskVisibilityMode() {
+    try {
+      return normalizeBranchTaskVisibilityMode(getStorage()?.getItem?.(BRANCH_TASK_VISIBILITY_STORAGE_KEY));
+    } catch {
+      return BRANCH_TASK_VISIBILITY_SHOW;
+    }
+  }
+
+  function setBranchTaskVisibilityMode(mode) {
+    const normalized = normalizeBranchTaskVisibilityMode(mode);
+    try {
+      getStorage()?.setItem?.(BRANCH_TASK_VISIBILITY_STORAGE_KEY, normalized);
+    } catch {}
+    return normalized;
+  }
+
+  function shouldHideBranchTaskSessions() {
+    return getBranchTaskVisibilityMode() === BRANCH_TASK_VISIBILITY_HIDE;
   }
 
   function getUncategorizedTaskListGroup(order = 99997) {
@@ -355,10 +384,67 @@
     return null;
   }
 
+  function formatPersistentBadgeTime(value) {
+    const text = trimText(value);
+    if (!text) return "";
+    const ts = new Date(text).getTime();
+    if (!Number.isFinite(ts)) return "";
+    const d = new Date(ts);
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const dy = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${mo}-${dy} ${hh}:${mm}`;
+  }
+
+  function formatRecurringCadenceBadge(recurring = {}) {
+    const cadence = normalizeKey(recurring?.cadence || "");
+    const timeOfDay = trimText(recurring?.timeOfDay || "");
+    if (cadence === "hourly") return "每小时";
+    if (cadence === "weekly") {
+      const labels = ["日", "一", "二", "三", "四", "五", "六"];
+      const days = Array.isArray(recurring?.weekdays)
+        ? recurring.weekdays
+          .map((entry) => Number.parseInt(String(entry || "").trim(), 10))
+          .filter((entry) => Number.isInteger(entry) && entry >= 0 && entry <= 6)
+          .map((entry) => `周${labels[entry]}`)
+        : [];
+      const dayText = days.length > 0 ? days.join("/") : "每周";
+      return timeOfDay ? `${dayText} ${timeOfDay}` : dayText;
+    }
+    return timeOfDay ? `每天 ${timeOfDay}` : "每天";
+  }
+
+  function getPersistentScheduleBadge(session) {
+    if (getSidebarPersistentKind(session) !== "recurring_task") return null;
+    const recurring = session?.persistent?.recurring && typeof session.persistent.recurring === "object"
+      ? session.persistent.recurring
+      : {};
+    const label = formatRecurringCadenceBadge(recurring);
+    if (!label) return null;
+    const titleParts = [];
+    const nextRunAt = formatPersistentBadgeTime(recurring?.nextRunAt || "");
+    if (nextRunAt) {
+      titleParts.push(`下次执行 ${nextRunAt}`);
+    }
+    const timezone = trimText(recurring?.timezone || "");
+    if (timezone) {
+      titleParts.push(`时区 ${timezone}`);
+    }
+    return {
+      key: "persistent-schedule",
+      label,
+      title: titleParts.join(" · "),
+      className: "session-list-badge session-list-badge-persistent-schedule",
+    };
+  }
+
   function getSessionListBadges(session, entry = null) {
     const badges = [];
     const persistentBadge = getPersistentBadge(session);
     if (persistentBadge) badges.push(persistentBadge);
+    const persistentScheduleBadge = getPersistentScheduleBadge(session);
+    if (persistentScheduleBadge) badges.push(persistentScheduleBadge);
     if (isVoiceSession(session)) {
       badges.push({
         key: "voice",
@@ -380,6 +466,8 @@
     const archived = options?.archived === true || session?.archived === true;
     const branch = isBranchTaskSession(session);
     const branchStatus = branch ? getBranchTaskStatus(session) : "";
+    const hideBranchTasks = options?.hideBranchTasks === true
+      || (options?.hideBranchTasks !== false && shouldHideBranchTaskSessions());
     const workflowState = normalizeWorkflowState(session?.workflowState || "");
     const taskListVisibility = getTaskListVisibility(session);
     const persistentKind = getSidebarPersistentKind(session);
@@ -390,10 +478,12 @@
     let hiddenReason = "";
     if (!session?.id) {
       hiddenReason = "missing_id";
-    } else if (!archived && taskListVisibility !== "primary") {
-      hiddenReason = "secondary_task";
     } else if (branch && ["parked", "resolved", "merged", "done", "closed"].includes(branchStatus)) {
       hiddenReason = "closed_branch";
+    } else if (branch && hideBranchTasks) {
+      hiddenReason = "branch_filtered";
+    } else if (!archived && taskListVisibility !== "primary" && !branch) {
+      hiddenReason = "secondary_task";
     } else if (!archived && workflowState === "parked") {
       hiddenReason = "parked_mainline";
     }
@@ -421,10 +511,14 @@
     TASK_LIST_GROUPS,
     normalizeSessionGroupingMode,
     normalizeSessionGroupingTemplateGroups,
+    normalizeBranchTaskVisibilityMode,
     getSessionGroupingMode,
     setSessionGroupingMode,
     getSessionGroupingTemplateGroups,
     setSessionGroupingTemplateGroups,
+    getBranchTaskVisibilityMode,
+    setBranchTaskVisibilityMode,
+    shouldHideBranchTaskSessions,
     buildTemplateTaskListGroups,
     resolveTemplateTaskListGroup,
     getUncategorizedTaskListGroup,

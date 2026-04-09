@@ -71,7 +71,7 @@ node scripts/agents/install-doubao-fast-agent.mjs --api-key <ark-key> --base-url
 The installer:
 
 - writes config to `~/.config/melody-sync/doubao-fast-agent.json`
-- registers a MelodySync custom tool in `~/.melodysync/config/tools.json`
+- registers a MelodySync custom tool in `~/.config/melody-sync/tools.json`
 
 If `~/.config/aider/doubao.env` already exists, the installer can reuse it.
 

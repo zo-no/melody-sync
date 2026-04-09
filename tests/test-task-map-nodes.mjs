@@ -61,7 +61,7 @@ vm.runInNewContext(source, context, { filename: 'workbench/task-map-model.js' })
 
 const { buildTaskMapProjection, NODE_KINDS } = context.MelodySyncTaskMapModel;
 assert.ok(buildTaskMapProjection, 'buildTaskMapProjection should be exposed');
-assert.deepEqual(JSON.parse(JSON.stringify(NODE_KINDS)), ['main', 'branch', 'candidate', 'done']);
+assert.deepEqual(JSON.parse(JSON.stringify(NODE_KINDS)), ['main', 'branch', 'candidate', 'note', 'done']);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

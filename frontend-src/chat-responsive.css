@@ -37,6 +37,12 @@ body::before {
   display: inline-flex;
 }
 
+.header-task-map-btn.is-persistent-active {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  color: color-mix(in srgb, var(--text) 88%, var(--accent));
+}
+
 .task-map-resize-handle {
   display: none;
 }
@@ -64,7 +70,7 @@ body::before {
     height: auto;
     padding: calc(var(--safe-top) + 2px) 12px 2px;
     border: 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 0;
     border-radius: 0;
     background: var(--bg);
     box-shadow: none;

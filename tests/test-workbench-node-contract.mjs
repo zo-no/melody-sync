@@ -19,7 +19,7 @@ vm.runInNewContext(source, context, { filename: 'workbench/node-contract.js' });
 
 const contract = context.MelodySyncWorkbenchNodeContract;
 assert.ok(contract, 'node contract should be exposed on globalThis');
-assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_KINDS)), ['main', 'branch', 'candidate', 'done']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_KINDS)), ['main', 'branch', 'candidate', 'note', 'done']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_LANES)), ['main', 'branch', 'side']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_ROLES)), ['state', 'action', 'summary']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_MERGE_POLICIES)), ['replace-latest', 'append']);
@@ -57,7 +57,14 @@ assert.equal(done?.sessionBacked, false);
 assert.equal(done?.composition?.defaultEdgeType, 'completion');
 assert.equal(done?.composition?.countsAs?.completedSummary, true);
 
+const note = contract.getNodeKindDefinition('note');
+assert.equal(note?.lane, 'side');
+assert.equal(note?.role, 'summary');
+assert.equal(note?.composition?.defaultViewType, 'markdown');
+assert.equal(note?.composition?.requiresSourceSession, false);
+
 assert.equal(contract.isKnownNodeKind('main'), true);
+assert.equal(contract.isKnownNodeKind('note'), true);
 assert.equal(contract.isKnownNodeKind('unknown'), false);
 
 const bootstrapContext = {

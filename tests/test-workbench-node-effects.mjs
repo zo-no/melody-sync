@@ -55,8 +55,9 @@ const candidateEffect = effectsApi.getNodeKindEffect('candidate');
 assert.equal(candidateEffect.layoutVariant, 'compact');
 assert.equal(candidateEffect.edgeVariant, 'suggestion');
 assert.equal(candidateEffect.interaction, 'create-branch');
+assert.equal(candidateEffect.actionLabel, '开启');
 assert.equal(candidateEffect.trackAsCandidateChild, true);
-assert.equal(candidateEffect.defaultSummary, '建议拆成独立支线');
+assert.equal(candidateEffect.defaultSummary, '建议拆分');
 assert.deepEqual(JSON.parse(JSON.stringify(candidateEffect.capabilities)), ['create-branch', 'dismiss']);
 assert.deepEqual(JSON.parse(JSON.stringify(candidateEffect.surfaceBindings)), ['task-map', 'composer-suggestions']);
 assert.deepEqual(JSON.parse(JSON.stringify(candidateEffect.taskCardBindings)), ['candidateBranches']);
@@ -68,6 +69,12 @@ assert.equal(doneEffect.layoutVariant, 'compact');
 assert.equal(doneEffect.edgeVariant, 'completion');
 assert.equal(doneEffect.interaction, 'none');
 assert.equal(doneEffect.countsAs.completedSummary, true);
+
+const noteEffect = effectsApi.getNodeKindEffect('note');
+assert.equal(noteEffect.layoutVariant, 'panel');
+assert.equal(noteEffect.interaction, 'none');
+assert.equal(noteEffect.defaultViewType, 'markdown');
+assert.equal(noteEffect.countsAs.sessionNode, false);
 
 const hydratedCandidate = effectsApi.withNodeKindEffect({
   id: 'candidate:main-1:review',
@@ -265,8 +272,8 @@ assert.equal(
     status: 'active',
     isCurrent: true,
   }),
-  '空闲',
-  'unknown status-carrying branch-like nodes should fall back to a stable idle badge label',
+  '',
+  'unknown status-carrying branch-like nodes should stay silent when there is no meaningful status to show',
 );
 
 console.log('test-workbench-node-effects: ok');

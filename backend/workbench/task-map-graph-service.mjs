@@ -533,7 +533,7 @@ function buildDefaultQuestGraph({
         parentNodeId,
         depth,
         title: normalizedTitle,
-        summary: '建议拆成独立支线',
+        summary: '建议拆分',
         status: 'candidate',
         actionPayload: {
           branchReason,

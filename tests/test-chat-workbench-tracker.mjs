@@ -181,12 +181,14 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
     'questTrackerLabel',
     'headerTitle',
     'headerTaskDetailBtn',
+    'persistentSessionBtn',
     'questTrackerTitle',
     'questTrackerBranch',
     'questTrackerBranchLabel',
     'questTrackerBranchTitle',
     'questTrackerNext',
     'questTrackerTime',
+    'questTrackerPersistentSummary',
     'questTrackerFooter',
     'questTaskList',
     'taskMapRail',
@@ -515,8 +517,8 @@ const {
 assert.equal(mainElements.get('questTracker').hidden, false, 'tracker should render when a session is attached');
 assert.equal(mainWorkbench.getTaskMapRendererKind(), 'react-flow', 'controller should surface the active task-map renderer kind for diagnostics');
 assert.equal(mainElements.get('questTrackerLabel').textContent, '', 'mainline tracker should not render an extra task-bar label');
-assert.equal(mainElements.get('questTrackerStatus').hidden, false, 'mainline tracker should render the task status inside the task bar');
-assert.equal(mainElements.get('questTrackerStatusText').textContent, '空闲', 'idle mainline tasks should surface an idle status inside the task bar');
+assert.equal(mainElements.get('questTrackerStatus').hidden, true, 'idle mainline tasks should not render a redundant status badge inside the task bar');
+assert.equal(mainElements.get('questTrackerStatusText').textContent, '', 'idle mainline tasks should not surface an explicit idle label');
 assert.equal(mainElements.get('questTrackerTitle').hidden, false, 'mainline tracker should show the current task title directly');
 assert.equal(mainElements.get('questTrackerTitle').textContent, '系统学习电影史', 'mainline tracker should show the main task title before any supporting detail');
 assert.equal(mainElements.get('questTrackerBranch').hidden, false, 'mainline tracker should keep one supporting detail block directly under the title');
@@ -539,6 +541,118 @@ assert.deepEqual(
   mainAttachCalls.map((entry) => entry.id),
   ['session-main-branch'],
   'clicking an existing flow node should still switch the workspace to that branch session',
+);
+
+const sparseIdleMainSession = {
+  id: 'session-main-idle-sparse',
+  name: '初始化任务',
+  taskCard: {
+    lineRole: 'main',
+    goal: '初始化任务',
+    mainGoal: '初始化任务',
+  },
+};
+
+const { elements: sparseIdleElements } = await runScenario({
+  currentSession: sparseIdleMainSession,
+  sessions: [sparseIdleMainSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main-idle-sparse',
+        mainSession: sparseIdleMainSession,
+        mainGoal: '初始化任务',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+assert.equal(
+  sparseIdleElements.get('questTrackerBranch').hidden,
+  true,
+  'sparse mainline trackers should stay visually quiet when there is no meaningful progress detail yet',
+);
+
+const recurringSession = {
+  id: 'session-main-recurring',
+  name: '每日检查任务',
+  persistent: {
+    kind: 'recurring_task',
+    state: 'active',
+    recurring: {
+      cadence: 'daily',
+      timeOfDay: '09:15',
+      timezone: 'Asia/Shanghai',
+      nextRunAt: '2026-04-10T01:15:00.000Z',
+      lastRunAt: '2026-04-09T01:15:00.000Z',
+    },
+    runtimePolicy: {
+      schedule: {
+        mode: 'session_default',
+      },
+    },
+  },
+  taskCard: {
+    lineRole: 'main',
+    goal: '每日检查任务',
+    mainGoal: '每日检查任务',
+    nextSteps: ['检查今天的执行结果'],
+  },
+};
+
+const { elements: recurringElements } = await runScenario({
+  currentSession: recurringSession,
+  sessions: [recurringSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main-recurring',
+        mainSession: recurringSession,
+        mainGoal: '每日检查任务',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+assert.equal(
+  recurringElements.get('persistentSessionBtn').hidden,
+  false,
+  'persistent sessions should expose a dedicated automation button in the header',
+);
+assert.equal(
+  recurringElements.get('persistentSessionBtn').classList.contains('is-persistent-active'),
+  true,
+  'persistent header button should show an active state when the current session is already automated',
+);
+assert.equal(
+  recurringElements.get('questTrackerPersistentSummary').hidden,
+  false,
+  'recurring sessions should render a persistent summary card in the tracker',
+);
+assert.equal(
+  findAllByClass(recurringElements.get('questTrackerPersistentSummary'), 'quest-tracker-persistent-chip')
+    .map((node) => node.textContent)
+    .join(' | '),
+  '自动执行中 | 每天 09:15 | 下次 04-10 09:15 | 上次 04-09 09:15 | 调度 会话默认',
+  'persistent summary should expose cadence, next run, last run, and runtime policy',
 );
 
 const completedMainSession = {
@@ -658,13 +772,13 @@ assert.equal(Boolean(candidateOnlyBoard), true, 'candidate-only quests should st
 assert.equal(findAllByClass(candidateOnlyBoard, 'quest-task-flow-node').length >= 3, true, 'candidate-only quests should render the root node plus candidate side quests');
 assert.equal(
   findAllByClass(candidateOnlyBoard, 'quest-task-flow-node-action')
-    .some((entry) => entry?.textContent === '开启支线'),
+    .some((entry) => entry?.textContent === '开启'),
   true,
   'candidate-only suggestion nodes should expose an explicit branch-entry action',
 );
 assert.equal(candidateOnlyElements.get('questTrackerTitle').textContent, '为用户搭出一条兼顾电影史主线与美术史兴趣维度的学习路线', 'mainline tracker should keep the fixed session task title as the top-level anchor');
 assert.equal(candidateOnlyElements.get('questTrackerBranchTitle').textContent, '先明确主线骨架，再判断哪些方向值得拆成支线', 'mainline tracker should use the stable checkpoint as the task-progress detail when no next step exists yet');
-assert.equal(candidateOnlyElements.get('questTrackerNext').textContent, '发现 2 条建议支线', 'mainline tracker should surface candidate branch discovery as a separate secondary hint');
+assert.equal(candidateOnlyElements.get('questTrackerNext').textContent, '2 个建议', 'mainline tracker should surface candidate branch discovery as a compact secondary hint');
 candidateOnlyElements.get('questTrackerDetailToggle').click();
 assert.equal(candidateOnlyElements.get('questTrackerDetail').hidden, false, 'expanding the tracker detail should reveal the right-side task detail panel');
 assert.equal(candidateOnlyElements.get('questTrackerCandidatesRow').hidden, false, 'candidate-only mainline tasks should expose branch dispatch actions in the tracker detail');
@@ -813,7 +927,7 @@ assert.deepEqual(branchFetchCalls, [
   '/api/workbench',
   '/api/workbench/sessions/session-main/task-map-graph',
 ], 'branch tracker should resolve the task-map graph back to the root main session after the lightweight tracker payload');
-assert.equal(branchElements.get('questTrackerStatus').hidden, false, 'mobile branch tracker should render the task status inside the task bar');
+assert.equal(branchElements.get('questTrackerStatus').hidden, true, 'mobile branch tracker should avoid a redundant idle status badge inside the task bar');
 assert.equal(branchElements.get('taskMapDrawerBtn').hidden, false, 'mobile branch tracker should expose the header task-map drawer toggle');
 assert.equal(branchElements.get('questTrackerToggleBtn').hidden, true, 'mobile branch tracker should stop rendering the old inline task-map toggle');
 assert.equal(branchElements.get('taskMapRail').hidden, false, 'mobile branch tracker should keep the task map drawer mounted off-canvas');
@@ -1107,7 +1221,7 @@ assert.equal(flowTitles.includes('黑色电影'), true, 'root candidate branches
 assert.equal(flowTitles.includes('卡里加里博士'), true, 'branch-local candidate suggestions should stay visible as nested side-quest nodes');
 assert.equal(
   findAllByClass(mobileBoard, 'quest-task-flow-node-action')
-    .filter((entry) => entry?.textContent === '开启支线').length,
+    .filter((entry) => entry?.textContent === '开启').length,
   2,
   'candidate nodes should expose explicit branch-entry actions at every level',
 );

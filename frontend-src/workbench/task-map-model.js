@@ -28,6 +28,13 @@
       sessionBacked: false,
       derived: true,
     }),
+    Object.freeze({
+      id: "note",
+      label: "笔记",
+      description: "可承载摘要、决策、参考资料等富文本内容。",
+      sessionBacked: false,
+      derived: true,
+    }),
   ]);
 
   function getNodeKindDefinitions() {
@@ -98,7 +105,7 @@
           edgeVariant: "suggestion",
           interaction: "create-branch",
           trackAsCandidateChild: true,
-          defaultSummary: "建议拆成独立支线",
+          defaultSummary: "建议拆分",
           countsAs: { sessionNode: false, branch: false, candidate: true },
         };
       case "done":
@@ -109,6 +116,15 @@
           trackAsCandidateChild: false,
           defaultSummary: "",
           countsAs: { sessionNode: true, branch: false, candidate: false },
+        };
+      case "note":
+        return {
+          layoutVariant: "panel",
+          edgeVariant: "structural",
+          interaction: "none",
+          trackAsCandidateChild: false,
+          defaultSummary: "",
+          countsAs: { sessionNode: false, branch: false, candidate: false },
         };
       default:
         return {
@@ -493,7 +509,7 @@
             parentNodeId,
             depth,
             title: normalizedTitle,
-            summary: candidateEffect.defaultSummary || "建议拆成独立支线",
+            summary: candidateEffect.defaultSummary || "建议拆分",
             status: "candidate",
           });
         }

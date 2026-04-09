@@ -131,6 +131,7 @@ const closeSidebar = document.getElementById("closeSidebar");
 const sidebarGroupingToolbar = document.getElementById("sidebarGroupingToolbar");
 const sidebarGroupingModeUserBtn = document.getElementById("sidebarGroupingModeUser");
 const sidebarGroupingModeAiBtn = document.getElementById("sidebarGroupingModeAi");
+const sidebarBranchVisibilityToggleBtn = document.getElementById("sidebarBranchVisibilityToggle");
 const sidebarGroupingConfigBtn = document.getElementById("sidebarGroupingConfigBtn");
 const sessionList = document.getElementById("sessionList");
 const sessionListFooter = document.getElementById("sessionListFooter");

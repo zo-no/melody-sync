@@ -94,7 +94,7 @@
   function isKnownNodeKind(kind) {
     const contract = getNodeContract();
     if (contract?.isKnownNodeKind?.(kind)) return true;
-    return ["main", "branch", "candidate", "done"].includes(trimText(kind).toLowerCase());
+    return ["main", "branch", "candidate", "note", "done"].includes(trimText(kind).toLowerCase());
   }
 
   function normalizeNodeView(view = {}) {

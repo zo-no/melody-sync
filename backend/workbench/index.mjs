@@ -1,7 +1,7 @@
 import { workbenchQueue } from './queues.mjs';
 
 export { getWorkbenchSnapshot, getWorkbenchTrackerSnapshot } from './continuity-store.mjs';
-export { handoffSessionData } from './task-handoff.mjs';
+export { buildTaskDataHandoffPacket, handoffSessionData } from './task-handoff.mjs';
 export {
   createBranchFromNode,
   createBranchFromSession,

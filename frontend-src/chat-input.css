@@ -4,7 +4,7 @@
   padding: 0 var(--chat-gutter) 10px;
   padding-bottom: calc(10px + var(--safe-bottom));
   background: var(--bg);
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 /* Resize handle */
@@ -52,7 +52,7 @@
 .input-config-row {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 12px 6px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;

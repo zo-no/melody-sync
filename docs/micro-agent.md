@@ -14,7 +14,7 @@ That means:
 
 ## What gets installed
 
-The installer writes one custom tool record into `~/.melodysync/config/tools.json`:
+The installer writes one custom tool record into `~/.config/melody-sync/tools.json`:
 
 - `command: codex`
 - `runtimeFamily: codex-json`

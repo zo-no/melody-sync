@@ -913,13 +913,14 @@ function createTrackerRenderer({
 
   function getTrackerVisualStatus(state) {
     if (!state?.hasSession || !state?.session) {
-      return { key: '', label: '', dotClassName: '' };
+      return { key: '', label: '', dotClassName: '', summary: '' };
     }
     if (state?.taskMapVisualStatus?.label) {
       return {
         key: String(state.taskMapVisualStatus.key || '').trim(),
         label: String(state.taskMapVisualStatus.label || '').trim(),
         dotClassName: String(state.taskMapVisualStatus.dotClassName || '').trim(),
+        summary: String(state.taskMapVisualStatus.summary || '').trim(),
       };
     }
     const taskRunStatus = getTaskRunStatusApi(window)?.getTaskRunStatusPresentation?.({
@@ -941,12 +942,13 @@ function createTrackerRenderer({
     }) || { key: '', label: '', summary: '', dotClassName: '' };
     const label = String(taskRunStatus?.label || '').trim();
     if (!label) {
-      return { key: '', label: '', dotClassName: '' };
+      return { key: '', label: '', dotClassName: '', summary: '' };
     }
     return {
       key: String(taskRunStatus?.key || '').trim(),
       label,
       dotClassName: String(taskRunStatus?.dotClassName || '').trim(),
+      summary: String(taskRunStatus?.summary || '').trim(),
     };
   }
 
@@ -978,14 +980,20 @@ function createTrackerRenderer({
     const summary = clipTextImpl(getCurrentTaskSummary(state), isMobileQuestTracker() ? 80 : 112);
     if (summary) return summary;
     const currentGoal = clipTextImpl(state.currentGoal || '', isMobileQuestTracker() ? 80 : 112);
-    return isRedundantTrackerText(currentGoal, state.session?.name, state.mainGoal) ? '' : currentGoal;
+    if (!isRedundantTrackerText(currentGoal, state.session?.name, state.mainGoal)) {
+      return currentGoal;
+    }
+    return clipTextImpl(
+      String(getTrackerVisualStatus(state)?.summary || ''),
+      isMobileQuestTracker() ? 84 : 112,
+    );
   }
 
   function getSecondaryDetail(state, primaryDetail = '') {
     if (!state?.hasSession) return '';
     if (!state.isBranch) {
       const candidateCount = Number(state?.candidateBranchCount || 0);
-      return candidateCount > 0 ? `发现 ${candidateCount} 条建议支线` : '';
+      return candidateCount > 0 ? `${candidateCount} 个建议` : '';
     }
     const nextStep = clipTextImpl(state.nextStep || '', isMobileQuestTracker() ? 72 : 96);
     if (!nextStep) return '';
@@ -1314,7 +1322,7 @@ function BranchSuggestionItemChildren({
           disabled={isSubmitting}
           onClick={handleEnter}
         >
-          开启支线
+          开启
         </button>
       </div>
     </>
@@ -1348,7 +1356,7 @@ function BranchEnteredCardChildren({
 }) {
   return (
     <>
-      <div className="quest-merge-note-label">已开启支线任务</div>
+      <div className="quest-merge-note-label">已开启</div>
       <div className="quest-merge-note-title">{branchTitle}</div>
       {branchFrom ? (
         <div className="quest-merge-note-summary">{`来自主线：${branchFrom}`}</div>
@@ -2285,23 +2293,48 @@ function SessionListGroupSection({
   showGroupHeaders = false,
   isCollapsed = false,
   onToggleGroup = null,
+  onRemoveGroup = null,
   createSessionItem = null,
   chevronIconHtml = '',
+  deleteIconHtml = '',
+  deleteFolderLabel = '删除文件夹',
 }) {
   const sessions = Array.isArray(groupEntry?.sessions) ? groupEntry.sessions : [];
+  const toggleGroup = () => onToggleGroup?.(groupEntry?.key || '', !isCollapsed);
   return (
     <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}`}>
       {showGroupHeaders ? (
-        <button
-          type="button"
+        <div
           className={`folder-group-header${isCollapsed ? ' collapsed' : ''}`}
+          role="button"
+          tabIndex={0}
           aria-expanded={isCollapsed ? 'false' : 'true'}
-          onClick={() => onToggleGroup?.(groupEntry?.key || '', !isCollapsed)}
+          onClick={toggleGroup}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            toggleGroup();
+          }}
         >
           <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
           <span className="folder-name" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
           <span className="folder-count">{sessions.length}</span>
-        </button>
+          {groupEntry?.canDelete ? (
+            <button
+              type="button"
+              className="folder-group-delete"
+              title={deleteFolderLabel}
+              aria-label={deleteFolderLabel}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onRemoveGroup?.(groupEntry?.label || '');
+              }}
+            >
+              <span dangerouslySetInnerHTML={{ __html: String(deleteIconHtml || '') }} />
+            </button>
+          ) : null}
+        </div>
       ) : null}
       <div className="folder-group-items" hidden={showGroupHeaders && isCollapsed}>
         {sessions.map((session) => (
@@ -2316,21 +2349,150 @@ function SessionListGroupSection({
   );
 }
 
+function SessionListCreateFolderSection({
+  showCreateFolder = false,
+  createFolderLabel = '新建文件夹',
+  createFolderPlaceholder = '输入文件夹名称',
+  createFolderHint = 'Enter 保存，Esc 取消',
+  saveFailedLabel = '文件夹保存失败。',
+  isCreatingFolder = false,
+  onOpenCreate = null,
+  onCloseCreate = null,
+  onCreateFolder = null,
+  translate = (key) => key,
+}) {
+  const inputRef = useRef(null);
+  const [draftValue, setDraftValue] = useState('');
+  const [note, setNote] = useState(createFolderHint);
+  const [saving, setSaving] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!isCreatingFolder) {
+      setDraftValue('');
+      setNote(createFolderHint);
+      setSaving(false);
+      return;
+    }
+    setNote(createFolderHint);
+    const frameId = requestAnimationFrame(() => {
+      inputRef.current?.focus?.();
+      inputRef.current?.select?.();
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [createFolderHint, isCreatingFolder]);
+
+  if (!showCreateFolder) return null;
+
+  async function commitCreate() {
+    if (saving) return;
+    setSaving(true);
+    const result = await onCreateFolder?.(draftValue);
+    if (result?.ok) {
+      setDraftValue('');
+      setNote(createFolderHint);
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+    setNote(result?.reason || saveFailedLabel);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus?.();
+      inputRef.current?.select?.();
+    });
+  }
+
+  return (
+    <div className="session-grouping-create-section">
+      {isCreatingFolder ? (
+        <div className="session-grouping-create-draft">
+          <input
+            ref={inputRef}
+            type="text"
+            className="session-grouping-create-input"
+            value={draftValue}
+            placeholder={createFolderPlaceholder}
+            aria-label={createFolderLabel}
+            disabled={saving}
+            onInput={(event) => {
+              setDraftValue(event?.currentTarget?.value || '');
+              if (note !== createFolderHint) {
+                setNote(createFolderHint);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void commitCreate();
+                return;
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                onCloseCreate?.();
+              }
+            }}
+          />
+          <div className="session-grouping-create-note">
+            {saving ? `${translate('action.save') || '保存'}…` : note}
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="session-grouping-create-btn"
+          onClick={() => onOpenCreate?.()}
+        >
+          {`+ ${createFolderLabel}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ArchivedSessionSection({
   shouldRenderSection = false,
   isCollapsed = false,
   count = 0,
   archivedSessions = [],
   archivedSessionsLoading = false,
+  archivedSessionsLoaded = false,
+  archivedTotal = 0,
   archivedLabel = '已归档',
   loadingLabel = '加载中',
   emptyText = '',
   onToggleArchived = null,
+  onEnsureArchivedLoaded = null,
   createSessionItem = null,
   chevronIconHtml = '',
 }) {
-  if (!shouldRenderSection) return null;
   const sessions = Array.isArray(archivedSessions) ? archivedSessions : [];
+  const initialLoadRequestedRef = useRef(false);
+
+  useEffect(() => {
+    if (!shouldRenderSection || isCollapsed) {
+      initialLoadRequestedRef.current = false;
+      return;
+    }
+    if (archivedSessionsLoaded || archivedSessionsLoading || sessions.length > 0) {
+      initialLoadRequestedRef.current = false;
+      return;
+    }
+    const availableCount = Number.isFinite(archivedTotal) ? archivedTotal : count;
+    if (availableCount <= 0 || initialLoadRequestedRef.current) return;
+    initialLoadRequestedRef.current = true;
+    onEnsureArchivedLoaded?.();
+  }, [
+    archivedSessionsLoaded,
+    archivedSessionsLoading,
+    archivedTotal,
+    count,
+    isCollapsed,
+    onEnsureArchivedLoaded,
+    sessions.length,
+    shouldRenderSection,
+  ]);
+
+  if (!shouldRenderSection) return null;
+
   const showLoading = archivedSessionsLoading && sessions.length === 0;
   const showEmpty = !showLoading && sessions.length === 0;
 
@@ -2469,9 +2631,13 @@ function SessionListCollections({
   showGroupHeaders = false,
   isGroupCollapsed = () => false,
   onToggleGroup = null,
+  onRemoveGroup = null,
   createSessionItem = null,
   chevronIconHtml = '',
+  deleteIconHtml = '',
   pinnedLabel = '',
+  grouping = null,
+  translate = (key) => key,
   archived = null,
 }) {
   return (
@@ -2488,20 +2654,38 @@ function SessionListCollections({
           showGroupHeaders={showGroupHeaders}
           isCollapsed={isGroupCollapsed(groupEntry?.key || '') === true}
           onToggleGroup={onToggleGroup}
+          onRemoveGroup={onRemoveGroup}
           createSessionItem={createSessionItem}
           chevronIconHtml={chevronIconHtml}
+          deleteIconHtml={deleteIconHtml}
+          deleteFolderLabel={String(grouping?.deleteFolderLabel || '')}
         />
       ))}
+      <SessionListCreateFolderSection
+        showCreateFolder={grouping?.showCreateFolder === true}
+        createFolderLabel={String(grouping?.createFolderLabel || '')}
+        createFolderPlaceholder={String(grouping?.createFolderPlaceholder || '')}
+        createFolderHint={String(grouping?.createFolderHint || '')}
+        saveFailedLabel={String(grouping?.saveFailedLabel || '')}
+        isCreatingFolder={grouping?.isCreatingFolder === true}
+        onOpenCreate={grouping?.onOpenCreate}
+        onCloseCreate={grouping?.onCloseCreate}
+        onCreateFolder={grouping?.onCreateFolder}
+        translate={translate}
+      />
       <ArchivedSessionSection
         shouldRenderSection={archived?.shouldRenderSection === true}
         isCollapsed={archived?.isCollapsed === true}
         count={Number.isFinite(archived?.count) ? archived.count : 0}
         archivedSessions={Array.isArray(archived?.archivedSessions) ? archived.archivedSessions : []}
         archivedSessionsLoading={archived?.archivedSessionsLoading === true}
+        archivedSessionsLoaded={archived?.archivedSessionsLoaded === true}
+        archivedTotal={Number.isFinite(archived?.archivedTotal) ? archived.archivedTotal : 0}
         archivedLabel={String(archived?.archivedLabel || '')}
         loadingLabel={String(archived?.loadingLabel || '')}
         emptyText={String(archived?.emptyText || '')}
         onToggleArchived={archived?.onToggleArchived}
+        onEnsureArchivedLoaded={archived?.onEnsureArchivedLoaded}
         createSessionItem={createSessionItem}
         chevronIconHtml={chevronIconHtml}
       />
@@ -2528,6 +2712,7 @@ function createSessionListRenderer({
   }
 
   const chevronIconHtml = renderUiIcon('chevron-down');
+  const deleteIconHtml = renderUiIcon('trash');
 
   function renderSessionCollections({
     listEl = null,
@@ -2536,7 +2721,9 @@ function createSessionListRenderer({
     showGroupHeaders = false,
     isGroupCollapsed = () => false,
     onToggleGroup = null,
+    onRemoveGroup = null,
     createSessionItem: createSessionItemOverride = null,
+    grouping = null,
     archived = null,
   } = {}) {
     if (!listEl) return;
@@ -2547,9 +2734,13 @@ function createSessionListRenderer({
         showGroupHeaders={showGroupHeaders}
         isGroupCollapsed={isGroupCollapsed}
         onToggleGroup={onToggleGroup}
+        onRemoveGroup={onRemoveGroup}
         createSessionItem={createSessionItemOverride || createSessionItem}
         chevronIconHtml={chevronIconHtml}
+        deleteIconHtml={deleteIconHtml}
         pinnedLabel={String(translate('sidebar.pinned') || '')}
+        grouping={grouping}
+        translate={translate}
         archived={archived}
       />,
     );
@@ -2594,9 +2785,79 @@ function createSessionListRenderer({
   }
 
   return Object.freeze({
+    renderSessionList(payload = {}) {
+      const groups = Array.isArray(payload?.groups) ? payload.groups : [];
+      const archived = payload?.archived || null;
+      const archivedStorageKey = String(archived?.storageKey || 'folder:archived');
+      renderSessionCollections({
+        listEl: payload?.sessionListEl || null,
+        pinnedSessions: Array.isArray(payload?.pinnedSessions) ? payload.pinnedSessions : [],
+        orderedGroups: groups,
+        showGroupHeaders: payload?.showGroupHeaders === true,
+        isGroupCollapsed(groupKey) {
+          return groups.find((groupEntry) => groupEntry?.key === groupKey)?.collapsed === true;
+        },
+        onToggleGroup(groupKey, collapsed) {
+          payload?.actions?.setGroupCollapsed?.(groupKey, collapsed);
+        },
+        onRemoveGroup(groupLabel) {
+          payload?.actions?.removeTemplateFolder?.(groupLabel);
+        },
+        createSessionItem: payload?.helpers?.createSessionItem,
+        grouping: {
+          ...(payload?.grouping || {}),
+          onOpenCreate() {
+            payload?.actions?.openGroupingCreate?.();
+          },
+          onCloseCreate() {
+            payload?.actions?.closeGroupingCreate?.();
+          },
+          onCreateFolder(label) {
+            return payload?.actions?.createTemplateFolder?.(label);
+          },
+        },
+        archived: archived
+          ? {
+              shouldRenderSection: archived?.shouldRenderSection === true,
+              isCollapsed: archived?.isCollapsed === true,
+              count: Number.isFinite(archived?.count) ? archived.count : 0,
+              archivedSessions: Array.isArray(archived?.sessions) ? archived.sessions : [],
+              archivedSessionsLoading: archived?.loading === true,
+              archivedSessionsLoaded: archived?.loaded === true,
+              archivedTotal: Number.isFinite(archived?.total) ? archived.total : 0,
+              archivedLabel: String(translate('sidebar.archive') || ''),
+              loadingLabel: String(translate('sidebar.loadingArchived') || ''),
+              emptyText: String(archived?.emptyText || ''),
+              onToggleArchived(nextCollapsed) {
+                payload?.actions?.setGroupCollapsed?.(archivedStorageKey, nextCollapsed);
+                if (!nextCollapsed) {
+                  payload?.actions?.ensureArchivedLoaded?.();
+                }
+              },
+              onEnsureArchivedLoaded() {
+                payload?.actions?.ensureArchivedLoaded?.();
+              },
+            }
+          : null,
+      });
+      return true;
+    },
     renderSessionCollections,
     renderPersistentDock,
   });
+}
+
+function renderSessionList(payload = {}) {
+  const sessionListEl = payload?.sessionListEl || null;
+  const documentRef = sessionListEl?.ownerDocument || document;
+  const windowRef = documentRef?.defaultView || window;
+  return createSessionListRenderer({
+    documentRef,
+    windowRef,
+    t: typeof payload?.helpers?.t === 'function' ? payload.helpers.t : ((key) => key),
+    renderUiIcon: typeof payload?.helpers?.renderUiIcon === 'function' ? payload.helpers.renderUiIcon : (() => ''),
+    createSessionItem: typeof payload?.helpers?.createSessionItem === 'function' ? payload.helpers.createSessionItem : null,
+  }).renderSessionList(payload);
 }
 
 function getNodeEffectsApi(windowRef = window) {
@@ -2626,7 +2887,7 @@ function getNodeLayoutVariant(windowRef, node) {
 }
 
 function getNodeActionLabel(windowRef, node) {
-  return getNodeEffect(windowRef, node)?.actionLabel || '开启支线';
+  return getNodeEffect(windowRef, node)?.actionLabel || '开启';
 }
 
 function getNodeView(windowRef, node) {
@@ -2660,17 +2921,17 @@ function getTaskFlowNodeStatusUi(windowRef, node) {
 function getProjectedTaskFlowConfig(isMobileQuestTracker = () => false) {
   const mobile = isMobileQuestTracker() === true;
   return {
-    nodeWidth: mobile ? 148 : 182,
-    rootWidth: mobile ? 170 : 216,
-    richNodeWidth: mobile ? 162 : 204,
-    nodeHeight: mobile ? 84 : 96,
-    rootHeight: mobile ? 94 : 112,
-    candidateHeight: mobile ? 98 : 116,
-    richNodeHeight: mobile ? 102 : 124,
-    levelGap: mobile ? 72 : 88,
-    siblingGap: mobile ? 14 : 18,
-    paddingX: mobile ? 76 : 132,
-    paddingY: mobile ? 54 : 84,
+    nodeWidth: mobile ? 128 : 182,
+    rootWidth: mobile ? 150 : 216,
+    richNodeWidth: mobile ? 140 : 204,
+    nodeHeight: mobile ? 88 : 96,
+    rootHeight: mobile ? 102 : 112,
+    candidateHeight: mobile ? 100 : 116,
+    richNodeHeight: mobile ? 112 : 124,
+    levelGap: mobile ? 64 : 88,
+    siblingGap: mobile ? 10 : 18,
+    paddingX: mobile ? 18 : 132,
+    paddingY: mobile ? 44 : 84,
   };
 }
 
@@ -2779,7 +3040,7 @@ function getProjectedTaskFlowNodeMeta(windowRef, node) {
   if (metaLabel) return metaLabel;
   if (nodeEffect?.metaVariant === 'candidate') return '可选';
   if (nodeEffect?.metaVariant === 'done') return '已收束';
-  return nodeStatusLabel || '空闲';
+  return nodeStatusLabel;
 }
 
 function getProjectedTaskFlowNodeSummary(windowRef, node, activeQuest, clipTextImpl) {
@@ -3825,12 +4086,15 @@ function FlowViewportSync({ nodes = [], focusNodeIds = [], viewportKey = '', isM
     const hostWindow = globalThis?.window || window;
     const raf = hostWindow?.requestAnimationFrame?.bind(hostWindow);
     const cancelRaf = hostWindow?.cancelAnimationFrame?.bind(hostWindow);
+    const fitPadding = focusNodeIds.length > 0
+      ? (isMobile ? 0.12 : 0.16)
+      : (isMobile ? 0.18 : 0.22);
     const run = () => {
       reactFlow.fitView({
         nodes: focusTargets,
-        padding: focusNodeIds.length > 0 ? (isMobile ? 0.14 : 0.16) : (isMobile ? 0.2 : 0.22),
+        padding: fitPadding,
         duration: 0,
-        minZoom: isMobile ? 0.62 : 0.42,
+        minZoom: isMobile ? 0.25 : 0.42,
         maxZoom: 1.22,
         includeHiddenNodes: true,
       });
@@ -3986,11 +4250,6 @@ function TaskFlowBoard({
     writeTaskMapLayoutPositions(layoutStorage, layoutStorageKey, nextPositions);
   }
 
-  const emptyLabel = trimText(rendererApi?.translate?.('taskMap.empty') || '');
-  const resolvedEmptyLabel = emptyLabel && emptyLabel !== 'taskMap.empty'
-    ? emptyLabel
-    : '暂无支线，后续任务流程会显示在这里。';
-
   return (
     <div className={`quest-task-flow-scroll quest-task-flow-react-scroll${interactionConfig.isMobile ? ' is-mobile' : ''}`}>
       <div className="quest-task-flow-canvas quest-task-flow-react-canvas">
@@ -4083,9 +4342,6 @@ function TaskFlowBoard({
               </div>
             ) : null}
           </div>
-        ) : null}
-        {snapshot.hasOnlyRoot ? (
-          <div className="task-map-empty quest-task-flow-react-empty">{resolvedEmptyLabel}</div>
         ) : null}
       </div>
     </div>
@@ -4180,7 +4436,7 @@ function renderStaticFlowBoard({
       const actionBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
       actionBtn.type = 'button';
       actionBtn.className = 'quest-branch-btn quest-branch-btn-primary quest-task-flow-node-action nodrag nopan';
-      actionBtn.textContent = entry?.data?.actionLabel || '开启支线';
+      actionBtn.textContent = entry?.data?.actionLabel || '开启';
       actionBtn.addEventListener('click', async (event) => {
         stopEvent(event);
         await rendererApi?.nodeActionController?.executePrimaryAction?.(entry.data.node, {
@@ -4353,13 +4609,6 @@ function renderStaticFlowBoard({
     }
   }
 
-  if (snapshot.hasOnlyRoot) {
-    const empty = ensureCompatElement(documentRef.createElement('div'), documentRef);
-    empty.className = 'task-map-empty quest-task-flow-react-empty';
-    empty.textContent = '暂无支线，后续任务流程会显示在这里。';
-    container.appendChild(empty);
-  }
-
   return container;
 }
 
@@ -4459,6 +4708,7 @@ const workbenchReactUiApi = Object.freeze({
   createRichViewRenderer,
   createNodeCanvasController,
   createTrackerRenderer,
+  renderSessionList,
   createSessionListRenderer,
   createTaskListController,
   createStatusCardRenderer,

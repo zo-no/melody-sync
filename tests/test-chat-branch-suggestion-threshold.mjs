@@ -115,7 +115,7 @@ const context = {
             row.appendChild(title);
             const button = documentRef.createElement('button');
             button.className = 'quest-branch-btn';
-            button.textContent = '开启支线';
+            button.textContent = '开启';
             row.appendChild(button);
             return row;
           },
@@ -167,7 +167,7 @@ assert.equal(
 );
 assert.equal(
   visibleAuto.querySelector('.quest-branch-btn')?.textContent,
-  '开启支线',
+  '开启',
   'auto suggestion action should use the same branch-entry wording as the task map',
 );
 

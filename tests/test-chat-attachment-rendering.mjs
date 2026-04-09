@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const uiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session', 'transcript-ui.js'), 'utf8');
+const uiSourcePath = existsSync(join(repoRoot, 'frontend-src', 'session', 'transcript-ui.js'))
+  ? join(repoRoot, 'frontend-src', 'session', 'transcript-ui.js')
+  : join(repoRoot, 'static', 'frontend', 'session', 'transcript-ui.js');
+const uiSource = readFileSync(uiSourcePath, 'utf8');
 const chatTemplateSource = readFileSync(join(repoRoot, 'templates', 'chat.html'), 'utf8');
 
 function extractFunctionSource(source, functionName) {

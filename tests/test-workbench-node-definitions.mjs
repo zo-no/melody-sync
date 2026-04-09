@@ -30,7 +30,7 @@ assert.deepEqual(NODE_VIEW_TYPES, ['flow-node', 'markdown', 'html', 'iframe']);
 assert.deepEqual(NODE_TASK_CARD_BINDING_KEYS, ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps']);
 assert.deepEqual(
   NODE_KIND_DEFINITIONS.map((definition) => definition.id),
-  ['main', 'branch', 'candidate', 'done'],
+  ['main', 'branch', 'candidate', 'note', 'done'],
 );
 
 assert.equal(getNodeKindDefinition('main')?.sessionBacked, true);
@@ -42,8 +42,11 @@ assert.equal(getNodeKindDefinition('candidate')?.composition?.defaultInteraction
 assert.equal(getNodeKindDefinition('candidate')?.composition?.defaultViewType, 'flow-node');
 assert.deepEqual(getNodeKindDefinition('candidate')?.composition?.surfaceBindings, ['task-map', 'composer-suggestions']);
 assert.deepEqual(getNodeKindDefinition('candidate')?.composition?.taskCardBindings, ['candidateBranches']);
+assert.equal(getNodeKindDefinition('note')?.composition?.defaultViewType, 'markdown');
+assert.equal(getNodeKindDefinition('note')?.composition?.requiresSourceSession, false);
 assert.equal(getNodeKindDefinition('done')?.composition?.defaultEdgeType, 'completion');
 assert.equal(isKnownNodeKind('candidate'), true);
+assert.equal(isKnownNodeKind('note'), true);
 assert.equal(isKnownNodeKind('review'), false);
 
 const listedDefinitions = listNodeKindDefinitions();
@@ -54,11 +57,11 @@ assert.notEqual(
 );
 assert.deepEqual(
   listedDefinitions.map((definition) => definition.id),
-  ['main', 'branch', 'candidate', 'done'],
+  ['main', 'branch', 'candidate', 'note', 'done'],
 );
 
 const payload = createWorkbenchNodeDefinitionsPayload();
-assert.deepEqual(payload.nodeKinds, ['main', 'branch', 'candidate', 'done']);
+assert.deepEqual(payload.nodeKinds, ['main', 'branch', 'candidate', 'note', 'done']);
 assert.deepEqual(payload.nodeLanes, ['main', 'branch', 'side']);
 assert.deepEqual(payload.nodeRoles, ['state', 'action', 'summary']);
 assert.deepEqual(payload.nodeMergePolicies, ['replace-latest', 'append']);
@@ -80,6 +83,10 @@ assert.deepEqual(
 assert.equal(
   payload.nodeKindDefinitions.find((definition) => definition.id === 'candidate')?.composition?.countsAs?.candidate,
   true,
+);
+assert.equal(
+  payload.nodeKindDefinitions.find((definition) => definition.id === 'note')?.composition?.defaultViewType,
+  'markdown',
 );
 
 console.log('test-workbench-node-definitions: ok');

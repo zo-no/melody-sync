@@ -1,28 +1,29 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const nodeContractSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-contract.js'),
-  'utf8',
-);
-const nodeEffectsSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-effects.js'),
-  'utf8',
-);
-const nodeInstanceSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-instance.js'),
-  'utf8',
-);
-const nodeTaskCardSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-task-card.js'),
-  'utf8',
-);
+
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend-src', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const nodeContractSource = readWorkbenchFrontendSource('node-contract.js');
+const nodeEffectsSource = readWorkbenchFrontendSource('node-effects.js');
+const nodeInstanceSource = readWorkbenchFrontendSource('node-instance.js');
+const nodeTaskCardSource = readWorkbenchFrontendSource('node-task-card.js');
 
 const context = { console };
 context.globalThis = context;
@@ -51,7 +52,7 @@ const nodes = [
     id: 'candidate:main-1:review',
     kind: 'candidate',
     title: '补充复盘',
-    summary: '建议拆成独立支线',
+    summary: '建议拆分',
     sourceSessionId: 'main-1',
   },
   {

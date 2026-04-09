@@ -178,7 +178,7 @@ async function main() {
     assert.deepEqual(bootstrap.auth, { role: 'owner' }, 'bootstrap payload should include owner auth');
     assert.deepEqual(
       bootstrap.workbench?.nodeKinds,
-      ['main', 'branch', 'candidate', 'done'],
+      ['main', 'branch', 'candidate', 'note', 'done'],
       'bootstrap payload should expose current workbench node kinds',
     );
     assert.equal(
@@ -220,7 +220,8 @@ async function main() {
     assert.doesNotMatch(page.text, /id="forkSessionBtn"/, 'chat page should not ship detached fork header controls');
     assert.doesNotMatch(page.text, /id="organizeSessionBtn"/, 'chat page should not ship detached organize header controls');
     assert.match(page.text, /id="taskMapRail"/, 'chat page should ship the dedicated middle-column task map rail');
-    assert.match(page.text, /id="hooksSettingsBtn"/, 'chat page should ship the shared settings trigger in the sidebar header');
+    assert.match(page.text, /id="hooksSettingsBtn"/, 'chat page should ship the shared settings trigger in the sidebar actions');
+    assert.match(page.text, /id="sidebarBranchVisibilityToggle"/, 'chat page should ship the branch visibility toggle in the sidebar toolbar');
     assert.match(page.text, /id="settingsTabEmail"/, 'chat page should ship the email tab inside the shared settings overlay');
     assert.match(page.text, /id="settingsTabVoice"/, 'chat page should ship the voice tab inside the shared settings overlay');
     assert.match(page.text, /id="settingsTabHooks"/, 'chat page should ship the hooks tab inside the shared settings overlay');
@@ -526,7 +527,8 @@ async function main() {
     const sessionListReactUiAsset = await request(port, 'GET', '/chat/session-list/react-ui.js');
     assert.equal(sessionListReactUiAsset.status, 200, 'session list react adapter asset should load');
     assert.match(sessionListReactUiAsset.text, /MelodySyncSessionListUi/);
-    assert.match(sessionListReactUiAsset.text, /createSessionListRenderer/);
+    assert.match(sessionListReactUiAsset.text, /MelodySyncWorkbenchReactUi/);
+    assert.doesNotMatch(sessionListReactUiAsset.text, /createSessionListRenderer/, 'session list react adapter should stay a thin shim');
 
     const hooksModelAsset = await request(port, 'GET', '/chat/settings/hooks/model.js');
     assert.equal(hooksModelAsset.status, 200, 'hooks settings model asset should load');
@@ -644,7 +646,7 @@ async function main() {
     const nodeDefinitionsJson = JSON.parse(nodeDefinitionsApi.text);
     assert.deepEqual(
       nodeDefinitionsJson.nodeKinds,
-      ['main', 'branch', 'candidate', 'done'],
+      ['main', 'branch', 'candidate', 'note', 'done'],
       'workbench node definitions api should expose the current node kinds',
     );
     assert.deepEqual(

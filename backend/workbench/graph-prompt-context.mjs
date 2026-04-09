@@ -57,7 +57,9 @@ export function buildGraphBootstrapPromptContext({ session = null } = {}) {
   const rootSessionId = trimText(session?.rootSessionId || session?.id);
   const lines = [
     '[Graph planning bootstrap]',
-    'This session is node-aware from the start. Use MelodySync node kinds and task-map plans when you need to express goals, branches, suggestions, or rich canvas content.',
+    'This session is node-aware from the start. Use MelodySync node kinds and task-map plans when you need to express goals, branches, suggestions, notes, decisions, or rich canvas content.',
+    'The agent owns task-map shaping. It may create the graph depth that best fits the work in a single pass instead of stopping at only the next few steps.',
+    'Task-map nodes are not limited to executable tasks. Rich nodes may carry markdown, html, iframe, summaries, references, and other compact context when that improves clarity.',
     '',
     `Current session root: ${rootSessionId || '(unknown)'}`,
     `Default root node: main (${sessionTitle})`,
@@ -81,6 +83,7 @@ export function buildGraphBootstrapPromptContext({ session = null } = {}) {
   lines.push(
     '',
     'When you need to shape the task map, prefer declaring node-backed structure that matches this contract instead of inventing ad hoc UI.',
+    'Do not treat candidateBranches or composer suggestions as the full task map. They are only concise recommendation surfaces.',
     'If you can safely clean up the task map, you may append one extra hidden block before the final task_card block:',
     '<private><graph_ops>{"operations":[{"type":"attach","source":"重复任务A","target":"主线任务","reason":"并到更合适的父任务下"},{"type":"archive","source":"重复任务B","target":"主线任务","reason":"重复任务已融合"}]}</graph_ops></private>',
     'Supported graph ops are attach, promote_main, and archive. Prefer session titles or ids; `current`, `self`, `当前任务`, `main`, `root`, and `主线` are valid refs.',

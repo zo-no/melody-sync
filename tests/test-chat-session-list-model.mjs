@@ -20,7 +20,10 @@ const translations = {
   'sidebar.group.inbox': 'Capture',
   'sidebar.group.shortTerm': 'Short-term',
   'sidebar.group.uncategorized': 'Uncategorized',
-  'sidebar.branchTag': 'Branch',
+  'sidebar.branchTag': 'Branch Task',
+  'persistent.kind.recurringTask': 'Recurring task',
+  'persistent.kind.recurringPaused': 'Recurring paused',
+  'persistent.kind.skill': 'Quick action',
 };
 
 const localStorageState = new Map();
@@ -159,6 +162,16 @@ assert.equal(
   'branch status should fall back to the latest workbench branch context when the session record lacks a local status',
 );
 assert.equal(
+  model.getBranchTaskVisibilityMode(),
+  'show',
+  'branch task visibility should default to showing active branch sessions',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'branch-active', taskCard: { lineRole: 'branch' }, taskListVisibility: 'secondary' }),
+  true,
+  'active branches should remain visible in the sidebar even when stored as secondary sessions',
+);
+assert.equal(
   model.shouldShowSessionInSidebar({ id: 'branch-merged', taskCard: { lineRole: 'branch' }, _branchStatus: 'merged' }),
   false,
   'merged branches should disappear from the sidebar task list',
@@ -224,6 +237,31 @@ assert.equal(
   'sidebar entry classification should explain when a branch is hidden for being closed',
 );
 assert.equal(
+  model.setBranchTaskVisibilityMode('hide'),
+  'hide',
+  'branch task visibility setter should persist the hidden mode',
+);
+assert.equal(
+  model.shouldHideBranchTaskSessions(),
+  true,
+  'branch task visibility helper should reflect the hidden mode',
+);
+assert.equal(
+  model.shouldShowSessionInSidebar({ id: 'entry-branch-filtered', taskCard: { lineRole: 'branch' }, taskListVisibility: 'secondary' }),
+  false,
+  'active branches should disappear from the sidebar when the owner hides branch tasks',
+);
+assert.equal(
+  model.getSessionListEntry({ id: 'entry-branch-filtered', taskCard: { lineRole: 'branch' }, taskListVisibility: 'secondary' }).hiddenReason,
+  'branch_filtered',
+  'sidebar entry classification should explain when a branch is hidden by the branch toggle',
+);
+assert.equal(
+  model.setBranchTaskVisibilityMode('show'),
+  'show',
+  'branch task visibility setter should restore the visible mode',
+);
+assert.equal(
   model.shouldShowSessionInSidebar({ id: 'entry-secondary', taskListVisibility: 'secondary', taskCard: { lineRole: 'main' } }),
   false,
   'secondary task-list sessions should stay out of the primary sidebar list',
@@ -239,8 +277,28 @@ assert.equal(
   'sidebar entry classification should route recurring tasks into the persistent dock',
 );
 assert.deepEqual(
+  Array.from(model.getSessionListBadges({
+    persistent: {
+      kind: 'recurring_task',
+      state: 'active',
+      recurring: {
+        cadence: 'weekly',
+        timeOfDay: '09:15',
+        weekdays: [1, 4],
+        nextRunAt: '2026-04-10T01:15:00.000Z',
+        timezone: 'Asia/Shanghai',
+      },
+    },
+  }), (entry) => ({ label: entry.label, title: entry.title || '' })),
+  [
+    { label: 'Recurring task', title: '' },
+    { label: '周一/周四 09:15', title: '下次执行 04-10 09:15 · 时区 Asia/Shanghai' },
+  ],
+  'recurring tasks should surface both the persistent kind and the cadence badge in the sidebar',
+);
+assert.deepEqual(
   Array.from(model.getSessionListBadges({ taskCard: { lineRole: 'branch' } }), (entry) => entry.label),
-  ['Branch'],
+  ['Branch Task'],
   'branch tasks should expose a lightweight sidebar badge instead of a nested tree renderer',
 );
 

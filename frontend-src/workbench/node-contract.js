@@ -117,11 +117,11 @@
       canBeRoot: composition.canBeRoot === true,
       allowedParentKinds: normalizeNodeKindIdList(
         composition.allowedParentKinds,
-        normalizedDefinition.sessionBacked ? ["main", "branch"] : ["main", "branch"],
+        normalizedDefinition.sessionBacked ? ["main", "branch"] : ["main", "branch", "note"],
       ),
       allowedChildKinds: normalizeNodeKindIdList(
         composition.allowedChildKinds,
-        normalizedDefinition.sessionBacked ? ["branch", "candidate", "done"] : [],
+        normalizedDefinition.sessionBacked ? ["branch", "candidate", "done", "note"] : [],
       ),
       requiresSourceSession: composition.requiresSourceSession !== false,
       defaultInteraction: normalizeToken(
@@ -214,7 +214,7 @@
       composition: {
         canBeRoot: true,
         allowedParentKinds: [],
-        allowedChildKinds: ["branch", "candidate", "done"],
+        allowedChildKinds: ["branch", "candidate", "done", "note"],
         requiresSourceSession: true,
         defaultInteraction: "open-session",
         defaultEdgeType: "structural",
@@ -243,7 +243,7 @@
       composition: {
         canBeRoot: false,
         allowedParentKinds: ["main", "branch"],
-        allowedChildKinds: ["branch", "candidate", "done"],
+        allowedChildKinds: ["branch", "candidate", "done", "note"],
         requiresSourceSession: true,
         defaultInteraction: "open-session",
         defaultEdgeType: "structural",
@@ -290,6 +290,35 @@
       },
     }),
     defineNodeKind({
+      id: "note",
+      label: "笔记",
+      description: "可承载摘要、决策、参考资料等富文本内容。",
+      lane: "side",
+      role: "summary",
+      sessionBacked: false,
+      derived: true,
+      mergePolicy: "append",
+      composition: {
+        canBeRoot: false,
+        allowedParentKinds: ["main", "branch", "note"],
+        allowedChildKinds: ["note"],
+        requiresSourceSession: false,
+        defaultInteraction: "none",
+        defaultEdgeType: "structural",
+        defaultViewType: "markdown",
+        layoutVariant: "panel",
+        capabilities: [],
+        surfaceBindings: ["task-map"],
+        taskCardBindings: [],
+        countsAs: {
+          sessionNode: false,
+          branch: false,
+          candidate: false,
+          completedSummary: false,
+        },
+      },
+    }),
+    defineNodeKind({
       id: "done",
       label: "收束",
       description: "当前主任务下的现有支线已经全部收束。",
@@ -300,7 +329,7 @@
       mergePolicy: "replace-latest",
       composition: {
         canBeRoot: false,
-        allowedParentKinds: ["main", "branch"],
+        allowedParentKinds: ["main", "branch", "note"],
         allowedChildKinds: [],
         requiresSourceSession: true,
         defaultInteraction: "none",

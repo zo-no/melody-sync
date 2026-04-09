@@ -585,7 +585,7 @@ function getDefaultSortSessionListButtonLabel() {
     return translateSessionListUiText("sidebar.sortList.runAi", "整理 1 个任务");
   }
   if (!hasSessionListGroupingTemplateGroups()) {
-    return translateSessionListUiText("sidebar.sortList.createFolderFirst", "先创建分组");
+    return translateSessionListUiText("sidebar.sortList.createFolderFirst", "先新建文件夹");
   }
   return translateSessionListUiText("sidebar.sortList.runTemplate", "按分组整理 1 个");
 }

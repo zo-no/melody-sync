@@ -1,15 +1,28 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const settingsUiSource = readFileSync(join(repoRoot, 'frontend/settings/ui.js'), 'utf8');
-const hooksModelSource = readFileSync(join(repoRoot, 'frontend/settings/hooks/model.js'), 'utf8');
-const hooksUiSource = readFileSync(join(repoRoot, 'frontend/settings/hooks/ui.js'), 'utf8');
+
+function readFrontendSource(...segments) {
+  const candidates = [
+    join(repoRoot, 'frontend-src', ...segments),
+    join(repoRoot, 'frontend', ...segments),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Frontend source not found for ${segments.join('/')}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const settingsUiSource = readFrontendSource('settings', 'ui.js');
+const hooksModelSource = readFrontendSource('settings', 'hooks', 'model.js');
+const hooksUiSource = readFrontendSource('settings', 'hooks', 'ui.js');
 
 function makeClassList() {
   const tokens = new Set();
@@ -191,7 +204,7 @@ const context = {
             { id: 'run.completed', scope: 'run', phase: 'closeout', label: '执行完成', description: '一次执行成功完成并且结果已经回写之后。' },
             { id: 'run.failed', scope: 'run', phase: 'closeout', label: '执行失败或取消', description: '一次执行失败、终止或取消之后。' },
             { id: 'branch.suggested', scope: 'branch', phase: 'closeout', label: '识别支线建议', description: '检测到适合独立处理的话题，并产出候选支线事件之后。' },
-            { id: 'branch.opened', scope: 'branch', phase: 'branch_followup', label: '开启支线', description: '新的支线任务和 branch context 已持久化并进入处理状态之后。' },
+            { id: 'branch.opened', scope: 'branch', phase: 'branch_followup', label: '开启', description: '新的支线任务和 branch context 已持久化并进入处理状态之后。' },
             { id: 'branch.merged', scope: 'branch', phase: 'branch_followup', label: '支线合并回主线', description: '支线结果已经回流主线并写入合并记录之后。' },
           ],
           settings: {

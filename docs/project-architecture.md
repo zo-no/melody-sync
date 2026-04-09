@@ -298,12 +298,15 @@ Default runtime behavior:
 
 - `general-settings.json` now points at a portable `brainRoot` plus a machine-local `runtimeRoot`
 - MelodySync keeps `AGENTS.md` and `memory/` under the brain, while runtime state such as `config/`, `email/`, `voice/`, `sessions/`, `hooks/`, `workbench/`, and `logs/` lives under the runtime root
-- if no storage root is configured, MelodySync falls back to the home-local layout (`~/.config/melody-sync` plus `~/.melodysync/memory`)
+- owner/bootstrap config such as auth, auth sessions, push config, tool catalog, and runtime selection live in `~/.config/melody-sync`
+- if no storage root is configured, MelodySync falls back to the home-local layout (`~/.config/melody-sync`, `~/.melodysync`, and `~/.melodysync/runtime`)
 - isolated instances can still override this via `MELODYSYNC_INSTANCE_ROOT`, `MELODYSYNC_CONFIG_DIR`, and `MELODYSYNC_MEMORY_DIR`
+- when split layout is active, MelodySync copy-migrates legacy runtime directories still found under the brain root into the runtime root on startup
 
 Vault-backed app root shape:
 
-- `config/` — auth, sessions cookie store, runtime selection, push config, general settings
+- `~/.config/melody-sync/` — auth, auth sessions, runtime selection, push config, bootstrap general settings
+- `<runtimeRoot>/config/` — app-scoped general settings, provider runtime homes, hook/workbench runtime config
 - `email/` — mailbox identity, allowlist, outbound, and automation config
 - `memory/` — bootstrap/project/skills/task memory
 - `sessions/` — machine-readable session storage:

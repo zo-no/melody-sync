@@ -19,7 +19,7 @@ const nodes = [
     id: 'candidate:main-1:review',
     kind: 'candidate',
     title: '补充复盘',
-    summary: '建议拆成独立支线',
+    summary: '建议拆分',
     sourceSessionId: 'main-1',
   },
   {

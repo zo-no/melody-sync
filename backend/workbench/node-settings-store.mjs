@@ -19,7 +19,7 @@ const NODE_TASK_CARD_BINDING_KEYS = Object.freeze([
   'checkpoint',
   'nextSteps',
 ]);
-const RESERVED_NODE_KIND_IDS = new Set(['main', 'branch', 'candidate', 'done']);
+const RESERVED_NODE_KIND_IDS = new Set(['main', 'branch', 'candidate', 'note', 'done']);
 
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -80,11 +80,11 @@ function normalizeCustomNodeComposition(definition = {}, { lane = 'side', role =
     canBeRoot: composition.canBeRoot === true,
     allowedParentKinds: normalizeNodeKindIdList(
       composition.allowedParentKinds,
-      ['main', 'branch'],
+      ['main', 'branch', 'note'],
     ),
     allowedChildKinds: normalizeNodeKindIdList(
       composition.allowedChildKinds,
-      role === 'state' ? ['branch', 'candidate', 'done'] : [],
+      role === 'state' ? ['branch', 'candidate', 'done', 'note'] : [],
     ),
     requiresSourceSession: composition.requiresSourceSession !== false,
     defaultInteraction: normalizeToken(

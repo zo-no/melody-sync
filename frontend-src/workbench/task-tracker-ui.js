@@ -33,13 +33,14 @@
 
     function getTrackerVisualStatus(state) {
       if (!state?.hasSession || !state?.session) {
-        return { key: "", label: "", dotClassName: "" };
+        return { key: "", label: "", dotClassName: "", summary: "" };
       }
       if (state?.taskMapVisualStatus?.label) {
         return {
           key: String(state.taskMapVisualStatus.key || "").trim(),
           label: String(state.taskMapVisualStatus.label || "").trim(),
           dotClassName: String(state.taskMapVisualStatus.dotClassName || "").trim(),
+          summary: String(state.taskMapVisualStatus.summary || "").trim(),
         };
       }
       const taskRunStatus = getTaskRunStatusApi()?.getTaskRunStatusPresentation?.({
@@ -57,12 +58,13 @@
       }) || { key: "", label: "", summary: "", dotClassName: "" };
       const label = String(taskRunStatus?.label || "").trim();
       if (!label) {
-        return { key: "", label: "", dotClassName: "" };
+        return { key: "", label: "", dotClassName: "", summary: "" };
       }
       return {
         key: String(taskRunStatus?.key || "").trim(),
         label,
         dotClassName: String(taskRunStatus?.dotClassName || "").trim(),
+        summary: String(taskRunStatus?.summary || "").trim(),
       };
     }
 
@@ -96,14 +98,20 @@
       const summary = clipText(getCurrentTaskSummary(state), isMobileQuestTracker() ? 80 : 112);
       if (summary) return summary;
       const currentGoal = clipText(state.currentGoal || "", isMobileQuestTracker() ? 80 : 112);
-      return isRedundantTrackerText(currentGoal, state.session?.name, state.mainGoal) ? "" : currentGoal;
+      if (!isRedundantTrackerText(currentGoal, state.session?.name, state.mainGoal)) {
+        return currentGoal;
+      }
+      return clipText(
+        String(getTrackerVisualStatus(state)?.summary || ""),
+        isMobileQuestTracker() ? 84 : 112,
+      );
     }
 
     function getSecondaryDetail(state, primaryDetail = "") {
       if (!state?.hasSession) return "";
       if (!state.isBranch) {
         const candidateCount = Number(state?.candidateBranchCount || 0);
-        return candidateCount > 0 ? `发现 ${candidateCount} 条建议支线` : "";
+        return candidateCount > 0 ? `${candidateCount} 个建议` : "";
       }
       const nextStep = clipText(state.nextStep || "", isMobileQuestTracker() ? 72 : 96);
       if (!nextStep) return "";
@@ -154,7 +162,7 @@
         const enterBtn = documentRef.createElement("button");
         enterBtn.type = "button";
         enterBtn.className = "quest-branch-btn quest-branch-btn-primary";
-        enterBtn.textContent = "开启支线";
+        enterBtn.textContent = "开启";
         enterBtn.addEventListener("click", async () => {
           enterBtn.disabled = true;
           try {

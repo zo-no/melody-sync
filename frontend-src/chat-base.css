@@ -125,7 +125,7 @@ body {
   padding: 0 12px;
   padding-top: var(--safe-top);
   background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   height: calc(48px + var(--safe-top));
   flex-shrink: 0;
 }

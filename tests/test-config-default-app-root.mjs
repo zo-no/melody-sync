@@ -22,10 +22,12 @@ try {
   assert.equal(config.USE_APP_ROOT_STORAGE, true);
   assert.equal(config.USE_OBSIDIAN_VAULT_STORAGE, false);
   assert.equal(config.MELODYSYNC_APP_ROOT, join(tempHome, '.melodysync'));
-  assert.equal(config.CONFIG_DIR, join(tempHome, '.melodysync', 'config'));
+  assert.equal(config.MELODYSYNC_RUNTIME_ROOT, join(tempHome, '.melodysync', 'runtime'));
+  assert.equal(config.CONFIG_DIR, join(tempHome, '.config', 'melody-sync'));
   assert.equal(config.MEMORY_DIR, join(tempHome, '.melodysync', 'memory'));
   assert.equal(config.MELODYSYNC_AGENTS_FILE, join(tempHome, '.melodysync', 'AGENTS.md'));
-  assert.equal(existsSync(join(tempHome, '.melodysync', 'hooks', 'custom-hooks.json')), true);
+  assert.equal(existsSync(join(tempHome, '.melodysync', 'runtime', 'hooks', 'custom-hooks.json')), true);
+  assert.equal(existsSync(join(tempHome, '.config', 'melody-sync')), true);
 
   console.log('test-config-default-app-root: ok');
 } finally {

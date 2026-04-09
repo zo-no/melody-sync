@@ -222,7 +222,7 @@
       if (nextStep) return nextStep;
       const clusterSummary = getClusterSummary(state.cluster);
       if (clusterSummary) return clusterSummary;
-      return "继续推进这项任务";
+      return "";
     }
 
     function deriveQuestState() {

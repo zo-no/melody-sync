@@ -107,24 +107,37 @@ memory/
 
 - `<instance-root>/`
 
-当前已存在的主要目录：
+当前默认布局下已存在的主要目录：
 
 ```text
-melody-sync-instance/
-  config/
-    api-logs/
-    chat-history/
-    chat-runs/
-    provider-runtime-homes/
+~/.config/melody-sync/
+  auth.json
+  auth-sessions.json
+  general-settings.json
+  push-subscriptions.json
+  tools.json
+  ui-runtime-selection.json
+
+~/.melodysync/
+  AGENTS.md
   memory/
     tasks/
+
+~/.melodysync/runtime/
+  config/
+    provider-runtime-homes/
+  logs/
+    api/
+  sessions/
+  hooks/
+  workbench/
 ```
 
-### 3.1 `config/`
+### 3.1 `~/.config/melody-sync/`
 
 职责：
 
-- 存放当前实例的运行态 durable truth
+- 存放当前机器的 bootstrap / owner config durable truth
 
 来自：
 
@@ -133,80 +146,75 @@ melody-sync-instance/
 主要文件/目录：
 
 - `auth.json`
-- `tools.json`
 - `auth-sessions.json`
-- `chat-sessions.json`
-- `hooks.json`
-- `chat-history/`
-- `chat-runs/`
-- `images/`
-- `file-assets/`
-- `file-assets-cache/`
-- `api-logs/`
-- `workbench-*.json`
+- `general-settings.json`
 - `ui-runtime-selection.json`
-- `provider-runtime-homes/`
+- `push-subscriptions.json`
+- `tools.json`
 
 其中最重要的几类：
 
-#### `chat-sessions.json`
+#### `auth.json`
+
+用途：
+
+- owner token / password hash 真值
+
+#### `general-settings.json`
+
+用途：
+
+- 当前机器 bootstrap 指针
+- 指向 portable `brainRoot` 和 machine-local `runtimeRoot`
+
+### 3.2 `<runtimeRoot>/`
+
+用途：
+
+- 存放运行态 durable truth
+
+主要目录：
+
+- `config/`
+- `email/`
+- `voice/`
+- `sessions/`
+- `hooks/`
+- `workbench/`
+- `logs/`
+
+#### `<runtimeRoot>/sessions/chat-sessions.json`
 
 用途：
 
 - session metadata 真值
 
-包括：
-
-- `name`
-- `group`
-- `workflowState`
-- `workflowPriority`
-- `taskCard`
-- `followUpQueue`
-- `archived`
-
 这是任务列表和 session 主数据的真值层。
 
-#### `chat-history/`
+#### `<runtimeRoot>/sessions/history/`
 
 用途：
 
-- 每个 session 的事件流
+- 每个 session 的事件流 durable store
 
-结构来自：
-
-- `backend/history.mjs`
-
-每个 session 目录下通常有：
-
-- `meta.json`
-- `context.json`
-- `fork-context.json`
-- `events/`
-- `bodies/`
-
-这层是会话事件 durable store，不应由 hooks 直接拥有真值。
-
-#### `chat-runs/`
+#### `<runtimeRoot>/sessions/runs/`
 
 用途：
 
 - 每个 detached run 的运行状态与 manifest
 
-结构来自：
-
-- `backend/run/store.mjs`
-
-每个 run 目录下至少有：
-
-- `status.json`
-- `manifest.json`
-
-#### `hooks.json`
+#### `<runtimeRoot>/config/`
 
 用途：
 
-- hook 启停配置持久化
+- runtime-scoped config，例如：
+  - `general-settings.json`
+  - `provider-runtime-homes/`
+  - `hooks.json`
+  - `custom-hooks.json`
+  - `workbench-*.json`
+
+当 split layout 启用时，旧版留在 `brainRoot/config`、`brainRoot/sessions`、`brainRoot/logs`、`brainRoot/hooks`、`brainRoot/workbench`、`brainRoot/voice`、`brainRoot/email` 下的运行态数据会按缺失复制迁入这里。
 
 实现：
 
@@ -460,14 +468,14 @@ memory/
 当前最重要的文件系统边界可以压成一句话：
 
 > `memory/` 是给 agent 的协作记忆面。  
-> `config/` 是实例运行真值面。  
+> `~/.config/melody-sync/` + `<runtimeRoot>/` 是实例运行真值面。  
 > repo 里的 `memory/system.md` 是共享系统记忆面。
 
 只要后续继续沿着这条边界推进：
 
 - hooks 写生命周期事件和副作用
 - node 只做 projection
-- session/run/workbench 真值留在 `config/`
+- session/run/workbench 真值留在 machine config root + runtime root
 - agent 长期记忆留在 `memory/`
 
 整个系统会越来越容易维护，也更容易让 AI 安全修改。

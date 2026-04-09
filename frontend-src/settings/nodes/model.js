@@ -18,7 +18,7 @@
 
   const INTERACTION_LABELS = Object.freeze({
     'open-session': '打开任务',
-    'create-branch': '开启支线',
+    'create-branch': '开启',
     none: '只读展示',
   });
 
@@ -237,4 +237,3 @@
     describeNodeKind,
   });
 })();
-

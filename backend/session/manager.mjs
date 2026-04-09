@@ -113,8 +113,10 @@ import {
   writePermanentSessionDeletionJournal,
 } from '../services/session/deletion-service.mjs';
 import { createSessionMetadataMutationService } from '../services/session/metadata-service.mjs';
+import { createSessionMessageSubmissionService } from '../services/session/message-submission-service.mjs';
 import { createSessionPersistentService } from '../services/session/persistent-service.mjs';
 import { buildPrompt, resolveResumeState } from '../services/session/prompt-service.mjs';
+import { createSessionWorkflowRuntimeService } from '../services/session/workflow-runtime-service.mjs';
 import {
   normalizeSessionSourceName,
   normalizeSessionUserName,
@@ -479,6 +481,29 @@ const {
   mutateSessionMeta,
   nowIso,
   stabilizeSessionTaskCard,
+});
+
+const {
+  updateSessionRuntimePreferences: updateSessionRuntimePreferencesViaWorkflowRuntimeService,
+  updateSessionTool: updateSessionToolViaWorkflowRuntimeService,
+  updateSessionWorkflowClassification: updateSessionWorkflowClassificationViaWorkflowRuntimeService,
+} = createSessionWorkflowRuntimeService({
+  appendEvent,
+  broadcastSessionInvalidation,
+  broadcastSessionsInvalidation,
+  buildSessionCompletionNoticeKey,
+  didSessionWorkflowTransitionToDone,
+  emitHook,
+  enrichSessionMeta,
+  getSession,
+  mutateSessionMeta,
+  normalizeSessionWorkflowPriority,
+  normalizeSessionWorkflowState,
+  nowIso,
+  resolveLatestCompletedRunIdForSession,
+  sessionWorkflowStateWaitingUser: SESSION_WORKFLOW_STATE_WAITING_USER,
+  shouldExposeSession,
+  statusEvent,
 });
 
 const {
@@ -1828,6 +1853,40 @@ const {
   watch,
 });
 
+const {
+  sendMessage: sendMessageViaMessageSubmissionService,
+  submitHttpMessage: submitHttpMessageViaMessageSubmissionService,
+} = createSessionMessageSubmissionService({
+  broadcastSessionInvalidation,
+  clearRenameState,
+  createInternalRequestId,
+  emitHook,
+  enrichSessionMeta,
+  enrichSessionMetaForClient,
+  ensureSessionFolderReady,
+  ensureSessionManagerBuiltinHooksRegistered,
+  findQueuedFollowUpByRequest,
+  findSessionMeta,
+  flushDetachedRunIfNeeded,
+  getFollowUpQueue,
+  getFollowUpQueueCount,
+  getLiveSession: (sessionId) => liveSessions.get(sessionId),
+  getSession,
+  hasRecentFollowUpRequestId,
+  mutateSessionMeta,
+  normalizeSourceContext,
+  nowIso,
+  observeDetachedRun,
+  renameSession: renameSessionViaMetadataService,
+  sanitizeQueuedFollowUpAttachments,
+  sanitizeQueuedFollowUpOptions,
+  scheduleQueuedFollowUpDispatch,
+  shouldResetProviderResumeState,
+  statusEvent,
+  touchSessionMeta,
+  updateSessionTool: updateSessionToolViaWorkflowRuntimeService,
+});
+
 export async function startDetachedRunObservers() {
   await startDetachedRunObserversViaObserverService();
   await emitHook('instance.resume', {
@@ -2060,167 +2119,15 @@ export async function updateSessionLastReviewedAt(id, lastReviewedAt) {
 }
 
 export async function updateSessionWorkflowClassification(id, payload = {}) {
-  const {
-    workflowState,
-    workflowPriority,
-  } = payload;
-  const nextWorkflowState = normalizeSessionWorkflowState(workflowState || '');
-  const hasWorkflowState = Object.prototype.hasOwnProperty.call(payload, 'workflowState');
-  const nextWorkflowPriority = normalizeSessionWorkflowPriority(workflowPriority || '');
-  const hasWorkflowPriority = Object.prototype.hasOwnProperty.call(payload, 'workflowPriority');
-  let shouldSendCompletionPush = false;
-  const result = await mutateSessionMeta(id, (session) => {
-    const currentWorkflowState = normalizeSessionWorkflowState(session.workflowState || '');
-    const currentWorkflowPriority = normalizeSessionWorkflowPriority(session.workflowPriority || '');
-    let changed = false;
-
-    if (hasWorkflowState) {
-      if (nextWorkflowState) {
-        if (currentWorkflowState !== nextWorkflowState) {
-          shouldSendCompletionPush = didSessionWorkflowTransitionToDone(nextWorkflowState, currentWorkflowState);
-          session.workflowState = nextWorkflowState;
-          changed = true;
-        }
-      } else if (currentWorkflowState) {
-        delete session.workflowState;
-        changed = true;
-      }
-    }
-
-    if (hasWorkflowPriority) {
-      if (nextWorkflowPriority) {
-        if (currentWorkflowPriority !== nextWorkflowPriority) {
-          session.workflowPriority = nextWorkflowPriority;
-          changed = true;
-        }
-      } else if (currentWorkflowPriority) {
-        delete session.workflowPriority;
-        changed = true;
-      }
-    }
-
-    return changed;
-  });
-
-  if (!result.meta) return null;
-  const enriched = await enrichSessionMeta(result.meta);
-  if (result.changed) {
-    broadcastSessionInvalidation(id);
-    let completionNoticeKey = '';
-    let completionNoticeRunId = '';
-    if (shouldSendCompletionPush) {
-      completionNoticeRunId = String(enriched?.activeRunId || '').trim();
-      if (!completionNoticeRunId) {
-        completionNoticeRunId = await resolveLatestCompletedRunIdForSession(enriched?.id || id);
-      }
-      completionNoticeKey = buildSessionCompletionNoticeKey(
-        enriched?.id || id,
-        completionNoticeRunId,
-      );
-    }
-    const eventPayload = {
-      sessionId: id,
-      session: enriched,
-      manifest: null,
-      run: completionNoticeRunId ? { id: completionNoticeRunId } : undefined,
-      completionNoticeKey,
-      appendEvent,
-      statusEvent,
-    };
-    if (normalizeSessionWorkflowState(enriched?.workflowState || '') === SESSION_WORKFLOW_STATE_WAITING_USER) {
-      await emitHook('session.waiting_user', eventPayload);
-    }
-    if (shouldSendCompletionPush) {
-      await Promise.all([
-        emitHook('run.completed', eventPayload),
-        emitHook('session.completed', eventPayload),
-      ]);
-    }
-  }
-  return enriched;
+  return updateSessionWorkflowClassificationViaWorkflowRuntimeService(id, payload);
 }
 
 async function updateSessionTool(id, tool) {
-  const nextTool = typeof tool === 'string' ? tool.trim() : '';
-  if (!nextTool) return null;
-
-  const result = await mutateSessionMeta(id, (session) => {
-    if (session.tool === nextTool) return false;
-    session.tool = nextTool;
-    session.updatedAt = nowIso();
-    return true;
-  });
-
-  if (!result.meta) return null;
-  if (result.changed) {
-    broadcastSessionInvalidation(id);
-  }
-  return enrichSessionMeta(result.meta);
+  return updateSessionToolViaWorkflowRuntimeService(id, tool);
 }
 
 export async function updateSessionRuntimePreferences(id, patch = {}) {
-  const hasToolPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'tool');
-  const hasModelPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'model');
-  const hasEffortPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'effort');
-  const hasThinkingPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'thinking');
-  if (!hasToolPatch && !hasModelPatch && !hasEffortPatch && !hasThinkingPatch) {
-    return getSession(id);
-  }
-
-  const nextTool = hasToolPatch && typeof patch.tool === 'string'
-    ? patch.tool.trim()
-    : '';
-  let toolChanged = false;
-
-  const result = await mutateSessionMeta(id, (session) => {
-    let changed = false;
-
-    if (hasToolPatch && nextTool && session.tool !== nextTool) {
-      session.tool = nextTool;
-      toolChanged = true;
-      changed = true;
-    }
-
-    if (hasModelPatch) {
-      const nextModel = typeof patch.model === 'string' ? patch.model.trim() : '';
-      if ((session.model || '') !== nextModel) {
-        session.model = nextModel;
-        changed = true;
-      }
-    }
-
-    if (hasEffortPatch) {
-      const nextEffort = typeof patch.effort === 'string' ? patch.effort.trim() : '';
-      if ((session.effort || '') !== nextEffort) {
-        session.effort = nextEffort;
-        changed = true;
-      }
-    }
-
-    if (hasThinkingPatch) {
-      const nextThinking = patch.thinking === true;
-      if (session.thinking !== nextThinking) {
-        session.thinking = nextThinking;
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      session.updatedAt = nowIso();
-    }
-    return changed;
-  });
-
-  if (!result.meta) return null;
-  if (!result.changed) {
-    return enrichSessionMeta(result.meta);
-  }
-
-  broadcastSessionInvalidation(id);
-  if (shouldExposeSession(result.meta)) {
-    broadcastSessionsInvalidation();
-  }
-  return enrichSessionMeta(result.meta);
+  return updateSessionRuntimePreferencesViaWorkflowRuntimeService(id, patch);
 }
 
 export async function submitHttpMessage(sessionId, text, images, options = {}) {
