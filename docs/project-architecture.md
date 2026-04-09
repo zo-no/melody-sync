@@ -67,6 +67,14 @@ MelodySync is now an owner-operated AI task workspace.
 
 - handles permanent session deletion
 
+`backend/controllers/public/auth-routes.mjs`
+
+- handles public auth entrypoints including token login, password login, and logout
+
+`backend/controllers/public/page-routes.mjs`
+
+- handles public page responses such as the login shell and build-info payload
+
 `backend/controllers/settings/read-routes.mjs`
 
 - handles settings HTTP reads including general, email, voice, hooks, node settings, and the catalog payload
