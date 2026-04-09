@@ -899,6 +899,12 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
     broadcastSessionInvalidation(sessionId);
   }
   if (isTerminalRunState(run.state)) {
+    const currentSession = await findSessionMeta(sessionId);
+    if (getFollowUpQueueCount(currentSession) > 0) {
+      scheduleQueuedFollowUpDispatch(sessionId);
+    }
+  }
+  if (isTerminalRunState(run.state)) {
     stopObservedRun(runId);
   }
   return run;
