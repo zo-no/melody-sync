@@ -8,7 +8,11 @@ const BOOTSTRAP_MD = join(MEMORY_DIR, 'bootstrap.md');
 const GLOBAL_MD = join(MEMORY_DIR, 'global.md');
 const PROJECTS_MD = join(MEMORY_DIR, 'projects.md');
 const SKILLS_MD = join(MEMORY_DIR, 'skills.md');
+const MEMORY_README = join(MEMORY_DIR, 'README.md');
+const AGENT_PROFILE_MD = join(MEMORY_DIR, 'agent-profile.md');
+const CONTEXT_DIGEST_MD = join(MEMORY_DIR, 'context-digest.md');
 const TASKS_DIR = join(MEMORY_DIR, 'tasks');
+const WORKLOG_DIR = join(MEMORY_DIR, 'worklog');
 const SYSTEM_MEMORY_FILE = join(SYSTEM_MEMORY_DIR, 'system.md');
 
 function displayPath(targetPath, home) {
@@ -33,18 +37,25 @@ export async function buildSystemContext(options = {}) {
   const globalPath = displayPath(GLOBAL_MD, home);
   const projectsPath = displayPath(PROJECTS_MD, home);
   const skillsPath = displayPath(SKILLS_MD, home);
+  const memoryReadmePath = displayPath(MEMORY_README, home);
+  const agentProfilePath = displayPath(AGENT_PROFILE_MD, home);
+  const contextDigestPath = displayPath(CONTEXT_DIGEST_MD, home);
   const tasksPath = displayPath(TASKS_DIR, home);
+  const worklogPath = displayPath(WORKLOG_DIR, home);
   const agentsFilePath = displayPath(MELODYSYNC_AGENTS_FILE, home);
   const memoryDirPath = displayPath(MEMORY_DIR, home);
   const systemMemoryDirPath = displayPath(SYSTEM_MEMORY_DIR, home);
   const systemMemoryFilePath = displayPath(SYSTEM_MEMORY_FILE, home);
   const currentSessionId = typeof options?.sessionId === 'string' ? options.sessionId.trim() : '';
-  const [hasBootstrap, hasGlobal, hasProjects, hasSkills, hasAgentsFile] = await Promise.all([
+  const [hasBootstrap, hasGlobal, hasProjects, hasSkills, hasAgentsFile, hasMemoryReadme, hasAgentProfile, hasContextDigest] = await Promise.all([
     pathExists(BOOTSTRAP_MD),
     pathExists(GLOBAL_MD),
     pathExists(PROJECTS_MD),
     pathExists(SKILLS_MD),
     pathExists(MELODYSYNC_AGENTS_FILE),
+    pathExists(MEMORY_README),
+    pathExists(AGENT_PROFILE_MD),
+    pathExists(CONTEXT_DIGEST_MD),
   ]);
   const isFirstTime = !hasBootstrap && !hasGlobal;
 
@@ -58,14 +69,26 @@ MelodySync ships a small startup scaffold: core collaboration principles, memory
 
 MelodySync memory can be large, but only a small subset should be active in any one session. Think in terms of a knowledge tree: broad memory may stay on disk, while the live prompt stays narrow and task-shaped.
 
+### Memory Layers
+Treat memory as four layers:
+- Conversation memory: the live turn and immediate in-flight context. This is not durable memory.
+- Session memory: current workstream state such as task-card, continuity, and task-specific notes that should compress or expire when the work is done.
+- User/workspace memory: the Obsidian-backed long-term memory tree for stable preferences, durable project knowledge, and reusable workflows.
+- Shared system memory: cross-deployment learnings in ${systemMemoryDirPath}/ that should help any MelodySync deployment, not just this machine.
+
+Retrieve in that order: user/workspace memory first, then session memory, then raw history or stale tool traces only when needed.
+
 ### Startup Assembly Principles
 Startup context should stay pointer-sized. Its job is orientation and default boundaries, not loading the whole tree up front:
 - Read ${agentsFilePath} first when it exists. It is the user-editable local agent boundary for MelodySync data and, when the storage root is a knowledge base, the authority for what parts of that workspace are in scope.
-- Read ${bootstrapPath} first when it exists. It is the small startup index.
+- If ${agentProfilePath} exists, use it as the lightweight source of stable user preferences, collaboration defaults, and role boundaries.
+- If ${contextDigestPath} exists and recent local context may matter, use it as a lightweight recency digest rather than scanning raw notes.
+- Read ${bootstrapPath} when it exists. It is the small startup index.
 - If bootstrap.md does not exist yet, use ${globalPath} as a temporary fallback and keep the read lightweight.
+- Use ${memoryReadmePath} only when memory routing, file ownership, or writeback placement is relevant.
 - Consult ${skillsPath} only when capability selection or reusable workflows are relevant.
 - Use ${projectsPath} only to identify repo pointers or project scope.
-- Do NOT open ${tasksPath}/ or deep project docs until the current task is clear.
+- Do NOT open ${tasksPath}/, ${worklogPath}/, or deep project docs until the current task is clear.
 - Do NOT load ${systemMemoryFilePath} wholesale at startup. Open it only when shared platform learnings or memory maintenance are relevant.
 - Use ${agentsFilePath} to decide whether the active managed scope is only MelodySync program data or the broader configured local workspace. If the AGENTS file does not explicitly expand scope, default to MelodySync program data first.
 
@@ -75,7 +98,7 @@ The runtime assembler should keep the active stack small:
 - Infer the task scope from the user's message when it is obvious.
 - Ask a focused clarifying question only when the scope is genuinely ambiguous.
 - Once the task scope is clear, load only the matching project/task notes, skills, and supporting docs.
-- After the task, write back only durable lessons worth reusing.
+- Capture details while the turn is active, promote only durable details at natural breakpoints, and write back only durable lessons worth reusing.
 
 ${MANAGER_RUNTIME_BOUNDARY_SECTION}
 
@@ -96,6 +119,7 @@ Keep session continuity distinct from scope and task memory.
 
 - Handoffs capture where the current workstream stands: current execution state, accepted decisions, tool or branch state, blockers, and the next good entry point.
 - Do not let task notes become a dumping ground for transient session residue.
+- Treat stale tool results and raw transcript fragments as conversation residue, not durable memory.
 - When resuming, switching tools, compacting context, or spawning child sessions, use continuity/handoff context to preserve the thread without pretending the whole archive is live.
 
 ## Session-First Routing
@@ -144,13 +168,17 @@ Keep session continuity distinct from scope and task memory.
 ### User-Level Memory (private, machine-specific)
 Location: ${memoryDirPath}/
 
-This is your personal knowledge about this specific machine, this specific user, and your working relationship. It never leaves this computer.
+This is your primary long-term memory for this specific machine, this specific user, and your working relationship. In vault-backed setups, this directory lives inside the user's Obsidian workspace and should be treated as the authoritative durable memory tree.
 
+- ${agentProfilePath} — Stable user preferences, collaboration defaults, role boundaries, and durable working style. Keep it slow-changing.
+- ${contextDigestPath} — Lightweight recent-context digest. Use it to regain short-to-mid horizon continuity without scanning large note trees.
 - ${bootstrapPath} — Tiny startup index: machine basics, collaboration defaults, key directories, and high-level project pointers. Read this first when present.
 - ${agentsFilePath} — User-editable agent boundary and local data policy for MelodySync's own files. Read this first when present.
+- ${memoryReadmePath} — Memory layout and file-ownership map. Open when deciding where a durable lesson belongs.
 - ${projectsPath} — Project pointer catalog: repo paths, short summaries, and trigger phrases. Use only to identify task scope.
 - ${skillsPath} — Index of available skills/capabilities you've built. Load entries on demand.
 - ${tasksPath}/ — Detailed task notes. Open only after the task scope is confirmed or strongly implied.
+- ${worklogPath}/ — Chronological work records and daily traces. Use for timeline/review tasks, not default startup context.
 - ${globalPath} — Deeper local reference / legacy catch-all. Avoid reading it by default in generic conversations.
 
 What goes here: local paths, stable collaboration defaults, machine-specific gotchas, project pointers, and private task memory.
@@ -169,11 +197,12 @@ What goes here: platform-agnostic insights, cross-platform gotchas, prompt patte
 Reflection is required, but memory writeback must stay selective.
 
 1. Reflect on whether anything durable and reusable was learned.
-2. Classify it as user-level or system-level.
+2. Classify it as user-level durable memory in ${memoryDirPath}/ or system-level shared memory in ${systemMemoryDirPath}/.
 3. Prefer updating or merging existing entries over appending near-duplicates.
-4. If you cannot name the correct target memory file ("bootstrap.md", "projects.md", "skills.md", "tasks/", "global.md", or "system.md"), do not write the memory yet.
+4. If you cannot name the correct target memory file ("agent-profile.md", "context-digest.md", "bootstrap.md", "projects.md", "skills.md", "tasks/", "worklog/", "global.md", or "system.md"), do not write the memory yet.
 5. Skip the write if nothing important was learned.
 6. Periodically prune stale or overlapping memory. Use a light cadence: daily during intense iteration or weekly otherwise.
+7. When you emit memory writeback suggestions in structured output, prefer an explicit \`memoryCandidates.target\` that matches the destination ("agent-profile", "context-digest", "bootstrap", "projects", "skills", "tasks", "worklog", "global", or "system"). If the target is unclear, omit the memory candidate instead of guessing.
 
 ## Skills
 Skills are reusable capabilities (scripts, knowledge docs, SOPs). Treat ${skillsPath} as an index, not startup payload. Load only what you need.
@@ -236,19 +265,43 @@ If this machine has recurring repos or task families, create ${projectsPath} as 
 If local reusable workflows exist, create ${skillsPath} as a minimal placeholder index instead of treating the absence as a hard failure.`;
   }
 
+  if (!hasMemoryReadme) {
+    context += `
+
+## Memory Map Missing
+If this machine relies on a durable Obsidian-backed memory tree, create ${memoryReadmePath} as the file-ownership map so future writebacks know where stable preferences, recent digests, task notes, and work logs belong.`;
+  }
+
+  if (!hasAgentProfile) {
+    context += `
+
+## Agent Profile Missing
+If long-term user preferences and collaboration defaults are already known, capture them in ${agentProfilePath} instead of bloating bootstrap.md or global.md.`;
+  }
+
+  if (!hasContextDigest) {
+    context += `
+
+## Context Digest Missing
+If this machine keeps recent durable context in Obsidian, create ${contextDigestPath} as a lightweight rolling digest instead of stuffing recency into bootstrap.md.`;
+  }
+
   if (isFirstTime) {
     context += `
 
 ## FIRST-TIME SETUP REQUIRED
 This machine is missing both bootstrap.md and global.md. Before diving into detailed work:
 1. Explore the home directory (${home}) briefly to map key repos and working areas.
-2. Create ${bootstrapPath} with machine basics, collaboration defaults, key directories, and short project pointers.
-3. Create ${projectsPath} if there are recurring repos or task families worth indexing.
-4. Create ${globalPath} only for deeper local notes that should NOT be startup context.
-5. Create ${skillsPath} if local reusable workflows exist.
-6. Show the user a brief bootstrap summary and confirm it is correct.
+2. Create ${memoryReadmePath} as the memory layout map for this Obsidian-backed long-term memory tree.
+3. Create ${agentProfilePath} for stable user preferences and collaboration defaults.
+4. Create ${contextDigestPath} for lightweight recent durable context.
+5. Create ${bootstrapPath} with machine basics, collaboration defaults, key directories, and short project pointers.
+6. Create ${projectsPath} if there are recurring repos or task families worth indexing.
+7. Create ${globalPath} only for deeper local notes that should NOT be startup context.
+8. Create ${skillsPath} if local reusable workflows exist.
+9. Show the user a brief bootstrap summary and confirm it is correct.
 
-Bootstrap only needs to be tiny. Detailed memory belongs in projects.md, tasks/, or global.md.`;
+Bootstrap only needs to be tiny. Stable preferences belong in agent-profile.md, recent durable context belongs in context-digest.md, and detailed memory belongs in projects.md, tasks/, worklog/, or global.md.`;
   }
 
   return context;

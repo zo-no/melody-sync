@@ -54,10 +54,12 @@ function normalizeMemoryCandidate(value = {}) {
   const text = normalizeText(value.text);
   if (!text) return null;
   const source = normalizeText(value.source) || 'agent';
+  const target = normalizeText(value.target || value.file || value.memoryFile || value.kind);
   return {
     scope,
     text,
     source,
+    ...(target ? { target } : {}),
   };
 }
 

@@ -43,6 +43,16 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     sourceModule: 'backend/hooks/push-notification-hook.mjs',
   }),
   createHookDefinition({
+    id: 'builtin.memory-writeback',
+    eventPattern: 'run.completed',
+    label: '完成后记忆写回',
+    description: '消费 memoryCandidates 并按 Obsidian 记忆职责路由到对应长期记忆文件。',
+    builtIn: true,
+    owner: 'hooks',
+    layer: 'closeout',
+    sourceModule: 'backend/hooks/memory-writeback-hook.mjs',
+  }),
+  createHookDefinition({
     id: 'builtin.host-completion-voice',
     eventPattern: 'run.completed',
     label: '本轮完成时主机语音播报',
