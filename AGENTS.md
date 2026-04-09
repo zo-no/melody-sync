@@ -36,6 +36,8 @@ Browser / mobile shell
 ### Backend
 
 - [`backend/router.mjs`](backend/router.mjs): main HTTP surface plus response/cache/static dispatch
+- [`backend/controllers/assets/read-routes.mjs`](backend/controllers/assets/read-routes.mjs): file asset HTTP read controller
+- [`backend/controllers/assets/write-routes.mjs`](backend/controllers/assets/write-routes.mjs): file asset HTTP mutation controller
 - [`backend/controllers/public/auth-routes.mjs`](backend/controllers/public/auth-routes.mjs): public auth/login/logout HTTP controller
 - [`backend/controllers/public/page-routes.mjs`](backend/controllers/public/page-routes.mjs): public page/build-info HTTP controller
 - [`backend/controllers/session/access.mjs`](backend/controllers/session/access.mjs): session access guard factory for HTTP routes
