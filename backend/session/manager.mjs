@@ -185,6 +185,8 @@ const STARTUP_SYNC_DEBUG = process.env.MELODYSYNC_STARTUP_SYNC_DEBUG === '1';
 const {
   getFollowUpQueue,
   getFollowUpQueueCount,
+  sanitizeQueuedFollowUpAttachments,
+  sanitizeQueuedFollowUpOptions,
   buildQueuedFollowUpSourceContext,
   serializeQueuedFollowUp,
   removeDispatchedQueuedFollowUps,
@@ -196,7 +198,8 @@ const {
   resolveQueuedFollowUpDispatchOptions,
 } = createFollowUpQueueHelpers({
   normalizeSourceContext,
-  sanitizeQueuedFollowUpAttachments,
+  sanitizeOriginalAttachmentName,
+  resolveAttachmentMimeType,
   formatAttachmentContextLine,
   maxRecentFollowUpRequestIds: MAX_RECENT_FOLLOW_UP_REQUEST_IDS,
 });
@@ -387,37 +390,6 @@ function pushUnique(values, candidate) {
   if (!normalized || values.includes(normalized)) return false;
   values.push(normalized);
   return true;
-}
-
-function sanitizeQueuedFollowUpAttachments(images) {
-  return (images || [])
-    .map((image) => {
-      const filename = typeof image?.filename === 'string' ? image.filename.trim() : '';
-      const savedPath = typeof image?.savedPath === 'string' ? image.savedPath.trim() : '';
-      const assetId = typeof image?.assetId === 'string' ? image.assetId.trim() : '';
-      const originalName = sanitizeOriginalAttachmentName(image?.originalName || '');
-      const mimeType = resolveAttachmentMimeType(image?.mimeType, originalName || filename);
-      if (!savedPath && !assetId) return null;
-      return {
-        ...(filename ? { filename } : {}),
-        ...(savedPath ? { savedPath } : {}),
-        ...(assetId ? { assetId } : {}),
-        ...(originalName ? { originalName } : {}),
-        mimeType,
-      };
-    })
-    .filter(Boolean);
-}
-
-function sanitizeQueuedFollowUpOptions(options = {}) {
-  const next = {};
-  if (typeof options.tool === 'string' && options.tool.trim()) next.tool = options.tool.trim();
-  if (typeof options.model === 'string' && options.model.trim()) next.model = options.model.trim();
-  if (typeof options.effort === 'string' && options.effort.trim()) next.effort = options.effort.trim();
-  if (options.thinking === true) next.thinking = true;
-  const sourceContext = normalizeSourceContext(options.sourceContext);
-  if (sourceContext) next.sourceContext = sourceContext;
-  return next;
 }
 
 function clearFollowUpFlushTimer(sessionId) {
@@ -901,7 +873,7 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
   if (isTerminalRunState(run.state)) {
     const currentSession = await findSessionMeta(sessionId);
     if (getFollowUpQueueCount(currentSession) > 0) {
-      scheduleQueuedFollowUpDispatch(sessionId);
+      void flushQueuedFollowUps(sessionId);
     }
   }
   if (isTerminalRunState(run.state)) {
@@ -2302,7 +2274,7 @@ export async function startDetachedRunObservers() {
     }
     if (!runId) {
       if (getFollowUpQueueCount(meta) > 0) {
-        scheduleQueuedFollowUpDispatch(sessionId);
+        void flushQueuedFollowUps(sessionId);
       }
       continue;
     }
@@ -2325,13 +2297,10 @@ export async function startDetachedRunObservers() {
         }).catch((error) => {
           console.error(`Failed to sync completed detached run for session ${sessionId} (run ${runId}): ${error.message}`);
         });
-        if (getFollowUpQueueCount(meta) > 0) {
-          scheduleQueuedFollowUpDispatch(sessionId);
-        }
         continue;
       }
       if (getFollowUpQueueCount(meta) > 0) {
-        scheduleQueuedFollowUpDispatch(sessionId);
+        void flushQueuedFollowUps(sessionId);
       }
       continue;
     }
@@ -2343,10 +2312,6 @@ export async function startDetachedRunObservers() {
     }).catch((error) => {
       console.error(`Failed to sync detached run for session ${sessionId} (run ${runId}): ${error.message}`);
     });
-
-    if (getFollowUpQueueCount(meta) > 0) {
-      scheduleQueuedFollowUpDispatch(meta.id);
-    }
   }
   await emitHook('instance.resume', {
     sessionId: '',

@@ -1,6 +1,8 @@
 export function createFollowUpQueueHelpers({
   normalizeSourceContext,
-  sanitizeQueuedFollowUpAttachments,
+  sanitizeQueuedFollowUpAttachments: sanitizeQueuedFollowUpAttachmentsImpl,
+  sanitizeOriginalAttachmentName,
+  resolveAttachmentMimeType,
   formatAttachmentContextLine,
   maxRecentFollowUpRequestIds,
 }) {
@@ -10,6 +12,44 @@ export function createFollowUpQueueHelpers({
 
   function getFollowUpQueueCount(meta) {
     return getFollowUpQueue(meta).length;
+  }
+
+  function sanitizeQueuedFollowUpAttachments(images) {
+    if (typeof sanitizeQueuedFollowUpAttachmentsImpl === 'function') {
+      return sanitizeQueuedFollowUpAttachmentsImpl(images);
+    }
+    return (images || [])
+      .map((image) => {
+        const filename = typeof image?.filename === 'string' ? image.filename.trim() : '';
+        const savedPath = typeof image?.savedPath === 'string' ? image.savedPath.trim() : '';
+        const assetId = typeof image?.assetId === 'string' ? image.assetId.trim() : '';
+        const originalName = typeof sanitizeOriginalAttachmentName === 'function'
+          ? sanitizeOriginalAttachmentName(image?.originalName || '')
+          : '';
+        const mimeType = typeof resolveAttachmentMimeType === 'function'
+          ? resolveAttachmentMimeType(image?.mimeType, originalName || filename)
+          : image?.mimeType;
+        if (!savedPath && !assetId) return null;
+        return {
+          ...(filename ? { filename } : {}),
+          ...(savedPath ? { savedPath } : {}),
+          ...(assetId ? { assetId } : {}),
+          ...(originalName ? { originalName } : {}),
+          ...(mimeType ? { mimeType } : {}),
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function sanitizeQueuedFollowUpOptions(options = {}) {
+    const next = {};
+    if (typeof options.tool === 'string' && options.tool.trim()) next.tool = options.tool.trim();
+    if (typeof options.model === 'string' && options.model.trim()) next.model = options.model.trim();
+    if (typeof options.effort === 'string' && options.effort.trim()) next.effort = options.effort.trim();
+    if (options.thinking === true) next.thinking = true;
+    const sourceContext = normalizeSourceContext(options.sourceContext);
+    if (sourceContext) next.sourceContext = sourceContext;
+    return next;
   }
 
   function buildQueuedFollowUpSourceContext(queue = []) {
@@ -182,6 +222,8 @@ export function createFollowUpQueueHelpers({
   return {
     getFollowUpQueue,
     getFollowUpQueueCount,
+    sanitizeQueuedFollowUpAttachments,
+    sanitizeQueuedFollowUpOptions,
     buildQueuedFollowUpSourceContext,
     serializeQueuedFollowUp,
     removeDispatchedQueuedFollowUps,
