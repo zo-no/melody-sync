@@ -13,6 +13,7 @@ Use this map before editing:
 - `routes/`: request/response adapters. Route files should not grow durable state logic.
 - `settings/`: canonical settings-domain adapters that shape owner-facing `general`, `email`, `voice`, `hooks`, and `nodes` payloads for the shared settings overlay.
 - `session/manager.mjs`: session and run orchestration. Prefer extracting helpers instead of adding more inline lifecycle branches.
+- `services/session/prompt-service.mjs`, `services/session/fork-context-service.mjs`, `services/session/branching-service.mjs`: extracted session orchestration helpers for prompt shaping, prepared fork context, and fork/delegate flows.
 - `result-assets.mjs`: result-file discovery and attachment publishing helpers used by run finalization and follow-up flows.
 - `history.mjs`, `run/store.mjs`, `session/meta-store.mjs`: durable truth for session events, run manifests, and session metadata.
 - `controllers/run/`, `services/run/`, `models/run/`, `runtime/run/`, `runtime/providers/`: canonical run-module migration targets. `run/`, `routes/runs.mjs`, `adapters/`, `process-runner.mjs`, and `provider-runtime-monitor.mjs` remain compatibility surfaces during migration.

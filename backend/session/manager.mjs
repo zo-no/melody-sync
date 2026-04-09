@@ -2,7 +2,6 @@ import { randomBytes } from 'crypto';
 import { watch } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { CHAT_FILE_ASSET_CACHE_DIR, CHAT_IMAGES_DIR } from '../../lib/config.mjs';
-import { getToolDefinitionAsync } from '../../lib/tools.mjs';
 import { createToolInvocation, resolveCwd } from '../process-runner.mjs';
 import {
   appendEvent,
@@ -11,7 +10,6 @@ import {
   clearContextHead,
   clearForkContext,
   getContextHead,
-  getForkContext,
   getHistorySnapshot,
   loadHistory,
   readEventsAfter,
@@ -19,7 +17,6 @@ import {
   setContextHead,
 } from '../history.mjs';
 import { messageEvent, statusEvent } from '../normalizer.mjs';
-import { buildSourceRuntimePrompt } from '../source-runtime-prompts.mjs';
 import { emit as emitHook } from '../hooks/runtime/registry.mjs';
 import { registerBuiltinHooks } from '../hooks/runtime/register-builtins.mjs';
 import { createFollowUpQueueHelpers } from '../follow-up-queue.mjs';
@@ -35,11 +32,9 @@ import {
   SESSION_ORGANIZER_INTERNAL_OPERATION,
 } from './organizer.mjs';
 import { triggerSessionLabelSuggestion } from '../summarizer.mjs';
-import { buildSystemContext } from '../system-prompt.mjs';
 import { normalizeSessionAgreements } from './agreements.mjs';
 import {
   buildSessionContinuationContextFromBody,
-  prepareSessionContinuationBody,
 } from './continuation.mjs';
 import { broadcastSessionInvalidation, broadcastSessionsInvalidation } from './invalidation.mjs';
 import {
@@ -71,10 +66,6 @@ import {
   parseCompactionWorkerOutput,
   prepareConversationOnlyContinuationBody,
 } from '../session-runtime/session-compaction.mjs';
-import {
-  buildPreparedContinuationContext,
-  isPreparedForkContextCurrent,
-} from '../session-runtime/session-fork-context.mjs';
 import {
   createRun,
   findRunByRequest,
@@ -118,6 +109,8 @@ import {
 import { dispatchSessionEmailCompletionTargets, sanitizeEmailCompletionTargets } from '../../lib/agent-mail-completion-targets.mjs';
 import { createSessionQueryHelpers } from '../models/session/queries/session-query.mjs';
 import { resolveSavedAttachments, saveAttachments } from '../services/session/attachment-storage-service.mjs';
+import { createSessionBranchingService } from '../services/session/branching-service.mjs';
+import { buildPrompt, resolveResumeState } from '../services/session/prompt-service.mjs';
 import {
   applySessionCompatFields,
   normalizeSessionCompatInput,
@@ -137,10 +130,8 @@ import {
   parseGraphOpsFromAssistantContent,
 } from './graph-ops.mjs';
 import {
-  buildTaskCardPromptBlock,
   normalizeSessionTaskCard,
   parseTaskCardFromAssistantContent,
-  projectTaskCardFromSessionState,
   stripTaskCardFromAssistantContent,
 } from './task-card.mjs';
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
@@ -310,6 +301,8 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+export { buildPrompt, resolveResumeState };
+
 async function resolveLatestCompletedRunIdForSession(sessionId = '') {
   const normalizedSessionId = String(sessionId || '').trim();
   if (!normalizedSessionId) return '';
@@ -354,45 +347,6 @@ function normalizeSourceContext(value) {
 
 function generateId() {
   return randomBytes(16).toString('hex');
-}
-
-function buildForkSessionName(session) {
-  const sourceName = typeof session?.name === 'string' ? session.name.trim() : '';
-  return `fork - ${sourceName || 'session'}`;
-}
-
-function buildDelegatedSessionName(session, task) {
-  const taskLabel = buildTemporarySessionName(task, 48);
-  if (taskLabel) {
-    return `delegate - ${taskLabel}`;
-  }
-  const sourceName = typeof session?.name === 'string' ? session.name.trim() : '';
-  return `delegate - ${sourceName || 'session'}`;
-}
-
-function buildSessionNavigationHref(sessionId) {
-  const normalized = typeof sessionId === 'string' ? sessionId.trim() : '';
-  if (!normalized) return '/?tab=sessions';
-  return `/?session=${encodeURIComponent(normalized)}&tab=sessions`;
-}
-
-function buildDelegationNoticeMessage(task, childSession) {
-  const normalizedTask = clipCompactionSection(task, 240)
-    .replace(/\s+/g, ' ')
-    .trim();
-  const childName = typeof childSession?.name === 'string'
-    ? childSession.name.trim()
-    : 'new session';
-  const childId = typeof childSession?.id === 'string' ? childSession.id.trim() : '';
-  const link = childId ? `[${childName}](${buildSessionNavigationHref(childId)})` : childName;
-  return [
-    'Spawned a parallel session for this work.',
-    '',
-    normalizedTask ? `- Task: ${normalizedTask}` : '',
-    `- Session: ${link}`,
-    '',
-    'This new session is independent and can continue on its own.',
-  ].filter(Boolean).join('\n');
 }
 
 function trimString(value) {
@@ -545,26 +499,24 @@ function scheduleQueuedFollowUpDispatch(sessionId, delayMs = FOLLOW_UP_FLUSH_DEL
   return true;
 }
 
-function sanitizeForkedEvent(event) {
-  if (!event || typeof event !== 'object') return null;
-  const next = JSON.parse(JSON.stringify(event));
-  delete next.seq;
-  delete next.runId;
-  delete next.requestId;
-  delete next.bodyRef;
-  delete next.bodyField;
-  delete next.bodyAvailable;
-  delete next.bodyLoaded;
-  delete next.bodyBytes;
-  delete next.bodyPersistence;
-  delete next.bodyTruncated;
-  delete next.bodyPreview;
-  return next;
-}
-
 function createInternalRequestId(prefix = 'internal') {
   return `${prefix}_${Date.now().toString(36)}_${randomBytes(6).toString('hex')}`;
 }
+
+const {
+  delegateSession: delegateSessionViaBranchingService,
+  forkSession: forkSessionViaBranchingService,
+} = createSessionBranchingService({
+  broadcastSessionInvalidation,
+  broadcastSessionsInvalidation,
+  createInternalRequestId,
+  createSession,
+  getSession,
+  internalSessionRoleAgentDelegate: INTERNAL_SESSION_ROLE_AGENT_DELEGATE,
+  isSessionRunning,
+  nowIso,
+  submitHttpMessage,
+});
 
 function ensureLiveSession(sessionId) {
   let live = liveSessions.get(sessionId);
@@ -983,109 +935,6 @@ function clearRenameState(sessionId, { broadcast = false } = {}) {
 
 export { broadcastSessionInvalidation, broadcastSessionsInvalidation };
 
-async function prepareForkContextSnapshot(sessionId, snapshot, contextHead) {
-  const summary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';
-  const activeFromSeq = Number.isInteger(contextHead?.activeFromSeq) ? contextHead.activeFromSeq : 0;
-  const handoffSeq = Number.isInteger(contextHead?.handoffSeq) ? contextHead.handoffSeq : 0;
-  const preparedThroughSeq = snapshot?.latestSeq || 0;
-  const hasCarryForwardContext = Boolean(summary) || handoffSeq > 0;
-
-  if (hasCarryForwardContext) {
-    const [recentEvents, handoffHistory] = await Promise.all([
-      preparedThroughSeq > activeFromSeq
-        ? loadHistory(sessionId, {
-            fromSeq: Math.max(1, activeFromSeq + 1),
-            includeBodies: true,
-          })
-        : [],
-      handoffSeq > 0
-        ? loadHistory(sessionId, {
-            fromSeq: handoffSeq,
-            includeBodies: true,
-          })
-        : [],
-    ]);
-    const handoffEvent = handoffSeq > 0
-      ? handoffHistory.find((event) => (event?.seq || 0) === handoffSeq && event?.type === 'message')
-      : null;
-    const fallbackHandoffEvent = !handoffEvent && summary
-      ? messageEvent('assistant', buildFallbackCompactionHandoff(summary, ''), undefined, {
-          source: 'context_compaction_handoff',
-          synthetic: true,
-        })
-      : null;
-    const continuationEvents = handoffEvent
-      ? [handoffEvent, ...recentEvents]
-      : (fallbackHandoffEvent ? [fallbackHandoffEvent, ...recentEvents] : recentEvents);
-    const continuationBody = prepareSessionContinuationBody(continuationEvents);
-    return {
-      mode: 'summary',
-      summary: '',
-      continuationBody,
-      activeFromSeq,
-      handoffSeq,
-      includesCompactionHandoff: Boolean(handoffEvent || fallbackHandoffEvent),
-      preparedThroughSeq,
-      contextUpdatedAt: contextHead?.updatedAt || null,
-      updatedAt: nowIso(),
-      source: contextHead?.source || 'context_head',
-    };
-  }
-
-  if (preparedThroughSeq <= 0) {
-    return null;
-  }
-
-  const priorHistory = await loadHistory(sessionId, { includeBodies: true });
-  const continuationBody = prepareSessionContinuationBody(priorHistory);
-  if (!continuationBody) {
-    return null;
-  }
-
-  return {
-    mode: 'history',
-    summary: '',
-    continuationBody,
-    activeFromSeq: 0,
-    handoffSeq: 0,
-    includesCompactionHandoff: false,
-    preparedThroughSeq,
-    contextUpdatedAt: null,
-    updatedAt: nowIso(),
-    source: 'history',
-  };
-}
-
-async function getOrPrepareForkContext(sessionId, snapshot, contextHead) {
-  const prepared = await getForkContext(sessionId);
-  if (isPreparedForkContextCurrent(prepared, snapshot, contextHead)) {
-    return prepared;
-  }
-
-  const next = await prepareForkContextSnapshot(sessionId, snapshot, contextHead);
-  if (next) {
-    await setForkContext(sessionId, next);
-    return next;
-  }
-
-  await clearForkContext(sessionId);
-  return null;
-}
-
-function buildDelegationHandoff({
-  source,
-  task,
-}) {
-  const normalizedTask = clipCompactionSection(task, 4000);
-  const sourceId = typeof source?.id === 'string' ? source.id.trim() : '';
-  const lines = [normalizedTask || '(no delegated task provided)'];
-  if (sourceId) {
-    lines.push('', `Parent session id: ${sourceId}`);
-  }
-  return lines.join('\n');
-}
-
-
 function createContextBarrierEvent(content, extra = {}) {
   return {
     type: 'context_barrier',
@@ -1372,41 +1221,6 @@ async function maybePublishRunResultAssets(sessionId, run, manifest, normalizedE
   return true;
 }
 
-function resolveResumeState(toolId, session, options = {}) {
-  if (options.freshThread === true) {
-    return {
-      hasResume: false,
-      claudeSessionId: null,
-      codexThreadId: null,
-    };
-  }
-
-  const tool = typeof toolId === 'string' ? toolId.trim() : '';
-  if (tool === 'claude') {
-    const claudeSessionId = session?.claudeSessionId || null;
-    return {
-      hasResume: !!claudeSessionId,
-      claudeSessionId,
-      codexThreadId: null,
-    };
-  }
-
-  if (tool === 'codex') {
-    const codexThreadId = session?.codexThreadId || null;
-    return {
-      hasResume: !!codexThreadId,
-      claudeSessionId: null,
-      codexThreadId,
-    };
-  }
-
-  return {
-    hasResume: false,
-    claudeSessionId: null,
-    codexThreadId: null,
-  };
-}
-
 function hasPersistedResumeState(toolId, session) {
   const tool = typeof toolId === 'string' ? toolId.trim() : '';
   if (tool === 'claude') {
@@ -1461,83 +1275,6 @@ async function shouldResetCodexResumeThread(session, options = {}) {
   const resumeCwd = resolveCwd(loggedCwd);
   if (!expectedCwd || !resumeCwd) return false;
   return expectedCwd !== resumeCwd;
-}
-
-function buildPromptSection(title, body) {
-  const sectionTitle = typeof title === 'string' ? title.trim() : '';
-  const sectionBody = typeof body === 'string' ? body.trim() : '';
-  if (!sectionTitle || !sectionBody) return '';
-  return `[${sectionTitle}]\n\n${sectionBody}`;
-}
-
-export async function buildPrompt(sessionId, session, text, previousTool, effectiveTool, snapshot = null, options = {}) {
-  const toolDefinition = await getToolDefinitionAsync(effectiveTool);
-  const promptMode = toolDefinition?.promptMode === 'bare-user'
-    ? 'bare-user'
-    : 'default';
-  const flattenPrompt = toolDefinition?.flattenPrompt === true;
-  const { hasResume } = resolveResumeState(effectiveTool, session, options);
-  let continuationContext = '';
-  let contextToolIndex = '';
-
-  if (!hasResume && options.skipSessionContinuation !== true) {
-    const contextHead = await getContextHead(sessionId);
-    contextToolIndex = typeof contextHead?.toolIndex === 'string' ? contextHead.toolIndex.trim() : '';
-    const prepared = await getOrPrepareForkContext(
-      sessionId,
-      snapshot || await getHistorySnapshot(sessionId),
-      contextHead,
-    );
-    continuationContext = buildPreparedContinuationContext(prepared, previousTool, effectiveTool, session?.sessionState || null);
-  }
-
-  let actualText = text;
-  if (promptMode === 'default') {
-    const turnSections = [];
-    const promptTaskCard = session?.taskCard || projectTaskCardFromSessionState(session?.sessionState, {
-      sessionTitle: session?.name || '',
-    });
-    const taskCardPromptBlock = options.internalOperation
-      ? ''
-      : buildTaskCardPromptBlock(promptTaskCard, {
-          sessionTitle: session?.name || '',
-        });
-
-    if (continuationContext) {
-      turnSections.push(buildPromptSection('Session continuity', continuationContext));
-    }
-    if (contextToolIndex) {
-      turnSections.push(buildPromptSection('Earlier tool activity index', contextToolIndex));
-    }
-    turnSections.push(`Current user message:\n${text}`);
-    if (taskCardPromptBlock) {
-      turnSections.push(taskCardPromptBlock);
-    }
-
-    actualText = turnSections.join('\n\n---\n\n');
-
-    if (!hasResume) {
-      const systemContext = await buildSystemContext({ sessionId });
-      const preambleSections = [buildPromptSection('Manager context', systemContext)];
-      const sourceRuntimePrompt = buildSourceRuntimePrompt(session);
-      if (sourceRuntimePrompt) {
-        preambleSections.push(buildPromptSection('Source/runtime instructions', sourceRuntimePrompt));
-      }
-      if (session.systemPrompt) {
-        preambleSections.push(buildPromptSection('App instructions', session.systemPrompt));
-      }
-      actualText = [...preambleSections, actualText].filter(Boolean).join('\n\n---\n\n');
-    }
-
-  } else if (flattenPrompt) {
-    actualText = actualText.replace(/\s+/g, ' ').trim();
-  }
-
-  if (flattenPrompt && promptMode === 'default') {
-    actualText = actualText.replace(/\s+/g, ' ').trim();
-  }
-
-  return actualText;
 }
 
 function sanitizeAssistantRunEvents(events = []) {
@@ -3897,125 +3634,11 @@ export async function getHistory(sessionId) {
 }
 
 export async function forkSession(sessionId) {
-  const source = await getSession(sessionId);
-  if (!source) return null;
-  if (isSessionRunning(source)) return null;
-
-  const [history, contextHead, snapshot] = await Promise.all([
-    loadHistory(sessionId, { includeBodies: true }),
-    getContextHead(sessionId),
-    getHistorySnapshot(sessionId),
-  ]);
-  const forkContext = await getOrPrepareForkContext(sessionId, snapshot, contextHead);
-
-  const child = await createSession(source.folder, source.tool, buildForkSessionName(source), {
-    group: source.group || '',
-    description: source.description || '',
-    sourceId: source.sourceId || '',
-    sourceName: source.sourceName || '',
-    systemPrompt: source.systemPrompt || '',
-    activeAgreements: source.activeAgreements || [],
-    userId: source.userId || '',
-    userName: source.userName || '',
-    forkedFromSessionId: source.id,
-    forkedFromSeq: source.latestSeq || 0,
-    rootSessionId: source.rootSessionId || source.id,
-    forkedAt: nowIso(),
-    taskListOrigin: 'user',
-    taskListVisibility: 'secondary',
-  });
-  if (!child) return null;
-
-  const copiedEvents = history
-    .map((event) => sanitizeForkedEvent(event))
-    .filter(Boolean);
-  if (copiedEvents.length > 0) {
-    await appendEvents(child.id, copiedEvents);
-  }
-
-  if (contextHead) {
-    const copiedContextHead = Number.isInteger(contextHead?.handoffSeq) && contextHead.handoffSeq > 0
-      ? { ...contextHead, summary: '' }
-      : contextHead;
-    await setContextHead(child.id, {
-      ...copiedContextHead,
-      updatedAt: copiedContextHead.updatedAt || nowIso(),
-    });
-  } else {
-    await clearContextHead(child.id);
-  }
-
-  if (forkContext) {
-    await setForkContext(child.id, {
-      ...forkContext,
-      updatedAt: nowIso(),
-    });
-  } else {
-    await clearForkContext(child.id);
-  }
-
-  broadcastSessionsInvalidation();
-  return getSession(child.id);
+  return forkSessionViaBranchingService(sessionId);
 }
 
 export async function delegateSession(sessionId, payload = {}) {
-  const source = await getSession(sessionId);
-  if (!source) return null;
-
-  const task = typeof payload?.task === 'string' ? payload.task.trim() : '';
-  if (!task) {
-    throw new Error('task is required');
-  }
-
-  const requestedName = typeof payload?.name === 'string' ? payload.name.trim() : '';
-  const requestedTool = typeof payload?.tool === 'string' ? payload.tool.trim() : '';
-  const runInternally = payload?.internal === true;
-  const nextTool = requestedTool || source.tool;
-  const inheritRuntimePreferences = !requestedTool || requestedTool === source.tool;
-
-  const child = await createSession(source.folder, nextTool, requestedName || buildDelegatedSessionName(source, task), {
-    sourceId: source.sourceId || '',
-    sourceName: source.sourceName || '',
-    systemPrompt: source.systemPrompt || '',
-    activeAgreements: source.activeAgreements || [],
-    model: inheritRuntimePreferences ? source.model || '' : '',
-    effort: inheritRuntimePreferences ? source.effort || '' : '',
-    thinking: inheritRuntimePreferences && source.thinking === true,
-    userId: source.userId || '',
-    userName: source.userName || '',
-    sourceContext: {
-      kind: 'delegate_session',
-      parentSessionId: source.id,
-    },
-    taskListOrigin: runInternally ? 'system' : 'assistant',
-    taskListVisibility: runInternally ? 'hidden' : 'secondary',
-    ...(runInternally ? { internalRole: INTERNAL_SESSION_ROLE_AGENT_DELEGATE } : {}),
-  });
-  if (!child) return null;
-
-  const handoffText = buildDelegationHandoff({
-    source,
-    task,
-  });
-  const outcome = await submitHttpMessage(child.id, handoffText, [], {
-    requestId: createInternalRequestId('delegate'),
-    tool: requestedTool || undefined,
-    model: inheritRuntimePreferences ? source.model || undefined : undefined,
-    effort: inheritRuntimePreferences ? source.effort || undefined : undefined,
-    thinking: inheritRuntimePreferences && source.thinking === true,
-  });
-
-  if (!runInternally) {
-    await appendEvent(source.id, messageEvent('assistant', buildDelegationNoticeMessage(task, child), undefined, {
-      messageKind: 'session_delegate_notice',
-    }));
-    broadcastSessionInvalidation(source.id);
-  }
-
-  return {
-    session: outcome.session || await getSession(child.id) || child,
-    run: outcome.run || null,
-  };
+  return delegateSessionViaBranchingService(sessionId, payload);
 }
 
 export function killAll() {

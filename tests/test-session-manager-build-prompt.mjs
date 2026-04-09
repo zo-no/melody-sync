@@ -25,7 +25,7 @@ await fs.writeFile(
   'utf8',
 );
 
-const { buildPrompt } = await import('../backend/session/manager.mjs');
+const { buildPrompt } = await import('../backend/services/session/prompt-service.mjs');
 
 const baseSession = {
   systemPrompt: '',
