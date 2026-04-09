@@ -48,6 +48,7 @@ Browser / mobile shell
 - [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs): session metadata persistence
 - [`backend/session/api-shapes.mjs`](backend/session/api-shapes.mjs): API projection helpers
 - [`backend/services/settings/http-service.mjs`](backend/services/settings/http-service.mjs): settings read/update orchestration for HTTP routes
+- [`backend/services/hooks/http-service.mjs`](backend/services/hooks/http-service.mjs): legacy hook alias orchestration layered on hook settings
 - [`backend/services/session/http-message-service.mjs`](backend/services/session/http-message-service.mjs): attachment resolution plus HTTP message submission orchestration
 - [`backend/services/system/config-reload-service.mjs`](backend/services/system/config-reload-service.mjs): deferred process restart scheduling for config changes
 - [`backend/services/system/page-build-service.mjs`](backend/services/system/page-build-service.mjs): service/frontend build info, template file cache, and static asset resolution

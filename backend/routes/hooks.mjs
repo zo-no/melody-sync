@@ -1,10 +1,10 @@
-import { readBody } from '../../lib/utils.mjs';
-import { createHookSettingsPayload, updateHookEnabledState } from '../settings/hooks.mjs';
+import { readJsonRequestBody } from '../shared/http/request-body.mjs';
+import { getHookSettingsAliasPayload, updateHookSettingsAlias } from '../services/hooks/http-service.mjs';
 
 export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) {
   // Legacy alias. The canonical owner-facing settings surface is /api/settings/hooks.
   if (pathname === '/api/hooks' && req?.method === 'GET') {
-    writeJson(res, 200, createHookSettingsPayload());
+    writeJson(res, 200, getHookSettingsAliasPayload());
     return true;
   }
 
@@ -17,8 +17,7 @@ export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) 
     }
     let body = {};
     try {
-      const raw = await readBody(req, 4096);
-      body = raw ? JSON.parse(raw) : {};
+      body = await readJsonRequestBody(req, 4096);
     } catch {
       writeJson(res, 400, { error: 'Invalid request body' });
       return true;
@@ -28,7 +27,7 @@ export async function handleHooksRoutes({ req, res, pathname, writeJson } = {}) 
       return true;
     }
     try {
-      writeJson(res, 200, await updateHookEnabledState(hookId, body.enabled));
+      writeJson(res, 200, await updateHookSettingsAlias(hookId, body.enabled));
       return true;
     } catch (error) {
       const message = error?.message || 'Failed to update hook settings';
