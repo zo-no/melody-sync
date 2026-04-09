@@ -41,7 +41,7 @@ import {
   buildSessionContinuationContextFromBody,
   prepareSessionContinuationBody,
 } from './continuation.mjs';
-import { broadcastOwners, getClientsMatching } from '../ws-clients.mjs';
+import { broadcastSessionInvalidation, broadcastSessionsInvalidation } from './invalidation.mjs';
 import {
   buildTemporarySessionName,
   isSessionAutoRenamePending,
@@ -55,6 +55,7 @@ import {
   normalizeSessionWorkflowState,
   SESSION_WORKFLOW_STATE_WAITING_USER,
 } from './workflow-state.mjs';
+import { isContextCompactorSession, shouldExposeSession } from './visibility.mjs';
 import {
   formatAttachmentContextLine,
   stripEventAttachmentSavedPaths,
@@ -109,7 +110,6 @@ import {
 } from './run-health.mjs';
 import {
   findSessionMeta,
-  findSessionMetaCached,
   loadSessionsMeta,
   mutateSessionMeta,
   withSessionsMetaMutation,
@@ -545,22 +545,6 @@ function sanitizeForkedEvent(event) {
 
 function createInternalRequestId(prefix = 'internal') {
   return `${prefix}_${Date.now().toString(36)}_${randomBytes(6).toString('hex')}`;
-}
-
-function getInternalSessionRole(meta) {
-  return typeof meta?.internalRole === 'string' ? meta.internalRole.trim() : '';
-}
-
-function isInternalSession(meta) {
-  return !!getInternalSessionRole(meta);
-}
-
-function isContextCompactorSession(meta) {
-  return getInternalSessionRole(meta) === INTERNAL_SESSION_ROLE_CONTEXT_COMPACTOR;
-}
-
-function shouldExposeSession(meta) {
-  return !isInternalSession(meta);
 }
 
 function ensureLiveSession(sessionId) {
@@ -1117,28 +1101,7 @@ function clearRenameState(sessionId, { broadcast = false } = {}) {
   return hadState;
 }
 
-function sendToClients(clients, msg) {
-  const data = JSON.stringify(msg);
-  for (const client of clients) {
-    try {
-      client.send(data);
-    } catch {}
-  }
-}
-
-export function broadcastSessionsInvalidation() {
-  broadcastOwners({ type: 'sessions_invalidated' });
-}
-
-export function broadcastSessionInvalidation(sessionId) {
-  const session = findSessionMetaCached(sessionId);
-  const clients = getClientsMatching((client) => {
-    const authSession = client._authSession;
-    if (!authSession) return false;
-    return authSession.role === 'owner' && shouldExposeSession(session);
-  });
-  sendToClients(clients, { type: 'session_invalidated', sessionId });
-}
+export { broadcastSessionInvalidation, broadcastSessionsInvalidation };
 
 async function prepareForkContextSnapshot(sessionId, snapshot, contextHead) {
   const summary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';

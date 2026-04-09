@@ -61,6 +61,8 @@ Browser / mobile shell
 - [`backend/controllers/workbench/read-routes.mjs`](backend/controllers/workbench/read-routes.mjs): workbench HTTP read controller
 - [`backend/controllers/workbench/write-routes.mjs`](backend/controllers/workbench/write-routes.mjs): workbench HTTP mutation controller
 - [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration
+- [`backend/session/visibility.mjs`](backend/session/visibility.mjs): session visibility/internal-role predicates
+- [`backend/session/invalidation.mjs`](backend/session/invalidation.mjs): owner-facing session invalidation broadcasts
 - [`backend/run/store.mjs`](backend/run/store.mjs): durable run manifests, spool, status, result
 - [`backend/run/supervisor.mjs`](backend/run/supervisor.mjs): detached runner launcher
 - [`backend/run/sidecar.mjs`](backend/run/sidecar.mjs): detached executor entry

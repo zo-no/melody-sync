@@ -79,6 +79,14 @@ MelodySync is now an owner-operated AI task workspace.
 
 - owns attachment file persistence and saved-upload resolution so session orchestration and HTTP intake can share one storage boundary
 
+`backend/session/visibility.mjs`
+
+- owns session exposure and internal-role predicates so orchestration, projections, and invalidation share one visibility policy
+
+`backend/session/invalidation.mjs`
+
+- owns owner-facing session invalidation broadcasts so the session manager does not couple directly to WebSocket client plumbing
+
 `backend/controllers/http/static-routes.mjs`
 
 - handles versioned frontend/static asset lookup and file responses outside the authenticated app flow
