@@ -6,6 +6,7 @@ Current split:
 
 - `index.mjs`: thin workbench domain entry; re-exports continuity/branch orchestration and wraps project-record operations.
 - `../services/workbench/read-service.mjs`: HTTP-facing snapshot/tracker read orchestration so controllers do not import the workbench entry module.
+- `../services/workbench/write-service.mjs`: HTTP-facing mutation orchestration so write controllers stay focused on routing, access checks, and response shaping.
 - `output-metrics-service.mjs`: aggregate task/workflow output metrics used by the workbench summary surface.
 - `branch-lifecycle.mjs`: branch creation, merge-back, status changes, reminder snooze, and continuity sync.
 - `queues.mjs`: shared serial queue coordinator for workbench writes.
@@ -31,6 +32,7 @@ Current split:
 Boundary rules:
 
 - Keep persistence and projection separate.
+- Keep HTTP-facing mutation orchestration in `../services/workbench/write-service.mjs`; write controllers should not import `backend/workbench/index.mjs` directly.
 - Prefer adding new focused modules here rather than growing `backend/workbench/index.mjs`.
 - Keep branch lifecycle and continuity-sync logic in `branch-lifecycle.mjs`; `index.mjs` should mostly re-export or wire domain modules together.
 - Keep shared workbench serialization in `queues.mjs`; avoid recreating ad hoc per-file queue maps.

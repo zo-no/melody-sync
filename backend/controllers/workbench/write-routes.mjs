@@ -1,4 +1,3 @@
-import { applySessionGraphOps } from '../../session/manager.mjs';
 import { readJsonRequestBody } from '../../shared/http/request-body.mjs';
 import {
   buildWorkbenchSessionMutationResponse,
@@ -11,26 +10,25 @@ import {
   updateWorkbenchNodeDefinitionResponse,
 } from '../../services/workbench/node-definitions-http-service.mjs';
 import {
-  deleteTaskMapPlanForSession,
-  saveTaskMapPlanForSession,
-} from '../../workbench/task-map-plan-service.mjs';
-import {
-  createBranchFromSession,
-  createBranchFromNode,
-  createCaptureItem,
-  createNode as createWorkbenchNode,
-  createProject as createWorkbenchProject,
-  createProjectSummary,
-  handoffSessionData,
-  getWorkbenchSnapshot,
-  mergeBranchSessionBackToMain,
-  promoteCaptureItem,
-  reparentSession,
-  setBranchCandidateSuppressed,
-  setBranchSessionStatus,
-  setSessionReminderSnooze,
-  writeProjectToObsidian,
-} from '../../workbench/index.mjs';
+  applyWorkbenchSessionGraphOpsForWrite,
+  createWorkbenchCaptureForWrite,
+  createWorkbenchNodeBranchForWrite,
+  createWorkbenchNodeForWrite,
+  createWorkbenchProjectForWrite,
+  createWorkbenchProjectSummaryForWrite,
+  createWorkbenchSessionBranchForWrite,
+  deleteWorkbenchTaskMapPlanForWrite,
+  handoffWorkbenchSessionForWrite,
+  mergeWorkbenchBranchReturnForWrite,
+  promoteWorkbenchCaptureForWrite,
+  reparentWorkbenchSessionForWrite,
+  saveWorkbenchTaskMapPlanForWrite,
+  setWorkbenchBranchSessionStatusForWrite,
+  setWorkbenchCandidateSuppressionForWrite,
+  setWorkbenchSessionReminderForWrite,
+  writeWorkbenchProjectToObsidianForWrite,
+} from '../../services/workbench/write-service.mjs';
+import { normalizeNullableText } from '../../workbench/shared.mjs';
 
 export async function handleWorkbenchWriteRoutes({
   req,
@@ -90,7 +88,7 @@ export async function handleWorkbenchWriteRoutes({
       const planId = decodeURIComponent(parts[5]);
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       try {
-        const result = await deleteTaskMapPlanForSession(sessionId, planId);
+        const result = await deleteWorkbenchTaskMapPlanForWrite(sessionId, planId);
         writeJson(res, 200, await buildWorkbenchTaskMapPlansMutationResponse(result, {
           deletedPlanId: result.deletedPlanId,
           taskCardUpdates: result.taskCardUpdates,
@@ -118,7 +116,7 @@ export async function handleWorkbenchWriteRoutes({
 
   try {
     if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'captures') {
-      const captureItem = await createCaptureItem(payload);
+      const captureItem = await createWorkbenchCaptureForWrite(payload);
       writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         captureItem,
       }));
@@ -126,7 +124,7 @@ export async function handleWorkbenchWriteRoutes({
     }
 
     if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects') {
-      const project = await createWorkbenchProject(payload);
+      const project = await createWorkbenchProjectForWrite(payload);
       writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         project,
       }));
@@ -134,7 +132,7 @@ export async function handleWorkbenchWriteRoutes({
     }
 
     if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'nodes') {
-      const node = await createWorkbenchNode(payload);
+      const node = await createWorkbenchNodeForWrite(payload);
       writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         node,
       }));
@@ -143,7 +141,7 @@ export async function handleWorkbenchWriteRoutes({
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'captures' && parts[4] === 'promote') {
       const captureId = parts[3];
-      const outcome = await promoteCaptureItem(captureId, payload);
+      const outcome = await promoteWorkbenchCaptureForWrite(captureId, payload);
       writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         ...outcome,
       }));
@@ -152,7 +150,9 @@ export async function handleWorkbenchWriteRoutes({
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'nodes' && parts[4] === 'branch') {
       const nodeId = parts[3];
-      const outcome = await createBranchFromNode(nodeId, payload);
+      const sourceSessionId = normalizeNullableText(payload?.sourceSessionId);
+      if (!requireSessionAccess(res, authSession, sourceSessionId)) return true;
+      const outcome = await createWorkbenchNodeBranchForWrite(nodeId, payload);
       writeJson(res, 201, await buildWorkbenchSessionMutationResponse(outcome.session, {
         branchContext: outcome.branchContext,
       }));
@@ -161,7 +161,8 @@ export async function handleWorkbenchWriteRoutes({
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'branches') {
       const sessionId = parts[3];
-      const outcome = await createBranchFromSession(sessionId, payload);
+      if (!requireSessionAccess(res, authSession, sessionId)) return true;
+      const outcome = await createWorkbenchSessionBranchForWrite(sessionId, payload);
       writeJson(res, 201, await buildWorkbenchSessionMutationResponse(outcome.session, {
         branchContext: outcome.branchContext,
       }));
@@ -177,7 +178,7 @@ export async function handleWorkbenchWriteRoutes({
         return true;
       }
       if (!requireSessionAccess(res, authSession, targetSessionId)) return true;
-      const outcome = await handoffSessionData(sessionId, payload);
+      const outcome = await handoffWorkbenchSessionForWrite(sessionId, payload);
       writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.session, {
         handoffPacket: outcome.packet,
       }));
@@ -189,7 +190,7 @@ export async function handleWorkbenchWriteRoutes({
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
       const targetSessionId = typeof payload?.targetSessionId === 'string' ? payload.targetSessionId.trim() : '';
       if (targetSessionId && !requireSessionAccess(res, authSession, targetSessionId)) return true;
-      const outcome = await reparentSession(sessionId, payload);
+      const outcome = await reparentWorkbenchSessionForWrite(sessionId, payload);
       writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.session, {
         branchContext: outcome.branchContext,
       }, {
@@ -201,24 +202,14 @@ export async function handleWorkbenchWriteRoutes({
     if (parts.length === 6 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'graph-ops' && parts[5] === 'apply') {
       const sessionId = parts[3];
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
-      const graphOps = payload?.graphOps && typeof payload.graphOps === 'object'
-        ? payload.graphOps
-        : payload;
-      const outcome = await applySessionGraphOps(sessionId, graphOps);
-      writeJson(res, 200, {
-        ok: true,
-        appliedCount: outcome?.appliedCount || 0,
-        historyChanged: outcome?.historyChanged === true,
-        sessionChanged: outcome?.sessionChanged === true,
-        snapshot: await getWorkbenchSnapshot(),
-      });
+      writeJson(res, 200, await applyWorkbenchSessionGraphOpsForWrite(sessionId, payload));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'task-map-plans') {
       const sessionId = parts[3];
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
-      const result = await saveTaskMapPlanForSession(sessionId, payload);
+      const result = await saveWorkbenchTaskMapPlanForWrite(sessionId, payload);
       writeJson(res, 201, await buildWorkbenchTaskMapPlansMutationResponse(result, {
         taskMapPlan: result.taskMapPlan,
         taskCardUpdates: result.taskCardUpdates,
@@ -233,14 +224,14 @@ export async function handleWorkbenchWriteRoutes({
         writeJson(res, 400, { error: 'branchTitle is required' });
         return true;
       }
-      const outcome = await setBranchCandidateSuppressed(sessionId, branchTitle, payload?.suppressed !== false);
+      const outcome = await setWorkbenchCandidateSuppressionForWrite(sessionId, payload);
       writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.session));
       return true;
     }
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'branch-status') {
       const sessionId = parts[3];
-      const outcome = await setBranchSessionStatus(sessionId, payload);
+      const outcome = await setWorkbenchBranchSessionStatusForWrite(sessionId, payload);
       writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.session, {
         branchContext: outcome.branchContext,
       }));
@@ -249,7 +240,7 @@ export async function handleWorkbenchWriteRoutes({
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'reminder') {
       const sessionId = parts[3];
-      const reminder = await setSessionReminderSnooze(sessionId, payload);
+      const reminder = await setWorkbenchSessionReminderForWrite(sessionId, payload);
       writeJson(res, 200, await buildWorkbenchSnapshotResponse({
         reminder,
       }));
@@ -258,7 +249,7 @@ export async function handleWorkbenchWriteRoutes({
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'merge-return') {
       const sessionId = parts[3];
-      const outcome = await mergeBranchSessionBackToMain(sessionId, payload);
+      const outcome = await mergeWorkbenchBranchReturnForWrite(sessionId, payload);
       writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.parentSession, {
         mergeNote: outcome.mergeNote,
       }));
@@ -267,7 +258,7 @@ export async function handleWorkbenchWriteRoutes({
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects' && parts[4] === 'summaries') {
       const projectId = parts[3];
-      const summary = await createProjectSummary(projectId);
+      const summary = await createWorkbenchProjectSummaryForWrite(projectId);
       writeJson(res, 201, await buildWorkbenchSnapshotResponse({
         summary,
       }));
@@ -276,7 +267,7 @@ export async function handleWorkbenchWriteRoutes({
 
     if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'projects' && parts[4] === 'writeback') {
       const projectId = parts[3];
-      const outcome = await writeProjectToObsidian(projectId, payload);
+      const outcome = await writeWorkbenchProjectToObsidianForWrite(projectId, payload);
       writeJson(res, 200, await buildWorkbenchSnapshotResponse({
         ...outcome,
       }));
