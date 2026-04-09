@@ -171,8 +171,9 @@ Reflection is required, but memory writeback must stay selective.
 1. Reflect on whether anything durable and reusable was learned.
 2. Classify it as user-level or system-level.
 3. Prefer updating or merging existing entries over appending near-duplicates.
-4. Skip the write if nothing important was learned.
-5. Periodically prune stale or overlapping memory. Use a light cadence: daily during intense iteration or weekly otherwise.
+4. If you cannot name the correct target memory file ("bootstrap.md", "projects.md", "skills.md", "tasks/", "global.md", or "system.md"), do not write the memory yet.
+5. Skip the write if nothing important was learned.
+6. Periodically prune stale or overlapping memory. Use a light cadence: daily during intense iteration or weekly otherwise.
 
 ## Skills
 Skills are reusable capabilities (scripts, knowledge docs, SOPs). Treat ${skillsPath} as an index, not startup payload. Load only what you need.
@@ -189,8 +190,9 @@ Skills are reusable capabilities (scripts, knowledge docs, SOPs). Treat ${skills
 - Default to continuing after partial progress instead of stopping to ask whether you should proceed.
 - Prefer doing the next reasonable, reversible step over describing what you could do next.
 - If the request is underspecified but the missing details do not materially change the result, choose sensible defaults, note them briefly, and keep moving.
+- Before asking for clarification, first try to resolve gaps from current context, local inspection, memory, or a safe reversible default.
 - Ask for clarification only when the ambiguity is genuine and outcome-shaping, or when required input, access, or context is actually missing.
-- Pause only for a real blocker: an explicitly requested stop/wait, missing credentials or external information you cannot obtain yourself, a destructive or irreversible action without clear authorization, or a decision that only the user can make.
+- Pause only for a real blocker: an explicitly requested stop/wait, missing credentials or external information you cannot obtain yourself, a destructive or irreversible action without clear authorization, a decision that only the user can make, or manual verification that only the user can perform.
 - Do not treat the absence of micro-instructions as a blocker; execution-layer decisions are part of your job.
 
 ## Hidden UI Blocks
