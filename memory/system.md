@@ -370,6 +370,11 @@ Universal learnings and patterns that apply to all MelodySync deployments, regar
 - Persist `group` and `description` on session metadata, but keep the grouping purely presentational; do not reintroduce filesystem semantics or make the display group part of the actual cwd model.
 - For compatibility, let old sessions fall back to folder-based grouping, and let “new session inside group” carry the display group forward as a hint rather than as a hard path constraint.
 
+### Session Metadata PATCH Can Reorder And Promote Tasks (2026-04-09)
+- `PATCH /api/sessions/:id` with only `name`, `group`, and `sidebarOrder` is not a pure field overwrite in practice.
+- Moving a session into an already-occupied `sidebarOrder` can trigger server-side order normalization, so organizer flows that need an exact contiguous final sequence should prefer empty slots or use a staged high-slot pass before the final numbering, then verify the result.
+- Reclassifying an internal helper session through the same route can promote it into the user's main task list, so organizers should treat assistant/secondary sessions as potentially user-visible after patching and verify `taskListOrigin` / `taskListVisibility` when that matters.
+
 ### Session Naming Prompts Need Layered Scope Hints (2026-03-10)
 - Auto-title/group prompts work best when they see three compact layers together: the latest turn, the current session's continuity summary, and a bounded sample of non-archived session metadata (`name`, `group`, `description`).
 - Treat `group` as a flexible project/domain container and `title` as the concrete subtask inside that group; bias strongly toward reusing an existing group before inventing a new one.
