@@ -43,6 +43,7 @@ const pageBuildRoots = [
 const staticMimeTypesByExtension = {
   '.css': 'text/css; charset=utf-8',
   '.gif': 'image/gif',
+  '.html': 'text/html; charset=utf-8',
   '.ico': 'image/x-icon',
   '.jpeg': 'image/jpeg',
   '.jpg': 'image/jpeg',
