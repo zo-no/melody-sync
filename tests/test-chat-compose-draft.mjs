@@ -1,13 +1,25 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const composeSource = readFileSync(join(repoRoot, 'frontend/session/compose.js'), 'utf8');
+function readComposeSource() {
+  const candidates = [
+    join(repoRoot, 'frontend-src', 'session', 'compose.js'),
+    join(repoRoot, 'frontend', 'session', 'compose.js'),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error('compose.js source not found');
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const composeSource = readComposeSource();
 
 class StorageMock {
   constructor() {
@@ -505,9 +517,16 @@ assert.equal(failedSendContext.msgInput.readOnly, false, 'failed sends should re
 assert.equal(failedSendContext.localStorage.getItem('draft_session-a'), 'retry this request', 'failed sends should put the draft back into durable storage for retry');
 
 const suggestedQuestionsEl = createDomElement('div');
+const branchDispatchCalls = [];
 const suggestionContext = createContext({
   documentElements: {
     suggestedQuestions: suggestedQuestionsEl,
+  },
+  workbenchApi: {
+    async enterBranchFromSession(sessionId, branchTitle, payload) {
+      branchDispatchCalls.push({ sessionId, branchTitle, payload });
+      return { id: 'branch-1', name: branchTitle };
+    },
   },
   workbenchSurfaceProjectionApi: {
     buildComposerSuggestionEntries({ session }) {
@@ -519,7 +538,10 @@ const suggestionContext = createContext({
           {
             id: 'candidate:main-1:review',
             text: '从 plan 渲染的支线建议',
-            summary: 'plan surface 应该覆盖旧的 taskCard 候选列表',
+            summary: 'plan surface 应该直接触发支线派发',
+            capabilities: ['create-branch', 'dismiss'],
+            sourceSessionId: 'main-1',
+            taskCardBindings: ['candidateBranches'],
           },
         ];
       }
@@ -538,10 +560,25 @@ suggestionContext.renderSuggestedQuestions({
 assert.equal(suggestedQuestionsEl.hidden, false, 'plan-backed suggestion surfaces should render when available');
 assert.equal(suggestedQuestionsEl.children.length, 1, 'plan-backed suggestion surfaces should replace the legacy taskCard fallback');
 assert.equal(suggestedQuestionsEl.children[0].textContent, '从 plan 渲染的支线建议');
-assert.equal(suggestedQuestionsEl.children[0].title, 'plan surface 应该覆盖旧的 taskCard 候选列表');
+assert.equal(suggestedQuestionsEl.children[0].title, 'plan surface 应该直接触发支线派发');
 suggestedQuestionsEl.children[0].click();
-assert.equal(suggestionContext.msgInput.value, '从 plan 渲染的支线建议', 'clicking a plan-backed suggestion should hydrate the composer draft');
-assert.equal(suggestedQuestionsEl.hidden, true, 'clicking a suggestion should hide the suggestion strip just like the legacy taskCard flow');
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.deepEqual(
+  JSON.parse(JSON.stringify(branchDispatchCalls)),
+  [
+    {
+      sessionId: 'main-1',
+      branchTitle: '从 plan 渲染的支线建议',
+      payload: {
+        branchReason: 'plan surface 应该直接触发支线派发',
+        checkpointSummary: '从 plan 渲染的支线建议',
+      },
+    },
+  ],
+  'clicking a branch suggestion should dispatch the first-class branch flow instead of only hydrating the composer draft',
+);
+assert.equal(suggestionContext.msgInput.value, '', 'branch dispatch suggestions should not leave stale draft text in the composer');
+assert.equal(suggestedQuestionsEl.hidden, true, 'successful branch dispatch should hide the suggestion strip');
 
 const fallbackSuggestedQuestionsEl = createDomElement('div');
 const fallbackSuggestionContext = createContext({
@@ -564,5 +601,12 @@ fallbackSuggestionContext.renderSuggestedQuestions({
 });
 assert.equal(fallbackSuggestedQuestionsEl.children.length, 1, 'legacy taskCard candidate branches should still render when no plan-backed surface nodes exist');
 assert.equal(fallbackSuggestedQuestionsEl.children[0].textContent, '继续走 taskCard 回退');
+fallbackSuggestedQuestionsEl.children[0].click();
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(
+  fallbackSuggestionContext.msgInput.value,
+  '继续走 taskCard 回退',
+  'legacy candidate branches should still fall back to hydrating the composer when the workbench dispatch flow is unavailable',
+);
 
 console.log('test-chat-compose-draft: ok');

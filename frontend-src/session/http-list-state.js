@@ -26,7 +26,7 @@ function applySessionListState(nextSessions, {
   sessions = mergeUniqueSessions([
     ...activeSessions,
     ...preservedArchived,
-    ...(preservedCurrent?.archived === true ? [preservedCurrent] : []),
+    ...(preservedCurrent ? [preservedCurrent] : []),
   ]);
   if (typeof assignSessionListOrderHints === "function") {
     assignSessionListOrderHints(sessions, previousMap);

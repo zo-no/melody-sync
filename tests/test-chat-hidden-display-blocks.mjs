@@ -10,7 +10,7 @@ const repoRoot = dirname(__dirname);
 const realtimeSource = readFileSync(join(repoRoot, 'frontend-src', 'core', 'realtime-render.js'), 'utf8');
 const uiSource = readFileSync(join(repoRoot, 'frontend-src', 'session', 'transcript-ui.js'), 'utf8');
 
-assert.match(uiSource, /应用改图/, 'assistant transcript UI should expose an explicit click-to-apply label for graph ops proposals');
+assert.match(uiSource, /应用建议/, 'assistant transcript UI should expose an explicit click-to-apply suggestion label for graph ops proposals');
 assert.match(uiSource, /graph-ops\/apply/, 'assistant transcript UI should post graph ops proposals to the explicit apply route instead of auto-applying them');
 
 function extractFunctionSource(source, functionName) {

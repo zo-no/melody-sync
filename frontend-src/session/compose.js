@@ -603,7 +603,7 @@ tabSessions?.addEventListener("click", () => switchTab("sessions"));
 
 switchTab(activeTab, { syncState: false });
 
-// ── Suggested questions (candidate branches) ─────────────────────────────────
+// ── Suggested branch actions / questions ─────────────────────────────────────
 
 const suggestedQuestionsEl = document.getElementById("suggestedQuestions");
 
@@ -611,6 +611,88 @@ function getWorkbenchSurfaceProjectionApi() {
   return globalThis?.MelodySyncWorkbenchSurfaceProjection
     || globalThis?.window?.MelodySyncWorkbenchSurfaceProjection
     || null;
+}
+
+function getWorkbenchApi() {
+  return globalThis?.MelodySyncWorkbench
+    || globalThis?.window?.MelodySyncWorkbench
+    || null;
+}
+
+function toConciseBranchSourceTitle(session) {
+  const taskCard = session?.taskCard && typeof session.taskCard === "object"
+    ? session.taskCard
+    : {};
+  const lineRole = String(taskCard?.lineRole || "").trim().toLowerCase() === "branch"
+    ? "branch"
+    : "main";
+  const compact = String(
+    lineRole === "branch"
+      ? (taskCard?.goal || session?.name || taskCard?.mainGoal || "当前任务")
+      : (session?.name || taskCard?.mainGoal || taskCard?.goal || "当前任务")
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!compact) return "当前任务";
+  const firstSegment = compact
+    .split(/[。！？.!?\n]/)
+    .map((entry) => entry.trim())
+    .find(Boolean);
+  return firstSegment || compact;
+}
+
+function normalizeSuggestionTokens(values = []) {
+  return Array.isArray(values)
+    ? values.map((entry) => String(entry || "").trim().toLowerCase()).filter(Boolean)
+    : [];
+}
+
+function isBranchSuggestionEntry(candidate) {
+  const capabilities = normalizeSuggestionTokens(candidate?.capabilities);
+  const taskCardBindings = normalizeSuggestionTokens(candidate?.taskCardBindings);
+  return capabilities.includes("create-branch") || taskCardBindings.includes("candidatebranches");
+}
+
+function hydrateSuggestionIntoComposer(text) {
+  const normalizedText = String(text || "").trim();
+  if (!normalizedText || !msgInput) return false;
+  msgInput.value = normalizedText;
+  msgInput.dispatchEvent(new Event("input", { bubbles: true }));
+  msgInput.focus();
+  if (suggestedQuestionsEl) {
+    suggestedQuestionsEl.hidden = true;
+  }
+  return true;
+}
+
+async function triggerSuggestionEntry(session, candidate) {
+  const text = String(candidate?.text || "").trim();
+  if (!text) return false;
+  const workbenchApi = getWorkbenchApi();
+  const actionPayload = candidate?.actionPayload && typeof candidate.actionPayload === "object"
+    ? candidate.actionPayload
+    : {};
+  const sourceSessionId = String(candidate?.sourceSessionId || session?.id || "").trim();
+  if (
+    isBranchSuggestionEntry(candidate)
+    && sourceSessionId
+    && typeof workbenchApi?.enterBranchFromSession === "function"
+  ) {
+    const defaultBranchReason = `从「${toConciseBranchSourceTitle(session)}」继续拆出独立支线`;
+    try {
+      const branchSession = await workbenchApi.enterBranchFromSession(sourceSessionId, text, {
+        branchReason: String(actionPayload?.branchReason || candidate?.summary || defaultBranchReason).trim(),
+        checkpointSummary: String(actionPayload?.checkpointSummary || text).trim(),
+      });
+      if (branchSession?.id) {
+        if (suggestedQuestionsEl) {
+          suggestedQuestionsEl.hidden = true;
+        }
+        return true;
+      }
+    } catch {}
+  }
+  return hydrateSuggestionIntoComposer(text);
 }
 
 function listSuggestedQuestionEntries(session) {
@@ -627,6 +709,8 @@ function listSuggestedQuestionEntries(session) {
     id: "",
     text,
     summary: "",
+    capabilities: [],
+    taskCardBindings: ["candidateBranches"],
   }));
 }
 
@@ -651,13 +735,16 @@ function renderSuggestedQuestions(session) {
     btn.type = "button";
     if (candidate.summary) {
       btn.title = candidate.summary;
+    } else if (isBranchSuggestionEntry(candidate)) {
+      btn.title = "点击直接开启支线";
     }
-    btn.addEventListener("click", () => {
-      if (!msgInput) return;
-      msgInput.value = text;
-      msgInput.dispatchEvent(new Event("input", { bubbles: true }));
-      msgInput.focus();
-      suggestedQuestionsEl.hidden = true;
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        await triggerSuggestionEntry(session, candidate);
+      } finally {
+        btn.disabled = false;
+      }
     });
     suggestedQuestionsEl.appendChild(btn);
   }

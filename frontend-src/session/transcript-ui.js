@@ -125,6 +125,154 @@ function getHiddenDisplayBlockLabel(block, index = 0) {
 }
 
 const appliedGraphOpsProposalKeys = new Set();
+const graphOpsProposalsBySession = new Map();
+
+function normalizeGraphOpsSessionId(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeGraphOpsRefToken(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .replace(/[：:·•，。,.;；、!?！？"'`“”‘’()[\]{}<>]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function getGraphOpsRefCandidates(ref) {
+  if (!ref) return [];
+  if (typeof ref === "string") return [ref];
+  if (typeof ref !== "object") return [];
+  return [
+    ref.ref,
+    ref.sessionId,
+    ref.id,
+    ref.title,
+    ref.name,
+    ref.goal,
+  ].filter(Boolean);
+}
+
+function buildGraphOpsNodeRefTokens(node) {
+  const tokens = new Set();
+  [
+    node?.id,
+    node?.sessionId,
+    node?.sourceSessionId,
+    node?.title,
+    node?.rawTitle,
+    node?.name,
+    node?.goal,
+  ].forEach((value) => {
+    const normalized = normalizeGraphOpsRefToken(value);
+    if (normalized) tokens.add(normalized);
+  });
+  return tokens;
+}
+
+function graphOpsRefMatchesNode(ref, node) {
+  if (!ref || !node) return false;
+  const nodeTokens = buildGraphOpsNodeRefTokens(node);
+  if (nodeTokens.size === 0) return false;
+  for (const candidate of getGraphOpsRefCandidates(ref)) {
+    const normalizedCandidate = normalizeGraphOpsRefToken(candidate);
+    if (!normalizedCandidate) continue;
+    if (["current", "self", "this", "当前", "当前任务", "本任务"].includes(normalizedCandidate) && node?.isCurrent === true) {
+      return true;
+    }
+    if (["main", "root", "主线", "主任务", "根任务"].includes(normalizedCandidate) && !String(node?.parentNodeId || "").trim()) {
+      return true;
+    }
+    if (nodeTokens.has(normalizedCandidate)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function findGraphOpsNodeMatch(graphOps, node) {
+  const operations = Array.isArray(graphOps?.operations) ? graphOps.operations : [];
+  for (const operation of operations) {
+    if (graphOpsRefMatchesNode(operation?.source, node)) {
+      return {
+        matchedOperation: operation,
+        matchedRole: "source",
+      };
+    }
+    if (graphOpsRefMatchesNode(operation?.target, node)) {
+      return {
+        matchedOperation: operation,
+        matchedRole: "target",
+      };
+    }
+  }
+  return null;
+}
+
+function registerGraphOpsProposal(sessionId, sourceSeq, graphOps) {
+  const normalizedSessionId = normalizeGraphOpsSessionId(sessionId);
+  if (!normalizedSessionId || !graphOps || typeof graphOps !== "object") return null;
+  const proposal = {
+    sessionId: normalizedSessionId,
+    sourceSeq: Number.isInteger(sourceSeq) ? sourceSeq : 0,
+    graphOps,
+  };
+  proposal.proposalKey = buildGraphOpsProposalKey(
+    proposal.sessionId,
+    proposal.sourceSeq,
+    proposal.graphOps,
+  );
+  let proposals = graphOpsProposalsBySession.get(normalizedSessionId);
+  if (!(proposals instanceof Map)) {
+    proposals = new Map();
+    graphOpsProposalsBySession.set(normalizedSessionId, proposals);
+  }
+  proposals.set(proposal.proposalKey, proposal);
+  return proposal;
+}
+
+function replaceSessionGraphOpsProposals(sessionId, events = []) {
+  const normalizedSessionId = normalizeGraphOpsSessionId(sessionId);
+  if (!normalizedSessionId) return [];
+  const proposals = new Map();
+  for (const event of Array.isArray(events) ? events : []) {
+    if (!event?.graphOps || event.role !== "assistant") continue;
+    const proposal = registerGraphOpsProposal(normalizedSessionId, event?.seq, event.graphOps);
+    if (!proposal) continue;
+    proposals.set(proposal.proposalKey, proposal);
+  }
+  graphOpsProposalsBySession.set(normalizedSessionId, proposals);
+  return [...proposals.values()];
+}
+
+function getSessionGraphOpsProposals(sessionId) {
+  const normalizedSessionId = normalizeGraphOpsSessionId(sessionId);
+  const proposals = graphOpsProposalsBySession.get(normalizedSessionId);
+  if (!(proposals instanceof Map)) return [];
+  return [...proposals.values()].sort((left, right) => {
+    const leftSeq = Number.isInteger(left?.sourceSeq) ? left.sourceSeq : 0;
+    const rightSeq = Number.isInteger(right?.sourceSeq) ? right.sourceSeq : 0;
+    return rightSeq - leftSeq;
+  });
+}
+
+function getLatestGraphOpsProposalForNode(sessionId, node) {
+  if (!node) return null;
+  for (const proposal of getSessionGraphOpsProposals(sessionId)) {
+    if (appliedGraphOpsProposalKeys.has(proposal.proposalKey)) continue;
+    const match = findGraphOpsNodeMatch(proposal.graphOps, node);
+    if (!match) continue;
+    return {
+      ...proposal,
+      ...match,
+    };
+  }
+  return null;
+}
+
+function isGraphOpsProposalApplied(proposalKey) {
+  return appliedGraphOpsProposalKeys.has(String(proposalKey || ""));
+}
 
 function buildGraphOpsProposalKey(sessionId, sourceSeq, graphOps) {
   const normalizedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
@@ -135,57 +283,89 @@ function buildGraphOpsProposalKey(sessionId, sourceSeq, graphOps) {
   return `${normalizedSessionId}::${normalizedSourceSeq}::${serializedGraphOps}`;
 }
 
+function buildGraphOpsSidecarBlock(graphOps) {
+  const serialized = graphOps && typeof graphOps === "object"
+    ? JSON.stringify(graphOps)
+    : "";
+  let formattedContent = serialized;
+  if (serialized) {
+    try {
+      formattedContent = JSON.stringify(JSON.parse(serialized), null, 2);
+    } catch {
+      formattedContent = serialized;
+    }
+  }
+  return {
+    tag: "private",
+    kind: "graph_ops",
+    rawContent: serialized,
+    content: serialized,
+    formattedContent,
+  };
+}
+
 async function applyGraphOpsProposal(button, {
   sessionId = "",
   sourceSeq = 0,
   graphOps = null,
 } = {}) {
-  const normalizedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
-  if (!button || !normalizedSessionId || !graphOps || typeof fetchJsonOrRedirect !== "function") return;
-  if (button.dataset.pending === "true") return;
-
-  const proposalKey = buildGraphOpsProposalKey(normalizedSessionId, sourceSeq, graphOps);
+  if (!button) return;
   button.dataset.pending = "true";
   button.disabled = true;
   button.textContent = "应用中…";
   button.classList.remove("is-error");
 
   try {
-    const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(normalizedSessionId)}/graph-ops/apply`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ graphOps }),
-    });
-    const appliedCount = Number.isInteger(response?.appliedCount) ? response.appliedCount : 0;
-    appliedGraphOpsProposalKeys.add(proposalKey);
-    button.textContent = appliedCount > 0 ? "已应用" : "无改动";
+    const result = await submitGraphOpsProposal({ sessionId, sourceSeq, graphOps });
+    button.textContent = result.appliedCount > 0 ? "已应用" : "无改动";
     button.classList.add("is-applied");
-    if (typeof fetchSessionsList === "function") {
-      await fetchSessionsList().catch(() => {});
-    }
-    if (typeof fetchSessionState === "function") {
-      await fetchSessionState(normalizedSessionId).catch(() => {});
-    }
-    if (typeof fetchSessionEvents === "function") {
-      await fetchSessionEvents(normalizedSessionId, {
-        runState: "idle",
-        viewportIntent: "preserve",
-      }).catch(() => {});
-    }
-    if (window.MelodySyncWorkbench?.refresh) {
-      void window.MelodySyncWorkbench.refresh();
-    }
-    if (window.MelodySyncWorkbench?.refreshOperationRecord) {
-      void window.MelodySyncWorkbench.refreshOperationRecord();
-    }
   } catch (error) {
     console.warn("[graph-ops] Failed to apply proposal:", error?.message || error);
     button.disabled = false;
     button.dataset.pending = "";
-    button.textContent = "应用改图";
+    button.textContent = "应用建议";
     button.classList.add("is-error");
-    button.title = error?.message || "应用改图失败";
+    button.title = error?.message || "应用建议失败";
   }
+}
+
+async function submitGraphOpsProposal({
+  sessionId = "",
+  sourceSeq = 0,
+  graphOps = null,
+} = {}) {
+  const normalizedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
+  if (!normalizedSessionId || !graphOps || typeof fetchJsonOrRedirect !== "function") {
+    return { appliedCount: 0, proposalKey: "" };
+  }
+
+  const proposalKey = buildGraphOpsProposalKey(normalizedSessionId, sourceSeq, graphOps);
+  const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(normalizedSessionId)}/graph-ops/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ graphOps }),
+  });
+  const appliedCount = Number.isInteger(response?.appliedCount) ? response.appliedCount : 0;
+  appliedGraphOpsProposalKeys.add(proposalKey);
+  if (typeof fetchSessionsList === "function") {
+    await fetchSessionsList().catch(() => {});
+  }
+  if (typeof fetchSessionState === "function") {
+    await fetchSessionState(normalizedSessionId).catch(() => {});
+  }
+  if (typeof fetchSessionEvents === "function") {
+    await fetchSessionEvents(normalizedSessionId, {
+      runState: "idle",
+      viewportIntent: "preserve",
+    }).catch(() => {});
+  }
+  if (window.MelodySyncWorkbench?.refresh) {
+    void window.MelodySyncWorkbench.refresh();
+  }
+  if (window.MelodySyncWorkbench?.refreshOperationRecord) {
+    void window.MelodySyncWorkbench.refreshOperationRecord();
+  }
+  return { appliedCount, proposalKey };
 }
 
 function insertAssistantBodyChild(container, node) {
@@ -202,7 +382,14 @@ function insertAssistantBodyChild(container, node) {
 
 function renderAssistantMessageBodyIntoNode(container, markdown, { bodyNode = null, event = null } = {}) {
   if (!container) return { hasVisible: false, hasSidecars: false };
-  const { visibleContent, hiddenBlocks } = extractHiddenDisplayBlocks(markdown);
+  const { visibleContent, hiddenBlocks: extractedHiddenBlocks } = extractHiddenDisplayBlocks(markdown);
+  const hiddenBlocks = Array.isArray(extractedHiddenBlocks) ? [...extractedHiddenBlocks] : [];
+  if (event?.graphOps && currentSessionId) {
+    registerGraphOpsProposal(currentSessionId, event?.seq, event.graphOps);
+  }
+  if (event?.graphOps && !hiddenBlocks.some((block) => block?.kind === "graph_ops")) {
+    hiddenBlocks.push(buildGraphOpsSidecarBlock(event.graphOps));
+  }
 
   let resolvedBodyNode = bodyNode || container.querySelector(".msg-assistant-body");
   if (!resolvedBodyNode) {
@@ -246,14 +433,14 @@ function renderAssistantMessageBodyIntoNode(container, markdown, { bodyNode = nu
 
         const hint = document.createElement("div");
         hint.className = "assistant-sidecar-hint";
-        hint.textContent = "仅在点击后生效";
+        hint.textContent = "建议不会自动生效";
 
         const applyButton = document.createElement("button");
         applyButton.type = "button";
         applyButton.className = "assistant-sidecar-action-btn";
         const proposalKey = buildGraphOpsProposalKey(currentSessionId, event?.seq, event.graphOps);
         const alreadyApplied = appliedGraphOpsProposalKeys.has(proposalKey);
-        applyButton.textContent = alreadyApplied ? "已应用" : "应用改图";
+        applyButton.textContent = alreadyApplied ? "已应用" : "应用建议";
         applyButton.disabled = alreadyApplied || !currentSessionId || typeof fetchJsonOrRedirect !== "function";
         if (alreadyApplied) {
           applyButton.classList.add("is-applied");
@@ -1274,3 +1461,11 @@ function renderUnknownEventInto(container, evt) {
   container.appendChild(pre);
   return pre;
 }
+
+window.MelodySyncGraphOpsUi = Object.freeze({
+  buildProposalKey: buildGraphOpsProposalKey,
+  isProposalApplied: isGraphOpsProposalApplied,
+  replaceSessionProposals: replaceSessionGraphOpsProposals,
+  getLatestProposalForNode: getLatestGraphOpsProposalForNode,
+  applyProposal: submitGraphOpsProposal,
+});
