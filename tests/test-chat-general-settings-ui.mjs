@@ -1,15 +1,30 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const settingsUiSource = readFileSync(join(repoRoot, 'frontend/settings/ui.js'), 'utf8');
-const generalModelSource = readFileSync(join(repoRoot, 'frontend/settings/general/model.js'), 'utf8');
-const generalUiSource = readFileSync(join(repoRoot, 'frontend/settings/general/ui.js'), 'utf8');
+const settingsUiSource = readFileSync(
+  existsSync(join(repoRoot, 'frontend-src', 'settings', 'ui.js'))
+    ? join(repoRoot, 'frontend-src', 'settings', 'ui.js')
+    : join(repoRoot, 'frontend', 'settings', 'ui.js'),
+  'utf8',
+);
+const generalModelSource = readFileSync(
+  existsSync(join(repoRoot, 'frontend-src', 'settings', 'general', 'model.js'))
+    ? join(repoRoot, 'frontend-src', 'settings', 'general', 'model.js')
+    : join(repoRoot, 'frontend', 'settings', 'general', 'model.js'),
+  'utf8',
+);
+const generalUiSource = readFileSync(
+  existsSync(join(repoRoot, 'frontend-src', 'settings', 'general', 'ui.js'))
+    ? join(repoRoot, 'frontend-src', 'settings', 'general', 'ui.js')
+    : join(repoRoot, 'frontend', 'settings', 'general', 'ui.js'),
+  'utf8',
+);
 
 function makeClassList() {
   const tokens = new Set();
@@ -139,6 +154,16 @@ const fetchCalls = [];
 const context = {
   console,
   document: documentTarget,
+  MelodySyncBootstrap: {
+    getBuildInfo() {
+      return {
+        version: '0.3.1',
+        serviceVersion: '0.3.1',
+        label: 'Ver 0.3.1 · abc123',
+        serviceLabel: 'Ver 0.3.1 · abc123',
+      };
+    },
+  },
   fetch: async (url) => {
     fetchCalls.push(url);
     return {
@@ -186,6 +211,8 @@ assert.match(generalPanelBody.innerHTML, /设备配置层/, 'general settings sh
 assert.match(generalPanelBody.innerHTML, /<input[^>]+name="brainRoot"[^>]+value="\/Users\/test\/vault\/00-🤖agent"/, 'general settings should render the brain root as an editable input');
 assert.match(generalPanelBody.innerHTML, /<input[^>]+name="runtimeRoot"[^>]+value="\/Users\/test\/\.melodysync\/runtime"/, 'general settings should render the runtime root as an editable input');
 assert.match(generalPanelBody.innerHTML, /说明文件[\s\S]*\/Users\/test\/vault\/00-🤖agent\/AGENTS\.md/, 'general settings should show the AGENTS file path');
+assert.match(generalPanelBody.innerHTML, /当前版本[\s\S]*v0\.3\.1/, 'general settings should show the current version');
+assert.match(generalPanelBody.innerHTML, /构建标识[\s\S]*Ver 0\.3\.1 · abc123/, 'general settings should show the current build label');
 assert.match(generalPanelBody.innerHTML, /当前设备配置文件[\s\S]*\/Users\/test\/\.config\/melody-sync\/general-settings\.json/, 'general settings should show the device config file path');
 assert.match(generalPanelBody.innerHTML, /Provider 运行目录[\s\S]*\/Users\/test\/\.melodysync\/runtime\/config\/provider-runtime-homes/, 'general settings should show the provider runtime home path');
 assert.doesNotMatch(generalPanelBody.innerHTML, /name="agentsPath"/, 'general settings should not render the agents path as an editable input');

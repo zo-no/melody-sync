@@ -19,6 +19,15 @@
       .replace(/"/g, '&quot;');
   }
 
+  function normalizeText(value) {
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  function formatVersionLabel(value) {
+    const normalized = normalizeText(value).replace(/^v/i, '');
+    return normalized ? `v${normalized}` : '';
+  }
+
   async function fetchSettings() {
     body.innerHTML = '<div class="hooks-loading">加载中…</div>';
     try {
@@ -181,6 +190,7 @@
 
   function render() {
     if (!loaded) return;
+    const buildInfo = global.MelodySyncBootstrap?.getBuildInfo?.() || {};
     const brainRoot = loaded.brainRoot || loaded.appRoot || '';
     const runtimeRoot = loaded.runtimeRoot || '';
     const storagePath = loaded.storagePath || '';
@@ -192,6 +202,8 @@
     const sessionsPath = loaded.sessionsPath || '';
     const logsPath = loaded.logsPath || '';
     const providerRuntimeHomesPath = loaded.providerRuntimeHomesPath || '';
+    const versionLabel = formatVersionLabel(buildInfo.serviceVersion || buildInfo.version || '');
+    const buildLabel = normalizeText(buildInfo.serviceLabel || buildInfo.label || '');
     const notificationState = describeBrowserNotificationState();
     const statusRow = error
       ? `<div class="hooks-error">操作失败：${escHtml(error)}</div>`
@@ -263,6 +275,8 @@
             desc: '只属于当前机器，不跟着大脑跨机器移动。',
             value: machineOverlayRoot,
             extraRows: [
+              { label: '当前版本', value: versionLabel },
+              { label: '构建标识', value: buildLabel && buildLabel !== versionLabel ? buildLabel : '' },
               { label: '当前设备配置文件', value: bootstrapStoragePath },
               { label: '运行态设置文件', value: storagePath },
             ],
