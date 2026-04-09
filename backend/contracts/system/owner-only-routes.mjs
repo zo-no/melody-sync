@@ -12,6 +12,10 @@ export function isOwnerOnlyRoute(pathname, method) {
   if (pathname === '/api/tools' && (method === 'GET' || method === 'POST')) return true;
   if (pathname === '/api/autocomplete' && method === 'GET') return true;
   if (pathname === '/api/browse' && method === 'GET') return true;
+  if (pathname === '/api/pm-loop/overview' && method === 'GET') return true;
+  if (pathname.startsWith('/api/pm-loop/raw/') && method === 'GET') return true;
+  if (pathname.match(/^\/api\/pm-loop\/proposals\/[^/]+\/(approve|reject|defer)$/) && method === 'POST') return true;
+  if (pathname.startsWith('/api/pm-loop/opportunities/') && pathname.endsWith('/dispatch') && method === 'POST') return true;
   if (pathname === '/api/push/vapid-public-key' && method === 'GET') return true;
   if (pathname === '/api/push/subscribe' && method === 'POST') return true;
   if (pathname === '/api/system/completion-sound' && method === 'POST') return true;
