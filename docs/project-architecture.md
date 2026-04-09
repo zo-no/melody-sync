@@ -67,6 +67,14 @@ MelodySync is now an owner-operated AI task workspace.
 
 - handles permanent session deletion
 
+`backend/controllers/session/read-catalog-routes.mjs`
+
+- handles session list and detail HTTP reads, including archived catalog variants and summary-ref projections
+
+`backend/controllers/session/read-event-routes.mjs`
+
+- handles session event-oriented HTTP reads including visible/all events, source context, immutable event blocks, and event bodies
+
 `backend/controllers/assets/read-routes.mjs`
 
 - handles file-asset HTTP reads including metadata lookup and download redirects
