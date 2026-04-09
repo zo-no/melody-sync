@@ -136,6 +136,25 @@ async function dispatchAction(msg) {
         }
         return true;
       }
+      case "manual_group": {
+        const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ manualGroup: msg.manualGroup || null }),
+        });
+        if (data.session) {
+          const session = upsertSession(data.session) || data.session;
+          renderSessionList();
+          if (currentSessionId === msg.sessionId) {
+            applyAttachedSessionState(msg.sessionId, session);
+          }
+        } else if (currentSessionId === msg.sessionId) {
+          await refreshCurrentSession();
+        } else {
+          await refreshSidebarSession(msg.sessionId);
+        }
+        return true;
+      }
       case "session_preferences": {
         const payload = {};
         if (Object.prototype.hasOwnProperty.call(msg, "tool")) payload.tool = msg.tool || "";

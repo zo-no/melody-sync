@@ -128,6 +128,11 @@ try {
   });
   assert.equal(invalidGroup.status, 400, 'invalid group type should be rejected');
 
+  const invalidManualGroup = await request(port, 'PATCH', `/api/sessions/${sessionId}`, {
+    manualGroup: 123,
+  });
+  assert.equal(invalidManualGroup.status, 400, 'invalid manualGroup type should be rejected');
+
   const invalidSidebarOrder = await request(port, 'PATCH', `/api/sessions/${sessionId}`, {
     sidebarOrder: 0,
   });
@@ -135,11 +140,13 @@ try {
 
   const patched = await request(port, 'PATCH', `/api/sessions/${sessionId}`, {
     group: '  MelodySync  ',
+    manualGroup: '  手动分组  ',
     description: '  Board-driven orchestration work.  ',
     sidebarOrder: 4,
   });
-  assert.equal(patched.status, 200, 'session patch should accept group, description, and sidebar order');
+  assert.equal(patched.status, 200, 'session patch should accept group, manualGroup, description, and sidebar order');
   assert.equal(patched.json.session.group, 'MelodySync', 'patch should trim and persist group');
+  assert.equal(patched.json.session.manualGroup, '手动分组', 'patch should trim and persist manualGroup');
   assert.equal(
     patched.json.session.description,
     'Board-driven orchestration work.',
@@ -150,6 +157,7 @@ try {
   const detail = await request(port, 'GET', `/api/sessions/${sessionId}`);
   assert.equal(detail.status, 200, 'detail route should succeed after patch');
   assert.equal(detail.json.session.group, 'MelodySync', 'detail route should expose patched group');
+  assert.equal(detail.json.session.manualGroup, '手动分组', 'detail route should expose patched manualGroup');
   assert.equal(
     detail.json.session.description,
     'Board-driven orchestration work.',
@@ -162,6 +170,7 @@ try {
   const listedSession = (listed.json.sessions || []).find((entry) => entry.id === sessionId);
   assert.ok(listedSession, 'session list should include the patched session');
   assert.equal(listedSession.group, 'MelodySync', 'session list should expose patched group');
+  assert.equal(listedSession.manualGroup, '手动分组', 'session list should expose patched manualGroup');
   assert.equal(
     listedSession.description,
     'Board-driven orchestration work.',
@@ -171,11 +180,13 @@ try {
 
   const cleared = await request(port, 'PATCH', `/api/sessions/${sessionId}`, {
     group: null,
+    manualGroup: null,
     description: '',
     sidebarOrder: null,
   });
-  assert.equal(cleared.status, 200, 'patch should accept clearing group, description, and sidebar order');
+  assert.equal(cleared.status, 200, 'patch should accept clearing group, manualGroup, description, and sidebar order');
   assert.equal(cleared.json.session.group, undefined, 'patch should clear group');
+  assert.equal(cleared.json.session.manualGroup, undefined, 'patch should clear manualGroup');
   assert.equal(cleared.json.session.description, undefined, 'patch should clear description');
   assert.equal(cleared.json.session.sidebarOrder, undefined, 'patch should clear sidebar order');
 
