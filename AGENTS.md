@@ -41,6 +41,8 @@ Browser / mobile shell
 - [`backend/controllers/session/message-request.mjs`](backend/controllers/session/message-request.mjs): multipart/JSON message request parsing for session message posts
 - [`backend/controllers/session/patch-routes.mjs`](backend/controllers/session/patch-routes.mjs): session patch HTTP controller
 - [`backend/controllers/session/post-routes.mjs`](backend/controllers/session/post-routes.mjs): session create/action/message HTTP controller
+- [`backend/controllers/system/read-routes.mjs`](backend/controllers/system/read-routes.mjs): system HTTP read controller
+- [`backend/controllers/system/write-routes.mjs`](backend/controllers/system/write-routes.mjs): system HTTP mutation controller
 - [`backend/controllers/workbench/read-routes.mjs`](backend/controllers/workbench/read-routes.mjs): workbench HTTP read controller
 - [`backend/controllers/workbench/write-routes.mjs`](backend/controllers/workbench/write-routes.mjs): workbench HTTP mutation controller
 - [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration

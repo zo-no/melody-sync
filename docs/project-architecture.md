@@ -67,6 +67,14 @@ MelodySync is now an owner-operated AI task workspace.
 
 - handles permanent session deletion
 
+`backend/controllers/system/read-routes.mjs`
+
+- handles system HTTP reads including tools/models, filesystem browsing, uploaded media, push public key, and auth session introspection
+
+`backend/controllers/system/write-routes.mjs`
+
+- handles system HTTP mutations including runtime selection persistence, push subscription writes, and completion sound triggers
+
 `backend/controllers/workbench/read-routes.mjs`
 
 - handles workbench HTTP reads including tracker, task-map, and legacy node-definition aliases
