@@ -1,9 +1,7 @@
 import {
-  getSessionForClient,
-  getSessionListItemForClient,
-  listSessionListItemsForClient,
-} from '../../services/session/client-session-service.mjs';
-import { createClientSessionSummaryRef } from '../../views/session/client.mjs';
+  getSessionCatalogDetailForClient,
+  getSessionCatalogListForClient,
+} from '../../services/session/catalog-read-service.mjs';
 
 function getQueryStringValue(value) {
   return typeof value === 'string'
@@ -27,31 +25,13 @@ export async function handleSessionCatalogReadRoutes({
 
   if (sessionGetRoute.kind === 'list' || sessionGetRoute.kind === 'archived-list') {
     const view = getQueryStringValue(parsedUrl?.query?.view).toLowerCase();
-    const sessionList = await listSessionListItemsForClient({
-      includeArchived: true,
+    const payload = await getSessionCatalogListForClient({
       sourceId: typeof parsedUrl?.query?.sourceId === 'string' ? parsedUrl.query.sourceId : '',
+      folder: typeof parsedUrl?.query?.folder === 'string' ? parsedUrl.query.folder : '',
+      archivedOnly: sessionGetRoute.kind === 'archived-list',
+      refsOnly: view === 'refs',
     });
-    const folderFilter = parsedUrl?.query?.folder;
-    const filtered = folderFilter
-      ? sessionList.filter((session) => session.folder === folderFilter)
-      : sessionList;
-    const archivedSessions = filtered.filter((session) => session?.archived === true);
-    const activeSessions = filtered.filter((session) => session?.archived !== true);
-    const targetSessions = sessionGetRoute.kind === 'archived-list'
-      ? archivedSessions
-      : activeSessions;
-    const sessionRefs = targetSessions.map(createClientSessionSummaryRef).filter((ref) => ref?.id);
-    if (view === 'refs') {
-      writeJsonCached(req, res, {
-        sessionRefs,
-        archivedCount: archivedSessions.length,
-      });
-      return true;
-    }
-    writeJsonCached(req, res, {
-      sessions: targetSessions,
-      archivedCount: archivedSessions.length,
-    });
+    writeJsonCached(req, res, payload);
     return true;
   }
 
@@ -59,9 +39,9 @@ export async function handleSessionCatalogReadRoutes({
     const { sessionId } = sessionGetRoute;
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
     const view = getQueryStringValue(parsedUrl?.query?.view).toLowerCase();
-    const session = view === 'summary' || view === 'sidebar'
-      ? await getSessionListItemForClient(sessionId)
-      : await getSessionForClient(sessionId, { includeQueuedMessages: true });
+    const session = await getSessionCatalogDetailForClient(sessionId, {
+      summaryOnly: view === 'summary' || view === 'sidebar',
+    });
     if (!session) {
       writeJson(res, 404, { error: 'Session not found' });
       return true;
