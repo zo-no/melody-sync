@@ -75,6 +75,14 @@ MelodySync is now an owner-operated AI task workspace.
 
 - handles file-asset HTTP mutations including upload-intent creation and finalize writes
 
+`backend/controllers/hooks/read-routes.mjs`
+
+- handles legacy hook alias reads that mirror the canonical settings/hooks surface
+
+`backend/controllers/hooks/write-routes.mjs`
+
+- handles legacy hook alias writes while keeping request validation and alias branching out of the route shim
+
 `backend/controllers/public/auth-routes.mjs`
 
 - handles public auth entrypoints including token login, password login, and logout
