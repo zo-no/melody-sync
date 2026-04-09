@@ -64,6 +64,7 @@ Browser / mobile shell
 - [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration
 - [`backend/models/session/queries/session-query.mjs`](backend/models/session/queries/session-query.mjs): session read-side reconciliation, timeline projection, and list/detail queries
 - [`backend/services/session/event-read-service.mjs`](backend/services/session/event-read-service.mjs): session event/source-context HTTP read orchestration
+- [`backend/services/session/http-mutation-service.mjs`](backend/services/session/http-mutation-service.mjs): session PATCH/DELETE HTTP mutation orchestration
 - [`backend/session/visibility.mjs`](backend/session/visibility.mjs): session visibility/internal-role predicates
 - [`backend/session/invalidation.mjs`](backend/session/invalidation.mjs): owner-facing session invalidation broadcasts
 - [`backend/run/store.mjs`](backend/run/store.mjs): durable run manifests, spool, status, result

@@ -1,4 +1,4 @@
-import { deleteSessionPermanently } from '../../session/manager.mjs';
+import { deleteSessionForHttp } from '../../services/session/http-mutation-service.mjs';
 
 export async function handleSessionDeleteRoutes({
   req,
@@ -20,7 +20,7 @@ export async function handleSessionDeleteRoutes({
   }
   if (!requireSessionAccess(res, authSession, sessionId)) return true;
   try {
-    const outcome = await deleteSessionPermanently(sessionId);
+    const outcome = await deleteSessionForHttp(sessionId);
     writeJson(res, 200, { deletedSessionIds: outcome?.deletedSessionIds || [] });
   } catch (error) {
     writeJson(res, error?.statusCode || 409, {
