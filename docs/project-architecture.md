@@ -77,6 +77,11 @@ MelodySync is now an owner-operated AI task workspace.
 - provides shared ETag, compression, and cached response writers
 - keeps transport-level caching/compression logic out of route dispatch
 
+`backend/shared/http/request-body.mjs`
+
+- centralizes JSON request-body parsing for HTTP controllers
+- removes repetitive request parsing from route modules
+
 ### Frontend
 
 `templates/chat.html`

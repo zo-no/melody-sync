@@ -47,11 +47,13 @@ Browser / mobile shell
 - [`backend/history.mjs`](backend/history.mjs): append-only event store
 - [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs): session metadata persistence
 - [`backend/session/api-shapes.mjs`](backend/session/api-shapes.mjs): API projection helpers
+- [`backend/services/settings/http-service.mjs`](backend/services/settings/http-service.mjs): settings read/update orchestration for HTTP routes
 - [`backend/services/session/http-message-service.mjs`](backend/services/session/http-message-service.mjs): attachment resolution plus HTTP message submission orchestration
 - [`backend/services/system/config-reload-service.mjs`](backend/services/system/config-reload-service.mjs): deferred process restart scheduling for config changes
 - [`backend/services/system/page-build-service.mjs`](backend/services/system/page-build-service.mjs): service/frontend build info, template file cache, and static asset resolution
 - [`backend/views/system/page-template.mjs`](backend/views/system/page-template.mjs): chat/login shell placeholder projection and script-safe bootstrap serialization
 - [`backend/shared/http/response-cache.mjs`](backend/shared/http/response-cache.mjs): shared HTTP ETag/compression/cached response writers
+- [`backend/shared/http/request-body.mjs`](backend/shared/http/request-body.mjs): shared JSON request-body parsing for HTTP controllers
 - [`backend/workbench/index.mjs`](backend/workbench/index.mjs): task/workbench domain entry layered on sessions
 
 ### Frontend
