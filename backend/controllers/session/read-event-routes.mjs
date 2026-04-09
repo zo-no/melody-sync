@@ -1,11 +1,10 @@
 import { readEventBody } from '../../history.mjs';
-import { buildEventBlockEvents, buildSessionDisplayEvents } from '../../session/display-events.mjs';
 import {
-  getSessionEventsAfter,
-  getSessionSourceContext,
-  getSessionTimelineEvents,
-} from '../../session/manager.mjs';
-import { getSessionForClient } from '../../services/session/client-session-service.mjs';
+  getSessionEventBlock,
+  getSessionSourceContextForClient,
+  listSessionRawEvents,
+  listSessionVisibleEvents,
+} from '../../services/session/event-read-service.mjs';
 
 const IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL = 'private, max-age=1296000, immutable';
 
@@ -34,19 +33,15 @@ export async function handleSessionEventReadRoutes({
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
     const filter = getQueryStringValue(parsedUrl?.query?.filter).toLowerCase();
     if (filter === 'all') {
-      const events = await getSessionEventsAfter(sessionId, 0);
+      const events = await listSessionRawEvents(sessionId);
       writeJsonCached(req, res, { sessionId, filter: 'all', events });
       return true;
     }
-    const session = await getSessionForClient(sessionId);
-    if (!session) {
+    const events = await listSessionVisibleEvents(sessionId);
+    if (!events) {
       writeJson(res, 404, { error: 'Session not found' });
       return true;
     }
-    const timeline = await getSessionTimelineEvents(sessionId);
-    const events = buildSessionDisplayEvents(timeline, {
-      sessionRunning: session?.activity?.run?.state === 'running',
-    });
     writeJsonCached(req, res, { sessionId, filter: 'visible', events });
     return true;
   }
@@ -54,7 +49,7 @@ export async function handleSessionEventReadRoutes({
   if (sessionGetRoute.kind === 'source-context') {
     const { sessionId } = sessionGetRoute;
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
-    const sourceContext = await getSessionSourceContext(sessionId, {
+    const sourceContext = await getSessionSourceContextForClient(sessionId, {
       requestId: typeof parsedUrl?.query?.requestId === 'string' ? parsedUrl.query.requestId : '',
     });
     if (!sourceContext) {
@@ -72,13 +67,11 @@ export async function handleSessionEventReadRoutes({
       endSeq,
     } = sessionGetRoute;
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
-    const session = await getSessionForClient(sessionId);
-    if (!session) {
+    const events = await getSessionEventBlock(sessionId, startSeq, endSeq);
+    if (!events) {
       writeJson(res, 404, { error: 'Session not found' });
       return true;
     }
-    const timeline = await getSessionTimelineEvents(sessionId);
-    const events = buildEventBlockEvents(timeline, startSeq, endSeq);
     if (events.length === 0) {
       writeJson(res, 404, { error: 'Event block not found' });
       return true;

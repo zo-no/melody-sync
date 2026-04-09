@@ -15,6 +15,7 @@ export function createSessionQueryHelpers({
   getFollowUpQueue,
   getFollowUpQueueCount,
   serializeQueuedFollowUp,
+  normalizeSourceContext,
   stabilizeSessionTaskCard,
   syncDetachedRun,
   collectNormalizedRunEvents,
@@ -207,6 +208,37 @@ export function createSessionQueryHelpers({
     return buildSessionTimelineEvents(sessionId, options);
   }
 
+  async function getSessionSourceContext(sessionId, options = {}) {
+    const session = await getSession(sessionId);
+    if (!session) return null;
+    const requestedRequestId = typeof options.requestId === 'string' ? options.requestId.trim() : '';
+    const events = await loadHistory(sessionId, { includeBodies: false });
+    let matchedRequestId = requestedRequestId;
+    let messageContext = null;
+
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const event = events[index];
+      if (event?.type !== 'message' || event.role !== 'user') continue;
+      if (requestedRequestId && (event.requestId || '') !== requestedRequestId) continue;
+      const candidate = normalizeSourceContext(event.sourceContext);
+      if (!candidate) continue;
+      messageContext = candidate;
+      matchedRequestId = event.requestId || matchedRequestId;
+      break;
+    }
+
+    return {
+      session: normalizeSourceContext(session.sourceContext),
+      message: messageContext,
+      requestId: matchedRequestId,
+    };
+  }
+
+  async function getHistory(sessionId) {
+    await reconcileSessionMeta(await findSessionMeta(sessionId));
+    return loadHistory(sessionId);
+  }
+
   return {
     buildSessionTimelineEvents,
     enrichSessionMeta,
@@ -218,5 +250,7 @@ export function createSessionQueryHelpers({
     getSession,
     getSessionEventsAfter,
     getSessionTimelineEvents,
+    getSessionSourceContext,
+    getHistory,
   };
 }

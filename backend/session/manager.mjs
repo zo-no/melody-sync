@@ -208,11 +208,14 @@ const {
   getSession: getSessionQuery,
   getSessionEventsAfter: getSessionEventsAfterQuery,
   getSessionTimelineEvents: getSessionTimelineEventsQuery,
+  getSessionSourceContext: getSessionSourceContextQuery,
+  getHistory: getHistoryQuery,
 } = createSessionQueryHelpers({
   getLiveSession: (sessionId) => liveSessions.get(sessionId),
   getFollowUpQueue,
   getFollowUpQueueCount,
   serializeQueuedFollowUp,
+  normalizeSourceContext,
   stabilizeSessionTaskCard,
   syncDetachedRun,
   collectNormalizedRunEvents,
@@ -2226,29 +2229,7 @@ export async function getSessionTimelineEvents(sessionId, options = {}) {
 }
 
 export async function getSessionSourceContext(sessionId, options = {}) {
-  const session = await getSession(sessionId);
-  if (!session) return null;
-  const requestedRequestId = typeof options.requestId === 'string' ? options.requestId.trim() : '';
-  const events = await loadHistory(sessionId, { includeBodies: false });
-  let matchedRequestId = requestedRequestId;
-  let messageContext = null;
-
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index];
-    if (event?.type !== 'message' || event.role !== 'user') continue;
-    if (requestedRequestId && (event.requestId || '') !== requestedRequestId) continue;
-    const candidate = normalizeSourceContext(event.sourceContext);
-    if (!candidate) continue;
-    messageContext = candidate;
-    matchedRequestId = event.requestId || matchedRequestId;
-    break;
-  }
-
-  return {
-    session: normalizeSourceContext(session.sourceContext),
-    message: messageContext,
-    requestId: matchedRequestId,
-  };
+  return getSessionSourceContextQuery(sessionId, options);
 }
 
 export async function getRunState(runId) {
@@ -3842,8 +3823,7 @@ export async function cancelActiveRun(sessionId) {
 }
 
 export async function getHistory(sessionId) {
-  await reconcileSessionMeta(await findSessionMeta(sessionId));
-  return loadHistory(sessionId);
+  return getHistoryQuery(sessionId);
 }
 
 export async function forkSession(sessionId) {

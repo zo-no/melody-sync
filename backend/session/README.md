@@ -20,6 +20,7 @@ This directory owns session-facing projections and lightweight domain helpers.
 - `run-health.mjs`: run failure inference, detached-run termination synthesis, and context-threshold diagnostics.
 - `manager.mjs`: session and run orchestration entrypoint for the session domain.
 - `../models/session/queries/session-query.mjs`: session read-side reconciliation, timeline projection, and list/detail queries delegated from the manager.
+- `../services/session/event-read-service.mjs`: session event/source-context read orchestration for HTTP controllers.
 - `../follow-up-queue.mjs`: follow-up queue serialization, dedupe, and dispatch-text helpers shared by session orchestration.
 - `visibility.mjs`: internal-role and exposure predicates for session metadata.
 - `invalidation.mjs`: owner WebSocket invalidation broadcasts for session/catalog refreshes.
