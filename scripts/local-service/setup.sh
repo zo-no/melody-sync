@@ -137,7 +137,7 @@ if [[ "$OS_TYPE" == "macos" ]]; then
     <key>KeepAlive</key>
     <true/>
     <key>WorkingDirectory</key>
-    <string>$USER_HOME</string>
+    <string>$PROJECT_ROOT</string>
     <key>StandardOutPath</key>
     <string>$LOG_DIR/chat-server.log</string>
     <key>StandardErrorPath</key>
@@ -157,7 +157,7 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=$USER_HOME
+WorkingDirectory=$PROJECT_ROOT
 ExecStart=$(which node) $PROJECT_ROOT/chat-server.mjs
 Restart=always
 RestartSec=5
@@ -204,7 +204,9 @@ print_header "Step 5: Starting Local Service"
 
 print_info "Stopping any existing chat-server service..."
 if [[ "$OS_TYPE" == "macos" ]]; then
-    launchctl unload "$PLIST_PATH" 2>/dev/null || true
+    sync_chatserver_proxy_env
+    set_service_proxy_env
+    launchd_unload_service "com.melodysync.chat" "$PLIST_PATH"
 else
     systemctl --user stop melodysync-chat.service 2>/dev/null || true
 fi
@@ -215,26 +217,24 @@ sleep 2
 
 print_info "Loading chat-server service..."
 if [[ "$OS_TYPE" == "macos" ]]; then
-    launchctl load "$PLIST_PATH"
-    sleep 3
+    launchd_reload_service "com.melodysync.chat" "$PLIST_PATH"
 
-    service_pid() { launchctl list | awk -v svc="$1" '$3 == svc && $1 ~ /^[0-9]+$/ {print $1}'; }
-    CHATSERVER_PID=$(service_pid "com.melodysync.chat")
-    if [[ -n "$CHATSERVER_PID" ]]; then
-        print_success "chat-server running (PID $CHATSERVER_PID)"
+    if wait_for_chat_service_health "$(chat_base_url)" 30; then
+        CHATSERVER_PID="$(launchd_get_service_pid "com.melodysync.chat")"
+        print_success "chat-server healthy${CHATSERVER_PID:+ (PID $CHATSERVER_PID)}"
     else
-        print_error "chat-server failed to start — check $LOG_DIR/chat-server.error.log"
+        print_error "chat-server failed health check — check $LOG_DIR/chat-server.error.log"
         exit 1
     fi
 else
     systemctl --user enable melodysync-chat.service 2>/dev/null || true
     systemctl --user start melodysync-chat.service
-    sleep 3
 
-    if systemctl --user is-active --quiet melodysync-chat.service; then
-        print_success "chat-server running"
+    if systemctl --user is-active --quiet melodysync-chat.service && \
+       wait_for_chat_service_health "$(chat_base_url)" 30; then
+        print_success "chat-server healthy"
     else
-        print_error "chat-server failed to start — check $LOG_DIR/chat-server.error.log"
+        print_error "chat-server failed health check — check $LOG_DIR/chat-server.error.log"
         exit 1
     fi
 fi
@@ -253,4 +253,5 @@ echo "  Start: $PROJECT_ROOT/start.sh"
 echo "  Stop:  $PROJECT_ROOT/stop.sh"
 echo "  Logs:  $PROJECT_ROOT/logs.sh"
 echo ""
+print_info "If you want the running service pinned to a tested snapshot instead of the live working tree, run: melodysync release"
 print_success "Setup completed successfully!"

@@ -16,14 +16,12 @@ show_status() {
   echo -e "${BOLD}=== 服务状态 (${OS_TYPE}) ===${RESET}"
 
   if [[ "$OS_TYPE" == "macos" ]]; then
-    info=$(launchctl list 2>/dev/null | grep "com.melodysync.chat")
-    if [[ -n "$info" ]]; then
-      pid=$(echo "$info" | awk '{print $1}')
-      exit_code=$(echo "$info" | awk '{print $2}')
-      if [[ "$pid" != "-" && -n "$pid" ]]; then
+    if launchd_service_loaded "com.melodysync.chat"; then
+      pid="$(launchd_get_service_pid "com.melodysync.chat")"
+      if [[ -n "$pid" && "$pid" != "0" ]]; then
         echo -e "  ${GREEN}●${RESET} com.melodysync.chat  (pid=$pid)"
       else
-        echo -e "  ${RED}✗${RESET} com.melodysync.chat  (not running, last exit=$exit_code)"
+        echo -e "  ${RED}✗${RESET} com.melodysync.chat  (loaded, not running)"
       fi
     else
       echo -e "  ${YELLOW}?${RESET} com.melodysync.chat  (not loaded)"

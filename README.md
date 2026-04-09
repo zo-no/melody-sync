@@ -217,6 +217,8 @@ For quick isolated sandboxes on the same machine, use `melodysync guest-instance
 
 Production updates should go through `melodysync release` rather than live-editing the running `7760` surface. The release command snapshots the shipped runtime, restarts only after the test gate passes, and automatically restores the previous active release if the health check fails.
 
+The local-service scripts behind `melodysync setup`, `start`, and `restart` now use the repo root as the service working directory and refuse to report success until the local `/api/build-info` health check responds. On macOS they also reload the LaunchAgent with `bootout/bootstrap/kickstart` semantics so plist environment changes actually take effect.
+
 ## Configuration
 
 Some advanced env vars still keep the older `MELODYSYNC_` prefix for compatibility. They now override MelodySync runtime paths and behavior only; they do not imply a separate product layer.

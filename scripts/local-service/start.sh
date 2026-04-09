@@ -8,7 +8,17 @@ if [[ "$OS_TYPE" == "macos" ]]; then
   set_service_proxy_env
 
   if [[ -f "$PLIST_PATH" ]]; then
-    launchctl load "$PLIST_PATH" 2>/dev/null || echo "chat-server already loaded"
+    launchd_bootstrap_service "com.melodysync.chat" "$PLIST_PATH"
+    if ! wait_for_chat_service_health "$(chat_base_url)" 10; then
+      launchd_restart_service "com.melodysync.chat" "$PLIST_PATH"
+    fi
+    if wait_for_chat_service_health "$(chat_base_url)" 30; then
+      pid="$(launchd_get_service_pid "com.melodysync.chat")"
+      echo "chat-server healthy${pid:+ (pid=${pid})}"
+    else
+      echo "chat-server failed health check: $LOG_DIR/chat-server.error.log"
+      exit 1
+    fi
   else
     echo "chat-server plist not found: $PLIST_PATH"
     exit 1
@@ -21,6 +31,10 @@ if [[ "$OS_TYPE" == "macos" ]]; then
 else
   set_service_proxy_env
   systemctl --user start melodysync-chat.service
+  if ! wait_for_chat_service_health "$(chat_base_url)" 30; then
+    echo "chat-server failed health check: $LOG_DIR/chat-server.error.log"
+    exit 1
+  fi
   echo "Services started!"
   echo ""
   echo "Check status with:"

@@ -215,6 +215,8 @@ melodysync --help               显示帮助
 
 如果你想在同一台机器上快速开一套隔离环境，可以用 `melodysync guest-instance create <name>`。它会为这个隔离实例单独准备独立的数据根目录和服务，但网络暴露方式仍然由 MelodySync 之外的运维层负责。
 
+`melodysync setup`、`start`、`restart` 背后的本地服务脚本现在会把仓库根目录作为 service working directory，并且只有在本机 `/api/build-info` 健康检查通过后才算启动成功。macOS 下也改成了 `bootout/bootstrap/kickstart` 语义，plist 环境变量变更会真正生效。
+
 ## 存储增长与清理
 
 - MelodySync 默认偏向保留数据：会话 history、run 输出、artifacts 和日志都会随着时间累积。

@@ -15,25 +15,21 @@ restart_launchd() {
   local label="$1"
   local plist="$HOME/Library/LaunchAgents/${label}.plist"
   local name="$2"
-  local uid
-  uid="$(id -u)"
 
   if [[ ! -f "$plist" ]]; then
     echo "  $name: plist not found, skipping"
     return
   fi
 
-  if launchctl list | grep -q "$label"; then
-    if launchctl kickstart -k "gui/${uid}/${label}" >/dev/null 2>&1; then
-      echo "  $name: restarted"
-    else
-      launchctl stop "$label" 2>/dev/null || true
-      sleep 1
-      echo "  $name: restarted ($(launchctl list | grep "$label" | awk '{print "pid="$1}'))"
-    fi
+  launchd_reload_service "$label" "$plist"
+
+  if wait_for_chat_service_health "$(chat_base_url)" 30; then
+    local pid
+    pid="$(launchd_get_service_pid "$label")"
+    echo "  $name: healthy${pid:+ (pid=${pid})}"
   else
-    launchctl load "$plist" 2>/dev/null
-    echo "  $name: loaded"
+    echo "  $name: failed health check (check: $LOG_DIR/chat-server.error.log)"
+    return 1
   fi
 }
 
@@ -46,9 +42,13 @@ restart_systemd() {
     return
   fi
 
-  systemctl --user restart "${unit}.service" 2>/dev/null && \
-    echo "  $name: restarted" || \
+  if systemctl --user restart "${unit}.service" 2>/dev/null && \
+     wait_for_chat_service_health "$(chat_base_url)" 30; then
+    echo "  $name: healthy"
+  else
     echo "  $name: failed to restart (check: journalctl --user -u ${unit})"
+    return 1
+  fi
 }
 
 restart_service() {
