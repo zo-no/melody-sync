@@ -64,6 +64,10 @@ MelodySync is now an owner-operated AI task workspace.
 
 - owns organizer closeout patching and automatic post-run naming/grouping so those flows do not stay embedded in the manager
 
+`backend/services/session/task-card-service.mjs`
+
+- owns task-card stabilization and branch-candidate closeout shaping shared by metadata mutation, session read projections, and detached-run finalization
+
 `backend/services/session/result-asset-publication-service.mjs`
 
 - owns result-file asset publication and transcript-message emission for completed runs
