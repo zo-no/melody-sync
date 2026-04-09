@@ -68,6 +68,10 @@ MelodySync is now an owner-operated AI task workspace.
 
 - owns result-file asset publication and transcript-message emission for completed runs
 
+`backend/services/session/graph-ops-service.mjs`
+
+- owns assistant graph reference resolution and attach/promote/archive application so workbench-triggered task-graph mutations do not stay embedded in the manager
+
 `backend/services/session/compaction-service.mjs`
 
 - owns context-compaction queueing, worker-session reuse/creation, auto-compact threshold evaluation, and compaction-result application for detached-run finalization

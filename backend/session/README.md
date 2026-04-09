@@ -32,6 +32,7 @@ This directory owns session-facing projections and lightweight domain helpers.
 - `../services/session/message-submission-service.mjs`: canonical message-submit/run-start orchestration extracted from the manager, including busy-session queueing, prompt assembly, run creation, and auto-rename startup behavior.
 - `../services/session/organizer-service.mjs`: session-organizer patch/finalize flows plus automatic post-run naming/grouping extracted from the manager.
 - `../services/session/result-asset-publication-service.mjs`: result-file asset discovery/publish/message orchestration extracted from the manager's run-finalization path.
+- `../services/session/graph-ops-service.mjs`: assistant graph lookup/reference resolution plus attach/promote/archive application extracted from the manager for workbench-triggered graph mutations.
 - `../services/session/compaction-service.mjs`: context-compaction queueing, worker-session management, auto-compact threshold checks, and compaction-result application extracted from the manager/finalization path.
 - `../services/session/detached-run-observer-service.mjs`: detached-run watcher/poller/startup restore orchestration extracted from the manager while the manager keeps run-finalization semantics.
 - `../services/session/persistent-service.mjs`: persistent-session patch/promote/run orchestration extracted from the manager, including digest shaping and schedule-trigger bookkeeping.
