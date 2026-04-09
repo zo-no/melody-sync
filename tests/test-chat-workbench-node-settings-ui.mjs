@@ -119,8 +119,8 @@ const context = {
 context.globalThis = context;
 context.window = context;
 
-vm.runInNewContext(modelSource, context, { filename: 'frontend/settings/nodes/model.js' });
-vm.runInNewContext(uiSource, context, { filename: 'frontend/settings/nodes/ui.js' });
+vm.runInNewContext(modelSource, context, { filename: 'frontend-src/settings/nodes/model.js' });
+vm.runInNewContext(uiSource, context, { filename: 'frontend-src/settings/nodes/ui.js' });
 
 const controller = context.MelodySyncTaskMapNodeSettingsUi.createController({
   bodyEl,

@@ -7,8 +7,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sourcePath = existsSync(join(repoRoot, 'frontend', 'session-list', 'contract.js'))
-  ? join(repoRoot, 'frontend', 'session-list', 'contract.js')
+const sourcePath = existsSync(join(repoRoot, 'frontend-src', 'session-list', 'contract.js'))
+  ? join(repoRoot, 'frontend-src', 'session-list', 'contract.js')
   : join(repoRoot, 'static', 'frontend', 'session-list', 'contract.js');
 const source = readFileSync(
   sourcePath,

@@ -30,15 +30,9 @@
     const reactRendererFactory = globalThis?.MelodySyncTaskMapReactUi?.createRenderer
       || globalThis?.window?.MelodySyncTaskMapReactUi?.createRenderer
       || null;
-    const legacyRendererFactory = globalThis?.MelodySyncTaskMapUiLegacy?.createRenderer
-      || globalThis?.window?.MelodySyncTaskMapUiLegacy?.createRenderer
-      || null;
 
     if (typeof reactRendererFactory === "function") {
       return withRendererKind(reactRendererFactory(options), "react-flow");
-    }
-    if (typeof legacyRendererFactory === "function") {
-      return withRendererKind(legacyRendererFactory(options), "legacy-dom");
     }
     return withRendererKind(createEmptyRenderer(options?.documentRef || document), "empty");
   }

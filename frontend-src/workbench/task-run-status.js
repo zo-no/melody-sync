@@ -67,12 +67,30 @@
     status = "",
     workflowState = "",
     activityState = "",
+    activity = null,
+    busy = false,
     isCurrent = false,
     showIdle = false,
   } = {}) {
     const normalizedStatus = normalizeStatusToken(status);
     const normalizedWorkflowState = normalizeWorkflowState(workflowState);
     const normalizedActivityState = normalizeActivityState(activityState);
+    const normalizedRunState = normalizedActivityState === "running"
+      ? "running"
+      : normalizeActivityState(activity?.run?.state || "");
+    const normalizedQueueState = normalizedActivityState === "queued"
+      ? "queued"
+      : normalizeStatusToken(activity?.queue?.state || "");
+    const normalizedCompactState = normalizedActivityState === "pending"
+      ? "pending"
+      : normalizeStatusToken(activity?.compact?.state || "");
+    const normalizedRenameState = ["renaming", "rename_failed"].includes(normalizedActivityState)
+      ? normalizedActivityState
+      : normalizeActivityState(activity?.rename?.state || "");
+    const isBusy = busy === true
+      || normalizedRunState === "running"
+      || normalizedQueueState === "queued"
+      || normalizedCompactState === "pending";
 
     if (["resolved", "merged", "done", "closed", "complete", "completed", "finished"].includes(normalizedStatus)) {
       return "completed";
@@ -82,11 +100,12 @@
     if (normalizedWorkflowState === "waiting_user" || normalizedStatus === "waiting_user" || normalizedStatus === "waiting") {
       return "waiting_user";
     }
-    if (normalizedActivityState === "running") return "running";
-    if (normalizedActivityState === "queued") return "queued";
-    if (normalizedActivityState === "pending") return "pending";
-    if (normalizedActivityState === "renaming") return "renaming";
-    if (normalizedActivityState === "rename_failed") return "rename_failed";
+    if (normalizedRunState === "running") return "running";
+    if (normalizedQueueState === "queued") return "queued";
+    if (normalizedCompactState === "pending") return "pending";
+    if (normalizedRenameState === "renaming") return "renaming";
+    if (normalizedRenameState === "rename_failed") return "rename_failed";
+    if (isBusy) return "running";
     if (showIdle || isCurrent) return "idle";
     return "";
   }
@@ -95,6 +114,8 @@
     status = "",
     workflowState = "",
     activityState = "",
+    activity = null,
+    busy = false,
     isCurrent = false,
     showIdle = false,
   } = {}) {
@@ -102,6 +123,8 @@
       status,
       workflowState,
       activityState,
+      activity,
+      busy,
       isCurrent,
       showIdle,
     })) {

@@ -61,7 +61,7 @@ vm.runInNewContext(`
   ${pushApplicationServerKeysMatchSource}
   globalThis.pushApplicationServerKeysMatch = pushApplicationServerKeysMatch;
 `, context, {
-  filename: 'frontend/session/http.js',
+  filename: 'frontend-src/session/http.js',
 });
 
 assert.equal(

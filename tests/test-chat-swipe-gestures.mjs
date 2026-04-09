@@ -113,7 +113,7 @@ function createHarness() {
     },
   };
   context.globalThis = context;
-  vm.runInNewContext(gesturesSource, context, { filename: 'frontend/core/gestures.js' });
+  vm.runInNewContext(gesturesSource, context, { filename: 'frontend-src/core/gestures.js' });
   return { context, listeners, gesturePill };
 }
 

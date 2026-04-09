@@ -14,7 +14,7 @@ mkdirSync(join(tempHome, '.config', 'melody-sync'), { recursive: true });
 process.env.HOME = tempHome;
 
 function loadFrontendModule(relativePath) {
-  return readFileSync(join(repoRoot, 'frontend', 'workbench', relativePath), 'utf8');
+  return readFileSync(join(repoRoot, 'frontend-src', 'workbench', relativePath), 'utf8');
 }
 
 try {

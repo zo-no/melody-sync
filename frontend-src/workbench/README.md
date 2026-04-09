@@ -21,9 +21,8 @@ Files by role:
 - `task-tracker-ui.js`: top tracker rendering.
 - `node-rich-view-ui.js`: focused rich-view renderer for markdown/html/iframe node surfaces inside the task map.
 - `node-canvas-ui.js`: dedicated right-rail node canvas renderer. It owns the selected rich-view node surface so `view.type` no longer has to be rendered inline inside graph nodes.
-- `task-map-ui.js`: task-map renderer adapter that prefers the React Flow/XYFlow island and only falls back to the legacy DOM renderer in isolated/manual compatibility paths.
-- `task-map-ui-legacy.js`: pre-React-Flow DOM renderer kept as an off-default compatibility fallback during the task-map migration.
-- `task-map-react.bundle.js`: prebuilt shared React bundle for the no-build runtime. It now backs the task-map surface plus the task tracker, task rail, right-rail rich-view canvas, status-card overlays, and the persistent editor while legacy JS renderers remain available as fallbacks.
+- `task-map-ui.js`: task-map renderer adapter that resolves the shared React Flow/XYFlow renderer and otherwise yields an explicit empty renderer.
+- `public/app/task-map-react.bundle.js`: prebuilt shared React bundle for the no-build runtime. It backs the task-map surface plus the task tracker, task rail, right-rail rich-view canvas, status-card overlays, and the persistent editor.
 - `task-list-ui.js`: workbench-side task list rendering.
 - `status-card-ui.js`: adapter for branch suggestion / merge note / branch-entered cards. It prefers the shared React bundle and falls back to the legacy DOM card builders.
 - `persistent-editor-ui.js`: adapter for the long-term-item editor modal. It prefers the shared React bundle and falls back to the legacy DOM modal builder.
@@ -45,7 +44,7 @@ Design rules:
 - Keep canonical graph reads and root-graph reuse centralized in `graph-client.js`; `controller.js` should prefer the backend graph payload before falling back to local continuity reconstruction.
 - Keep quest-source helpers in `task-map-clusters.js` and mock/demo graph injection in `task-map-mock-presets.js`; `task-map-model.js` should stay focused on default continuity projection.
 - Treat `view.type` as the right-rail node-canvas contract. The canvas renderer decides safe embedding; task-map nodes only provide structure, selection, and capability entry points.
-- Keep optional graph overrides centralized in `task-map-plan.js`; default continuity projection should stay available as the fallback path.
+- Keep optional graph overrides centralized in `task-map-plan.js`; default continuity projection should stay available as the baseline path.
 - Treat hook-generated `taskMapPlan` overlays as node metadata enrichers first. If a hook wants to enrich an existing default node, reuse the same node id and let the plan merge path attach summary/view/surface metadata.
 - Treat `taskCardBindings` as contract metadata first. They describe which task-card fields a node is allowed to bind back to; they should not be applied ad hoc inside render code.
 - Keep task-card patch precedence consistent with backend `backend/workbench/node-task-card.mjs`: plan/manual/hook nodes may override projection-backed scalar bindings; renderer order should not decide semantic authority.

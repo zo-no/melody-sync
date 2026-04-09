@@ -1,16 +1,26 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const taskRunStatusSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-run-status.js'),
-  'utf8',
-);
+
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend-src', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const taskRunStatusSource = readWorkbenchFrontendSource('task-run-status.js');
 
 const context = { console };
 context.globalThis = context;
@@ -49,6 +59,31 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(api.getTaskRunStatusUi({ activityState: 'running', isCurrent: true }))),
   { key: 'running', label: '运行中', summary: '当前任务正在执行中。' },
   'running activity should surface a running label',
+);
+
+assert.deepEqual(
+  JSON.parse(JSON.stringify(api.getTaskRunStatusUi({ busy: true, isCurrent: true }))),
+  { key: 'running', label: '运行中', summary: '当前任务正在执行中。' },
+  'shared busy semantics should keep current tasks in running state even when reduced activity fields are missing',
+);
+
+assert.deepEqual(
+  JSON.parse(JSON.stringify(api.getTaskRunStatusUi({
+    activity: {
+      queue: {
+        state: 'queued',
+      },
+    },
+    isCurrent: true,
+  }))),
+  { key: 'queued', label: '排队中', summary: '当前任务正在等待执行。' },
+  'full session activity objects should preserve queue state without forcing callers to flatten it first',
+);
+
+assert.deepEqual(
+  JSON.parse(JSON.stringify(api.getTaskRunStatusUi({ status: 'active', isCurrent: true, showIdle: true }))),
+  { key: 'idle', label: '空闲', summary: '当前任务当前未在运行。' },
+  'active/current alone should not be treated as running unless busy semantics or explicit activity data say so',
 );
 
 assert.deepEqual(

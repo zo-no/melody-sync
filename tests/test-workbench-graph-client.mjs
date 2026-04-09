@@ -1,20 +1,27 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const taskRunStatusSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-run-status.js'),
-  'utf8',
-);
-const source = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'graph-client.js'),
-  'utf8',
-);
+
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend-src', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const taskRunStatusSource = readWorkbenchFrontendSource('task-run-status.js');
+const source = readWorkbenchFrontendSource('graph-client.js');
 
 const fetchCalls = [];
 const context = {
@@ -108,6 +115,53 @@ assert.equal(
   normalizedProjection.activeMainQuest?.nodes?.find((node) => node.id === 'session:branch-1')?.status,
   'resolved',
   'graph client should normalize branch-node status from branchContext/workflowState',
+);
+
+const mergedCurrentSessionProjection = api.buildProjectionFromTaskMapGraph(
+  {
+    id: 'quest:main-1',
+    rootSessionId: 'main-1',
+    title: '主任务',
+    summary: '',
+    currentNodeId: 'session:main-1',
+    currentPathNodeIds: ['session:main-1'],
+    nodes: [
+      { id: 'session:main-1', kind: 'main', title: '主任务', sessionId: 'main-1' },
+    ],
+    edges: [],
+  },
+  {
+    currentSessionId: 'main-1',
+    getSessionRecord(sessionId) {
+      if (sessionId !== 'main-1') return null;
+      return {
+        id: 'main-1',
+        workflowState: '',
+        activity: {
+          run: {
+            state: 'running',
+          },
+        },
+      };
+    },
+    getCurrentSession() {
+      return {
+        id: 'main-1',
+        workflowState: '',
+      };
+    },
+  },
+);
+assert.equal(
+  mergedCurrentSessionProjection.activeMainQuest?.nodes?.find((node) => node.id === 'session:main-1')?.activityState,
+  'running',
+  'graph client should fall back to the session record activity when the current session object is missing run state',
+);
+
+assert.equal(
+  mergedCurrentSessionProjection.activeMainQuest?.nodes?.find((node) => node.id === 'session:main-1')?.busy,
+  true,
+  'graph client should propagate busy semantics from merged session activity so downstream task-map consumers share the session-list status chain',
 );
 
 console.log('test-workbench-graph-client: ok');

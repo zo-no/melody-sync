@@ -7,11 +7,11 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sessionSurfaceSourcePath = existsSync(join(repoRoot, 'frontend', 'session', 'surface-ui.js'))
-  ? join(repoRoot, 'frontend', 'session', 'surface-ui.js')
+const sessionSurfaceSourcePath = existsSync(join(repoRoot, 'frontend-src', 'session', 'surface-ui.js'))
+  ? join(repoRoot, 'frontend-src', 'session', 'surface-ui.js')
   : join(repoRoot, 'static', 'frontend', 'session', 'surface-ui.js');
-const sessionListSourcePath = existsSync(join(repoRoot, 'frontend', 'session-list', 'ui.js'))
-  ? join(repoRoot, 'frontend', 'session-list', 'ui.js')
+const sessionListSourcePath = existsSync(join(repoRoot, 'frontend-src', 'session-list', 'ui.js'))
+  ? join(repoRoot, 'frontend-src', 'session-list', 'ui.js')
   : join(repoRoot, 'static', 'frontend', 'session-list', 'ui.js');
 const sessionSurfaceSource = readFileSync(sessionSurfaceSourcePath, 'utf8');
 const sessionListSource = readFileSync(sessionListSourcePath, 'utf8');
@@ -119,7 +119,7 @@ vm.runInNewContext(`
   ${buildSessionActionConfigsSource}
   globalThis.buildSessionActionConfigs = buildSessionActionConfigs;
 `, actionContext, {
-  filename: 'frontend/session/surface-ui.js',
+  filename: 'frontend-src/session/surface-ui.js',
 });
 
 assert.equal(
@@ -193,7 +193,7 @@ vm.runInNewContext(`
   globalThis.getDoneWorkflowStatusInfo = getDoneWorkflowStatusInfo;
   globalThis.getSessionListTouchStatusInfo = getSessionListTouchStatusInfo;
 `, statusContext, {
-  filename: 'frontend/session/surface-ui.js',
+  filename: 'frontend-src/session/surface-ui.js',
 });
 assert.equal(
   JSON.stringify(statusContext.getSessionListTouchStatusInfo({
@@ -313,7 +313,7 @@ vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, renderContext, {
-  filename: 'frontend/session-list/ui.js',
+  filename: 'frontend-src/session-list/ui.js',
 });
 
 renderContext.renderArchivedSection();
@@ -376,7 +376,7 @@ vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, loadingContext, {
-  filename: 'frontend/session-list/ui.js',
+  filename: 'frontend-src/session-list/ui.js',
 });
 
 loadingContext.renderArchivedSection();
@@ -435,7 +435,7 @@ vm.runInNewContext(`
   ${renderArchivedSectionSource}
   globalThis.renderArchivedSection = renderArchivedSection;
 `, emptyContext, {
-  filename: 'frontend/session-list/ui.js',
+  filename: 'frontend-src/session-list/ui.js',
 });
 
 emptyContext.renderArchivedSection();

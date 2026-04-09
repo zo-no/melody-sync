@@ -84,7 +84,7 @@ context.globalThis = context;
 vm.runInNewContext(
   `${updateFrontendRefreshUiSource}\nglobalThis.updateFrontendRefreshUi = updateFrontendRefreshUi;`,
   context,
-  { filename: 'frontend/core/bootstrap.js' },
+  { filename: 'frontend-src/core/bootstrap.js' },
 );
 
 context.updateFrontendRefreshUi();

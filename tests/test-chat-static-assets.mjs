@@ -1013,14 +1013,9 @@ async function main() {
     assert.match(nodeCanvasUiAsset.text, /MelodySyncWorkbenchNodeCanvasUi/);
     assert.match(nodeCanvasUiAsset.text, /createController/);
 
-    const taskMapReactBundleAsset = await request(port, 'GET', '/chat/workbench/task-map-react.bundle.js');
+    const taskMapReactBundleAsset = await request(port, 'GET', '/app/task-map-react.bundle.js');
     assert.equal(taskMapReactBundleAsset.status, 200, 'task map react bundle asset should load');
     assert.match(taskMapReactBundleAsset.text, /MelodySyncTaskMapReactUi/);
-
-    const taskMapUiLegacyAsset = await request(port, 'GET', '/chat/workbench/task-map-ui-legacy.js');
-    assert.equal(taskMapUiLegacyAsset.status, 200, 'task map legacy ui asset should load');
-    assert.match(taskMapUiLegacyAsset.text, /MelodySyncTaskMapUiLegacy/);
-    assert.match(taskMapUiLegacyAsset.text, /renderFlowBoard/);
 
     const taskMapUiAsset = await request(port, 'GET', '/chat/workbench/task-map-ui.js');
     assert.equal(taskMapUiAsset.status, 200, 'task map ui asset should load');

@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sessionListSourcePath = existsSync(join(repoRoot, 'frontend', 'session-list', 'ui.js'))
-  ? join(repoRoot, 'frontend', 'session-list', 'ui.js')
+const sessionListSourcePath = existsSync(join(repoRoot, 'frontend-src', 'session-list', 'ui.js'))
+  ? join(repoRoot, 'frontend-src', 'session-list', 'ui.js')
   : join(repoRoot, 'static', 'frontend', 'session-list', 'ui.js');
 const sessionListSource = readFileSync(sessionListSourcePath, 'utf8');
 
@@ -99,7 +99,7 @@ vm.runInNewContext(`
   ${attachSessionSource}
   globalThis.attachSession = attachSession;
 `, context, {
-  filename: 'frontend/session-list/ui.js',
+  filename: 'frontend-src/session-list/ui.js',
 });
 
 await context.attachSession('session-with-update', null);

@@ -215,9 +215,9 @@ const context = {
 context.window = context;
 context.globalThis = context;
 
-vm.runInNewContext(settingsUiSource, context, { filename: 'frontend/settings/ui.js' });
-vm.runInNewContext(emailModelSource, context, { filename: 'frontend/settings/email/model.js' });
-vm.runInNewContext(emailUiSource, context, { filename: 'frontend/settings/email/ui.js' });
+vm.runInNewContext(settingsUiSource, context, { filename: 'frontend-src/settings/ui.js' });
+vm.runInNewContext(emailModelSource, context, { filename: 'frontend-src/settings/email/model.js' });
+vm.runInNewContext(emailUiSource, context, { filename: 'frontend-src/settings/email/ui.js' });
 
 hooksSettingsBtn.click();
 await flushMicrotasks();

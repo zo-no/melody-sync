@@ -7,11 +7,11 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sidebarUiSourcePath = existsSync(join(repoRoot, 'frontend', 'session-list', 'sidebar-ui.js'))
-  ? join(repoRoot, 'frontend', 'session-list', 'sidebar-ui.js')
+const sidebarUiSourcePath = existsSync(join(repoRoot, 'frontend-src', 'session-list', 'sidebar-ui.js'))
+  ? join(repoRoot, 'frontend-src', 'session-list', 'sidebar-ui.js')
   : join(repoRoot, 'static', 'frontend', 'session-list', 'sidebar-ui.js');
-const sessionHttpSourcePath = existsSync(join(repoRoot, 'frontend', 'session', 'http.js'))
-  ? join(repoRoot, 'frontend', 'session', 'http.js')
+const sessionHttpSourcePath = existsSync(join(repoRoot, 'frontend-src', 'session', 'http.js'))
+  ? join(repoRoot, 'frontend-src', 'session', 'http.js')
   : join(repoRoot, 'static', 'frontend', 'session', 'http.js');
 const sidebarUiSource = readFileSync(sidebarUiSourcePath, 'utf8');
 const sessionHttpSource = readFileSync(sessionHttpSourcePath, 'utf8');
@@ -66,7 +66,7 @@ function createHarness({ organizeResult = true } = {}) {
   context.globalThis = context;
   vm.runInNewContext(`${createSortSessionListShortcutSource}
 globalThis.createSortSessionListShortcut = createSortSessionListShortcut;`, context, {
-    filename: 'frontend/session-list/sidebar-ui.js',
+    filename: 'frontend-src/session-list/sidebar-ui.js',
   });
   return { context, state };
 }

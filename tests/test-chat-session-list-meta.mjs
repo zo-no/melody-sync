@@ -100,7 +100,7 @@ context.globalThis = context;
 vm.runInNewContext(
   `${getShortFolderSource}\n${getFolderLabelSource}\n${clipTaskLabelSource}\n${toSingleGoalLabelSource}\n${getPreferredSessionDisplayNameSource}\n${getSessionDisplayNameSource}\n${getDoneWorkflowStatusInfoSource}\n${getSessionListTouchStatusInfoSource}\n${renderSessionMessageCountSource}\n${buildSessionMetaPartsSource}\nglobalThis.getSessionDisplayName = getSessionDisplayName;\nglobalThis.renderSessionMessageCount = renderSessionMessageCount;\nglobalThis.buildSessionMetaParts = buildSessionMetaParts;`,
   context,
-  { filename: 'frontend/session/surface-ui.js' },
+  { filename: 'frontend-src/session/surface-ui.js' },
 );
 
 assert.equal(

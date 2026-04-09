@@ -7,11 +7,11 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const contractSourcePath = existsSync(join(repoRoot, 'frontend', 'session-list', 'contract.js'))
-  ? join(repoRoot, 'frontend', 'session-list', 'contract.js')
+const contractSourcePath = existsSync(join(repoRoot, 'frontend-src', 'session-list', 'contract.js'))
+  ? join(repoRoot, 'frontend-src', 'session-list', 'contract.js')
   : join(repoRoot, 'static', 'frontend', 'session-list', 'contract.js');
-const sessionListModelSourcePath = existsSync(join(repoRoot, 'frontend', 'session-list', 'model.js'))
-  ? join(repoRoot, 'frontend', 'session-list', 'model.js')
+const sessionListModelSourcePath = existsSync(join(repoRoot, 'frontend-src', 'session-list', 'model.js'))
+  ? join(repoRoot, 'frontend-src', 'session-list', 'model.js')
   : join(repoRoot, 'static', 'frontend', 'session-list', 'model.js');
 const contractSource = readFileSync(contractSourcePath, 'utf8');
 const source = readFileSync(sessionListModelSourcePath, 'utf8');
@@ -59,8 +59,8 @@ context.window.MelodySyncSessionStateModel = context.MelodySyncSessionStateModel
 context.globalThis = context;
 context.self = context;
 
-vm.runInNewContext(contractSource, context, { filename: 'frontend/session-list/contract.js' });
-vm.runInNewContext(source, context, { filename: 'frontend/session-list/model.js' });
+vm.runInNewContext(contractSource, context, { filename: 'frontend-src/session-list/contract.js' });
+vm.runInNewContext(source, context, { filename: 'frontend-src/session-list/model.js' });
 
 const model = context.MelodySyncSessionListModel;
 assert.ok(model, 'session list model should register itself on the global object');

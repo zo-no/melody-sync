@@ -140,9 +140,9 @@ async function main() {
   const { home } = setupTempHome();
   const port = randomPort();
   const seed = Date.now().toString(36);
-  const frontendProbePath = join(repoRoot, 'frontend', `__build_info_probe_${seed}.js`);
+  const frontendProbePath = join(repoRoot, 'frontend-src', `__build_info_probe_${seed}.js`);
   const serviceProbePath = join(repoRoot, 'backend', `__service_build_probe_${seed}.mjs`);
-  const bootstrapSource = readFileSync(join(repoRoot, 'frontend', 'core', 'bootstrap.js'), 'utf8');
+  const bootstrapSource = readFileSync(join(repoRoot, 'frontend-src', 'core', 'bootstrap.js'), 'utf8');
   let server = null;
   let ws = null;
   let wsMessages = [];

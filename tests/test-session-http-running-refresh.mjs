@@ -175,7 +175,7 @@ function createContext() {
 }
 
 const context = createContext();
-vm.runInNewContext(sessionHttpSource, context, { filename: 'frontend/session/http.js' });
+vm.runInNewContext(sessionHttpSource, context, { filename: 'frontend-src/session/http.js' });
 
 const runningSession = {
   activity: {

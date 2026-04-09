@@ -1,24 +1,28 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const nodeContractSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-contract.js'),
-  'utf8',
-);
-const taskRunStatusSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-run-status.js'),
-  'utf8',
-);
-const nodeEffectsSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-effects.js'),
-  'utf8',
-);
+
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend-src', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const nodeContractSource = readWorkbenchFrontendSource('node-contract.js');
+const taskRunStatusSource = readWorkbenchFrontendSource('task-run-status.js');
+const nodeEffectsSource = readWorkbenchFrontendSource('node-effects.js');
 
 const context = { console };
 context.globalThis = context;
@@ -192,6 +196,17 @@ assert.equal(
   }),
   '运行中',
   'active running nodes should surface the running badge label',
+);
+
+assert.equal(
+  effectsApi.getNodeMetaLabel({
+    id: 'session:main-busy',
+    kind: 'main',
+    busy: true,
+    isCurrent: true,
+  }),
+  '运行中',
+  'node effects should reuse shared busy semantics so current mainline tasks do not fall back to idle when reduced node fields are sparse',
 );
 
 assert.equal(

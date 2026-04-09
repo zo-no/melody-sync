@@ -7,8 +7,8 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const realtimeSource = readFileSync(join(repoRoot, 'frontend', 'core', 'realtime-render.js'), 'utf8');
-const uiSource = readFileSync(join(repoRoot, 'frontend', 'session', 'transcript-ui.js'), 'utf8');
+const realtimeSource = readFileSync(join(repoRoot, 'frontend-src', 'core', 'realtime-render.js'), 'utf8');
+const uiSource = readFileSync(join(repoRoot, 'frontend-src', 'session', 'transcript-ui.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -78,7 +78,7 @@ vm.runInNewContext(
     'globalThis.renderMarkdownIntoNode = renderMarkdownIntoNode;',
   ].join('\n\n'),
   context,
-  { filename: 'frontend/session/transcript-ui.js' },
+  { filename: 'frontend-src/session/transcript-ui.js' },
 );
 
 const assistantContent = 'Visible text\nTail\n<private><task_card>{"goal":"排查","checkpoint":"继续"}</task_card></private>';

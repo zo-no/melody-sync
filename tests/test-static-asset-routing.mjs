@@ -111,7 +111,7 @@ async function main() {
   const { home } = setupTempHome();
   const port = randomPort();
   const probeName = `__static_probe_${Date.now().toString(36)}.js`;
-  const probePath = join(repoRoot, 'frontend', probeName);
+  const probePath = join(repoRoot, 'frontend-src', probeName);
   writeFileSync(probePath, 'window.__MELODYSYNC_STATIC_PROBE__ = true;\n', 'utf8');
 
   const server = await startServer({ home, port });

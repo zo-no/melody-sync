@@ -89,7 +89,7 @@ const context = {
 context.globalThis = context;
 
 vm.runInNewContext(`${connectSource}\nglobalThis.connect = connect;`, context, {
-  filename: 'frontend/core/realtime.js',
+  filename: 'frontend-src/core/realtime.js',
 });
 
 context.connect();

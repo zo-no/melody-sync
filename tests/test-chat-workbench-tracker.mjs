@@ -10,7 +10,7 @@ const repoRoot = dirname(__dirname);
 
 function readWorkbenchFrontendSource(filename) {
   const candidates = [
-    join(repoRoot, 'frontend', 'workbench', filename),
+    join(repoRoot, 'frontend-src', 'workbench', filename),
     join(repoRoot, 'static', 'frontend', 'workbench', filename),
   ];
   const targetPath = candidates.find((candidate) => existsSync(candidate));
@@ -34,7 +34,7 @@ const questStateSource = readWorkbenchFrontendSource('quest-state.js');
 const taskTrackerUiSource = readWorkbenchFrontendSource('task-tracker-ui.js');
 const nodeRichViewUiSource = readWorkbenchFrontendSource('node-rich-view-ui.js');
 const nodeCanvasUiSource = readWorkbenchFrontendSource('node-canvas-ui.js');
-const taskMapUiLegacySource = readWorkbenchFrontendSource('task-map-ui-legacy.js');
+const taskMapReactBundleSource = readFileSync(join(repoRoot, 'public', 'app', 'task-map-react.bundle.js'), 'utf8');
 const taskMapUiSource = readWorkbenchFrontendSource('task-map-ui.js');
 const taskListUiSource = readWorkbenchFrontendSource('task-list-ui.js');
 const statusCardUiSource = readWorkbenchFrontendSource('status-card-ui.js');
@@ -295,8 +295,8 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
-  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiLegacySource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${operationRecordSummaryUiSource}\n${operationRecordListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
-    filename: 'frontend/workbench/controller.js',
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapReactBundleSource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${operationRecordSummaryUiSource}\n${operationRecordListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+    filename: 'frontend-src/workbench/controller.js',
   });
   await flushAsync(8);
   return { elements, fetchCalls, fetchLog, attachCalls, workbench: context.window.MelodySyncWorkbench };
@@ -341,7 +341,7 @@ async function runReactScenario({ currentSession, sessions, snapshot, innerWidth
     },
   };
   await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${operationRecordSummaryUiSource}\n${operationRecordListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
-    filename: 'frontend/workbench/controller.js',
+    filename: 'frontend-src/workbench/controller.js',
   });
   await flushAsync(8);
   return { elements, fetchCalls, fetchLog, attachCalls, workbench: context.window.MelodySyncWorkbench };
@@ -510,7 +510,7 @@ const {
 });
 
 assert.equal(mainElements.get('questTracker').hidden, false, 'tracker should render when a session is attached');
-assert.equal(mainWorkbench.getTaskMapRendererKind(), 'legacy-dom', 'controller should surface the active task-map renderer kind for diagnostics');
+assert.equal(mainWorkbench.getTaskMapRendererKind(), 'react-flow', 'controller should surface the active task-map renderer kind for diagnostics');
 assert.equal(mainElements.get('questTrackerLabel').textContent, '', 'mainline tracker should not render an extra task-bar label');
 assert.equal(mainElements.get('questTrackerStatus').hidden, false, 'mainline tracker should render the task status inside the task bar');
 assert.equal(mainElements.get('questTrackerStatusText').textContent, '空闲', 'idle mainline tasks should surface an idle status inside the task bar');

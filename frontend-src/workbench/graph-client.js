@@ -27,6 +27,14 @@
     return "";
   }
 
+  function normalizeStatusToken(value) {
+    const api = getTaskRunStatusApi();
+    if (typeof api?.normalizeStatusToken === "function") {
+      return api.normalizeStatusToken(value);
+    }
+    return trimText(value).toLowerCase();
+  }
+
   function resolveBranchLikeStatus(...values) {
     const api = getTaskRunStatusApi();
     if (typeof api?.resolveBranchLikeStatus === "function") {
@@ -39,6 +47,24 @@
     return globalThis?.MelodySyncWorkbenchNodeEffects
       || globalThis?.window?.MelodySyncWorkbenchNodeEffects
       || null;
+  }
+
+  function getSessionStateModelApi() {
+    return globalThis?.MelodySyncSessionStateModel
+      || globalThis?.window?.MelodySyncSessionStateModel
+      || null;
+  }
+
+  function isSessionBusy(session = null) {
+    const sessionStateModel = getSessionStateModelApi();
+    if (typeof sessionStateModel?.isSessionBusy === "function") {
+      return sessionStateModel.isSessionBusy(session);
+    }
+    if (!session || typeof session !== "object") return false;
+    if (session?.busy === true) return true;
+    return normalizeActivityState(session?.activity?.run?.state || "") === "running"
+      || normalizeStatusToken(session?.activity?.queue?.state || "") === "queued"
+      || normalizeStatusToken(session?.activity?.compact?.state || "") === "pending";
   }
 
   function getLatestBranchContext(snapshot = null, sessionId = "") {
@@ -63,6 +89,7 @@
     return {
       ...fallback,
       ...primary,
+      busy: primary?.busy === true || fallback?.busy === true,
       workflowState: trimText(primary?.workflowState || "") || trimText(fallback?.workflowState || ""),
       _branchStatus: trimText(primary?._branchStatus || "") || trimText(fallback?._branchStatus || ""),
       branchStatus: trimText(primary?.branchStatus || "") || trimText(fallback?.branchStatus || ""),
@@ -106,11 +133,13 @@
         || session?.workflowState
         || "",
       );
+      node.activity = session?.activity || node?.activity || null;
       node.activityState = normalizeActivityState(
         node?.activityState
         || session?.activity?.run?.state
         || "",
       );
+      node.busy = isSessionBusy(session);
 
       if (normalizeKey(node?.kind) === "branch") {
         node.status = resolveBranchLikeStatus(

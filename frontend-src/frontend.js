@@ -22,7 +22,7 @@
     "/chat/session/transcript-ui.js",
     "/chat/session/surface-ui.js",
     "/chat/session-list/model.js",
-    "/chat/workbench/task-map-react.bundle.js",
+    "/app/task-map-react.bundle.js",
     "/chat/session-list/ui.js",
     "/chat/session-list/sidebar-ui.js",
     "/chat/workbench/node-contract.js",

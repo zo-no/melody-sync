@@ -237,9 +237,9 @@ const context = {
 context.window = context;
 context.globalThis = context;
 
-vm.runInNewContext(settingsUiSource, context, { filename: 'frontend/settings/ui.js' });
-vm.runInNewContext(hooksModelSource, context, { filename: 'frontend/settings/hooks/model.js' });
-vm.runInNewContext(hooksUiSource, context, { filename: 'frontend/settings/hooks/ui.js' });
+vm.runInNewContext(settingsUiSource, context, { filename: 'frontend-src/settings/ui.js' });
+vm.runInNewContext(hooksModelSource, context, { filename: 'frontend-src/settings/hooks/model.js' });
+vm.runInNewContext(hooksUiSource, context, { filename: 'frontend-src/settings/hooks/ui.js' });
 
 hooksSettingsBtn.click();
 await flushMicrotasks();

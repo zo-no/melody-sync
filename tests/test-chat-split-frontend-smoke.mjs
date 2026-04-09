@@ -8,50 +8,50 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
+const workbenchStylesheet = readFileSync(join(repoRoot, 'frontend-src', 'chat-workbench.css'), 'utf8');
 
 const filesToParse = [
-  join(repoRoot, 'frontend.js'),
-  join(repoRoot, 'frontend', 'core', 'bootstrap-data.js'),
-  join(repoRoot, 'frontend', 'core', 'i18n.js'),
-  join(repoRoot, 'frontend', 'core', 'bootstrap.js'),
-  join(repoRoot, 'frontend', 'core', 'bootstrap-session-catalog.js'),
-  join(repoRoot, 'frontend', 'core', 'layout-tooling.js'),
-  join(repoRoot, 'frontend', 'session/tooling.js'),
-  join(repoRoot, 'frontend', 'session-list', 'order-contract.js'),
-  join(repoRoot, 'frontend', 'session-list', 'contract.js'),
-  join(repoRoot, 'frontend', 'session-list', 'model.js'),
-  join(repoRoot, 'frontend', 'session-list', 'react-ui.js'),
-  join(repoRoot, 'frontend', 'session-list', 'ui.js'),
-  join(repoRoot, 'frontend', 'session-list', 'sidebar-ui.js'),
-  join(repoRoot, 'frontend', 'workbench/node-contract.js'),
-  join(repoRoot, 'frontend', 'workbench/node-effects.js'),
-  join(repoRoot, 'frontend', 'workbench', 'node-instance.js'),
-  join(repoRoot, 'frontend', 'workbench', 'graph-model.js'),
-  join(repoRoot, 'frontend', 'workbench', 'graph-client.js'),
-  join(repoRoot, 'frontend', 'workbench/node-capabilities.js'),
-  join(repoRoot, 'frontend', 'workbench', 'node-task-card.js'),
-  join(repoRoot, 'frontend', 'workbench/task-map-plan.js'),
-  join(repoRoot, 'frontend', 'workbench', 'task-map-clusters.js'),
-  join(repoRoot, 'frontend', 'workbench', 'task-map-mock-presets.js'),
-  join(repoRoot, 'frontend', 'workbench/task-map-model.js'),
-  join(repoRoot, 'frontend', 'workbench', 'quest-state.js'),
-  join(repoRoot, 'frontend', 'workbench', 'task-tracker-ui.js'),
-  join(repoRoot, 'frontend', 'workbench', 'node-rich-view-ui.js'),
-  join(repoRoot, 'frontend', 'workbench', 'node-canvas-ui.js'),
-  join(repoRoot, 'frontend', 'workbench', 'task-map-react.bundle.js'),
-  join(repoRoot, 'frontend', 'workbench', 'task-map-ui-legacy.js'),
-  join(repoRoot, 'frontend', 'workbench', 'task-map-ui.js'),
-  join(repoRoot, 'frontend', 'workbench', 'task-list-ui.js'),
-  join(repoRoot, 'frontend', 'workbench', 'status-card-ui.js'),
-  join(repoRoot, 'frontend', 'workbench', 'persistent-editor-ui.js'),
-  join(repoRoot, 'frontend', 'workbench', 'operation-record-summary-ui.js'),
-  join(repoRoot, 'frontend', 'workbench', 'operation-record-list-ui.js'),
-  join(repoRoot, 'frontend', 'workbench', 'branch-actions.js'),
-  join(repoRoot, 'frontend', 'workbench', 'operation-record-ui.js'),
-  join(repoRoot, 'frontend', 'settings', 'hooks', 'model.js'),
-  join(repoRoot, 'frontend', 'settings', 'voice', 'ui.js'),
-  join(repoRoot, 'frontend', 'settings/hooks/ui.js'),
-  join(repoRoot, 'frontend', 'session/compose.js'),
+  join(repoRoot, 'frontend-src', 'frontend.js'),
+  join(repoRoot, 'frontend-src', 'core', 'bootstrap-data.js'),
+  join(repoRoot, 'frontend-src', 'core', 'i18n.js'),
+  join(repoRoot, 'frontend-src', 'core', 'bootstrap.js'),
+  join(repoRoot, 'frontend-src', 'core', 'bootstrap-session-catalog.js'),
+  join(repoRoot, 'frontend-src', 'core', 'layout-tooling.js'),
+  join(repoRoot, 'frontend-src', 'session/tooling.js'),
+  join(repoRoot, 'frontend-src', 'session-list', 'order-contract.js'),
+  join(repoRoot, 'frontend-src', 'session-list', 'contract.js'),
+  join(repoRoot, 'frontend-src', 'session-list', 'model.js'),
+  join(repoRoot, 'frontend-src', 'session-list', 'react-ui.js'),
+  join(repoRoot, 'frontend-src', 'session-list', 'ui.js'),
+  join(repoRoot, 'frontend-src', 'session-list', 'sidebar-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench/node-contract.js'),
+  join(repoRoot, 'frontend-src', 'workbench/node-effects.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'node-instance.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'graph-model.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'graph-client.js'),
+  join(repoRoot, 'frontend-src', 'workbench/node-capabilities.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'node-task-card.js'),
+  join(repoRoot, 'frontend-src', 'workbench/task-map-plan.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'task-map-clusters.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'task-map-mock-presets.js'),
+  join(repoRoot, 'frontend-src', 'workbench/task-map-model.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'quest-state.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'task-tracker-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'node-rich-view-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'node-canvas-ui.js'),
+  join(repoRoot, 'public', 'app', 'task-map-react.bundle.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'task-map-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'task-list-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'status-card-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'persistent-editor-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'operation-record-summary-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'operation-record-list-ui.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'branch-actions.js'),
+  join(repoRoot, 'frontend-src', 'workbench', 'operation-record-ui.js'),
+  join(repoRoot, 'frontend-src', 'settings', 'hooks', 'model.js'),
+  join(repoRoot, 'frontend-src', 'settings', 'voice', 'ui.js'),
+  join(repoRoot, 'frontend-src', 'settings/hooks/ui.js'),
+  join(repoRoot, 'frontend-src', 'session/compose.js'),
 ];
 
 for (const filePath of filesToParse) {
@@ -64,6 +64,136 @@ for (const filePath of filesToParse) {
     `${filePath} should parse cleanly.\n${result.stderr || result.stdout}`,
   );
 }
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getSelectorBlocks(stylesheet, selector) {
+  const pattern = new RegExp(`${escapeRegExp(selector)}\\s*\\{([^}]*)\\}`, 'gs');
+  return Array.from(stylesheet.matchAll(pattern), (match) => match[1]);
+}
+
+function getDeclarationValues(block, property) {
+  const pattern = new RegExp(`${escapeRegExp(property)}\\s*:\\s*([^;]+);`, 'g');
+  return Array.from(block.matchAll(pattern), (match) => match[1].trim());
+}
+
+assert.match(
+  workbenchStylesheet,
+  /\.quest-task-list\.is-flow-board \.quest-task-list-react-host\s*\{[^}]*height:\s*100%/s,
+  'flow-board react host should inherit full height so the task map rail does not collapse',
+);
+
+assert.match(
+  workbenchStylesheet,
+  /\.quest-task-list\.is-flow-board \.quest-task-list-react-host\s*\{[^}]*min-height:\s*0/s,
+  'flow-board react host should allow min-height 0 to preserve nested overflow layout',
+);
+
+assert.match(
+  workbenchStylesheet,
+  /\.quest-task-flow-node\.is-current,\s*\.quest-task-flow-node\.is-current-path:not\(\.is-current\),\s*\.quest-task-flow-node\.is-canvas-selected\s*\{[^}]*background:\s*var\(--quest-task-flow-node-bg\)\s*!important/s,
+  'task-map selection states should preserve the runtime-driven node background color',
+);
+
+for (const selector of [
+  '.quest-task-flow-node.is-current',
+  '.quest-task-flow-node.is-current-path:not(.is-current)',
+  '.quest-task-flow-node.is-canvas-selected',
+]) {
+  const blocks = getSelectorBlocks(workbenchStylesheet, selector);
+  assert.ok(blocks.length > 0, `${selector} should exist in the stylesheet`);
+  for (const block of blocks) {
+    const backgrounds = getDeclarationValues(block, 'background');
+    const borderColors = getDeclarationValues(block, 'border-color');
+    for (const value of backgrounds) {
+      assert.match(value, /var\(--quest-task-flow-node-bg\)/, `${selector} should not hardcode a selection background`);
+    }
+    for (const value of borderColors) {
+      assert.match(value, /var\(--quest-task-flow-node-border\)/, `${selector} should not hardcode a selection border color`);
+    }
+  }
+}
+
+assert.match(
+  workbenchStylesheet,
+  /--quest-task-flow-running-accent:\s*var\(--notice\);/s,
+  'task-map running state should derive from the same blue accent as the task list',
+);
+
+assert.match(
+  workbenchStylesheet,
+  /--quest-task-flow-completed-accent:\s*var\(--success\);/s,
+  'task-map completed state should derive from the same green accent as the task list',
+);
+
+for (const [selector, accentVar] of [
+  ['.quest-task-flow-node:is(.is-status-running, .is-running-session, .status-running, .status-pending)', '--quest-task-flow-running-accent'],
+  ['.quest-task-flow-node:is(.is-status-completed, .is-status-done, .is-done-session, .is-resolved)', '--quest-task-flow-completed-accent'],
+]) {
+  const blocks = getSelectorBlocks(workbenchStylesheet, selector);
+  assert.ok(blocks.length > 0, `${selector} should exist in the stylesheet`);
+  for (const block of blocks) {
+    const statusAccents = getDeclarationValues(block, '--quest-task-flow-node-status-accent');
+    const badgeDots = getDeclarationValues(block, '--quest-task-flow-node-badge-dot');
+    assert.ok(
+      statusAccents.some((value) => value.includes(`var(${accentVar})`)),
+      `${selector} should use ${accentVar} as its status accent`,
+    );
+    if (badgeDots.length > 0) {
+      assert.ok(
+        badgeDots.some((value) => value.includes(`var(${accentVar})`)),
+        `${selector} should keep its badge dot on ${accentVar}`,
+      );
+    }
+  }
+}
+
+const candidateEdgeBlocks = getSelectorBlocks(workbenchStylesheet, '.quest-task-flow-edge.is-candidate');
+assert.ok(
+  candidateEdgeBlocks.some((block) => {
+    const opacities = getDeclarationValues(block, 'opacity');
+    const strokes = getDeclarationValues(block, 'stroke');
+    const strokeWidths = getDeclarationValues(block, 'stroke-width');
+    const dashArrays = getDeclarationValues(block, 'stroke-dasharray');
+    return opacities.includes('0.34')
+      && strokes.includes('color-mix(in srgb, var(--border-strong) 72%, var(--border))')
+      && strokeWidths.includes('1.5px')
+      && dashArrays.includes('3 5');
+  }),
+  'candidate task-map edges should render as dashed guides without fading below the default branch line emphasis',
+);
+
+const candidateNodeBlocks = getSelectorBlocks(workbenchStylesheet, '.quest-task-flow-node.is-candidate');
+assert.ok(
+  candidateNodeBlocks.some((block) => {
+    const borderStyles = getDeclarationValues(block, 'border-style');
+    const borderColors = getDeclarationValues(block, 'border-color');
+    const backgrounds = getDeclarationValues(block, 'background');
+    const boxShadows = getDeclarationValues(block, 'box-shadow');
+    return borderStyles.includes('dashed')
+      && borderColors.includes('color-mix(in srgb, var(--border-strong) 68%, var(--border)) !important')
+      && backgrounds.includes('color-mix(in srgb, var(--bg) 12%, transparent) !important')
+      && boxShadows.includes('none !important');
+  }),
+  'candidate task-map nodes should keep a dashed border without fading the boundary itself',
+);
+
+const candidateTitleBlocks = getSelectorBlocks(workbenchStylesheet, '.quest-task-flow-node.is-candidate .quest-task-flow-node-title');
+assert.ok(
+  candidateTitleBlocks.some((block) => {
+    const colors = getDeclarationValues(block, 'color');
+    return colors.includes('color-mix(in srgb, var(--text-secondary) 82%, var(--text-muted)) !important');
+  }),
+  'candidate task-map titles should be weaker than committed branch titles',
+);
+
+assert.match(
+  workbenchStylesheet,
+  /\.quest-task-flow-node\.is-candidate \.quest-task-flow-node-summary,\s*\.quest-task-flow-node\.is-candidate \.quest-task-flow-node-badge\s*\{[^}]*color:\s*color-mix\(in srgb, var\(--text-muted\) 88%, transparent\)\s*!important;/s,
+  'candidate task-map summary and badge text should stay muted',
+);
 
 function createClassList() {
   const classes = new Set();
@@ -354,7 +484,7 @@ const orderedFiles = [
 ];
 
 for (const fileName of orderedFiles) {
-  const source = readFileSync(join(repoRoot, 'frontend', fileName), 'utf8');
+  const source = readFileSync(join(repoRoot, 'frontend-src', fileName), 'utf8');
   vm.runInNewContext(source, context, { filename: `frontend/${fileName}` });
 }
 

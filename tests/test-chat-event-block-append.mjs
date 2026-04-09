@@ -146,7 +146,7 @@ vm.runInNewContext(
     'globalThis.ensureEventBlockLoaded = ensureEventBlockLoaded;',
   ].join('\n\n'),
   context,
-  { filename: 'frontend/session/transcript-ui.js' },
+  { filename: 'frontend-src/session/transcript-ui.js' },
 );
 
 const body = makeElement();

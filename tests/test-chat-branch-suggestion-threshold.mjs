@@ -10,7 +10,7 @@ const repoRoot = dirname(__dirname);
 
 function readWorkbenchFrontendSource(filename) {
   const candidates = [
-    join(repoRoot, 'frontend', 'workbench', filename),
+    join(repoRoot, 'frontend-src', 'workbench', filename),
     join(repoRoot, 'static', 'frontend', 'workbench', filename),
   ];
   const targetPath = candidates.find((candidate) => existsSync(candidate));
@@ -134,7 +134,7 @@ const context = {
 };
 context.globalThis = context;
 
-vm.runInNewContext(source, context, { filename: 'frontend/workbench/status-card-ui.js' });
+vm.runInNewContext(source, context, { filename: 'frontend-src/workbench/status-card-ui.js' });
 
 const renderer = context.window.MelodySyncWorkbenchStatusCardUi.createRenderer({
   documentRef: context.document,

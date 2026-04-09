@@ -1,20 +1,34 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const nodeContractSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/node-contract.js'), 'utf8');
-const nodeEffectsSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/node-effects.js'), 'utf8');
-const nodeInstanceSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'node-instance.js'), 'utf8');
-const graphModelSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'graph-model.js'), 'utf8');
-const taskMapPlanSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/task-map-plan.js'), 'utf8');
-const taskMapClustersSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-clusters.js'), 'utf8');
-const taskMapMockPresetsSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-mock-presets.js'), 'utf8');
-const source = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/task-map-model.js'), 'utf8');
+
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend-src', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const nodeContractSource = readWorkbenchFrontendSource('node-contract.js');
+const taskRunStatusSource = readWorkbenchFrontendSource('task-run-status.js');
+const nodeEffectsSource = readWorkbenchFrontendSource('node-effects.js');
+const nodeInstanceSource = readWorkbenchFrontendSource('node-instance.js');
+const graphModelSource = readWorkbenchFrontendSource('graph-model.js');
+const taskMapPlanSource = readWorkbenchFrontendSource('task-map-plan.js');
+const taskMapClustersSource = readWorkbenchFrontendSource('task-map-clusters.js');
+const taskMapMockPresetsSource = readWorkbenchFrontendSource('task-map-mock-presets.js');
+const source = readWorkbenchFrontendSource('task-map-model.js');
 
 const context = {
   console,
@@ -22,28 +36,31 @@ const context = {
 };
 context.globalThis = context;
 vm.runInNewContext(nodeContractSource, context, {
-  filename: 'frontend/workbench/node-contract.js',
+  filename: 'frontend-src/workbench/node-contract.js',
+});
+vm.runInNewContext(taskRunStatusSource, context, {
+  filename: 'frontend-src/workbench/task-run-status.js',
 });
 vm.runInNewContext(nodeEffectsSource, context, {
-  filename: 'frontend/workbench/node-effects.js',
+  filename: 'frontend-src/workbench/node-effects.js',
 });
 vm.runInNewContext(nodeInstanceSource, context, {
-  filename: 'frontend/workbench/node-instance.js',
+  filename: 'frontend-src/workbench/node-instance.js',
 });
 vm.runInNewContext(graphModelSource, context, {
-  filename: 'frontend/workbench/graph-model.js',
+  filename: 'frontend-src/workbench/graph-model.js',
 });
 vm.runInNewContext(taskMapPlanSource, context, {
-  filename: 'frontend/workbench/task-map-plan.js',
+  filename: 'frontend-src/workbench/task-map-plan.js',
 });
 vm.runInNewContext(taskMapClustersSource, context, {
-  filename: 'frontend/workbench/task-map-clusters.js',
+  filename: 'frontend-src/workbench/task-map-clusters.js',
 });
 vm.runInNewContext(taskMapMockPresetsSource, context, {
-  filename: 'frontend/workbench/task-map-mock-presets.js',
+  filename: 'frontend-src/workbench/task-map-mock-presets.js',
 });
 vm.runInNewContext(source, context, {
-  filename: 'frontend/workbench/task-map-model.js',
+  filename: 'frontend-src/workbench/task-map-model.js',
 });
 
 const { buildTaskMapProjection, applyTaskMapMockPreset, NODE_KINDS } = context.window.MelodySyncTaskMapModel;

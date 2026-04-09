@@ -111,7 +111,7 @@ async function main() {
   const seed = Date.now().toString(36);
   const release = await createReleaseSnapshot({ releaseId: `test-release-${seed}` });
   const sourceProbeName = `__release_source_probe_${seed}.js`;
-  const sourceProbePath = join(repoRoot, 'frontend', sourceProbeName);
+  const sourceProbePath = join(repoRoot, 'frontend-src', sourceProbeName);
   const originalLoginTemplate = readFileSync(loginTemplatePath, 'utf8');
   const loginMarker = `__RELEASE_TEMPLATE_PROBE_${seed}__`;
   let server = null;

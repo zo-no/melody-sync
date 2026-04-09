@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const loaderSource = readFileSync(join(repoRoot, 'frontend.js'), 'utf8');
+const loaderSource = readFileSync(join(repoRoot, 'frontend-src', 'frontend.js'), 'utf8');
 
 function createScriptElement() {
   return {
@@ -126,7 +126,7 @@ const expectedBuild123Assets = [
   '/chat/session/transcript-ui.js?v=build-123',
   '/chat/session/surface-ui.js?v=build-123',
   '/chat/session-list/model.js?v=build-123',
-  '/chat/workbench/task-map-react.bundle.js?v=build-123',
+  '/app/task-map-react.bundle.js?v=build-123',
   '/chat/session-list/react-ui.js?v=build-123',
   '/chat/session-list/ui.js?v=build-123',
   '/chat/session-list/sidebar-ui.js?v=build-123',

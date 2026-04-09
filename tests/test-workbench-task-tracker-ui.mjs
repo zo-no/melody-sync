@@ -10,7 +10,7 @@ const repoRoot = dirname(__dirname);
 
 function readWorkbenchFrontendSource(filename) {
   const candidates = [
-    join(repoRoot, 'frontend', 'workbench', filename),
+    join(repoRoot, 'frontend-src', 'workbench', filename),
     join(repoRoot, 'static', 'frontend', 'workbench', filename),
   ];
   const targetPath = candidates.find((candidate) => existsSync(candidate));
@@ -119,7 +119,7 @@ const context = {
 };
 context.globalThis = context;
 
-vm.runInNewContext(taskTrackerUiSource, context, { filename: 'frontend/workbench/task-tracker-ui.js' });
+vm.runInNewContext(taskTrackerUiSource, context, { filename: 'frontend-src/workbench/task-tracker-ui.js' });
 
 const persistentHost = makeElement('div');
 const renderer = context.window.MelodySyncTaskTrackerUi.createTrackerRenderer({

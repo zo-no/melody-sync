@@ -5,7 +5,6 @@ This directory is the unified frontend source root for the owner chat surface.
 Read this before moving code:
 
 - `frontend.js`: split-loader entry. If an asset path changes, update the loader and `templates/chat.html` together.
-- `react/`: React migration workspace and build scripts. Keep React source under this subtree instead of a second top-level app directory.
 - `core/`: browser-wide runtime shell helpers: bootstrap payloads, icons/i18n, layout, websocket invalidation, gestures, and final app init.
 - `session/`: session-scoped fetch/update helpers, derived state, and session surface rendering.
 - `session-list/`: left sidebar task-list contract, ordering contract, list model, list UI, and sidebar shell interactions.
@@ -21,6 +20,5 @@ Boundary rules:
 - Keep model/projection separate from UI rendering.
 - Keep `session/surface-ui.js` focused on the attached session surface, not sidebar list behavior.
 - Keep browser-wide runtime helpers in `core/`, not in the root.
-- Keep React migration work inside `react/` until a domain is ready to fully replace the vanilla rendering path.
-- Treat `workbench/task-map-react.bundle.js` as generated output from `scripts/build/build-task-map-react.mjs`, not hand-edited source.
+- Treat `public/app/task-map-react.bundle.js` as generated output from `scripts/build/build-task-map-react.mjs`, not hand-edited source.
 - Before deleting any apparent duplicate or generated file, first remove its runtime path, tests, and documentation references in the same change.

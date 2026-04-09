@@ -117,7 +117,7 @@ async function main() {
   const { home } = setupTempHome();
   const port = randomPort();
   const probeName = `__compression_probe_${Date.now().toString(36)}.js`;
-  const probePath = join(repoRoot, 'frontend', probeName);
+  const probePath = join(repoRoot, 'frontend-src', probeName);
   const probeSource = `window.__MELODYSYNC_COMPRESSION_PROBE__ = "${'x'.repeat(4096)}";\n`;
   writeFileSync(probePath, probeSource, 'utf8');
 

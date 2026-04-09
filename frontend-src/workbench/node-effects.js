@@ -28,6 +28,8 @@
       status: node?.status,
       workflowState: node?.workflowState,
       activityState: node?.activityState,
+      activity: node?.activity || null,
+      busy: node?.busy === true,
       isCurrent: node?.isCurrent === true,
       isCurrentPath: node?.isCurrentPath === true,
       showIdle,

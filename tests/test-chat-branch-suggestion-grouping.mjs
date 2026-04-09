@@ -10,7 +10,7 @@ const repoRoot = dirname(__dirname);
 
 function readFrontendSource(...relativePath) {
   const candidates = [
-    join(repoRoot, 'frontend', ...relativePath),
+    join(repoRoot, 'frontend-src', ...relativePath),
     join(repoRoot, 'static', 'frontend', ...relativePath),
   ];
   const targetPath = candidates.find((candidate) => existsSync(candidate));
@@ -217,7 +217,7 @@ vm.runInNewContext(
     'globalThis.renderStatusInto = renderStatusInto;',
   ].join('\n\n'),
   context,
-  { filename: 'frontend/session/transcript-ui.js' },
+  { filename: 'frontend-src/session/transcript-ui.js' },
 );
 
 const userWrap = makeElement('div');

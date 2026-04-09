@@ -1,11 +1,15 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
+  BaseEdge,
   Handle,
+  NodeToolbar,
   Position,
   ReactFlowProvider,
   ReactFlow,
+  getBezierPath,
   useNodesState,
+  useNodesInitialized,
   useReactFlow,
 } from '@xyflow/react';
 import reactFlowCss from '@xyflow/react/dist/style.css';
@@ -55,6 +59,8 @@ const REACT_FLOW_EXTRA_CSS = `
 
 .quest-task-flow-react-canvas .react-flow__node-melody-node {
   cursor: grab;
+  overflow: visible;
+  pointer-events: all;
 }
 
 .quest-task-flow-react-canvas .react-flow__node-melody-node.dragging {
@@ -74,8 +80,50 @@ const REACT_FLOW_EXTRA_CSS = `
   position: relative;
   left: auto !important;
   top: auto !important;
+  box-sizing: border-box;
   width: 100%;
+  height: 100%;
   min-height: 100%;
+}
+
+.quest-task-flow-react-node-actions {
+  display: grid;
+  gap: 6px;
+  width: max-content;
+  max-width: min(220px, 92vw);
+}
+
+.quest-task-flow-react-node-action-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, #0b1520 10%, transparent);
+}
+
+.quest-task-flow-react-node-actions .quest-task-flow-node-action,
+.quest-task-flow-react-node-actions .quest-task-flow-branch-composer,
+.quest-task-flow-react-node-actions .quest-task-flow-reparent-composer {
+  width: 100%;
+}
+
+.quest-task-flow-react-node-actions .quest-task-flow-node-action {
+  width: auto;
+}
+
+.quest-task-flow-react-node-action-compact {
+  min-width: 32px;
+  width: 32px !important;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .quest-task-flow-react-node-shell .quest-task-flow-node-action,
@@ -90,7 +138,7 @@ const REACT_FLOW_EXTRA_CSS = `
 }
 
 .quest-task-flow-react-shell.is-mobile .react-flow__pane {
-  touch-action: pan-x pan-y pinch-zoom;
+  touch-action: manipulation;
 }
 
 .quest-task-flow-react-shell.is-mobile .quest-task-flow-node-action,
@@ -106,6 +154,21 @@ const REACT_FLOW_EXTRA_CSS = `
 .quest-task-flow-react-shell.is-mobile .quest-task-flow-reparent-confirm .quest-branch-btn,
 .quest-task-flow-react-shell.is-mobile .quest-task-flow-reparent-option {
   min-height: 36px;
+}
+
+.quest-task-flow-react-shell.is-mobile .quest-task-flow-react-node-actions {
+  width: max-content;
+  max-width: min(220px, calc(100vw - 32px));
+}
+
+.quest-task-flow-react-shell.is-mobile .quest-task-flow-react-node-action-strip {
+  gap: 8px;
+}
+
+.quest-task-flow-react-shell.is-mobile .quest-task-flow-react-node-actions .quest-task-flow-node-action,
+.quest-task-flow-react-shell.is-mobile .quest-task-flow-react-node-actions .quest-task-flow-branch-composer,
+.quest-task-flow-react-shell.is-mobile .quest-task-flow-react-node-actions .quest-task-flow-reparent-composer {
+  width: 100%;
 }
 
 .quest-task-flow-react-empty {
@@ -585,12 +648,16 @@ function createTrackerRenderer({
       status: state?.branchStatus || '',
       workflowState: state?.session?.workflowState || '',
       activityState: state?.session?.activity?.run?.state || '',
+      activity: state?.session?.activity || null,
+      busy: state?.session?.busy === true,
       isCurrent: true,
       showIdle: true,
     }) || getTaskRunStatusApi(window)?.getTaskRunStatusUi?.({
       status: state?.branchStatus || '',
       workflowState: state?.session?.workflowState || '',
       activityState: state?.session?.activity?.run?.state || '',
+      activity: state?.session?.activity || null,
+      busy: state?.session?.busy === true,
       isCurrent: true,
       showIdle: true,
     }) || { key: '', label: '', summary: '', dotClassName: '' };
@@ -1856,16 +1923,18 @@ function SessionListGroupSection({
   return (
     <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}`}>
       {showGroupHeaders ? (
-        <div
+        <button
+          type="button"
           className={`folder-group-header${isCollapsed ? ' collapsed' : ''}`}
+          aria-expanded={isCollapsed ? 'false' : 'true'}
           onClick={() => onToggleGroup?.(groupEntry?.key || '', !isCollapsed)}
         >
           <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
           <span className="folder-name" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
           <span className="folder-count">{sessions.length}</span>
-        </div>
+        </button>
       ) : null}
-      <div className="folder-group-items">
+      <div className="folder-group-items" hidden={showGroupHeaders && isCollapsed}>
         {sessions.map((session) => (
           <SessionListItemMount
             key={`group:${groupEntry?.key || 'ungrouped'}:${session?.id || Math.random()}`}
@@ -1898,15 +1967,17 @@ function ArchivedSessionSection({
 
   return (
     <div id="archivedSection" className="archived-section">
-      <div
+      <button
+        type="button"
         className={`archived-section-header${isCollapsed ? ' collapsed' : ''}`}
+        aria-expanded={isCollapsed ? 'false' : 'true'}
         onClick={() => onToggleArchived?.(!isCollapsed)}
       >
         <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
         <span className="archived-label">{archivedLabel}</span>
         <span className="folder-count">{count}</span>
-      </div>
-      <div className="archived-items">
+      </button>
+      <div className="archived-items" hidden={isCollapsed}>
         {showLoading ? (
           <div className="archived-empty">{loadingLabel}</div>
         ) : null}
@@ -1944,13 +2015,14 @@ function PersistentDockSection({
         className="persistent-dock-header"
         type="button"
         aria-label={`${label} ${safeSessions.length} 项`}
+        aria-expanded={isCollapsed ? 'false' : 'true'}
         onClick={() => onToggleSection?.(groupKey, !isCollapsed)}
       >
         <span className="persistent-dock-title">{label}</span>
         <span className="persistent-dock-count">{safeSessions.length}</span>
         <SessionListChevron className="persistent-dock-chevron" iconHtml={chevronIconHtml} />
       </button>
-      <div className="persistent-dock-body">
+      <div className="persistent-dock-body" hidden={isCollapsed}>
         {safeSessions.map((session) => (
           <SessionListItemMount
             key={`persistent:${groupKey}:${session?.id || Math.random()}`}
@@ -1987,13 +2059,14 @@ function PersistentSessionDock({
         className="persistent-dock-overview"
         type="button"
         aria-label={`${sectionTitle} ${totalCount} 项`}
+        aria-expanded={isCollapsed ? 'false' : 'true'}
         onClick={() => onToggleDock?.(!isCollapsed)}
       >
         <span className="persistent-dock-overview-title">{sectionTitle}</span>
         <span className="persistent-dock-overview-count">{totalCount}</span>
         <SessionListChevron className="persistent-dock-overview-chevron" iconHtml={chevronIconHtml} />
       </button>
-      <div className="session-list-persistent-dock-body">
+      <div className="session-list-persistent-dock-body" hidden={isCollapsed}>
         {hasLongTerm ? (
           <PersistentDockSection
             groupKey="group:long-term"
@@ -2215,17 +2288,17 @@ function getTaskFlowNodeStatusUi(windowRef, node) {
 function getProjectedTaskFlowConfig(isMobileQuestTracker = () => false) {
   const mobile = isMobileQuestTracker() === true;
   return {
-    nodeWidth: mobile ? 152 : 188,
-    rootWidth: mobile ? 176 : 224,
-    richNodeWidth: mobile ? 166 : 210,
-    nodeHeight: mobile ? 88 : 100,
-    rootHeight: mobile ? 98 : 118,
-    candidateHeight: mobile ? 108 : 126,
-    richNodeHeight: mobile ? 108 : 132,
-    levelGap: mobile ? 98 : 122,
-    siblingGap: mobile ? 18 : 22,
-    paddingX: mobile ? 144 : 240,
-    paddingY: mobile ? 112 : 176,
+    nodeWidth: mobile ? 148 : 182,
+    rootWidth: mobile ? 170 : 216,
+    richNodeWidth: mobile ? 162 : 204,
+    nodeHeight: mobile ? 84 : 96,
+    rootHeight: mobile ? 94 : 112,
+    candidateHeight: mobile ? 98 : 116,
+    richNodeHeight: mobile ? 102 : 124,
+    levelGap: mobile ? 72 : 88,
+    siblingGap: mobile ? 14 : 18,
+    paddingX: mobile ? 76 : 132,
+    paddingY: mobile ? 54 : 84,
   };
 }
 
@@ -2520,6 +2593,7 @@ function buildBoardSnapshot({
       focusable: false,
       style: {
         width: `${Math.ceil(entry.nodeWidth)}px`,
+        height: `${Math.ceil(entry.nodeHeight)}px`,
         minHeight: `${Math.ceil(entry.nodeHeight)}px`,
       },
       data: {
@@ -2565,20 +2639,20 @@ function buildBoardSnapshot({
       },
     }));
 
-  const focusNodeIds = flowNodes
-    .filter((node) => node?.data?.node?.isCurrent)
-    .map((node) => node.id);
   const pathNodeIds = flowNodes
     .filter((node) => node?.data?.node?.isCurrentPath)
+    .map((node) => node.id);
+  const focusNodeIds = flowNodes
+    .filter((node) => node?.data?.node?.isCurrent)
     .map((node) => node.id);
 
   return {
     nodes: flowNodes,
     edges: flowEdges,
     hasOnlyRoot: entries.length <= 1,
-    focusNodeIds: focusNodeIds.length > 0
-      ? focusNodeIds
-      : (pathNodeIds.length > 0 ? pathNodeIds : [trimText(rootNode.id)]),
+    focusNodeIds: pathNodeIds.length > 0
+      ? pathNodeIds
+      : (focusNodeIds.length > 0 ? focusNodeIds : [trimText(rootNode.id)]),
   };
 }
 
@@ -2594,21 +2668,31 @@ function stopPropagation(event) {
 function MelodyEdge({
   sourceX,
   sourceY,
+  sourcePosition,
   targetX,
   targetY,
+  targetPosition,
   data,
 }) {
-  const midY = sourceY + ((targetY - sourceY) * 0.48);
   const className = [
     'react-flow__edge-path',
     'quest-task-flow-edge',
     data?.current === true ? 'is-current' : '',
     data?.variant === 'suggestion' ? 'is-candidate' : '',
   ].filter(Boolean).join(' ');
+  const [edgePath] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    curvature: 0.32,
+  });
   return (
-    <path
+    <BaseEdge
       className={className}
-      d={`M ${sourceX} ${sourceY} V ${midY} H ${targetX} V ${targetY}`}
+      path={edgePath}
     />
   );
 }
@@ -2793,12 +2877,30 @@ function MelodyNode({ data }) {
       <Handle
         type="target"
         position={Position.Top}
-        style={{ opacity: 0, pointerEvents: 'none', width: 1, height: 1, border: 0, background: 'transparent' }}
+        style={{
+          opacity: 0,
+          pointerEvents: 'none',
+          minWidth: 0,
+          minHeight: 0,
+          width: 0,
+          height: 0,
+          border: 0,
+          background: 'transparent',
+        }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ opacity: 0, pointerEvents: 'none', width: 1, height: 1, border: 0, background: 'transparent' }}
+        style={{
+          opacity: 0,
+          pointerEvents: 'none',
+          minWidth: 0,
+          minHeight: 0,
+          width: 0,
+          height: 0,
+          border: 0,
+          background: 'transparent',
+        }}
       />
       <div className={className} onClick={handleBodyClick}>
         {badgeLabel ? <div className={badgeClassName}>{badgeLabel}</div> : null}
@@ -2818,172 +2920,200 @@ function MelodyNode({ data }) {
         ) : null}
 
         {canCreateManualBranch ? (
-          <button
-            type="button"
-            className="quest-branch-btn quest-branch-btn-secondary quest-task-flow-node-action quest-task-flow-node-action-secondary nodrag nopan"
-            onPointerDown={stopPropagation}
-            onClick={openManualComposer}
-            hidden={manualComposerOpen}
-            disabled={reparentBusy || manualBusy}
-          >
-            新建支线
-          </button>
+          null
         ) : null}
 
         {canReparentSession ? (
-          <button
-            type="button"
-            className="quest-branch-btn quest-branch-btn-secondary quest-task-flow-node-action quest-task-flow-node-action-secondary nodrag nopan"
-            onPointerDown={stopPropagation}
-            onClick={openReparentComposer}
-            hidden={reparentComposerOpen}
-            disabled={manualBusy || reparentBusy}
-          >
-            挂到...
-          </button>
-        ) : null}
-
-        {manualComposerOpen ? (
-          <div
-            className="quest-task-flow-branch-composer nodrag nopan"
-            onPointerDown={stopPropagation}
-            onClick={stopPropagation}
-          >
-            <input
-              ref={manualInputRef}
-              type="text"
-              className="quest-task-flow-branch-input nodrag nopan"
-              placeholder="输入支线标题"
-              aria-label="支线标题"
-              value={branchTitle}
-              onChange={(event) => setBranchTitle(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  void confirmManualBranch(event);
-                } else if (event.key === 'Escape') {
-                  stopEvent(event);
-                  rendererApi?.setActiveComposer?.(null);
-                }
-              }}
-              disabled={manualBusy}
-            />
-            <div className="quest-task-flow-branch-actions">
-              <button
-                type="button"
-                className="quest-branch-btn quest-branch-btn-primary nodrag nopan"
-                onPointerDown={stopPropagation}
-                onClick={confirmManualBranch}
-                disabled={manualBusy}
-              >
-                开启
-              </button>
-              <button
-                type="button"
-                className="quest-branch-btn quest-branch-btn-secondary nodrag nopan"
-                onPointerDown={stopPropagation}
-                onClick={(event) => {
-                  stopEvent(event);
-                  rendererApi?.setActiveComposer?.(null);
-                }}
-                disabled={manualBusy}
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {reparentComposerOpen ? (
-          <div
-            className="quest-task-flow-reparent-composer nodrag nopan"
-            onPointerDown={stopPropagation}
-            onClick={stopPropagation}
-          >
-            <input
-              ref={reparentInputRef}
-              type="text"
-              className="quest-task-flow-branch-input nodrag nopan"
-              placeholder="搜索任务标题或路径"
-              aria-label="挂靠目标"
-              value={reparentQuery}
-              onChange={(event) => setReparentQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  stopEvent(event);
-                  rendererApi?.setActiveComposer?.(null);
-                } else if (event.key === 'Enter' && selectedTarget) {
-                  void confirmReparent(event);
-                }
-              }}
-              disabled={reparentBusy}
-            />
-            <div className="quest-task-flow-reparent-list">
-              {filteredTargets.length > 0 ? filteredTargets.map((entry) => {
-                const optionKey = `${entry.mode}:${entry.sessionId || ''}`;
-                return (
-                  <button
-                    key={optionKey}
-                    type="button"
-                    className={`quest-task-flow-reparent-option nodrag nopan${reparentSelectionKey === optionKey ? ' is-selected' : ''}`}
-                    onPointerDown={stopPropagation}
-                    onClick={(event) => {
-                      stopEvent(event);
-                      setReparentSelectionKey(optionKey);
-                    }}
-                  >
-                    <div className="quest-task-flow-reparent-option-title">{entry.title || '未命名任务'}</div>
-                    <div className="quest-task-flow-reparent-option-path">{entry.displayPath || entry.path || '顶层任务'}</div>
-                  </button>
-                );
-              }) : (
-                <div className="quest-task-flow-reparent-empty">没有可挂靠的任务</div>
-              )}
-            </div>
-            <div className="quest-task-flow-reparent-confirm" hidden={!selectedTarget}>
-              <div className="quest-task-flow-reparent-confirm-text">
-                {selectedTarget
-                  ? (selectedTarget.mode === 'detach'
-                      ? '移出后会恢复为主线'
-                      : `挂到「${selectedTarget.path && selectedTarget.path !== '顶层任务' ? selectedTarget.path : (selectedTarget.title || '目标任务')}」下，会保留当前下级结构`)
-                  : ''}
-              </div>
-              <div className="quest-task-flow-branch-actions">
-                <button
-                  type="button"
-                  className="quest-branch-btn quest-branch-btn-primary nodrag nopan"
-                  onPointerDown={stopPropagation}
-                  onClick={confirmReparent}
-                  disabled={reparentBusy || !selectedTarget}
-                >
-                  确认
-                </button>
-                <button
-                  type="button"
-                  className="quest-branch-btn quest-branch-btn-secondary nodrag nopan"
-                  onPointerDown={stopPropagation}
-                  onClick={(event) => {
-                    stopEvent(event);
-                    rendererApi?.setActiveComposer?.(null);
-                  }}
-                  disabled={reparentBusy}
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
+          null
         ) : null}
       </div>
+      {(canCreateManualBranch || canReparentSession || manualComposerOpen || reparentComposerOpen) ? (
+        <NodeToolbar
+          isVisible
+          position={Position.Bottom}
+          offset={4}
+          align="center"
+        >
+          <div
+            className="quest-task-flow-react-node-actions nodrag nopan"
+            onPointerDown={stopEvent}
+            onClick={stopPropagation}
+          >
+            {(canCreateManualBranch || canReparentSession) ? (
+              <div className="quest-task-flow-react-node-action-strip">
+                {canCreateManualBranch ? (
+                  <button
+                    type="button"
+                    className="quest-branch-btn quest-branch-btn-secondary quest-task-flow-node-action quest-task-flow-node-action-compact nodrag nopan"
+                    onPointerDown={stopEvent}
+                    onClick={openManualComposer}
+                    hidden={manualComposerOpen}
+                    disabled={reparentBusy || manualBusy}
+                    title="新建支线"
+                    aria-label="新建支线"
+                  >
+                    +
+                  </button>
+                ) : null}
+
+                {canReparentSession ? (
+                  <button
+                    type="button"
+                    className="quest-branch-btn quest-branch-btn-secondary quest-task-flow-node-action nodrag nopan"
+                    onPointerDown={stopEvent}
+                    onClick={openReparentComposer}
+                    hidden={reparentComposerOpen}
+                    disabled={manualBusy || reparentBusy}
+                  >
+                    挂到
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {manualComposerOpen ? (
+              <div
+                className="quest-task-flow-branch-composer nodrag nopan"
+                onPointerDown={stopEvent}
+                onClick={stopPropagation}
+              >
+                <input
+                  ref={manualInputRef}
+                  type="text"
+                  className="quest-task-flow-branch-input nodrag nopan"
+                  placeholder="输入支线标题"
+                  aria-label="支线标题"
+                  value={branchTitle}
+                  onChange={(event) => setBranchTitle(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      void confirmManualBranch(event);
+                    } else if (event.key === 'Escape') {
+                      stopEvent(event);
+                      rendererApi?.setActiveComposer?.(null);
+                    }
+                  }}
+                  disabled={manualBusy}
+                />
+                <div className="quest-task-flow-branch-actions">
+                  <button
+                    type="button"
+                    className="quest-branch-btn quest-branch-btn-primary nodrag nopan"
+                    onPointerDown={stopEvent}
+                    onClick={confirmManualBranch}
+                    disabled={manualBusy}
+                  >
+                    开启
+                  </button>
+                  <button
+                    type="button"
+                    className="quest-branch-btn quest-branch-btn-secondary nodrag nopan"
+                    onPointerDown={stopEvent}
+                    onClick={(event) => {
+                      stopEvent(event);
+                      rendererApi?.setActiveComposer?.(null);
+                    }}
+                    disabled={manualBusy}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {reparentComposerOpen ? (
+              <div
+                className="quest-task-flow-reparent-composer nodrag nopan"
+                onPointerDown={stopEvent}
+                onClick={stopPropagation}
+              >
+                <input
+                  ref={reparentInputRef}
+                  type="text"
+                  className="quest-task-flow-branch-input nodrag nopan"
+                  placeholder="搜索任务标题或路径"
+                  aria-label="挂靠目标"
+                  value={reparentQuery}
+                  onChange={(event) => setReparentQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      stopEvent(event);
+                      rendererApi?.setActiveComposer?.(null);
+                    } else if (event.key === 'Enter' && selectedTarget) {
+                      void confirmReparent(event);
+                    }
+                  }}
+                  disabled={reparentBusy}
+                />
+                <div className="quest-task-flow-reparent-list">
+                  {filteredTargets.length > 0 ? filteredTargets.map((entry) => {
+                    const optionKey = `${entry.mode}:${entry.sessionId || ''}`;
+                    return (
+                      <button
+                        key={optionKey}
+                        type="button"
+                        className={`quest-task-flow-reparent-option nodrag nopan${reparentSelectionKey === optionKey ? ' is-selected' : ''}`}
+                        onPointerDown={stopEvent}
+                        onClick={(event) => {
+                          stopEvent(event);
+                          setReparentSelectionKey(optionKey);
+                        }}
+                      >
+                        <div className="quest-task-flow-reparent-option-title">{entry.title || '未命名任务'}</div>
+                        <div className="quest-task-flow-reparent-option-path">{entry.displayPath || entry.path || '顶层任务'}</div>
+                      </button>
+                    );
+                  }) : (
+                    <div className="quest-task-flow-reparent-empty">没有可挂靠的任务</div>
+                  )}
+                </div>
+                <div className="quest-task-flow-reparent-confirm" hidden={!selectedTarget}>
+                  <div className="quest-task-flow-reparent-confirm-text">
+                    {selectedTarget
+                      ? (selectedTarget.mode === 'detach'
+                          ? '移出后会恢复为主线'
+                          : `挂到「${selectedTarget.path && selectedTarget.path !== '顶层任务' ? selectedTarget.path : (selectedTarget.title || '目标任务')}」下，会保留当前下级结构`)
+                      : ''}
+                  </div>
+                  <div className="quest-task-flow-branch-actions">
+                    <button
+                      type="button"
+                      className="quest-branch-btn quest-branch-btn-primary nodrag nopan"
+                      onPointerDown={stopEvent}
+                      onClick={confirmReparent}
+                      disabled={reparentBusy || !selectedTarget}
+                    >
+                      确认
+                    </button>
+                    <button
+                      type="button"
+                      className="quest-branch-btn quest-branch-btn-secondary nodrag nopan"
+                      onPointerDown={stopEvent}
+                      onClick={(event) => {
+                        stopEvent(event);
+                        rendererApi?.setActiveComposer?.(null);
+                      }}
+                      disabled={reparentBusy}
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </NodeToolbar>
+      ) : null}
     </div>
   );
 }
 
-function FlowViewportSync({ nodes = [], focusNodeIds = [], isMobile = false }) {
+function FlowViewportSync({ nodes = [], focusNodeIds = [], viewportKey = '', isMobile = false }) {
   const reactFlow = useReactFlow();
-  const nodeSignature = nodes.map((node) => node.id).join('|');
-  const focusSignature = focusNodeIds.join('|');
+  const nodesInitialized = useNodesInitialized();
 
   useLayoutEffect(() => {
+    if (!nodesInitialized) return undefined;
     if (!Array.isArray(nodes) || nodes.length === 0) return;
     const focusTargets = focusNodeIds.length > 0
       ? focusNodeIds.map((id) => ({ id }))
@@ -2994,9 +3124,9 @@ function FlowViewportSync({ nodes = [], focusNodeIds = [], isMobile = false }) {
     const run = () => {
       reactFlow.fitView({
         nodes: focusTargets,
-        padding: focusNodeIds.length > 0 ? (isMobile ? 0.26 : 0.24) : (isMobile ? 0.34 : 0.3),
+        padding: focusNodeIds.length > 0 ? (isMobile ? 0.14 : 0.16) : (isMobile ? 0.2 : 0.22),
         duration: 0,
-        minZoom: isMobile ? 0.52 : 0.38,
+        minZoom: isMobile ? 0.62 : 0.42,
         maxZoom: 1.22,
         includeHiddenNodes: true,
       });
@@ -3007,7 +3137,7 @@ function FlowViewportSync({ nodes = [], focusNodeIds = [], isMobile = false }) {
     }
     run();
     return undefined;
-  }, [reactFlow, nodeSignature, focusSignature, isMobile]);
+  }, [reactFlow, viewportKey, isMobile, nodesInitialized]);
 
   return null;
 }
@@ -3035,6 +3165,8 @@ function TaskFlowBoard({
     readTaskMapLayoutPositions(layoutStorage, layoutStorageKey),
     currentNodeIds,
   ));
+  const previousTopologyKeyRef = useRef('');
+  const effectiveLayoutPositions = interactionConfig.nodesDraggable ? layoutPositions : null;
   const snapshot = buildBoardSnapshot({
     activeQuest,
     nodeMap,
@@ -3045,10 +3177,24 @@ function TaskFlowBoard({
       activeComposer,
       setActiveComposer,
     },
-    positionOverrides: layoutPositions,
+    positionOverrides: effectiveLayoutPositions,
   });
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(snapshot.nodes);
+  const topologyKey = [
+    snapshot.nodes
+      .map((node) => `${node.id}:${trimText(node?.data?.node?.parentNodeId || '')}`)
+      .sort()
+      .join('|'),
+    snapshot.edges
+      .map((edge) => `${trimText(edge?.source || '')}>${trimText(edge?.target || '')}`)
+      .sort()
+      .join('|'),
+  ].join('||');
+  const activeComposerKey = activeComposer
+    ? `${trimText(activeComposer.type)}:${trimText(activeComposer.nodeId)}`
+    : '';
   const snapshotStateKey = [
+    activeComposerKey,
     snapshot.nodes.map((node) => [
       node.id,
       node.position.x,
@@ -3058,6 +3204,8 @@ function TaskFlowBoard({
       node.data?.className || '',
       node.data?.badgeLabel || '',
       node.data?.primaryAction || '',
+      node.data?.canCreateManualBranch === true ? '1' : '0',
+      node.data?.canReparentSession === true ? '1' : '0',
     ].join(':')).join('|'),
     snapshot.edges.map((edge) => [
       edge.id,
@@ -3072,7 +3220,24 @@ function TaskFlowBoard({
     setFlowNodes(snapshot.nodes);
   }, [setFlowNodes, snapshotStateKey]);
 
+  useEffect(() => {
+    const previousTopologyKey = previousTopologyKeyRef.current;
+    previousTopologyKeyRef.current = topologyKey;
+    if (!previousTopologyKey || previousTopologyKey === topologyKey) return;
+    if (Object.keys(layoutPositions || {}).length === 0) return;
+    setLayoutPositions({});
+    writeTaskMapLayoutPositions(layoutStorage, layoutStorageKey, {});
+  }, [topologyKey, layoutPositions, layoutStorage, layoutStorageKey]);
+
+  useEffect(() => {
+    if (interactionConfig.nodesDraggable) return;
+    if (Object.keys(layoutPositions || {}).length === 0) return;
+    setLayoutPositions({});
+    writeTaskMapLayoutPositions(layoutStorage, layoutStorageKey, {});
+  }, [interactionConfig.nodesDraggable, layoutPositions, layoutStorage, layoutStorageKey]);
+
   function persistNodePositions(nextNodes = []) {
+    if (!interactionConfig.nodesDraggable) return;
     const nextNodeMap = new Map(
       (Array.isArray(flowNodes) ? flowNodes : [])
         .filter((node) => trimText(node?.id))
@@ -3138,7 +3303,6 @@ function TaskFlowBoard({
             fitView={false}
             minZoom={interactionConfig.minZoom}
             maxZoom={interactionConfig.maxZoom}
-            onlyRenderVisibleElements
             proOptions={{ hideAttribution: true }}
             nodeDragThreshold={interactionConfig.nodeDragThreshold}
             onPaneClick={() => setActiveComposer(null)}
@@ -3146,6 +3310,7 @@ function TaskFlowBoard({
             <FlowViewportSync
               nodes={flowNodes}
               focusNodeIds={snapshot.focusNodeIds}
+              viewportKey={topologyKey}
               isMobile={rendererApi?.isMobileQuestTracker?.() === true}
             />
           </ReactFlow>

@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 function readWorkbenchFrontendSource(filename) {
   const candidates = [
-    join(repoRoot, 'frontend', 'workbench', filename),
+    join(repoRoot, 'frontend-src', 'workbench', filename),
     join(repoRoot, 'static', 'frontend', 'workbench', filename),
   ];
   const targetPath = candidates.find((candidate) => existsSync(candidate));
@@ -22,8 +22,12 @@ function readWorkbenchFrontendSource(filename) {
 const nodeContractSource = readWorkbenchFrontendSource('node-contract.js');
 const taskRunStatusSource = readWorkbenchFrontendSource('task-run-status.js');
 const nodeEffectsSource = readWorkbenchFrontendSource('node-effects.js');
-const taskMapUiLegacySource = readWorkbenchFrontendSource('task-map-ui-legacy.js');
 const taskMapUiSource = readWorkbenchFrontendSource('task-map-ui.js');
+const taskMapReactBundleSource = readFileSync(join(repoRoot, 'public', 'app', 'task-map-react.bundle.js'), 'utf8');
+const taskMapReactSource = readFileSync(
+  join(repoRoot, 'frontend-src', 'workbench', 'task-map-react-ui.jsx'),
+  'utf8',
+);
 
 function makeClassList(owner) {
   const tokens = new Set();
@@ -211,7 +215,7 @@ context.window.document = context.document;
 vm.runInNewContext(nodeContractSource, context, { filename: 'workbench/node-contract.js' });
 vm.runInNewContext(taskRunStatusSource, context, { filename: 'workbench/task-run-status.js' });
 vm.runInNewContext(nodeEffectsSource, context, { filename: 'workbench/node-effects.js' });
-vm.runInNewContext(taskMapUiLegacySource, context, { filename: 'workbench/task-map-ui-legacy.js' });
+vm.runInNewContext(taskMapReactBundleSource, context, { filename: 'workbench/task-map-react.bundle.js' });
 vm.runInNewContext(taskMapUiSource, context, { filename: 'workbench/task-map-ui.js' });
 
 const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
@@ -234,8 +238,8 @@ const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
   },
 });
 
-assert.equal(renderer.rendererKind, 'legacy-dom', 'adapter should report the active legacy fallback renderer in isolated tests');
-assert.equal(renderer.getRendererKind(), 'legacy-dom', 'renderer kind helper should stay consistent with the adapter metadata');
+assert.equal(renderer.rendererKind, 'react-flow', 'adapter should report the shared React renderer in isolated tests');
+assert.equal(renderer.getRendererKind(), 'react-flow', 'renderer kind helper should stay consistent with the adapter metadata');
 
 context.window.MelodySyncTaskMapReactUi = {
   createRenderer() {
@@ -258,6 +262,31 @@ const reactRenderer = context.window.MelodySyncTaskMapUi.createRenderer({
 });
 assert.equal(reactRenderer.rendererKind, 'react-flow', 'adapter should prefer the shared React Flow renderer when it is available');
 assert.equal(reactRenderer.getRendererKind(), 'react-flow', 'react renderer metadata should stay queryable for diagnostics');
+assert.doesNotMatch(
+  taskMapReactSource,
+  /const edgeInset = \d+/,
+  'react task-map edges should not add a synthetic inset that leaves a gap from the node handle',
+);
+assert.match(
+  taskMapReactSource,
+  /style:\s*\{\s*width:\s*`\$\{Math\.ceil\(entry\.nodeWidth\)\}px`,\s*height:\s*`\$\{Math\.ceil\(entry\.nodeHeight\)\}px`,\s*minHeight:\s*`\$\{Math\.ceil\(entry\.nodeHeight\)\}px`,\s*\}/s,
+  'react task-map nodes should render at the same fixed height used by the layout engine so edges connect to the visible card edge',
+);
+assert.match(
+  taskMapReactSource,
+  /getBezierPath\(\{\s*sourceX,\s*sourceY,\s*sourcePosition,\s*targetX,\s*targetY,\s*targetPosition,\s*curvature: 0\.32,\s*\}\)/s,
+  'react task-map edges should use the raw handle coordinates so the line stays flush with the node',
+);
+assert.match(
+  taskMapReactSource,
+  /type="target"[\s\S]*?minWidth: 0,[\s\S]*?minHeight: 0,[\s\S]*?width: 0,[\s\S]*?height: 0/s,
+  'react task-map target handles should collapse to a zero-size anchor so the edge does not float above the node',
+);
+assert.match(
+  taskMapReactSource,
+  /type="source"[\s\S]*?minWidth: 0,[\s\S]*?minHeight: 0,[\s\S]*?width: 0,[\s\S]*?height: 0/s,
+  'react task-map source handles should collapse to a zero-size anchor so the edge does not float below the node',
+);
 
 const rootNode = {
   id: 'session:main-1',

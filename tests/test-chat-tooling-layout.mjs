@@ -142,7 +142,7 @@ const mobileHarness = createContext({
   innerHeight: 812,
   visualHeight: 812,
 });
-vm.runInNewContext(responsiveSource, mobileHarness.context, { filename: 'frontend/core/layout-tooling.js' });
+vm.runInNewContext(responsiveSource, mobileHarness.context, { filename: 'frontend-src/core/layout-tooling.js' });
 
 assert.ok(mobileHarness.context.window.MelodySyncLayout, 'tooling should expose a single shared layout controller');
 
@@ -187,7 +187,7 @@ const desktopHarness = createContext({
   innerHeight: 900,
   visualHeight: 900,
 });
-vm.runInNewContext(responsiveSource, desktopHarness.context, { filename: 'frontend/core/layout-tooling.js' });
+vm.runInNewContext(responsiveSource, desktopHarness.context, { filename: 'frontend-src/core/layout-tooling.js' });
 desktopHarness.context.sidebarOverlay.classList.add('open');
 desktopHarness.context.sidebarOverlay.classList.add('collapsed');
 desktopHarness.context.initResponsiveLayout();
