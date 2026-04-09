@@ -55,6 +55,11 @@ MelodySync is now an owner-operated AI task workspace.
 - resolves attachment references for HTTP message posts
 - submits session turns through the canonical session/run path without keeping that orchestration in the route
 
+`backend/services/session/message-submission-service.mjs`
+
+- owns the canonical submit-message/run-start flow used by manager, follow-up queue flushes, branching, and persistent-session execution
+- keeps busy-session queueing, prompt assembly, run creation, and first-user-turn side effects out of the manager entry surface
+
 `backend/controllers/session/post-routes.mjs`
 
 - handles session creation plus POST-based session actions such as message submit, delegate, fork, and persistent-run entrypoints

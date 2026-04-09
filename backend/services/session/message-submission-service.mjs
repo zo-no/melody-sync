@@ -127,7 +127,7 @@ export function createSessionMessageSubmissionService({
         return true;
       });
       const wasDuplicateQueueInsert = queuedMeta.changed === false;
-      if (!hasActiveRun && !hasPendingCompact) {
+      if (!wasDuplicateQueueInsert) {
         scheduleQueuedFollowUpDispatch(sessionId);
       }
       broadcastSessionInvalidation(sessionId);
