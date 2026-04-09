@@ -55,6 +55,15 @@ MelodySync is now an owner-operated AI task workspace.
 - resolves attachment references for HTTP message posts
 - submits session turns through the canonical session/run path without keeping that orchestration in the route
 
+`backend/controllers/workbench/read-routes.mjs`
+
+- handles workbench HTTP reads including tracker, task-map, and legacy node-definition aliases
+
+`backend/controllers/workbench/write-routes.mjs`
+
+- handles workbench HTTP mutations and legacy node-definition writes
+- keeps request parsing and mutation branching out of the route export shim
+
 `backend/services/system/page-build-service.mjs`
 
 - computes service/frontend build metadata
