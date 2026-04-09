@@ -3,15 +3,39 @@ import { homedir } from 'os';
 import { join, resolve, dirname, basename } from 'path';
 
 import { getAuthSession, refreshAuthSession } from '../../lib/auth.mjs';
+import { CHAT_IMAGES_DIR } from '../../lib/config.mjs';
 import { saveUiRuntimeSelection } from '../../lib/runtime-selection.mjs';
 import { getAvailableToolsAsync } from '../../lib/tools.mjs';
 import { readBody } from '../../lib/utils.mjs';
 
 import { playHostCompletionSound } from '../completion-sound.mjs';
+import { pathExists, statOrNull } from '../fs-utils.mjs';
 import { getModelsForTool } from '../models.mjs';
 import { getPublicKey, addSubscription } from '../push.mjs';
 import { enqueueHostCompletionSpeech } from '../completion-speech-queue.mjs';
 import { buildAuthInfo } from '../views/system/auth.mjs';
+
+const uploadedMediaMimeTypes = {
+  gif: 'image/gif',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  json: 'application/json',
+  m4a: 'audio/mp4',
+  m4v: 'video/x-m4v',
+  md: 'text/markdown; charset=utf-8',
+  mov: 'video/quicktime',
+  mp3: 'audio/mpeg',
+  mp4: 'video/mp4',
+  ogg: 'audio/ogg',
+  ogv: 'video/ogg',
+  pdf: 'application/pdf',
+  png: 'image/png',
+  txt: 'text/plain; charset=utf-8',
+  wav: 'audio/wav',
+  webm: 'video/webm',
+  webp: 'image/webp',
+  zip: 'application/zip',
+};
 
 function jsonError(writeJson, res, statusCode, message) {
   writeJson(res, statusCode, { error: message });
@@ -22,6 +46,10 @@ function getQueryValue(value, fallback = '') {
   return typeof value === 'string' ? value : fallback;
 }
 
+async function isDirectoryPath(path) {
+  return (await statOrNull(path))?.isDirectory() === true;
+}
+
 export async function handleSystemRoutes({
   req,
   res,
@@ -30,10 +58,6 @@ export async function handleSystemRoutes({
   writeJson,
   writeJsonCached,
   writeFileCached,
-  isDirectoryPath,
-  pathExists,
-  chatImagesDir,
-  uploadedMediaMimeTypes,
   getAuthSession: getAuthSessionImpl = getAuthSession,
   playHostCompletionSound: playHostCompletionSoundImpl = playHostCompletionSound,
 }) {
@@ -132,7 +156,7 @@ export async function handleSystemRoutes({
       res.end('Invalid filename');
       return true;
     }
-    const filepath = join(chatImagesDir, filename);
+    const filepath = join(CHAT_IMAGES_DIR, filename);
     if (!await pathExists(filepath)) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('Not found');

@@ -1,5 +1,4 @@
 import { parse as parseUrl } from 'url';
-import { CHAT_IMAGES_DIR } from '../lib/config.mjs';
 import {
   getAuthSession, refreshAuthSession,
 } from '../lib/auth.mjs';
@@ -14,7 +13,6 @@ import {
   getClientIp, isRateLimited, recordFailedAttempt, clearFailedAttempts,
   setSecurityHeaders, generateNonce, requireAuth,
 } from './middleware.mjs';
-import { pathExists, statOrNull } from './fs-utils.mjs';
 import { handlePublicRoutes } from './routes/public.mjs';
 import { handleAssetRoutes } from './routes/assets.mjs';
 import { handleRunRoutes } from './routes/runs.mjs';
@@ -41,28 +39,6 @@ import {
   getFileAsset,
   getFileAssetForClient,
 } from './file-assets.mjs';
-
-const uploadedMediaMimeTypes = {
-  gif: 'image/gif',
-  jpeg: 'image/jpeg',
-  jpg: 'image/jpeg',
-  json: 'application/json',
-  m4a: 'audio/mp4',
-  m4v: 'video/x-m4v',
-  md: 'text/markdown; charset=utf-8',
-  mov: 'video/quicktime',
-  mp3: 'audio/mpeg',
-  mp4: 'video/mp4',
-  ogg: 'audio/ogg',
-  ogv: 'video/ogg',
-  pdf: 'application/pdf',
-  png: 'image/png',
-  txt: 'text/plain; charset=utf-8',
-  wav: 'audio/wav',
-  webm: 'video/webm',
-  webp: 'image/webp',
-  zip: 'application/zip',
-};
 
 const {
   prepareResponseBody,
@@ -93,19 +69,6 @@ function requireSessionAccess(res, authSession, sessionId, writeJsonFn = writeJs
   if (canAccessSession(authSession, sessionId)) return true;
   writeJsonFn(res, 403, { error: 'Access denied' });
   return false;
-}
-
-async function isDirectoryPath(path) {
-  return (await statOrNull(path))?.isDirectory() === true;
-}
-
-function parseFileAssetRoute(pathname) {
-  const match = /^\/api\/assets\/(fasset_[a-f0-9]{24})(?:\/(download|finalize))?$/.exec(pathname || '');
-  if (!match) return null;
-  return {
-    assetId: match[1],
-    action: match[2] || null,
-  };
 }
 
 export async function handleRequest(req, res) {
@@ -158,13 +121,11 @@ export async function handleRequest(req, res) {
   // ---- API endpoints ----
 
   const sessionGetRoute = req.method === 'GET' ? parseSessionGetRoute(pathname) : null;
-  const fileAssetRoute = parseFileAssetRoute(pathname);
 
   if (await handleAssetRoutes({
     req,
     res,
     pathname,
-    fileAssetRoute,
     authSession,
     requireSessionAccess: requireSessionAccessForReq,
     createFileAssetUploadIntent,
@@ -250,10 +211,6 @@ export async function handleRequest(req, res) {
     writeJson: writeJsonForReq,
     writeJsonCached,
     writeFileCached,
-    isDirectoryPath,
-    pathExists,
-    chatImagesDir: CHAT_IMAGES_DIR,
-    uploadedMediaMimeTypes,
   })) {
     return;
   }
