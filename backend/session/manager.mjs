@@ -1601,6 +1601,47 @@ function resolveResumeState(toolId, session, options = {}) {
   };
 }
 
+function hasPersistedResumeState(toolId, session) {
+  const tool = typeof toolId === 'string' ? toolId.trim() : '';
+  if (tool === 'claude') {
+    return typeof session?.claudeSessionId === 'string' && session.claudeSessionId.trim().length > 0;
+  }
+  if (tool === 'codex') {
+    return typeof session?.codexThreadId === 'string' && session.codexThreadId.trim().length > 0;
+  }
+  return false;
+}
+
+function isEarlyProviderStartupFailure(run, toolId) {
+  if (!run || run.tool !== toolId) return false;
+  if (run.state !== 'failed') return false;
+
+  const normalizedEventCount = Number.isInteger(run.normalizedEventCount)
+    ? run.normalizedEventCount
+    : 0;
+  const hasNoStructuredOutput = normalizedEventCount === 0;
+  const neverStartedToolProcess = !Number.isInteger(run.toolProcessId);
+  const neverStartedRun = !run.startedAt;
+  if (!(hasNoStructuredOutput && neverStartedToolProcess && neverStartedRun)) {
+    return false;
+  }
+
+  const failureReason = typeof run.failureReason === 'string' ? run.failureReason.trim() : '';
+  if (!failureReason) return true;
+  return /Provider exited without emitting structured events|Process exited with code 1/i.test(failureReason);
+}
+
+async function shouldResetProviderResumeState(toolId, session, activeRun, options = {}) {
+  if (options.freshThread === true) return false;
+  if (!hasPersistedResumeState(toolId, session)) return false;
+
+  if (toolId === 'codex' && await shouldResetCodexResumeThread(session, options)) {
+    return true;
+  }
+
+  return isEarlyProviderStartupFailure(activeRun, toolId);
+}
+
 async function shouldResetCodexResumeThread(session, options = {}) {
   if (options.freshThread === true) return false;
   const codexThreadId = typeof session?.codexThreadId === 'string' ? session.codexThreadId.trim() : '';
@@ -3579,11 +3620,19 @@ export async function submitHttpMessage(sessionId, text, images, options = {}) {
   const snapshot = await getHistorySnapshot(sessionId);
   const previousTool = session.tool;
   const effectiveTool = options.tool || session.tool;
-  if (effectiveTool === 'codex' && await shouldResetCodexResumeThread(session, options)) {
+  if (await shouldResetProviderResumeState(effectiveTool, session, activeRun, options)) {
     options = { ...options, freshThread: true };
     const updatedResumeMeta = await mutateSessionMeta(sessionId, (draft) => {
-      if (!draft.codexThreadId) return false;
-      delete draft.codexThreadId;
+      let changed = false;
+      if (draft.codexThreadId) {
+        delete draft.codexThreadId;
+        changed = true;
+      }
+      if (draft.claudeSessionId) {
+        delete draft.claudeSessionId;
+        changed = true;
+      }
+      if (!changed) return false;
       draft.updatedAt = nowIso();
       return true;
     });

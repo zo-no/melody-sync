@@ -14,11 +14,9 @@ import { saveUiRuntimeSelection } from '../lib/runtime-selection.mjs';
 import {
   deleteSessionPermanently,
   getHistory,
-  getSession,
   getSessionEventsAfter,
   getSessionSourceContext,
   getSessionTimelineEvents,
-  listSessions,
   renameSession,
   promoteSessionToPersistent,
   runSessionPersistent,
@@ -37,9 +35,18 @@ import {
 } from './session/workflow-state.mjs';
 import { appendEvent, readEventBody } from './history.mjs';
 import { messageEvent } from './normalizer.mjs';
-import { createSessionDetail, createSessionListItem } from './session/api-shapes.mjs';
 import { buildEventBlockEvents, buildSessionDisplayEvents } from './session/display-events.mjs';
+import {
+  getSessionForClient,
+  getSessionListItemForClient,
+  listSessionListItemsForClient,
+  listSessionsForClient,
+} from './services/session/client-session-service.mjs';
 import { parseSessionGetRoute } from './session/route-utils.mjs';
+import {
+  createClientSessionDetail,
+  createClientSessionListItem,
+} from './views/session/client.mjs';
 import { escapeHtml, readBody } from '../lib/utils.mjs';
 import {
   getClientIp, isRateLimited, recordFailedAttempt, clearFailedAttempts,
@@ -73,8 +80,6 @@ const chatTemplatePath = join(__dirname, '..', 'templates', 'chat.html');
 const loginTemplatePath = join(__dirname, '..', 'templates', 'login.html');
 const frontendDir = join(__dirname, '..', 'frontend-src');
 const frontendLoaderPath = join(frontendDir, 'frontend.js');
-const reactAppDir = join(frontendDir, 'react');
-const reactAppDistDir = join(reactAppDir, 'dist');
 const publicDir = join(__dirname, '..', 'public');
 const packageJsonPath = join(__dirname, '..', 'package.json');
 const releaseMetadataPath = join(__dirname, '..', '.melody-sync-release.json');
@@ -94,7 +99,6 @@ const pageBuildRoots = [
   join(__dirname, '..', 'templates'),
   frontendDir,
   frontendLoaderPath,
-  reactAppDir,
   publicDir,
 ];
 let cachedPageBuildInfo = null;
@@ -130,28 +134,6 @@ function scheduleConfigReload() {
   return true;
 }
 
-async function listSessionsForClient(options = {}) {
-  const sessions = await listSessions(options);
-  return sessions.map(createClientSessionDetail);
-}
-
-async function listSessionListItemsForClient(options = {}) {
-  const sessions = await listSessions(options);
-  return sessions.map(createSessionListItem);
-}
-
-async function getSessionForClient(id, options = {}) {
-  return createClientSessionDetail(await getSession(id, options));
-}
-
-async function getSessionListItemForClient(id, options = {}) {
-  return createSessionListItem(await getSession(id, options));
-}
-
-function createClientSessionDetail(session) {
-  return createSessionDetail(session);
-}
-
 const staticMimeTypesByExtension = {
   '.css': 'text/css; charset=utf-8',
   '.gif': 'image/gif',
@@ -173,7 +155,6 @@ const staticMimeTypesByExtension = {
 
 const frontendDirResolved = resolve(frontendDir);
 const frontendLoaderPathResolved = resolve(frontendLoaderPath);
-const reactAppDistDirResolved = resolve(reactAppDistDir);
 const publicDirResolved = resolve(publicDir);
 const compressibleContentTypes = [
   'application/javascript',
@@ -572,9 +553,6 @@ async function resolveStaticAsset(pathname, query = {}) {
   } else if (pathname.startsWith('/chat/')) {
     rootDirResolved = frontendDirResolved;
     staticName = pathname.slice('/chat/'.length);
-  } else if (pathname.startsWith('/react/')) {
-    rootDirResolved = reactAppDistDirResolved;
-    staticName = pathname.slice('/react/'.length);
   } else if (pathname.startsWith('/frontend/')) {
     rootDirResolved = frontendDirResolved;
     staticName = pathname.slice('/frontend/'.length);
@@ -840,7 +818,7 @@ function writeJsonCached(req, res, payload, {
 }
 
 function createSessionSummaryPayload(session) {
-  return { session: createSessionListItem(session) };
+  return { session: createClientSessionListItem(session) };
 }
 
 function createSessionSummaryEtag(session) {
@@ -848,7 +826,7 @@ function createSessionSummaryEtag(session) {
 }
 
 function createSessionSummaryRef(session) {
-  const projected = createSessionListItem(session);
+  const projected = createClientSessionListItem(session);
   return {
     id: projected?.id,
     summaryEtag: createSessionSummaryEtag(projected),

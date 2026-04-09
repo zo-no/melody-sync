@@ -132,6 +132,7 @@ export async function deriveStructuredRuntimeFailureReason(runId, previewText = 
     if (!folderState.available) {
       return buildSessionFolderUnavailableMessage(manifest?.folder || '');
     }
+    return 'Provider exited before runtime handshake';
   }
   if (preview && /(请登录|登录超时|auth|authentication|sso|sign in|login)/i.test(preview)) {
     return `Provider requires interactive login before MelodySync can use it: ${preview}`;
@@ -148,7 +149,7 @@ export async function deriveStructuredRuntimeFailureReason(runId, previewText = 
   if (preview) {
     return `Provider exited without emitting structured events: ${preview}`;
   }
-  return 'Provider exited without emitting structured events';
+  return 'Provider exited before runtime handshake';
 }
 
 export function deriveRunStateFromResult(run, result) {

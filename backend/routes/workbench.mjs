@@ -1,5 +1,4 @@
 import { readBody } from '../../lib/utils.mjs';
-import { createSessionDetail } from '../session/api-shapes.mjs';
 import {
   createCustomNodeKind,
   deleteCustomNodeKind,
@@ -32,10 +31,7 @@ import {
   writeProjectToObsidian,
 } from '../workbench/index.mjs';
 import { createWorkbenchNodeDefinitionsPayload } from '../workbench/node-definitions.mjs';
-
-function createClientSessionDetail(session) {
-  return createSessionDetail(session);
-}
+import { createClientSessionDetail } from '../views/session/client.mjs';
 
 async function readJsonBody(req, maxBytes = 65536) {
   const raw = await readBody(req, maxBytes);

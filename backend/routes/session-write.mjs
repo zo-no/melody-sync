@@ -6,7 +6,6 @@ import {
   createSession,
   delegateSession,
   forkSession,
-  getSession,
   organizeSession,
   promoteSessionToPersistent,
   resolveSavedAttachments,
@@ -15,19 +14,12 @@ import {
   sendMessage,
   submitHttpMessage,
 } from '../session/manager.mjs';
-import { createSessionDetail } from '../session/api-shapes.mjs';
+import { getSessionForClient } from '../services/session/client-session-service.mjs';
 import { pathExists, statOrNull } from '../fs-utils.mjs';
 import { getFileAsset } from '../file-assets.mjs';
+import { createClientSessionDetail } from '../views/session/client.mjs';
 
 const MESSAGE_SUBMISSION_MAX_BYTES = 256 * 1024 * 1024;
-
-function createClientSessionDetail(session) {
-  return createSessionDetail(session);
-}
-
-async function getSessionForClient(id, options = {}) {
-  return createClientSessionDetail(await getSession(id, options));
-}
 
 function bodyTooLargeError() {
   return Object.assign(new Error('Request body too large'), { code: 'BODY_TOO_LARGE' });
