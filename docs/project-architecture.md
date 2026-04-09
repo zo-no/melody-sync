@@ -99,6 +99,14 @@ MelodySync is now an owner-operated AI task workspace.
 
 - handles public page responses such as the login shell and build-info payload
 
+`backend/controllers/run/read-routes.mjs`
+
+- handles run HTTP reads including per-run payload lookup with session access enforcement
+
+`backend/controllers/run/write-routes.mjs`
+
+- handles run HTTP mutations such as cancel, including refreshed-state fallbacks when a cancel races with completion
+
 `backend/controllers/settings/read-routes.mjs`
 
 - handles settings HTTP reads including general, email, voice, hooks, node settings, and the catalog payload
