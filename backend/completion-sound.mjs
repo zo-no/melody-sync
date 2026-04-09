@@ -15,10 +15,10 @@ const DEFAULT_COMPLETION_RATE = 155;
 const DEFAULT_COMPLETION_TTS_PROVIDER = 'auto';
 const DEFAULT_XFYUN_VOICE = 'x4_xiaoyan';
 const DEFAULT_XFYUN_SPEED = 50;
-const DEFAULT_XFYUN_VOLUME = 100;
+const DEFAULT_XFYUN_VOLUME = 50;
 const DEFAULT_XFYUN_PITCH = 50;
 const DEFAULT_TTS_FALLBACK_TO_SAY = true;
-const DEFAULT_AFP_PLAY_VOLUME = 2;
+const DEFAULT_AFP_PLAY_VOLUME = 0.8;
 const DEFAULT_AFP_PLAY_TIMEOUT_MS = 20000;
 
 let speechPlaybackQueue = Promise.resolve();
@@ -75,11 +75,13 @@ function runCommand(command, args = [], options = {}) {
     let stderr = '';
     let settled = false;
     let timeoutHandle = null;
+    let forceKillHandle = null;
 
     const settle = (error) => {
       if (settled) return;
       settled = true;
       if (timeoutHandle) clearTimeout(timeoutHandle);
+      if (forceKillHandle) clearTimeout(forceKillHandle);
       if (error) {
         reject(error);
         return;
@@ -88,9 +90,21 @@ function runCommand(command, args = [], options = {}) {
     };
 
     const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 15000;
+    const forceKillAfterTimeoutMs = Number.isFinite(options.forceKillAfterTimeoutMs)
+      ? Math.max(0, options.forceKillAfterTimeoutMs)
+      : 1000;
     if (timeoutMs > 0) {
       timeoutHandle = setTimeout(() => {
-        child.kill('SIGTERM');
+        try {
+          child.kill('SIGTERM');
+        } catch {}
+        if (forceKillAfterTimeoutMs > 0) {
+          forceKillHandle = setTimeout(() => {
+            try {
+              child.kill('SIGKILL');
+            } catch {}
+          }, forceKillAfterTimeoutMs);
+        }
         settle(new Error(`${command} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
     }
@@ -146,12 +160,32 @@ function estimateAfplayTimeoutMs(speechText) {
   return Math.min(90000, estimatedMs);
 }
 
+function resolveAfplayVolume(xfyunConfig = {}, explicitVolume = undefined) {
+  if (Number.isFinite(Number(process.env.COMPLETION_AFP_PLAY_VOLUME))) {
+    return Number(process.env.COMPLETION_AFP_PLAY_VOLUME);
+  }
+  if (Number.isFinite(explicitVolume)) {
+    return explicitVolume;
+  }
+  if (Number.isFinite(xfyunConfig.afplayVolume)) {
+    return xfyunConfig.afplayVolume;
+  }
+  return DEFAULT_AFP_PLAY_VOLUME;
+}
+
+function buildAfplayArgs(soundPath, volume) {
+  return Number.isFinite(volume) && volume > 0
+    ? ['-v', String(volume), soundPath]
+    : [soundPath];
+}
+
 async function playXfyunSpeech({
   speechText,
   voice,
   rate,
   timeoutMs,
   xfyunConfig = {},
+  afplayVolume,
 }) {
   const synthesis = await synthesizeSpeechWithXfyun({
     text: speechText,
@@ -177,14 +211,10 @@ async function playXfyunSpeech({
       : DEFAULT_XFYUN_PITCH,
     timeoutMs,
   });
-  const afplayVolume = Number.isFinite(Number(process.env.COMPLETION_AFP_PLAY_VOLUME))
-    ? Number(process.env.COMPLETION_AFP_PLAY_VOLUME)
-    : Number.isFinite(xfyunConfig.afplayVolume)
-      ? xfyunConfig.afplayVolume
-    : DEFAULT_AFP_PLAY_VOLUME;
-  const afplayArgs = Number.isFinite(afplayVolume) && afplayVolume > 0
-    ? ['-v', String(afplayVolume), synthesis.soundPath]
-    : [synthesis.soundPath];
+  const afplayArgs = buildAfplayArgs(
+    synthesis.soundPath,
+    resolveAfplayVolume(xfyunConfig, afplayVolume),
+  );
   await runCommand(AFPLAY_COMMAND, afplayArgs, {
     timeoutMs: estimateAfplayTimeoutMs(speechText),
   });
@@ -229,6 +259,7 @@ export async function playHostCompletionSound(options = {}) {
     DEFAULT_TTS_FALLBACK_TO_SAY,
   );
   const xfyunConfig = await readRuntimeVoiceXfyunConfig();
+  const afplayVolume = resolveAfplayVolume(xfyunConfig, parseFiniteNumber(options.afplayVolume, undefined));
   const useXfyun = preference === 'xfyun'
     ? true
     : preference === 'say'
@@ -243,11 +274,18 @@ export async function playHostCompletionSound(options = {}) {
   let finalSoundPath = '';
 
   const playback = speechPlaybackQueue.catch(() => {}).then(async () => {
-      await appendCompletionSoundLog(`[start] provider="${useXfyun ? 'xfyun' : 'say'}" voice="${voice}" text="${speechText}"`);
+    await appendCompletionSoundLog(`[start] provider="${useXfyun ? 'xfyun' : 'say'}" voice="${voice}" text="${speechText}"`);
     try {
       if (beepPath) {
         try {
-          await runCommand(beepCommand, [beepPath], { timeoutMs: 3000 });
+          const beepArgs = beepCommand === AFPLAY_COMMAND
+            ? buildAfplayArgs(beepPath, afplayVolume)
+            : [beepPath];
+          await runCommand(beepCommand, beepArgs, {
+            spawnImpl: options.spawnImpl,
+            timeoutMs: 3000,
+            forceKillAfterTimeoutMs: 500,
+          });
         } catch (error) {
           await appendCompletionSoundLog(`[warn] provider="beep" voice="${voice}" text="${speechText}" message="${error?.message || error}"`);
         }
@@ -261,6 +299,7 @@ export async function playHostCompletionSound(options = {}) {
             rate,
             timeoutMs: options.timeoutMs,
             xfyunConfig,
+            afplayVolume,
           });
           finalMode = 'xfyun';
           finalSoundPath = xfyun.soundPath || '';

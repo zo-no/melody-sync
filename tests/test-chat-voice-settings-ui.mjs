@@ -7,9 +7,9 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const settingsUiSource = readFileSync(join(repoRoot, 'frontend/settings/ui.js'), 'utf8');
-const voiceModelSource = readFileSync(join(repoRoot, 'frontend/settings/voice/model.js'), 'utf8');
-const voiceUiSource = readFileSync(join(repoRoot, 'frontend/settings/voice/ui.js'), 'utf8');
+const settingsUiSource = readFileSync(join(repoRoot, 'frontend-src/settings/ui.js'), 'utf8');
+const voiceModelSource = readFileSync(join(repoRoot, 'frontend-src/settings/voice/model.js'), 'utf8');
+const voiceUiSource = readFileSync(join(repoRoot, 'frontend-src/settings/voice/ui.js'), 'utf8');
 
 function makeClassList() {
   const tokens = new Set();
@@ -202,6 +202,8 @@ const context = {
             mode: 'wake',
             wakePhrase: '小罗小罗',
             ttsEnabled: true,
+            ttsVolume: 45,
+            playbackVolume: 0.7,
           },
           status: {
             running: false,
@@ -259,7 +261,10 @@ assert.match(voicePanelBody.innerHTML, /Voice 设置/, 'voice settings should re
 assert.match(voicePanelBody.innerHTML, /监听方式/, 'voice settings should render the simplified mode section');
 assert.match(voicePanelBody.innerHTML, /唤醒词模式/, 'voice settings should render the mode description');
 assert.match(voicePanelBody.innerHTML, /本地状态/, 'voice settings should render the local-state section');
+assert.match(voicePanelBody.innerHTML, /播报音量/, 'voice settings should render the completion-volume section');
 assert.match(voicePanelBody.innerHTML, /name="mode"/, 'voice settings should expose the simplified mode selector');
+assert.match(voicePanelBody.innerHTML, /name="ttsVolume"[^>]+value="45"/, 'voice settings should expose the TTS volume field');
+assert.match(voicePanelBody.innerHTML, /name="playbackVolume"[^>]+value="0.7"/, 'voice settings should expose the local playback volume field');
 assert.doesNotMatch(voicePanelBody.innerHTML, /启动：/, 'voice settings should not expose raw command lines');
 assert.match(voicePanelBody.innerHTML, /name="wakePhrase"[^>]+value="小罗小罗"/, 'voice settings should expose the wake phrase field in wake mode');
 assert.doesNotMatch(voicePanelBody.innerHTML, /Connector ID/, 'voice settings should hide connector implementation details');

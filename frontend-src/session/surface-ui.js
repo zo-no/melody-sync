@@ -21,6 +21,18 @@ function getFolderLabel(folder) {
   return shortFolder.split("/").pop() || shortFolder || t("session.defaultName");
 }
 
+function normalizeSessionOrdinal(value) {
+  const parsed = typeof value === "number"
+    ? value
+    : parseInt(String(value || "").trim(), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function formatSessionOrdinalBadge(value) {
+  const ordinal = normalizeSessionOrdinal(value);
+  return ordinal ? `#${ordinal}` : "";
+}
+
 function clipTaskLabel(value, max = 42) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   if (!text) return "";
@@ -50,7 +62,12 @@ function getPreferredSessionDisplayName(session) {
 }
 
 function getSessionDisplayName(session) {
-  return toSingleGoalLabel(getPreferredSessionDisplayName(session), 38);
+  const ordinalBadge = formatSessionOrdinalBadge(session?.ordinal);
+  const displayName = toSingleGoalLabel(getPreferredSessionDisplayName(session), 38);
+  if (ordinalBadge && displayName) {
+    return clipTaskLabel(`${ordinalBadge} ${displayName}`, 38);
+  }
+  return ordinalBadge || displayName;
 }
 
 function formatQueuedMessageTimestamp(stamp) {

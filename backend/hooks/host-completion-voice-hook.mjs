@@ -3,11 +3,14 @@ import { appendFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { createHash } from 'crypto';
 import { VOICE_LOGS_DIR } from '../../lib/config.mjs';
+import { formatSessionOrdinalSpeechLabel } from '../session/naming.mjs';
 
 const HOST_COMPLETION_HOOK_LOG = join(
   VOICE_LOGS_DIR,
   'host-completion-hook.log',
 );
+const SESSION_LIST_ORGANIZER_INTERNAL_ROLE = 'session_list_organizer';
+const SESSION_LIST_ORGANIZER_SESSION_NAME = 'sort session list';
 
 async function appendHostCompletionHookLog(message) {
   try {
@@ -18,9 +21,40 @@ async function appendHostCompletionHookLog(message) {
 
 function normalizeSpeechClause(value) {
   return String(value || '')
+    .replace(/^[-*•]\s*/, '')
     .replace(/\s+/g, ' ')
     .replace(/[。！？!?；;：:]+$/g, '')
     .trim();
+}
+
+function normalizeSpeechCompareText(value) {
+  return normalizeSpeechClause(value)
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}\u4e00-\u9fff]+/gu, '');
+}
+
+function speechTextsEquivalent(left, right) {
+  const leftText = normalizeSpeechCompareText(left);
+  const rightText = normalizeSpeechCompareText(right);
+  if (!leftText || !rightText) return false;
+  return leftText === rightText || leftText.includes(rightText) || rightText.includes(leftText);
+}
+
+function clipSpeechClause(value, maxChars = 32) {
+  const text = normalizeSpeechClause(value);
+  if (!text || !Number.isInteger(maxChars) || maxChars <= 0 || text.length <= maxChars) {
+    return text;
+  }
+  const slice = text.slice(0, maxChars);
+  const boundary = Math.max(
+    slice.lastIndexOf('，'),
+    slice.lastIndexOf('、'),
+    slice.lastIndexOf(','),
+  );
+  if (boundary >= Math.floor(maxChars / 2)) {
+    return slice.slice(0, boundary).trim();
+  }
+  return slice.trim();
 }
 
 function firstNonEmptyText(...values) {
@@ -31,23 +65,69 @@ function firstNonEmptyText(...values) {
   return '';
 }
 
+function firstListText(value, maxChars = 32) {
+  const items = Array.isArray(value) ? value : [];
+  for (const item of items) {
+    const text = clipSpeechClause(item, maxChars);
+    if (text) return text;
+  }
+  return '';
+}
+
 function pickActionHint(session = {}) {
   const taskCard = session?.taskCard || {};
-  const needsFromUser = Array.isArray(taskCard?.needsFromUser) ? taskCard.needsFromUser : [];
-  const nextSteps = Array.isArray(taskCard?.nextSteps) ? taskCard.nextSteps : [];
   return firstNonEmptyText(
-    needsFromUser[0],
-    nextSteps[0],
-    taskCard.checkpoint,
+    firstListText(taskCard?.needsFromUser, 28),
+    firstListText(taskCard?.nextSteps, 28),
+  );
+}
+
+function pickStatusHint(session = {}) {
+  const taskCard = session?.taskCard || {};
+  return firstNonEmptyText(
+    clipSpeechClause(taskCard?.checkpoint, 28),
+    firstListText(taskCard?.knownConclusions, 28),
   );
 }
 
 function buildSessionCompletionSpeech(session = {}) {
-  const name = firstNonEmptyText(session?.name);
+  const taskCard = session?.taskCard || {};
+  const taskLabel = firstNonEmptyText(
+    formatSessionOrdinalSpeechLabel(session?.ordinal),
+    clipSpeechClause(taskCard?.mainGoal, 18),
+    clipSpeechClause(taskCard?.goal, 18),
+    clipSpeechClause(session?.name, 18),
+    clipSpeechClause(taskCard?.summary, 18),
+  );
+  const summaryHint = clipSpeechClause(taskCard?.summary, 18);
   const actionHint = pickActionHint(session);
-  if (name) return `${name}，需要你处理。`;
-  if (actionHint) return '需要你处理。';
-  return '需要你处理。';
+  const statusHint = pickStatusHint(session);
+
+  if (actionHint) {
+    if (taskLabel && !speechTextsEquivalent(taskLabel, actionHint)) {
+      if (speechTextsEquivalent(actionHint, firstListText(taskCard?.nextSteps, 28))) {
+        return `${taskLabel}，下一步，${actionHint}。`;
+      }
+      return `${taskLabel}，${actionHint}。`;
+    }
+    if (speechTextsEquivalent(actionHint, firstListText(taskCard?.nextSteps, 28))) {
+      return `下一步，${actionHint}。`;
+    }
+    return `${actionHint}。`;
+  }
+
+  if (statusHint) {
+    if (taskLabel && !speechTextsEquivalent(taskLabel, statusHint)) {
+      return `${taskLabel}，${statusHint}。`;
+    }
+    return `${statusHint}。`;
+  }
+
+  if (summaryHint && taskLabel && !speechTextsEquivalent(taskLabel, summaryHint)) {
+    return `${taskLabel}，${summaryHint}。`;
+  }
+  if (taskLabel) return `${taskLabel}，你可以看一下。`;
+  return '有新进展，你可以看一下。';
 }
 
 function normalizeCompletionNoticeKey(value) {
@@ -84,11 +164,27 @@ function buildCompletionNoticeKey({
   return `completion:session:unknown:speech:${speechHash}`;
 }
 
+function normalizeInternalRole(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeSessionName(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function shouldSuppressCompletionVoice({ session, manifest } = {}) {
+  if (normalizeInternalRole(session?.internalRole)) return true;
+  if (typeof manifest?.internalOperation === 'string' && manifest.internalOperation.trim()) return true;
+  return normalizeSessionName(session?.name) === SESSION_LIST_ORGANIZER_SESSION_NAME
+    || normalizeInternalRole(session?.internalRole) === SESSION_LIST_ORGANIZER_INTERNAL_ROLE;
+}
+
 export async function hostCompletionVoiceHook(
   {
     sessionId,
     session,
     run,
+    manifest,
     completionNoticeKey,
   },
   options = {},
@@ -97,6 +193,11 @@ export async function hostCompletionVoiceHook(
     enqueueHostCompletionSpeechImpl = enqueueHostCompletionSpeech,
     logError = console.error,
   } = options;
+  if (shouldSuppressCompletionVoice({ session, manifest })) {
+    const effectiveRunId = run?.id || session?.activeRunId || '';
+    await appendHostCompletionHookLog(`[skip] sessionId="${sessionId}" runId="${effectiveRunId}" internalRole="${normalizeInternalRole(session?.internalRole)}" internalOperation="${String(manifest?.internalOperation || '').trim()}" name="${String(session?.name || '').trim()}"`);
+    return;
+  }
   const speechText = buildSessionCompletionSpeech(session);
   const effectiveRunId = run?.id || session?.activeRunId || '';
   const resolvedCompletionNoticeKey = buildCompletionNoticeKey({

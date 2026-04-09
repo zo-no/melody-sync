@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sessionSurfaceUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session/surface-ui.js'), 'utf8');
+const sessionSurfaceUiSource = readFileSync(join(repoRoot, 'frontend-src', 'session', 'surface-ui.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -45,6 +45,8 @@ function extractFunctionSource(source, functionName) {
 
 const getShortFolderSource = extractFunctionSource(sessionSurfaceUiSource, 'getShortFolder');
 const getFolderLabelSource = extractFunctionSource(sessionSurfaceUiSource, 'getFolderLabel');
+const normalizeSessionOrdinalSource = extractFunctionSource(sessionSurfaceUiSource, 'normalizeSessionOrdinal');
+const formatSessionOrdinalBadgeSource = extractFunctionSource(sessionSurfaceUiSource, 'formatSessionOrdinalBadge');
 const clipTaskLabelSource = extractFunctionSource(sessionSurfaceUiSource, 'clipTaskLabel');
 const toSingleGoalLabelSource = extractFunctionSource(sessionSurfaceUiSource, 'toSingleGoalLabel');
 const getPreferredSessionDisplayNameSource = extractFunctionSource(sessionSurfaceUiSource, 'getPreferredSessionDisplayName');
@@ -98,7 +100,7 @@ const context = {
 };
 context.globalThis = context;
 vm.runInNewContext(
-  `${getShortFolderSource}\n${getFolderLabelSource}\n${clipTaskLabelSource}\n${toSingleGoalLabelSource}\n${getPreferredSessionDisplayNameSource}\n${getSessionDisplayNameSource}\n${getDoneWorkflowStatusInfoSource}\n${getSessionListTouchStatusInfoSource}\n${renderSessionMessageCountSource}\n${buildSessionMetaPartsSource}\nglobalThis.getSessionDisplayName = getSessionDisplayName;\nglobalThis.renderSessionMessageCount = renderSessionMessageCount;\nglobalThis.buildSessionMetaParts = buildSessionMetaParts;`,
+  `${getShortFolderSource}\n${getFolderLabelSource}\n${normalizeSessionOrdinalSource}\n${formatSessionOrdinalBadgeSource}\n${clipTaskLabelSource}\n${toSingleGoalLabelSource}\n${getPreferredSessionDisplayNameSource}\n${getSessionDisplayNameSource}\n${getDoneWorkflowStatusInfoSource}\n${getSessionListTouchStatusInfoSource}\n${renderSessionMessageCountSource}\n${buildSessionMetaPartsSource}\nglobalThis.getSessionDisplayName = getSessionDisplayName;\nglobalThis.renderSessionMessageCount = renderSessionMessageCount;\nglobalThis.buildSessionMetaParts = buildSessionMetaParts;`,
   context,
   { filename: 'frontend-src/session/surface-ui.js' },
 );
@@ -110,6 +112,16 @@ assert.equal(
   }),
   '这是一个特别长的任务标题，需要先把目标压缩清楚并且不要把太多背景描述直接塞…',
   'session list should compress long task names to one explicit goal',
+);
+
+assert.equal(
+  context.getSessionDisplayName({
+    ordinal: 12,
+    name: '语音播报缺失排查',
+    taskCard: {},
+  }),
+  '#12 语音播报缺失排查',
+  'session list should prefix stable ordinals before the visible task title',
 );
 
 assert.equal(

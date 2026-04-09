@@ -32,6 +32,8 @@ try {
     mode: 'wake',
     wakePhrase: 'Hello Rowan',
     ttsEnabled: true,
+    ttsVolume: 42,
+    playbackVolume: 0.5,
   })]);
   patchReq.method = 'PATCH';
   const patchResult = {};
@@ -49,10 +51,14 @@ try {
   assert.equal(patchResult.status, 200);
   assert.equal(patchResult.payload.simpleConfig.mode, 'wake');
   assert.equal(patchResult.payload.simpleConfig.wakePhrase, 'Hello Rowan');
+  assert.equal(patchResult.payload.simpleConfig.ttsVolume, 42);
+  assert.equal(patchResult.payload.simpleConfig.playbackVolume, 0.5);
   assert.equal(patchResult.payload.config.wake.keyword, 'Hello Rowan');
   assert.equal(patchResult.payload.config.wake.command, 'bash scripts/voice/voice-managed-wake.sh');
   assert.equal(patchResult.payload.config.capture.command, 'bash scripts/voice/voice-managed-capture.sh');
   assert.equal(patchResult.payload.config.tts.mode, 'say');
+  assert.equal(patchResult.payload.config.tts.env.XFYUN_VOLUME, '42');
+  assert.equal(patchResult.payload.config.tts.env.COMPLETION_AFP_PLAY_VOLUME, '0.5');
   assert.equal(patchResult.payload.appRoot, appRoot);
   assert.equal(patchResult.payload.paths.configFile, join(runtimeRoot, 'voice', 'config.json'));
 

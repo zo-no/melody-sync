@@ -82,9 +82,52 @@
   // ── Render ───────────────────────────────────────────────────────────────────
   function normalizeSpeechClause(value) {
     return String(value || '')
+      .replace(/^[-*•]\s*/, '')
       .replace(/\s+/g, ' ')
       .replace(/[。！？!?；;：:]+$/g, '')
       .trim();
+  }
+
+  function normalizeSpeechCompareText(value) {
+    return normalizeSpeechClause(value)
+      .toLowerCase()
+      .replace(/[^\p{Letter}\p{Number}\u4e00-\u9fff]+/gu, '');
+  }
+
+  function speechTextsEquivalent(left, right) {
+    const leftText = normalizeSpeechCompareText(left);
+    const rightText = normalizeSpeechCompareText(right);
+    if (!leftText || !rightText) return false;
+    return leftText === rightText || leftText.includes(rightText) || rightText.includes(leftText);
+  }
+
+  function normalizeSessionOrdinal(value) {
+    const parsed = typeof value === 'number'
+      ? value
+      : parseInt(String(value || '').trim(), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+  }
+
+  function formatSessionOrdinalSpeechLabel(value) {
+    const ordinal = normalizeSessionOrdinal(value);
+    return ordinal ? `任务${ordinal}` : '';
+  }
+
+  function clipSpeechClause(value, maxChars = 32) {
+    const text = normalizeSpeechClause(value);
+    if (!text || !Number.isInteger(maxChars) || maxChars <= 0 || text.length <= maxChars) {
+      return text;
+    }
+    const slice = text.slice(0, maxChars);
+    const boundary = Math.max(
+      slice.lastIndexOf('，'),
+      slice.lastIndexOf('、'),
+      slice.lastIndexOf(','),
+    );
+    if (boundary >= Math.floor(maxChars / 2)) {
+      return slice.slice(0, boundary).trim();
+    }
+    return slice.trim();
   }
 
   function firstNonEmptyText(...values) {
@@ -95,19 +138,60 @@
     return '';
   }
 
+  function firstListText(value, maxChars = 32) {
+    const items = Array.isArray(value) ? value : [];
+    for (const item of items) {
+      const text = clipSpeechClause(item, maxChars);
+      if (text) return text;
+    }
+    return '';
+  }
+
   function buildHostVoiceSpeech(session = null) {
-    const sessionName = firstNonEmptyText(session?.name);
     const taskCard = session?.taskCard || {};
-    const needsFromUser = Array.isArray(taskCard?.needsFromUser) ? taskCard.needsFromUser : [];
-    const nextSteps = Array.isArray(taskCard?.nextSteps) ? taskCard.nextSteps : [];
-    const actionHint = firstNonEmptyText(
-      needsFromUser[0],
-      nextSteps[0],
-      taskCard?.checkpoint,
+    const taskLabel = firstNonEmptyText(
+      formatSessionOrdinalSpeechLabel(session?.ordinal),
+      clipSpeechClause(taskCard?.mainGoal, 18),
+      clipSpeechClause(taskCard?.goal, 18),
+      clipSpeechClause(session?.name, 18),
+      clipSpeechClause(taskCard?.summary, 18),
     );
-    if (sessionName) return `${sessionName}，需要你处理。`;
-    if (actionHint) return '需要你处理。';
-    return '需要你处理。';
+    const summaryHint = clipSpeechClause(taskCard?.summary, 18);
+    const actionHint = firstNonEmptyText(
+      firstListText(taskCard?.needsFromUser, 28),
+      firstListText(taskCard?.nextSteps, 28),
+    );
+    const nextStep = firstListText(taskCard?.nextSteps, 28);
+    const statusHint = firstNonEmptyText(
+      clipSpeechClause(taskCard?.checkpoint, 28),
+      firstListText(taskCard?.knownConclusions, 28),
+    );
+
+    if (actionHint) {
+      if (taskLabel && !speechTextsEquivalent(taskLabel, actionHint)) {
+        if (speechTextsEquivalent(actionHint, nextStep)) {
+          return `${taskLabel}，下一步，${actionHint}。`;
+        }
+        return `${taskLabel}，${actionHint}。`;
+      }
+      if (speechTextsEquivalent(actionHint, nextStep)) {
+        return `下一步，${actionHint}。`;
+      }
+      return `${actionHint}。`;
+    }
+
+    if (statusHint) {
+      if (taskLabel && !speechTextsEquivalent(taskLabel, statusHint)) {
+        return `${taskLabel}，${statusHint}。`;
+      }
+      return `${statusHint}。`;
+    }
+
+    if (summaryHint && taskLabel && !speechTextsEquivalent(taskLabel, summaryHint)) {
+      return `${taskLabel}，${summaryHint}。`;
+    }
+    if (taskLabel) return `${taskLabel}，你可以看一下。`;
+    return '有新进展，你可以看一下。';
   }
 
   function render() {

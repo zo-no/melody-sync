@@ -17,6 +17,11 @@ import { normalizeSessionPersistent } from '../session-persistent/core.mjs';
 import { canonicalizeSessionFolder, inspectSessionFolder } from './folder.mjs';
 import { normalizeSessionTaskCard } from './task-card.mjs';
 import { buildSessionsIndexMarkdown } from './list-index.mjs';
+import { normalizeSessionGroup, normalizeSessionOrdinal } from './naming.mjs';
+import {
+  normalizeSessionTaskListOrigin,
+  normalizeSessionTaskListVisibility,
+} from './visibility.mjs';
 
 let sessionsMetaCache = null;
 let sessionsMetaCacheMtimeMs = null;
@@ -34,6 +39,56 @@ function normalizeStoredSidebarOrder(value) {
     ? value
     : parseInt(String(value || '').trim(), 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function getStoredSessionMetaSortTime(meta) {
+  const created = normalizeStoredTimestamp(meta?.created);
+  const updatedAt = normalizeStoredTimestamp(meta?.updatedAt);
+  const parsed = Date.parse(created || updatedAt || '');
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function assignMissingSessionOrdinals(list) {
+  const entries = Array.isArray(list) ? list : [];
+  let changed = false;
+  const used = new Set();
+  let maxOrdinal = 0;
+
+  for (const entry of entries) {
+    const normalizedOrdinal = normalizeSessionOrdinal(entry?.ordinal);
+    if (!normalizedOrdinal || used.has(normalizedOrdinal)) {
+      if (entry && Object.prototype.hasOwnProperty.call(entry, 'ordinal')) {
+        delete entry.ordinal;
+        changed = true;
+      }
+      continue;
+    }
+    if (entry.ordinal !== normalizedOrdinal) {
+      entry.ordinal = normalizedOrdinal;
+      changed = true;
+    }
+    used.add(normalizedOrdinal);
+    maxOrdinal = Math.max(maxOrdinal, normalizedOrdinal);
+  }
+
+  const missing = entries
+    .filter((entry) => normalizeSessionOrdinal(entry?.ordinal) === 0)
+    .sort((left, right) => {
+      const timeDiff = getStoredSessionMetaSortTime(left) - getStoredSessionMetaSortTime(right);
+      if (timeDiff !== 0) return timeDiff;
+      return String(left?.id || '').localeCompare(String(right?.id || ''));
+    });
+
+  let nextOrdinal = maxOrdinal + 1;
+  for (const entry of missing) {
+    while (used.has(nextOrdinal)) nextOrdinal += 1;
+    entry.ordinal = nextOrdinal;
+    used.add(nextOrdinal);
+    nextOrdinal += 1;
+    changed = true;
+  }
+
+  return changed;
 }
 
 function normalizeStoredSessionMeta(meta) {
@@ -99,6 +154,58 @@ function normalizeStoredSessionMeta(meta) {
       }
     } else {
       delete normalized.sidebarOrder;
+      changed = true;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'manualGroup')) {
+    const nextManualGroup = normalizeSessionGroup(normalized.manualGroup || '');
+    if (nextManualGroup) {
+      if (normalized.manualGroup !== nextManualGroup) {
+        normalized.manualGroup = nextManualGroup;
+        changed = true;
+      }
+    } else {
+      delete normalized.manualGroup;
+      changed = true;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'taskListOrigin')) {
+    const nextTaskListOrigin = normalizeSessionTaskListOrigin(normalized.taskListOrigin);
+    if (nextTaskListOrigin) {
+      if (normalized.taskListOrigin !== nextTaskListOrigin) {
+        normalized.taskListOrigin = nextTaskListOrigin;
+        changed = true;
+      }
+    } else {
+      delete normalized.taskListOrigin;
+      changed = true;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'taskListVisibility')) {
+    const nextTaskListVisibility = normalizeSessionTaskListVisibility(normalized.taskListVisibility);
+    if (nextTaskListVisibility) {
+      if (normalized.taskListVisibility !== nextTaskListVisibility) {
+        normalized.taskListVisibility = nextTaskListVisibility;
+        changed = true;
+      }
+    } else {
+      delete normalized.taskListVisibility;
+      changed = true;
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(normalized, 'ordinal')) {
+    const nextOrdinal = normalizeSessionOrdinal(normalized.ordinal);
+    if (nextOrdinal) {
+      if (normalized.ordinal !== nextOrdinal) {
+        normalized.ordinal = nextOrdinal;
+        changed = true;
+      }
+    } else {
+      delete normalized.ordinal;
       changed = true;
     }
   }
@@ -187,6 +294,7 @@ function normalizeStoredSessionsMeta(list) {
     normalized.push(result.meta);
     changed = changed || result.changed;
   }
+  changed = assignMissingSessionOrdinals(normalized) || changed;
   return { list: normalized, changed };
 }
 

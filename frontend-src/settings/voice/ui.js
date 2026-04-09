@@ -35,6 +35,16 @@
     return getNamedField(form, name)?.checked === true;
   }
 
+  function formatNumberValue(value, fallback = '') {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    return fallback;
+  }
+
   function renderSelectOptions(options, selectedValue) {
     return (Array.isArray(options) ? options : [])
       .map((option) => {
@@ -68,6 +78,8 @@
         mode: getFieldValue(form, 'mode').trim(),
         wakePhrase: getFieldValue(form, 'wakePhrase').trim(),
         ttsEnabled: getCheckboxValue(form, 'ttsEnabled'),
+        ttsVolume: getFieldValue(form, 'ttsVolume').trim(),
+        playbackVolume: getFieldValue(form, 'playbackVolume').trim(),
       });
       loaded = next || loaded;
       pending = false;
@@ -152,6 +164,38 @@
                 <strong>${escHtml(activeHint.title || '')}</strong>${activeHint.description ? `：${escHtml(activeHint.description)}` : ''}
               </div>
               ${renderRequirements(activeHint)}
+            </div>
+
+            <div class="task-map-node-section">
+              <div class="task-map-node-section-title">播报音量</div>
+              <div class="task-map-node-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));display:grid;gap:12px;">
+                <label class="task-map-node-field">
+                  <span class="task-map-node-field-label">语音合成音量</span>
+                  <input
+                    class="settings-inline-input"
+                    type="number"
+                    name="ttsVolume"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value="${escHtml(formatNumberValue(simple.ttsVolume, '50'))}"
+                  >
+                  <span class="hooks-summary-desc">0 到 100，控制讯飞合成音量。</span>
+                </label>
+                <label class="task-map-node-field">
+                  <span class="task-map-node-field-label">本地播放音量</span>
+                  <input
+                    class="settings-inline-input"
+                    type="number"
+                    name="playbackVolume"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    value="${escHtml(formatNumberValue(simple.playbackVolume, '0.8'))}"
+                  >
+                  <span class="hooks-summary-desc">0.0 到 2.0，控制这台机器最终播出的响度。</span>
+                </label>
+              </div>
             </div>
 
             <div class="task-map-node-section">

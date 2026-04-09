@@ -3,6 +3,7 @@ const TEMP_SESSION_NAME_MAX_CHARS = 12;
 const SESSION_GROUP_MAX_CHARS = 32;
 const SESSION_DESCRIPTION_MAX_CHARS = 160;
 const SESSION_CONTEXT_LABEL_MAX_CHARS = 64;
+const GENERATED_SESSION_TITLE_MAX_CHARS = 28;
 const GENERIC_SESSION_TITLE_KEYS = new Set([
   'app',
   'apps',
@@ -200,6 +201,23 @@ export function normalizeSessionName(name) {
   return typeof name === 'string' ? name.trim() : '';
 }
 
+export function normalizeSessionOrdinal(value) {
+  const parsed = typeof value === 'number'
+    ? value
+    : parseInt(String(value || '').trim(), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+export function formatSessionOrdinalBadge(value) {
+  const ordinal = normalizeSessionOrdinal(value);
+  return ordinal ? `#${ordinal}` : '';
+}
+
+export function formatSessionOrdinalSpeechLabel(value) {
+  const ordinal = normalizeSessionOrdinal(value);
+  return ordinal ? `任务${ordinal}` : '';
+}
+
 export function normalizeSessionGroup(group) {
   return normalizeSessionText(group, SESSION_GROUP_MAX_CHARS);
 }
@@ -212,7 +230,7 @@ export function normalizeGeneratedSessionTitle(title, group) {
   const normalizedTitle = normalizeSessionName(title);
   if (!normalizedTitle) return '';
   const nextTitle = normalizeContextualSessionTitle(normalizedTitle, { group });
-  return nextTitle || normalizedTitle;
+  return normalizeSessionText(nextTitle || normalizedTitle, GENERATED_SESSION_TITLE_MAX_CHARS);
 }
 
 export function resolveInitialSessionName(name, context = {}) {

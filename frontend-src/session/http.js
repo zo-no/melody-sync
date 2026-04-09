@@ -122,7 +122,28 @@ function applyCompletionSoundSetting(settings = null) {
   return setCompletionSoundEnabled(settings?.completionSoundEnabled, fallback);
 }
 
-async function refreshCompletionSoundSetting() {
+function applyTaskListTemplateGroupSetting(settings = null) {
+  const model = typeof getSessionListModelApi === "function"
+    ? getSessionListModelApi()
+    : (window.MelodySyncSessionListModel || null);
+  if (typeof model?.setSessionGroupingTemplateGroups !== "function") return [];
+  const groups = model.setSessionGroupingTemplateGroups(settings?.taskListTemplateGroups || []);
+  if (typeof window?.syncSessionGroupingControls === "function") {
+    window.syncSessionGroupingControls();
+  }
+  if (typeof renderSessionList === "function") {
+    renderSessionList();
+  }
+  return groups;
+}
+
+function applyGeneralSettingsPayload(settings = null) {
+  applyCompletionSoundSetting(settings);
+  applyTaskListTemplateGroupSetting(settings);
+  return settings;
+}
+
+async function refreshGeneralSettings() {
   if (typeof window?.fetch !== "function") return;
   try {
     const response = await window.fetch("/api/settings", {
@@ -131,7 +152,7 @@ async function refreshCompletionSoundSetting() {
     });
     if (!response?.ok) return;
     const payload = await response.json().catch(() => null);
-    applyCompletionSoundSetting(payload);
+    applyGeneralSettingsPayload(payload);
   } catch {}
 }
 
@@ -315,7 +336,7 @@ function showCompletionAttention(session) {
 
 if (typeof window !== "undefined" && typeof window?.addEventListener === "function") {
   window.addEventListener("melodysync:general-settings-updated", (event) => {
-    applyCompletionSoundSetting(event?.detail || null);
+    applyGeneralSettingsPayload(event?.detail || null);
   });
   window.addEventListener("focus", () => {
     stopCompletionTitleFlash();
@@ -325,7 +346,7 @@ if (typeof window !== "undefined" && typeof window?.addEventListener === "functi
     void refreshCompletionAlertsOnForeground();
   });
   primeCompletionAudioContext();
-  void refreshCompletionSoundSetting();
+  void refreshGeneralSettings();
 }
 
 if (typeof document !== "undefined" && typeof document?.addEventListener === "function") {
@@ -497,18 +518,94 @@ function handleCompletionAlerts(session, previousSession = null) {
 const SESSION_LIST_ORGANIZER_POLL_INTERVAL_MS = 1200;
 const SESSION_LIST_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 const SESSION_LIST_ORGANIZER_INTERNAL_ROLE = "session_list_organizer";
-const DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL = "整理任务";
+const SESSION_LIST_AUTO_ORGANIZER_DEBOUNCE_MS = 1600;
+const SESSION_LIST_AUTO_ORGANIZER_MIN_INTERVAL_MS = 10 * 60 * 1000;
 const SESSION_LIST_ORGANIZER_SESSION_NAME = "sort session list";
 const SESSION_LIST_ORGANIZER_AI_QUICK_ACTION_STORAGE_KEY = "melodysyncSessionListOrganizerAiQuickActionId";
+const SESSION_LIST_ORGANIZER_LAST_FINGERPRINT_STORAGE_KEY = "melodysyncSessionListOrganizerLastFingerprint";
 const SESSION_LIST_ORGANIZER_AI_QUICK_ACTION_PROMPT = "整理当前非归档任务：先读取最新任务列表，再按规则更新分组与排序，避免改动只读字段。";
 const SESSION_ORGANIZER_POLL_INTERVAL_MS = 1200;
 const SESSION_ORGANIZER_POLL_TIMEOUT_MS = 90 * 1000;
 let sessionListOrganizerInFlight = null;
 let sessionListOrganizerLabelResetTimer = null;
+let sessionListOrganizerAutoTimer = null;
+let sessionListOrganizerLastFingerprint = "";
+let sessionListOrganizerLastAutoRunAt = 0;
 let initialInboxSessionPromise = null;
 
 function getSessionListContract() {
   return window.MelodySyncSessionListContract || null;
+}
+
+function getSessionListModelApi() {
+  return window.MelodySyncSessionListModel || null;
+}
+
+function getSessionListGroupingMode() {
+  return typeof getSessionListModelApi()?.getSessionGroupingMode === "function"
+    ? getSessionListModelApi().getSessionGroupingMode()
+    : "user";
+}
+
+function setSessionListGroupingMode(mode) {
+  return typeof getSessionListModelApi()?.setSessionGroupingMode === "function"
+    ? getSessionListModelApi().setSessionGroupingMode(mode)
+    : "user";
+}
+
+function getSessionListGroupingTemplateGroups() {
+  return typeof getSessionListModelApi()?.getSessionGroupingTemplateGroups === "function"
+    ? getSessionListModelApi().getSessionGroupingTemplateGroups()
+    : [];
+}
+
+function setSessionListGroupingTemplateGroups(groups) {
+  return typeof getSessionListModelApi()?.setSessionGroupingTemplateGroups === "function"
+    ? getSessionListModelApi().setSessionGroupingTemplateGroups(groups)
+    : [];
+}
+
+function translateSessionListUiText(key, fallback) {
+  const translated = typeof window?.melodySyncT === "function"
+    ? window.melodySyncT(key)
+    : "";
+  return translated && translated !== key ? translated : fallback;
+}
+
+function getSessionListGroupingFallbackLabel() {
+  return translateSessionListUiText("sidebar.group.uncategorized", "未分类");
+}
+
+function hasSessionListGroupingTemplateGroups() {
+  return getSessionListGroupingTemplateGroups().length > 0;
+}
+
+function getDefaultSortSessionListButtonLabel() {
+  if (getSessionListGroupingMode() === "ai") {
+    return translateSessionListUiText("sidebar.sortList.runAi", "整理 1 个任务");
+  }
+  if (!hasSessionListGroupingTemplateGroups()) {
+    return translateSessionListUiText("sidebar.sortList.createFolderFirst", "先创建分组");
+  }
+  return translateSessionListUiText("sidebar.sortList.runTemplate", "按分组整理 1 个");
+}
+
+function getRunningSortSessionListButtonLabel() {
+  return getSessionListGroupingMode() === "ai"
+    ? translateSessionListUiText("sidebar.sortList.runningAi", "整理中…")
+    : translateSessionListUiText("sidebar.sortList.runningTemplate", "整理中…");
+}
+
+function getDoneSortSessionListButtonLabel() {
+  return getSessionListGroupingMode() === "ai"
+    ? translateSessionListUiText("sidebar.sortList.doneAi", "已整理 1 个")
+    : translateSessionListUiText("sidebar.sortList.doneTemplate", "已整理 1 个");
+}
+
+function getFailedSortSessionListButtonLabel() {
+  return getSessionListGroupingMode() === "ai"
+    ? translateSessionListUiText("sidebar.sortList.failedAi", "整理失败")
+    : translateSessionListUiText("sidebar.sortList.failedTemplate", "整理失败");
 }
 
 function getSessionListOrganizerWritableFieldsText() {
@@ -523,38 +620,35 @@ function getSessionListOrganizerReadonlyFieldsText() {
     : "`title`, `brief`, `existingGroup`, and `existingSidebarOrder`";
 }
 
-function getSessionListOrganizerGroupLabelsText() {
-  return typeof getSessionListContract()?.buildTaskListGroupStorageValuesText === "function"
-    ? getSessionListContract().buildTaskListGroupStorageValuesText()
-    : "收集箱, 长期任务, 快捷按钮, 短期任务, 知识库内容, 等待任务";
-}
-
 const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   "You are MelodySync's hidden session-list organizer.",
-  "Your job is to organize the owner's non-archived MelodySync tasks into a simple GTD-style task list.",
+  "Your job is to clean up the owner's visible MelodySync task list one task at a time.",
   "Do not rename tasks casually, delete them, change pin state, edit prompts, or ask the user follow-up questions.",
   "Only update existing sessions by calling the owner-authenticated MelodySync API from this machine.",
   "Use `melodysync api GET /api/sessions` if you need to double-check current state.",
   `Use \`melodysync api PATCH /api/sessions/<sessionId> --body ...\` to update ${getSessionListOrganizerWritableFieldsText()}.`,
   `Only writable API fields for this task are ${getSessionListOrganizerWritableFieldsText()}.`,
   `Never send read-only snapshot keys such as ${getSessionListOrganizerReadonlyFieldsText()}, \`currentGroup\`, or \`currentSidebarOrder\` in PATCH bodies.`,
-  'Rename only when the current task name is generic, stale, or clearly weaker than the metadata snapshot.',
-  'Example PATCH body: {"name":"电影史学习路线","group":"短期任务","sidebarOrder":3}',
+  "Patch at most one existing session, and it must be the provided `targetSession.id`.",
+  "Prefer changing only `group` for the target session.",
+  'Rename only when the current task name is generic, stale, or clearly tool-generated.',
+  "Do not reorder the whole list. If you patch `sidebarOrder`, only change the target session and never touch any other session.",
+  'Keep group labels concise, stable, and task-shaped. Do not create a different group for every task.',
+  'Follow the grouping strategy provided in the task body. In template mode you must stay inside the provided template groups plus the fallback group.',
+  'Example PATCH body: {"name":"电影史学习路线","group":"研究任务","sidebarOrder":3}',
   "If `melodysync` is unavailable in PATH, use `node \"$MELODYSYNC_PROJECT_ROOT/cli.js\" api ...` instead.",
-  "`sidebarOrder` must be a positive integer; smaller numbers sort first.",
-  "Assign unique contiguous `sidebarOrder` values across the current non-archived sessions you organize.",
-  `Use only these exact groups: ${getSessionListOrganizerGroupLabelsText()}.`,
-  "Default unclear or newly created work to 收集箱; only move work out when the intent is obvious from the metadata snapshot.",
-  "Return only a brief plain-text summary of the grouping strategy you applied.",
+  "`sidebarOrder` must be a positive integer when used.",
+  "Default newly created or unclear work to the provided fallback group instead of inventing noisy categories.",
+  "Return only a brief plain-text summary of what you changed for the single target session.",
 ].join("\n");
 
 function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function setSortSessionListButtonState(label = DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL, { busy = false } = {}) {
+function setSortSessionListButtonState(label = getDefaultSortSessionListButtonLabel(), { busy = false } = {}) {
   if (!sortSessionListBtn) return;
-  sortSessionListBtn.textContent = label || DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL;
+  sortSessionListBtn.textContent = label || getDefaultSortSessionListButtonLabel();
   sortSessionListBtn.disabled = busy;
 }
 
@@ -581,6 +675,29 @@ function setSessionListOrganizerAiQuickActionSessionId(sessionId = "") {
 function clearSessionListOrganizerAiQuickActionSessionId() {
   setSessionListOrganizerAiQuickActionSessionId("");
 }
+
+function getStoredSessionListOrganizerLastFingerprint() {
+  try {
+    return String(localStorage.getItem(SESSION_LIST_ORGANIZER_LAST_FINGERPRINT_STORAGE_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function setStoredSessionListOrganizerLastFingerprint(fingerprint = "") {
+  const normalized = String(fingerprint || "").trim();
+  sessionListOrganizerLastFingerprint = normalized;
+  try {
+    if (!normalized) {
+      localStorage.removeItem(SESSION_LIST_ORGANIZER_LAST_FINGERPRINT_STORAGE_KEY);
+    } else {
+      localStorage.setItem(SESSION_LIST_ORGANIZER_LAST_FINGERPRINT_STORAGE_KEY, normalized);
+    }
+  } catch {}
+  return normalized;
+}
+
+sessionListOrganizerLastFingerprint = getStoredSessionListOrganizerLastFingerprint();
 
 function isSessionListOrganizerAiQuickActionCandidate(session = null) {
   if (!session?.id) return false;
@@ -643,7 +760,7 @@ async function runSessionListOrganizerAiQuickAction(sessionId = "", payload = nu
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text: buildSessionListOrganizerTask(payload?.sessions || []),
+      text: buildSessionListOrganizerTask(payload),
       ...(payload?.model ? { model: payload.model } : {}),
       ...(payload?.effort ? { effort: payload.effort } : {}),
       ...(payload?.thinking ? { thinking: true } : {}),
@@ -685,13 +802,144 @@ function clipSessionListOrganizerText(value, maxChars = 240) {
     : normalized;
 }
 
+function buildSessionListOrganizerStrategy() {
+  const groupingMode = getSessionListGroupingMode();
+  const templateGroups = getSessionListGroupingTemplateGroups();
+  return {
+    mode: groupingMode === "ai" ? "ai_free" : "user_template",
+    fallbackGroup: getSessionListGroupingFallbackLabel(),
+    templateGroups,
+  };
+}
+
+function buildSessionListOrganizerStrategySummary(strategy = null) {
+  if (strategy?.mode === "user_template") {
+    const groups = Array.isArray(strategy?.templateGroups) ? strategy.templateGroups : [];
+    if (groups.length === 0) {
+      return "User folder mode is active, but no user-created folders are configured yet.";
+    }
+    return `User folder mode: use only these exact user-created groups, in this order: ${groups.join(", ")}. If no folder fits, use ${strategy.fallbackGroup || getSessionListGroupingFallbackLabel()}.`;
+  }
+  return "AI free mode: choose a concise task-shaped group for the single target task without reorganizing the whole list.";
+}
+
+function isPersistentSessionForOrganizer(session) {
+  const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
+  return kind === "skill" || kind === "recurring_task";
+}
+
+function isGenericSessionTitleForOrganizer(name = "") {
+  const normalized = String(name || "").trim().toLowerCase();
+  if (!normalized) return true;
+  return [
+    "new session",
+    "task",
+    "任务",
+    "initial task",
+    "初始化任务",
+  ].includes(normalized);
+}
+
+function isSessionReadyForOrganizer(session) {
+  if (!session?.id || session?.archived === true) return false;
+  if (isPersistentSessionForOrganizer(session)) return false;
+  if (session?.autoRenamePending === true) return false;
+  const name = String(session?.name || "").trim();
+  return !!name && !isGenericSessionTitleForOrganizer(name);
+}
+
+function isPrimarySessionForOrganizer(session) {
+  return String(session?.taskListVisibility || "primary").trim().toLowerCase() === "primary";
+}
+
+function getSessionListOrganizerPriority(session, strategy = null) {
+  const fallbackGroup = String(strategy?.fallbackGroup || getSessionListGroupingFallbackLabel()).trim();
+  const currentGroup = String(session?.group || "").trim();
+  let score = 0;
+  if (!currentGroup) score += 100;
+  if (fallbackGroup && currentGroup === fallbackGroup) score += 80;
+  if (!normalizeSessionSidebarOrderValue(session?.sidebarOrder)) score += 30;
+  score += Math.min(Number.isInteger(session?.messageCount) ? session.messageCount : 0, 20);
+  return score;
+}
+
+function selectSessionListOrganizerTarget(activeSessions = [], strategy = null) {
+  const candidates = (Array.isArray(activeSessions) ? activeSessions : [])
+    .filter(isPrimarySessionForOrganizer)
+    .filter(isSessionReadyForOrganizer)
+    .slice()
+    .sort((left, right) => {
+      const priorityDiff = getSessionListOrganizerPriority(right, strategy) - getSessionListOrganizerPriority(left, strategy);
+      if (priorityDiff) return priorityDiff;
+      const leftTime = Date.parse(left?.updatedAt || left?.created || "") || 0;
+      const rightTime = Date.parse(right?.updatedAt || right?.created || "") || 0;
+      return rightTime - leftTime;
+    });
+  return candidates[0] || null;
+}
+
+function buildSessionListOrganizerFingerprint(payload = null) {
+  const target = payload?.targetSession || null;
+  return JSON.stringify({
+    strategy: {
+      mode: payload?.strategy?.mode || "",
+      fallbackGroup: payload?.strategy?.fallbackGroup || "",
+      templateGroups: Array.isArray(payload?.strategy?.templateGroups)
+        ? payload.strategy.templateGroups
+        : [],
+    },
+    target: target ? [
+      target?.id || "",
+      target?.title || "",
+      target?.existingGroup || "",
+      Number.isInteger(target?.existingSidebarOrder) ? target.existingSidebarOrder : 0,
+      target?.pinned === true ? 1 : 0,
+    ] : [],
+  });
+}
+
+function canRunAutoSessionOrganizer(now = Date.now()) {
+  return !sessionListOrganizerLastAutoRunAt
+    || now - sessionListOrganizerLastAutoRunAt >= SESSION_LIST_AUTO_ORGANIZER_MIN_INTERVAL_MS;
+}
+
+function clearSessionListOrganizerAutoRun() {
+  if (sessionListOrganizerAutoTimer) {
+    window.clearTimeout(sessionListOrganizerAutoTimer);
+    sessionListOrganizerAutoTimer = null;
+  }
+}
+
+async function saveTaskListTemplateGroups(groups = []) {
+  const normalizedGroups = typeof getSessionListModelApi()?.normalizeSessionGroupingTemplateGroups === "function"
+    ? getSessionListModelApi().normalizeSessionGroupingTemplateGroups(groups)
+    : (Array.isArray(groups) ? groups : []);
+  const data = await fetchJsonOrRedirect("/api/settings", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      taskListTemplateGroups: normalizedGroups,
+    }),
+  });
+  applyGeneralSettingsPayload(data || null);
+  if (typeof window?.dispatchEvent === "function") {
+    window.dispatchEvent(new CustomEvent("melodysync:general-settings-updated", {
+      detail: data || null,
+    }));
+  }
+  return data || null;
+}
+
+globalThis.cancelSessionListOrganizerAutoRun = clearSessionListOrganizerAutoRun;
+globalThis.saveTaskListTemplateGroups = saveTaskListTemplateGroups;
+
 function scheduleSortSessionListButtonReset(delayMs = 1600) {
   if (sessionListOrganizerLabelResetTimer) {
     window.clearTimeout(sessionListOrganizerLabelResetTimer);
   }
   sessionListOrganizerLabelResetTimer = window.setTimeout(() => {
     sessionListOrganizerLabelResetTimer = null;
-    setSortSessionListButtonState(DEFAULT_SORT_SESSION_LIST_BUTTON_LABEL, { busy: false });
+    setSortSessionListButtonState(getDefaultSortSessionListButtonLabel(), { busy: false });
   }, delayMs);
 }
 
@@ -781,6 +1029,8 @@ function buildSessionListOrganizerSessionMetadata(session) {
     existingSidebarOrder: Number.isInteger(session?.sidebarOrder) && session.sidebarOrder > 0
       ? session.sidebarOrder
       : null,
+    taskListOrigin: clipSessionListOrganizerText(session?.taskListOrigin || "", 20),
+    taskListVisibility: clipSessionListOrganizerText(session?.taskListVisibility || "", 20),
     pinned: session?.pinned === true,
     tool: clipSessionListOrganizerText(session?.tool || "", 40),
     sourceName: clipSessionListOrganizerText(session?.sourceName || "", 80),
@@ -796,31 +1046,57 @@ function buildSessionListOrganizerSessionMetadata(session) {
 }
 
 function buildSessionListOrganizerPayload() {
-  const activeSessions = getActiveSessions();
+  const activeSessions = getActiveSessions()
+    .filter(isPrimarySessionForOrganizer)
+    .filter(isSessionReadyForOrganizer);
+  const strategy = buildSessionListOrganizerStrategy();
+  const targetSession = selectSessionListOrganizerTarget(activeSessions, strategy);
+  const sessions = activeSessions
+    .map(buildSessionListOrganizerSessionMetadata)
+    .filter((session) => session.id);
   return {
     tool: selectedTool || preferredTool || "codex",
     ...(selectedModel ? { model: selectedModel } : {}),
     ...(selectedEffort ? { effort: selectedEffort } : {}),
     thinking: thinkingEnabled === true,
-    sessions: activeSessions.map(buildSessionListOrganizerSessionMetadata).filter((session) => session.id),
+    strategy,
+    targetSession: targetSession ? buildSessionListOrganizerSessionMetadata(targetSession) : null,
+    sessions,
   };
 }
 
-function buildSessionListOrganizerTask(sessions) {
-  const payload = {
+function maybeScheduleAutoSessionListOrganize() {
+  clearSessionListOrganizerAutoRun();
+}
+
+function buildSessionListOrganizerTask(payload = null) {
+  const strategy = payload?.strategy || buildSessionListOrganizerStrategy();
+  const targetSession = payload?.targetSession || null;
+  const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
+  const taskPayload = {
     generatedAt: new Date().toISOString(),
-    totalSessions: Array.isArray(sessions) ? sessions.length : 0,
-    sessions: Array.isArray(sessions) ? sessions : [],
+    strategy,
+    targetSession,
+    totalSessions: sessions.length,
+    sessions,
   };
   return [
-    "Organize the current non-archived MelodySync task list using the provided metadata snapshot.",
-    `Classify tasks into ${getSessionListOrganizerGroupLabelsText()}, improve sidebar ordering inside those groups, and rename tasks when the current title is weak.`,
+    "Organize exactly one visible MelodySync task using the provided metadata snapshot.",
+    buildSessionListOrganizerStrategySummary(strategy),
+    "Patch at most one existing session, and it must be `targetSession.id`.",
+    "Prefer changing only the target task group.",
+    "Rename only when the current title is clearly weak, generic, or tool-generated.",
+    "Do not reorder the whole list. If you patch `sidebarOrder`, only touch the target session.",
+    "If the target task is already in a good state, make no changes.",
     "Apply changes by calling the MelodySync API from this machine; do not merely suggest them.",
     `Snapshot fields like ${getSessionListOrganizerReadonlyFieldsText()} are read-only context.`,
     `When patching a session, send only ${getSessionListOrganizerWritableFieldsText()} in the API body.`,
+    strategy?.mode === "user_template"
+      ? `If a task does not fit any user template group, use ${strategy?.fallbackGroup || getSessionListGroupingFallbackLabel()}.`
+      : `For unclear or newly created work, use ${strategy?.fallbackGroup || getSessionListGroupingFallbackLabel()} instead of inventing a noisy category.`,
     "",
     "<session_list_organizer_input>",
-    JSON.stringify(payload, null, 2),
+    JSON.stringify(taskPayload, null, 2),
     "</session_list_organizer_input>",
   ].join("\n");
 }
@@ -848,7 +1124,7 @@ async function createSessionListOrganizerRun(payload) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text: buildSessionListOrganizerTask(payload?.sessions || []),
+      text: buildSessionListOrganizerTask(payload),
       ...(payload?.model ? { model: payload.model } : {}),
       ...(payload?.effort ? { effort: payload.effort } : {}),
       ...(payload?.thinking ? { thinking: true } : {}),
@@ -1291,22 +1567,41 @@ async function fetchSessionsList() {
   if (nextSessions.length === 0 && nextArchivedCount === 0) {
     const seededSession = await ensureInitialInboxSession();
     if (seededSession) {
+      maybeScheduleAutoSessionListOrganize();
       return sessions;
     }
   }
   applySessionListState(nextSessions, {
     archivedCount: nextArchivedCount,
   });
+  maybeScheduleAutoSessionListOrganize();
   return sessions;
 }
 
-async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
+async function organizeSessionListWithAgent({
+  closeSidebar = false,
+  auto = false,
+  skipModeSwitch = false,
+  expectedFingerprint = "",
+} = {}) {
   if (sessionListOrganizerInFlight) return sessionListOrganizerInFlight;
+  const groupingMode = getSessionListGroupingMode();
+  if (groupingMode === "user" && !hasSessionListGroupingTemplateGroups()) {
+    setSortSessionListButtonState(getDefaultSortSessionListButtonLabel(), { busy: false });
+    return false;
+  }
 
   const payload = buildSessionListOrganizerPayload();
-  if (!Array.isArray(payload.sessions) || payload.sessions.length === 0) {
+  const organizerFingerprint = expectedFingerprint || buildSessionListOrganizerFingerprint(payload);
+  if (!payload?.targetSession?.id) {
     setSortSessionListButtonState("没有可整理的任务", { busy: false });
     scheduleSortSessionListButtonReset();
+    return false;
+  }
+  if (auto && organizerFingerprint && organizerFingerprint === sessionListOrganizerLastFingerprint) {
+    return false;
+  }
+  if (auto && !canRunAutoSessionOrganizer()) {
     return false;
   }
 
@@ -1314,43 +1609,41 @@ async function organizeSessionListWithAgent({ closeSidebar = false } = {}) {
     window.clearTimeout(sessionListOrganizerLabelResetTimer);
     sessionListOrganizerLabelResetTimer = null;
   }
-  setSortSessionListButtonState("整理中…", { busy: true });
+  clearSessionListOrganizerAutoRun();
+  setSortSessionListButtonState(getRunningSortSessionListButtonLabel(), { busy: true });
 
   const request = (async () => {
     try {
-      let run = null;
-      try {
-        const quickActionSession = await resolveSessionListOrganizerAiQuickAction(payload);
-        if (quickActionSession?.id) {
-          run = await runSessionListOrganizerAiQuickAction(quickActionSession.id, payload);
-        }
-      } catch (error) {
-        clearSessionListOrganizerAiQuickActionSessionId();
-        console.warn("[sessions] Failed to run organizer AI quick action:", error?.message || error);
+      if (auto) sessionListOrganizerLastAutoRunAt = Date.now();
+      const data = await createSessionListOrganizerRun(payload);
+      const runId = typeof data?.run?.id === "string" ? data.run.id.trim() : "";
+      if (!runId) {
+        throw new Error("Sort list did not start a run");
       }
-
-      if (!run) {
-        const data = await createSessionListOrganizerRun(payload);
-        const runId = typeof data?.run?.id === "string" ? data.run.id.trim() : "";
-        if (!runId) {
-          throw new Error("Sort list did not start a run");
-        }
-        run = await waitForSessionListOrganizerRun(runId);
-      }
+      const run = await waitForSessionListOrganizerRun(runId);
 
       if (run?.state !== "completed") {
         throw new Error(run?.failureReason || `Sort list ${run?.state || "failed"}`);
       }
 
       await fetchSessionsList();
+      setStoredSessionListOrganizerLastFingerprint(
+        buildSessionListOrganizerFingerprint(buildSessionListOrganizerPayload()),
+      );
+      clearSessionListOrganizerAutoRun();
       if (closeSidebar && !isDesktop) {
         closeSidebarFn();
       }
-      setSortSessionListButtonState("已整理", { busy: false });
+      setSortSessionListButtonState(getDoneSortSessionListButtonLabel(), { busy: false });
       return true;
     } catch (error) {
       console.warn("[sessions] Failed to organize the session list:", error.message);
-      setSortSessionListButtonState("整理失败", { busy: false });
+      setSortSessionListButtonState(
+        auto
+          ? getDefaultSortSessionListButtonLabel()
+          : getFailedSortSessionListButtonLabel(),
+        { busy: false },
+      );
       return false;
     } finally {
       sessionListOrganizerInFlight = null;
@@ -1443,6 +1736,7 @@ async function fetchSessionEvents(sessionId, { runState = "idle", viewportIntent
   );
   const events = data.events || [];
   if (currentSessionId !== sessionId) return events;
+  window.MelodySyncGraphOpsUi?.replaceSessionProposals?.(sessionId, events);
   const renderPlan = getEventRenderPlan(sessionId, events);
 
   if (renderPlan.mode === "refresh_running_block") {

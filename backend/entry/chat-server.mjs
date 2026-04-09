@@ -52,6 +52,11 @@ if (!delegatedToRelease) {
     { loadPersistedHookSettings },
     { ensureGeneralSettingsRuntimeFiles },
     { ensureVoiceSettingsRuntimeFiles },
+    {
+      resumeHostCompletionSpeechQueue,
+      startHostCompletionSpeechQueueWatchdog,
+      stopHostCompletionSpeechQueueWatchdog,
+    },
   ] = await Promise.all([
     import('../../lib/config.mjs'),
     import('../router.mjs'),
@@ -67,6 +72,7 @@ if (!delegatedToRelease) {
     import('../hooks/runtime/settings-store.mjs'),
     import('../settings/general-store.mjs'),
     import('../settings/voice-store.mjs'),
+    import('../completion-speech-queue.mjs'),
   ]);
 
   registerBuiltinHooks();
@@ -96,6 +102,7 @@ if (!delegatedToRelease) {
 
   async function shutdown() {
     console.log('Shutting down chat server...');
+    stopHostCompletionSpeechQueueWatchdog();
     persistentScheduler.stopPersistentSessionScheduler();
     await apiRequestLog.closeApiRequestLog();
     sessionManager.killAll();
@@ -137,6 +144,15 @@ if (!delegatedToRelease) {
       });
     } catch (error) {
       console.error('Failed to rehydrate detached runs on startup:', error);
+    }
+    try {
+      console.log('Startup: resuming host completion speech queue...');
+      void resumeHostCompletionSpeechQueue().catch((error) => {
+        console.error('Failed to resume host completion speech queue on startup:', error);
+      });
+      startHostCompletionSpeechQueueWatchdog();
+    } catch (error) {
+      console.error('Failed to resume host completion speech queue on startup:', error);
     }
   });
 }

@@ -17,6 +17,9 @@ import {
 import { ensureDir, readJson, writeJsonAtomic } from '../fs-utils.mjs';
 import { readGeneralSettings } from './general-store.mjs';
 
+const DEFAULT_TTS_VOLUME = 50;
+const DEFAULT_PLAYBACK_VOLUME = 0.8;
+
 function trimString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -32,6 +35,22 @@ function normalizeBooleanField(value) {
 function normalizePositiveIntegerField(value, fallback) {
   const parsed = Number.parseInt(value, 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeBoundedNumberField(value, {
+  min = Number.NEGATIVE_INFINITY,
+  max = Number.POSITIVE_INFINITY,
+  fallback,
+  decimals = null,
+} = {}) {
+  if (typeof value === 'string' && !trimString(value)) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  const clamped = Math.max(min, Math.min(max, parsed));
+  if (!Number.isFinite(clamped)) return fallback;
+  if (!Number.isInteger(decimals) || decimals < 0) return clamped;
+  const factor = 10 ** decimals;
+  return Math.round(clamped * factor) / factor;
 }
 
 function normalizeEnvMap(value = {}) {
@@ -103,6 +122,21 @@ async function buildVoiceSettingsPayload({ general, paths, normalizedConfig }) {
   const commandPath = paths.voiceConfigFile;
   const simpleMode = inferSimpleVoiceMode(normalizedConfig);
   const wakePhrase = inferWakePhrase(normalizedConfig);
+  const ttsEnv = normalizedConfig?.tts?.env && typeof normalizedConfig.tts.env === 'object'
+    ? normalizedConfig.tts.env
+    : {};
+  const ttsVolume = normalizeBoundedNumberField(ttsEnv.XFYUN_VOLUME, {
+    min: 0,
+    max: 100,
+    fallback: DEFAULT_TTS_VOLUME,
+    decimals: 0,
+  });
+  const playbackVolume = normalizeBoundedNumberField(ttsEnv.COMPLETION_AFP_PLAY_VOLUME, {
+    min: 0,
+    max: 2,
+    fallback: DEFAULT_PLAYBACK_VOLUME,
+    decimals: 1,
+  });
   return {
     appRoot: general.appRoot,
     voiceRoot: paths.voiceDir,
@@ -120,6 +154,8 @@ async function buildVoiceSettingsPayload({ general, paths, normalizedConfig }) {
       mode: simpleMode,
       wakePhrase: wakePhrase || DEFAULT_WAKE_PHRASE,
       ttsEnabled: normalizedConfig.tts?.enabled !== false,
+      ttsVolume,
+      playbackVolume,
     },
     status,
     commands: {
@@ -138,6 +174,36 @@ async function buildVoiceSettingsPayload({ general, paths, normalizedConfig }) {
 function normalizeVoiceSettingsPatch(payload = {}, currentConfig = {}) {
   const patch = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
   const current = currentConfig && typeof currentConfig === 'object' && !Array.isArray(currentConfig) ? currentConfig : {};
+  const ttsPatch = patch.tts && typeof patch.tts === 'object' ? patch.tts : null;
+  const hasTopLevelTtsVolume = Object.prototype.hasOwnProperty.call(patch, 'ttsVolume');
+  const hasTopLevelPlaybackVolume = Object.prototype.hasOwnProperty.call(patch, 'playbackVolume');
+  const normalizedTopLevelTtsVolume = hasTopLevelTtsVolume
+    ? normalizeBoundedNumberField(patch.ttsVolume, {
+      min: 0,
+      max: 100,
+      fallback: undefined,
+      decimals: 0,
+    })
+    : undefined;
+  const normalizedTopLevelPlaybackVolume = hasTopLevelPlaybackVolume
+    ? normalizeBoundedNumberField(patch.playbackVolume, {
+      min: 0,
+      max: 2,
+      fallback: undefined,
+      decimals: 1,
+    })
+    : undefined;
+  const baseTtsEnv = ttsPatch
+    && Object.prototype.hasOwnProperty.call(ttsPatch, 'env')
+    ? normalizeEnvMap(ttsPatch.env)
+    : normalizeEnvMap(current.tts?.env || {});
+  const nextTtsEnv = { ...baseTtsEnv };
+  if (normalizedTopLevelTtsVolume !== undefined) {
+    nextTtsEnv.XFYUN_VOLUME = String(normalizedTopLevelTtsVolume);
+  }
+  if (normalizedTopLevelPlaybackVolume !== undefined) {
+    nextTtsEnv.COMPLETION_AFP_PLAY_VOLUME = String(normalizedTopLevelPlaybackVolume);
+  }
   const managedSimplePatch = (
     Object.prototype.hasOwnProperty.call(patch, 'mode')
     || Object.prototype.hasOwnProperty.call(patch, 'wakePhrase')
@@ -149,8 +215,11 @@ function normalizeVoiceSettingsPatch(payload = {}, currentConfig = {}) {
       ttsEnabled: Object.prototype.hasOwnProperty.call(patch, 'ttsEnabled')
         ? normalizeBooleanField(patch.ttsEnabled)
         : current.tts?.enabled !== false,
-    })
+      })
     : {};
+  const managedTtsPatch = managedSimplePatch.tts && typeof managedSimplePatch.tts === 'object'
+    ? managedSimplePatch.tts
+    : null;
 
   return mergeVoiceConnectorConfig(current, {
     ...(Object.prototype.hasOwnProperty.call(patch, 'connectorId') ? { connectorId: normalizeStringField(patch.connectorId) } : {}),
@@ -169,6 +238,7 @@ function normalizeVoiceSettingsPatch(payload = {}, currentConfig = {}) {
     ...(Object.prototype.hasOwnProperty.call(patch, 'description') ? { description: normalizeStringField(patch.description) } : {}),
     ...(Object.prototype.hasOwnProperty.call(patch, 'queueMode') ? { queueMode: normalizeStringField(patch.queueMode) } : {}),
     ...(Object.prototype.hasOwnProperty.call(patch, 'errorSpeech') ? { errorSpeech: normalizeStringField(patch.errorSpeech) } : {}),
+    ...managedSimplePatch,
     ...(patch.wake && typeof patch.wake === 'object' ? {
       wake: {
         ...(current.wake || {}),
@@ -214,33 +284,40 @@ function normalizeVoiceSettingsPatch(payload = {}, currentConfig = {}) {
           : (current.stt?.env || {}),
       },
     } : {}),
-    ...(patch.tts && typeof patch.tts === 'object' ? {
+    ...(ttsPatch || hasTopLevelTtsVolume || hasTopLevelPlaybackVolume ? {
       tts: {
         ...(current.tts || {}),
-        enabled: Object.prototype.hasOwnProperty.call(patch.tts, 'enabled')
-          ? normalizeBooleanField(patch.tts.enabled)
+        enabled: ttsPatch && Object.prototype.hasOwnProperty.call(ttsPatch, 'enabled')
+          ? normalizeBooleanField(ttsPatch.enabled)
+          : managedTtsPatch && Object.prototype.hasOwnProperty.call(managedTtsPatch, 'enabled')
+            ? managedTtsPatch.enabled
           : current.tts?.enabled,
-        mode: Object.prototype.hasOwnProperty.call(patch.tts, 'mode')
-          ? normalizeStringField(patch.tts.mode)
+        mode: ttsPatch && Object.prototype.hasOwnProperty.call(ttsPatch, 'mode')
+          ? normalizeStringField(ttsPatch.mode)
+          : managedTtsPatch && Object.prototype.hasOwnProperty.call(managedTtsPatch, 'mode')
+            ? managedTtsPatch.mode
           : current.tts?.mode,
-        voice: Object.prototype.hasOwnProperty.call(patch.tts, 'voice')
-          ? normalizeStringField(patch.tts.voice)
+        voice: ttsPatch && Object.prototype.hasOwnProperty.call(ttsPatch, 'voice')
+          ? normalizeStringField(ttsPatch.voice)
           : current.tts?.voice,
-        rate: Object.prototype.hasOwnProperty.call(patch.tts, 'rate')
-          ? normalizePositiveIntegerField(patch.tts.rate, current.tts?.rate)
+        rate: ttsPatch && Object.prototype.hasOwnProperty.call(ttsPatch, 'rate')
+          ? normalizePositiveIntegerField(ttsPatch.rate, current.tts?.rate)
           : current.tts?.rate,
-        command: Object.prototype.hasOwnProperty.call(patch.tts, 'command')
-          ? normalizeStringField(patch.tts.command)
+        command: ttsPatch && Object.prototype.hasOwnProperty.call(ttsPatch, 'command')
+          ? normalizeStringField(ttsPatch.command)
           : current.tts?.command,
-        timeoutMs: Object.prototype.hasOwnProperty.call(patch.tts, 'timeoutMs')
-          ? normalizePositiveIntegerField(patch.tts.timeoutMs, current.tts?.timeoutMs)
+        timeoutMs: ttsPatch && Object.prototype.hasOwnProperty.call(ttsPatch, 'timeoutMs')
+          ? normalizePositiveIntegerField(ttsPatch.timeoutMs, current.tts?.timeoutMs)
           : current.tts?.timeoutMs,
-        env: Object.prototype.hasOwnProperty.call(patch.tts, 'env')
-          ? normalizeEnvMap(patch.tts.env)
+        env: (
+          (ttsPatch && Object.prototype.hasOwnProperty.call(ttsPatch, 'env'))
+          || hasTopLevelTtsVolume
+          || hasTopLevelPlaybackVolume
+        )
+          ? nextTtsEnv
           : (current.tts?.env || {}),
       },
     } : {}),
-    ...managedSimplePatch,
   }, {
     configPath: current.configPath,
   });

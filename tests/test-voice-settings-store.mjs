@@ -38,11 +38,15 @@ try {
   assert.equal(initial.config.chatBaseUrl, 'http://127.0.0.1:7760');
   assert.equal(initial.config.sessionMode, 'stable');
   assert.equal(initial.simpleConfig.mode, 'wake');
+  assert.equal(initial.simpleConfig.ttsVolume, 50);
+  assert.equal(initial.simpleConfig.playbackVolume, 0.8);
   assert.equal(initial.status.running, false);
 
   const saved = await persistVoiceSettings({
     mode: 'passive',
     ttsEnabled: false,
+    ttsVolume: 38,
+    playbackVolume: 0.6,
   });
 
   assert.equal(saved.simpleConfig.mode, 'passive');
@@ -53,6 +57,10 @@ try {
   assert.equal(saved.config.stt.command, '');
   assert.equal(saved.config.tts.enabled, false);
   assert.equal(saved.config.tts.mode, 'disabled');
+  assert.equal(saved.simpleConfig.ttsVolume, 38);
+  assert.equal(saved.simpleConfig.playbackVolume, 0.6);
+  assert.equal(saved.config.tts.env.XFYUN_VOLUME, '38');
+  assert.equal(saved.config.tts.env.COMPLETION_AFP_PLAY_VOLUME, '0.6');
   assert.equal(saved.commands.start, './scripts/voice/voice-connector-instance.sh start');
 
   const wakeSaved = await persistVoiceSettings({
