@@ -10,7 +10,7 @@
     };
   }
 
-  function createController({
+  function createFallbackController({
     documentRef = document,
     trackerTaskListEl = null,
     taskMapRail = null,
@@ -25,6 +25,17 @@
     const flowRenderer = taskMapFlowRenderer && typeof taskMapFlowRenderer.renderFlowBoard === "function"
       ? taskMapFlowRenderer
       : fallbackTaskMapRenderer(documentRef);
+
+    function destroyRenderedBoard() {
+      if (!trackerTaskListEl) return;
+      const children = Array.from(trackerTaskListEl.children || []);
+      for (const child of children) {
+        const cleanup = child?.__melodysyncCleanup;
+        if (typeof cleanup === "function") {
+          cleanup();
+        }
+      }
+    }
 
     function invalidate() {
       lastRenderKey = "";
@@ -47,11 +58,15 @@
       trackerTaskListEl.classList.toggle("is-flow-board", shouldMount);
       syncTaskMapDrawerUi(shouldMount);
       if (!shouldMount) {
+        destroyRenderedBoard();
+        trackerTaskListEl.innerHTML = "";
         trackerTaskListEl.hidden = true;
         invalidate();
         return;
       }
       if (!isMobileQuestTracker() && !isTaskMapExpanded()) {
+        destroyRenderedBoard();
+        trackerTaskListEl.innerHTML = "";
         trackerTaskListEl.hidden = true;
         invalidate();
         return;
@@ -71,6 +86,7 @@
         activeQuest?.id || "",
         activeQuest?.currentNodeId || "",
         nodeEntries.join("|"),
+        String(flowRenderer.getRenderStateKey?.() || "").trim(),
       ].join("||");
       if (
         !trackerTaskListEl.hidden
@@ -80,6 +96,7 @@
         return;
       }
       lastRenderKey = renderKey;
+      destroyRenderedBoard();
       trackerTaskListEl.innerHTML = "";
 
       if (!rootNode) {
@@ -104,6 +121,7 @@
       if (!trackerTaskListEl) return;
       const activeQuest = getTaskMapProjection()?.activeMainQuest || null;
       if (!activeQuest) {
+        destroyRenderedBoard();
         trackerTaskListEl.innerHTML = "";
         trackerTaskListEl.hidden = true;
         invalidate();
@@ -116,6 +134,22 @@
       invalidate,
       render,
     };
+  }
+
+  function getWorkbenchReactUi(windowRef = window) {
+    return globalThis?.MelodySyncWorkbenchReactUi
+      || windowRef?.MelodySyncWorkbenchReactUi
+      || windowRef?.window?.MelodySyncWorkbenchReactUi
+      || null;
+  }
+
+  function createController(options = {}) {
+    const windowRef = options?.windowRef || globalThis?.window || window;
+    const reactFactory = getWorkbenchReactUi(windowRef)?.createTaskListController;
+    if (typeof reactFactory === "function") {
+      return reactFactory(options);
+    }
+    return createFallbackController(options);
   }
 
   window.MelodySyncTaskListUi = Object.freeze({

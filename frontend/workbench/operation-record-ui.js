@@ -54,7 +54,10 @@
     }
 
     function normalizeRecurringCadence(value) {
-      return normalizeKey(value) === "weekly" ? "weekly" : "daily";
+      const normalized = normalizeKey(value);
+      if (normalized === "hourly") return "hourly";
+      if (normalized === "weekly") return "weekly";
+      return "daily";
     }
 
     function normalizeTimeOfDay(value, fallback = "09:00") {
@@ -123,11 +126,28 @@
       return parts.join(" · ");
     }
 
-    function describeRuntimeMode(mode) {
-      if (mode === "follow_current") return "跟随当前服务";
-      if (mode === "pinned") return "固定为指定服务";
-      return "使用该会话默认服务";
-    }
+    const persistentEditorRenderer = windowRef?.MelodySyncPersistentEditorUi?.createRenderer?.({
+      documentRef,
+      windowRef,
+      cloneJson,
+      formatRuntimeSummary,
+      normalizeRecurringCadence,
+      normalizeTimeOfDay,
+      normalizeWeekdays,
+    }) || null;
+    const operationRecordSummaryRenderer = windowRef?.MelodySyncOperationRecordSummaryUi?.createRenderer?.({
+      documentRef,
+      windowRef,
+      clipText,
+    }) || null;
+    const operationRecordListRenderer = windowRef?.MelodySyncOperationRecordListUi?.createRenderer?.({
+      documentRef,
+      windowRef,
+      clipText,
+      formatTrackerTime,
+      attachSession,
+      getFocusedSessionId,
+    }) || null;
 
     function createPersistentEditorDraft(data = {}, options = {}) {
       const persistent = data?.persistent || null;
@@ -191,7 +211,12 @@
     function closePersistentEditor() {
       persistentEditor = null;
       if (persistentModalNodes) {
-        persistentModalNodes.backdrop.hidden = true;
+        if (persistentEditorRenderer?.clearPersistentEditorModal) {
+          persistentEditorRenderer.clearPersistentEditorModal(persistentModalNodes.backdrop);
+        } else {
+          persistentModalNodes.backdrop.hidden = true;
+          persistentModalNodes.backdrop.innerHTML = "";
+        }
       }
       if (latestData) {
         renderLoadedData(latestData);
@@ -358,7 +383,12 @@
           if (ok !== false) {
             persistentEditor = null;
             if (persistentModalNodes) {
-              persistentModalNodes.backdrop.hidden = true;
+              if (persistentEditorRenderer?.clearPersistentEditorModal) {
+                persistentEditorRenderer.clearPersistentEditorModal(persistentModalNodes.backdrop);
+              } else {
+                persistentModalNodes.backdrop.hidden = true;
+                persistentModalNodes.backdrop.innerHTML = "";
+              }
             }
             if (latestData) {
               renderLoadedData(latestData);
@@ -370,167 +400,11 @@
       }
     }
 
-    function createPersistentActionButton(label, action, { secondary = false } = {}) {
-      const button = documentRef.createElement("button");
-      button.type = "button";
-      button.className = `operation-record-action-btn${secondary ? " is-secondary" : ""}`;
-      button.textContent = label;
-      button.dataset.action = action;
-      return button;
-    }
-
-    function buildField(labelText, controlEl, noteText = "") {
-      const field = documentRef.createElement("label");
-      field.className = "operation-record-persistent-field";
-
-      const labelEl = documentRef.createElement("span");
-      labelEl.className = "operation-record-persistent-field-label";
-      labelEl.textContent = labelText;
-      field.appendChild(labelEl);
-
-      field.appendChild(controlEl);
-
-      if (noteText) {
-        const noteEl = documentRef.createElement("span");
-        noteEl.className = "operation-record-persistent-field-note";
-        noteEl.textContent = noteText;
-        field.appendChild(noteEl);
-      }
-
-      return field;
-    }
-
-    function buildRuntimePolicyLine(label, mode, runtime) {
-      const suffix = mode === "pinned" && runtime?.tool
-        ? ` · ${formatRuntimeSummary(runtime)}`
-        : "";
-      return `${label}：${describeRuntimeMode(mode)}${suffix}`;
-    }
-
-    function buildRuntimeSection({
-      title,
-      mode,
-      allowedModes,
-      runtime,
-      onModeChange,
-      onPinCurrent,
-      note = "",
-    } = {}) {
-      const section = documentRef.createElement("div");
-      section.className = "operation-record-persistent-section";
-
-      const heading = documentRef.createElement("div");
-      heading.className = "operation-record-persistent-section-title";
-      heading.textContent = title;
-      section.appendChild(heading);
-
-      if (note) {
-        const noteEl = documentRef.createElement("div");
-        noteEl.className = "operation-record-persistent-field-note";
-        noteEl.textContent = note;
-        section.appendChild(noteEl);
-      }
-
-      const select = documentRef.createElement("select");
-      select.className = "operation-record-persistent-select";
-      const options = [
-        { value: "follow_current", label: "跟随当前服务" },
-        { value: "session_default", label: "使用该会话默认服务" },
-        { value: "pinned", label: "固定为指定服务" },
-      ].filter((entry) => allowedModes.includes(entry.value));
-      for (const option of options) {
-        const optionEl = documentRef.createElement("option");
-        optionEl.value = option.value;
-        optionEl.textContent = option.label;
-        select.appendChild(optionEl);
-      }
-      select.value = allowedModes.includes(mode) ? mode : allowedModes[0];
-      select.addEventListener("change", () => onModeChange?.(select.value));
-      section.appendChild(buildField("执行服务", select));
-
-      if (mode === "pinned") {
-        const runtimeRow = documentRef.createElement("div");
-        runtimeRow.className = "operation-record-persistent-runtime-row";
-
-        const summary = documentRef.createElement("div");
-        summary.className = "operation-record-persistent-runtime-summary";
-        summary.textContent = formatRuntimeSummary(runtime);
-        runtimeRow.appendChild(summary);
-
-        const pinBtn = documentRef.createElement("button");
-        pinBtn.type = "button";
-        pinBtn.className = "operation-record-action-btn is-secondary";
-        pinBtn.textContent = "使用当前服务";
-        pinBtn.addEventListener("click", () => onPinCurrent?.());
-        runtimeRow.appendChild(pinBtn);
-
-        section.appendChild(runtimeRow);
-      }
-
-      return section;
-    }
-
-    function buildWeekdayToggle(day, draft, rerender) {
-      const labels = ["日", "一", "二", "三", "四", "五", "六"];
-      const button = documentRef.createElement("button");
-      button.type = "button";
-      button.className = "operation-record-weekday-btn";
-      const active = normalizeWeekdays(draft.recurring?.weekdays).includes(day);
-      button.classList.toggle("is-active", active);
-      button.textContent = labels[day];
-      button.addEventListener("click", () => {
-        const current = new Set(normalizeWeekdays(draft.recurring?.weekdays));
-        if (current.has(day)) {
-          current.delete(day);
-        } else {
-          current.add(day);
-        }
-        draft.recurring.weekdays = Array.from(current).sort((a, b) => a - b);
-        rerender();
-      });
-      return button;
-    }
-
     function ensurePersistentModalNodes() {
       if (persistentModalNodes) return persistentModalNodes;
       const backdrop = documentRef.createElement("div");
       backdrop.className = "modal-backdrop persistent-editor-modal-backdrop";
       backdrop.hidden = true;
-
-      const dialog = documentRef.createElement("div");
-      dialog.className = "modal persistent-editor-modal";
-      dialog.setAttribute("role", "dialog");
-      dialog.setAttribute("aria-modal", "true");
-
-      const header = documentRef.createElement("div");
-      header.className = "modal-header persistent-editor-modal-header";
-
-      const title = documentRef.createElement("div");
-      title.className = "modal-title persistent-editor-modal-title";
-      header.appendChild(title);
-
-      const closeBtn = documentRef.createElement("button");
-      closeBtn.type = "button";
-      closeBtn.className = "modal-close";
-      closeBtn.textContent = "×";
-      closeBtn.setAttribute("aria-label", "关闭");
-      closeBtn.addEventListener("click", () => closePersistentEditor());
-      header.appendChild(closeBtn);
-
-      const lead = documentRef.createElement("div");
-      lead.className = "modal-lead persistent-editor-modal-lead";
-
-      const body = documentRef.createElement("div");
-      body.className = "modal-body persistent-editor-modal-body";
-
-      const footer = documentRef.createElement("div");
-      footer.className = "modal-footer persistent-editor-modal-footer";
-
-      dialog.appendChild(header);
-      dialog.appendChild(lead);
-      dialog.appendChild(body);
-      dialog.appendChild(footer);
-      backdrop.appendChild(dialog);
       bodyEl?.appendChild?.(backdrop);
 
       backdrop.addEventListener("click", (event) => {
@@ -539,14 +413,19 @@
         }
       });
 
-      persistentModalNodes = { backdrop, dialog, title, lead, body, footer };
+      persistentModalNodes = { backdrop };
       return persistentModalNodes;
     }
 
     function renderPersistentEditorModal(data = latestData || {}) {
       const nodes = ensurePersistentModalNodes();
       if (!persistentEditor) {
-        nodes.backdrop.hidden = true;
+        if (persistentEditorRenderer?.clearPersistentEditorModal) {
+          persistentEditorRenderer.clearPersistentEditorModal(nodes.backdrop);
+        } else {
+          nodes.backdrop.hidden = true;
+          nodes.backdrop.innerHTML = "";
+        }
         return;
       }
 
@@ -557,228 +436,29 @@
         ? ensurePersistentEditor({ mode: data?.persistent ? "configure" : "promote" })
         : null;
       const currentRuntime = getCurrentRuntimeSelectionSnapshot() || getSessionRuntimeSnapshot();
-      const rerender = () => renderPersistentEditorModal(data);
-
-      nodes.title.textContent = draft?.mode === "configure" ? "长期项设置" : "沉淀为长期项";
-      nodes.lead.textContent = draft
-        ? (draft.mode === "configure" ? "只保留类型、名称、摘要和提示词。" : "已根据当前会话自动生成一版长期项摘要。")
-        : "正在整理当前会话内容…";
-      nodes.body.innerHTML = "";
-      nodes.footer.innerHTML = "";
       nodes.backdrop.hidden = false;
-
-      if (!draft) {
-        const loading = documentRef.createElement("div");
-        loading.className = "persistent-editor-modal-loading";
-        loading.textContent = "正在加载…";
-        nodes.body.appendChild(loading);
-        return;
+      if (persistentEditorRenderer?.renderPersistentEditorModal) {
+        persistentEditorRenderer.renderPersistentEditorModal(nodes.backdrop, {
+          draft,
+          isLoading: !draft,
+          currentRuntime,
+          onClose: () => handlePersistentAction("close-editor", data),
+          onSave: () => handlePersistentAction("save-editor", data),
+        });
       }
-
-      const form = documentRef.createElement("div");
-      form.className = "persistent-editor-modal-form";
-
-      const kindRow = documentRef.createElement("div");
-      kindRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
-      [
-        { kind: "recurring_task", label: "长期任务" },
-        { kind: "skill", label: "快捷按钮" },
-      ].forEach((entry) => {
-        const button = documentRef.createElement("button");
-        button.type = "button";
-        button.className = "operation-record-kind-btn";
-        button.classList.toggle("is-active", draft.kind === entry.kind);
-        button.textContent = entry.label;
-        button.addEventListener("click", () => {
-          draft.kind = entry.kind;
-          if (entry.kind === "recurring_task") {
-            if (draft.scheduleMode !== "pinned" && draft.scheduleMode !== "session_default") {
-              draft.scheduleMode = currentRuntime?.tool ? "pinned" : "session_default";
-            }
-            if (draft.scheduleMode === "pinned" && !draft.scheduleRuntime?.tool && currentRuntime?.tool) {
-              draft.scheduleRuntime = cloneJson(currentRuntime);
-            }
-          }
-          rerender();
-        });
-        kindRow.appendChild(button);
-      });
-      form.appendChild(buildField("类型", kindRow));
-
-      const titleInput = documentRef.createElement("input");
-      titleInput.type = "text";
-      titleInput.className = "operation-record-persistent-input";
-      titleInput.value = draft.digestTitle;
-      titleInput.placeholder = "给这个长期项起个名字";
-      titleInput.addEventListener("input", () => {
-        draft.digestTitle = titleInput.value;
-      });
-      form.appendChild(buildField("名称", titleInput));
-
-      const summaryInput = documentRef.createElement("textarea");
-      summaryInput.className = "operation-record-persistent-textarea";
-      summaryInput.rows = 4;
-      summaryInput.value = draft.digestSummary;
-      summaryInput.placeholder = "保留这次会话沉淀下来的核心摘要";
-      summaryInput.addEventListener("input", () => {
-        draft.digestSummary = summaryInput.value;
-      });
-      form.appendChild(buildField("摘要", summaryInput));
-
-      const promptInput = documentRef.createElement("textarea");
-      promptInput.className = "operation-record-persistent-textarea";
-      promptInput.rows = 4;
-      promptInput.placeholder = "触发时默认要执行什么";
-      promptInput.value = draft.runPrompt;
-      promptInput.addEventListener("input", () => {
-        draft.runPrompt = promptInput.value;
-      });
-      form.appendChild(buildField("提示词", promptInput));
-
-      if (draft.kind === "recurring_task") {
-        const cadenceSelect = documentRef.createElement("select");
-        cadenceSelect.className = "operation-record-persistent-select";
-        [
-          { value: "daily", label: "每天" },
-          { value: "weekly", label: "每周" },
-        ].forEach((entry) => {
-          const option = documentRef.createElement("option");
-          option.value = entry.value;
-          option.textContent = entry.label;
-          cadenceSelect.appendChild(option);
-        });
-        cadenceSelect.value = normalizeRecurringCadence(draft.recurring?.cadence);
-        cadenceSelect.addEventListener("change", () => {
-          draft.recurring.cadence = cadenceSelect.value;
-          rerender();
-        });
-        form.appendChild(buildField("触发周期", cadenceSelect));
-
-        const timeInput = documentRef.createElement("input");
-        timeInput.type = "time";
-        timeInput.className = "operation-record-persistent-input";
-        timeInput.value = normalizeTimeOfDay(draft.recurring?.timeOfDay);
-        timeInput.addEventListener("input", () => {
-          draft.recurring.timeOfDay = normalizeTimeOfDay(timeInput.value);
-        });
-        form.appendChild(buildField("触发时间", timeInput));
-
-        if (normalizeRecurringCadence(draft.recurring?.cadence) === "weekly") {
-          const weekdayRow = documentRef.createElement("div");
-          weekdayRow.className = "operation-record-weekday-row";
-          for (let day = 0; day <= 6; day += 1) {
-            weekdayRow.appendChild(buildWeekdayToggle(day, draft, rerender));
-          }
-          form.appendChild(buildField("每周日期", weekdayRow));
-        }
-      }
-
-      nodes.body.appendChild(form);
-
-      const cancelBtn = documentRef.createElement("button");
-      cancelBtn.type = "button";
-      cancelBtn.className = "modal-btn";
-      cancelBtn.textContent = "取消";
-      cancelBtn.addEventListener("click", () => handlePersistentAction("close-editor", data));
-      nodes.footer.appendChild(cancelBtn);
-
-      const saveBtn = documentRef.createElement("button");
-      saveBtn.type = "button";
-      saveBtn.className = "modal-btn primary";
-      saveBtn.textContent = draft.mode === "configure" ? "保存" : "保存为长期项";
-      saveBtn.addEventListener("click", () => handlePersistentAction("save-editor", data));
-      nodes.footer.appendChild(saveBtn);
     }
 
     function buildPersistentHeader(data = {}) {
-      const header = documentRef.createElement("div");
-      header.className = "operation-record-session-header";
-
-      const title = documentRef.createElement("span");
-      title.className = "operation-record-session-title";
-      title.textContent = clipText(data.name || "当前任务", 40);
-      header.appendChild(title);
-
-      const persistent = data?.persistent || null;
-      const actionsEl = documentRef.createElement("div");
-      actionsEl.className = "operation-record-actions";
-
-      if (normalizeKey(persistent?.kind) === "recurring_task") {
-        const runBtn = createPersistentActionButton("立即执行", "run");
-        const toggleBtn = createPersistentActionButton(
-          normalizeKey(persistent?.state) === "paused" ? "恢复周期" : "暂停周期",
-          "toggle",
-          { secondary: true },
-        );
-        const configBtn = createPersistentActionButton("设置", "configure", { secondary: true });
-        [runBtn, toggleBtn, configBtn].forEach((button) => {
-          button.addEventListener("click", () => handlePersistentAction(button.dataset.action, data));
-          actionsEl.appendChild(button);
-        });
-      } else if (normalizeKey(persistent?.kind) === "skill") {
-        const runBtn = createPersistentActionButton("触发按钮", "run");
-        const configBtn = createPersistentActionButton("设置", "configure", { secondary: true });
-        [runBtn, configBtn].forEach((button) => {
-          button.addEventListener("click", () => handlePersistentAction(button.dataset.action, data));
-          actionsEl.appendChild(button);
-        });
-      } else {
-        const promoteBtn = createPersistentActionButton("沉淀为长期项", "promote");
-        promoteBtn.addEventListener("click", () => handlePersistentAction(promoteBtn.dataset.action, data));
-        actionsEl.appendChild(promoteBtn);
-      }
-
-      const actionCount = Number(
-        actionsEl.childElementCount
-        ?? actionsEl.children?.length
-        ?? actionsEl.childNodes?.length
-        ?? 0,
-      );
-      if (actionCount > 0) {
-        header.appendChild(actionsEl);
-      }
-      return header;
+      return operationRecordSummaryRenderer?.buildPersistentHeader?.(data, {
+        onPromote: () => handlePersistentAction("promote", data),
+        onRun: () => handlePersistentAction("run", data),
+        onToggle: () => handlePersistentAction("toggle", data),
+        onConfigure: () => handlePersistentAction("configure", data),
+      }) || null;
     }
 
     function buildPersistentDigestCard(data = {}) {
-      const persistent = data?.persistent || null;
-      const digest = persistent?.digest || data?.persistentPreview || null;
-      if (!digest) return null;
-      const digestTitle = clipText(digest.title || data?.name || "", 72);
-      const summary = clipText(digest.summary || "", 180);
-      const keyPoints = Array.isArray(digest.keyPoints) ? digest.keyPoints.filter(Boolean).slice(0, 3) : [];
-      if (!digestTitle && !summary && keyPoints.length === 0) return null;
-
-      const card = documentRef.createElement("div");
-      card.className = "operation-record-persistent-card";
-
-      const titleEl = documentRef.createElement("div");
-      titleEl.className = "operation-record-persistent-summary";
-      titleEl.textContent = persistent ? "长期摘要" : "系统摘要预览";
-      card.appendChild(titleEl);
-
-      if (digestTitle) {
-        const nameEl = documentRef.createElement("div");
-        nameEl.className = "operation-record-persistent-list";
-        nameEl.textContent = `名称：${digestTitle}`;
-        card.appendChild(nameEl);
-      }
-
-      if (summary) {
-        const summaryEl = documentRef.createElement("div");
-        summaryEl.className = "operation-record-persistent-summary";
-        summaryEl.textContent = summary;
-        card.appendChild(summaryEl);
-      }
-
-      if (keyPoints.length > 0) {
-        const pointsEl = documentRef.createElement("div");
-        pointsEl.className = "operation-record-persistent-list";
-        pointsEl.textContent = `核心记录：${keyPoints.join(" · ")}`;
-        card.appendChild(pointsEl);
-      }
-
-      return card;
+      return operationRecordSummaryRenderer?.buildPersistentDigestCard?.(data) || null;
     }
 
     function renderLoadedData(data = {}) {
@@ -790,7 +470,10 @@
       }
 
       operationRecordInner.innerHTML = "";
-      operationRecordInner.appendChild(buildPersistentHeader(data));
+      const header = buildPersistentHeader(data);
+      if (header) {
+        operationRecordInner.appendChild(header);
+      }
 
       const digestCard = buildPersistentDigestCard(data);
       if (digestCard) {
@@ -807,19 +490,15 @@
         return;
       }
 
-      const listEl = documentRef.createElement("div");
-      listEl.className = "operation-record-items";
       seedExpansion(data.items, currentSessionId);
-
-      for (const item of data.items) {
-        if (item.type === "commit") {
-          listEl.appendChild(buildCommitItem(item, data.sessionId, currentSessionId));
-        } else if (item.type === "branch") {
-          listEl.appendChild(buildBranchCard(item, currentSessionId));
-        }
+      const listEl = operationRecordListRenderer?.buildItemsList?.({
+        items: data.items,
+        currentSessionId,
+        expanded,
+      }) || null;
+      if (listEl) {
+        operationRecordInner.appendChild(listEl);
       }
-
-      operationRecordInner.appendChild(listEl);
     }
 
     function branchRecordContainsSession(branch, sessionId) {
@@ -850,136 +529,6 @@
       for (const item of branchItems) {
         visit(item);
       }
-    }
-
-    function getBranchLabel(item, currentSessionId) {
-      if (item?.branchSessionId === currentSessionId) return "当前";
-      if (item?.status === "merged") return "已收束";
-      if (item?.status === "parked") return "已挂起";
-      if (item?.status === "resolved") return "已完成";
-      return "支线";
-    }
-
-    function buildCommitItem(commit, targetSessionId, currentSessionId) {
-      const element = documentRef.createElement("div");
-      element.className = "operation-record-commit" + (targetSessionId === currentSessionId ? " is-current" : "");
-      element.setAttribute("role", "button");
-      element.setAttribute("tabindex", "0");
-
-      const timeEl = documentRef.createElement("span");
-      timeEl.className = "operation-record-commit-seq";
-      timeEl.textContent = formatTrackerTime(commit.timestamp) || `#${commit.seq}`;
-
-      const previewEl = documentRef.createElement("span");
-      previewEl.className = "operation-record-commit-preview";
-      previewEl.textContent = commit.preview || "(message)";
-
-      element.appendChild(timeEl);
-      element.appendChild(previewEl);
-
-      element.addEventListener("click", () => {
-        if (typeof attachSession === "function") {
-          attachSession(targetSessionId, null);
-        }
-        const doScroll = () => {
-          const msgEl = documentRef.querySelector?.(`.msg-user[data-source-seq="${commit.seq}"]`);
-          if (msgEl) msgEl.scrollIntoView({ block: "start", behavior: "smooth" });
-        };
-        if (targetSessionId === getFocusedSessionId()) {
-          doScroll();
-        } else {
-          const schedule = windowRef?.setTimeout || globalThis.setTimeout;
-          schedule?.(doScroll, 400);
-        }
-      });
-      element.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") element.click();
-      });
-      return element;
-    }
-
-    function buildBranchCard(item, currentSessionId) {
-      const isExpanded = expanded.get(item.branchSessionId) === true;
-      const isActive = item.branchSessionId === currentSessionId;
-      const isMerged = item.status === "merged";
-
-      const card = documentRef.createElement("div");
-      card.className = "operation-record-branch-card"
-        + (isExpanded ? " is-expanded" : "")
-        + (isActive ? " is-current" : "")
-        + (isMerged ? " is-merged" : "");
-
-      const header = documentRef.createElement("div");
-      header.className = "operation-record-branch-card-header";
-      header.setAttribute("role", "button");
-      header.setAttribute("tabindex", "0");
-
-      const arrow = documentRef.createElement("span");
-      arrow.className = "operation-record-branch-arrow";
-      arrow.textContent = isExpanded ? "▾" : "▸";
-
-      const label = documentRef.createElement("span");
-      label.className = "operation-record-branch-label";
-      label.textContent = getBranchLabel(item, currentSessionId);
-
-      const nameSpan = documentRef.createElement("span");
-      nameSpan.className = "operation-record-branch-name";
-      nameSpan.textContent = clipText(item.name, 36);
-
-      header.appendChild(arrow);
-      header.appendChild(label);
-      header.appendChild(nameSpan);
-      card.appendChild(header);
-
-      if (item.broughtBack) {
-        const summary = documentRef.createElement("div");
-        summary.className = "operation-record-branch-summary" + (isMerged ? " is-merged" : "");
-        summary.textContent = item.broughtBack;
-        card.appendChild(summary);
-      }
-
-      const commitsEl = documentRef.createElement("div");
-      commitsEl.className = "operation-record-branch-commits";
-      commitsEl.hidden = !isExpanded;
-
-      if (item.commits && item.commits.length > 0) {
-        for (const commit of item.commits) {
-          commitsEl.appendChild(buildCommitItem(commit, item.branchSessionId, currentSessionId));
-        }
-      } else {
-        const empty = documentRef.createElement("div");
-        empty.className = "operation-record-empty";
-        empty.textContent = "暂无消息";
-        commitsEl.appendChild(empty);
-      }
-      card.appendChild(commitsEl);
-
-      if (Array.isArray(item.subBranches) && item.subBranches.length > 0) {
-        const childrenEl = documentRef.createElement("div");
-        childrenEl.className = "operation-record-children";
-        for (const subBranch of item.subBranches) {
-          childrenEl.appendChild(buildBranchCard(subBranch, currentSessionId));
-        }
-        card.appendChild(childrenEl);
-      }
-
-      header.addEventListener("click", () => {
-        const next = !expanded.get(item.branchSessionId);
-        expanded.set(item.branchSessionId, next);
-        arrow.textContent = next ? "▾" : "▸";
-        commitsEl.hidden = !next;
-        card.classList.toggle("is-expanded", next);
-      });
-      header.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") header.click();
-      });
-
-      nameSpan.addEventListener("click", (event) => {
-        event.stopPropagation();
-        if (typeof attachSession === "function") attachSession(item.branchSessionId, null);
-      });
-
-      return card;
     }
 
     async function render() {

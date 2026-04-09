@@ -1,5 +1,5 @@
 (function nodeCanvasUiModule() {
-  function createController({
+  function createFallbackController({
     railContainerEl = null,
     railEl = null,
     headerEl = null,
@@ -168,13 +168,25 @@
       }
     }
 
+    function clearBody() {
+      if (!bodyEl) return;
+      const children = Array.from(bodyEl.children || []);
+      for (const child of children) {
+        const cleanup = child?.__melodysyncCleanup;
+        if (typeof cleanup === "function") {
+          cleanup();
+        }
+      }
+      bodyEl.innerHTML = "";
+    }
+
     function clear() {
       if (titleEl) titleEl.textContent = "";
       if (summaryEl) {
         summaryEl.textContent = "";
         summaryEl.hidden = true;
       }
-      if (bodyEl) bodyEl.innerHTML = "";
+      clearBody();
       finishDrag();
       setExpanded(false, { resetPosition: true });
       setOpen(false);
@@ -195,7 +207,7 @@
         summaryEl.textContent = summary;
       }
       if (bodyEl) {
-        bodyEl.innerHTML = "";
+        clearBody();
         bodyEl.appendChild(richViewRenderer.createRichViewSurface(node, resolveNodeView(node)));
       }
       setOpen(true);
@@ -226,6 +238,22 @@
       hasCanvasView,
       resolveNodeView,
     });
+  }
+
+  function getWorkbenchReactUi(windowRef = window) {
+    return globalThis?.MelodySyncWorkbenchReactUi
+      || windowRef?.MelodySyncWorkbenchReactUi
+      || windowRef?.window?.MelodySyncWorkbenchReactUi
+      || null;
+  }
+
+  function createController(options = {}) {
+    const windowRef = options?.windowRef || globalThis?.window || window;
+    const reactFactory = getWorkbenchReactUi(windowRef)?.createNodeCanvasController;
+    if (typeof reactFactory === "function") {
+      return reactFactory(options);
+    }
+    return createFallbackController(options);
   }
 
   window.MelodySyncWorkbenchNodeCanvasUi = Object.freeze({

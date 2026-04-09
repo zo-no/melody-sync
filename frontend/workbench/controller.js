@@ -483,6 +483,7 @@
     trackerConclusionsListEl,
     trackerMemoryRowEl,
     trackerMemoryListEl,
+    getPersistentActionsEl: ensureTrackerPersistentActionsEl,
     clipText,
     toConciseGoal,
     isMobileQuestTracker,
@@ -495,6 +496,7 @@
     getPrimaryDetail() { return ""; },
     getSecondaryDetail() { return ""; },
     renderDetail() {},
+    renderPersistentActions() {},
   };
   taskCanvasController = window.MelodySyncWorkbenchNodeCanvasUi?.createController?.({
     railContainerEl: taskMapRail,
@@ -611,81 +613,31 @@
     return trackerPersistentActionsEl;
   }
 
-  function createTrackerPersistentButton(label, onClick, { secondary = false } = {}) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `quest-tracker-btn${secondary ? " quest-tracker-btn-secondary" : ""}`;
-    button.textContent = label;
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      onClick?.();
-    });
-    return button;
-  }
-
   function renderPersistentTrackerActions(session) {
-    const host = ensureTrackerPersistentActionsEl();
-    if (!host) return;
-    host.innerHTML = "";
-    const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
-    if (!session?.id) {
-      host.hidden = true;
-      return;
-    }
-    if (!kind) {
-      if (session?.archived === true) {
-        host.hidden = true;
-        return;
-      }
-      host.appendChild(createTrackerPersistentButton("沉淀为长期项", () => {
+    trackerRenderer?.renderPersistentActions?.(session, {
+      onPromote: () => {
         operationRecordController?.openPersistentEditor?.({ mode: "promote" });
-      }));
-      host.hidden = false;
-      return;
-    }
-    if (kind === "recurring_task") {
-      host.appendChild(createTrackerPersistentButton("立即执行", () => {
+      },
+      onRun: () => {
         dispatchAction?.({
           action: "persistent_run",
           sessionId: session.id,
           runtime: window.MelodySyncSessionTooling?.getCurrentRuntimeSelectionSnapshot?.() || undefined,
         });
-      }));
-      host.appendChild(createTrackerPersistentButton(
-        String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "恢复周期" : "暂停周期",
-        () => {
-          dispatchAction?.({
-            action: "persistent_patch",
-            sessionId: session.id,
-            persistent: {
-              state: String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "active" : "paused",
-            },
-          });
-        },
-        { secondary: true },
-      ));
-      host.appendChild(createTrackerPersistentButton("设置", () => {
-        operationRecordController?.openPersistentEditor?.({ mode: "configure" });
-      }, { secondary: true }));
-      host.hidden = false;
-      return;
-    }
-    if (kind === "skill") {
-      host.appendChild(createTrackerPersistentButton("触发按钮", () => {
+      },
+      onToggle: () => {
         dispatchAction?.({
-          action: "persistent_run",
+          action: "persistent_patch",
           sessionId: session.id,
-          runtime: window.MelodySyncSessionTooling?.getCurrentRuntimeSelectionSnapshot?.() || undefined,
+          persistent: {
+            state: String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "active" : "paused",
+          },
         });
-      }));
-      host.appendChild(createTrackerPersistentButton("设置", () => {
+      },
+      onConfigure: () => {
         operationRecordController?.openPersistentEditor?.({ mode: "configure" });
-      }, { secondary: true }));
-      host.hidden = false;
-      return;
-    }
-    host.hidden = true;
+      },
+    });
   }
 
   function normalizeTaskMapNodeId(value) {
@@ -1529,114 +1481,60 @@
   }
 
   function createBranchSuggestionItem(evt) {
-    const session = getCurrentSessionSafe();
-    if (!session?.id || !evt?.branchTitle || isSuppressed(session.id, evt.branchTitle)) {
-      return null;
-    }
-    const isAutoSuggested = evt?.autoSuggested !== false;
-    const intentShift = evt?.intentShift === true;
-    const independentGoal = evt?.independentGoal === true;
-    if (isAutoSuggested && (!intentShift || !independentGoal)) {
-      return null;
-    }
-
-    const row = document.createElement("div");
-    row.className = "quest-branch-suggestion-item";
-    if (isAutoSuggested) {
-      row.classList.add("quest-branch-suggestion-item-auto");
-    }
-
-    const main = document.createElement("div");
-    main.className = "quest-branch-suggestion-main";
-
-    const title = document.createElement("div");
-    title.className = "quest-branch-suggestion-title";
-    title.textContent = evt.branchTitle;
-    main.appendChild(title);
-
-    if (evt.branchReason) {
-      const summary = document.createElement("div");
-      summary.className = "quest-branch-suggestion-summary";
-      summary.textContent = evt.branchReason;
-      main.appendChild(summary);
-    }
-
-    const actions = document.createElement("div");
-    actions.className = "quest-branch-suggestion-actions";
-
-    const enterBtn = document.createElement("button");
-    enterBtn.type = "button";
-    enterBtn.className = "quest-branch-btn quest-branch-btn-primary";
-    enterBtn.textContent = "开启支线";
-    enterBtn.addEventListener("click", async () => {
-      enterBtn.disabled = true;
-      try {
-        await enterBranchFromCurrentSession(evt.branchTitle, {
-          branchReason: evt.branchReason || "",
-        });
-      } finally {
-        enterBtn.disabled = false;
-      }
-    });
-
-    row.appendChild(main);
-    actions.appendChild(enterBtn);
-    row.appendChild(actions);
-    return row;
+    const statusCardRendererFactory = globalThis?.MelodySyncWorkbenchStatusCardUi?.createRenderer
+      || globalThis?.window?.MelodySyncWorkbenchStatusCardUi?.createRenderer
+      || null;
+    if (typeof statusCardRendererFactory !== "function") return null;
+    const renderer = createBranchSuggestionItem.__melodysyncReactRenderer
+      || statusCardRendererFactory({
+        documentRef: document,
+        windowRef: window,
+        getCurrentSessionSafe,
+        isSuppressed,
+        enterBranchFromCurrentSession,
+        clipText: typeof clipText === "function" ? clipText : undefined,
+      });
+    if (!renderer) return null;
+    createBranchSuggestionItem.__melodysyncReactRenderer = renderer;
+    return renderer.createBranchSuggestionItem?.(evt) || null;
   }
 
   function createMergeNoteCard(evt) {
-    if (!evt) return null;
-    const card = document.createElement("div");
-    card.className = "quest-merge-note";
-
-    const label = document.createElement("div");
-    label.className = "quest-merge-note-label";
-    label.textContent = evt.mergeType === "conclusion" ? "支线结论已带回主线" : "支线线索已带回主线";
-    card.appendChild(label);
-
-    const title = document.createElement("div");
-    title.className = "quest-merge-note-title";
-    title.textContent = evt.branchTitle || "支线";
-    card.appendChild(title);
-
-    const summary = document.createElement("div");
-    summary.className = "quest-merge-note-summary";
-    summary.textContent = clipText(evt.broughtBack || evt.content || "", 180);
-    card.appendChild(summary);
-
-    if (evt.nextStep) {
-      const next = document.createElement("div");
-      next.className = "quest-merge-note-next";
-      next.textContent = `主线下一步：${evt.nextStep}`;
-      card.appendChild(next);
-    }
-    return card;
+    const statusCardRendererFactory = globalThis?.MelodySyncWorkbenchStatusCardUi?.createRenderer
+      || globalThis?.window?.MelodySyncWorkbenchStatusCardUi?.createRenderer
+      || null;
+    if (typeof statusCardRendererFactory !== "function") return null;
+    const renderer = createMergeNoteCard.__melodysyncReactRenderer
+      || statusCardRendererFactory({
+        documentRef: document,
+        windowRef: window,
+        getCurrentSessionSafe,
+        isSuppressed,
+        enterBranchFromCurrentSession,
+        clipText: typeof clipText === "function" ? clipText : undefined,
+      });
+    if (!renderer) return null;
+    createMergeNoteCard.__melodysyncReactRenderer = renderer;
+    return renderer.createMergeNoteCard?.(evt) || null;
   }
 
   function createBranchEnteredCard(evt) {
-    if (!evt?.branchTitle) return null;
-    const card = document.createElement("div");
-    card.className = "quest-merge-note quest-branch-entered-note";
-
-    const label = document.createElement("div");
-    label.className = "quest-merge-note-label";
-    label.textContent = "已开启支线任务";
-    card.appendChild(label);
-
-    const title = document.createElement("div");
-    title.className = "quest-merge-note-title";
-    title.textContent = evt.branchTitle;
-    card.appendChild(title);
-
-    if (evt.branchFrom) {
-      const summary = document.createElement("div");
-      summary.className = "quest-merge-note-summary";
-      summary.textContent = `来自主线：${evt.branchFrom}`;
-      card.appendChild(summary);
-    }
-
-    return card;
+    const statusCardRendererFactory = globalThis?.MelodySyncWorkbenchStatusCardUi?.createRenderer
+      || globalThis?.window?.MelodySyncWorkbenchStatusCardUi?.createRenderer
+      || null;
+    if (typeof statusCardRendererFactory !== "function") return null;
+    const renderer = createBranchEnteredCard.__melodysyncReactRenderer
+      || statusCardRendererFactory({
+        documentRef: document,
+        windowRef: window,
+        getCurrentSessionSafe,
+        isSuppressed,
+        enterBranchFromCurrentSession,
+        clipText: typeof clipText === "function" ? clipText : undefined,
+      });
+    if (!renderer) return null;
+    createBranchEnteredCard.__melodysyncReactRenderer = renderer;
+    return renderer.createBranchEnteredCard?.(evt) || null;
   }
 
   trackerDetailToggleBtn?.addEventListener("click", () => {
@@ -1846,6 +1744,7 @@
     closeTaskMapDrawer: () => setTaskMapDrawerExpanded(false),
     toggleTaskMapDrawer: () => setTaskMapDrawerExpanded(!isTaskMapExpanded()),
     isTaskMapDrawerOpen: isMobileTaskMapDrawerOpen,
+    getTaskMapRendererKind: () => String(taskMapFlowRenderer?.getRendererKind?.() || taskMapFlowRenderer?.rendererKind || "unknown"),
     selectTaskCanvasNode,
     clearTaskCanvasNode,
     openOperationRecord: () => operationRecordController.setOpen(true),

@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const contractSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session-list', 'contract.js'), 'utf8');
-const source = readFileSync(join(repoRoot, 'static', 'frontend', 'session-list', 'model.js'), 'utf8');
+const contractSourcePath = existsSync(join(repoRoot, 'frontend', 'session-list', 'contract.js'))
+  ? join(repoRoot, 'frontend', 'session-list', 'contract.js')
+  : join(repoRoot, 'static', 'frontend', 'session-list', 'contract.js');
+const sessionListModelSourcePath = existsSync(join(repoRoot, 'frontend', 'session-list', 'model.js'))
+  ? join(repoRoot, 'frontend', 'session-list', 'model.js')
+  : join(repoRoot, 'static', 'frontend', 'session-list', 'model.js');
+const contractSource = readFileSync(contractSourcePath, 'utf8');
+const source = readFileSync(sessionListModelSourcePath, 'utf8');
 
 const translations = {
   'sidebar.group.inbox': 'Capture',

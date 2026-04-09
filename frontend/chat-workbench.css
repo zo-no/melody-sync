@@ -2285,16 +2285,34 @@ button.quest-task-flow-node {
   }
 
   .quest-task-flow-node {
-    padding: 8px 9px;
+    gap: 7px;
+    padding: 11px 12px 12px;
     border-radius: 10px;
   }
 
   .quest-task-flow-node-title {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .quest-task-flow-node-summary {
-    font-size: 10px;
+    font-size: 11px;
+  }
+
+  .quest-task-flow-node-action,
+  .quest-task-flow-branch-actions .quest-branch-btn,
+  .quest-task-flow-reparent-confirm .quest-branch-btn,
+  .quest-task-flow-reparent-option {
+    min-height: 36px;
+  }
+
+  .quest-task-flow-node-action,
+  .quest-task-flow-branch-actions .quest-branch-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .quest-task-flow-branch-input {
+    min-height: 36px;
   }
 
   .quest-task-flow-node.is-rich-view {

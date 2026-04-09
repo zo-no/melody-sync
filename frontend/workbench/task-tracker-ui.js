@@ -1,5 +1,5 @@
 (function taskTrackerUiModule() {
-  function createTrackerRenderer({
+  function createFallbackTrackerRenderer({
     documentRef = document,
     trackerStatusEl = null,
     trackerStatusDotEl = null,
@@ -12,6 +12,7 @@
     trackerConclusionsListEl = null,
     trackerMemoryRowEl = null,
     trackerMemoryListEl = null,
+    getPersistentActionsEl = () => null,
     clipText = (value) => String(value || "").trim(),
     toConciseGoal = (value) => String(value || "").trim(),
     isMobileQuestTracker = () => false,
@@ -131,13 +132,86 @@
       trackerDetailEl.hidden = !hasAny || !expanded;
     }
 
+    function createPersistentActionButton(label, onClick, { secondary = false } = {}) {
+      const button = documentRef.createElement("button");
+      button.type = "button";
+      button.className = `quest-tracker-btn${secondary ? " quest-tracker-btn-secondary" : ""}`;
+      button.textContent = label;
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClick?.();
+      });
+      return button;
+    }
+
+    function renderPersistentActions(session, {
+      onPromote = null,
+      onRun = null,
+      onToggle = null,
+      onConfigure = null,
+    } = {}) {
+      const host = getPersistentActionsEl();
+      if (!host) return;
+      host.innerHTML = "";
+      const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
+      if (!session?.id) {
+        host.hidden = true;
+        return;
+      }
+      if (!kind) {
+        if (session?.archived === true) {
+          host.hidden = true;
+          return;
+        }
+        host.appendChild(createPersistentActionButton("沉淀为长期项", onPromote));
+        host.hidden = false;
+        return;
+      }
+      if (kind === "recurring_task") {
+        host.appendChild(createPersistentActionButton("立即执行", onRun));
+        host.appendChild(createPersistentActionButton(
+          String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "恢复周期" : "暂停周期",
+          onToggle,
+          { secondary: true },
+        ));
+        host.appendChild(createPersistentActionButton("设置", onConfigure, { secondary: true }));
+        host.hidden = false;
+        return;
+      }
+      if (kind === "skill") {
+        host.appendChild(createPersistentActionButton("触发按钮", onRun));
+        host.appendChild(createPersistentActionButton("设置", onConfigure, { secondary: true }));
+        host.hidden = false;
+        return;
+      }
+      host.hidden = true;
+    }
+
     return {
       getPrimaryDetail,
       getPrimaryTitle,
       getSecondaryDetail,
       renderDetail,
+      renderPersistentActions,
       renderStatus,
     };
+  }
+
+  function getWorkbenchReactUi(windowRef = window) {
+    return globalThis?.MelodySyncWorkbenchReactUi
+      || windowRef?.MelodySyncWorkbenchReactUi
+      || windowRef?.window?.MelodySyncWorkbenchReactUi
+      || null;
+  }
+
+  function createTrackerRenderer(options = {}) {
+    const windowRef = options?.windowRef || globalThis?.window || window;
+    const reactFactory = getWorkbenchReactUi(windowRef)?.createTrackerRenderer;
+    if (typeof reactFactory === "function") {
+      return reactFactory(options);
+    }
+    return createFallbackTrackerRenderer(options);
   }
 
   window.MelodySyncTaskTrackerUi = Object.freeze({

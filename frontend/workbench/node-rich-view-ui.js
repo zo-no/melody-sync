@@ -1,5 +1,5 @@
 (function nodeRichViewUiModule() {
-  function createRenderer({
+  function createFallbackRenderer({
     documentRef = document,
     windowRef = window,
   } = {}) {
@@ -86,6 +86,22 @@
       renderMarkdownContent,
       createRichViewSurface,
     });
+  }
+
+  function getWorkbenchReactUi(windowRef = window) {
+    return globalThis?.MelodySyncWorkbenchReactUi
+      || windowRef?.MelodySyncWorkbenchReactUi
+      || windowRef?.window?.MelodySyncWorkbenchReactUi
+      || null;
+  }
+
+  function createRenderer(options = {}) {
+    const windowRef = options?.windowRef || globalThis?.window || window;
+    const reactFactory = getWorkbenchReactUi(windowRef)?.createRichViewRenderer;
+    if (typeof reactFactory === "function") {
+      return reactFactory(options);
+    }
+    return createFallbackRenderer(options);
   }
 
   window.MelodySyncWorkbenchNodeRichViewUi = Object.freeze({

@@ -1,20 +1,27 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const richViewSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-rich-view-ui.js'),
-  'utf8',
-);
-const canvasSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-canvas-ui.js'),
-  'utf8',
-);
+
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const richViewSource = readWorkbenchFrontendSource('node-rich-view-ui.js');
+const canvasSource = readWorkbenchFrontendSource('node-canvas-ui.js');
 
 function makeClassList() {
   const tokens = new Set();
@@ -201,5 +208,35 @@ assert.equal(railEl.style.getPropertyValue('--task-canvas-drag-y'), '');
 closeBtn.click();
 assert.equal(controller.isOpen(), false, 'closing should hide the node canvas rail');
 assert.equal(closed, 1, 'closing should call the provided onClose hook');
+
+const delegatedController = {
+  renderNode() { return 'react-rendered'; },
+  clear() {},
+  isOpen() { return true; },
+  isExpanded() { return false; },
+  hasCanvasView() { return true; },
+  resolveNodeView() { return { type: 'markdown' }; },
+};
+const delegatedCalls = [];
+context.window.MelodySyncWorkbenchReactUi = {
+  createNodeCanvasController(options) {
+    delegatedCalls.push(options);
+    return delegatedController;
+  },
+};
+context.MelodySyncWorkbenchReactUi = context.window.MelodySyncWorkbenchReactUi;
+
+const delegated = context.window.MelodySyncWorkbenchNodeCanvasUi.createController({
+  railEl: makeElement('section'),
+  bodyEl: makeElement('div'),
+  documentRef: context.document,
+  windowRef: context.window,
+});
+assert.equal(
+  delegated,
+  delegatedController,
+  'node canvas ui should prefer the shared React workbench controller when available',
+);
+assert.equal(delegatedCalls.length, 1, 'adapter path should delegate creation to the React workbench bundle once');
 
 console.log('test-workbench-node-canvas-ui: ok');

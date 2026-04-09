@@ -212,6 +212,15 @@ function setPersistentDockCollapsed(collapsed) {
   } catch {}
 }
 
+function getSessionListRenderer() {
+  return window?.MelodySyncSessionListUi?.createRenderer?.({
+    documentRef: document,
+    windowRef: window,
+    t,
+    renderUiIcon,
+  }) || null;
+}
+
 function getPersistentDockGroupLabel(groupKey) {
   if (groupKey === "group:quick-actions") return t("sidebar.group.quickActions");
   if (groupKey === "group:long-term") return t("sidebar.group.longTerm");
@@ -246,6 +255,28 @@ function renderPersistentDockSection(groupKey, sessions = []) {
 }
 
 function renderPersistentSessionDock(persistentSessionsByGroup) {
+  const reactRenderer = typeof getSessionListRenderer === "function" ? getSessionListRenderer() : null;
+  if (reactRenderer?.renderPersistentDock) {
+    reactRenderer.renderPersistentDock({
+      containerEl: sessionListFooter,
+      persistentSessionsByGroup,
+      isDockCollapsed: isPersistentDockCollapsed(),
+      isSectionCollapsed(groupKey) {
+        return isPersistentDockSectionCollapsed(groupKey);
+      },
+      onToggleDock(nextCollapsed) {
+        setPersistentDockCollapsed(nextCollapsed);
+      },
+      onToggleSection(groupKey, nextCollapsed) {
+        setPersistentDockSectionCollapsed(groupKey, nextCollapsed);
+      },
+      createSessionItem(session, options = {}) {
+        return createSidebarSessionItem(session, options);
+      },
+    });
+    return;
+  }
+
   if (!sessionListFooter) return;
   const container = sessionListFooter;
   const hasLongTerm = Array.isArray(persistentSessionsByGroup["group:long-term"]) && persistentSessionsByGroup["group:long-term"].length > 0;
@@ -303,7 +334,6 @@ function appendSessionItems(host, entries = [], options = {}) {
 }
 
 function renderSessionList() {
-  sessionList.innerHTML = "";
   const pinnedSessions = getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session));
   const visibleSessions = getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session));
   const persistentSessionsByGroup = Object.create(null);
@@ -350,6 +380,71 @@ function renderSessionList() {
     if (leftOrder !== rightOrder) return leftOrder - rightOrder;
     return String(left?.label || "").localeCompare(String(right?.label || ""));
   });
+
+  const archivedSessions = (typeof getVisibleArchivedSessions === "function" ? getVisibleArchivedSessions() : [])
+    .filter((session) => shouldShowSessionInSidebarForList(session, { archived: true }));
+  const isArchivedSessionsLoading = typeof archivedSessionsLoading !== "undefined" && archivedSessionsLoading === true;
+  const hasArchivedSessionsLoaded = typeof archivedSessionsLoaded !== "undefined" && archivedSessionsLoaded === true;
+  const archivedSessionTotal = Number(typeof archivedSessionCount === "undefined" ? 0 : archivedSessionCount) || 0;
+  const ARCHIVED_FOLDER_KEY = "folder:archived";
+  const archivedCollapsed = collapsedFolders[ARCHIVED_FOLDER_KEY] === true;
+  const shouldRenderArchivedSection = isArchivedSessionsLoading || archivedSessionTotal > 0 || archivedSessions.length > 0;
+  const archivedCount = hasArchivedSessionsLoaded
+    ? archivedSessions.length
+    : Math.max(archivedSessionTotal, archivedSessions.length);
+  const reactRenderer = typeof getSessionListRenderer === "function" ? getSessionListRenderer() : null;
+  if (reactRenderer?.renderSessionCollections) {
+    if (!archivedCollapsed && !hasArchivedSessionsLoaded && !isArchivedSessionsLoading && archivedSessionTotal > 0 && typeof fetchArchivedSessions === "function") {
+      void fetchArchivedSessions().catch((error) => {
+        console.warn("[sessions] Failed to load archived tasks:", error?.message || error);
+      });
+    }
+    reactRenderer.renderSessionCollections({
+      listEl: sessionList,
+      pinnedSessions,
+      orderedGroups: orderedGroups.map(([, groupEntry]) => groupEntry),
+      showGroupHeaders,
+      isGroupCollapsed(groupKey) {
+        return collapsedFolders[groupKey] === true;
+      },
+      onToggleGroup(groupKey, nextCollapsed) {
+        collapsedFolders[groupKey] = nextCollapsed === true;
+        localStorage.setItem(
+          COLLAPSED_GROUPS_STORAGE_KEY,
+          JSON.stringify(collapsedFolders),
+        );
+      },
+      createSessionItem(session, options = {}) {
+        return createSidebarSessionItem(session, options);
+      },
+      archived: {
+        shouldRenderSection: shouldRenderArchivedSection,
+        isCollapsed: archivedCollapsed,
+        count: archivedCount,
+        archivedSessions,
+        archivedSessionsLoading: isArchivedSessionsLoading,
+        archivedLabel: t("sidebar.archive"),
+        loadingLabel: t("sidebar.loadingArchived"),
+        emptyText: getFilteredSessionEmptyText({ archived: true }),
+        onToggleArchived(nextCollapsed) {
+          collapsedFolders[ARCHIVED_FOLDER_KEY] = nextCollapsed === true;
+          localStorage.setItem(
+            COLLAPSED_GROUPS_STORAGE_KEY,
+            JSON.stringify(collapsedFolders),
+          );
+          if (!nextCollapsed && !hasArchivedSessionsLoaded && !isArchivedSessionsLoading && archivedSessionTotal > 0 && typeof fetchArchivedSessions === "function") {
+            void fetchArchivedSessions().catch((error) => {
+              console.warn("[sessions] Failed to load archived tasks:", error?.message || error);
+            });
+          }
+        },
+      },
+    });
+    renderPersistentSessionDock(persistentSessionsByGroup);
+    return;
+  }
+
+  sessionList.innerHTML = "";
 
   for (const [groupKey, groupEntry] of orderedGroups) {
     const groupSessions = groupEntry.sessions;

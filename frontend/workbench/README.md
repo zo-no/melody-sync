@@ -21,8 +21,14 @@ Files by role:
 - `task-tracker-ui.js`: top tracker rendering.
 - `node-rich-view-ui.js`: focused rich-view renderer for markdown/html/iframe node surfaces inside the task map.
 - `node-canvas-ui.js`: dedicated right-rail node canvas renderer. It owns the selected rich-view node surface so `view.type` no longer has to be rendered inline inside graph nodes.
-- `task-map-ui.js`: task-map rendering and interaction.
+- `task-map-ui.js`: task-map renderer adapter that prefers the React Flow/XYFlow island and only falls back to the legacy DOM renderer in isolated/manual compatibility paths.
+- `task-map-ui-legacy.js`: pre-React-Flow DOM renderer kept as an off-default compatibility fallback during the task-map migration.
+- `task-map-react.bundle.js`: prebuilt shared React bundle for the no-build runtime. It now backs the task-map surface plus the task tracker, task list, session-list shell/dock, right-rail rich-view canvas, status-card overlays, and the persistent editor while legacy JS renderers remain available as fallbacks.
 - `task-list-ui.js`: workbench-side task list rendering.
+- `status-card-ui.js`: adapter for branch suggestion / merge note / branch-entered cards. It prefers the shared React bundle and falls back to the legacy DOM card builders.
+- `persistent-editor-ui.js`: adapter for the long-term-item editor modal. It prefers the shared React bundle and falls back to the legacy DOM modal builder.
+- `operation-record-summary-ui.js`: adapter for the operation-record persistent header and digest summary area. It prefers the shared React bundle and falls back to the legacy DOM builder.
+- `operation-record-list-ui.js`: adapter for the operation-record branch/commit tree. It prefers the shared React bundle and falls back to the legacy DOM tree builder.
 - `branch-actions.js`: branch lifecycle buttons and action binding.
 - `operation-record-ui.js`: right-rail operation-record rendering and open/close control.
 
@@ -49,5 +55,6 @@ Design rules:
 - Treat `GET /api/workbench/sessions/:id/task-map-graph` as the canonical backend quest-graph read entry. Consumers that need the current graph should read that payload instead of reconstructing continuity + plan overlay on their own.
 - Treat `GET /api/workbench/sessions/:id/task-map-surfaces/:slot` as the canonical backend surface read entry. Slot consumers should prefer that payload when they do not need the whole graph.
 - Keep runtime node rendering logic here; owner-facing node settings now live in `frontend/settings/nodes/`.
+- Keep the no-build runtime stable: prebuilt bundles may exist for isolated islands, but `controller.js` should still talk to thin adapters like `task-map-ui.js`, `task-list-ui.js`, and `node-canvas-ui.js` instead of binding to bundle globals directly.
 - Put new visual rendering into a focused `*-ui.js` module.
 - Put derived state in selectors like `quest-state.js`, not inline in render code.

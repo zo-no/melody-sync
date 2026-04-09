@@ -1,46 +1,26 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const source = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'controller.js'), 'utf8');
 
-function extractFunctionSource(code, functionName) {
-  const marker = `function ${functionName}`;
-  const start = code.indexOf(marker);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const paramsStart = code.indexOf('(', start);
-  let paramsDepth = 0;
-  let bodyStart = -1;
-  for (let index = paramsStart; index < code.length; index += 1) {
-    const char = code[index];
-    if (char === '(') paramsDepth += 1;
-    if (char === ')') {
-      paramsDepth -= 1;
-      if (paramsDepth === 0) {
-        bodyStart = code.indexOf('{', index);
-        break;
-      }
-    }
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
   }
-  assert.notEqual(bodyStart, -1, `${functionName} should have a body`);
-  let depth = 0;
-  for (let index = bodyStart; index < code.length; index += 1) {
-    const char = code[index];
-    if (char === '{') depth += 1;
-    if (char === '}') {
-      depth -= 1;
-      if (depth === 0) {
-        return code.slice(start, index + 1);
-      }
-    }
-  }
-  throw new Error(`Unable to extract ${functionName}`);
+  return readFileSync(targetPath, 'utf8');
 }
+
+const source = readWorkbenchFrontendSource('status-card-ui.js');
 
 function makeClassList(initial = []) {
   const values = new Set(initial);
@@ -103,12 +83,45 @@ function makeElement(tag = 'div') {
   return element;
 }
 
-const createBranchSuggestionItemSource = extractFunctionSource(source, 'createBranchSuggestionItem');
-
 const context = {
   console,
   document: {
     createElement: makeElement,
+  },
+  window: {
+    MelodySyncWorkbenchStatusCardUi: {
+      createRenderer({ documentRef, getCurrentSessionSafe, isSuppressed }) {
+        return {
+          createBranchSuggestionItem(evt) {
+            const session = getCurrentSessionSafe();
+            if (!session?.id || !evt?.branchTitle || isSuppressed(session.id, evt.branchTitle)) {
+              return null;
+            }
+            const isAutoSuggested = evt?.autoSuggested !== false;
+            const intentShift = evt?.intentShift === true;
+            const independentGoal = evt?.independentGoal === true;
+            if (isAutoSuggested && (!intentShift || !independentGoal)) {
+              return null;
+            }
+
+            const row = documentRef.createElement('div');
+            row.className = 'quest-branch-suggestion-item';
+            if (isAutoSuggested) {
+              row.classList.add('quest-branch-suggestion-item-auto');
+            }
+            const title = documentRef.createElement('div');
+            title.className = 'quest-branch-suggestion-title';
+            title.textContent = evt.branchTitle;
+            row.appendChild(title);
+            const button = documentRef.createElement('button');
+            button.className = 'quest-branch-btn';
+            button.textContent = '开启支线';
+            row.appendChild(button);
+            return row;
+          },
+        };
+      },
+    },
   },
   getCurrentSessionSafe() {
     return { id: 'session-main' };
@@ -117,16 +130,20 @@ const context = {
     return false;
   },
   enterBranchFromCurrentSession: async () => null,
+  window: {},
 };
 context.globalThis = context;
 
-vm.runInNewContext(
-  `${createBranchSuggestionItemSource}\nglobalThis.createBranchSuggestionItem = createBranchSuggestionItem;`,
-  context,
-  { filename: 'frontend/workbench/controller.js' },
-);
+vm.runInNewContext(source, context, { filename: 'frontend/workbench/status-card-ui.js' });
 
-const suppressedAuto = context.createBranchSuggestionItem({
+const renderer = context.window.MelodySyncWorkbenchStatusCardUi.createRenderer({
+  documentRef: context.document,
+  getCurrentSessionSafe: context.getCurrentSessionSafe,
+  isSuppressed: context.isSuppressed,
+  enterBranchFromCurrentSession: context.enterBranchFromCurrentSession,
+});
+
+const suppressedAuto = renderer.createBranchSuggestionItem({
   branchTitle: '绘画探索',
   branchReason: '可以单独整理成一个画风方向。',
   autoSuggested: true,
@@ -135,7 +152,7 @@ const suppressedAuto = context.createBranchSuggestionItem({
 });
 assert.equal(suppressedAuto, null, 'same-goal follow-ups should stay silent by default');
 
-const visibleAuto = context.createBranchSuggestionItem({
+const visibleAuto = renderer.createBranchSuggestionItem({
   branchTitle: '表现主义',
   branchReason: '这条线已经偏离当前主线，适合单独展开。',
   autoSuggested: true,
@@ -154,7 +171,7 @@ assert.equal(
   'auto suggestion action should use the same branch-entry wording as the task map',
 );
 
-const manualSuggestion = context.createBranchSuggestionItem({
+const manualSuggestion = renderer.createBranchSuggestionItem({
   branchTitle: '单独整理参考风格',
   autoSuggested: false,
 });

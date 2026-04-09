@@ -1,31 +1,49 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const nodeContractSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/node-contract.js'), 'utf8');
-const taskRunStatusSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/task-run-status.js'), 'utf8');
-const nodeEffectsSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/node-effects.js'), 'utf8');
-const nodeInstanceSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'node-instance.js'), 'utf8');
-const graphModelSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'graph-model.js'), 'utf8');
-const graphClientSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'graph-client.js'), 'utf8');
-const taskMapPlanSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/task-map-plan.js'), 'utf8');
-const taskMapClustersSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-clusters.js'), 'utf8');
-const taskMapMockPresetsSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-mock-presets.js'), 'utf8');
-const taskMapModelSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench/task-map-model.js'), 'utf8');
-const questStateSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'quest-state.js'), 'utf8');
-const taskTrackerUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-tracker-ui.js'), 'utf8');
-const nodeRichViewUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'node-rich-view-ui.js'), 'utf8');
-const nodeCanvasUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'node-canvas-ui.js'), 'utf8');
-const taskMapUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-ui.js'), 'utf8');
-const taskListUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'task-list-ui.js'), 'utf8');
-const branchActionsSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'branch-actions.js'), 'utf8');
-const operationRecordUiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'operation-record-ui.js'), 'utf8');
-const source = readFileSync(join(repoRoot, 'static', 'frontend', 'workbench', 'controller.js'), 'utf8');
+
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const nodeContractSource = readWorkbenchFrontendSource('node-contract.js');
+const taskRunStatusSource = readWorkbenchFrontendSource('task-run-status.js');
+const nodeEffectsSource = readWorkbenchFrontendSource('node-effects.js');
+const nodeInstanceSource = readWorkbenchFrontendSource('node-instance.js');
+const graphModelSource = readWorkbenchFrontendSource('graph-model.js');
+const graphClientSource = readWorkbenchFrontendSource('graph-client.js');
+const taskMapPlanSource = readWorkbenchFrontendSource('task-map-plan.js');
+const taskMapClustersSource = readWorkbenchFrontendSource('task-map-clusters.js');
+const taskMapMockPresetsSource = readWorkbenchFrontendSource('task-map-mock-presets.js');
+const taskMapModelSource = readWorkbenchFrontendSource('task-map-model.js');
+const questStateSource = readWorkbenchFrontendSource('quest-state.js');
+const taskTrackerUiSource = readWorkbenchFrontendSource('task-tracker-ui.js');
+const nodeRichViewUiSource = readWorkbenchFrontendSource('node-rich-view-ui.js');
+const nodeCanvasUiSource = readWorkbenchFrontendSource('node-canvas-ui.js');
+const taskMapUiLegacySource = readWorkbenchFrontendSource('task-map-ui-legacy.js');
+const taskMapUiSource = readWorkbenchFrontendSource('task-map-ui.js');
+const taskListUiSource = readWorkbenchFrontendSource('task-list-ui.js');
+const statusCardUiSource = readWorkbenchFrontendSource('status-card-ui.js');
+const persistentEditorUiSource = readWorkbenchFrontendSource('persistent-editor-ui.js');
+const operationRecordSummaryUiSource = readWorkbenchFrontendSource('operation-record-summary-ui.js');
+const operationRecordListUiSource = readWorkbenchFrontendSource('operation-record-list-ui.js');
+const branchActionsSource = readWorkbenchFrontendSource('branch-actions.js');
+const operationRecordUiSource = readWorkbenchFrontendSource('operation-record-ui.js');
+const source = readWorkbenchFrontendSource('controller.js');
 
 function makeClassList(initial = [], onChange = () => {}) {
   const values = new Set(initial);
@@ -118,6 +136,8 @@ function makeElement(tagName = 'div', id = '') {
     click() {
       this.trigger('click');
     },
+    focus() {},
+    select() {},
     style: { setProperty() {} },
     getAttribute(name) { return this[name]; },
     removeAttribute(name) { delete this[name]; },
@@ -275,7 +295,52 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
   const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
-  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiLegacySource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${operationRecordSummaryUiSource}\n${operationRecordListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
+    filename: 'frontend/workbench/controller.js',
+  });
+  await flushAsync(8);
+  return { elements, fetchCalls, fetchLog, attachCalls, workbench: context.window.MelodySyncWorkbench };
+}
+
+async function runReactScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
+  const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
+  context.MelodySyncTaskMapReactUi = context.window.MelodySyncTaskMapReactUi = {
+    createRenderer({ documentRef, attachSession: attachSessionFn }) {
+      const activeDocument = documentRef || context.document;
+      return {
+        rendererKind: 'react-flow',
+        getRendererKind() {
+          return 'react-flow';
+        },
+        getRenderStateKey() {
+          return 'react-flow-test';
+        },
+        renderFlowBoard({ activeQuest }) {
+          const shell = activeDocument.createElement('div');
+          shell.className = 'quest-task-flow-shell react-flow-test-shell';
+          shell.dataset.taskMapRenderer = 'react-flow';
+          const nodes = Array.isArray(activeQuest?.nodes) ? activeQuest.nodes : [];
+          for (const node of nodes) {
+            const nodeEl = activeDocument.createElement('button');
+            nodeEl.type = 'button';
+            nodeEl.className = 'quest-task-flow-node';
+            const titleEl = activeDocument.createElement('div');
+            titleEl.className = 'quest-task-flow-node-title';
+            titleEl.textContent = String(node?.title || '');
+            nodeEl.appendChild(titleEl);
+            if (node?.sessionId) {
+              nodeEl.addEventListener('click', () => {
+                attachSessionFn?.(node.sessionId, null);
+              });
+            }
+            shell.appendChild(nodeEl);
+          }
+          return shell;
+        },
+      };
+    },
+  };
+  await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${operationRecordSummaryUiSource}\n${operationRecordListUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'frontend/workbench/controller.js',
   });
   await flushAsync(8);
@@ -362,7 +427,58 @@ const mainlineBranchPreview = {
   _branchStatus: 'active',
 };
 
-const { elements: mainElements, fetchCalls: mainFetchCalls, attachCalls: mainAttachCalls } = await runScenario({
+const {
+  elements: reactElements,
+  attachCalls: reactAttachCalls,
+  workbench: reactWorkbench,
+} = await runReactScenario({
+  currentSession: mainSession,
+  sessions: [mainSession, siblingSession, mainlineBranchPreview],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main',
+        mainSession,
+        mainGoal: '学习电影史',
+        currentBranchSessionId: 'session-main-branch',
+        branchSessionIds: ['session-main-branch'],
+        branchSessions: [mainlineBranchPreview],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+assert.equal(
+  reactWorkbench.getTaskMapRendererKind(),
+  'react-flow',
+  'controller should report the React Flow renderer when the shared bundle path is available',
+);
+assert.equal(
+  reactElements.get('questTaskList').children[0]?.dataset?.taskMapRenderer,
+  'react-flow',
+  'controller should mount the React-backed task map surface on the normal renderer path',
+);
+findAllByClass(reactElements.get('questTaskList'), 'quest-task-flow-node')
+  .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === '表现主义')
+  ?.click();
+assert.deepEqual(
+  reactAttachCalls.map((entry) => entry.id),
+  ['session-main-branch'],
+  'React-backed task-map nodes should still switch the workspace to the selected branch session',
+);
+
+const {
+  elements: mainElements,
+  fetchCalls: mainFetchCalls,
+  attachCalls: mainAttachCalls,
+  workbench: mainWorkbench,
+} = await runScenario({
   currentSession: mainSession,
   sessions: [mainSession, siblingSession, mainlineBranchPreview],
   snapshot: {
@@ -394,6 +510,7 @@ const { elements: mainElements, fetchCalls: mainFetchCalls, attachCalls: mainAtt
 });
 
 assert.equal(mainElements.get('questTracker').hidden, false, 'tracker should render when a session is attached');
+assert.equal(mainWorkbench.getTaskMapRendererKind(), 'legacy-dom', 'controller should surface the active task-map renderer kind for diagnostics');
 assert.equal(mainElements.get('questTrackerLabel').textContent, '', 'mainline tracker should not render an extra task-bar label');
 assert.equal(mainElements.get('questTrackerStatus').hidden, false, 'mainline tracker should render the task status inside the task bar');
 assert.equal(mainElements.get('questTrackerStatusText').textContent, '空闲', 'idle mainline tasks should surface an idle status inside the task bar');
@@ -536,7 +653,12 @@ const { elements: candidateOnlyElements } = await runScenario({
 const candidateOnlyBoard = findFirstByClass(candidateOnlyElements.get('questTaskList'), 'quest-task-flow-shell');
 assert.equal(Boolean(candidateOnlyBoard), true, 'candidate-only quests should still render inside the same flow board');
 assert.equal(findAllByClass(candidateOnlyBoard, 'quest-task-flow-node').length >= 3, true, 'candidate-only quests should render the root node plus candidate side quests');
-assert.equal(findFirstByClass(candidateOnlyBoard, 'quest-task-flow-node-action')?.textContent, '开启支线', 'candidate-only suggestion nodes should expose an explicit branch-entry action');
+assert.equal(
+  findAllByClass(candidateOnlyBoard, 'quest-task-flow-node-action')
+    .some((entry) => entry?.textContent === '开启支线'),
+  true,
+  'candidate-only suggestion nodes should expose an explicit branch-entry action',
+);
 assert.equal(candidateOnlyElements.get('questTrackerTitle').textContent, '为用户搭出一条兼顾电影史主线与美术史兴趣维度的学习路线', 'mainline tracker should keep the fixed session task title as the top-level anchor');
 assert.equal(candidateOnlyElements.get('questTrackerBranchTitle').textContent, '先明确主线骨架，再判断哪些方向值得拆成支线', 'mainline tracker should use the stable checkpoint as the task-progress detail when no next step exists yet');
 assert.equal(candidateOnlyElements.get('questTrackerNext').textContent, '发现 2 条建议支线', 'mainline tracker should surface candidate branch discovery as a separate secondary hint');
@@ -585,7 +707,9 @@ const { elements: candidateOpenElements, fetchLog: candidateOpenFetchLog, attach
   },
 });
 
-findFirstByClass(candidateOpenElements.get('questTaskList'), 'quest-task-flow-node-action')?.click();
+const candidateNodeToOpen = findAllByClass(candidateOpenElements.get('questTaskList'), 'quest-task-flow-node')
+  .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === '改成视觉风格线');
+findFirstByClass(candidateNodeToOpen, 'quest-task-flow-node-action')?.click();
 await flushAsync();
 assert.equal(
   candidateOpenFetchLog.some((entry) => (
@@ -969,7 +1093,12 @@ assert.equal(flowTitles.includes('法国新浪潮'), true, 'non-current sibling 
 assert.equal(flowTitles.includes('好莱坞黄金时代'), true, 'merged sibling branches should still stay visible in the quest map');
 assert.equal(flowTitles.includes('黑色电影'), true, 'root candidate branches should stay visible as optional side quests');
 assert.equal(flowTitles.includes('卡里加里博士'), true, 'branch-local candidate suggestions should stay visible as nested side-quest nodes');
-assert.equal(findAllByClass(mobileBoard, 'quest-task-flow-node-action').length, 2, 'candidate nodes should expose explicit branch-entry actions at every level');
+assert.equal(
+  findAllByClass(mobileBoard, 'quest-task-flow-node-action')
+    .filter((entry) => entry?.textContent === '开启支线').length,
+  2,
+  'candidate nodes should expose explicit branch-entry actions at every level',
+);
 const parkedFlowNode = findAllByClass(mobileBoard, 'quest-task-flow-node')
   .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === '法国新浪潮');
 assert.equal(Boolean(parkedFlowNode?.classList?.contains('is-parked')), true, 'parked branches should carry the parked node class for strikethrough styling');
@@ -1201,7 +1330,7 @@ const {
 });
 
 await operationRecordWorkbench.openOperationRecord();
-await flushAsync();
+await flushAsync(16);
 assert.equal(
   operationRecordFetchLog.some((entry) => entry.url === '/api/workbench/sessions/operation-branch-child/operation-record'),
   true,

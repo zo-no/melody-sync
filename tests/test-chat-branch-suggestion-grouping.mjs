@@ -1,13 +1,26 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const uiSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session', 'transcript-ui.js'), 'utf8');
+
+function readFrontendSource(...relativePath) {
+  const candidates = [
+    join(repoRoot, 'frontend', ...relativePath),
+    join(repoRoot, 'static', 'frontend', ...relativePath),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Frontend source not found for ${relativePath.join('/')}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const uiSource = readFrontendSource('session', 'transcript-ui.js');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;

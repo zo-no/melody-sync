@@ -22,6 +22,7 @@ function readWorkbenchFrontendSource(filename) {
 const nodeContractSource = readWorkbenchFrontendSource('node-contract.js');
 const taskRunStatusSource = readWorkbenchFrontendSource('task-run-status.js');
 const nodeEffectsSource = readWorkbenchFrontendSource('node-effects.js');
+const taskMapUiLegacySource = readWorkbenchFrontendSource('task-map-ui-legacy.js');
 const taskMapUiSource = readWorkbenchFrontendSource('task-map-ui.js');
 
 function makeClassList(owner) {
@@ -210,6 +211,7 @@ context.window.document = context.document;
 vm.runInNewContext(nodeContractSource, context, { filename: 'workbench/node-contract.js' });
 vm.runInNewContext(taskRunStatusSource, context, { filename: 'workbench/task-run-status.js' });
 vm.runInNewContext(nodeEffectsSource, context, { filename: 'workbench/node-effects.js' });
+vm.runInNewContext(taskMapUiLegacySource, context, { filename: 'workbench/task-map-ui-legacy.js' });
 vm.runInNewContext(taskMapUiSource, context, { filename: 'workbench/task-map-ui.js' });
 
 const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
@@ -231,6 +233,31 @@ const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
     ];
   },
 });
+
+assert.equal(renderer.rendererKind, 'legacy-dom', 'adapter should report the active legacy fallback renderer in isolated tests');
+assert.equal(renderer.getRendererKind(), 'legacy-dom', 'renderer kind helper should stay consistent with the adapter metadata');
+
+context.window.MelodySyncTaskMapReactUi = {
+  createRenderer() {
+    return {
+      getRenderStateKey() {
+        return 'react-flow';
+      },
+      renderFlowBoard() {
+        const marker = makeElement('div');
+        marker.className = 'react-flow-marker';
+        return marker;
+      },
+    };
+  },
+};
+
+const reactRenderer = context.window.MelodySyncTaskMapUi.createRenderer({
+  documentRef,
+  windowRef,
+});
+assert.equal(reactRenderer.rendererKind, 'react-flow', 'adapter should prefer the shared React Flow renderer when it is available');
+assert.equal(reactRenderer.getRendererKind(), 'react-flow', 'react renderer metadata should stay queryable for diagnostics');
 
 const rootNode = {
   id: 'session:main-1',

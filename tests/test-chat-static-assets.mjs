@@ -525,6 +525,11 @@ async function main() {
     assert.match(sessionListUiAsset.text, /focusComposer\(\{ preventScroll: true \}\)/);
     assert.doesNotMatch(sessionListUiAsset.text, /getSidebarTaskClusters/, 'session list ui should render from stable session list data instead of workbench task clusters');
 
+    const sessionListReactUiAsset = await request(port, 'GET', '/chat/session-list/react-ui.js');
+    assert.equal(sessionListReactUiAsset.status, 200, 'session list react adapter asset should load');
+    assert.match(sessionListReactUiAsset.text, /MelodySyncSessionListUi/);
+    assert.match(sessionListReactUiAsset.text, /createSessionListRenderer/);
+
     const hooksModelAsset = await request(port, 'GET', '/chat/settings/hooks/model.js');
     assert.equal(hooksModelAsset.status, 200, 'hooks settings model asset should load');
     assert.match(hooksModelAsset.text, /MelodySyncHooksSettingsModel/);
@@ -1008,6 +1013,15 @@ async function main() {
     assert.match(nodeCanvasUiAsset.text, /MelodySyncWorkbenchNodeCanvasUi/);
     assert.match(nodeCanvasUiAsset.text, /createController/);
 
+    const taskMapReactBundleAsset = await request(port, 'GET', '/chat/workbench/task-map-react.bundle.js');
+    assert.equal(taskMapReactBundleAsset.status, 200, 'task map react bundle asset should load');
+    assert.match(taskMapReactBundleAsset.text, /MelodySyncTaskMapReactUi/);
+
+    const taskMapUiLegacyAsset = await request(port, 'GET', '/chat/workbench/task-map-ui-legacy.js');
+    assert.equal(taskMapUiLegacyAsset.status, 200, 'task map legacy ui asset should load');
+    assert.match(taskMapUiLegacyAsset.text, /MelodySyncTaskMapUiLegacy/);
+    assert.match(taskMapUiLegacyAsset.text, /renderFlowBoard/);
+
     const taskMapUiAsset = await request(port, 'GET', '/chat/workbench/task-map-ui.js');
     assert.equal(taskMapUiAsset.status, 200, 'task map ui asset should load');
     assert.match(taskMapUiAsset.text, /MelodySyncTaskMapUi/);
@@ -1022,6 +1036,26 @@ async function main() {
     assert.equal(taskListUiAsset.status, 200, 'task list ui asset should load');
     assert.match(taskListUiAsset.text, /MelodySyncTaskListUi/);
     assert.match(taskListUiAsset.text, /createController/);
+
+    const statusCardUiAsset = await request(port, 'GET', '/chat/workbench/status-card-ui.js');
+    assert.equal(statusCardUiAsset.status, 200, 'status card ui asset should load');
+    assert.match(statusCardUiAsset.text, /MelodySyncWorkbenchStatusCardUi/);
+    assert.match(statusCardUiAsset.text, /createRenderer/);
+
+    const persistentEditorUiAsset = await request(port, 'GET', '/chat/workbench/persistent-editor-ui.js');
+    assert.equal(persistentEditorUiAsset.status, 200, 'persistent editor ui asset should load');
+    assert.match(persistentEditorUiAsset.text, /MelodySyncPersistentEditorUi/);
+    assert.match(persistentEditorUiAsset.text, /createRenderer/);
+
+    const operationRecordSummaryUiAsset = await request(port, 'GET', '/chat/workbench/operation-record-summary-ui.js');
+    assert.equal(operationRecordSummaryUiAsset.status, 200, 'operation record summary ui asset should load');
+    assert.match(operationRecordSummaryUiAsset.text, /MelodySyncOperationRecordSummaryUi/);
+    assert.match(operationRecordSummaryUiAsset.text, /createRenderer/);
+
+    const operationRecordListUiAsset = await request(port, 'GET', '/chat/workbench/operation-record-list-ui.js');
+    assert.equal(operationRecordListUiAsset.status, 200, 'operation record list ui asset should load');
+    assert.match(operationRecordListUiAsset.text, /MelodySyncOperationRecordListUi/);
+    assert.match(operationRecordListUiAsset.text, /createRenderer/);
 
     const branchActionsAsset = await request(port, 'GET', '/chat/workbench/branch-actions.js');
     assert.equal(branchActionsAsset.status, 200, 'branch actions asset should load');

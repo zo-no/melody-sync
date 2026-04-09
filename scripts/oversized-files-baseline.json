@@ -2,6 +2,7 @@
   "files": {
     "backend/session/manager.mjs": 3855,
     "backend/router.mjs": 2175,
+    "frontend/workbench/task-map-ui-legacy.js": 1099,
     "scripts/github-auto-triage.mjs": 1726,
     "scripts/proactive-observer.mjs": 1424,
     "scripts/remote-capability-monitor.mjs": 1415,

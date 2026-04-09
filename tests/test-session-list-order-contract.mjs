@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
+const sourcePath = existsSync(join(repoRoot, 'frontend', 'session-list', 'order-contract.js'))
+  ? join(repoRoot, 'frontend', 'session-list', 'order-contract.js')
+  : join(repoRoot, 'static', 'frontend', 'session-list', 'order-contract.js');
 const source = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'session-list', 'order-contract.js'),
+  sourcePath,
   'utf8',
 );
 
