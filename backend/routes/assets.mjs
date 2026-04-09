@@ -1,3 +1,5 @@
+import { readJsonRequestBody } from '../shared/http/request-body.mjs';
+
 function parseFileAssetRoute(pathname) {
   const match = /^\/api\/assets\/(fasset_[a-f0-9]{24})(?:\/(download|finalize))?$/.exec(pathname || '');
   if (!match) return null;
@@ -18,7 +20,6 @@ export async function handleAssetRoutes({
   getFileAssetForClient,
   finalizeFileAssetUpload,
   buildFileAssetDirectUrl,
-  readBody,
   writeJson,
   buildHeaders,
 } = {}) {
@@ -27,8 +28,7 @@ export async function handleAssetRoutes({
   if (pathname === '/api/assets/upload-intents' && req?.method === 'POST') {
     let payload = {};
     try {
-      const body = await readBody(req, 32768);
-      payload = body ? JSON.parse(body) : {};
+      payload = await readJsonRequestBody(req, 32768);
     } catch {
       writeJson(res, 400, { error: 'Invalid request body' });
       return true;
@@ -78,8 +78,7 @@ export async function handleAssetRoutes({
 
     let payload = {};
     try {
-      const body = await readBody(req, 32768);
-      payload = body ? JSON.parse(body) : {};
+      payload = await readJsonRequestBody(req, 32768);
     } catch {
       writeJson(res, 400, { error: 'Invalid request body' });
       return true;

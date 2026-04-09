@@ -13,6 +13,7 @@ import { pathExists, statOrNull } from '../fs-utils.mjs';
 import { getModelsForTool } from '../models.mjs';
 import { getPublicKey, addSubscription } from '../push.mjs';
 import { enqueueHostCompletionSpeech } from '../completion-speech-queue.mjs';
+import { readJsonRequestBody } from '../shared/http/request-body.mjs';
 import { buildAuthInfo } from '../views/system/auth.mjs';
 
 const uploadedMediaMimeTypes = {
@@ -127,20 +128,13 @@ export async function handleSystemRoutes({
   if (pathname === '/api/runtime-selection' && req.method === 'POST') {
     let body;
     try {
-      body = await readBody(req, 4096);
+      body = await readJsonRequestBody(req, 4096);
     } catch (err) {
       jsonError(writeJson, res, err.code === 'BODY_TOO_LARGE' ? 413 : 400, err.code === 'BODY_TOO_LARGE' ? 'Request body too large' : 'Bad request');
       return true;
     }
-    let payload;
     try {
-      payload = JSON.parse(body);
-    } catch {
-      jsonError(writeJson, res, 400, 'Invalid request body');
-      return true;
-    }
-    try {
-      const selection = await saveUiRuntimeSelection(payload || {});
+      const selection = await saveUiRuntimeSelection(body || {});
       writeJson(res, 200, { selection });
     } catch (error) {
       jsonError(writeJson, res, 400, error.message || 'Failed to save runtime selection');
@@ -181,13 +175,13 @@ export async function handleSystemRoutes({
   if (pathname === '/api/push/subscribe' && req.method === 'POST') {
     let body;
     try {
-      body = await readBody(req, 4096);
+      body = await readJsonRequestBody(req, 4096);
     } catch {
       jsonError(writeJson, res, 400, 'Bad request');
       return true;
     }
     try {
-      const sub = JSON.parse(body);
+      const sub = body;
       if (!sub.endpoint) throw new Error('Missing endpoint');
       await addSubscription(sub);
       writeJson(res, 200, { ok: true });

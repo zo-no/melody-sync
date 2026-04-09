@@ -120,7 +120,6 @@ export async function handleRequest(req, res) {
     getFileAssetForClient,
     finalizeFileAssetUpload,
     buildFileAssetDirectUrl,
-    readBody,
     writeJson: writeJsonForReq,
     buildHeaders,
   })) {
