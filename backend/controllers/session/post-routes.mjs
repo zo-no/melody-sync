@@ -1,26 +1,17 @@
-import { homedir } from 'os';
-import { join, resolve } from 'path';
-
 import { readBody } from '../../../lib/utils.mjs';
 import { readSessionMessagePayload } from './message-request.mjs';
 import { readJsonRequestBody } from '../../shared/http/request-body.mjs';
 import {
-  cancelActiveRun,
-  createSession,
-  delegateSession,
-  forkSession,
-  organizeSession,
-  promoteSessionToPersistent,
-  runSessionPersistent,
-} from '../../session/manager.mjs';
-import { getSessionForClient } from '../../services/session/client-session-service.mjs';
+  cancelSessionRunForHttp,
+  createSessionForHttp,
+  delegateSessionForHttp,
+  forkSessionForHttp,
+  organizeSessionForHttp,
+  promoteSessionPersistentForHttp,
+  runSessionPersistentForHttp,
+} from '../../services/session/http-post-service.mjs';
 import { submitSessionHttpMessageForClient } from '../../services/session/http-message-service.mjs';
-import { statOrNull } from '../../fs-utils.mjs';
 import { createClientSessionDetail } from '../../views/session/client.mjs';
-
-async function isDirectoryPath(path) {
-  return (await statOrNull(path))?.isDirectory() === true;
-}
 
 export async function handleSessionPostRoutes({
   req,
@@ -62,12 +53,7 @@ export async function handleSessionPostRoutes({
       }
 
       try {
-        const outcome = await organizeSession(sessionId, {
-          tool: typeof payload?.tool === 'string' ? payload.tool.trim() : '',
-          model: typeof payload?.model === 'string' ? payload.model.trim() : '',
-          effort: typeof payload?.effort === 'string' ? payload.effort.trim() : '',
-          thinking: payload?.thinking === true,
-        });
+        const outcome = await organizeSessionForHttp(sessionId, payload);
         writeJson(res, outcome.duplicate ? 200 : 202, {
           duplicate: outcome.duplicate,
           run: outcome.run || null,
@@ -93,7 +79,7 @@ export async function handleSessionPostRoutes({
         return true;
       }
       try {
-        const session = await promoteSessionToPersistent(sessionId, payload);
+        const session = await promoteSessionPersistentForHttp(sessionId, payload);
         if (!session) {
           writeJson(res, 404, { error: 'Session not found' });
           return true;
@@ -115,7 +101,7 @@ export async function handleSessionPostRoutes({
         return true;
       }
       try {
-        const outcome = await runSessionPersistent(sessionId, payload);
+        const outcome = await runSessionPersistentForHttp(sessionId, payload);
         if (!outcome?.session) {
           writeJson(res, 404, { error: 'Session not found' });
           return true;
@@ -175,49 +161,39 @@ export async function handleSessionPostRoutes({
 
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'cancel') {
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
-      const run = await cancelActiveRun(sessionId);
-      if (!run) {
-        const session = await getSessionForClient(sessionId);
-        if (session && session.activity?.run?.state !== 'running') {
-          writeJson(res, 200, { run: null, session });
-          return true;
-        }
+      const outcome = await cancelSessionRunForHttp(sessionId);
+      if (outcome.kind === 'missing_active_run') {
         writeJson(res, 409, { error: 'No active run' });
         return true;
       }
-      writeJson(res, 200, { run });
+      writeJson(res, 200, {
+        run: outcome.run,
+        ...(outcome.session ? { session: createClientSessionDetail(outcome.session) } : {}),
+      });
       return true;
     }
 
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'fork') {
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
-      const source = await getSessionForClient(sessionId);
-      if (!source) {
+      const outcome = await forkSessionForHttp(sessionId);
+      if (outcome.kind === 'not_found') {
         writeJson(res, 404, { error: 'Session not found' });
         return true;
       }
-      const runState = String(source?.activity?.run?.state || '').toLowerCase();
-      if (runState === 'running' || runState === 'accepted') {
+      if (outcome.kind === 'running') {
         writeJson(res, 409, { error: 'Session is running' });
         return true;
       }
-      const forked = await forkSession(sessionId);
-      if (!forked) {
+      if (!outcome.session) {
         writeJson(res, 409, { error: 'Unable to fork session' });
         return true;
       }
-      writeJson(res, 201, { session: createClientSessionDetail(forked) });
+      writeJson(res, 201, { session: createClientSessionDetail(outcome.session) });
       return true;
     }
 
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'delegate') {
       if (!requireSessionAccess(res, authSession, sessionId)) return true;
-      const source = await getSessionForClient(sessionId);
-      if (!source) {
-        writeJson(res, 404, { error: 'Session not found' });
-        return true;
-      }
-
       let payload = {};
       try {
         payload = await readJsonRequestBody(req, 32768);
@@ -241,13 +217,12 @@ export async function handleSessionPostRoutes({
       }
 
       try {
-        const outcome = await delegateSession(sessionId, {
-          task,
-          name: typeof payload?.name === 'string' ? payload.name.trim() : '',
-          tool: typeof payload?.tool === 'string' ? payload.tool.trim() : '',
-          internal: payload?.internal === true,
-        });
-        if (!outcome?.session) {
+        const outcome = await delegateSessionForHttp(sessionId, payload);
+        if (outcome.kind === 'not_found') {
+          writeJson(res, 404, { error: 'Session not found' });
+          return true;
+        }
+        if (!outcome.session) {
           writeJson(res, 409, { error: 'Unable to delegate session' });
           return true;
         }
@@ -275,60 +250,10 @@ export async function handleSessionPostRoutes({
     }
 
     try {
-      const {
-        folder,
-        tool,
-        name,
-        userId,
-        userName,
-        sourceId,
-        sourceName,
-        group,
-        description,
-        systemPrompt,
-        internalRole,
-        completionTargets,
-        externalTriggerId,
-        sourceContext,
-      } = payload;
-      if (!folder || !tool) {
-        writeJson(res, 400, { error: 'folder and tool are required' });
-        return true;
-      }
-      const resolvedFolder = folder.startsWith('~')
-        ? join(homedir(), folder.slice(1))
-        : resolve(folder);
-      if (!await isDirectoryPath(resolvedFolder)) {
-        writeJson(res, 400, { error: 'Folder does not exist' });
-        return true;
-      }
-      const createOptions = {
-        userId: typeof userId === 'string' ? userId : '',
-        userName: typeof userName === 'string' ? userName : '',
-        sourceId: typeof sourceId === 'string' ? sourceId : '',
-        sourceName: typeof sourceName === 'string' ? sourceName : '',
-        group: (typeof group === 'string' && group.trim()) ? group : '收集箱',
-        description: description || '',
-        completionTargets: Array.isArray(completionTargets) ? completionTargets : [],
-        externalTriggerId: typeof externalTriggerId === 'string' ? externalTriggerId : '',
-      };
-      if (Object.prototype.hasOwnProperty.call(payload, 'systemPrompt')) {
-        createOptions.systemPrompt = typeof systemPrompt === 'string' ? systemPrompt : '';
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'internalRole')) {
-        if (internalRole !== null && typeof internalRole !== 'string') {
-          writeJson(res, 400, { error: 'internalRole must be a string when provided' });
-          return true;
-        }
-        createOptions.internalRole = typeof internalRole === 'string' ? internalRole.trim() : '';
-      }
-      if (Object.prototype.hasOwnProperty.call(payload, 'sourceContext')) {
-        createOptions.sourceContext = sourceContext;
-      }
-      const session = await createSession(resolvedFolder, tool, name || '', createOptions);
+      const session = await createSessionForHttp(payload);
       writeJson(res, 201, { session: createClientSessionDetail(session) });
-    } catch {
-      writeJson(res, 400, { error: 'Invalid request body' });
+    } catch (error) {
+      writeJson(res, error?.statusCode || 400, { error: error?.message || 'Invalid request body' });
     }
     return true;
   }
