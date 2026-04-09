@@ -37,7 +37,10 @@ Browser / mobile shell
 
 - [`backend/router.mjs`](backend/router.mjs): main HTTP surface plus response/cache/static dispatch
 - [`backend/controllers/session/access.mjs`](backend/controllers/session/access.mjs): session access guard factory for HTTP routes
+- [`backend/controllers/session/delete-routes.mjs`](backend/controllers/session/delete-routes.mjs): session delete HTTP controller
 - [`backend/controllers/session/message-request.mjs`](backend/controllers/session/message-request.mjs): multipart/JSON message request parsing for session message posts
+- [`backend/controllers/session/patch-routes.mjs`](backend/controllers/session/patch-routes.mjs): session patch HTTP controller
+- [`backend/controllers/session/post-routes.mjs`](backend/controllers/session/post-routes.mjs): session create/action/message HTTP controller
 - [`backend/controllers/workbench/read-routes.mjs`](backend/controllers/workbench/read-routes.mjs): workbench HTTP read controller
 - [`backend/controllers/workbench/write-routes.mjs`](backend/controllers/workbench/write-routes.mjs): workbench HTTP mutation controller
 - [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration
