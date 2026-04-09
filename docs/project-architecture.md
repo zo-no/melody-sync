@@ -75,6 +75,10 @@ MelodySync is now an owner-operated AI task workspace.
 
 - handles session event-oriented HTTP reads including visible/all events, source context, immutable event blocks, and event bodies
 
+`backend/services/session/attachment-storage-service.mjs`
+
+- owns attachment file persistence and saved-upload resolution so session orchestration and HTTP intake can share one storage boundary
+
 `backend/controllers/http/static-routes.mjs`
 
 - handles versioned frontend/static asset lookup and file responses outside the authenticated app flow

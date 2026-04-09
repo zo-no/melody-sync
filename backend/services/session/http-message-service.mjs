@@ -1,13 +1,13 @@
 import { basename } from 'path';
 
-import { pathExists } from '../fs-utils.mjs';
-import { getFileAsset } from '../file-assets.mjs';
+import { resolveSavedAttachments, saveAttachments } from './attachment-storage-service.mjs';
+
+import { pathExists } from '../../fs-utils.mjs';
+import { getFileAsset } from '../../file-assets.mjs';
 import {
-  resolveSavedAttachments,
-  saveAttachments,
   sendMessage,
   submitHttpMessage,
-} from '../session/manager.mjs';
+} from '../../session/manager.mjs';
 
 function createHttpError(message, statusCode) {
   return Object.assign(new Error(message), { statusCode });

@@ -19,3 +19,4 @@ This directory owns session-facing projections and lightweight domain helpers.
 - `deletion-journal.mjs`: deletion journaling into the Obsidian vault.
 - `run-health.mjs`: run failure inference, detached-run termination synthesis, and context-threshold diagnostics.
 - `manager.mjs`: session and run orchestration entrypoint for the session domain.
+- `../services/session/attachment-storage-service.mjs`: attachment save/load helpers so HTTP intake and orchestration do not own raw file persistence.

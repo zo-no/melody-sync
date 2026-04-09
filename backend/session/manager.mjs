@@ -1,6 +1,5 @@
 import { randomBytes } from 'crypto';
 import { watch } from 'fs';
-import { writeFile } from 'fs/promises';
 import { dirname, join, resolve } from 'path';
 import { CHAT_FILE_ASSET_CACHE_DIR, CHAT_IMAGES_DIR } from '../../lib/config.mjs';
 import { getToolDefinitionAsync } from '../../lib/tools.mjs';
@@ -116,6 +115,7 @@ import {
   withSessionsMetaMutation,
 } from './meta-store.mjs';
 import { dispatchSessionEmailCompletionTargets, sanitizeEmailCompletionTargets } from '../../lib/agent-mail-completion-targets.mjs';
+import { resolveSavedAttachments, saveAttachments } from '../services/session/attachment-storage-service.mjs';
 import {
   applySessionCompatFields,
   normalizeAppId,
@@ -126,12 +126,11 @@ import {
   resolveSessionSourceName,
 } from '../session-source/meta-fields.mjs';
 import { deleteFileAssets, publishLocalFileAssetFromPath } from '../file-assets.mjs';
-import { ensureDir, pathExists, removePath, statOrNull } from '../fs-utils.mjs';
+import { removePath, statOrNull } from '../fs-utils.mjs';
 import {
   buildResultAssetReadyMessage,
   collectGeneratedResultFilesFromRun,
   normalizePublishedResultAssetAttachments,
-  resolveAttachmentExtension,
   resolveAttachmentMimeType,
   sanitizeOriginalAttachmentName,
 } from '../result-assets.mjs';
@@ -921,46 +920,7 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
   return run;
 }
 
-export async function resolveSavedAttachments(images) {
-  const resolved = await Promise.all((images || []).map(async (image) => {
-    const filename = typeof image?.filename === 'string' ? image.filename.trim() : '';
-    if (!filename || !/^[a-zA-Z0-9_-]+\.[a-z0-9]+$/.test(filename)) return null;
-    const savedPath = join(CHAT_IMAGES_DIR, filename);
-    if (!await pathExists(savedPath)) return null;
-    const originalName = sanitizeOriginalAttachmentName(image?.originalName || '');
-    const mimeType = resolveAttachmentMimeType(image?.mimeType, originalName || filename);
-    return {
-      filename,
-      savedPath,
-      ...(originalName ? { originalName } : {}),
-      mimeType,
-    };
-  }));
-  return resolved.filter(Boolean);
-}
-
-export async function saveAttachments(images) {
-  if (!images || images.length === 0) return [];
-  await ensureDir(CHAT_IMAGES_DIR);
-  return Promise.all(images.map(async (img) => {
-    const originalName = sanitizeOriginalAttachmentName(img?.originalName || img?.name || '');
-    const mimeType = resolveAttachmentMimeType(img?.mimeType, originalName);
-    const ext = resolveAttachmentExtension(mimeType, originalName);
-    const filename = randomBytes(12).toString('hex') + ext;
-    const filepath = join(CHAT_IMAGES_DIR, filename);
-    const fileBuffer = Buffer.isBuffer(img?.buffer)
-      ? img.buffer
-      : Buffer.from(typeof img?.data === 'string' ? img.data : '', 'base64');
-    await writeFile(filepath, fileBuffer);
-    return {
-      filename,
-      savedPath: filepath,
-      ...(originalName ? { originalName } : {}),
-      mimeType,
-      ...(typeof img?.data === 'string' ? { data: img.data } : {}),
-    };
-  }));
-}
+export { resolveSavedAttachments, saveAttachments };
 
 async function touchSessionMeta(sessionId, extra = {}) {
   return (await mutateSessionMeta(sessionId, (session) => {
@@ -3157,6 +3117,18 @@ export async function updateSessionGrouping(id, patch = {}) {
         }
       } else if (session.description) {
         delete session.description;
+        changed = true;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'manualGroup')) {
+      const nextManualGroup = normalizeSessionGroup(patch.manualGroup || '');
+      if (nextManualGroup) {
+        if (session.manualGroup !== nextManualGroup) {
+          session.manualGroup = nextManualGroup;
+          changed = true;
+        }
+      } else if (session.manualGroup) {
+        delete session.manualGroup;
         changed = true;
       }
     }

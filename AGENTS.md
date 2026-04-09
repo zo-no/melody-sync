@@ -53,6 +53,7 @@ Browser / mobile shell
 - [`backend/controllers/session/post-routes.mjs`](backend/controllers/session/post-routes.mjs): session create/action/message HTTP controller
 - [`backend/controllers/session/read-catalog-routes.mjs`](backend/controllers/session/read-catalog-routes.mjs): session list/detail HTTP read controller
 - [`backend/controllers/session/read-event-routes.mjs`](backend/controllers/session/read-event-routes.mjs): session event/source-context HTTP read controller
+- [`backend/services/session/attachment-storage-service.mjs`](backend/services/session/attachment-storage-service.mjs): session attachment persistence and saved-file resolution
 - [`backend/controllers/settings/read-routes.mjs`](backend/controllers/settings/read-routes.mjs): settings HTTP read controller
 - [`backend/controllers/settings/write-routes.mjs`](backend/controllers/settings/write-routes.mjs): settings HTTP mutation controller
 - [`backend/controllers/system/read-routes.mjs`](backend/controllers/system/read-routes.mjs): system HTTP read controller
