@@ -83,6 +83,53 @@ function buildHookTraceStatusEvent(statusEvent, {
   return event;
 }
 
+function normalizeText(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function normalizeSuppressedBranchTitles(value) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : (typeof value === 'string' && value.trim() ? value.split(/\n+/) : []);
+  const next = [];
+  const seen = new Set();
+  for (const raw of rawItems) {
+    const normalized = normalizeText(raw);
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    next.push(normalized);
+    if (next.length >= 12) break;
+  }
+  return next;
+}
+
+function parseToolChainBreakSignal(value) {
+  const normalized = normalizeText(value);
+  const match = normalized.match(/^tool[_-]?chain[_-]?break\s*:\s*(.+)$/i);
+  if (!match) return '';
+  return normalizeText(match[1]) || '评价场景';
+}
+
+function mergeToolChainBreakCandidate(taskCard, branchTitle, suppressedBranchTitles = []) {
+  if (!taskCard || typeof taskCard !== 'object' || Array.isArray(taskCard)) return taskCard;
+  const normalizedTitle = normalizeText(branchTitle);
+  if (!normalizedTitle) return taskCard;
+  const suppressed = new Set(normalizeSuppressedBranchTitles(suppressedBranchTitles).map((entry) => entry.toLowerCase()));
+  if (suppressed.has(normalizedTitle.toLowerCase())) return taskCard;
+
+  const existing = Array.isArray(taskCard.candidateBranches) ? taskCard.candidateBranches : [];
+  const normalizedExisting = new Set(existing.map((entry) => normalizeText(entry).toLowerCase()).filter(Boolean));
+  if (normalizedExisting.has(normalizedTitle.toLowerCase())) return taskCard;
+
+  const candidates = [normalizedTitle, ...existing];
+  return {
+    ...taskCard,
+    candidateBranches: candidates,
+  };
+}
+
 const FINALIZE_DEBUG = process.env.MELODYSYNC_STARTUP_SYNC_DEBUG === '1';
 
 function clearCompactionPendingFlags(liveSessions, {
@@ -289,21 +336,48 @@ export async function finalizeDetachedRunWithDeps(deps, {
 
   let currentSessionMeta = finalizedMeta.meta || await findSessionMeta(sessionId);
   const previousTaskCard = normalizeSessionTaskCard(currentSessionMeta?.taskCard || null);
+  const toolChainBreakCandidate = parseToolChainBreakSignal(finalizedRun?.failureReason);
   const stabilizedTaskCard = !sessionOrganizing && latestTaskCard
     ? stabilizeSessionTaskCard(currentSessionMeta, latestTaskCard)
     : null;
+  const stabilizedTaskCardWithAutoCandidate = !sessionOrganizing && stabilizedTaskCard && toolChainBreakCandidate
+    ? mergeToolChainBreakCandidate(
+      stabilizedTaskCard,
+      toolChainBreakCandidate,
+      currentSessionMeta?.suppressedBranchTitles || [],
+    )
+    : stabilizedTaskCard;
+
+  if (toolChainBreakCandidate) {
+    const currentSignalCount = Number.isInteger(currentSessionMeta?.workflowSignals?.repeatedClarificationCount)
+      ? currentSessionMeta.workflowSignals.repeatedClarificationCount
+      : 0;
+    const nextWorkflowSignals = {
+      ...(currentSessionMeta?.workflowSignals || {}),
+      repeatedClarificationCount: currentSignalCount + 1,
+      lastRepeatedClarificationAt: nowIso(),
+      lastRepeatedClarificationSignal: toolChainBreakCandidate,
+      lastFailureReason: normalizeText(finalizedRun?.failureReason || ''),
+    };
+    const signalResult = await mutateSessionMeta(sessionId, (session) => {
+      session.workflowSignals = nextWorkflowSignals;
+      return true;
+    });
+    currentSessionMeta = signalResult?.meta || currentSessionMeta;
+    sessionChanged = sessionChanged || signalResult?.changed === true;
+  }
 
   let branchCandidateEvents = [];
   if (!sessionOrganizing && latestTaskCard) {
     if (FINALIZE_DEBUG) {
       console.log('[startup-finalize] updating task card');
     }
-    const updatedTaskCard = await updateSessionTaskCard(sessionId, stabilizedTaskCard);
+    const updatedTaskCard = await updateSessionTaskCard(sessionId, stabilizedTaskCardWithAutoCandidate);
     sessionChanged = sessionChanged || !!updatedTaskCard;
     branchCandidateEvents = buildBranchCandidateStatusEvents(finalizedRun, {
       sourceSeq: await findLatestUserMessageSeqForRun(sessionId, finalizedRun),
       previousTaskCard,
-      nextTaskCard: stabilizedTaskCard,
+      nextTaskCard: stabilizedTaskCardWithAutoCandidate,
       suppressedBranchTitles: currentSessionMeta?.suppressedBranchTitles || [],
     });
     currentSessionMeta = updatedTaskCard || await findSessionMeta(sessionId) || currentSessionMeta;
