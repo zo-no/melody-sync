@@ -7,6 +7,8 @@ Current split:
 - `index.mjs`: thin workbench domain entry; re-exports focused continuity, branch, candidate, and project-write modules.
 - `project-write-service.mjs`: focused wrappers for capture/project/node/promotion/summary/obsidian write flows built on `project-records.mjs`.
 - `branch-candidate-service.mjs`: focused branch-candidate suppression wrapper for session-facing branch metadata writes.
+- `branch-write-service.mjs`: branch/session mutation orchestration, including branch dispatch signal tracking, handoff, merge-return, reparent, status, and reminder flows.
+- `task-map-write-service.mjs`: task-map and graph mutation orchestration, including graph-op apply and persisted plan writes/deletes.
 - `../services/workbench/read-service.mjs`: HTTP-facing snapshot/tracker read orchestration so controllers do not import the workbench entry module.
 - `../services/workbench/write-service.mjs`: HTTP-facing mutation orchestration so write controllers stay focused on routing, access checks, and response shaping.
 - `output-metrics-service.mjs`: aggregate task/workflow output metrics used by the workbench summary surface.
@@ -37,6 +39,8 @@ Boundary rules:
 - Keep HTTP-facing mutation orchestration in `../services/workbench/write-service.mjs`; write controllers should not import `backend/workbench/index.mjs` directly.
 - Keep project-record-backed write wrappers in `project-write-service.mjs`; `index.mjs` should re-export them instead of owning their dependency wiring.
 - Keep branch-candidate suppression wiring in `branch-candidate-service.mjs`; avoid growing `index.mjs` with session-port wrappers.
+- Keep branch/session mutation orchestration in `branch-write-service.mjs`; branch signal bookkeeping should not live in HTTP controllers or aggregate HTTP services.
+- Keep graph-op and task-map plan mutation orchestration in `task-map-write-service.mjs`; avoid mixing task-map writes into generic HTTP services.
 - Prefer adding new focused modules here rather than growing `backend/workbench/index.mjs`.
 - Keep branch lifecycle and continuity-sync logic in `branch-lifecycle.mjs`; `index.mjs` should mostly re-export or wire domain modules together.
 - Keep shared workbench serialization in `queues.mjs`; avoid recreating ad hoc per-file queue maps.

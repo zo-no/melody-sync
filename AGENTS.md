@@ -62,7 +62,9 @@ Browser / mobile shell
 - [`backend/controllers/workbench/write-routes.mjs`](backend/controllers/workbench/write-routes.mjs): workbench HTTP mutation controller
 - [`backend/services/workbench/read-service.mjs`](backend/services/workbench/read-service.mjs): workbench snapshot/tracker HTTP read orchestration
 - [`backend/services/workbench/write-service.mjs`](backend/services/workbench/write-service.mjs): workbench HTTP mutation orchestration
+- [`backend/workbench/branch-write-service.mjs`](backend/workbench/branch-write-service.mjs): workbench branch/session mutation orchestration
 - [`backend/workbench/project-write-service.mjs`](backend/workbench/project-write-service.mjs): workbench project/capture/node write wrappers
+- [`backend/workbench/task-map-write-service.mjs`](backend/workbench/task-map-write-service.mjs): workbench graph/task-map mutation orchestration
 - [`backend/workbench/output-metrics-service.mjs`](backend/workbench/output-metrics-service.mjs): workbench output and workflow metrics aggregation
 - [`backend/follow-up-queue.mjs`](backend/follow-up-queue.mjs): session follow-up queue normalization and dispatch text helpers
 - [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration
