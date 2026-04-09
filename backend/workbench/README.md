@@ -11,6 +11,9 @@ Current split:
 - `task-map-write-service.mjs`: task-map and graph mutation orchestration, including graph-op apply and persisted plan writes/deletes.
 - `../services/workbench/read-service.mjs`: HTTP-facing snapshot/tracker read orchestration so controllers do not import the workbench entry module.
 - `../services/workbench/write-service.mjs`: HTTP-facing mutation orchestration so write controllers stay focused on routing, access checks, and response shaping.
+- `../controllers/workbench/node-definition-write-routes.mjs`: node-definition write controller split from the generic workbench write router.
+- `../controllers/workbench/project-write-routes.mjs`: capture/project/node write controller split from the generic workbench write router.
+- `../controllers/workbench/session-write-routes.mjs`: branch/session/task-map write controller split from the generic workbench write router.
 - `output-metrics-service.mjs`: aggregate task/workflow output metrics used by the workbench summary surface.
 - `branch-lifecycle.mjs`: branch creation, merge-back, status changes, reminder snooze, and continuity sync.
 - `queues.mjs`: shared serial queue coordinator for workbench writes.
@@ -41,6 +44,7 @@ Boundary rules:
 - Keep branch-candidate suppression wiring in `branch-candidate-service.mjs`; avoid growing `index.mjs` with session-port wrappers.
 - Keep branch/session mutation orchestration in `branch-write-service.mjs`; branch signal bookkeeping should not live in HTTP controllers or aggregate HTTP services.
 - Keep graph-op and task-map plan mutation orchestration in `task-map-write-service.mjs`; avoid mixing task-map writes into generic HTTP services.
+- Keep path-specific HTTP write branching in the focused controller helpers under `../controllers/workbench/`; `write-routes.mjs` should stay as the thin top-level dispatcher.
 - Prefer adding new focused modules here rather than growing `backend/workbench/index.mjs`.
 - Keep branch lifecycle and continuity-sync logic in `branch-lifecycle.mjs`; `index.mjs` should mostly re-export or wire domain modules together.
 - Keep shared workbench serialization in `queues.mjs`; avoid recreating ad hoc per-file queue maps.

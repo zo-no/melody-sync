@@ -60,6 +60,9 @@ Browser / mobile shell
 - [`backend/controllers/system/write-routes.mjs`](backend/controllers/system/write-routes.mjs): system HTTP mutation controller
 - [`backend/controllers/workbench/read-routes.mjs`](backend/controllers/workbench/read-routes.mjs): workbench HTTP read controller
 - [`backend/controllers/workbench/write-routes.mjs`](backend/controllers/workbench/write-routes.mjs): workbench HTTP mutation controller
+- [`backend/controllers/workbench/node-definition-write-routes.mjs`](backend/controllers/workbench/node-definition-write-routes.mjs): workbench node-definition HTTP mutation controller helpers
+- [`backend/controllers/workbench/project-write-routes.mjs`](backend/controllers/workbench/project-write-routes.mjs): workbench capture/project/node HTTP mutation controller helpers
+- [`backend/controllers/workbench/session-write-routes.mjs`](backend/controllers/workbench/session-write-routes.mjs): workbench branch/session/task-map HTTP mutation controller helpers
 - [`backend/services/workbench/read-service.mjs`](backend/services/workbench/read-service.mjs): workbench snapshot/tracker HTTP read orchestration
 - [`backend/services/workbench/write-service.mjs`](backend/services/workbench/write-service.mjs): workbench HTTP mutation orchestration
 - [`backend/workbench/branch-write-service.mjs`](backend/workbench/branch-write-service.mjs): workbench branch/session mutation orchestration
