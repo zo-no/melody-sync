@@ -60,7 +60,7 @@ This keeps the automation:
 
 Shared logic lives in the repo:
 
-- `scripts/remote-capability-monitor.mjs`
+- `scripts/analysis/remote-capability-monitor.mjs`
 
 Machine-local setup stays outside the repo:
 

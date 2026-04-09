@@ -4,7 +4,7 @@ import { mkdir, readFile, stat, writeFile } from 'fs/promises';
 import { homedir } from 'os';
 import { dirname, join } from 'path';
 
-import { TOOLS_FILE } from '../lib/config.mjs';
+import { TOOLS_FILE } from '../../lib/config.mjs';
 
 const HOME = homedir();
 const DEFAULT_TOOL_ID = 'micro-agent';
@@ -23,7 +23,7 @@ function printUsage(exitCode = 0, errorMessage = '') {
     console.error('');
   }
   output(`Usage:
-  node scripts/install-micro-agent.mjs [options]
+  node scripts/agents/install-micro-agent.mjs [options]
 
 Options:
   --model <id>             Codex / GPT model id (default: detected from ~/.codex/config.toml, else ${DEFAULT_MODEL})

@@ -11,7 +11,7 @@ const homeDir = join(tempRoot, 'home');
 mkdirSync(join(homeDir, '.codex'), { recursive: true });
 writeFileSync(join(homeDir, '.codex', 'config.toml'), 'model = "gpt-5.4-mini"\n', 'utf8');
 
-const result = spawnSync('node', ['scripts/install-micro-agent.mjs', '--tool-id', 'micro-agent-test', '--tool-name', 'Micro Agent Test'], {
+const result = spawnSync('node', ['scripts/agents/install-micro-agent.mjs', '--tool-id', 'micro-agent-test', '--tool-name', 'Micro Agent Test'], {
   cwd: repoRoot,
   env: {
     ...process.env,

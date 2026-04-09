@@ -7,7 +7,7 @@ import {
   formatOversizedFilesReport,
   loadOversizedFilesBaseline,
   scanOversizedFiles,
-} from '../scripts/report-oversized-files.mjs';
+} from '../scripts/analysis/report-oversized-files.mjs';
 
 function createText(lineCount, prefix = 'line') {
   return Array.from({ length: lineCount }, (_, index) => `${prefix} ${index + 1}`).join('\n');

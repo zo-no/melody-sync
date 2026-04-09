@@ -5,8 +5,8 @@ import { dirname, extname, join, relative, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const defaultRootDir = resolve(__dirname, '..');
-export const DEFAULT_BASELINE_FILE = 'scripts/oversized-files-baseline.json';
+const defaultRootDir = resolve(__dirname, '../..');
+export const DEFAULT_BASELINE_FILE = 'scripts/analysis/oversized-files-baseline.json';
 
 export const SOURCE_EXTENSIONS = new Set(['.mjs', '.js', '.html', '.css']);
 export const IGNORED_PATH_SEGMENTS = new Set([
@@ -300,7 +300,7 @@ function parseArgs(argv = []) {
       continue;
     }
     if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/report-oversized-files.mjs [--root <dir>] [--baseline <file>] [--all] [--fail] [--github-actions]');
+      console.log('Usage: node scripts/analysis/report-oversized-files.mjs [--root <dir>] [--baseline <file>] [--all] [--fail] [--github-actions]');
       process.exit(0);
     }
     throw new Error(`Unknown argument: ${arg}`);

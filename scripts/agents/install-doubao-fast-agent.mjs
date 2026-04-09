@@ -5,7 +5,7 @@ import { homedir } from 'os';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
-import { TOOLS_FILE } from '../lib/config.mjs';
+import { TOOLS_FILE } from '../../lib/config.mjs';
 
 const HOME = homedir();
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,7 +29,7 @@ function printUsage(exitCode = 0, errorMessage = '') {
     console.error('');
   }
   output(`Usage:
-  node scripts/install-doubao-fast-agent.mjs [options]
+  node scripts/agents/install-doubao-fast-agent.mjs [options]
 
 Options:
   --api-key <key>          Doubao / Ark API key

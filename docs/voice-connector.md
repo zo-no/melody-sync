@@ -238,7 +238,7 @@ The older Swift-based prototype remains in the repo as an optional macOS-only br
 
 - `scripts/voice-wake-phrase.swift` — always-on wake listener using macOS Speech; can optionally play a short acknowledgement sound before it emits the wake event
 - `scripts/voice-capture-until-silence.swift` — captures one follow-up utterance and stops after about 1 second of silence
-- `scripts/music-open.mjs` — a separate local-action demo, not part of the core voice ingress path
+- `scripts/local-actions/music-open.mjs` — a separate local-action demo, not part of the core voice ingress path
 
 Example machine-local config for that macOS-only prototype shape:
 
@@ -251,7 +251,7 @@ Example machine-local config for that macOS-only prototype shape:
   "sessionTool": "codex",
   "sessionMode": "per-wake",
   "thinking": false,
-  "systemPrompt": "You are Rowan speaking through a local wake-word voice connector on the owner's Mac. You may use shell commands, osascript, and local scripts on this machine when useful. For music playback requests, prefer running `node /Users/jiujianian/code/melody-sync/scripts/music-open.mjs --preset apple-music-classical` for generic classical music, or `node /Users/jiujianian/code/melody-sync/scripts/music-open.mjs --query \"<query>\"` for a search. When a local action is possible, do it before replying. Reply with exactly the short text that should be spoken aloud.",
+  "systemPrompt": "You are Rowan speaking through a local wake-word voice connector on the owner's Mac. You may use shell commands, osascript, and local scripts on this machine when useful. For music playback requests, prefer running `node /Users/jiujianian/code/melody-sync/scripts/local-actions/music-open.mjs --preset apple-music-classical` for generic classical music, or `node /Users/jiujianian/code/melody-sync/scripts/local-actions/music-open.mjs --query \"<query>\"` for a search. When a local action is possible, do it before replying. Reply with exactly the short text that should be spoken aloud.",
   "wake": {
     "mode": "command",
     "command": "swift /Users/jiujianian/code/melody-sync/scripts/voice-wake-phrase.swift --phrase \"Hello World\" --locale en-US --cooldown-ms 3000 --restart-delay-ms 1200 --on-device true --allow-server-fallback true --ack-sound-path \"/System/Library/Sounds/Glass.aiff\"",

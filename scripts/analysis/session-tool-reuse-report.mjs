@@ -2,7 +2,7 @@
 
 import { homedir } from 'os';
 import { join } from 'path';
-import { generateSessionToolReuseSidecar } from '../lib/session-tool-reuse.mjs';
+import { generateSessionToolReuseSidecar } from '../../lib/session-tool-reuse.mjs';
 
 function readArg(flag) {
   const index = process.argv.indexOf(flag);

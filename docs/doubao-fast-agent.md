@@ -18,7 +18,7 @@ That makes it a better fit for voice and quick local actions, where tool support
 ```text
 MelodySync session / voice connector
   -> custom tool entry (`doubao-fast`)
-    -> `scripts/doubao-fast-agent.mjs`
+    -> `scripts/agents/doubao-fast-agent.mjs`
       -> Ark OpenAI-compatible `/chat/completions`
       -> local tool executor (`bash`, file read, clipboard, app open, notification)
       -> Claude-compatible JSON event stream back to MelodySync
@@ -65,7 +65,7 @@ The first version intentionally stays small. If a task turns into a broad code-e
 ## Install
 
 ```bash
-node scripts/install-doubao-fast-agent.mjs --api-key <ark-key> --base-url https://ark.cn-beijing.volces.com/api/v3 --model doubao-seed-2-0-pro-260215
+node scripts/agents/install-doubao-fast-agent.mjs --api-key <ark-key> --base-url https://ark.cn-beijing.volces.com/api/v3 --model doubao-seed-2-0-pro-260215
 ```
 
 The installer:

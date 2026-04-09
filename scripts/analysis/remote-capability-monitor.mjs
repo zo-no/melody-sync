@@ -153,7 +153,7 @@ function usage(exitCode = 0, errorMessage = '') {
   }
   const output = exitCode === 0 ? console.log : console.error;
   output(`Usage:
-  node scripts/remote-capability-monitor.mjs [options]
+  node scripts/analysis/remote-capability-monitor.mjs [options]
 
 Options:
   --config <path>           Monitor config path (default: ${DEFAULT_CONFIG_PATH})

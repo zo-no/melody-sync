@@ -33,7 +33,7 @@ function printUsage(exitCode = 0, errorMessage = '') {
     console.error('');
   }
   output(`Usage:
-  node scripts/doubao-fast-agent.mjs -p <prompt> [options]
+  node scripts/agents/doubao-fast-agent.mjs -p <prompt> [options]
 
 Options:
   -p <prompt>              Prompt text to run

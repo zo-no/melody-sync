@@ -31,8 +31,8 @@ function nowIso() {
 function printUsage(exitCode = 0) {
   const output = exitCode === 0 ? console.log : console.error
   output(`Usage:
-  node scripts/music-open.mjs --preset apple-music-classical [options]
-  node scripts/music-open.mjs --query "classical piano" [options]
+  node scripts/local-actions/music-open.mjs --preset apple-music-classical [options]
+  node scripts/local-actions/music-open.mjs --query "classical piano" [options]
 
 Options:
   --preset <id>         Preset music target

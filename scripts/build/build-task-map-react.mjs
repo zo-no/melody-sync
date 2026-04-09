@@ -5,9 +5,9 @@ import { fileURLToPath } from 'url';
 import { build } from 'esbuild';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(__dirname, '..');
+const repoRoot = resolve(__dirname, '../..');
 const entryFile = join(repoRoot, 'frontend-src', 'workbench', 'task-map-react-ui.jsx');
-const outputFile = join(repoRoot, 'frontend', 'workbench', 'task-map-react.bundle.js');
+const outputFile = join(repoRoot, 'frontend-src', 'workbench', 'task-map-react.bundle.js');
 
 await mkdir(dirname(outputFile), { recursive: true });
 

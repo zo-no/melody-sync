@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { analyzeItem, dedupeItems, parseFeedItems, summarizeProposals } from '../scripts/remote-capability-monitor.mjs';
+import { analyzeItem, dedupeItems, parseFeedItems, summarizeProposals } from '../scripts/analysis/remote-capability-monitor.mjs';
 
 const rssFixture = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">

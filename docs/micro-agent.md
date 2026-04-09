@@ -78,13 +78,13 @@ That keeps the architecture flat:
 ## Install
 
 ```bash
-node scripts/install-micro-agent.mjs
+node scripts/agents/install-micro-agent.mjs
 ```
 
 Optional overrides:
 
 ```bash
-node scripts/install-micro-agent.mjs --model gpt-5.4 --tool-id micro-agent --tool-name "Micro Agent"
+node scripts/agents/install-micro-agent.mjs --model gpt-5.4 --tool-id micro-agent --tool-name "Micro Agent"
 ```
 
 Model selection order:

@@ -2,13 +2,13 @@
   "files": {
     "backend/session/manager.mjs": 3855,
     "backend/router.mjs": 2175,
-    "frontend/workbench/task-map-ui-legacy.js": 1099,
+    "frontend-src/workbench/task-map-ui-legacy.js": 1099,
     "scripts/github-ci/github-auto-triage.mjs": 1726,
     "scripts/observer/proactive-observer.mjs": 1424,
-    "scripts/remote-capability-monitor.mjs": 1415,
+    "scripts/analysis/remote-capability-monitor.mjs": 1415,
     "tests/test-http-runtime-phase1.mjs": 1007,
     "scripts/github-ci/github-ci-auto-repair.mjs": 973,
-    "scripts/doubao-fast-agent.mjs": 867,
-    "frontend/session/transcript-ui.js": 808
+    "scripts/agents/doubao-fast-agent.mjs": 867,
+    "frontend-src/session/transcript-ui.js": 808
   }
 }

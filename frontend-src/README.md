@@ -22,3 +22,5 @@ Boundary rules:
 - Keep `session/surface-ui.js` focused on the attached session surface, not sidebar list behavior.
 - Keep browser-wide runtime helpers in `core/`, not in the root.
 - Keep React migration work inside `react/` until a domain is ready to fully replace the vanilla rendering path.
+- Treat `workbench/task-map-react.bundle.js` as generated output from `scripts/build/build-task-map-react.mjs`, not hand-edited source.
+- Before deleting any apparent duplicate or generated file, first remove its runtime path, tests, and documentation references in the same change.

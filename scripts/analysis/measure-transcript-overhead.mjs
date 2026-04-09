@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import process from 'process';
-import { getSession, getSessionTimelineEvents } from '../backend/session/manager.mjs';
-import { buildSessionDisplayEvents } from '../backend/session/display-events.mjs';
+import { getSession, getSessionTimelineEvents } from '../../backend/session/manager.mjs';
+import { buildSessionDisplayEvents } from '../../backend/session/display-events.mjs';
 
 function parseArgs(argv) {
   const parsed = {
@@ -42,7 +42,7 @@ function formatMs(value) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (!options.sessionId) {
-    console.error('Usage: node scripts/measure-transcript-overhead.mjs --session <sessionId> [--iterations 5] [--json]');
+    console.error('Usage: node scripts/analysis/measure-transcript-overhead.mjs --session <sessionId> [--iterations 5] [--json]');
     process.exit(1);
   }
 
