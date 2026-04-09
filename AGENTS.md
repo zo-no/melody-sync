@@ -37,6 +37,7 @@ Browser / mobile shell
 
 - [`backend/router.mjs`](backend/router.mjs): main HTTP surface plus response/cache/static dispatch
 - [`backend/controllers/session/access.mjs`](backend/controllers/session/access.mjs): session access guard factory for HTTP routes
+- [`backend/controllers/session/message-request.mjs`](backend/controllers/session/message-request.mjs): multipart/JSON message request parsing for session message posts
 - [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration
 - [`backend/run/store.mjs`](backend/run/store.mjs): durable run manifests, spool, status, result
 - [`backend/run/supervisor.mjs`](backend/run/supervisor.mjs): detached runner launcher
@@ -46,6 +47,7 @@ Browser / mobile shell
 - [`backend/history.mjs`](backend/history.mjs): append-only event store
 - [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs): session metadata persistence
 - [`backend/session/api-shapes.mjs`](backend/session/api-shapes.mjs): API projection helpers
+- [`backend/services/session/http-message-service.mjs`](backend/services/session/http-message-service.mjs): attachment resolution plus HTTP message submission orchestration
 - [`backend/services/system/config-reload-service.mjs`](backend/services/system/config-reload-service.mjs): deferred process restart scheduling for config changes
 - [`backend/services/system/page-build-service.mjs`](backend/services/system/page-build-service.mjs): service/frontend build info, template file cache, and static asset resolution
 - [`backend/views/system/page-template.mjs`](backend/views/system/page-template.mjs): chat/login shell placeholder projection and script-safe bootstrap serialization

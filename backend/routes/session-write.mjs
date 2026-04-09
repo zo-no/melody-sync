@@ -1,6 +1,7 @@
 import { homedir } from 'os';
-import { basename, join, resolve } from 'path';
+import { join, resolve } from 'path';
 import { readBody } from '../../lib/utils.mjs';
+import { readSessionMessagePayload } from '../controllers/session/message-request.mjs';
 import {
   cancelActiveRun,
   createSession,
@@ -10,13 +11,9 @@ import {
   organizeSession,
   promoteSessionToPersistent,
   renameSession,
-  resolveSavedAttachments,
   runSessionPersistent,
-  saveAttachments,
-  sendMessage,
   setSessionArchived,
   setSessionPinned,
-  submitHttpMessage,
   updateSessionAgreements,
   updateSessionGrouping,
   updateSessionLastReviewedAt,
@@ -30,100 +27,8 @@ import {
 } from '../session/workflow-state.mjs';
 import { getSessionForClient } from '../services/session/client-session-service.mjs';
 import { pathExists, statOrNull } from '../fs-utils.mjs';
-import { getFileAsset } from '../file-assets.mjs';
+import { submitSessionHttpMessageForClient } from '../services/session/http-message-service.mjs';
 import { createClientSessionDetail } from '../views/session/client.mjs';
-
-const MESSAGE_SUBMISSION_MAX_BYTES = 256 * 1024 * 1024;
-
-function bodyTooLargeError() {
-  return Object.assign(new Error('Request body too large'), { code: 'BODY_TOO_LARGE' });
-}
-
-function getMultipartBodyLength(req) {
-  const rawLength = Array.isArray(req.headers['content-length'])
-    ? req.headers['content-length'][0]
-    : req.headers['content-length'];
-  const parsedLength = Number.parseInt(rawLength || '', 10);
-  return Number.isFinite(parsedLength) && parsedLength >= 0 ? parsedLength : null;
-}
-
-function parseFormString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function parseFormJson(value, fallback) {
-  if (typeof value !== 'string' || !value.trim()) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-}
-
-async function readSessionMessagePayload(req, pathname) {
-  const contentType = String(req.headers['content-type'] || '').toLowerCase();
-  if (!contentType.startsWith('multipart/form-data')) {
-    const body = await readBody(req, MESSAGE_SUBMISSION_MAX_BYTES);
-    return JSON.parse(body);
-  }
-
-  const contentLength = getMultipartBodyLength(req);
-  if (contentLength !== null && contentLength > MESSAGE_SUBMISSION_MAX_BYTES) {
-    throw bodyTooLargeError();
-  }
-
-  const formRequest = new Request(`http://127.0.0.1${pathname}`, {
-    method: req.method,
-    headers: req.headers,
-    body: req,
-    duplex: 'half',
-  });
-  const formData = await formRequest.formData();
-  const images = [];
-  for (const entry of formData.getAll('images')) {
-    if (!entry || typeof entry.arrayBuffer !== 'function') continue;
-    images.push({
-      buffer: Buffer.from(await entry.arrayBuffer()),
-      mimeType: typeof entry.type === 'string' ? entry.type : '',
-      originalName: typeof entry.name === 'string' ? entry.name : '',
-    });
-  }
-  const existingImages = parseFormJson(parseFormString(formData.get('existingImages')), []);
-  if (Array.isArray(existingImages)) {
-    for (const image of existingImages) {
-      if (!image || typeof image !== 'object') continue;
-      if (typeof image.filename !== 'string' || !image.filename.trim()) continue;
-      images.push({
-        filename: image.filename.trim(),
-        originalName: parseFormString(image.originalName),
-        mimeType: parseFormString(image.mimeType),
-      });
-    }
-  }
-  const externalAssets = parseFormJson(parseFormString(formData.get('externalAssets')), []);
-  if (Array.isArray(externalAssets)) {
-    for (const asset of externalAssets) {
-      if (!asset || typeof asset !== 'object') continue;
-      if (typeof asset.assetId !== 'string' || !asset.assetId.trim()) continue;
-      images.push({
-        assetId: asset.assetId.trim(),
-        originalName: parseFormString(asset.originalName),
-        mimeType: parseFormString(asset.mimeType),
-      });
-    }
-  }
-
-  return {
-    requestId: parseFormString(formData.get('requestId')),
-    text: parseFormString(formData.get('text')),
-    tool: parseFormString(formData.get('tool')),
-    model: parseFormString(formData.get('model')),
-    effort: parseFormString(formData.get('effort')),
-    thinking: parseFormString(formData.get('thinking')) === 'true',
-    sourceContext: parseFormJson(parseFormString(formData.get('sourceContext')), null),
-    images,
-  };
-}
 
 async function isDirectoryPath(path) {
   return (await statOrNull(path))?.isDirectory() === true;
@@ -263,62 +168,12 @@ export async function handleSessionWriteRoutes({
       }
 
       try {
-        const requestId = typeof payload?.requestId === 'string' ? payload.requestId.trim() : '';
-        const requestedImages = Array.isArray(payload?.images) ? payload.images.filter(Boolean) : [];
-        const uploadedImages = requestedImages.filter((image) => Buffer.isBuffer(image?.buffer) || typeof image?.data === 'string');
-        const existingImages = requestedImages.filter((image) => typeof image?.filename === 'string' && image.filename.trim() && !image?.assetId);
-        const externalAssetImages = [];
-        for (const image of requestedImages) {
-          const assetId = typeof image?.assetId === 'string' ? image.assetId.trim() : '';
-          if (!assetId) continue;
-          const asset = await getFileAsset(assetId);
-          if (!asset) {
-            writeJson(res, 400, { error: `Unknown asset: ${assetId}` });
-            return true;
-          }
-          if (!requireSessionAccess(res, authSession, asset.sessionId)) return true;
-          if (asset.status !== 'ready') {
-            writeJson(res, 409, { error: `Asset is not ready: ${assetId}` });
-            return true;
-          }
-          const localizedPath = typeof asset.localizedPath === 'string' && asset.localizedPath && await pathExists(asset.localizedPath)
-            ? asset.localizedPath
-            : '';
-          externalAssetImages.push({
-            assetId: asset.id,
-            ...(localizedPath ? {
-              savedPath: localizedPath,
-              filename: typeof image?.filename === 'string' && image.filename.trim()
-                ? image.filename.trim()
-                : basename(localizedPath),
-            } : {}),
-            originalName: typeof image?.originalName === 'string' && image.originalName.trim()
-              ? image.originalName.trim()
-              : asset.originalName,
-            mimeType: typeof image?.mimeType === 'string' && image.mimeType.trim()
-              ? image.mimeType.trim()
-              : asset.mimeType,
-          });
-        }
-        const preSavedAttachments = [
-          ...(await resolveSavedAttachments(existingImages)),
-          ...(uploadedImages.length > 0 ? await saveAttachments(uploadedImages) : []),
-          ...externalAssetImages,
-        ];
-        const messageOptions = {
-          tool: payload.tool || undefined,
-          thinking: !!payload.thinking,
-          model: payload.model || undefined,
-          effort: payload.effort || undefined,
-          sourceContext: payload.sourceContext,
-          ...(preSavedAttachments.length > 0 ? { preSavedAttachments } : {}),
-        };
-        const outcome = requestId
-          ? await submitHttpMessage(sessionId, payload.text.trim(), [], {
-              ...messageOptions,
-              requestId,
-            })
-          : await sendMessage(sessionId, payload.text.trim(), [], messageOptions);
+        const { requestId, outcome } = await submitSessionHttpMessageForClient({
+          sessionId,
+          payload,
+          authSession,
+          hasSessionAccess: (nextAuthSession, targetSessionId) => !!nextAuthSession && !!targetSessionId,
+        });
         writeJson(res, outcome.duplicate ? 200 : 202, {
           requestId: requestId || outcome.run?.requestId || null,
           duplicate: outcome.duplicate,
@@ -455,6 +310,7 @@ export async function handleSessionWriteRoutes({
     const hasEffortPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'effort');
     const hasThinkingPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'thinking');
     const hasGroupPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'group');
+    const hasManualGroupPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'manualGroup');
     const hasDescriptionPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'description');
     const hasSidebarOrderPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'sidebarOrder');
     const hasActiveAgreementsPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'activeAgreements');
@@ -489,6 +345,10 @@ export async function handleSessionWriteRoutes({
     }
     if (hasGroupPatch && patch.group !== null && typeof patch.group !== 'string') {
       writeJson(res, 400, { error: 'group must be a string or null' });
+      return true;
+    }
+    if (hasManualGroupPatch && patch.manualGroup !== null && typeof patch.manualGroup !== 'string') {
+      writeJson(res, 400, { error: 'manualGroup must be a string or null' });
       return true;
     }
     if (hasDescriptionPatch && patch.description !== null && typeof patch.description !== 'string') {
@@ -564,9 +424,10 @@ export async function handleSessionWriteRoutes({
     if (hasPinnedPatch) {
       session = await setSessionPinned(sessionId, patch.pinned) || session;
     }
-    if (hasGroupPatch || hasDescriptionPatch || hasSidebarOrderPatch) {
+    if (hasGroupPatch || hasManualGroupPatch || hasDescriptionPatch || hasSidebarOrderPatch) {
       session = await updateSessionGrouping(sessionId, {
         ...(hasGroupPatch ? { group: patch.group ?? '' } : {}),
+        ...(hasManualGroupPatch ? { manualGroup: patch.manualGroup ?? '' } : {}),
         ...(hasDescriptionPatch ? { description: patch.description ?? '' } : {}),
         ...(hasSidebarOrderPatch ? { sidebarOrder: patch.sidebarOrder ?? null } : {}),
       }) || session;

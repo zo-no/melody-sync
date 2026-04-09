@@ -45,6 +45,16 @@ MelodySync is now an owner-operated AI task workspace.
 - streams normalized output into the session event store
 - coordinates timeout/finalize helpers through runtime monitor modules
 
+`backend/controllers/session/message-request.mjs`
+
+- parses JSON and multipart session message submissions
+- normalizes uploaded/existing/external attachment request payloads before service orchestration
+
+`backend/services/session/http-message-service.mjs`
+
+- resolves attachment references for HTTP message posts
+- submits session turns through the canonical session/run path without keeping that orchestration in the route
+
 `backend/services/system/page-build-service.mjs`
 
 - computes service/frontend build metadata
