@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { finalizeDetachedRunWithDeps } from '../backend/run/finalization.mjs';
+import { createSessionCompactionService } from '../backend/services/session/compaction-service.mjs';
 
 const sessionId = 'sess_direct_compact';
 const run = {
@@ -12,6 +13,67 @@ const run = {
 
 const appendedEvents = [];
 let persistedContextHead = null;
+
+const compactionService = createSessionCompactionService({
+  appendEvent: async (_sessionId, event) => {
+    const withSeq = { seq: appendedEvents.length + 1, ...event };
+    appendedEvents.push(withSeq);
+    return withSeq;
+  },
+  autoCompactMarkerText: 'Older messages above this marker are no longer in the model live context.',
+  broadcastSessionInvalidation: () => {},
+  buildContextCompactionPrompt: () => '',
+  buildFallbackCompactionHandoff: (summary) => `handoff:${summary}`,
+  buildToolActivityIndex: () => '',
+  clearPersistedResumeIds: async () => false,
+  contextCompactorSystemPrompt: 'compact',
+  createContextBarrierEvent: (content, extra = {}) => ({
+    type: 'context_barrier',
+    role: 'system',
+    content,
+    ...extra,
+  }),
+  createSession: async () => null,
+  enrichSessionMeta: async (meta) => meta,
+  ensureLiveSession: () => ({}),
+  getAutoCompactContextTokens: () => 0,
+  getAutoCompactStatusText: () => '',
+  getContextHead: async () => null,
+  getHistorySnapshot: async () => ({ latestSeq: 0 }),
+  getRunLiveContextTokens: () => 0,
+  getSession: async () => ({ id: sessionId }),
+  getSessionQueueCount: () => 0,
+  internalSessionRoleContextCompactor: 'context_compactor',
+  isContextCompactorSession: () => false,
+  loadHistory: async () => [{
+    type: 'message',
+    role: 'assistant',
+    runId: run.id,
+    content: '<summary>compact summary</summary><handoff>carry this forward</handoff>',
+  }],
+  loadSessionsMeta: async () => [],
+  messageEvent: (role, content, attachments, extra = {}) => ({
+    type: 'message',
+    role,
+    content,
+    attachments,
+    ...extra,
+  }),
+  mutateSessionMeta: async () => ({ changed: false, meta: { id: sessionId } }),
+  nowIso: () => '2026-04-08T00:00:00.000Z',
+  parseCompactionWorkerOutput: () => ({
+    summary: 'compact summary',
+    handoff: 'carry this forward',
+  }),
+  prepareConversationOnlyContinuationBody: () => '',
+  refreshCodexContextMetrics: async () => null,
+  sendMessage: async () => ({ ok: true }),
+  setContextHead: async (_sessionId, value) => {
+    persistedContextHead = value;
+  },
+  startupSyncDebug: false,
+  statusEvent: (status) => ({ type: 'status', status }),
+});
 
 const deps = {
   liveSessions: new Map(),
@@ -29,33 +91,7 @@ const deps = {
     appendedEvents.push(withSeq);
     return withSeq;
   },
-  AUTO_COMPACT_MARKER_TEXT: 'Older messages above this marker are no longer in the model live context.',
-  createContextBarrierEvent: (content, extra = {}) => ({
-    type: 'context_barrier',
-    role: 'system',
-    content,
-    ...extra,
-  }),
-  buildFallbackCompactionHandoff: (summary) => `handoff:${summary}`,
-  messageEvent: (role, content, attachments, extra = {}) => ({
-    type: 'message',
-    role,
-    content,
-    attachments,
-    ...extra,
-  }),
   statusEvent: (status) => ({ type: 'status', status }),
-  findLatestAssistantMessageForRun: async () => ({
-    content: '<summary>compact summary</summary><handoff>carry this forward</handoff>',
-  }),
-  parseCompactionWorkerOutput: () => ({
-    summary: 'compact summary',
-    handoff: 'carry this forward',
-  }),
-  setContextHead: async (_sessionId, value) => {
-    persistedContextHead = value;
-  },
-  clearPersistedResumeIds: async () => false,
   mutateSessionMeta: async () => ({ changed: false, meta: { id: sessionId } }),
   updateRun: async () => run,
   findSessionMeta: async () => null,
@@ -73,6 +109,7 @@ const deps = {
   syncSessionContinuityFromSession: async () => {},
   emitHook: async () => ({ executed: [], failures: [] }),
   normalizeSessionTaskCard: (value) => value,
+  applyDirectCompactionResult: compactionService.applyDirectCompactionResult,
   maybeAutoCompact: async () => false,
   applyCompactionWorkerResult: async () => false,
 };

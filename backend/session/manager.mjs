@@ -103,6 +103,7 @@ import { dispatchSessionEmailCompletionTargets, sanitizeEmailCompletionTargets }
 import { createSessionQueryHelpers } from '../models/session/queries/session-query.mjs';
 import { resolveSavedAttachments, saveAttachments } from '../services/session/attachment-storage-service.mjs';
 import { createSessionBranchingService } from '../services/session/branching-service.mjs';
+import { createSessionCompactionService } from '../services/session/compaction-service.mjs';
 import { createSessionWithDeps } from '../services/session/creation-service.mjs';
 import { createDetachedRunObserverService } from '../services/session/detached-run-observer-service.mjs';
 import {
@@ -902,99 +903,6 @@ function createContextBarrierEvent(content, extra = {}) {
   };
 }
 
-async function buildCompactionSourcePayload(sessionId, session, { uptoSeq = 0 } = {}) {
-  const [contextHead, history] = await Promise.all([
-    getContextHead(sessionId),
-    loadHistory(sessionId, { includeBodies: true }),
-  ]);
-  const targetSeq = uptoSeq > 0 ? uptoSeq : (history.at(-1)?.seq || 0);
-  const boundedHistory = history.filter((event) => (event?.seq || 0) <= targetSeq);
-  const activeFromSeq = Number.isInteger(contextHead?.activeFromSeq) ? contextHead.activeFromSeq : 0;
-  const handoffSeq = Number.isInteger(contextHead?.handoffSeq) ? contextHead.handoffSeq : 0;
-  const sliceEvents = boundedHistory.filter((event) => (event?.seq || 0) > activeFromSeq);
-  const summary = typeof contextHead?.summary === 'string' ? contextHead.summary.trim() : '';
-  const toolIndex = buildToolActivityIndex(boundedHistory);
-  const handoffEvent = handoffSeq > 0
-    ? boundedHistory.find((event) => (event?.seq || 0) === handoffSeq && event?.type === 'message')
-    : null;
-  const existingSummary = '';
-  const existingHandoff = handoffEvent
-    ? prepareConversationOnlyContinuationBody([handoffEvent])
-    : (summary ? buildFallbackCompactionHandoff(summary, toolIndex) : '');
-  const conversationBody = prepareConversationOnlyContinuationBody(sliceEvents);
-
-  if (!existingSummary && !existingHandoff && !conversationBody && !toolIndex) {
-    return null;
-  }
-
-  return {
-    targetSeq,
-    existingSummary,
-    existingHandoff,
-    conversationBody,
-    toolIndex,
-  };
-}
-
-async function ensureContextCompactorSession(sourceSessionId, session, run) {
-  const existingId = typeof session?.compactionSessionId === 'string' ? session.compactionSessionId.trim() : '';
-  if (existingId) {
-    const existing = await getSession(existingId);
-    if (existing) {
-      if ((run?.tool || session.tool) && existing.tool !== (run?.tool || session.tool)) {
-        await mutateSessionMeta(existing.id, (draft) => {
-          draft.tool = run?.tool || session.tool;
-          draft.updatedAt = nowIso();
-          return true;
-        });
-      }
-      return existing;
-    }
-  }
-
-  const metas = await loadSessionsMeta();
-  const linked = metas.find((meta) => meta.compactsSessionId === sourceSessionId && isContextCompactorSession(meta));
-  if (linked) {
-    await mutateSessionMeta(sourceSessionId, (draft) => {
-      if (draft.compactionSessionId === linked.id) return false;
-      draft.compactionSessionId = linked.id;
-      draft.updatedAt = nowIso();
-      return true;
-    });
-    return enrichSessionMeta(linked);
-  }
-
-  const created = await createSession(session.folder, run?.tool || session.tool, `auto-compress - ${session.name || 'session'}`, {
-    sourceId: session.sourceId || '',
-    sourceName: session.sourceName || '',
-    systemPrompt: CONTEXT_COMPACTOR_SYSTEM_PROMPT,
-    internalRole: INTERNAL_SESSION_ROLE_CONTEXT_COMPACTOR,
-    compactsSessionId: sourceSessionId,
-    rootSessionId: session.rootSessionId || session.id,
-  });
-  if (!created) return null;
-
-  await mutateSessionMeta(sourceSessionId, (draft) => {
-    if (draft.compactionSessionId === created.id) return false;
-    draft.compactionSessionId = created.id;
-    draft.updatedAt = nowIso();
-    return true;
-  });
-
-  return created;
-}
-
-async function findLatestAssistantMessageForRun(sessionId, runId) {
-  const events = await loadHistory(sessionId, { includeBodies: true });
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index];
-    if (event?.type !== 'message' || event.role !== 'assistant') continue;
-    if (runId && event.runId !== runId) continue;
-    return event;
-  }
-  return null;
-}
-
 function hasPersistedResumeState(toolId, session) {
   const tool = typeof toolId === 'string' ? toolId.trim() : '';
   if (tool === 'claude') {
@@ -1458,149 +1366,6 @@ function normalizeRunEvents(run, events) {
   }));
 }
 
-async function queueContextCompaction(sessionId, session, run, { automatic = false } = {}) {
-  const live = ensureLiveSession(sessionId);
-  if (live.pendingCompact) return false;
-
-  const snapshot = await getHistorySnapshot(sessionId);
-  const compactionSource = await buildCompactionSourcePayload(sessionId, session, {
-    uptoSeq: snapshot.latestSeq,
-  });
-  if (!compactionSource) return false;
-
-  const compactorSession = await ensureContextCompactorSession(sessionId, session, run);
-  if (!compactorSession) return false;
-
-  live.pendingCompact = true;
-
-  const statusText = automatic
-    ? getAutoCompactStatusText(run)
-    : 'Auto Compress is condensing older context…';
-  const compactQueuedEvent = statusEvent(statusText);
-  await appendEvent(sessionId, compactQueuedEvent);
-  broadcastSessionInvalidation(sessionId);
-
-  try {
-    await sendMessage(compactorSession.id, buildContextCompactionPrompt({
-      session,
-      existingSummary: compactionSource.existingSummary,
-      existingHandoff: compactionSource.existingHandoff,
-      conversationBody: compactionSource.conversationBody,
-      toolIndex: compactionSource.toolIndex,
-      automatic,
-    }), [], {
-      tool: run?.tool || session.tool,
-      model: run?.model || undefined,
-      effort: run?.effort || undefined,
-      thinking: false,
-      recordUserMessage: false,
-      queueIfBusy: false,
-      freshThread: true,
-      skipSessionContinuation: true,
-      internalOperation: 'context_compaction_worker',
-      compactionTargetSessionId: sessionId,
-      compactionSourceSeq: compactionSource.targetSeq,
-      compactionToolIndex: compactionSource.toolIndex,
-      compactionReason: automatic ? 'automatic' : 'manual',
-    });
-    return true;
-  } catch (error) {
-    live.pendingCompact = false;
-    const failure = statusEvent(`error: failed to compact context: ${error.message}`);
-    await appendEvent(sessionId, failure);
-    broadcastSessionInvalidation(sessionId);
-    return false;
-  }
-}
-
-async function maybeAutoCompact(sessionId, session, run, manifest) {
-  if (!session || !run || manifest?.internalOperation) return false;
-  if (getSessionQueueCount(session) > 0) return false;
-  if (STARTUP_SYNC_DEBUG) {
-    console.log('[auto-compact] start', {
-      sessionId,
-      runId: run.id,
-      codexThreadId: run.codexThreadId || null,
-      contextInputTokens: run.contextInputTokens ?? null,
-      contextWindowTokens: run.contextWindowTokens ?? null,
-    });
-  }
-  let metricsBackedRun = run;
-  const refreshed = await refreshCodexContextMetrics(run);
-  if (refreshed) {
-    if (STARTUP_SYNC_DEBUG) {
-      console.log('[auto-compact] refreshed metrics', refreshed);
-    }
-    metricsBackedRun = {
-      ...run,
-      contextInputTokens: refreshed.contextTokens,
-      ...(Number.isInteger(refreshed.contextWindowTokens)
-        ? { contextWindowTokens: refreshed.contextWindowTokens }
-        : {}),
-    };
-  }
-  let contextTokens = getRunLiveContextTokens(metricsBackedRun);
-  let autoCompactTokens = getAutoCompactContextTokens(metricsBackedRun);
-  if (!Number.isInteger(contextTokens) || !Number.isFinite(autoCompactTokens)) {
-    contextTokens = getRunLiveContextTokens(metricsBackedRun);
-    autoCompactTokens = getAutoCompactContextTokens(metricsBackedRun);
-  }
-  if (STARTUP_SYNC_DEBUG) {
-    console.log('[auto-compact] thresholds', {
-      contextTokens,
-      autoCompactTokens,
-      contextWindowTokens: metricsBackedRun.contextWindowTokens ?? null,
-    });
-  }
-  if (!Number.isInteger(contextTokens) || !Number.isFinite(autoCompactTokens)) return false;
-  if (contextTokens <= autoCompactTokens) return false;
-  if (STARTUP_SYNC_DEBUG) {
-    console.log('[auto-compact] queueing compaction', {
-      sessionId,
-      runId: run.id,
-    });
-  }
-  return queueContextCompaction(sessionId, session, metricsBackedRun, { automatic: true });
-}
-
-async function applyCompactionWorkerResult(targetSessionId, run, manifest) {
-  const workerEvent = await findLatestAssistantMessageForRun(run.sessionId, run.id);
-  const parsed = parseCompactionWorkerOutput(workerEvent?.content || '');
-  const summary = parsed.summary;
-  if (!summary) {
-    await appendEvent(targetSessionId, statusEvent('error: failed to apply auto compress: compaction worker returned no <summary> block'));
-    return false;
-  }
-
-  const barrierEvent = await appendEvent(targetSessionId, createContextBarrierEvent(AUTO_COMPACT_MARKER_TEXT, {
-    automatic: manifest?.compactionReason === 'automatic',
-    compactionSessionId: run.sessionId,
-  }));
-  const handoffContent = parsed.handoff || buildFallbackCompactionHandoff(summary, manifest?.compactionToolIndex || '');
-  const handoffEvent = await appendEvent(targetSessionId, messageEvent('assistant', handoffContent, undefined, {
-    source: 'context_compaction_handoff',
-    compactionRunId: run.id,
-  }));
-  const compactEvent = await appendEvent(targetSessionId, statusEvent('Auto Compress finished — continue from the handoff below'));
-
-  await setContextHead(targetSessionId, {
-    mode: 'summary',
-    summary: '',
-    toolIndex: manifest?.compactionToolIndex || '',
-    activeFromSeq: compactEvent.seq,
-    compactedThroughSeq: Number.isInteger(manifest?.compactionSourceSeq) ? manifest.compactionSourceSeq : compactEvent.seq,
-    inputTokens: run.contextInputTokens || null,
-    updatedAt: nowIso(),
-    source: 'context_compaction',
-    barrierSeq: barrierEvent.seq,
-    handoffSeq: handoffEvent.seq,
-    compactionSessionId: run.sessionId,
-  });
-
-  await clearPersistedResumeIds(targetSessionId);
-  return true;
-}
-
 async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = []) {
   return finalizeDetachedRunWithDeps({
     liveSessions,
@@ -1609,15 +1374,7 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     sanitizeAssistantRunEvents,
     appendEvents,
     appendEvent,
-    AUTO_COMPACT_MARKER_TEXT,
-    createContextBarrierEvent,
-    buildFallbackCompactionHandoff,
-    messageEvent,
     statusEvent,
-    findLatestAssistantMessageForRun,
-    parseCompactionWorkerOutput,
-    setContextHead,
-    clearPersistedResumeIds,
     mutateSessionMeta,
     updateRun,
     findSessionMeta,
@@ -1635,6 +1392,7 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     syncSessionContinuityFromSession,
     emitHook,
     normalizeSessionTaskCard,
+    applyDirectCompactionResult,
     maybeAutoCompact,
     applyCompactionWorkerResult,
   }, {
@@ -1726,6 +1484,46 @@ const {
   statusEvent,
   touchSessionMeta,
   updateSessionTool: updateSessionToolViaWorkflowRuntimeService,
+});
+
+const {
+  applyCompactionWorkerResult,
+  applyDirectCompactionResult,
+  maybeAutoCompact,
+} = createSessionCompactionService({
+  appendEvent,
+  autoCompactMarkerText: AUTO_COMPACT_MARKER_TEXT,
+  broadcastSessionInvalidation,
+  buildContextCompactionPrompt,
+  buildFallbackCompactionHandoff,
+  buildToolActivityIndex,
+  clearPersistedResumeIds,
+  contextCompactorSystemPrompt: CONTEXT_COMPACTOR_SYSTEM_PROMPT,
+  createContextBarrierEvent,
+  createSession,
+  enrichSessionMeta,
+  ensureLiveSession,
+  getAutoCompactContextTokens,
+  getAutoCompactStatusText,
+  getContextHead,
+  getHistorySnapshot,
+  getRunLiveContextTokens,
+  getSession,
+  getSessionQueueCount,
+  internalSessionRoleContextCompactor: INTERNAL_SESSION_ROLE_CONTEXT_COMPACTOR,
+  isContextCompactorSession,
+  loadHistory,
+  loadSessionsMeta,
+  messageEvent,
+  mutateSessionMeta,
+  nowIso,
+  parseCompactionWorkerOutput,
+  prepareConversationOnlyContinuationBody,
+  refreshCodexContextMetrics,
+  sendMessage: sendMessageViaMessageSubmissionService,
+  setContextHead,
+  startupSyncDebug: STARTUP_SYNC_DEBUG,
+  statusEvent,
 });
 
 const {

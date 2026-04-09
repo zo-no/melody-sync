@@ -145,6 +145,15 @@ function clearCompactionPendingFlags(liveSessions, {
   if (live && live !== targetLive) live.pendingCompact = false;
 }
 
+function wasCompactionApplied(result) {
+  return result === true || result?.applied === true;
+}
+
+function didCompactionChangeSession(result) {
+  if (result === true) return true;
+  return result?.sessionChanged === true;
+}
+
 async function syncContinuityProjection({
   sessionId,
   getSession,
@@ -175,15 +184,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
     sanitizeAssistantRunEvents,
     appendEvents,
     appendEvent,
-    AUTO_COMPACT_MARKER_TEXT,
-    createContextBarrierEvent,
-    buildFallbackCompactionHandoff,
-    messageEvent,
     statusEvent,
-    findLatestAssistantMessageForRun,
-    parseCompactionWorkerOutput,
-    setContextHead,
-    clearPersistedResumeIds,
     mutateSessionMeta,
     updateRun,
     findSessionMeta,
@@ -201,6 +202,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
     syncSessionContinuityFromSession,
     emitHook,
     normalizeSessionTaskCard,
+    applyDirectCompactionResult,
     maybeAutoCompact,
     applyCompactionWorkerResult,
   } = deps;
@@ -257,9 +259,10 @@ export async function finalizeDetachedRunWithDeps(deps, {
 
     if (workerCompaction && compactionTargetSessionId) {
       if (run.state === 'completed') {
-        if (await applyCompactionWorkerResult(compactionTargetSessionId, run, manifest)) {
+        const compactionResult = await applyCompactionWorkerResult(compactionTargetSessionId, run, manifest);
+        if (wasCompactionApplied(compactionResult)) {
           historyChanged = true;
-          sessionChanged = true;
+          sessionChanged = sessionChanged || didCompactionChangeSession(compactionResult);
         }
       } else if (run.state === 'failed' && run.failureReason) {
         await appendEvent(compactionTargetSessionId, statusEvent(`error: auto compress failed: ${run.failureReason}`));
@@ -269,36 +272,10 @@ export async function finalizeDetachedRunWithDeps(deps, {
         historyChanged = true;
       }
     } else if (directCompaction && run.state === 'completed') {
-      const workerEvent = await findLatestAssistantMessageForRun(sessionId, run.id);
-      const parsed = parseCompactionWorkerOutput(workerEvent?.content || '');
-      const summary = parsed.summary;
-      if (summary) {
-        const barrierEvent = await appendEvent(sessionId, createContextBarrierEvent(AUTO_COMPACT_MARKER_TEXT, {
-          automatic: false,
-          compactionSessionId: sessionId,
-        }));
-        const handoffContent = parsed.handoff || buildFallbackCompactionHandoff(summary, '');
-        const handoffEvent = await appendEvent(sessionId, messageEvent('assistant', handoffContent, undefined, {
-          source: 'context_compaction_handoff',
-          compactionRunId: run.id,
-        }));
-        const compactEvent = await appendEvent(sessionId, statusEvent('Context compacted — continue from the handoff below'));
-        await setContextHead(sessionId, {
-          mode: 'summary',
-          summary: '',
-          toolIndex: '',
-          activeFromSeq: compactEvent.seq,
-          compactedThroughSeq: compactEvent.seq,
-          inputTokens: run.contextInputTokens || null,
-          updatedAt: nowIso(),
-          source: 'context_compaction',
-          barrierSeq: barrierEvent.seq,
-          handoffSeq: handoffEvent.seq,
-          compactionSessionId: sessionId,
-        });
-        const cleared = await clearPersistedResumeIds(sessionId);
-        sessionChanged = sessionChanged || cleared;
+      const compactionResult = await applyDirectCompactionResult(sessionId, run);
+      if (wasCompactionApplied(compactionResult)) {
         historyChanged = true;
+        sessionChanged = sessionChanged || didCompactionChangeSession(compactionResult);
       }
     }
   }

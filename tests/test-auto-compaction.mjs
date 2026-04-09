@@ -28,11 +28,13 @@ const config = await import(
   pathToFileURL(join(repoRoot, 'lib', 'config.mjs')).href
 );
 const configDir = config.CONFIG_DIR;
+const hooksFile = config.HOOKS_FILE;
 const toolsFile = config.TOOLS_FILE;
 const chatHistoryDir = config.CHAT_HISTORY_DIR;
 
 mkdirSync(tempBin, { recursive: true });
 mkdirSync(configDir, { recursive: true });
+mkdirSync(dirname(hooksFile), { recursive: true });
 mkdirSync(codexSessionsDir, { recursive: true });
 
 const fakeCodexPath = join(tempBin, 'fake-codex');
@@ -71,6 +73,21 @@ setTimeout(() => process.exit(0), 50);
   'utf8',
 );
 chmodSync(fakeCodexPath, 0o755);
+
+writeFileSync(
+  hooksFile,
+  JSON.stringify({
+    enabledById: {
+      'builtin.push-notification': false,
+      'builtin.memory-writeback': false,
+      'builtin.host-completion-voice': false,
+      'builtin.email-completion': false,
+      'builtin.branch-candidates': false,
+      'builtin.session-naming': false,
+    },
+  }, null, 2),
+  'utf8',
+);
 
 writeFileSync(
   toolsFile,
@@ -125,6 +142,11 @@ function writeCodexMetrics(threadId, contextTokens, contextWindowTokens) {
 
 writeCodexMetrics('overflow-thread', 101, 100);
 writeCodexMetrics('exact-thread', 100, 100);
+
+const hookSettingsStore = await import(
+  pathToFileURL(join(repoRoot, 'backend', 'hooks', 'runtime', 'settings-store.mjs')).href
+);
+await hookSettingsStore.loadPersistedHookSettings();
 
 const sessionManager = await import(
   pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href
