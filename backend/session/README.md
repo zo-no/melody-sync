@@ -19,6 +19,7 @@ This directory owns session-facing projections and lightweight domain helpers.
 - `deletion-journal.mjs`: deletion journaling into the Obsidian vault.
 - `run-health.mjs`: run failure inference, detached-run termination synthesis, and context-threshold diagnostics.
 - `manager.mjs`: session and run orchestration entrypoint for the session domain.
+- `../models/session/queries/session-query.mjs`: session read-side reconciliation, timeline projection, and list/detail queries delegated from the manager.
 - `../follow-up-queue.mjs`: follow-up queue serialization, dedupe, and dispatch-text helpers shared by session orchestration.
 - `visibility.mjs`: internal-role and exposure predicates for session metadata.
 - `invalidation.mjs`: owner WebSocket invalidation broadcasts for session/catalog refreshes.

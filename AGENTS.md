@@ -62,6 +62,7 @@ Browser / mobile shell
 - [`backend/controllers/workbench/write-routes.mjs`](backend/controllers/workbench/write-routes.mjs): workbench HTTP mutation controller
 - [`backend/follow-up-queue.mjs`](backend/follow-up-queue.mjs): session follow-up queue normalization and dispatch text helpers
 - [`backend/session/manager.mjs`](backend/session/manager.mjs): session and run orchestration
+- [`backend/models/session/queries/session-query.mjs`](backend/models/session/queries/session-query.mjs): session read-side reconciliation, timeline projection, and list/detail queries
 - [`backend/session/visibility.mjs`](backend/session/visibility.mjs): session visibility/internal-role predicates
 - [`backend/session/invalidation.mjs`](backend/session/invalidation.mjs): owner-facing session invalidation broadcasts
 - [`backend/run/store.mjs`](backend/run/store.mjs): durable run manifests, spool, status, result

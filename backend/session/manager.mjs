@@ -44,6 +44,7 @@ import {
 import { broadcastSessionInvalidation, broadcastSessionsInvalidation } from './invalidation.mjs';
 import {
   buildTemporarySessionName,
+  normalizeSessionOrdinal,
   isSessionAutoRenamePending,
   normalizeSessionDescription,
   normalizeSessionGroup,
@@ -56,10 +57,7 @@ import {
   SESSION_WORKFLOW_STATE_WAITING_USER,
 } from './workflow-state.mjs';
 import { isContextCompactorSession, shouldExposeSession } from './visibility.mjs';
-import {
-  formatAttachmentContextLine,
-  stripEventAttachmentSavedPaths,
-} from '../attachment-utils.mjs';
+import { formatAttachmentContextLine } from '../attachment-utils.mjs';
 import {
   buildContextCompactionPrompt,
   buildFallbackCompactionHandoff,
@@ -90,11 +88,9 @@ import {
 import { readCodexSessionMetadata } from '../codex-session-metrics.mjs';
 import { spawnDetachedRunner } from '../run/supervisor.mjs';
 import {
-  buildSessionActivity,
   getSessionQueueCount,
   getSessionRunId,
   isSessionRunning,
-  resolveSessionRunActivity,
 } from './activity.mjs';
 import {
   clipFailurePreview,
@@ -115,15 +111,13 @@ import {
   withSessionsMetaMutation,
 } from './meta-store.mjs';
 import { dispatchSessionEmailCompletionTargets, sanitizeEmailCompletionTargets } from '../../lib/agent-mail-completion-targets.mjs';
+import { createSessionQueryHelpers } from '../models/session/queries/session-query.mjs';
 import { resolveSavedAttachments, saveAttachments } from '../services/session/attachment-storage-service.mjs';
 import {
   applySessionCompatFields,
-  normalizeAppId,
   normalizeSessionCompatInput,
   normalizeSessionSourceName,
   normalizeSessionUserName,
-  resolveSessionSourceId,
-  resolveSessionSourceName,
 } from '../session-source/meta-fields.mjs';
 import { deleteFileAssets, publishLocalFileAssetFromPath } from '../file-assets.mjs';
 import { removePath, statOrNull } from '../fs-utils.mjs';
@@ -203,12 +197,42 @@ const {
   formatAttachmentContextLine,
   maxRecentFollowUpRequestIds: MAX_RECENT_FOLLOW_UP_REQUEST_IDS,
 });
+const {
+  buildSessionTimelineEvents,
+  enrichSessionMeta,
+  enrichSessionMetaForClient,
+  flushDetachedRunIfNeeded,
+  reconcileSessionMeta,
+  reconcileSessionsMetaList,
+  listSessions: listSessionsQuery,
+  getSession: getSessionQuery,
+  getSessionEventsAfter: getSessionEventsAfterQuery,
+  getSessionTimelineEvents: getSessionTimelineEventsQuery,
+} = createSessionQueryHelpers({
+  getLiveSession: (sessionId) => liveSessions.get(sessionId),
+  getFollowUpQueue,
+  getFollowUpQueueCount,
+  serializeQueuedFollowUp,
+  stabilizeSessionTaskCard,
+  syncDetachedRun,
+  collectNormalizedRunEvents,
+  dropActiveRunGeneratedHistoryEvents,
+  withSyntheticSeqs,
+  organizerInternalOperation: SESSION_ORGANIZER_INTERNAL_OPERATION,
+});
 
 function normalizeSessionSidebarOrder(value) {
   const parsed = typeof value === 'number'
     ? value
     : parseInt(String(value || '').trim(), 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function getNextSessionOrdinal(metas = []) {
+  return (Array.isArray(metas) ? metas : []).reduce(
+    (maxOrdinal, entry) => Math.max(maxOrdinal, normalizeSessionOrdinal(entry?.ordinal)),
+    0,
+  ) + 1;
 }
 
 function normalizeSuppressedBranchTitles(value) {
@@ -694,44 +718,6 @@ async function collectNormalizedRunEvents(run, manifest) {
   };
 }
 
-async function buildSessionTimelineEvents(sessionId, options = {}) {
-  const includeBodies = options.includeBodies !== false;
-  const history = await loadHistory(sessionId, { includeBodies });
-  const sessionMeta = options.sessionMeta || await findSessionMeta(sessionId);
-  const activeRunId = typeof sessionMeta?.activeRunId === 'string' ? sessionMeta.activeRunId.trim() : '';
-  if (!activeRunId) {
-    return history;
-  }
-
-  const run = await getRun(activeRunId);
-  if (!run || run.finalizedAt) {
-    return history;
-  }
-
-  const manifest = await getRunManifest(activeRunId);
-  if (!manifest) {
-    return history;
-  }
-  if (manifest.internalOperation === SESSION_ORGANIZER_INTERNAL_OPERATION) {
-    return history;
-  }
-
-  const projected = await collectNormalizedRunEvents(run, manifest);
-  if (projected.normalizedEvents.length === 0) {
-    return dropActiveRunGeneratedHistoryEvents(history, activeRunId);
-  }
-
-  const committedLatestSeq = history.reduce(
-    (maxSeq, event) => (Number.isInteger(event?.seq) && event.seq > maxSeq ? event.seq : maxSeq),
-    0,
-  );
-
-  return [
-    ...dropActiveRunGeneratedHistoryEvents(history, activeRunId),
-    ...withSyntheticSeqs(projected.normalizedEvents, committedLatestSeq),
-  ];
-}
-
 async function syncDetachedRunUnlocked(sessionId, runId) {
   if (STARTUP_SYNC_DEBUG) {
     console.log(`[startup-sync] start runId=${runId} session=${sessionId}`);
@@ -953,118 +939,11 @@ async function clearPersistedResumeIds(sessionId) {
   })).changed;
 }
 
-function getSessionSortTime(meta) {
-  const stamp = meta?.updatedAt || meta?.created || '';
-  const time = new Date(stamp).getTime();
-  return Number.isFinite(time) ? time : 0;
-}
-
-function getSessionPinSortRank(meta) {
-  return meta?.pinned === true ? 1 : 0;
-}
-
 function normalizeSessionReviewedAt(value) {
   const trimmed = typeof value === 'string' ? value.trim() : '';
   if (!trimmed) return '';
   const time = Date.parse(trimmed);
   return Number.isFinite(time) ? new Date(time).toISOString() : '';
-}
-
-async function enrichSessionMeta(meta, _options = {}) {
-  const live = liveSessions.get(meta.id);
-  const snapshot = await getHistorySnapshot(meta.id);
-  const queuedCount = getFollowUpQueueCount(meta);
-  const runActivity = await resolveSessionRunActivity(meta);
-  const taskCard = stabilizeSessionTaskCard(meta, meta.taskCard, {
-    managedBindingKeys: meta?.taskCardManagedBindings,
-  });
-  const {
-    followUpQueue,
-    recentFollowUpRequestIds,
-    activeRunId,
-    activeRun,
-    sourceId: _rawSourceId,
-    sourceName: _rawSourceName,
-    taskCard: _rawTaskCard,
-    taskCardManagedBindings: _taskCardManagedBindings,
-    ...rest
-  } = meta;
-  const sourceId = resolveSessionSourceId(meta);
-  return {
-    ...rest,
-    ...(taskCard ? { taskCard } : {}),
-    sourceId,
-    sourceName: resolveSessionSourceName(meta, sourceId),
-    latestSeq: snapshot.latestSeq,
-    lastEventAt: snapshot.lastEventAt,
-    messageCount: snapshot.messageCount,
-    activeMessageCount: snapshot.activeMessageCount,
-    contextMode: snapshot.contextMode,
-    activeFromSeq: snapshot.activeFromSeq,
-    compactedThroughSeq: snapshot.compactedThroughSeq,
-    contextTokenEstimate: snapshot.contextTokenEstimate,
-    activity: buildSessionActivity(meta, live, {
-      runState: runActivity.state,
-      run: runActivity.run,
-      queuedCount,
-    }),
-  };
-}
-
-async function enrichSessionMetaForClient(meta, options = {}) {
-  if (!meta) return null;
-  const session = await enrichSessionMeta(meta, options);
-  if (options.includeQueuedMessages) {
-    session.queuedMessages = getFollowUpQueue(meta).map(serializeQueuedFollowUp);
-  }
-  return session;
-}
-
-async function flushDetachedRunIfNeeded(sessionId, runId) {
-  if (!sessionId || !runId) return null;
-  const run = await getRun(runId);
-  if (!run) return null;
-  if (!run.finalizedAt || !isTerminalRunState(run.state)) {
-    return await syncDetachedRun(sessionId, runId) || await getRun(runId);
-  }
-  return run;
-}
-
-async function reconcileLinkedCompactionSession(meta) {
-  const compactionSessionId = typeof meta?.compactionSessionId === 'string'
-    ? meta.compactionSessionId.trim()
-    : '';
-  if (!compactionSessionId) return false;
-  const compactionMeta = await findSessionMeta(compactionSessionId);
-  if (!compactionMeta?.activeRunId) return false;
-  await syncDetachedRun(compactionMeta.id, compactionMeta.activeRunId);
-  return true;
-}
-
-async function reconcileSessionMeta(meta) {
-  let changed = false;
-  if (meta?.activeRunId) {
-    await syncDetachedRun(meta.id, meta.activeRunId);
-    changed = true;
-  }
-  if (await reconcileLinkedCompactionSession(meta)) {
-    changed = true;
-  }
-  return changed ? (await findSessionMeta(meta.id) || meta) : meta;
-}
-
-async function reconcileSessionsMetaList(list) {
-  let changed = false;
-  for (const meta of list) {
-    if (meta?.activeRunId) {
-      await syncDetachedRun(meta.id, meta.activeRunId);
-      changed = true;
-    }
-    if (await reconcileLinkedCompactionSession(meta)) {
-      changed = true;
-    }
-  }
-  return changed ? loadSessionsMeta() : list;
 }
 
 function clearRenameState(sessionId, { broadcast = false } = {}) {
@@ -2327,39 +2206,23 @@ export async function listSessions({
   sourceId = '',
   includeQueuedMessages = false,
 } = {}) {
-  const metas = await reconcileSessionsMetaList(await loadSessionsMeta());
-  const normalizedSourceId = normalizeAppId(sourceId);
-  const filtered = metas
-    .filter((meta) => shouldExposeSession(meta))
-    .filter((meta) => includeArchived || !meta.archived)
-    .filter((meta) => !normalizedSourceId || resolveSessionSourceId(meta) === normalizedSourceId)
-    .sort((a, b) => (
-      getSessionPinSortRank(b) - getSessionPinSortRank(a)
-      || getSessionSortTime(b) - getSessionSortTime(a)
-    ));
-  return Promise.all(filtered.map((meta) => enrichSessionMetaForClient(meta, {
+  return listSessionsQuery({
+    includeArchived,
+    sourceId,
     includeQueuedMessages,
-  })));
+  });
 }
 
 export async function getSession(id, options = {}) {
-  const metas = await loadSessionsMeta();
-  const meta = metas.find((entry) => entry.id === id) || await findSessionMeta(id);
-  if (!meta) return null;
-  return enrichSessionMetaForClient(await reconcileSessionMeta(meta), options);
+  return getSessionQuery(id, options);
 }
 
 export async function getSessionEventsAfter(sessionId, afterSeq = 0, options = {}) {
-  const events = await buildSessionTimelineEvents(sessionId, {
-    includeBodies: options?.includeBodies !== false,
-  });
-  const filtered = (Array.isArray(events) ? events : []).filter((event) => Number.isInteger(event?.seq) && event.seq > afterSeq);
-  if (options?.includeAttachmentPaths === true) return filtered;
-  return filtered.map((event) => stripEventAttachmentSavedPaths(event));
+  return getSessionEventsAfterQuery(sessionId, afterSeq, options);
 }
 
 export async function getSessionTimelineEvents(sessionId, options = {}) {
-  return buildSessionTimelineEvents(sessionId, options);
+  return getSessionTimelineEventsQuery(sessionId, options);
 }
 
 export async function getSessionSourceContext(sessionId, options = {}) {
@@ -2627,6 +2490,7 @@ export async function createSession(folder, tool, name, extra = {}) {
       id,
       folder: normalizedFolder,
       tool,
+      ordinal: getNextSessionOrdinal(metas),
       name: initialNaming.name,
       autoRenamePending: initialNaming.autoRenamePending,
       created: now,
