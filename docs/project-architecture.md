@@ -51,11 +51,11 @@ MelodySync is now an owner-operated AI task workspace.
 
 - owner-facing chat shell
 
-`frontend.js`
+`frontend-src/frontend.js`
 
 - loader for split frontend assets
 
-`frontend/`
+`frontend-src/`
 
 - `core/`: bootstrap payloads, app state, i18n/icons, layout, websocket invalidation, gestures, app init
 - `session/`: HTTP fetch/update helpers, derived session state, tooling, composer, transcript rendering, and attached session surface
@@ -65,6 +65,7 @@ MelodySync is now an owner-operated AI task workspace.
 - `settings/voice/`: local voice-ingress settings UI backed by `runtimeRoot/voice/config.json`
 - `workbench/`: task-map contract/model plus focused workbench renderers
 - `workbench/controller.js`: workbench-side coordinator that wires graph, surfaces, and node canvas
+- `react/`: React migration workspace and build scripts, kept under the same frontend source root rather than a second top-level app
 
 ## AI-Oriented Read Order
 
@@ -74,7 +75,7 @@ Use the smallest entrypoint set that matches the change you want to make.
 - persistence or storage layout: `docs/application-storage-architecture.md`, `lib/config.mjs`, `backend/session/meta-store.mjs`, `backend/run/store.mjs`
 - routing and HTTP surfaces: `backend/router.mjs`, `backend/routes/`
 - hooks and settings: `backend/hooks/README.md`, `backend/settings/README.md`
-- workbench/task-map flows: `backend/workbench/index.mjs`, `frontend/workbench/`
+- workbench/task-map flows: `backend/workbench/index.mjs`, `frontend-src/workbench/`
 
 Do not treat `.melody-sync-runtime/releases/` or `.playwright-cli/` as source-of-truth code. They are runtime snapshots or tool artifacts and should not be hand-edited during normal feature work.
 
@@ -132,7 +133,7 @@ Persistence:
 ### Boot and load
 
 1. Browser loads `chat.html`.
-2. `frontend.js` loads the split frontend.
+2. `frontend-src/frontend.js` loads the split frontend.
 3. Frontend calls `/api/auth/me`, `/api/tools`, `/api/sessions`, and related owner APIs.
 4. WebSocket connects to `/ws`.
 5. The selected session is hydrated by HTTP, then kept fresh by invalidation messages.
@@ -186,7 +187,7 @@ Vault-backed app root shape:
 
 - The system is owner-only. Do not reintroduce visitor/share assumptions into auth, routing, or frontend state.
 - `backend/session/manager.mjs` is still the biggest complexity hotspot.
-- Frontend state is split but still mostly global-script driven.
+- Frontend source is now unified under `frontend-src/`, but runtime state is still mostly global-script driven while React migration remains incremental.
 - Legacy `appId` / `appName` / `userId` / `userName` fields may still appear in stored session metadata, but they are not shipped product systems anymore.
 - Workbench and integrations remain valuable, but they should stay layered on the core session/run path rather than drive the primary architecture.
 

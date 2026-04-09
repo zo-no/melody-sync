@@ -4,6 +4,7 @@ This directory holds the owner-facing backend for MelodySync.
 
 Use this map before editing:
 
+- `entry/`: backend runtime and auth entry implementations. Root `chat-server.mjs`, `generate-token.mjs`, and `set-password.mjs` are now thin launch shims only.
 - `router.mjs`: top-level HTTP composition only. Keep routing thin.
 - `routes/`: request/response adapters. Route files should not grow durable state logic.
 - `settings/`: canonical settings-domain adapters that shape owner-facing `general`, `email`, `voice`, `hooks`, and `nodes` payloads for the shared settings overlay.

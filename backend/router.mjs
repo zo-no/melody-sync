@@ -71,8 +71,10 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const chatTemplatePath = join(__dirname, '..', 'templates', 'chat.html');
 const loginTemplatePath = join(__dirname, '..', 'templates', 'login.html');
-const frontendDir = join(__dirname, '..', 'frontend');
-const frontendLoaderPath = join(__dirname, '..', 'frontend.js');
+const frontendDir = join(__dirname, '..', 'frontend-src');
+const frontendLoaderPath = join(frontendDir, 'frontend.js');
+const reactAppDir = join(frontendDir, 'react');
+const reactAppDistDir = join(reactAppDir, 'dist');
 const publicDir = join(__dirname, '..', 'public');
 const packageJsonPath = join(__dirname, '..', 'package.json');
 const releaseMetadataPath = join(__dirname, '..', '.melody-sync-release.json');
@@ -92,6 +94,7 @@ const pageBuildRoots = [
   join(__dirname, '..', 'templates'),
   frontendDir,
   frontendLoaderPath,
+  reactAppDir,
   publicDir,
 ];
 let cachedPageBuildInfo = null;
@@ -170,6 +173,7 @@ const staticMimeTypesByExtension = {
 
 const frontendDirResolved = resolve(frontendDir);
 const frontendLoaderPathResolved = resolve(frontendLoaderPath);
+const reactAppDistDirResolved = resolve(reactAppDistDir);
 const publicDirResolved = resolve(publicDir);
 const compressibleContentTypes = [
   'application/javascript',
@@ -568,6 +572,9 @@ async function resolveStaticAsset(pathname, query = {}) {
   } else if (pathname.startsWith('/chat/')) {
     rootDirResolved = frontendDirResolved;
     staticName = pathname.slice('/chat/'.length);
+  } else if (pathname.startsWith('/react/')) {
+    rootDirResolved = reactAppDistDirResolved;
+    staticName = pathname.slice('/react/'.length);
   } else if (pathname.startsWith('/frontend/')) {
     rootDirResolved = frontendDirResolved;
     staticName = pathname.slice('/frontend/'.length);

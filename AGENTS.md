@@ -50,22 +50,22 @@ Browser / mobile shell
 ### Frontend
 
 - [`templates/chat.html`](templates/chat.html): main shell
-- [`frontend.js`](frontend.js): versioned loader
-- [`frontend/core/bootstrap.js`](frontend/core/bootstrap.js): bootstrap/runtime globals
-- [`frontend/core/bootstrap-data.js`](frontend/core/bootstrap-data.js): bootstrap payload helpers
-- [`frontend/core/bootstrap-session-catalog.js`](frontend/core/bootstrap-session-catalog.js): session/source/user catalog helpers
-- [`frontend/core/realtime.js`](frontend/core/realtime.js): WS invalidation / reconnect logic
-- [`frontend/core/realtime-render.js`](frontend/core/realtime-render.js): transcript refresh/render helpers
-- [`frontend/session/http.js`](frontend/session/http.js): canonical session HTTP client
-- [`frontend/session/tooling.js`](frontend/session/tooling.js): runtime/tool/model controls
-- [`frontend/session/compose.js`](frontend/session/compose.js): composer interactions
-- [`frontend/session/transcript-ui.js`](frontend/session/transcript-ui.js): transcript/event rendering and attachment UI
-- [`frontend/session/surface-ui.js`](frontend/session/surface-ui.js): session detail rendering
-- [`frontend/session/state-model.js`](frontend/session/state-model.js): session derived state helpers
-- [`frontend/session-list/model.js`](frontend/session-list/model.js): session list grouping, badges, and lightweight branch semantics
-- [`frontend/session-list/ui.js`](frontend/session-list/ui.js): session list rendering
-- [`frontend/session-list/sidebar-ui.js`](frontend/session-list/sidebar-ui.js): sidebar interactions
-- [`frontend/workbench/controller.js`](frontend/workbench/controller.js): workbench coordinator
+- [`frontend-src/frontend.js`](frontend-src/frontend.js): versioned loader
+- [`frontend-src/core/bootstrap.js`](frontend-src/core/bootstrap.js): bootstrap/runtime globals
+- [`frontend-src/core/bootstrap-data.js`](frontend-src/core/bootstrap-data.js): bootstrap payload helpers
+- [`frontend-src/core/bootstrap-session-catalog.js`](frontend-src/core/bootstrap-session-catalog.js): session/source/user catalog helpers
+- [`frontend-src/core/realtime.js`](frontend-src/core/realtime.js): WS invalidation / reconnect logic
+- [`frontend-src/core/realtime-render.js`](frontend-src/core/realtime-render.js): transcript refresh/render helpers
+- [`frontend-src/session/http.js`](frontend-src/session/http.js): canonical session HTTP client
+- [`frontend-src/session/tooling.js`](frontend-src/session/tooling.js): runtime/tool/model controls
+- [`frontend-src/session/compose.js`](frontend-src/session/compose.js): composer interactions
+- [`frontend-src/session/transcript-ui.js`](frontend-src/session/transcript-ui.js): transcript/event rendering and attachment UI
+- [`frontend-src/session/surface-ui.js`](frontend-src/session/surface-ui.js): session detail rendering
+- [`frontend-src/session/state-model.js`](frontend-src/session/state-model.js): session derived state helpers
+- [`frontend-src/session-list/model.js`](frontend-src/session-list/model.js): session list grouping, badges, and lightweight branch semantics
+- [`frontend-src/session-list/ui.js`](frontend-src/session-list/ui.js): session list rendering
+- [`frontend-src/session-list/sidebar-ui.js`](frontend-src/session-list/sidebar-ui.js): sidebar interactions
+- [`frontend-src/workbench/controller.js`](frontend-src/workbench/controller.js): workbench coordinator
 
 ### Shared
 
@@ -103,7 +103,7 @@ Important files under the active instance root:
 - storage and retention: read [`docs/application-storage-architecture.md`](docs/application-storage-architecture.md), then inspect [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs) and [`backend/run/store.mjs`](backend/run/store.mjs)
 - HTTP or route changes: start at [`backend/router.mjs`](backend/router.mjs), then narrow into `backend/routes/`
 - hooks or settings: start at [`backend/hooks/README.md`](backend/hooks/README.md) or [`backend/settings/README.md`](backend/settings/README.md)
-- workbench changes: start at [`backend/workbench/index.mjs`](backend/workbench/index.mjs) and then the matching `frontend/workbench/` module
+- workbench changes: start at [`backend/workbench/index.mjs`](backend/workbench/index.mjs) and then the matching `frontend-src/workbench/` module
 
 This keeps AI-assisted edits close to the real domain entrypoints and reduces drift caused by opening historical notes or runtime snapshots first.
 
