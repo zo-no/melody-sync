@@ -24,6 +24,7 @@ import { handleSettingsRoutes } from './routes/settings.mjs';
 import { handleSystemRoutes } from './routes/system.mjs';
 import { isOwnerOnlyRoute } from './contracts/system/owner-only-routes.mjs';
 import { handleChatPageRequest } from './controllers/system/chat-page.mjs';
+import { createSessionAccessGuard } from './controllers/session/access.mjs';
 import { buildChatPageBootstrap } from './services/system/chat-bootstrap-service.mjs';
 import { scheduleConfigReload } from './services/system/config-reload-service.mjs';
 import {
@@ -59,25 +60,11 @@ function buildHeaders(headers = {}) {
   };
 }
 
-const IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL = 'private, max-age=1296000, immutable';
-
-function canAccessSession(authSession, sessionId) {
-  return !!authSession && !!sessionId;
-}
-
-function requireSessionAccess(res, authSession, sessionId, writeJsonFn = writeJson) {
-  if (canAccessSession(authSession, sessionId)) return true;
-  writeJsonFn(res, 403, { error: 'Access denied' });
-  return false;
-}
-
 export async function handleRequest(req, res) {
   const parsedUrl = parseUrl(req.url, true);
   const pathname = parsedUrl.pathname;
   const writeJsonForReq = createWriteJsonWriter(req);
-  const requireSessionAccessForReq = (response, targetAuthSession, sessionId) => {
-    return requireSessionAccess(response, targetAuthSession, sessionId, writeJsonForReq);
-  };
+  const requireSessionAccessForReq = createSessionAccessGuard(writeJsonForReq);
 
   // Static assets (read from disk each time for hot-reload)
   const staticAsset = await resolveStaticAsset(pathname, parsedUrl.query);
@@ -149,7 +136,6 @@ export async function handleRequest(req, res) {
     requireSessionAccess: requireSessionAccessForReq,
     writeJsonCached,
     writeJson: writeJsonForReq,
-    immutablePrivateEventCacheControl: IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL,
   })) {
     return;
   }

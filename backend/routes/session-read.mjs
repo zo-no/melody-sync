@@ -12,6 +12,8 @@ import {
 } from '../services/session/client-session-service.mjs';
 import { createClientSessionSummaryRef } from '../views/session/client.mjs';
 
+const IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL = 'private, max-age=1296000, immutable';
+
 function getQueryStringValue(value) {
   return typeof value === 'string'
     ? String(value || '').trim()
@@ -27,7 +29,6 @@ export async function handleSessionReadRoutes({
   requireSessionAccess,
   writeJsonCached,
   writeJson,
-  immutablePrivateEventCacheControl,
 } = {}) {
   if (!sessionGetRoute || req?.method !== 'GET') {
     return false;
@@ -133,7 +134,7 @@ export async function handleSessionReadRoutes({
       return true;
     }
     writeJsonCached(req, res, { sessionId, startSeq, endSeq, events }, {
-      cacheControl: immutablePrivateEventCacheControl,
+      cacheControl: IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL,
       vary: '',
     });
     return true;
@@ -148,7 +149,7 @@ export async function handleSessionReadRoutes({
       return true;
     }
     writeJsonCached(req, res, { body }, {
-      cacheControl: immutablePrivateEventCacheControl,
+      cacheControl: IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL,
       vary: '',
     });
     return true;
