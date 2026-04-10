@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto';
 import { watch } from 'fs';
 import { dirname, join, resolve } from 'path';
-import { createToolInvocation, resolveCwd } from '../process-runner.mjs';
+import { resolveCwd } from '../process-runner.mjs';
 import {
   appendEvent,
   appendEvents,
@@ -83,7 +83,6 @@ import {
 } from './activity.mjs';
 import {
   clipFailurePreview,
-  collectRunOutputPreview,
   deriveRunFailureReasonFromResult,
   deriveRunStateFromResult,
   deriveStructuredRuntimeFailureReason,
@@ -107,6 +106,7 @@ import { createSessionBranchingService } from '../services/session/branching-ser
 import { createSessionCompactionService } from '../services/session/compaction-service.mjs';
 import { createSessionWithDeps } from '../services/session/creation-service.mjs';
 import { createDetachedRunObserverService } from '../services/session/detached-run-observer-service.mjs';
+import { createDetachedRunSyncService } from '../services/session/detached-run-sync-service.mjs';
 import {
   assertSessionCanBeDeletedPermanently,
   buildPermanentSessionDeletionPlan,
@@ -120,6 +120,7 @@ import { createSessionMessageSubmissionService } from '../services/session/messa
 import { createSessionOrganizerService } from '../services/session/organizer-service.mjs';
 import { createSessionPersistentService } from '../services/session/persistent-service.mjs';
 import { buildPrompt, resolveResumeState } from '../services/session/prompt-service.mjs';
+import { createSessionFollowUpQueueService } from '../services/session/follow-up-queue-service.mjs';
 import { createResultAssetPublicationService } from '../services/session/result-asset-publication-service.mjs';
 import { createSessionTaskCardService } from '../services/session/task-card-service.mjs';
 import { createSessionWorkflowRuntimeService } from '../services/session/workflow-runtime-service.mjs';
@@ -144,11 +145,6 @@ import {
   parseTaskCardFromAssistantContent,
   stripTaskCardFromAssistantContent,
 } from './task-card.mjs';
-import {
-  buildNormalizedRunResultEnvelope,
-  mergeRunResultWithEnvelope,
-  runResultEnvelopeHasMeaningfulContent,
-} from '../run/result-envelope.mjs';
 import { finalizeDetachedRunWithDeps } from '../run/finalization.mjs';
 import { registerSessionManagerBuiltinHooks } from '../hooks/runtime/register-session-manager-hooks.mjs';
 import { syncSessionContinuityFromSession } from '../workbench/index.mjs';
@@ -203,6 +199,7 @@ const {
   statusEvent,
   trimString,
 });
+let detachedRunSyncService = null;
 const {
   buildSessionTimelineEvents,
   enrichSessionMeta,
@@ -223,10 +220,10 @@ const {
   serializeQueuedFollowUp,
   normalizeSourceContext,
   stabilizeSessionTaskCard,
-  syncDetachedRun,
-  collectNormalizedRunEvents,
-  dropActiveRunGeneratedHistoryEvents,
-  withSyntheticSeqs,
+  syncDetachedRun: (...args) => detachedRunSyncService.syncDetachedRun(...args),
+  collectNormalizedRunEvents: (...args) => detachedRunSyncService.collectNormalizedRunEvents(...args),
+  dropActiveRunGeneratedHistoryEvents: (...args) => detachedRunSyncService.dropActiveRunGeneratedHistoryEvents(...args),
+  withSyntheticSeqs: (...args) => detachedRunSyncService.withSyntheticSeqs(...args),
   organizerInternalOperation: SESSION_ORGANIZER_INTERNAL_OPERATION,
 });
 
@@ -257,7 +254,6 @@ function normalizeSuppressedBranchTitles(value) {
 
 const liveSessions = new Map();
 const observedRuns = new Map();
-const runSyncPromises = new Map();
 const MAX_SESSION_SOURCE_CONTEXT_BYTES = 16 * 1024;
 
 function nowIso() {
@@ -356,120 +352,35 @@ function pushUnique(values, candidate) {
   return true;
 }
 
-function clearFollowUpFlushTimer(sessionId) {
-  const live = liveSessions.get(sessionId);
-  if (!live?.followUpFlushTimer) return false;
-  clearTimeout(live.followUpFlushTimer);
-  delete live.followUpFlushTimer;
-  return true;
-}
-
-async function flushQueuedFollowUps(sessionId) {
-  const live = ensureLiveSession(sessionId);
-  if (live.followUpFlushPromise) {
-    return live.followUpFlushPromise;
-  }
-
-  const promise = (async () => {
-    clearFollowUpFlushTimer(sessionId);
-
-    const rawSession = await findSessionMeta(sessionId);
-    if (!rawSession || rawSession.archived) return false;
-    if (live.pendingCompact === true) {
-      scheduleQueuedFollowUpDispatch(sessionId, FOLLOW_UP_FLUSH_DELAY_MS * 2);
-      return false;
-    }
-
-    if (rawSession.activeRunId) {
-      const activeRun = await flushDetachedRunIfNeeded(sessionId, rawSession.activeRunId) || await getRun(rawSession.activeRunId);
-      if (activeRun && !isTerminalRunState(activeRun.state)) {
-        scheduleQueuedFollowUpDispatch(sessionId, FOLLOW_UP_FLUSH_DELAY_MS * 2);
-        return false;
-      }
-    }
-
-    const queue = getFollowUpQueue(rawSession);
-    if (queue.length === 0) return false;
-
-    const requestIds = queue
-      .map((entry) => (typeof entry?.requestId === 'string' ? entry.requestId.trim() : ''))
-      .filter(Boolean);
-    const dispatchText = buildQueuedFollowUpDispatchText(queue);
-    const transcriptText = buildQueuedFollowUpTranscriptText(queue);
-    const dispatchOptions = resolveQueuedFollowUpDispatchOptions(queue, rawSession);
-    const queuedSourceContext = buildQueuedFollowUpSourceContext(queue);
-
-    await submitHttpMessage(sessionId, dispatchText, [], {
-      requestId: createInternalRequestId('queued_batch'),
-      tool: dispatchOptions.tool,
-      model: dispatchOptions.model,
-      effort: dispatchOptions.effort,
-      thinking: dispatchOptions.thinking,
-      ...(queuedSourceContext ? { sourceContext: queuedSourceContext } : {}),
-      preSavedAttachments: queue.flatMap((entry) => sanitizeQueuedFollowUpAttachments(entry.images)),
-      recordedUserText: transcriptText,
-      queueIfBusy: false,
-    });
-
-    const cleared = await mutateSessionMeta(sessionId, (session) => {
-      const currentQueue = getFollowUpQueue(session);
-      if (currentQueue.length === 0) return false;
-      const nextQueue = removeDispatchedQueuedFollowUps(currentQueue, queue);
-      if (nextQueue.length === currentQueue.length) {
-        return false;
-      }
-      if (nextQueue.length > 0) {
-        session.followUpQueue = nextQueue;
-      } else {
-        delete session.followUpQueue;
-      }
-      session.recentFollowUpRequestIds = trimRecentFollowUpRequestIds([
-        ...(session.recentFollowUpRequestIds || []),
-        ...requestIds,
-      ]);
-      session.updatedAt = nowIso();
-      return true;
-    });
-
-    if (cleared.changed) {
-      broadcastSessionInvalidation(sessionId);
-    }
-    return true;
-  })().catch((error) => {
-    console.error(`[follow-up-queue] failed to flush ${sessionId}: ${error.message}`);
-    scheduleQueuedFollowUpDispatch(sessionId, FOLLOW_UP_FLUSH_DELAY_MS * 2);
-    return false;
-  }).finally(() => {
-    const current = liveSessions.get(sessionId);
-    if (current?.followUpFlushPromise === promise) {
-      delete current.followUpFlushPromise;
-    }
-  });
-
-  live.followUpFlushPromise = promise;
-  return promise;
-}
-
-function scheduleQueuedFollowUpDispatch(sessionId, delayMs = FOLLOW_UP_FLUSH_DELAY_MS) {
-  const live = ensureLiveSession(sessionId);
-  if (live.followUpFlushPromise) return true;
-  clearFollowUpFlushTimer(sessionId);
-  live.followUpFlushTimer = setTimeout(() => {
-    const current = liveSessions.get(sessionId);
-    if (current?.followUpFlushTimer) {
-      delete current.followUpFlushTimer;
-    }
-    void flushQueuedFollowUps(sessionId);
-  }, delayMs);
-  if (typeof live.followUpFlushTimer.unref === 'function') {
-    live.followUpFlushTimer.unref();
-  }
-  return true;
-}
-
 function createInternalRequestId(prefix = 'internal') {
   return `${prefix}_${Date.now().toString(36)}_${randomBytes(6).toString('hex')}`;
 }
+
+const {
+  clearFollowUpRuntimeState,
+  flushQueuedFollowUps,
+  scheduleQueuedFollowUpDispatch,
+} = createSessionFollowUpQueueService({
+  broadcastSessionInvalidation,
+  buildQueuedFollowUpDispatchText,
+  buildQueuedFollowUpSourceContext,
+  buildQueuedFollowUpTranscriptText,
+  createInternalRequestId,
+  ensureLiveSession,
+  findSessionMeta,
+  flushDetachedRunIfNeeded,
+  followUpFlushDelayMs: FOLLOW_UP_FLUSH_DELAY_MS,
+  getFollowUpQueue,
+  getRun,
+  isTerminalRunState,
+  mutateSessionMeta,
+  nowIso,
+  removeDispatchedQueuedFollowUps,
+  resolveQueuedFollowUpDispatchOptions,
+  sanitizeQueuedFollowUpAttachments,
+  submitHttpMessage: (...args) => submitHttpMessage(...args),
+  trimRecentFollowUpRequestIds,
+});
 
 const {
   delegateSession: delegateSessionViaBranchingService,
@@ -578,257 +489,6 @@ function ensureLiveSession(sessionId) {
     liveSessions.set(sessionId, live);
   }
   return live;
-}
-
-function parseRecordTimestamp(record) {
-  const parsed = Date.parse(record?.ts || '');
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function isUserMessageEvent(event) {
-  return event?.type === 'message' && event.role === 'user';
-}
-
-function dropActiveRunGeneratedHistoryEvents(history = [], activeRunId = '') {
-  if (!activeRunId) return Array.isArray(history) ? history : [];
-  return (Array.isArray(history) ? history : []).filter((event) => {
-    if (event?.runId !== activeRunId) return true;
-    return isUserMessageEvent(event);
-  });
-}
-
-function withSyntheticSeqs(events = [], baseSeq = 0) {
-  let nextSeq = Number.isInteger(baseSeq) && baseSeq > 0 ? baseSeq : 0;
-  return (Array.isArray(events) ? events : []).map((event) => {
-    nextSeq += 1;
-    return {
-      ...event,
-      seq: nextSeq,
-    };
-  });
-}
-
-async function collectNormalizedRunEvents(run, manifest) {
-  const runtimeInvocation = await createToolInvocation(manifest.tool, '', {
-    model: manifest.options?.model,
-    effort: manifest.options?.effort,
-    thinking: manifest.options?.thinking,
-  });
-  const { adapter } = runtimeInvocation;
-  const spoolRecords = await readRunSpoolRecords(run.id);
-  if (STARTUP_SYNC_DEBUG) {
-    console.log(`[startup-sync] spool loaded runId=${run.id} records=${spoolRecords.length}`);
-  }
-  const normalizedEvents = [];
-  let stdoutLineCount = 0;
-  let lastRecordTimestamp = null;
-
-  for (const record of spoolRecords) {
-    if (record?.stream !== 'stdout') continue;
-    const line = await materializeRunSpoolLine(run.id, record);
-    if (!line) continue;
-    stdoutLineCount += 1;
-    const stableTimestamp = parseRecordTimestamp(record);
-    if (Number.isInteger(stableTimestamp)) {
-      lastRecordTimestamp = stableTimestamp;
-    }
-    const parsedEvents = adapter.parseLine(line).map((event) => ({
-      ...event,
-      ...(Number.isInteger(stableTimestamp) ? { timestamp: stableTimestamp } : {}),
-    }));
-    normalizedEvents.push(...normalizeRunEvents(run, parsedEvents));
-  }
-
-  const flushedEvents = adapter.flush().map((event) => ({
-    ...event,
-    ...(Number.isInteger(lastRecordTimestamp) ? { timestamp: lastRecordTimestamp } : {}),
-  }));
-  normalizedEvents.push(...normalizeRunEvents(run, flushedEvents));
-
-  const preview = spoolRecords
-    .filter((record) => ['stdout', 'stderr', 'error'].includes(record.stream))
-    .map((record) => {
-      if (record?.json && typeof record.json === 'object') {
-        try {
-          return clipFailurePreview(JSON.stringify(record.json));
-        } catch {}
-      }
-      return typeof record?.line === 'string' ? clipFailurePreview(record.line) : '';
-    })
-    .filter(Boolean)
-    .slice(-3)
-    .join(' | ');
-
-  return {
-    runtimeInvocation,
-    normalizedEvents,
-    stdoutLineCount,
-    preview,
-  };
-}
-
-async function syncDetachedRunUnlocked(sessionId, runId) {
-  if (STARTUP_SYNC_DEBUG) {
-    console.log(`[startup-sync] start runId=${runId} session=${sessionId}`);
-  }
-  let run = await getRun(runId);
-  if (!run) {
-    const cleared = (await mutateSessionMeta(sessionId, (session) => {
-      if (session.activeRunId !== runId) return false;
-      delete session.activeRunId;
-      session.updatedAt = nowIso();
-      return true;
-    })).changed;
-    if (cleared) {
-      broadcastSessionInvalidation(sessionId);
-    }
-    stopObservedRun(runId);
-    return null;
-  }
-  const manifest = await getRunManifest(runId);
-  if (!manifest) return run;
-  if (STARTUP_SYNC_DEBUG) {
-    console.log(`[startup-sync] manifest loaded runId=${runId}`);
-  }
-
-  let historyChanged = false;
-  let sessionChanged = false;
-
-  const projection = await collectNormalizedRunEvents(run, manifest);
-  const normalizedEvents = projection.normalizedEvents;
-  if (STARTUP_SYNC_DEBUG) {
-    console.log(`[startup-sync] projection done runId=${runId} events=${normalizedEvents.length}`);
-  }
-  const latestUsage = [...normalizedEvents].reverse().find((event) => event.type === 'usage');
-  const contextInputTokens = Number.isInteger(latestUsage?.contextTokens)
-    ? latestUsage.contextTokens
-    : null;
-  const contextWindowTokens = Number.isInteger(latestUsage?.contextWindowTokens)
-    ? latestUsage.contextWindowTokens
-    : null;
-
-  run = await updateRun(runId, (current) => ({
-    ...current,
-    normalizedLineCount: projection.stdoutLineCount,
-    normalizedEventCount: normalizedEvents.length,
-    lastNormalizedAt: nowIso(),
-    ...(Number.isInteger(contextInputTokens) ? { contextInputTokens } : {}),
-    ...(Number.isInteger(contextWindowTokens) ? { contextWindowTokens } : {}),
-  })) || run;
-
-  if (run.claudeSessionId || run.codexThreadId) {
-    sessionChanged = await persistResumeIds(sessionId, run.claudeSessionId, run.codexThreadId) || sessionChanged;
-  }
-
-  const isStructuredRuntime = projection.runtimeInvocation.isClaudeFamily || projection.runtimeInvocation.isCodexFamily;
-  let result = await getRunResult(runId);
-  const resultEnvelope = buildNormalizedRunResultEnvelope({
-    result,
-    normalizedEvents,
-    parseTaskCardFromAssistantContent,
-  });
-  if (runResultEnvelopeHasMeaningfulContent(resultEnvelope)) {
-    const mergedResult = mergeRunResultWithEnvelope(result, resultEnvelope);
-    if (JSON.stringify(mergedResult) !== JSON.stringify(result || {})) {
-      result = await writeRunResult(runId, mergedResult);
-    } else {
-      result = mergedResult;
-    }
-  }
-  if (!isTerminalRunState(run.state) && !hasTerminalRunResult(result)) {
-    const reconciled = await synthesizeDetachedRunTermination(runId, run, { result });
-    if (reconciled) {
-      run = reconciled;
-      result = await getRunResult(runId);
-    }
-  }
-  const inferredState = deriveRunStateFromResult(run, result);
-  const completedAt = typeof result?.completedAt === 'string' && result.completedAt
-    ? result.completedAt
-    : null;
-  const hasAssistantMessage = normalizedEvents.some((event) => event?.type === 'message' && event.role === 'assistant');
-  const completedAtMs = completedAt ? Date.parse(completedAt) : NaN;
-  const shouldWaitForStructuredOutput = (
-    isStructuredRuntime
-    && inferredState === 'completed'
-    && (normalizedEvents.length === 0 || !hasAssistantMessage)
-    && Number.isFinite(completedAtMs)
-    && (Date.now() - completedAtMs) < STRUCTURED_OUTPUT_SETTLE_DELAY_MS
-  );
-  if (shouldWaitForStructuredOutput) {
-    if (STARTUP_SYNC_DEBUG) {
-      console.log(`[startup-sync] delaying finalization for structured output runId=${runId}`);
-    }
-    return run;
-  }
-  const zeroStructuredOutputReason = (
-    isStructuredRuntime
-    && inferredState === 'completed'
-    && (normalizedEvents.length === 0 || !hasAssistantMessage)
-  )
-    ? await deriveStructuredRuntimeFailureReason(runId, projection.preview)
-    : null;
-
-  if (zeroStructuredOutputReason) {
-    run = await updateRun(runId, (current) => ({
-      ...current,
-      state: 'failed',
-      completedAt,
-      result,
-      failureReason: zeroStructuredOutputReason,
-    })) || run;
-  }
-
-  const terminalFailureReason = isTerminalRunState(run.state) && run.state === 'failed'
-    ? deriveRunFailureReasonFromResult(run, result)
-    : null;
-  if (terminalFailureReason && !run.failureReason) {
-    run = await updateRun(runId, (current) => ({
-      ...current,
-      failureReason: terminalFailureReason,
-    })) || run;
-  }
-
-  if (!isTerminalRunState(run.state)) {
-    if (inferredState && completedAt) {
-      run = await updateRun(runId, (current) => ({
-        ...current,
-        state: inferredState,
-        completedAt,
-        result,
-        failureReason: inferredState === 'failed'
-          ? deriveRunFailureReasonFromResult(current, result)
-          : null,
-      })) || run;
-    }
-  }
-
-  if (isTerminalRunState(run.state) && !run.finalizedAt) {
-    if (STARTUP_SYNC_DEBUG) {
-      console.log(`[startup-sync] finalize start runId=${runId}`);
-    }
-    const finalized = await finalizeDetachedRun(sessionId, run, manifest, normalizedEvents);
-    historyChanged = historyChanged || finalized.historyChanged;
-    sessionChanged = sessionChanged || finalized.sessionChanged;
-    run = await getRun(runId) || run;
-    if (STARTUP_SYNC_DEBUG) {
-      console.log(`[startup-sync] finalize done runId=${runId}`);
-    }
-  }
-
-  if (historyChanged || sessionChanged) {
-    broadcastSessionInvalidation(sessionId);
-  }
-  if (isTerminalRunState(run.state)) {
-    const currentSession = await findSessionMeta(sessionId);
-    if (getFollowUpQueueCount(currentSession) > 0) {
-      void flushQueuedFollowUps(sessionId);
-    }
-  }
-  if (isTerminalRunState(run.state) && run.finalizedAt) {
-    stopObservedRun(runId);
-  }
-  return run;
 }
 
 export { resolveSavedAttachments, saveAttachments };
@@ -1019,14 +679,6 @@ export async function applySessionGraphOps(sessionId, graphOps = null) {
   return applySessionGraphOpsViaGraphOpsService(sessionId, graphOps);
 }
 
-function normalizeRunEvents(run, events) {
-  return (events || []).map((event) => ({
-    ...event,
-    runId: run.id,
-    ...(run.requestId ? { requestId: run.requestId } : {}),
-  }));
-}
-
 async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = []) {
   return finalizeDetachedRunWithDeps({
     liveSessions,
@@ -1064,20 +716,35 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
   });
 }
 
-async function syncDetachedRun(sessionId, runId) {
-  if (!runId) return null;
-  if (runSyncPromises.has(runId)) {
-    return runSyncPromises.get(runId);
-  }
-  const promise = (async () => syncDetachedRunUnlocked(sessionId, runId))()
-    .finally(() => {
-      if (runSyncPromises.get(runId) === promise) {
-        runSyncPromises.delete(runId);
-      }
-    });
-  runSyncPromises.set(runId, promise);
-  return promise;
-}
+let stopObservedRun = () => {};
+detachedRunSyncService = createDetachedRunSyncService({
+  broadcastSessionInvalidation,
+  clipFailurePreview,
+  deriveRunFailureReasonFromResult,
+  deriveRunStateFromResult,
+  deriveStructuredRuntimeFailureReason,
+  finalizeDetachedRun,
+  findSessionMeta,
+  flushQueuedFollowUps,
+  getFollowUpQueueCount,
+  getRun,
+  getRunManifest,
+  getRunResult,
+  hasTerminalRunResult,
+  isTerminalRunState,
+  materializeRunSpoolLine,
+  mutateSessionMeta,
+  nowIso,
+  parseTaskCardFromAssistantContent,
+  persistResumeIds,
+  readRunSpoolRecords,
+  startupSyncDebug: STARTUP_SYNC_DEBUG,
+  stopObservedRun: (...args) => stopObservedRun(...args),
+  structuredOutputSettleDelayMs: STRUCTURED_OUTPUT_SETTLE_DELAY_MS,
+  synthesizeDetachedRunTermination,
+  updateRun,
+  writeRunResult,
+});
 
 function ensureSessionManagerBuiltinHooksRegistered() {
   registerBuiltinHooks();
@@ -1096,7 +763,7 @@ function ensureSessionManagerBuiltinHooksRegistered() {
 const {
   observeDetachedRun,
   startDetachedRunObservers: startDetachedRunObserversViaObserverService,
-  stopObservedRun,
+  stopObservedRun: stopObservedRunViaObserverService,
 } = createDetachedRunObserverService({
   ensureSessionManagerBuiltinHooksRegistered,
   flushQueuedFollowUps,
@@ -1108,10 +775,11 @@ const {
   observedRuns,
   runDir,
   startupSyncDebug: STARTUP_SYNC_DEBUG,
-  syncDetachedRun,
+  syncDetachedRun: (...args) => detachedRunSyncService.syncDetachedRun(...args),
   trimString,
   watch,
 });
+stopObservedRun = stopObservedRunViaObserverService;
 
 const {
   sendMessage: sendMessageViaMessageSubmissionService,
@@ -1298,6 +966,7 @@ export async function setSessionArchived(id, archived = true) {
 async function clearDeletedSessionRuntimeState(sessionIds = []) {
   for (const sessionId of Array.isArray(sessionIds) ? sessionIds : []) {
     clearRenameState(sessionId);
+    clearFollowUpRuntimeState(sessionId);
     liveSessions.delete(sessionId);
     await clearSessionHistory(sessionId);
     await clearContextHead(sessionId).catch(() => {});
@@ -1338,7 +1007,7 @@ export async function deleteSessionPermanently(id) {
     runFileAssetIds: deletionPlan.runFileAssetIds,
   }, {
     onDeleteRun: (runId) => {
-      runSyncPromises.delete(runId);
+      detachedRunSyncService.clearTrackedRunSync(runId);
       observedRuns.delete(runId);
     },
   });
@@ -1480,7 +1149,7 @@ export async function delegateSession(sessionId, payload = {}) {
 
 export function killAll() {
   for (const sessionId of liveSessions.keys()) {
-    clearFollowUpFlushTimer(sessionId);
+    clearFollowUpRuntimeState(sessionId);
   }
   liveSessions.clear();
   for (const runId of observedRuns.keys()) {

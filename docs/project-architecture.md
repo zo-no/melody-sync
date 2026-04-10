@@ -57,8 +57,12 @@ MelodySync is now an owner-operated AI task workspace.
 
 `backend/services/session/message-submission-service.mjs`
 
-- owns the canonical submit-message/run-start flow used by manager, follow-up queue flushes, branching, and persistent-session execution
+- owns the canonical submit-message/run-start flow used by manager, follow-up queue replay, branching, and persistent-session execution
 - keeps busy-session queueing, prompt assembly, run creation, and first-user-turn side effects out of the manager entry surface
+
+`backend/services/session/follow-up-queue-service.mjs`
+
+- owns queued follow-up flush scheduling, replay dispatch, and per-session follow-up runtime cleanup so retry timing does not stay embedded in the manager
 
 `backend/services/session/organizer-service.mjs`
 
@@ -79,6 +83,10 @@ MelodySync is now an owner-operated AI task workspace.
 `backend/services/session/compaction-service.mjs`
 
 - owns context-compaction queueing, worker-session reuse/creation, auto-compact threshold evaluation, and compaction-result application for detached-run finalization
+
+`backend/services/session/detached-run-sync-service.mjs`
+
+- owns detached-run spool projection, result-envelope merge, terminal-state reconciliation, and post-run follow-up wake-up so manager does not keep the full startup/observer sync state machine inline
 
 `backend/controllers/session/post-routes.mjs`
 
@@ -347,7 +355,7 @@ Vault-backed app root shape:
 ## Current Constraints
 
 - The system is owner-only. Do not reintroduce visitor/share assumptions into auth, routing, or frontend state.
-- `backend/session/manager.mjs` is still the biggest complexity hotspot.
+- `backend/session/manager.mjs` is still the biggest complexity hotspot, but detached-run sync and queued follow-up replay now live behind dedicated session services instead of staying inline.
 - Frontend source is now unified under `frontend-src/`, but runtime state is still mostly global-script driven and some shipped surfaces are React-backed alongside vanilla modules.
 - Legacy `appId` / `appName` / `userId` / `userName` fields may still appear in stored session metadata, but they are not shipped product systems anymore.
 - Workbench and integrations remain valuable, but they should stay layered on the core session/run path rather than drive the primary architecture.

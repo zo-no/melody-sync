@@ -31,10 +31,12 @@ This directory owns session-facing projections and lightweight domain helpers.
 - `../services/session/task-card-service.mjs`: task-card stabilization plus branch-candidate closeout helpers extracted from the manager for metadata mutation, session query enrichment, and run finalization.
 - `../services/session/workflow-runtime-service.mjs`: workflow classification and runtime-preference mutation orchestration extracted from the manager, including completion/waiting-user hook delivery.
 - `../services/session/message-submission-service.mjs`: canonical message-submit/run-start orchestration extracted from the manager, including busy-session queueing, prompt assembly, run creation, and auto-rename startup behavior.
+- `../services/session/follow-up-queue-service.mjs`: queued follow-up flush scheduling, dispatch replay, and follow-up runtime cleanup extracted from the manager.
 - `../services/session/organizer-service.mjs`: session-organizer patch/finalize flows plus automatic post-run naming/grouping extracted from the manager.
 - `../services/session/result-asset-publication-service.mjs`: result-file asset discovery/publish/message orchestration extracted from the manager's run-finalization path.
 - `../services/session/graph-ops-service.mjs`: assistant graph lookup/reference resolution plus attach/promote/archive application extracted from the manager for workbench-triggered graph mutations.
 - `../services/session/compaction-service.mjs`: context-compaction queueing, worker-session management, auto-compact threshold checks, and compaction-result application extracted from the manager/finalization path.
+- `../services/session/detached-run-sync-service.mjs`: detached-run spool projection, result-envelope merge, terminal-state reconciliation, and post-run queue wake-up extracted from the manager.
 - `../services/session/detached-run-observer-service.mjs`: detached-run watcher/poller/startup restore orchestration extracted from the manager while the manager keeps run-finalization semantics.
 - `../services/session/persistent-service.mjs`: persistent-session patch/promote/run orchestration extracted from the manager, including digest shaping and schedule-trigger bookkeeping.
 - `../services/session/http-mutation-service.mjs`: session PATCH/DELETE mutation orchestration shared by HTTP controllers.
