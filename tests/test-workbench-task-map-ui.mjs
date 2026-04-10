@@ -45,8 +45,8 @@ assert.match(
 );
 assert.match(
   taskMapReactSource,
-  /isVisible=\{\s*actionStripActive[\s\S]*?\|\|\s*manualComposerOpen[\s\S]*?\|\|\s*reparentComposerOpen\s*\}/s,
-  'task-map React UI should only show node action strips after explicit activation or while a composer is open',
+  /isVisible=\{\s*node\?\.isCurrent === true[\s\S]*?\|\|\s*actionStripActive[\s\S]*?\|\|\s*reparentComposerOpen\s*\}/s,
+  'task-map React UI should keep current-node actions visible while still preserving explicit activation for the mobile connect chooser',
 );
 assert.match(
   taskMapReactSource,
@@ -59,6 +59,111 @@ assert.match(
   'mobile task-map fit should allow a much wider zoom-out range so dense graphs still fit on narrow screens',
 );
 assert.match(
+  taskMapReactSource,
+  /const connectActionAvailable = canConnectSession && Array\.isArray\(rawTargets\) && rawTargets\.length > 0;/,
+  'task-map React UI should only expose connect actions when the node still has valid targets',
+);
+assert.doesNotMatch(
+  taskMapReactSource,
+  /const canConnectSession = node\?\.isCurrent === true/,
+  'task-map React UI should not hard-gate session connections to the current node',
+);
+assert.doesNotMatch(
+  taskMapReactSource,
+  /const canCreateManualBranch = node\?\.isCurrent === true/,
+  'task-map React UI should not hard-gate manual fork creation to the current node',
+);
+assert.match(
+  taskMapReactSource,
+  /function buildDraftBranchComposerEntry\(/,
+  'task-map React UI should project a lightweight draft node when creating a manual fork',
+);
+assert.match(
+  taskMapReactSource,
+  /nodesConnectable=\{!interactionConfig\.isMobile\}/,
+  'task-map React UI should enable native edge dragging on desktop-sized task maps',
+);
+assert.match(
+  taskMapReactSource,
+  /onConnect=\{handleConnect\}/,
+  'task-map React UI should route native drag-connect gestures through the task connection handler',
+);
+assert.match(
+  taskMapReactSource,
+  /title=\{quickConnectBusy \? '连接中' : '拖线连接'\}/,
+  'task-map React UI should keep the drag-connect affordance discoverable even after shrinking the source handle back into a compact graph port',
+);
+assert.match(
+  taskMapReactSource,
+  /className=\{`quest-task-flow-connect-handle is-source\$\{showDesktopConnectHandle \? ' is-visible' : ''\}/,
+  'desktop task-map source ports should stay directly draggable whenever the node can connect, even before the quick-action rail is opened',
+);
+assert.match(
+  taskMapReactSource,
+  /quest-task-flow-node-quick-actions/,
+  'task-map React UI should expose a node-side quick action rail instead of forcing all actions into a bottom toolbar',
+);
+assert.match(
+  taskMapReactSource,
+  /<div className="quest-task-flow-react-node-shell nopan">/,
+  'task-map React UI should mark node shells as nopan so node interaction does not steal canvas panning',
+);
+assert.match(
+  taskMapReactSource,
+  /<div className=\{`\$\{className\} nopan`\} onClick=\{handleBodyClick\}>/,
+  'task-map React UI should keep the node body out of pane-panning hit tests while preserving click activation',
+);
+assert.match(
+  taskMapReactSource,
+  /\.quest-task-flow-react-node-shell \.quest-task-flow-node:hover,[\s\S]*?transform:\s*none !important;/,
+  'React task-map nodes should override the global hover lift so pointer hit areas do not oscillate under the cursor',
+);
+assert.match(
+  taskMapReactSource,
+  /const showDesktopQuickActions = !isMobile && \(\s*node\?\.isCurrent === true[\s\S]*?\|\|\s*actionStripActive[\s\S]*?\|\|\s*quickConnectPending/s,
+  'desktop quick actions should stay stable and be revealed by explicit node activation instead of hover-only toggles',
+);
+assert.match(
+  taskMapReactSource,
+  /transform:\s*translate\(10px, -50%\);/,
+  'desktop connect ports should stay close to the node edge instead of overlapping the quick add rail',
+);
+assert.match(
+  taskMapReactSource,
+  /right:\s*-82px;/,
+  'desktop quick add actions should sit far enough from the source port to keep their click targets distinct',
+);
+assert.match(
+  taskMapReactSource,
+  /const showHandoffTrigger = canHandoff && \(hovered \|\| composerOpen \|\| data\?\.current === true\);/,
+  'edge handoff controls should stay visible on the current edge so task-to-task transfer does not disappear behind hover-only affordances',
+);
+assert.match(
+  taskMapReactSource,
+  /const lastAppliedViewportSyncKeyRef = useRef\(''\);/,
+  'viewport sync should remember which topology key it has already applied so repeated node re-initialization does not re-fit the same graph',
+);
+assert.match(
+  taskMapReactSource,
+  /const topologyChanged = lastFlowNodeTopologyKeyRef\.current !== topologyKey;/,
+  'task-map node syncing should detect topology changes separately from transient UI re-renders',
+);
+assert.match(
+  taskMapReactSource,
+  /if \(!topologyChanged && currentNode\?\.position\) \{\s*mergedNode\.position = currentNode\.position;\s*\}/,
+  'task-map node syncing should preserve live node positions while the topology stays the same',
+);
+assert.doesNotMatch(
+  taskMapReactSource,
+  /ResizeObserver/,
+  'task-map viewport sync should not watch volatile canvas resize surfaces that can self-trigger fitView loops',
+);
+assert.doesNotMatch(
+  taskMapReactSource,
+  /setFlowNodes\(renderedNodes\);/,
+  'task-map node syncing should not blindly replace the entire node array and reset in-flight drags',
+);
+assert.match(
   chatWorkbenchCssSource,
   /\.quest-task-flow-edge-handoff-popover[\s\S]*var\(--bg-elevated, var\(--bg-secondary, var\(--bg\)\)\)/s,
   'edge handoff popovers should derive their surface from theme tokens so dark mode keeps the copy readable',
@@ -67,6 +172,21 @@ assert.doesNotMatch(
   taskMapReactSource,
   /后续任务流程会显示在这里/,
   'task-map React UI should not hard-code a root-only empty-hint prompt',
+);
+assert.doesNotMatch(
+  taskMapReactSource,
+  /setNodeHovered\(/,
+  'task-map nodes should not flip local hover state on every pointer enter and leave',
+);
+assert.doesNotMatch(
+  taskMapReactSource,
+  /is-hover-reveal/,
+  'task-map should not use hover-only reveal classes for core node actions while stabilizing branch-node interaction',
+);
+assert.doesNotMatch(
+  taskMapReactSource,
+  /\.quest-task-flow-node\.is-status-completed \.quest-task-flow-node-title,[\s\S]*?text-decoration:\s*line-through/s,
+  'completed main nodes should not inherit the resolved-node strikethrough rule',
 );
 
 function makeClassList(owner) {
@@ -268,10 +388,10 @@ const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
   clipText(value) {
     return String(value || '').trim();
   },
-  listReparentTargets() {
+  listConnectTargets() {
     return [
       {
-        mode: 'attach',
+        mode: 'connect',
         sessionId: 'main-2',
         title: '目标任务',
         path: '目标任务 / 方案讨论',
@@ -421,6 +541,14 @@ const editableNode = {
   isCurrentPath: true,
 };
 
+const graphLinkedNode = {
+  id: 'session:branch-linked',
+  kind: 'branch',
+  sessionId: 'branch-linked',
+  title: '图关系节点',
+  status: 'active',
+};
+
 rootNode.childNodeIds.push(idleNode.id, editableNode.id);
 
 const nodeMap = new Map([
@@ -430,6 +558,7 @@ const nodeMap = new Map([
   [completedNode.id, completedNode],
   [idleNode.id, idleNode],
   [editableNode.id, editableNode],
+  [graphLinkedNode.id, graphLinkedNode],
 ]);
 
 const board = renderer.renderFlowBoard({
@@ -441,6 +570,7 @@ const board = renderer.renderFlowBoard({
       { fromNodeId: rootNode.id, toNodeId: completedNode.id, type: 'structural' },
       { fromNodeId: rootNode.id, toNodeId: idleNode.id, type: 'structural' },
       { fromNodeId: rootNode.id, toNodeId: editableNode.id, type: 'structural' },
+      { fromNodeId: runningNode.id, toNodeId: graphLinkedNode.id, type: 'merge' },
     ],
   },
   nodeMap,
@@ -461,6 +591,22 @@ const rootOnlyBoard = renderer.renderFlowBoard({
   rootNode: rootOnlyNode,
   state: {},
 });
+const rootCompletedNode = {
+  ...rootNode,
+  title: '已收束主任务',
+  workflowState: 'done',
+  isCurrent: true,
+  childNodeIds: [],
+};
+const rootCompletedBoard = renderer.renderFlowBoard({
+  activeQuest: {
+    id: 'quest:root-complete',
+    edges: [],
+  },
+  nodeMap: new Map([[rootCompletedNode.id, rootCompletedNode]]),
+  rootNode: rootCompletedNode,
+  state: {},
+});
 
 const mobileRenderer = context.window.MelodySyncTaskMapUi.createRenderer({
   documentRef,
@@ -477,6 +623,7 @@ const mobileBoard = mobileRenderer.renderFlowBoard({
       { fromNodeId: rootNode.id, toNodeId: completedNode.id, type: 'structural' },
       { fromNodeId: rootNode.id, toNodeId: idleNode.id, type: 'structural' },
       { fromNodeId: rootNode.id, toNodeId: editableNode.id, type: 'structural' },
+      { fromNodeId: runningNode.id, toNodeId: graphLinkedNode.id, type: 'merge' },
     ],
   },
   nodeMap,
@@ -489,16 +636,20 @@ const waitingFlowNode = findFlowNodeByTitle(board, '等待节点');
 const completedFlowNode = findFlowNodeByTitle(board, '完成节点');
 const idleFlowNode = findFlowNodeByTitle(board, '空闲节点');
 const editableFlowNode = findFlowNodeByTitle(board, '可改挂节点');
+const graphLinkedFlowNode = findFlowNodeByTitle(board, '图关系节点');
 const mobileRootFlowNode = findFlowNodeByTitle(mobileBoard, '主任务');
 const mobileRunningFlowNode = findFlowNodeByTitle(mobileBoard, '运行节点');
+const rootCompletedFlowNode = findFlowNodeByTitle(rootCompletedBoard, '已收束主任务');
 
 assert.ok(runningFlowNode, 'running flow node should render');
 assert.ok(waitingFlowNode, 'waiting flow node should render');
 assert.ok(completedFlowNode, 'completed flow node should render');
 assert.ok(idleFlowNode, 'idle flow node should render');
 assert.ok(editableFlowNode, 'editable flow node should render');
+assert.ok(graphLinkedFlowNode, 'graph-linked nodes should render even when they are only connected through explicit graph edges');
 assert.ok(mobileRootFlowNode, 'mobile flow board should still render the root node');
 assert.ok(mobileRunningFlowNode, 'mobile flow board should still render child nodes');
+assert.ok(rootCompletedFlowNode, 'completed root flow node should render');
 assert.equal(
   findFirstByClass(rootOnlyBoard, 'task-map-empty'),
   null,
@@ -511,6 +662,8 @@ assert.equal(runningFlowNode.classList.contains('is-status-running'), true);
 assert.equal(waitingFlowNode.classList.contains('is-status-waiting-user'), true);
 assert.equal(completedFlowNode.classList.contains('is-status-completed'), true);
 assert.equal(completedFlowNode.classList.contains('is-resolved'), true);
+assert.equal(rootCompletedFlowNode.classList.contains('is-status-completed'), true);
+assert.equal(rootCompletedFlowNode.classList.contains('is-resolved'), false);
 assert.equal(idleFlowNode.classList.contains('is-status-idle'), true);
 assert.equal(completedFlowNode.classList.contains('is-current'), true);
 assert.equal(
@@ -524,16 +677,16 @@ assert.equal(
   'non-current idle flow nodes should avoid rendering a redundant idle badge',
 );
 
-const reparentActionBtn = findFirst(editableFlowNode, (node) => node?.textContent === '挂到...');
-assert.ok(reparentActionBtn, 'current active session nodes should expose a lightweight reparent entry');
+const reparentActionBtn = findFirst(editableFlowNode, (node) => node?.textContent === '连接...');
+assert.ok(reparentActionBtn, 'current active session nodes should expose a lightweight connect entry');
 reparentActionBtn.dispatchEvent({ type: 'click' });
 
 const reparentComposer = findFirstByClass(editableFlowNode, 'quest-task-flow-reparent-composer');
-assert.ok(reparentComposer, 'clicking the reparent action should open the inline chooser composer');
+assert.ok(reparentComposer, 'clicking the connect action should open the inline chooser composer');
 assert.equal(
   findFirstByClass(reparentComposer, 'quest-task-flow-reparent-option-path')?.textContent,
   '最近使用 · 目标任务 / 方案讨论',
-  'reparent chooser should render the display path used for recent targets',
+  'connect chooser should render the display path used for recent targets',
 );
 
 const handoffTrigger = findFirstByClass(board, 'quest-task-flow-edge-handoff-btn');

@@ -6,9 +6,9 @@ import { getTaskMapInteractionConfig } from '../frontend-src/workbench/task-map-
 const desktopConfig = getTaskMapInteractionConfig({ mobile: false });
 assert.equal(desktopConfig.isMobile, false);
 assert.equal(desktopConfig.nodesDraggable, true, 'desktop task map should stay freely draggable');
-assert.equal(desktopConfig.panOnDrag, true, 'desktop task map should keep drag-to-pan enabled');
+assert.equal(desktopConfig.panOnDrag, true, 'desktop task map should restore left-drag panning on the canvas background');
 assert.equal(desktopConfig.zoomOnScroll, true, 'desktop task map should keep wheel zoom enabled');
-assert.equal(desktopConfig.nodeDragThreshold, 6, 'desktop drag threshold should stay low for free editing');
+assert.equal(desktopConfig.nodeDragThreshold, 12, 'desktop drag threshold should be raised so clicks do not collapse into accidental drags');
 assert.equal(desktopConfig.shellClassName, 'quest-task-flow-react-shell');
 
 const mobileConfig = getTaskMapInteractionConfig({ mobile: true });
