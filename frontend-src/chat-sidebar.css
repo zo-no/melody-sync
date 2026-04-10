@@ -2192,3 +2192,109 @@
     color: #ffffff;
   }
 }
+
+@media (max-width: 767px) {
+  .sidebar {
+    position: fixed;
+  }
+
+  .sidebar-header {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    padding: 0;
+  }
+
+  .sidebar-header #closeSidebar {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .sidebar-grouping-toolbar {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 14px 54px 8px 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .sidebar-grouping-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar-grouping-chip {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .sidebar-list {
+    padding: 6px 12px 14px;
+    scroll-padding-bottom: 18px;
+  }
+
+  .session-item,
+  .task-cluster-main.session-item.task-tree-root-row,
+  .task-cluster-tree-row.session-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "lead info"
+      "lead actions";
+    align-items: start;
+    column-gap: 8px;
+    row-gap: 6px;
+    padding: 9px 10px 9px 11px;
+    border-radius: 14px;
+  }
+
+  .session-action-btn.session-item-leading-action {
+    grid-area: lead;
+    align-self: start;
+    margin-top: 3px;
+  }
+
+  .session-item-info {
+    grid-area: info;
+  }
+
+  .session-item-actions {
+    grid-area: actions;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .session-action-btn {
+    opacity: 1;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 4px 6px;
+    border-radius: 10px;
+  }
+
+  .session-list-actions {
+    position: sticky;
+    bottom: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px 14px calc(12px + var(--safe-bottom));
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 0%, transparent) 0%, color-mix(in srgb, var(--bg-secondary) 92%, var(--bg)) 42%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .session-list-actions .new-session-btn {
+    min-height: 40px;
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+}

@@ -24,14 +24,18 @@
 
 <!-- Header -->
 <div class="header">
-  <button class="header-btn" id="menuBtn" title="Tasks" aria-label="Tasks" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
-  <button class="header-task-map-btn" id="hooksSettingsBtn" type="button" title="设置" aria-label="设置" data-i18n="action.settings" data-i18n-title="action.settings" data-i18n-aria-label="action.settings">设置</button>
-  <h1 id="headerTitle" aria-hidden="true" hidden></h1>
-  <button class="header-task-detail-btn" id="headerTaskDetailBtn" type="button" hidden>任务详情 ▸</button>
-  <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
-  <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
-  <button class="header-task-map-btn" id="persistentSessionBtn" type="button" aria-label="自动化" title="自动化" hidden>自动化</button>
-  <button class="header-task-map-btn" id="outputPanelBtn" type="button" aria-label="产出面板" title="产出面板">产出</button>
+  <div class="header-primary">
+    <button class="header-btn" id="menuBtn" title="Tasks" aria-label="Tasks" data-i18n-title="nav.sessions" data-i18n-aria-label="nav.sessions" data-icon="menu">&#9776;</button>
+    <h1 id="headerTitle" aria-hidden="true" hidden></h1>
+    <button class="header-task-detail-btn" id="headerTaskDetailBtn" type="button" hidden>任务详情 ▸</button>
+  </div>
+  <div class="header-actions" id="headerActions">
+    <button class="header-task-map-btn" id="hooksSettingsBtn" type="button" title="设置" aria-label="设置" data-i18n="action.settings" data-i18n-title="action.settings" data-i18n-aria-label="action.settings">设置</button>
+    <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
+    <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
+    <button class="header-task-map-btn" id="persistentSessionBtn" type="button" aria-label="自动化" title="自动化" hidden>自动化</button>
+    <button class="header-task-map-btn" id="outputPanelBtn" type="button" aria-label="产出面板" title="产出面板">产出</button>
+  </div>
   <span class="status-dot" id="statusDot"></span>
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
 </div>

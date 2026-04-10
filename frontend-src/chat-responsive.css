@@ -43,6 +43,23 @@ body::before {
   color: color-mix(in srgb, var(--text) 88%, var(--accent));
 }
 
+.header-primary,
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header-primary {
+  flex: 1 1 auto;
+}
+
+.header-actions {
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+
 .task-map-resize-handle {
   display: none;
 }
@@ -377,7 +394,8 @@ body::before {
 @media (max-width: 767px) {
   :root {
     --chat-gutter: 8px;
-    --sidebar-mobile-width: min(86vw, 340px);
+    --mobile-header-stack: 106px;
+    --sidebar-mobile-width: min(calc(100vw - 12px), 420px);
   }
 
   .app-shell {
@@ -391,9 +409,11 @@ body::before {
   }
 
   .header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
-    min-height: calc(50px + var(--safe-top));
-    padding: calc(var(--safe-top) + 2px) 12px 2px;
+    min-height: auto;
+    padding: calc(var(--safe-top) + 4px) 10px 8px;
     border: 0;
     border-bottom: 1px solid var(--border);
     border-radius: 0;
@@ -407,6 +427,65 @@ body::before {
     font-size: 15px;
   }
 
+  .header-primary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header-primary #menuBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  .header-primary #headerTitle {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-primary .header-task-detail-btn:not([hidden]) {
+    grid-column: 1 / -1;
+  }
+
+  .header-actions {
+    gap: 8px;
+    margin-left: 0;
+    padding: 0 2px 2px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .header-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-actions .header-btn,
+  .header-actions .header-refresh-btn,
+  .header-actions .header-task-map-btn {
+    flex: 0 0 auto;
+    min-height: 36px;
+    border-radius: 14px;
+    scroll-snap-align: start;
+  }
+
+  .header-actions .header-refresh-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .header-actions .header-task-map-btn {
+    padding: 0 12px;
+  }
+
   .chat-area {
     border: 0;
     border-radius: 0;
@@ -416,6 +495,7 @@ body::before {
 
   .sidebar-overlay {
     top: calc(50px + var(--safe-top));
+    top: calc(var(--safe-top) + var(--mobile-header-stack));
     background: var(--overlay-backdrop);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -423,12 +503,13 @@ body::before {
 
   .sidebar {
     top: calc(50px + var(--safe-top) + 8px);
-    bottom: 8px;
-    left: calc(-1 * var(--sidebar-mobile-width) - 16px);
+    top: 4px;
+    bottom: 6px;
+    left: calc(-1 * var(--sidebar-mobile-width) - 12px);
     width: var(--sidebar-mobile-width);
     padding-top: 0;
     border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
-    border-radius: 24px;
+    border-radius: 22px;
     background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
     box-shadow: 0 18px 40px color-mix(in srgb, #0b1520 18%, transparent);
     backdrop-filter: blur(18px);
@@ -436,7 +517,7 @@ body::before {
   }
 
   .sidebar-overlay.open .sidebar {
-    left: 8px;
+    left: 6px;
   }
 
   .task-manager-body {
@@ -577,7 +658,7 @@ body::before {
 
 @media (max-width: 640px) {
   .frontend-update-banner {
-    top: calc(var(--safe-top) + 52px);
+    top: calc(var(--safe-top) + var(--mobile-header-stack));
     width: calc(100vw - 16px);
     padding: 12px 14px;
     align-items: flex-start;
@@ -594,11 +675,11 @@ body::before {
   }
 
   body.frontend-update-banner-active .completion-attention-banner {
-    top: calc(var(--safe-top) + 146px);
+    top: calc(var(--safe-top) + var(--mobile-header-stack) + 94px);
   }
 
   .completion-attention-banner {
-    top: calc(var(--safe-top) + 52px);
+    top: calc(var(--safe-top) + var(--mobile-header-stack));
     width: calc(100vw - 16px);
     padding: 12px 14px;
     align-items: flex-start;
