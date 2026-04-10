@@ -150,6 +150,11 @@ assert.match(
 );
 assert.match(
   taskMapReactSource,
+  /if \(board && currentBoard === board\) \{\s*return;\s*\}/,
+  'task-map controller should not tear down and remount the same board instance when only render state changes',
+);
+assert.match(
+  taskMapReactSource,
   /if \(!topologyChanged && currentNode\?\.position\) \{\s*mergedNode\.position = currentNode\.position;\s*\}/,
   'task-map node syncing should preserve live node positions while the topology stays the same',
 );
@@ -162,6 +167,16 @@ assert.doesNotMatch(
   taskMapReactSource,
   /setFlowNodes\(renderedNodes\);/,
   'task-map node syncing should not blindly replace the entire node array and reset in-flight drags',
+);
+assert.match(
+  taskMapReactSource,
+  /let reactFlowBoardContainer = null;[\s\S]*let reactFlowBoardRoot = null;/,
+  'task-map renderer should keep a stable ReactFlow container and root instead of recreating them on every render',
+);
+assert.match(
+  taskMapReactSource,
+  /if \(!reactFlowBoardContainer \|\| !reactFlowBoardRoot\) \{/,
+  'task-map renderer should only create a new ReactFlow mount when no stable board root exists yet',
 );
 assert.match(
   chatWorkbenchCssSource,

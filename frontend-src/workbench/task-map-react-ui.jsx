@@ -1574,6 +1574,9 @@ function createTaskListController({
   }
 
   function renderBoard(board = null) {
+    if (board && currentBoard === board) {
+      return;
+    }
     destroyRenderedBoard();
     currentBoard = board;
     if (reactRoot) {
@@ -5831,6 +5834,8 @@ function createRenderer({
     buildTaskHandoffPreview,
     handoffSessionTaskData,
   });
+  let reactFlowBoardContainer = null;
+  let reactFlowBoardRoot = null;
   const rendererApi = {
     documentRef,
     windowRef,
@@ -5865,15 +5870,18 @@ function createRenderer({
           documentRef,
         });
       }
-      const container = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      if (!reactFlowBoardContainer || !reactFlowBoardRoot) {
+        reactFlowBoardContainer = ensureCompatElement(documentRef.createElement('div'), documentRef);
+        reactFlowBoardRoot = createRoot(reactFlowBoardContainer);
+      }
+      const container = reactFlowBoardContainer;
       const interactionConfig = getTaskMapInteractionConfig({
         mobile: isMobileQuestTracker() === true,
       });
       container.className = `quest-task-mindmap-board is-spine quest-task-flow-shell ${interactionConfig.shellClassName}`;
       container.dataset.taskMapRenderer = 'react-flow';
       container.dataset.taskMapViewport = interactionConfig.isMobile ? 'mobile' : 'desktop';
-      const root = createRoot(container);
-      root.render(
+      reactFlowBoardRoot.render(
         <TaskFlowBoard
           activeQuest={activeQuest}
           nodeMap={nodeMap}
@@ -5883,7 +5891,9 @@ function createRenderer({
         />,
       );
       container.__melodysyncCleanup = () => {
-        root.unmount();
+        reactFlowBoardRoot?.unmount?.();
+        reactFlowBoardRoot = null;
+        reactFlowBoardContainer = null;
       };
       return container;
     },
