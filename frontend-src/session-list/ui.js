@@ -101,12 +101,24 @@ function canRunSidebarQuickAction(session, { archived = false } = {}) {
 
 function buildSidebarSessionActions(session, { archived = false } = {}) {
   const isArchivedSession = archived || session?.archived === true;
+  const entry = getSessionListModel()?.getSessionListEntry?.(session, { archived: isArchivedSession }) || null;
   const baseActions = typeof buildSessionActionConfigs === "function"
     ? buildSessionActionConfigs(session, { archived: isArchivedSession })
     : [];
   const visibleBaseActions = isArchivedSession
     ? baseActions
-    : baseActions.filter((entry) => entry?.action !== "delete");
+    : baseActions
+      .filter((actionEntry) => actionEntry?.action !== "delete")
+      .map((actionEntry) => {
+        if (actionEntry?.action !== "archive" || entry?.staleInfo?.stage !== "cleanup") {
+          return actionEntry;
+        }
+        return {
+          ...actionEntry,
+          label: t("action.cleanup"),
+          className: "cleanup",
+        };
+      });
   const renameAction = isArchivedSession ? null : {
     key: "rename",
     label: t("action.rename"),
@@ -155,6 +167,7 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
   }
   if (persistentKind === "skill") extraClassNames.push("is-quick-action-item");
   if (persistentKind === "recurring_task") extraClassNames.push("is-persistent-recurring-item");
+  if (entry?.staleInfo?.itemClass) extraClassNames.push(entry.staleInfo.itemClass);
   const branchBadge = Array.isArray(entry?.badges)
     ? entry.badges.find((badge) => badge?.key === "branch" && badge?.label)
     : null;
@@ -165,6 +178,9 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
   const item = createActiveSessionItem(session, {
     extraClassName: extraClassNames.join(" "),
     actions: buildSidebarSessionActions(session, { archived }),
+    compactActions: typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(max-width: 767px)").matches
+      : (typeof isDesktop === "boolean" ? !isDesktop : false),
     ...(titlePrefixHtml ? { titlePrefixHtml } : {}),
     ...(metaOverrideHtml ? { metaOverrideHtml } : {}),
   });
@@ -230,6 +246,38 @@ function getSessionListGroupPriority(groupEntry) {
   if (groupKey === "group:quick-actions") return -2;
   if (groupKey === "group:long-term") return -1;
   return 0;
+}
+
+function getActiveSidebarTabForList() {
+  return typeof window.getActiveSidebarTab === "function"
+    ? window.getActiveSidebarTab()
+    : "sessions";
+}
+
+function isLongTermProjectSessionForList(session) {
+  const model = getSessionListModel();
+  if (typeof model?.isLongTermProjectSession === "function") {
+    return model.isLongTermProjectSession(session);
+  }
+  return getSidebarPersistentKind(session) === "recurring_task";
+}
+
+function isLongTermLineSessionForList(session) {
+  const model = getSessionListModel();
+  if (typeof model?.isLongTermLineSession === "function") {
+    return model.isLongTermLineSession(session);
+  }
+  return isLongTermProjectSessionForList(session);
+}
+
+function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
+  return tab === "long-term"
+    ? isLongTermProjectSessionForList(session)
+    : !isLongTermProjectSessionForList(session);
+}
+
+function filterSessionsForSidebarTab(entries = [], tab = getActiveSidebarTabForList()) {
+  return (Array.isArray(entries) ? entries : []).filter((session) => shouldIncludeSessionInSidebarTab(session, tab));
 }
 
 function getSessionStateModelForList() {
@@ -312,6 +360,132 @@ function getSessionFocusSectionData(entries = []) {
   };
 }
 
+function clipSidebarLongTermContextText(value, max = 140) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
+function getSessionLongTermStateForSidebar(session) {
+  const longTerm = session?.sessionState?.longTerm;
+  if (!longTerm || typeof longTerm !== "object" || Array.isArray(longTerm)) return null;
+  const rootSessionId = String(longTerm?.rootSessionId || "").trim();
+  if (!rootSessionId) return null;
+  const role = String(longTerm?.role || "").trim().toLowerCase();
+  return {
+    lane: String(longTerm?.lane || "").trim().toLowerCase() === "long-term" ? "long-term" : "sessions",
+    role: role === "project" || role === "member" ? role : "",
+    rootSessionId,
+    rootTitle: String(longTerm?.rootTitle || "").trim(),
+    rootSummary: String(longTerm?.rootSummary || "").trim(),
+  };
+}
+
+function getSessionLongTermRootIdForSidebar(session) {
+  const projected = getSessionLongTermStateForSidebar(session);
+  if (projected?.rootSessionId) return projected.rootSessionId;
+  const sessionId = String(session?.id || "").trim();
+  return isLongTermProjectSessionForList(session) ? sessionId : "";
+}
+
+function getSidebarLongTermContextData(tab = getActiveSidebarTabForList()) {
+  if (tab === "long-term") return null;
+  const currentSession = Array.isArray(sessions)
+    ? sessions.find((session) => session?.id === currentSessionId) || null
+    : null;
+  const longTermState = getSessionLongTermStateForSidebar(currentSession);
+  if (!currentSession?.id || longTermState?.role !== "member" || !longTermState.rootSessionId) {
+    return null;
+  }
+
+  const rootSessionId = longTermState.rootSessionId;
+  const rootSession = Array.isArray(sessions)
+    ? sessions.find((session) => session?.id === rootSessionId) || null
+    : null;
+  const rootTitle = clipSidebarLongTermContextText(
+    longTermState.rootTitle
+      || (typeof getPreferredSessionDisplayName === "function" ? getPreferredSessionDisplayName(rootSession) : "")
+      || (typeof getSessionDisplayName === "function" ? getSessionDisplayName(rootSession) : "")
+      || String(rootSession?.name || "").trim()
+      || "长期任务",
+    48,
+  );
+  const rootSummary = clipSidebarLongTermContextText(
+    longTermState.rootSummary
+      || rootSession?.persistent?.digest?.summary
+      || rootSession?.taskCard?.checkpoint
+      || rootSession?.taskCard?.summary
+      || rootSession?.description
+      || "",
+    160,
+  );
+  const relatedSessions = (Array.isArray(sessions) ? sessions : [])
+    .filter((session) => session?.archived !== true)
+    .filter((session) => String(session?.id || "").trim() !== rootSessionId)
+    .filter((session) => String(session?.id || "").trim() !== String(currentSession?.id || "").trim())
+    .filter((session) => getSessionLongTermRootIdForSidebar(session) === rootSessionId)
+    .filter((session) => shouldShowSessionInSidebarForList(session))
+    .slice()
+    .sort((left, right) => {
+      const stateModel = getSessionStateModelForList();
+      if (typeof stateModel?.compareSessionListSessions === "function") {
+        return stateModel.compareSessionListSessions(left, right);
+      }
+      return String(left?.id || "").localeCompare(String(right?.id || ""));
+    })
+    .slice(0, 3);
+  const memberCount = (Array.isArray(sessions) ? sessions : [])
+    .filter((session) => session?.archived !== true)
+    .filter((session) => String(session?.id || "").trim() !== rootSessionId)
+    .filter((session) => getSessionLongTermRootIdForSidebar(session) === rootSessionId)
+    .length;
+
+  return {
+    rootSessionId,
+    rootTitle,
+    rootSummary,
+    memberCount,
+    relatedSessions,
+  };
+}
+
+function renderSidebarLongTermContextSection(contextData = null) {
+  if (!contextData?.rootSessionId) return null;
+  const section = document.createElement("section");
+  section.className = "session-long-term-context";
+  section.innerHTML = `
+    <div class="session-long-term-context-header">
+      <div class="session-long-term-context-kicker">${esc(payloadSafeTranslate("sidebar.longTerm.context.kicker", "归属长期任务"))}</div>
+      <div class="session-long-term-context-title">${esc(contextData.rootTitle || "长期任务")}</div>
+      <div class="session-long-term-context-summary">${esc(
+        contextData.rootSummary
+          || payloadSafeTranslate("sidebar.longTerm.context.summary", "当前会话继续留在普通列表执行，右侧任务地图跟随这个长期任务。"),
+      )}</div>
+      <div class="session-long-term-context-meta">
+        <span class="session-long-term-context-chip">${esc(payloadSafeTranslate("sidebar.longTerm.context.current", "当前会话已归入"))}</span>
+        <span class="session-long-term-context-chip">${esc(
+          `${payloadSafeTranslate("sidebar.longTerm.context.memberCount", "维护项")} ${Math.max(1, Number(contextData.memberCount) || 0)}`,
+        )}</span>
+      </div>
+    </div>`;
+  if (Array.isArray(contextData.relatedSessions) && contextData.relatedSessions.length > 0) {
+    const related = document.createElement("div");
+    related.className = "session-long-term-context-related";
+
+    const label = document.createElement("div");
+    label.className = "session-long-term-context-related-label";
+    label.textContent = payloadSafeTranslate("sidebar.longTerm.context.related", "同长期任务下的维护项");
+    related.appendChild(label);
+
+    const items = document.createElement("div");
+    items.className = "session-long-term-context-items";
+    appendSessionItems(items, contextData.relatedSessions);
+    related.appendChild(items);
+    section.appendChild(related);
+  }
+  return section;
+}
+
 function renderFocusSection({ focusSessions = [], focusLabel = "", hintLabel = "" } = {}) {
   if (!Array.isArray(focusSessions) || focusSessions.length === 0) return null;
   const section = document.createElement("div");
@@ -336,19 +510,37 @@ function renderFocusSection({ focusSessions = [], focusLabel = "", hintLabel = "
 }
 
 function renderSessionList() {
+  const activeSidebarTab = getActiveSidebarTabForList();
+  const isLongTermTab = activeSidebarTab === "long-term";
+  const longTermContext = getSidebarLongTermContextData(activeSidebarTab);
   const groupingMode = getSessionGroupingModeForList();
-  const showGroupingFolderControls = groupingMode === "user";
-  const pinnedSessions = getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session));
-  const visibleSessions = getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session));
-  const focusSection = getSessionFocusSectionData([...pinnedSessions, ...visibleSessions]);
+  const showGroupingFolderControls = !isLongTermTab;
+  const pinnedSessions = filterSessionsForSidebarTab(
+    getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
+    activeSidebarTab,
+  );
+  const visibleSessions = filterSessionsForSidebarTab(
+    getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
+    activeSidebarTab,
+  );
+  const focusSection = isLongTermTab
+    ? { sessions: [], hintLabel: "" }
+    : getSessionFocusSectionData([...pinnedSessions, ...visibleSessions]);
 
   const groups = new Map();
   for (const session of visibleSessions) {
     if (!session?.id) continue;
     const persistentDockGroupKey = getPersistentDockGroupKey(session);
-    const groupInfo = persistentDockGroupKey
-      ? getPersistentSidebarGroupInfo(persistentDockGroupKey)
-      : getSessionGroupInfoForList(session);
+    const groupInfo = isLongTermTab
+      ? {
+          key: "group:long-term-projects",
+          label: payloadSafeTranslate("sidebar.longTerm.projects", "长期任务"),
+          title: payloadSafeTranslate("sidebar.longTerm.projects", "长期任务"),
+          order: 0,
+        }
+      : (persistentDockGroupKey
+        ? getPersistentSidebarGroupInfo(persistentDockGroupKey)
+        : getSessionGroupInfoForList(session));
     if (!groups.has(groupInfo.key)) {
       groups.set(groupInfo.key, { ...groupInfo, sessions: [], insertOrder: groups.size });
     }
@@ -363,25 +555,43 @@ function renderSessionList() {
     const leftOrder = Number.isInteger(left?.order) ? left.order : 100000;
     const rightOrder = Number.isInteger(right?.order) ? right.order : 100000;
     if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-    if (groupingMode === "ai") {
-      const leftInsertOrder = Number.isInteger(left?.insertOrder) ? left.insertOrder : 0;
-      const rightInsertOrder = Number.isInteger(right?.insertOrder) ? right.insertOrder : 0;
-      if (leftInsertOrder !== rightInsertOrder) return leftInsertOrder - rightInsertOrder;
-    }
     return String(left?.label || "").localeCompare(String(right?.label || ""));
   });
 
-  const archivedSessions = (typeof getVisibleArchivedSessions === "function" ? getVisibleArchivedSessions() : [])
-    .filter((session) => shouldShowSessionInSidebarForList(session, { archived: true }));
+  const archivedSessions = filterSessionsForSidebarTab(
+    (typeof getVisibleArchivedSessions === "function" ? getVisibleArchivedSessions() : [])
+      .filter((session) => shouldShowSessionInSidebarForList(session, { archived: true })),
+    activeSidebarTab,
+  );
   const isArchivedSessionsLoading = typeof archivedSessionsLoading !== "undefined" && archivedSessionsLoading === true;
   const hasArchivedSessionsLoaded = typeof archivedSessionsLoaded !== "undefined" && archivedSessionsLoaded === true;
   const archivedSessionTotal = Number(typeof archivedSessionCount === "undefined" ? 0 : archivedSessionCount) || 0;
   const ARCHIVED_FOLDER_KEY = "folder:archived";
   const archivedCollapsed = collapsedFolders[ARCHIVED_FOLDER_KEY] === true;
-  const shouldRenderArchivedSection = isArchivedSessionsLoading || archivedSessionTotal > 0 || archivedSessions.length > 0;
-  const archivedCount = hasArchivedSessionsLoaded
+  const shouldRenderArchivedSection = isLongTermTab
+    ? archivedSessions.length > 0
+    : (isArchivedSessionsLoading || archivedSessionTotal > 0 || archivedSessions.length > 0);
+  const archivedCount = isLongTermTab
     ? archivedSessions.length
-    : Math.max(archivedSessionTotal, archivedSessions.length);
+    : (hasArchivedSessionsLoaded
+      ? archivedSessions.length
+      : Math.max(archivedSessionTotal, archivedSessions.length));
+  const sessionsLoaded = typeof hasLoadedSessions !== "undefined" && hasLoadedSessions === true;
+  const shouldShowSessionListEmptyState =
+    focusSection.sessions.length === 0
+    && pinnedSessions.length === 0
+    && orderedGroups.length === 0
+    && !shouldRenderArchivedSection;
+  const sessionListEmptyLabel = shouldShowSessionListEmptyState
+    ? payloadSafeTranslate(
+      sessionsLoaded
+        ? (isLongTermTab ? "sidebar.longTerm.empty" : "sidebar.noSessions")
+        : "sidebar.loadingSessions",
+      sessionsLoaded
+        ? (isLongTermTab ? "还没有长期任务" : "还没有任务")
+        : "加载任务中…",
+    )
+    : "";
   const isGroupingCreateOpen = typeof window.isSessionGroupingTemplateCreateOpen === "function"
     ? window.isSessionGroupingTemplateCreateOpen()
     : false;
@@ -392,6 +602,21 @@ function renderSessionList() {
       sessionListEl: sessionList,
       sessionListFooterEl: sessionListFooter,
       pinnedSessions,
+      contextPanel: longTermContext
+        ? {
+          rootSessionId: longTermContext.rootSessionId,
+          kicker: payloadSafeTranslate("sidebar.longTerm.context.kicker", "归属长期任务"),
+          title: longTermContext.rootTitle || "长期任务",
+          summary: longTermContext.rootSummary
+            || payloadSafeTranslate("sidebar.longTerm.context.summary", "当前会话继续留在普通列表执行，右侧任务地图跟随这个长期任务。"),
+          chips: [
+            payloadSafeTranslate("sidebar.longTerm.context.current", "当前会话已归入"),
+            `${payloadSafeTranslate("sidebar.longTerm.context.memberCount", "维护项")} ${Math.max(1, Number(longTermContext.memberCount) || 0)}`,
+          ],
+          relatedLabel: payloadSafeTranslate("sidebar.longTerm.context.related", "同长期任务下的维护项"),
+          relatedSessions: longTermContext.relatedSessions,
+        }
+        : null,
       focus: {
         sessions: focusSection.sessions,
         titleLabel: payloadSafeTranslate("sidebar.focus.title", "焦点"),
@@ -427,6 +652,10 @@ function renderSessionList() {
         emptyText: getFilteredSessionEmptyText({ archived: true }),
         storageKey: ARCHIVED_FOLDER_KEY,
       },
+      emptyState: {
+        show: shouldShowSessionListEmptyState,
+        label: sessionListEmptyLabel,
+      },
       helpers: {
         t,
         esc,
@@ -440,6 +669,7 @@ function renderSessionList() {
       actions: {
         setGroupCollapsed(groupKey, collapsed) {
           persistCollapsedGroupState(groupKey, collapsed);
+          renderSessionList();
         },
         openGroupingCreate(anchorEl) {
           window.openSessionGroupingTemplatePopoverAtAnchor?.(anchorEl, { runAfterSave: false });
@@ -476,6 +706,11 @@ function renderSessionList() {
 
   sessionList.innerHTML = "";
 
+  const longTermContextEl = renderSidebarLongTermContextSection(longTermContext);
+  if (longTermContextEl) {
+    sessionList.appendChild(longTermContextEl);
+  }
+
   const focusSectionEl = renderFocusSection({
     focusSessions: focusSection.sessions,
     focusLabel: payloadSafeTranslate("sidebar.focus.title", "焦点"),
@@ -500,6 +735,13 @@ function renderSessionList() {
     section.appendChild(header);
     section.appendChild(items);
     sessionList.appendChild(section);
+  }
+
+  if (shouldShowSessionListEmptyState) {
+    const empty = document.createElement("div");
+    empty.className = "session-list-empty";
+    empty.textContent = sessionListEmptyLabel;
+    sessionList.appendChild(empty);
   }
 
   for (const [groupKey, groupEntry] of orderedGroups) {
@@ -629,13 +871,22 @@ function payloadSafeTranslate(key, fallback) {
 function renderArchivedSection() {
   const existing = document.getElementById("archivedSection");
   if (existing) existing.remove();
-  const archivedSessions = getVisibleArchivedSessions().filter((session) => shouldShowSessionInSidebarForList(session, { archived: true }));
-  const shouldRenderSection = archivedSessionsLoading || archivedSessionCount > 0 || archivedSessions.length > 0;
+  const activeSidebarTab = getActiveSidebarTabForList();
+  const isLongTermTab = activeSidebarTab === "long-term";
+  const archivedSessions = filterSessionsForSidebarTab(
+    getVisibleArchivedSessions().filter((session) => shouldShowSessionInSidebarForList(session, { archived: true })),
+    activeSidebarTab,
+  );
+  const shouldRenderSection = isLongTermTab
+    ? archivedSessions.length > 0
+    : (archivedSessionsLoading || archivedSessionCount > 0 || archivedSessions.length > 0);
   if (!shouldRenderSection) return;
 
   const ARCHIVED_FOLDER_KEY = "folder:archived";
   const isCollapsed = collapsedFolders[ARCHIVED_FOLDER_KEY] === true;
-  const count = archivedSessionsLoaded ? archivedSessions.length : Math.max(archivedSessionCount, archivedSessions.length);
+  const count = isLongTermTab
+    ? archivedSessions.length
+    : (archivedSessionsLoaded ? archivedSessions.length : Math.max(archivedSessionCount, archivedSessions.length));
 
   const section = document.createElement("div");
   section.id = "archivedSection";
@@ -651,7 +902,7 @@ function renderArchivedSection() {
     header.classList.toggle("collapsed", nextCollapsed);
     persistCollapsedGroupState(ARCHIVED_FOLDER_KEY, nextCollapsed);
     items.hidden = nextCollapsed;
-    if (!nextCollapsed && !archivedSessionsLoaded && !archivedSessionsLoading && archivedSessionCount > 0) {
+    if (!isLongTermTab && !nextCollapsed && !archivedSessionsLoaded && !archivedSessionsLoading && archivedSessionCount > 0) {
       void fetchArchivedSessions().catch((error) => {
         console.warn("[sessions] Failed to load archived tasks:", error?.message || error);
       });
@@ -664,7 +915,7 @@ function renderArchivedSection() {
   items.hidden = isCollapsed;
   section.appendChild(items);
 
-  if (!isCollapsed && !archivedSessionsLoaded && !archivedSessionsLoading && archivedSessionCount > 0) {
+  if (!isLongTermTab && !isCollapsed && !archivedSessionsLoaded && !archivedSessionsLoading && archivedSessionCount > 0) {
     void fetchArchivedSessions().catch((error) => {
       console.warn("[sessions] Failed to load archived tasks:", error?.message || error);
     });

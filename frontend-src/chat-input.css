@@ -191,8 +191,25 @@
   color: var(--text-secondary);
   text-decoration: underline;
 }
-.input-footer-tagline {
+.input-footer-meta {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+.input-footer-tagline {
+  flex: 0 1 auto;
+}
+.input-footer-version {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  opacity: 0.92;
 }
 .send-btn {
   width: 34px; height: 34px; border-radius: 50%; border: none;
@@ -631,6 +648,10 @@
   font-family: "Fraunces", "STSong", serif;
   font-style: italic;
   letter-spacing: 0.06em;
+}
+
+.input-footer-version {
+  letter-spacing: 0.05em;
 }
 
 @media (prefers-color-scheme: dark) {

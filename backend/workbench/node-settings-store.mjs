@@ -6,7 +6,17 @@ const NODE_LANES = Object.freeze(['main', 'branch', 'side']);
 const NODE_ROLES = Object.freeze(['state', 'action', 'summary']);
 const NODE_MERGE_POLICIES = Object.freeze(['replace-latest', 'append']);
 const NODE_INTERACTIONS = Object.freeze(['open-session', 'create-branch', 'none']);
-const NODE_EDGE_TYPES = Object.freeze(['structural', 'suggestion', 'completion', 'merge']);
+const NODE_EDGE_TYPES = Object.freeze([
+  'structural',
+  'related',
+  'depends_on',
+  'blocks',
+  'maintains',
+  'spawned_from',
+  'suggestion',
+  'completion',
+  'merge',
+]);
 const NODE_LAYOUT_VARIANTS = Object.freeze(['root', 'default', 'compact', 'panel']);
 const NODE_CAPABILITIES = Object.freeze(['open-session', 'create-branch', 'dismiss']);
 const NODE_SURFACE_SLOTS = Object.freeze(['task-map', 'composer-suggestions']);
@@ -78,6 +88,7 @@ function normalizeCustomNodeComposition(definition = {}, { lane = 'side', role =
     : [];
   return {
     canBeRoot: composition.canBeRoot === true,
+    connectsToAnyNode: composition.connectsToAnyNode !== false,
     allowedParentKinds: normalizeNodeKindIdList(
       composition.allowedParentKinds,
       ['main', 'branch', 'note'],

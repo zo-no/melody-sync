@@ -36,7 +36,6 @@
         <button class="header-task-map-btn" id="hooksSettingsBtn" type="button" title="设置" aria-label="设置" data-i18n="action.settings" data-i18n-title="action.settings" data-i18n-aria-label="action.settings">设置</button>
         <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
         <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
-        <button class="header-task-map-btn" id="persistentSessionBtn" type="button" aria-label="自动化" title="自动化" hidden>自动化</button>
         <button class="header-task-map-btn" id="outputPanelBtn" type="button" aria-label="产出面板" title="产出面板">产出</button>
       </div>
     </div>
@@ -87,21 +86,29 @@
   <!-- Sidebar overlay -->
   <div class="sidebar-overlay" id="sidebarOverlay">
     <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <button class="header-btn" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
+      <div class="sidebar-header overlay-panel-header">
+        <span class="overlay-panel-title" data-i18n="nav.sessions">任务列表</span>
+        <button class="header-btn overlay-panel-close" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
       </div>
       <div class="sidebar-tabs">
-        <button class="sidebar-tab active" id="tabSessions" data-i18n="nav.sessions">Tasks</button>
+        <button class="sidebar-tab active" id="tabSessions" data-i18n="sidebar.tab.folders">Folders</button>
+        <button class="sidebar-tab" id="tabLongTerm" data-i18n="sidebar.tab.longTerm">Long-term</button>
       </div>
-      <div class="sidebar-grouping-toolbar" id="sidebarGroupingToolbar" aria-label="任务分组模式">
-        <button class="sidebar-grouping-chip is-active" id="sidebarGroupingModeUser" type="button" data-i18n="sidebar.grouping.user">用户模板</button>
-        <button class="sidebar-grouping-chip" id="sidebarGroupingModeAi" type="button" data-i18n="sidebar.grouping.ai">AI 自由</button>
-        <button class="sidebar-grouping-chip" id="sidebarBranchVisibilityToggle" type="button" data-i18n="sidebar.branchVisibility.hide">隐藏支线</button>
+      <div class="sidebar-grouping-toolbar" id="sidebarGroupingToolbar" aria-label="任务列表工具">
+        <button
+          class="sidebar-grouping-chip sidebar-grouping-chip-icon"
+          id="sidebarBranchVisibilityToggle"
+          type="button"
+          title="隐藏支线"
+          aria-label="隐藏支线"
+          data-i18n-title="sidebar.branchVisibility.hide"
+          data-i18n-aria-label="sidebar.branchVisibility.hide"
+          data-icon="eye"></button>
       </div>
       <div class="sidebar-list" id="sessionList"></div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
       <div class="session-list-actions">
-        <button class="new-session-btn secondary" id="sortSessionListBtn" type="button" data-i18n="sidebar.sortList.runAi">AI 分组</button>
+        <button class="new-session-btn secondary" id="sortSessionListBtn" type="button" data-i18n="sidebar.sortList.runTemplate">整理到文件夹</button>
         <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">开始任务</button>
       </div>
     </aside>
@@ -201,6 +208,10 @@
   <main class="chat-area">
     <div class="task-manager-body">
       <aside class="task-map-rail" id="taskMapRail" hidden>
+        <div class="task-map-mobile-header overlay-panel-header">
+          <span class="overlay-panel-title" data-i18n="taskMap.label">任务地图</span>
+          <button class="header-btn overlay-panel-close" id="taskMapDrawerCloseBtn" type="button" aria-label="关闭任务地图" title="关闭任务地图" data-i18n-title="action.close" data-i18n-aria-label="action.close">&#x2715;</button>
+        </div>
         <div class="task-map-resize-handle" id="taskMapResizeHandle" hidden aria-hidden="true"></div>
         <div class="quest-task-list" id="questTaskList" hidden></div>
         <section class="task-canvas-panel" id="taskCanvasPanel" hidden aria-label="节点画布">
@@ -308,7 +319,10 @@
           </div>
           <div class="input-footer">
             <a href="https://github.com/zo-no/melody-sync" target="_blank" rel="noreferrer noopener" data-i18n="footer.openSource">Open source on GitHub ↗</a>
-            <span class="input-footer-tagline" data-i18n="footer.tagline">Built with AI &amp; ❤️</span>
+            <div class="input-footer-meta">
+              <span class="input-footer-tagline" data-i18n="footer.tagline">Built with AI &amp; ❤️</span>
+              <span class="input-footer-version" id="inputFooterVersion" title="Build {{BUILD_TITLE}}">v{{BUILD_VERSION}}</span>
+            </div>
           </div>
         </div>
       </section>

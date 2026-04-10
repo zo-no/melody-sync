@@ -2,29 +2,29 @@
   const FALLBACK_NODE_KIND_DEFINITIONS = Object.freeze([
     Object.freeze({
       id: "main",
-      label: "主任务",
-      description: "主任务根节点，对应主 session。",
+      label: "入口任务",
+      description: "当前任务图的默认入口节点，对应根 session。",
       sessionBacked: true,
       derived: false,
     }),
     Object.freeze({
       id: "branch",
-      label: "子任务",
-      description: "已经拆出的真实支线 session。",
+      label: "任务",
+      description: "任务图中的会话任务节点。",
       sessionBacked: true,
       derived: false,
     }),
     Object.freeze({
       id: "candidate",
-      label: "建议子任务",
-      description: "系统建议但尚未真正展开的下一条执行线。",
+      label: "建议任务",
+      description: "系统建议但尚未真正展开的候选任务。",
       sessionBacked: false,
       derived: true,
     }),
     Object.freeze({
       id: "done",
       label: "收束",
-      description: "当前主任务下的现有支线已经全部收束。",
+      description: "当前任务网络已经收束。",
       sessionBacked: false,
       derived: true,
     }),
@@ -120,7 +120,7 @@
       case "note":
         return {
           layoutVariant: "panel",
-          edgeVariant: "structural",
+          edgeVariant: "related",
           interaction: "none",
           trackAsCandidateChild: false,
           defaultSummary: "",
@@ -569,7 +569,7 @@
             parentNodeId: rootNodeId,
             depth: 1,
             title: "任务收束",
-            summary: `${allBranchNodes.length} 条支线已全部完成`,
+            summary: `${allBranchNodes.length} 个关联任务已全部完成`,
             status: "done",
           });
         }

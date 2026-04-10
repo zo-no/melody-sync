@@ -44,6 +44,22 @@ const {
 
 {
   const continuation = buildPreparedContinuationContext({
+    summary: 'summary still appears without a handoff',
+    continuationBody: '[User]\n继续推进。',
+    includesCompactionHandoff: false,
+  }, 'codex', 'codex', {
+    goal: '收口 continuation',
+    checkpoint: '继续压 prepared.summary 旧链',
+  }, {
+    includeSessionState: false,
+  });
+
+  assert.doesNotMatch(continuation, /\[Session state\]/);
+  assert.match(continuation, /\[User\]\n继续推进。/);
+}
+
+{
+  const continuation = buildPreparedContinuationContext({
     summary: 'summary still falls back when session state is absent',
     continuationBody: '[User]\n继续推进。',
     includesCompactionHandoff: false,

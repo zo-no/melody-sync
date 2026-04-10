@@ -6,6 +6,7 @@ import {
 } from '../../session/naming.mjs';
 import { shouldExposeSession } from '../../session/visibility.mjs';
 import { resolveSessionStateFromSession } from '../../session-runtime/session-state.mjs';
+import { normalizeTaskPoolMembership } from '../../session/task-pool-membership.mjs';
 
 function normalizeSessionSidebarOrder(value) {
   const parsed = typeof value === 'number'
@@ -346,6 +347,122 @@ export function createSessionMetadataMutationService({
     return enrichSessionMeta(result.meta);
   }
 
+  async function updateSessionLineage(id, {
+    parentSessionId = '',
+    rootSessionId = '',
+  } = {}) {
+    const nextParentSessionId = typeof parentSessionId === 'string' ? parentSessionId.trim() : '';
+    const requestedRootSessionId = typeof rootSessionId === 'string' ? rootSessionId.trim() : '';
+    const result = await mutateSessionMeta(id, (session) => {
+      let changed = false;
+      const sessionId = typeof session?.id === 'string' ? session.id.trim() : '';
+      const currentParentSessionId = typeof session?.sourceContext?.parentSessionId === 'string'
+        ? session.sourceContext.parentSessionId.trim()
+        : '';
+      const currentRootSessionId = typeof session?.rootSessionId === 'string' && session.rootSessionId.trim()
+        ? session.rootSessionId.trim()
+        : sessionId;
+      const nextRootSessionId = requestedRootSessionId || (nextParentSessionId ? currentRootSessionId : sessionId);
+
+      if (currentParentSessionId !== nextParentSessionId) {
+        const nextSourceContext = session?.sourceContext && typeof session.sourceContext === 'object' && !Array.isArray(session.sourceContext)
+          ? { ...session.sourceContext }
+          : {};
+        if (nextParentSessionId) {
+          nextSourceContext.parentSessionId = nextParentSessionId;
+        } else {
+          delete nextSourceContext.parentSessionId;
+        }
+        if (Object.keys(nextSourceContext).length > 0) {
+          session.sourceContext = nextSourceContext;
+        } else if (session.sourceContext) {
+          delete session.sourceContext;
+        }
+        changed = true;
+      }
+
+      if (nextRootSessionId && nextRootSessionId !== sessionId) {
+        if (currentRootSessionId !== nextRootSessionId || session.rootSessionId !== nextRootSessionId) {
+          session.rootSessionId = nextRootSessionId;
+          changed = true;
+        }
+      } else if (session.rootSessionId) {
+        delete session.rootSessionId;
+        changed = true;
+      }
+
+      if (changed) {
+        const currentSessionState = session?.sessionState && typeof session.sessionState === 'object'
+          ? session.sessionState
+          : {};
+        const lineageSeedSessionState = {
+          ...currentSessionState,
+          goal: '',
+          mainGoal: '',
+          branchFrom: '',
+          lineRole: nextParentSessionId ? 'branch' : 'main',
+        };
+        const nextSessionState = resolveSessionStateFromSession({
+          ...session,
+          sessionState: lineageSeedSessionState,
+        });
+        const hasMeaningfulSessionState = nextSessionState && (
+          nextSessionState.goal
+          || nextSessionState.mainGoal
+          || nextSessionState.checkpoint
+          || nextSessionState.needsUser === true
+          || nextSessionState.lineRole === 'branch'
+          || nextSessionState.branchFrom
+        );
+        if (hasMeaningfulSessionState) {
+          session.sessionState = nextSessionState;
+        } else if (session.sessionState) {
+          delete session.sessionState;
+        }
+      }
+
+      if (changed) {
+        session.updatedAt = nowIso();
+      }
+      return changed;
+    });
+
+    if (!result.meta) return null;
+    if (result.changed) {
+      broadcastSessionInvalidation(id);
+      broadcastSessionsInvalidation();
+    }
+    return enrichSessionMeta(result.meta);
+  }
+
+  async function updateSessionTaskPoolMembership(id, taskPoolMembership = null) {
+    const result = await mutateSessionMeta(id, (session) => {
+      const nextTaskPoolMembership = normalizeTaskPoolMembership(taskPoolMembership, {
+        sessionId: session?.id || id,
+      });
+      const currentTaskPoolMembership = normalizeTaskPoolMembership(session.taskPoolMembership, {
+        sessionId: session?.id || id,
+      });
+      if (JSON.stringify(currentTaskPoolMembership) === JSON.stringify(nextTaskPoolMembership)) {
+        return false;
+      }
+      if (nextTaskPoolMembership) {
+        session.taskPoolMembership = nextTaskPoolMembership;
+      } else if (session.taskPoolMembership) {
+        delete session.taskPoolMembership;
+      }
+      session.updatedAt = nowIso();
+      return true;
+    });
+
+    if (!result.meta) return null;
+    if (result.changed) {
+      broadcastSessionInvalidation(id);
+      broadcastSessionsInvalidation();
+    }
+    return enrichSessionMeta(result.meta);
+  }
+
   async function updateSessionAgreements(id, patch = {}) {
     const hasActiveAgreements = Object.prototype.hasOwnProperty.call(patch || {}, 'activeAgreements');
     if (!hasActiveAgreements) {
@@ -410,6 +527,8 @@ export function createSessionMetadataMutationService({
     updateSessionAgreements,
     updateSessionGrouping,
     updateSessionLastReviewedAt,
+    updateSessionLineage,
+    updateSessionTaskPoolMembership,
     updateSessionTaskCard,
   };
 }

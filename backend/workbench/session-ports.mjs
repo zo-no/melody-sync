@@ -4,6 +4,8 @@ import {
   listSessions,
   setSessionBranchCandidateSuppressed,
   submitHttpMessage,
+  updateSessionLineage,
+  updateSessionTaskPoolMembership,
   updateSessionTaskCard,
 } from '../session/manager.mjs';
 
@@ -29,4 +31,12 @@ export async function submitWorkbenchSessionMessage(sessionId, text, images, opt
 
 export async function updateWorkbenchSessionTaskCard(sessionId, taskCard, options = {}) {
   return updateSessionTaskCard(sessionId, taskCard, options);
+}
+
+export async function updateWorkbenchSessionLineage(sessionId, payload = {}) {
+  return updateSessionLineage(sessionId, payload);
+}
+
+export async function updateWorkbenchSessionTaskPoolMembership(sessionId, taskPoolMembership = null) {
+  return updateSessionTaskPoolMembership(sessionId, taskPoolMembership);
 }

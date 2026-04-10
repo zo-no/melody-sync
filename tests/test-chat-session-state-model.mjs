@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const source = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'session/state-model.js'),
-  'utf8',
-);
-const orderContractSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'session-list', 'order-contract.js'),
-  'utf8',
-);
+const sourcePath = existsSync(join(repoRoot, 'frontend-src', 'session', 'state-model.js'))
+  ? join(repoRoot, 'frontend-src', 'session', 'state-model.js')
+  : join(repoRoot, 'static', 'frontend', 'session', 'state-model.js');
+const orderContractSourcePath = existsSync(join(repoRoot, 'frontend-src', 'session-list', 'order-contract.js'))
+  ? join(repoRoot, 'frontend-src', 'session-list', 'order-contract.js')
+  : join(repoRoot, 'static', 'frontend', 'session-list', 'order-contract.js');
+const source = readFileSync(sourcePath, 'utf8');
+const orderContractSource = readFileSync(orderContractSourcePath, 'utf8');
 
 const context = { console };
 context.globalThis = context;
@@ -202,6 +202,64 @@ assert.equal(
   model.hasSessionUnreadUpdate(metadataOnlyRefreshSession),
   false,
   'metadata-only updatedAt changes should not revive the unread/completed badge after a session was reviewed',
+);
+
+const staleWarning = model.getSessionStalenessInfo(
+  makeSession({
+    id: 'stale-warning',
+    updatedAt: '2026-03-19T09:00:00.000Z',
+  }),
+  { nowMs: Date.parse('2026-03-20T09:00:00.000Z') },
+);
+assert.equal(staleWarning?.stage, 'cleanup', 'ordinary sessions should enter cleanup as soon as they cross into a new day');
+assert.equal(staleWarning?.label, 'cleanup');
+
+const staleCleanup = model.getSessionStalenessInfo(
+  makeSession({
+    id: 'stale-cleanup',
+    updatedAt: '2026-03-18T09:00:00.000Z',
+  }),
+  { nowMs: Date.parse('2026-03-20T09:00:00.000Z') },
+);
+assert.equal(staleCleanup?.stage, 'cleanup', 'ordinary sessions from previous days should stay in cleanup');
+assert.equal(staleCleanup?.label, 'cleanup');
+
+assert.equal(
+  model.getSessionStalenessInfo(
+    makeSession({
+      id: 'same-day',
+      updatedAt: '2026-03-20T00:10:00',
+    }),
+    { nowMs: Date.parse('2026-03-20T23:59:00') },
+  ),
+  null,
+  'ordinary sessions touched today should stay out of daily cleanup',
+);
+
+assert.equal(
+  model.getSessionStalenessInfo(
+    makeSession({
+      id: 'pinned-old',
+      pinned: true,
+      updatedAt: '2026-02-01T09:00:00.000Z',
+    }),
+    { nowMs: Date.parse('2026-03-20T09:00:00.000Z') },
+  ),
+  null,
+  'pinned sessions should stay out of stale cleanup prompts',
+);
+
+assert.equal(
+  model.getSessionStalenessInfo(
+    makeSession({
+      id: 'long-term-old',
+      updatedAt: '2026-02-01T09:00:00.000Z',
+      persistent: { kind: 'recurring_task' },
+    }),
+    { nowMs: Date.parse('2026-03-20T09:00:00.000Z') },
+  ),
+  null,
+  'long-term sessions should never receive stale cleanup prompts',
 );
 
 assert.ok(

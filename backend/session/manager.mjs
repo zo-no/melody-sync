@@ -404,6 +404,8 @@ const {
   updateSessionAgreements: updateSessionAgreementsViaMetadataService,
   updateSessionGrouping: updateSessionGroupingViaMetadataService,
   updateSessionLastReviewedAt: updateSessionLastReviewedAtViaMetadataService,
+  updateSessionLineage: updateSessionLineageViaMetadataService,
+  updateSessionTaskPoolMembership: updateSessionTaskPoolMembershipViaMetadataService,
   updateSessionTaskCard: updateSessionTaskCardViaMetadataService,
 } = createSessionMetadataMutationService({
   broadcastSessionInvalidation,
@@ -472,7 +474,6 @@ const {
 } = createSessionPersistentService({
   broadcastSessionInvalidation,
   createInternalRequestId,
-  createSession,
   enrichSessionMeta,
   getSession,
   getSessionQueueCount,
@@ -675,8 +676,8 @@ function sanitizeAssistantRunEvents(events = []) {
   return { sanitizedEvents, latestTaskCard, latestGraphOps };
 }
 
-export async function applySessionGraphOps(sessionId, graphOps = null) {
-  return applySessionGraphOpsViaGraphOpsService(sessionId, graphOps);
+export async function applySessionGraphOps(sessionId, graphOps = null, options = {}) {
+  return applySessionGraphOpsViaGraphOpsService(sessionId, graphOps, options);
 }
 
 async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = []) {
@@ -705,6 +706,7 @@ async function finalizeDetachedRun(sessionId, run, manifest, normalizedEvents = 
     syncSessionContinuityFromSession,
     emitHook,
     normalizeSessionTaskCard,
+    applySessionGraphOps,
     applyDirectCompactionResult,
     maybeAutoCompact,
     applyCompactionWorkerResult,
@@ -800,6 +802,7 @@ const {
   getFollowUpQueueCount,
   getLiveSession: (sessionId) => liveSessions.get(sessionId),
   getSession,
+  listSessions,
   hasRecentFollowUpRequestId,
   mutateSessionMeta,
   normalizeSourceContext,
@@ -1030,6 +1033,14 @@ export async function updateSessionGrouping(id, patch = {}) {
 
 export async function updateSessionTaskCard(id, taskCard, options = {}) {
   return updateSessionTaskCardViaMetadataService(id, taskCard, options);
+}
+
+export async function updateSessionLineage(id, payload = {}) {
+  return updateSessionLineageViaMetadataService(id, payload);
+}
+
+export async function updateSessionTaskPoolMembership(id, taskPoolMembership = null) {
+  return updateSessionTaskPoolMembershipViaMetadataService(id, taskPoolMembership);
 }
 
 export async function updateSessionPersistent(id, persistent, options = {}) {

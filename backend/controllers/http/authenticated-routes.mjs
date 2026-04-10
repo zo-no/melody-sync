@@ -15,6 +15,7 @@ import { handleSessionReadRoutes } from '../../routes/session-read.mjs';
 import { handleSessionWriteRoutes } from '../../routes/session-write.mjs';
 import { handleSettingsRoutes } from '../../routes/settings.mjs';
 import { handleSystemRoutes } from '../../routes/system.mjs';
+import { handleOutputPanelRoutes } from '../../routes/output-panel.mjs';
 import { handleWorkbenchRoutes } from '../../routes/workbench.mjs';
 import { buildChatPageBootstrap } from '../../services/system/chat-bootstrap-service.mjs';
 import { scheduleConfigReload } from '../../services/system/config-reload-service.mjs';
@@ -67,6 +68,17 @@ export async function handleAuthenticatedHttpRoutes({
     requireSessionAccess: requireSessionAccessForReq,
     writeJsonCached,
     writeJson: writeJsonForReq,
+  })) {
+    return true;
+  }
+
+  if (await handleOutputPanelRoutes({
+    req,
+    res,
+    pathname,
+    parsedUrl,
+    writeJson: writeJsonForReq,
+    writeJsonCached,
   })) {
     return true;
   }

@@ -3,6 +3,7 @@ import {
   getWorkbenchSession,
   listWorkbenchSessions,
   submitWorkbenchSessionMessage,
+  updateWorkbenchSessionLineage,
   updateWorkbenchSessionTaskCard,
 } from './session-ports.mjs';
 import { appendEvent, getHistorySnapshot } from '../history.mjs';
@@ -119,6 +120,37 @@ function collectSessionSubtreeIds(rootSessionId, parentMap = new Map()) {
     }
   }
   return subtreeIds;
+}
+
+async function syncSessionSubtreeLineage(sourceSessionId, {
+  targetSession = null,
+  sessions = [],
+  subtreeIds = new Set(),
+} = {}) {
+  const normalizedSourceSessionId = normalizeNullableText(sourceSessionId);
+  if (!normalizedSourceSessionId || !(subtreeIds instanceof Set) || subtreeIds.size === 0) {
+    return;
+  }
+  const sessionMap = new Map(
+    (Array.isArray(sessions) ? sessions : [])
+      .filter((session) => normalizeNullableText(session?.id))
+      .map((session) => [normalizeNullableText(session.id), session]),
+  );
+  const nextRootSessionId = normalizeNullableText(targetSession?.rootSessionId || targetSession?.id)
+    || normalizedSourceSessionId;
+
+  for (const sessionId of subtreeIds) {
+    const normalizedSessionId = normalizeNullableText(sessionId);
+    if (!normalizedSessionId) continue;
+    const session = sessionMap.get(normalizedSessionId) || null;
+    const nextParentSessionId = normalizedSessionId === normalizedSourceSessionId
+      ? normalizeNullableText(targetSession?.id)
+      : normalizeNullableText(session?.sourceContext?.parentSessionId);
+    await updateWorkbenchSessionLineage(normalizedSessionId, {
+      parentSessionId: nextParentSessionId,
+      rootSessionId: nextRootSessionId,
+    });
+  }
 }
 
 function buildReparentedTaskCard(sourceSession, {
@@ -989,6 +1021,12 @@ export async function reparentSession(sessionId, payload = {}) {
 
     const branchContext = upsertSessionContext(state, nextContextPayload);
     await saveState(state);
+
+    await syncSessionSubtreeLineage(sourceSessionId, {
+      targetSession,
+      sessions,
+      subtreeIds: sourceSubtreeIds,
+    });
 
     const nextTaskCard = buildReparentedTaskCard(sourceSession, {
       targetSession,

@@ -1,3 +1,5 @@
+import { normalizeLongTermSessionProjection } from '../session/long-term-projection.mjs';
+
 const SESSION_STATE_LINE_ROLES = new Set(['main', 'branch']);
 
 function normalizeText(value) {
@@ -38,6 +40,7 @@ function extractTaskCardNeedsUser(taskCard) {
 }
 
 export function normalizeSessionState(value = {}) {
+  const longTerm = normalizeLongTermSessionProjection(value.longTerm);
   return {
     goal: normalizeText(value.goal),
     mainGoal: normalizeText(value.mainGoal),
@@ -45,15 +48,20 @@ export function normalizeSessionState(value = {}) {
     needsUser: normalizeNeedsUser(value.needsUser),
     lineRole: normalizeLineRole(value.lineRole),
     branchFrom: normalizeText(value.branchFrom),
+    ...(longTerm ? { longTerm } : {}),
   };
 }
 
 export function resolveSessionStateFromSession(session = {}, context = null) {
   const taskCard = session?.taskCard && typeof session.taskCard === 'object' ? session.taskCard : {};
-  const seed = normalizeSessionState(session?.sessionState || {});
+  const rawSessionState = session?.sessionState && typeof session.sessionState === 'object'
+    ? session.sessionState
+    : {};
+  const seed = normalizeSessionState(rawSessionState);
+  const seedLineRole = normalizeText(rawSessionState?.lineRole);
   const inferredLineRole = context?.parentSessionId
     ? 'branch'
-    : normalizeLineRole(seed.lineRole || taskCard?.lineRole);
+    : normalizeLineRole(seedLineRole || taskCard?.lineRole);
   const goal = normalizeText(
     seed.goal
     || taskCard?.goal
@@ -94,5 +102,6 @@ export function resolveSessionStateFromSession(session = {}, context = null) {
     needsUser,
     lineRole: inferredLineRole,
     branchFrom,
+    longTerm: seed.longTerm,
   });
 }

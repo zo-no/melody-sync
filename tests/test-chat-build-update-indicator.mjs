@@ -93,6 +93,15 @@ async function main() {
   assert.equal(state.refreshUiCalls, 1, 'new frontend builds should refresh the update indicator');
   assert.deepEqual(context.newerBuildInfo, nextBuildInfo, 'new frontend builds should be remembered for manual reload');
 
+  context.frontendUpdatePromptDismissed = true;
+  state.refreshUiCalls = 0;
+  const repeatedPendingResult = await context.applyBuildInfo({ assetVersion: 'build-b', title: 'Frontend ui:build-b' });
+  assert.equal(repeatedPendingResult, false, 'repeating the same newer build should stay passive');
+  assert.equal(state.reloadCalls, 0, 'repeating the same newer build should not force reloads');
+  assert.equal(state.refreshUiCalls, 1, 'repeating the same newer build should still refresh the banner UI');
+  assert.equal(context.frontendUpdatePromptDismissed, true, 'repeating the same newer build should preserve a dismissed banner');
+  assert.deepEqual(context.newerBuildInfo, nextBuildInfo, 'repeating the same newer build should keep the pending version');
+
   state.refreshUiCalls = 0;
   const secondResult = await context.applyBuildInfo({ assetVersion: 'build-a' });
   assert.equal(secondResult, false, 'same-version build info should stay a no-op');

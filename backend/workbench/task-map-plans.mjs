@@ -15,7 +15,17 @@ import {
 } from '../hooks/builtin-hook-catalog.mjs';
 
 const TASK_MAP_PLAN_MODES = Object.freeze(['replace-default', 'augment-default']);
-const TASK_MAP_EDGE_TYPES = Object.freeze(['structural', 'suggestion', 'completion', 'merge']);
+const TASK_MAP_EDGE_TYPES = Object.freeze([
+  'structural',
+  'related',
+  'depends_on',
+  'blocks',
+  'maintains',
+  'spawned_from',
+  'suggestion',
+  'completion',
+  'merge',
+]);
 const TASK_MAP_PLAN_SOURCE_TYPES = Object.freeze(['manual', 'system', 'hook']);
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';

@@ -24,6 +24,10 @@
     "workflow.status.renameFailedTitle": "Session rename failed",
     "workflow.status.unread": "new",
     "workflow.status.unreadTitle": "Updated since you last reviewed this session",
+    "workflow.status.stale": "{days}d idle",
+    "workflow.status.staleTitle": "No meaningful handling for {days} days",
+    "workflow.status.staleCleanup": "cleanup",
+    "workflow.status.staleCleanupTitle": "Idle for {days} days. Safe to archive from the active task list.",
     "persistent.kind.recurringTask": "recurring",
     "persistent.kind.recurringTaskTitle": "Recurring task",
     "persistent.kind.recurringPaused": "recurring paused",
@@ -94,6 +98,7 @@
       title: t("workflow.status.parkedTitle"),
     },
   };
+  const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
   function createEmptyStatus() {
     return {
@@ -378,6 +383,57 @@
     return null;
   }
 
+  function getSessionMeaningfulTouchTime(session) {
+    const candidates = [
+      session?.lastEventAt,
+      session?.updatedAt,
+      session?.created,
+      session?.activity?.run?.startedAt,
+    ];
+    let latest = 0;
+    for (const value of candidates) {
+      const parsed = parseSessionTime(value);
+      if (parsed > latest) latest = parsed;
+    }
+    return latest;
+  }
+
+  function getLocalDayStartTime(value) {
+    const parsed = parseSessionTime(value);
+    if (!(parsed > 0)) return 0;
+    const date = new Date(parsed);
+    date.setHours(0, 0, 0, 0);
+    return date.getTime();
+  }
+
+  function getSessionStalenessInfo(session, { nowMs = Date.now() } = {}) {
+    if (!session || session.archived === true || session.pinned === true) return null;
+    if (isSessionBusy(session)) return null;
+    if (getPersistentStatusInfo(session)) return null;
+
+    const workflowState = normalizeSessionWorkflowState(session?.workflowState || "");
+    if (workflowState === "done" || workflowState === "parked") return null;
+
+    const touchedAt = getSessionMeaningfulTouchTime(session);
+    if (!(touchedAt > 0)) return null;
+
+    const todayStart = getLocalDayStartTime(nowMs);
+    const touchedDayStart = getLocalDayStartTime(touchedAt);
+    if (!(todayStart > 0) || !(touchedDayStart > 0) || touchedDayStart >= todayStart) {
+      return null;
+    }
+
+    const days = Math.max(1, Math.round((todayStart - touchedDayStart) / DAY_IN_MS));
+    return {
+      key: "stale_cleanup",
+      stage: "cleanup",
+      days,
+      itemClass: "is-stale-cleanup-session",
+      label: t("workflow.status.staleCleanup", { days }),
+      title: t("workflow.status.staleCleanupTitle", { days }),
+    };
+  }
+
   function getSessionWorkflowPriorityInfo(session) {
     const explicitPriority = getWorkflowPriorityInfo(session?.workflowPriority);
     if (explicitPriority) return explicitPriority;
@@ -484,6 +540,8 @@
     getSessionStatusSummary,
     getSessionVisualStatus,
     getPersistentStatusInfo,
+    getSessionMeaningfulTouchTime,
+    getSessionStalenessInfo,
     hasSessionUnreadUpdate,
     getSessionReviewStatusInfo,
     isSessionCompleteAndReviewed,

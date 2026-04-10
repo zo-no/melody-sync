@@ -24,12 +24,44 @@ const translations = {
   'persistent.kind.recurringTask': 'Recurring task',
   'persistent.kind.recurringPaused': 'Recurring paused',
   'persistent.kind.skill': 'Quick action',
+  'workflow.status.stale': '{days}d idle',
+  'workflow.status.staleCleanup': 'cleanup',
 };
 
 const localStorageState = new Map();
 
 const context = {
   console,
+  sessions: [
+    {
+      id: 'long-term-root',
+      persistent: { kind: 'recurring_task' },
+    },
+    {
+      id: 'long-term-branch',
+      rootSessionId: 'long-term-root',
+      sourceContext: { parentSessionId: 'long-term-root' },
+    },
+    {
+      id: 'explicit-long-term-root',
+      taskPoolMembership: {
+        longTerm: {
+          role: 'project',
+          projectSessionId: 'explicit-long-term-root',
+          fixedNode: true,
+        },
+      },
+    },
+    {
+      id: 'explicit-long-term-member',
+      taskPoolMembership: {
+        longTerm: {
+          role: 'member',
+          projectSessionId: 'explicit-long-term-root',
+        },
+      },
+    },
+  ],
   localStorage: {
     getItem(key) {
       return localStorageState.has(key) ? localStorageState.get(key) : null;
@@ -64,6 +96,28 @@ const context = {
     getSessionReviewStatusInfo(session) {
       return session?.reviewed === true ? { key: 'unread' } : null;
     },
+    getSessionStalenessInfo(session) {
+      if (session?.persistent?.kind === 'recurring_task') return null;
+      if (session?.id === 'stale-cleanup') {
+        return {
+          key: 'stale_cleanup',
+          stage: 'cleanup',
+          label: 'cleanup',
+          title: 'Idle for 33 days',
+          itemClass: 'is-stale-cleanup-session',
+        };
+      }
+      if (session?.id === 'stale-warning') {
+        return {
+          key: 'stale_cleanup',
+          stage: 'cleanup',
+          label: 'cleanup',
+          title: 'Idle since yesterday',
+          itemClass: 'is-stale-cleanup-session',
+        };
+      }
+      return null;
+    },
   },
   window: {
     melodySyncT(key) {
@@ -82,9 +136,9 @@ vm.runInNewContext(source, context, { filename: 'frontend-src/session-list/model
 const model = context.MelodySyncSessionListModel;
 assert.ok(model, 'session list model should register itself on the global object');
 assert.equal(
-  model.getSessionGroupInfo({ group: '短期任务' }, { groupingMode: 'ai' }).key,
-  'group:short-term',
-  'AI grouping mode should still normalize the known built-in task groups',
+  model.normalizeSessionGroupingMode('ai'),
+  'user',
+  'legacy AI grouping mode should now normalize to folder mode',
 );
 assert.equal(
   model.resolveTaskListGroup('收件箱').storageValue,
@@ -93,48 +147,48 @@ assert.equal(
 );
 assert.equal(
   model.getSessionGroupInfo({ group: 'unknown bucket' }, { groupingMode: 'ai' }).label,
-  'unknown bucket',
-  'unknown groups in AI mode should stay visible as AI-owned custom groups',
+  'Uncategorized',
+  'legacy AI grouping hints should fall back to the folder-based uncategorized bucket',
 );
 assert.equal(
   model.getSessionGroupingMode(),
   'user',
-  'session list grouping mode should default to user/template mode',
+  'session list grouping mode should default to folder mode',
 );
 assert.equal(
   model.setSessionGroupingMode('ai'),
-  'ai',
-  'session list grouping mode setter should persist AI mode',
+  'user',
+  'session list grouping mode setter should reject the retired AI mode',
 );
 assert.equal(
   model.getSessionGroupingMode(),
-  'ai',
-  'session list grouping mode getter should read back the persisted AI mode',
+  'user',
+  'session list grouping mode getter should stay pinned to folder mode',
 );
 assert.equal(
   JSON.stringify(model.setSessionGroupingTemplateGroups(['项目 Alpha', '项目 Beta'])),
   JSON.stringify(['项目 Alpha', '项目 Beta']),
-  'template grouping should normalize and persist user template groups',
+  'folder grouping should normalize and persist user-created folders',
 );
 assert.match(
   model.getSessionGroupInfo({ group: '项目 Alpha' }, { groupingMode: 'user' }).key,
   /^group:template:/,
-  'user template mode should resolve configured template groups into dedicated sidebar buckets',
+  'folder mode should resolve configured folders into dedicated sidebar buckets',
+);
+assert.match(
+  model.getSessionGroupInfo({ group: '项目 Alpha' }, { groupingMode: 'ai' }).key,
+  /^group:template:/,
+  'legacy AI grouping hints should still resolve through the folder buckets',
 );
 assert.equal(
   model.getSessionGroupInfo({ group: '不在模板里' }, { groupingMode: 'user' }).label,
   'Uncategorized',
-  'user template mode should route unmatched groups into the uncategorized fallback bucket',
-);
-assert.match(
-  model.getSessionGroupInfo({ group: '研究任务' }, { groupingMode: 'ai' }).key,
-  /^group:custom:/,
-  'AI free grouping mode should allow custom group labels owned by AI',
+  'folder mode should route unmatched groups into the uncategorized fallback bucket',
 );
 assert.equal(
   model.getSessionGroupInfo({ group: '研究任务' }, { groupingMode: 'ai' }).label,
-  '研究任务',
-  'AI free grouping mode should keep the AI-generated custom group label visible',
+  'Uncategorized',
+  'retired grouping modes should no longer expose custom sidebar buckets',
 );
 assert.equal(
   model.isBranchTaskSession({ taskCard: { lineRole: 'branch' } }),
@@ -183,13 +237,13 @@ assert.equal(
 );
 assert.equal(
   model.shouldShowSessionInSidebar({ id: 'main-done', taskCard: { lineRole: 'main' }, workflowState: 'done' }),
-  true,
-  'mainline done tasks should remain visible in the sidebar task list',
+  false,
+  'mainline done tasks should disappear from the active sidebar task list',
 );
 assert.equal(
   model.shouldShowSessionInSidebar({ id: 'main-done-reviewed', taskCard: { lineRole: 'main' }, workflowState: 'done', reviewed: true }),
-  true,
-  'review-pending completed tasks should remain visible in the sidebar task list',
+  false,
+  'completed tasks should stay hidden from the active sidebar even if they still carry review metadata',
 );
 assert.equal(
   model.shouldShowSessionInSidebar({ id: 'main-parked', taskCard: { lineRole: 'main' }, workflowState: 'parked' }),
@@ -218,8 +272,8 @@ assert.equal(
 );
 assert.equal(
   model.getSessionListEntry({ id: 'entry-done', workflowState: 'done', taskCard: { lineRole: 'main' } }).hiddenReason,
-  '',
-  'sidebar entry classification should keep done mainline tasks visible',
+  'done_mainline',
+  'sidebar entry classification should explain when a mainline task is hidden for being completed',
 );
 assert.equal(
   model.getSessionListEntry({ id: 'entry-parked', workflowState: 'parked', taskCard: { lineRole: 'main' } }).hiddenReason,
@@ -230,6 +284,23 @@ assert.equal(
   model.getSessionListEntry({ id: 'entry-reviewed', reviewed: true, taskCard: { lineRole: 'main' } }).needsReview,
   true,
   'sidebar entry classification should keep review-needed tasks visible while marking the review state',
+);
+assert.equal(
+  model.getSessionListEntry({ id: 'stale-cleanup', taskCard: { lineRole: 'main' } }).staleInfo?.stage,
+  'cleanup',
+  'sidebar entry classification should carry stale cleanup metadata for ordinary tasks',
+);
+assert.equal(
+  model.getSessionListBadges({ id: 'stale-warning', taskCard: { lineRole: 'main' } })
+    .some((badge) => badge?.label === 'cleanup'),
+  true,
+  'ordinary tasks from previous days should surface a cleanup badge in the sidebar meta row',
+);
+assert.equal(
+  model.getSessionListBadges({ id: 'long-term-stale', persistent: { kind: 'recurring_task' } })
+    .some((badge) => badge?.key === 'stale' || badge?.key === 'stale_cleanup'),
+  false,
+  'long-term sessions should stay out of stale cleanup badges',
 );
 assert.equal(
   model.getSessionListEntry({ id: 'entry-merged', taskCard: { lineRole: 'branch' }, _branchStatus: 'merged' }).hiddenReason,
@@ -275,6 +346,57 @@ assert.equal(
   model.getSessionListEntry({ id: 'entry-recurring', persistent: { kind: 'recurring_task' } }).persistentDockGroupKey,
   'group:long-term',
   'sidebar entry classification should route recurring tasks into the persistent dock',
+);
+assert.equal(
+  model.isLongTermProjectSession({ id: 'entry-recurring', persistent: { kind: 'recurring_task' } }),
+  true,
+  'session list model should expose a dedicated helper for long-term project sessions',
+);
+assert.equal(
+  model.isLongTermLineSession({ id: 'long-term-branch', rootSessionId: 'long-term-root', sourceContext: { parentSessionId: 'long-term-root' } }),
+  true,
+  'session list model should also classify branches under a long-term root as long-term-line sessions',
+);
+assert.equal(
+  model.getPersistentDockGroupKey({
+    id: 'explicit-long-term-root',
+    taskPoolMembership: {
+      longTerm: {
+        role: 'project',
+        projectSessionId: 'explicit-long-term-root',
+        fixedNode: true,
+      },
+    },
+  }),
+  'group:long-term',
+  'explicit long-term project membership should surface in the long-term dock even without the legacy recurring kind',
+);
+assert.equal(
+  model.isLongTermProjectSession({
+    id: 'explicit-long-term-root',
+    taskPoolMembership: {
+      longTerm: {
+        role: 'project',
+        projectSessionId: 'explicit-long-term-root',
+        fixedNode: true,
+      },
+    },
+  }),
+  true,
+  'session list helpers should recognize explicit project membership as a long-term root',
+);
+assert.equal(
+  model.isLongTermLineSession({
+    id: 'explicit-long-term-member',
+    taskPoolMembership: {
+      longTerm: {
+        role: 'member',
+        projectSessionId: 'explicit-long-term-root',
+      },
+    },
+  }),
+  true,
+  'session list helpers should also recognize explicit long-term members as part of the long-term lane',
 );
 assert.deepEqual(
   Array.from(model.getSessionListBadges({

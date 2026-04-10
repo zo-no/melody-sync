@@ -14,6 +14,7 @@ export function buildTemplateReplacements(buildInfo) {
     ASSET_VERSION: buildInfo.assetVersion,
     BUILD_LABEL: buildInfo.label,
     BUILD_TITLE: buildInfo.title,
+    BUILD_VERSION: buildInfo.buildVersion || buildInfo.serviceBuildVersion || buildInfo.serviceVersion || buildInfo.version,
     BUILD_JSON: serializeJsonForScript(buildInfo),
   };
 }
@@ -24,6 +25,7 @@ export function renderPageTemplate(template, nonce, replacements = {}) {
     ASSET_VERSION: SERVICE_BUILD_INFO.assetVersion,
     BUILD_LABEL: SERVICE_BUILD_INFO.label,
     BUILD_TITLE: SERVICE_BUILD_INFO.title,
+    BUILD_VERSION: SERVICE_BUILD_INFO.buildVersion || SERVICE_BUILD_INFO.serviceBuildVersion || SERVICE_BUILD_INFO.serviceVersion || SERVICE_BUILD_INFO.version,
     BUILD_JSON: serializeJsonForScript(SERVICE_BUILD_INFO),
     PAGE_TITLE: 'MelodySync Chat',
     PAGE_HEAD_TAGS: '',

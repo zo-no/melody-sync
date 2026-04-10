@@ -5,7 +5,17 @@ const NODE_LANES = Object.freeze(['main', 'branch', 'side']);
 const NODE_ROLES = Object.freeze(['state', 'action', 'summary']);
 const NODE_MERGE_POLICIES = Object.freeze(['replace-latest', 'append']);
 const NODE_INTERACTIONS = Object.freeze(['open-session', 'create-branch', 'none']);
-const NODE_EDGE_TYPES = Object.freeze(['structural', 'suggestion', 'completion', 'merge']);
+const NODE_EDGE_TYPES = Object.freeze([
+  'structural',
+  'related',
+  'depends_on',
+  'blocks',
+  'maintains',
+  'spawned_from',
+  'suggestion',
+  'completion',
+  'merge',
+]);
 const NODE_LAYOUT_VARIANTS = Object.freeze(['root', 'default', 'compact', 'panel']);
 const NODE_CAPABILITIES = Object.freeze(['open-session', 'create-branch', 'dismiss']);
 const NODE_SURFACE_SLOTS = Object.freeze(['task-map', 'composer-suggestions']);
@@ -91,6 +101,7 @@ function defineNodeComposition(definition = {}, normalizedDefinition = {}) {
     : (normalizedDefinition.id === 'main' ? ['mainGoal'] : (normalizedDefinition.id === 'branch' ? ['goal'] : []));
   return Object.freeze({
     canBeRoot: composition.canBeRoot === true,
+    connectsToAnyNode: composition.connectsToAnyNode !== false,
     allowedParentKinds: normalizeNodeKindIdList(
       composition.allowedParentKinds,
       normalizedDefinition.sessionBacked ? ['main', 'branch'] : ['main', 'branch', 'note'],
@@ -159,8 +170,8 @@ function defineNodeKind(definition = {}) {
 const BUILTIN_NODE_KIND_DEFINITIONS = Object.freeze([
   defineNodeKind({
     id: 'main',
-    label: '主任务',
-    description: '主任务根节点，对应主 session。',
+    label: '入口任务',
+    description: '当前任务图的默认入口节点，对应根 session。',
     lane: 'main',
     role: 'state',
     sessionBacked: true,
@@ -191,8 +202,8 @@ const BUILTIN_NODE_KIND_DEFINITIONS = Object.freeze([
   }),
   defineNodeKind({
     id: 'branch',
-    label: '子任务',
-    description: '已经拆出的真实支线 session。',
+    label: '任务',
+    description: '任务图中的会话任务节点。',
     lane: 'branch',
     role: 'state',
     sessionBacked: true,
@@ -223,8 +234,8 @@ const BUILTIN_NODE_KIND_DEFINITIONS = Object.freeze([
   }),
   defineNodeKind({
     id: 'candidate',
-    label: '建议子任务',
-    description: '系统建议但尚未真正展开的下一条执行线。',
+    label: '建议任务',
+    description: '系统建议但尚未真正展开的候选任务。',
     lane: 'branch',
     role: 'action',
     sessionBacked: false,
@@ -271,7 +282,7 @@ const BUILTIN_NODE_KIND_DEFINITIONS = Object.freeze([
       allowedChildKinds: ['note'],
       requiresSourceSession: false,
       defaultInteraction: 'none',
-      defaultEdgeType: 'structural',
+      defaultEdgeType: 'related',
       defaultViewType: 'markdown',
       layoutVariant: 'panel',
       capabilities: [],
@@ -288,7 +299,7 @@ const BUILTIN_NODE_KIND_DEFINITIONS = Object.freeze([
   defineNodeKind({
     id: 'done',
     label: '收束',
-    description: '当前主任务下的现有支线已经全部收束。',
+    description: '当前任务网络已经收束。',
     lane: 'main',
     role: 'summary',
     sessionBacked: false,
@@ -389,6 +400,9 @@ export function createWorkbenchNodeDefinitionsPayload() {
       storagePath: WORKBENCH_NODE_SETTINGS_FILE,
       supportsCustomNodeKinds: true,
       supportsBuiltinMutation: false,
+      supportsCrossNodeConnections: true,
+      parentNodeIdSemantics: 'layout-spine',
+      preferredCrossNodeEdgeType: 'related',
     },
   };
 }

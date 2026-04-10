@@ -5,6 +5,8 @@ const MAX_DIGEST_TEXT_CHARS = 280;
 const MAX_DIGEST_ITEM_CHARS = 140;
 const MAX_DIGEST_ITEMS = 6;
 const MAX_MESSAGE_PREVIEW_CHARS = 120;
+const MAX_LOOP_SOURCE_ITEMS = 8;
+const MAX_LOOP_SOURCE_CHARS = 120;
 
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -292,6 +294,51 @@ function normalizePersistentDigest(value, fallback = {}) {
   };
 }
 
+function normalizeLoopInstruction(value, fallback = '') {
+  return clipText(value || fallback || '', MAX_DIGEST_TEXT_CHARS);
+}
+
+function normalizeLoopSources(value, fallback = []) {
+  return normalizeList(value || fallback, {
+    maxItems: MAX_LOOP_SOURCE_ITEMS,
+    maxChars: MAX_LOOP_SOURCE_CHARS,
+  });
+}
+
+function normalizePersistentLoopStage(value, fallback = {}, { allowSources = false } = {}) {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value
+    : {};
+  const normalized = {
+    instruction: normalizeLoopInstruction(
+      source.instruction || source.prompt || source.note,
+      fallback?.instruction || fallback?.prompt || fallback?.note || '',
+    ),
+  };
+  if (allowSources) {
+    normalized.sources = normalizeLoopSources(
+      source.sources || source.items,
+      fallback?.sources || fallback?.items || [],
+    );
+  }
+  return normalized;
+}
+
+function normalizePersistentLoop(value, fallback = {}) {
+  const loop = value && typeof value === 'object' && !Array.isArray(value)
+    ? value
+    : {};
+  const loopFallback = fallback && typeof fallback === 'object' && !Array.isArray(fallback)
+    ? fallback
+    : {};
+  return {
+    collect: normalizePersistentLoopStage(loop.collect, loopFallback.collect, { allowSources: true }),
+    organize: normalizePersistentLoopStage(loop.organize, loopFallback.organize),
+    use: normalizePersistentLoopStage(loop.use, loopFallback.use),
+    prune: normalizePersistentLoopStage(loop.prune, loopFallback.prune),
+  };
+}
+
 function normalizePersistentExecution(value, { kind, digest } = {}) {
   const execution = value && typeof value === 'object' && !Array.isArray(value)
     ? value
@@ -357,6 +404,7 @@ export function normalizeSessionPersistent(value, options = {}) {
     const recurring = normalizePersistentRecurring(value.recurring || value.schedule, options);
     if (!recurring) return null;
     normalized.recurring = recurring;
+    normalized.loop = normalizePersistentLoop(value.loop, options.defaultLoop);
   } else {
     const skill = value.skill && typeof value.skill === 'object' && !Array.isArray(value.skill)
       ? value.skill
@@ -447,6 +495,7 @@ export function isPersistentRecurringDue(persistent, nowValue = new Date()) {
 
 export function buildPersistentRunMessage(session = {}, persistent = {}, options = {}) {
   const digest = normalizePersistentDigest(persistent?.digest, buildPersistentDigest(session));
+  const loop = normalizePersistentLoop(persistent?.loop);
   const runPrompt = clipText(
     options.runPrompt
       || persistent?.execution?.runPrompt
@@ -454,6 +503,26 @@ export function buildPersistentRunMessage(session = {}, persistent = {}, options
     240,
   );
   const triggerKind = trimText(options.triggerKind).toLowerCase() === 'schedule' ? '定时触发' : '手动触发';
+  const loopSections = [];
+  if ((loop.collect?.sources || []).length > 0 || loop.collect?.instruction) {
+    const collectLines = [];
+    if ((loop.collect?.sources || []).length > 0) {
+      collectLines.push(`- 数据来源：${loop.collect.sources.join(' · ')}`);
+    }
+    if (loop.collect?.instruction) {
+      collectLines.push(`- 收集要求：${loop.collect.instruction}`);
+    }
+    loopSections.push(`数据收集：\n${collectLines.join('\n')}`);
+  }
+  if (loop.organize?.instruction) {
+    loopSections.push(`数据整理：\n- 整理要求：${loop.organize.instruction}`);
+  }
+  if (loop.use?.instruction) {
+    loopSections.push(`数据使用：\n- 使用要求：${loop.use.instruction}`);
+  }
+  if (loop.prune?.instruction) {
+    loopSections.push(`冗余减枝：\n- 减枝要求：${loop.prune.instruction}`);
+  }
   const lines = [
     persistent?.kind === 'recurring_task' ? '[长期任务执行]' : '[快捷按钮触发]',
     `名称：${digest.title || session?.name || '未命名长期项'}`,
@@ -461,6 +530,7 @@ export function buildPersistentRunMessage(session = {}, persistent = {}, options
     digest.goal ? `目标：${digest.goal}` : '',
     digest.keyPoints.length > 0 ? `核心记录：\n- ${digest.keyPoints.join('\n- ')}` : '',
     digest.recipe.length > 0 ? `执行提示：\n- ${digest.recipe.join('\n- ')}` : '',
+    ...loopSections,
     `触发方式：${triggerKind}`,
     runPrompt,
   ].filter(Boolean);

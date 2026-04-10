@@ -99,22 +99,24 @@ async function dispatchAction(msg) {
         const data = await fetchJsonOrRedirect("/api/sessions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                folder: msg.folder || "~",
-                tool: msg.tool,
-                name: msg.name || "",
-                group: msg.group || "",
-                sourceId: msg.sourceId || "",
-                sourceName: msg.sourceName || "",
-              }),
+          body: JSON.stringify({
+            folder: msg.folder || "~",
+            tool: msg.tool,
+            name: msg.name || "",
+            group: msg.group || "",
+            description: msg.description || "",
+            sourceId: msg.sourceId || "",
+            sourceName: msg.sourceName || "",
+            ...(msg.persistent && typeof msg.persistent === "object" ? { persistent: msg.persistent } : {}),
+          }),
         });
         if (data.session) {
           const session = upsertSession(data.session) || data.session;
           renderSessionList();
           attachSession(session.id, session);
-        } else {
-          await fetchSessionsList();
+          return session;
         }
+        await fetchSessionsList();
         return true;
       }
       case "rename": {
@@ -332,8 +334,14 @@ async function dispatchAction(msg) {
         if (data.session) {
           const session = upsertSession(data.session) || data.session;
           renderSessionList();
-          if (currentSessionId === msg.sessionId && data.session?.id === msg.sessionId) {
-            applyAttachedSessionState(msg.sessionId, session);
+          if (currentSessionId === msg.sessionId) {
+            if (data.session?.id && data.session.id !== msg.sessionId && typeof attachSession === "function") {
+              attachSession(data.session.id, session);
+            } else {
+              applyAttachedSessionState(msg.sessionId, session);
+            }
+          } else if (currentSessionId === data.session?.id) {
+            applyAttachedSessionState(data.session.id, session);
           }
           await window.MelodySyncWorkbench?.refreshOperationRecord?.();
         } else if (currentSessionId === msg.sessionId) {

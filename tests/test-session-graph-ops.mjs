@@ -16,10 +16,17 @@ const normalized = normalizeAssistantGraphOps({
       reason: '挂到主线下，减少重复节点',
     },
     {
-      type: 'delete',
+      type: 'prune',
       source: { sessionId: 'sess_duplicate' },
       target: '主线任务',
       reason: '重复任务已融合',
+    },
+    {
+      type: 'expand_branch',
+      source: '当前任务',
+      title: '补长期任务减枝规则',
+      checkpointSummary: '先盘点现有规则',
+      reason: '这一段已经独立成可执行支线',
     },
   ],
 });
@@ -41,9 +48,16 @@ assert.deepEqual(
         target: { ref: '主线任务' },
         reason: '重复任务已融合',
       },
+      {
+        type: 'expand',
+        source: { ref: '当前任务' },
+        title: '补长期任务减枝规则',
+        checkpoint: '先盘点现有规则',
+        reason: '这一段已经独立成可执行支线',
+      },
     ],
   },
-  'graph ops should normalize supported attach/archive aliases into a compact stored shape',
+  'graph ops should normalize attach/prune/expand aliases into a compact stored shape',
 );
 
 const parsed = parseGraphOpsFromAssistantContent([
@@ -76,6 +90,38 @@ assert.deepEqual(
     ],
   },
   'assistant graph ops should parse from hidden graph_ops blocks',
+);
+
+const parsedExpand = parseGraphOpsFromAssistantContent([
+  '我先展开一条新支线。',
+  '<private>',
+  '<graph_ops>{',
+  '  "operations": [',
+  '    {',
+  '      "type": "expand",',
+  '      "source": "当前任务",',
+  '      "title": "拆出减枝策略",',
+  '      "checkpoint": "先列出已有规则"',
+  '    }',
+  '  ]',
+  '}</graph_ops>',
+  '</private>',
+].join('\n'));
+
+assert.deepEqual(
+  parsedExpand,
+  {
+    version: 1,
+    operations: [
+      {
+        type: 'expand',
+        source: { ref: '当前任务' },
+        title: '拆出减枝策略',
+        checkpoint: '先列出已有规则',
+      },
+    ],
+  },
+  'assistant graph ops should keep explicit expand instructions for later apply',
 );
 
 assert.equal(

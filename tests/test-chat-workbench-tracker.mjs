@@ -181,7 +181,6 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
     'questTrackerLabel',
     'headerTitle',
     'headerTaskDetailBtn',
-    'persistentSessionBtn',
     'questTrackerTitle',
     'questTrackerBranch',
     'questTrackerBranchLabel',
@@ -198,6 +197,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
     'taskCanvasBody',
     'taskCanvasCloseBtn',
     'taskMapDrawerBtn',
+    'taskMapDrawerCloseBtn',
     'taskMapDrawerBackdrop',
     'questTrackerActions',
     'questTrackerToggleBtn',
@@ -350,6 +350,7 @@ async function runReactScenario({ currentSession, sessions, snapshot, innerWidth
           const shell = activeDocument.createElement('div');
           shell.className = 'quest-task-flow-shell react-flow-test-shell';
           shell.dataset.taskMapRenderer = 'react-flow';
+          shell.dataset.edgeCount = String(Array.isArray(activeQuest?.edges) ? activeQuest.edges.length : 0);
           const nodes = Array.isArray(activeQuest?.nodes) ? activeQuest.nodes : [];
           for (const node of nodes) {
             const nodeEl = activeDocument.createElement('button');
@@ -502,6 +503,117 @@ assert.deepEqual(
   reactAttachCalls.map((entry) => entry.id),
   ['session-main-branch'],
   'React-backed task-map nodes should still switch the workspace to the selected branch session',
+);
+
+const graphMainSession = {
+  id: 'session-graph-main',
+  name: '图化主线',
+  taskCard: {
+    lineRole: 'main',
+    goal: '图化主线',
+    mainGoal: '图化主线',
+  },
+};
+
+const graphBranchSession = {
+  id: 'session-graph-branch',
+  name: 'Branch · 图节点',
+  rootSessionId: 'session-graph-main',
+  sourceContext: { parentSessionId: 'session-graph-main' },
+  taskCard: {
+    lineRole: 'branch',
+    goal: '图节点',
+    mainGoal: '图化主线',
+  },
+};
+
+const baseGraphSnapshot = {
+  captureItems: [],
+  projects: [],
+  nodes: [],
+  branchContexts: [],
+  taskClusters: [],
+  skills: [],
+  summaries: [],
+  taskMapGraph: {
+    id: 'quest:session-graph-main',
+    rootSessionId: 'session-graph-main',
+    title: '图化主线',
+    summary: '',
+    currentNodeId: 'session:session-graph-branch',
+    currentPathNodeIds: ['session:session-graph-branch'],
+    nodes: [
+      {
+        id: 'session:session-graph-main',
+        kind: 'main',
+        title: '图化主线',
+        sessionId: 'session-graph-main',
+        sourceSessionId: 'session-graph-main',
+      },
+      {
+        id: 'session:session-graph-branch',
+        kind: 'branch',
+        title: '图节点',
+        sessionId: 'session-graph-branch',
+        sourceSessionId: 'session-graph-branch',
+        parentNodeId: 'session:session-graph-main',
+      },
+    ],
+    edges: [
+      {
+        id: 'edge:session:session-graph-main:session:session-graph-branch',
+        fromNodeId: 'session:session-graph-main',
+        toNodeId: 'session:session-graph-branch',
+        type: 'structural',
+      },
+    ],
+  },
+};
+
+const updatedGraphSnapshot = {
+  ...baseGraphSnapshot,
+  taskMapGraph: {
+    ...baseGraphSnapshot.taskMapGraph,
+    edges: [
+      ...baseGraphSnapshot.taskMapGraph.edges,
+      {
+        id: 'edge:related:session-graph-main:session-graph-branch',
+        fromNodeId: 'session:session-graph-main',
+        toNodeId: 'session:session-graph-branch',
+        type: 'related',
+      },
+    ],
+  },
+};
+
+let graphRefreshCount = 0;
+const {
+  elements: graphReactElements,
+  workbench: graphReactWorkbench,
+} = await runReactScenario({
+  currentSession: graphMainSession,
+  sessions: [graphMainSession, graphBranchSession],
+  snapshot: baseGraphSnapshot,
+  fetchResponder(url) {
+    if (url === '/api/workbench') {
+      graphRefreshCount += 1;
+      return graphRefreshCount >= 2 ? updatedGraphSnapshot : baseGraphSnapshot;
+    }
+    return graphRefreshCount >= 2 ? updatedGraphSnapshot : baseGraphSnapshot;
+  },
+});
+
+assert.equal(
+  graphReactElements.get('questTaskList').children[0]?.dataset?.edgeCount,
+  '1',
+  'React-backed task-map rail should expose the initial graph edge count',
+);
+await graphReactWorkbench.refresh();
+await flushAsync(8);
+assert.equal(
+  graphReactElements.get('questTaskList').children[0]?.dataset?.edgeCount,
+  '2',
+  'React-backed task-map rail should rerender when only graph edges change',
 );
 
 const {
@@ -738,16 +850,6 @@ const { elements: recurringElements } = await runScenario({
 });
 
 assert.equal(
-  recurringElements.get('persistentSessionBtn').hidden,
-  false,
-  'persistent sessions should expose a dedicated automation button in the header',
-);
-assert.equal(
-  recurringElements.get('persistentSessionBtn').classList.contains('is-persistent-active'),
-  true,
-  'persistent header button should show an active state when the current session is already automated',
-);
-assert.equal(
   recurringElements.get('questTrackerPersistentSummary').hidden,
   false,
   'recurring sessions should render a persistent summary card in the tracker',
@@ -758,6 +860,70 @@ assert.equal(
     .join(' | '),
   '自动执行中 | 每天 09:15 | 下次 04-10 09:15 | 上次 04-09 09:15 | 调度 会话默认',
   'persistent summary should expose cadence, next run, last run, and runtime policy',
+);
+
+const { elements: mobileMainPersistentActionElements } = await runScenario({
+  currentSession: mainSession,
+  sessions: [mainSession],
+  innerWidth: 390,
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main',
+        mainSession,
+        mainGoal: '学习电影史',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+assert.deepEqual(
+  findAllByTagName(mobileMainPersistentActionElements.get('questTrackerActions'), 'button')
+    .filter((node) => node.hidden !== true)
+    .map((node) => node.textContent.trim()),
+  ['沉淀为长期项'],
+  'mobile mainline trackers should keep the promote-long-term entry inside the task card',
+);
+
+const { elements: recurringMobileElements } = await runScenario({
+  currentSession: recurringSession,
+  sessions: [recurringSession],
+  innerWidth: 390,
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main-recurring',
+        mainSession: recurringSession,
+        mainGoal: '每日检查任务',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+});
+
+assert.deepEqual(
+  findAllByTagName(recurringMobileElements.get('questTrackerActions'), 'button')
+    .filter((node) => node.hidden !== true)
+    .map((node) => node.textContent.trim()),
+  ['长期项设置'],
+  'mobile persistent trackers should keep a direct settings entry instead of hiding the automation surface entirely',
 );
 
 const completedMainSession = {
@@ -1131,8 +1297,8 @@ branchElements.get('headerTaskDetailBtn').click();
 assert.equal(branchElements.get('headerTaskDetailBtn').textContent, '表现主义 ▾', 'expanding the mobile task detail should keep the current task title in the header disclosure');
 assert.equal(branchElements.get('questTracker').hidden, false, 'expanding the mobile task detail should reveal the task detail panel');
 assert.equal(branchElements.get('questTrackerBranch').hidden, false, 'expanding the mobile task detail should reveal the parent mainline reference');
-assert.equal(branchElements.get('questTrackerBranchLabel').textContent, '主线任务', 'expanded mobile detail should keep the branch label semantics intact');
-assert.equal(branchElements.get('questTrackerBranchTitle').textContent, '主线：学习电影史', 'expanded mobile detail should show the parent mainline summary');
+assert.equal(branchElements.get('questTrackerBranchLabel').textContent, '补充信息', 'expanded mobile detail should keep a compact supporting label');
+assert.equal(branchElements.get('questTrackerBranchTitle').textContent, '先把表现主义的关键特征讲清楚', 'expanded mobile detail should prioritize the current next step over a mainline reference');
 assert.equal(branchElements.get('questTrackerNext').hidden, true, 'expanded mobile detail should keep the tracker on a single supporting line');
 
 const resolvedBranchSession = {
@@ -1402,6 +1568,7 @@ assert.equal(taskList.hidden, false, 'clicking the task toggle should expand the
 assert.equal(expandedElements.get('taskMapRail').hidden, false, 'mobile task map should appear once the user expands the map');
 assert.equal(expandedElements.get('taskMapDrawerBackdrop').hidden, false, 'expanding the mobile task map should also show the drawer backdrop');
 assert.equal(expandedElements.get('taskMapRail').classList.contains('is-mobile-open'), true, 'mobile task map should slide in as an open drawer');
+assert.equal(expandedElements.get('taskMapDrawerCloseBtn').hidden, false, 'mobile task map should expose a dedicated close button');
 const mobileBoard = findFirstByClass(taskList, 'quest-task-flow-shell');
 assert.equal(Boolean(mobileBoard), true, 'expanded task bar should render the task map as a dedicated flow board');
 const flowTitles = findAllByClass(mobileBoard, 'quest-task-flow-node-title').map((entry) => entry.textContent);
@@ -1410,6 +1577,9 @@ assert.equal(flowTitles.includes('德国表现主义电影'), true, 'deep curren
 assert.equal(flowTitles.includes('法国新浪潮'), true, 'non-current sibling branches should still stay visible in the quest map');
 assert.equal(flowTitles.includes('好莱坞黄金时代'), true, 'merged sibling branches should still stay visible in the quest map');
 assert.equal(flowTitles.includes('黑色电影'), true, 'root candidate branches should stay visible as optional side quests');
+expandedElements.get('taskMapDrawerCloseBtn').click();
+assert.equal(expandedElements.get('taskMapRail').classList.contains('is-mobile-open'), false, 'mobile task map close button should collapse the drawer');
+assert.equal(expandedElements.get('taskMapDrawerBackdrop').hidden, true, 'closing the mobile task map should hide the drawer backdrop');
 assert.equal(flowTitles.includes('卡里加里博士'), true, 'branch-local candidate suggestions should stay visible as nested side-quest nodes');
 assert.equal(
   findAllByClass(mobileBoard, 'quest-task-flow-node-action')
@@ -1520,6 +1690,11 @@ assert.equal(
   findFirstByClass(currentFlowNode, 'quest-task-flow-node-title')?.textContent || '',
   '作者论',
   'flow map highlight should follow the same focused branch as the task bar',
+);
+assert.equal(
+  focusWorkbench.getSnapshot()?.taskClusters?.[0]?.currentBranchSessionId || '',
+  'focus-branch',
+  'switching focus should stay in interaction state and should not rewrite the cluster current-branch snapshot',
 );
 assert.deepEqual(
   getFlowNodeTitles(focusElements.get('questTaskList')),

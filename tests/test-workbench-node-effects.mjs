@@ -72,6 +72,7 @@ assert.equal(doneEffect.countsAs.completedSummary, true);
 
 const noteEffect = effectsApi.getNodeKindEffect('note');
 assert.equal(noteEffect.layoutVariant, 'panel');
+assert.equal(noteEffect.edgeVariant, 'related');
 assert.equal(noteEffect.interaction, 'none');
 assert.equal(noteEffect.defaultViewType, 'markdown');
 assert.equal(noteEffect.countsAs.sessionNode, false);

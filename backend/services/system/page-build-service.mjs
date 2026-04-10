@@ -122,7 +122,7 @@ function execGitBuildInfo(args = []) {
 }
 
 function hasDirtyRepoPaths(paths) {
-  return execGitBuildInfo(['status', '--porcelain', '--untracked-files=no', '--', ...paths]).length > 0;
+  return execGitBuildInfo(['status', '--porcelain', '--untracked-files=normal', '--', ...paths]).length > 0;
 }
 
 function normalizeReleaseText(value) {
@@ -140,6 +140,33 @@ function readReleaseMetadata() {
 
 function sanitizeAssetVersion(value) {
   return String(value || 'dev').replace(/[^a-zA-Z0-9._-]+/g, '-');
+}
+
+function sanitizeVersionToken(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function sanitizeBuildVersionBase(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9._+-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function appendBuildVersion(baseVersion, ...revisions) {
+  const base = sanitizeBuildVersionBase(baseVersion) || 'dev';
+  const normalizedRevisions = revisions
+    .flat()
+    .map((entry) => sanitizeVersionToken(entry))
+    .filter(Boolean);
+  if (normalizedRevisions.length === 0) {
+    return base;
+  }
+  const suffix = normalizedRevisions.join('.');
+  return base.includes('+') ? `${base}.${suffix}` : `${base}+${suffix}`;
 }
 
 function loadBuildInfo() {
@@ -174,6 +201,11 @@ function loadBuildInfo() {
     ))
     : '';
   const serviceFingerprint = releasedFingerprint || computedFingerprint;
+  const serviceBuildVersion = appendBuildVersion(
+    version,
+    commit || '',
+    serviceDirty && serviceFingerprint ? ['dirty', serviceFingerprint] : [],
+  );
   const serviceRevisionBase = commit || '';
   const serviceRevisionLabel = serviceRevisionBase
     ? (serviceDirty ? `${serviceRevisionBase}*` : serviceRevisionBase)
@@ -199,6 +231,7 @@ function loadBuildInfo() {
     label: serviceLabel,
     title: serviceTitle,
     serviceVersion: version,
+    serviceBuildVersion,
     serviceCommit: commit,
     serviceDirty,
     serviceFingerprint,
@@ -323,12 +356,18 @@ export async function getPageBuildInfo() {
     : now.toString(36);
   const frontendLabel = `ui:${frontendFingerprint}`;
   const frontendTitle = `Frontend ${frontendLabel}`;
+  const buildVersion = appendBuildVersion(
+    SERVICE_BUILD_INFO.serviceBuildVersion || SERVICE_BUILD_INFO.serviceVersion || SERVICE_BUILD_INFO.version || 'dev',
+    ['ui', frontendFingerprint],
+  );
   const assetVersion = sanitizeAssetVersion([
     SERVICE_BUILD_INFO.serviceAssetVersion || SERVICE_BUILD_INFO.assetVersion || 'service',
     frontendFingerprint,
   ].filter(Boolean).join('-'));
   const info = {
     ...SERVICE_BUILD_INFO,
+    buildVersion,
+    frontendVersion: `ui.${frontendFingerprint}`,
     assetVersion,
     frontendFingerprint,
     frontendLabel,

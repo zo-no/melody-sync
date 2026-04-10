@@ -90,9 +90,51 @@ function createElement(tag = 'div') {
 const getSidebarPersistentKindSource = extractFunctionSource(sessionListSource, 'getSidebarPersistentKind');
 const getPersistentDockGroupKeySource = extractFunctionSource(sessionListSource, 'getPersistentDockGroupKey');
 const getSessionListModelSource = extractFunctionSource(sessionListSource, 'getSessionListModel');
+const getActiveSidebarTabForListSource = extractFunctionSource(sessionListSource, 'getActiveSidebarTabForList');
+const isLongTermProjectSessionForListSource = extractFunctionSource(sessionListSource, 'isLongTermProjectSessionForList');
+const shouldIncludeSessionInSidebarTabSource = extractFunctionSource(sessionListSource, 'shouldIncludeSessionInSidebarTab');
+const filterSessionsForSidebarTabSource = extractFunctionSource(sessionListSource, 'filterSessionsForSidebarTab');
+const getSessionStateModelForListSource = extractFunctionSource(sessionListSource, 'getSessionStateModelForList');
 const shouldShowSessionInSidebarForListSource = extractFunctionSource(sessionListSource, 'shouldShowSessionInSidebarForList');
+const clipSidebarLongTermContextTextSource = extractFunctionSource(sessionListSource, 'clipSidebarLongTermContextText');
+const getSessionLongTermStateForSidebarSource = extractFunctionSource(sessionListSource, 'getSessionLongTermStateForSidebar');
+const getSessionLongTermRootIdForSidebarSource = extractFunctionSource(sessionListSource, 'getSessionLongTermRootIdForSidebar');
+const getSidebarLongTermContextDataSource = extractFunctionSource(sessionListSource, 'getSidebarLongTermContextData');
+const renderSidebarLongTermContextSectionSource = extractFunctionSource(sessionListSource, 'renderSidebarLongTermContextSection');
 const resetSessionListFooterSource = extractFunctionSource(sessionListSource, 'resetSessionListFooter');
 const renderSessionListSource = extractFunctionSource(sessionListSource, 'renderSessionList');
+
+const sessions = [
+  {
+    id: 'recommended-long-term',
+    name: '写日记',
+    group: '长期任务',
+  },
+  {
+    id: 'persistent-long-term',
+    name: '每日进食提醒',
+    group: '长期任务',
+    persistent: { kind: 'recurring_task' },
+  },
+  {
+    id: 'maintenance-branch',
+    name: '细化提醒文案',
+    sessionState: {
+      longTerm: {
+        role: 'member',
+        rootSessionId: 'persistent-long-term',
+        rootTitle: '每日进食提醒',
+        rootSummary: '长期维护提醒节奏与文案。',
+      },
+    },
+  },
+  {
+    id: 'closed-branch',
+    name: '已收束支线',
+    taskCard: { lineRole: 'branch' },
+    _branchStatus: 'merged',
+  },
+];
 
 const routingContext = {
   console,
@@ -102,6 +144,9 @@ const routingContext = {
   archivedSessionsLoading: false,
   archivedSessionsLoaded: true,
   archivedSessionCount: 0,
+  activeTab: 'sessions',
+  currentSessionId: 'maintenance-branch',
+  sessions,
   localStorage: { setItem() {} },
   getSessionGroupingModeForList() {
     return 'user';
@@ -119,11 +164,7 @@ const routingContext = {
     return [];
   },
   getVisibleActiveSessions() {
-    return [
-      { id: 'recommended-long-term', name: '写日记', group: '长期任务' },
-      { id: 'persistent-long-term', name: '每日进食提醒', group: '长期任务', persistent: { kind: 'recurring_task' } },
-      { id: 'closed-branch', name: '已收束支线', taskCard: { lineRole: 'branch' }, _branchStatus: 'merged' },
-    ];
+    return sessions;
   },
   getSessionFocusSectionData() {
     return {
@@ -171,6 +212,9 @@ const routingContext = {
     createElement,
   },
   window: {
+    getActiveSidebarTab() {
+      return routingContext.activeTab;
+    },
     MelodySyncSessionListModel: {
       shouldShowSessionInSidebar(session) {
         return session?._branchStatus !== 'merged';
@@ -184,7 +228,17 @@ vm.runInNewContext(`
   ${getSidebarPersistentKindSource}
   ${getPersistentDockGroupKeySource}
   ${getSessionListModelSource}
+  ${getActiveSidebarTabForListSource}
+  ${isLongTermProjectSessionForListSource}
+  ${shouldIncludeSessionInSidebarTabSource}
+  ${filterSessionsForSidebarTabSource}
+  ${getSessionStateModelForListSource}
   ${shouldShowSessionInSidebarForListSource}
+  ${clipSidebarLongTermContextTextSource}
+  ${getSessionLongTermStateForSidebarSource}
+  ${getSessionLongTermRootIdForSidebarSource}
+  ${getSidebarLongTermContextDataSource}
+  ${renderSidebarLongTermContextSectionSource}
   ${renderSessionListSource}
   globalThis.getPersistentDockGroupKey = getPersistentDockGroupKey;
   globalThis.renderSessionList = renderSessionList;
@@ -205,10 +259,25 @@ assert.equal(
 
 routingContext.renderSessionList();
 
+function collectRenderedSessionIds(host, output = []) {
+  for (const child of host.children || []) {
+    if (child?.sessionId) {
+      output.push(child.sessionId);
+    }
+    collectRenderedSessionIds(child, output);
+  }
+  return output;
+}
+
 assert.equal(
-  routingContext.sessionList.children.length,
-  2,
-  'fallback sidebar rendering should keep both ordinary and persistent sessions visible when the React dock renderer is absent',
+  routingContext.sessionList.children[0]?.className,
+  'session-long-term-context',
+  'fallback sidebar rendering should prepend a long-term context panel when the current session belongs to a long-term task',
+);
+assert.equal(
+  JSON.stringify(collectRenderedSessionIds(routingContext.sessionList).sort()),
+  JSON.stringify(['maintenance-branch', 'recommended-long-term']),
+  'fallback sidebar rendering should keep the current long-term maintenance session in the ordinary list while hiding the long-term root itself',
 );
 assert.equal(
   Object.keys(routingContext.capturedDockGroups || {}).length,

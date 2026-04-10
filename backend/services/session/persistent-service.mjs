@@ -6,11 +6,29 @@ import {
   normalizeSessionPersistent,
   resolvePersistentRunRuntime,
 } from '../../session-persistent/core.mjs';
+import {
+  buildLongTermTaskPoolMembership,
+  normalizeTaskPoolMembership,
+  stripLongTermTaskPoolMembership,
+} from '../../session/task-pool-membership.mjs';
 
 function mergeObjectShape(current, patch) {
   const currentValue = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
   const patchValue = patch && typeof patch === 'object' && !Array.isArray(patch) ? patch : {};
   return { ...currentValue, ...patchValue };
+}
+
+function mergePersistentLoopShape(current, patch) {
+  const currentLoop = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
+  const patchLoop = patch && typeof patch === 'object' && !Array.isArray(patch) ? patch : {};
+  return {
+    ...currentLoop,
+    ...patchLoop,
+    collect: mergeObjectShape(currentLoop.collect, patchLoop.collect),
+    organize: mergeObjectShape(currentLoop.organize, patchLoop.organize),
+    use: mergeObjectShape(currentLoop.use, patchLoop.use),
+    prune: mergeObjectShape(currentLoop.prune, patchLoop.prune),
+  };
 }
 
 function getPersistentSessionGroup(kind = '') {
@@ -22,6 +40,17 @@ function getPersistentSessionGroup(kind = '') {
 
 function resolveLocalTimezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+}
+
+function stripPersistentBranchLineage(sourceContext) {
+  const current = sourceContext && typeof sourceContext === 'object' && !Array.isArray(sourceContext)
+    ? sourceContext
+    : null;
+  if (!current) return null;
+  const next = { ...current };
+  delete next.parentSessionId;
+  delete next.rootSessionId;
+  return Object.keys(next).length > 0 ? next : null;
 }
 
 async function buildSessionPersistentDigest(sessionId, session) {
@@ -42,6 +71,7 @@ function buildSessionPersistentPatch(currentPersistent, patch = {}) {
     digest: mergeObjectShape(currentPersistent?.digest, patch?.digest),
     execution: mergeObjectShape(currentPersistent?.execution, patch?.execution),
     recurring: mergeObjectShape(currentPersistent?.recurring, patch?.recurring || patch?.schedule),
+    loop: mergePersistentLoopShape(currentPersistent?.loop, patch?.loop),
     skill: mergeObjectShape(currentPersistent?.skill, patch?.skill),
     runtimePolicy: {
       ...currentRuntimePolicy,
@@ -52,10 +82,19 @@ function buildSessionPersistentPatch(currentPersistent, patch = {}) {
   };
 }
 
+function buildPersistentTaskPoolMembership(sessionId, persistent, currentTaskPoolMembership = null) {
+  const normalizedSessionId = typeof sessionId === 'string' ? sessionId.trim() : '';
+  if (persistent?.kind === 'recurring_task') {
+    return buildLongTermTaskPoolMembership(normalizedSessionId, { role: 'project' });
+  }
+  return stripLongTermTaskPoolMembership(currentTaskPoolMembership, {
+    sessionId: normalizedSessionId,
+  });
+}
+
 export function createSessionPersistentService({
   broadcastSessionInvalidation,
   createInternalRequestId,
-  createSession,
   enrichSessionMeta,
   getSession,
   getSessionQueueCount,
@@ -95,10 +134,19 @@ export function createSessionPersistentService({
         defaultRuntime: session,
         defaultTimezone: timezone,
       });
+      const currentTaskPoolMembership = normalizeTaskPoolMembership(session.taskPoolMembership, {
+        sessionId: session?.id || id,
+      });
+      const nextTaskPoolMembership = buildPersistentTaskPoolMembership(
+        session?.id || id,
+        nextPersistent,
+        currentTaskPoolMembership,
+      );
       const nextGroup = nextPersistent ? getPersistentSessionGroup(nextPersistent.kind) : '';
       const shouldClearPersistentGroup = !nextPersistent && (session.group === '长期任务' || session.group === '快捷按钮');
       if (
         JSON.stringify(currentNormalized) === JSON.stringify(nextPersistent)
+        && JSON.stringify(currentTaskPoolMembership) === JSON.stringify(nextTaskPoolMembership)
         && (!nextGroup || session.group === nextGroup)
         && !shouldClearPersistentGroup
       ) {
@@ -114,6 +162,11 @@ export function createSessionPersistentService({
         if (session.group === '长期任务' || session.group === '快捷按钮') {
           delete session.group;
         }
+      }
+      if (nextTaskPoolMembership) {
+        session.taskPoolMembership = nextTaskPoolMembership;
+      } else if (session.taskPoolMembership) {
+        delete session.taskPoolMembership;
       }
       session.updatedAt = nowIso();
       return true;
@@ -145,6 +198,7 @@ export function createSessionPersistentService({
       digest: mergeObjectShape(defaultDigest, payload?.digest),
       execution: mergeObjectShape(session?.persistent?.execution, payload?.execution),
       recurring: mergeObjectShape(session?.persistent?.recurring, payload?.recurring || payload?.schedule),
+      loop: mergePersistentLoopShape(session?.persistent?.loop, payload?.loop),
       skill: mergeObjectShape(session?.persistent?.skill, payload?.skill),
       runtimePolicy: {
         ...(session?.persistent?.runtimePolicy && typeof session.persistent.runtimePolicy === 'object'
@@ -172,36 +226,45 @@ export function createSessionPersistentService({
 
     const nextName = String(nextPersistent?.digest?.title || session?.name || '').trim() || '未命名长期项';
     const nextGroup = getPersistentSessionGroup(nextPersistent.kind);
-    const persistentSession = await createSession(
-      session.folder,
-      session.tool || '',
-      nextName,
-      {
-        group: nextGroup,
-        description: String(nextPersistent?.digest?.summary || '').trim(),
-        sourceId: session.sourceId || '',
-        sourceName: session.sourceName || '',
-        userId: session.userId || '',
-        userName: session.userName || '',
-        systemPrompt: session.systemPrompt || '',
-        model: session.model || '',
-        effort: session.effort || '',
-        thinking: session.thinking === true,
-        activeAgreements: session.activeAgreements || [],
-        sourceContext: session.sourceContext || null,
-        workflowState: session.workflowState || '',
-        workflowPriority: session.workflowPriority || '',
-        forkedFromSessionId: session.id,
-        forkedFromSeq: session.latestSeq || 0,
-        rootSessionId: session.rootSessionId || session.id,
-        persistent: nextPersistent,
-        taskListOrigin: 'user',
-        taskListVisibility: 'primary',
-      },
-    );
+    const detachedSourceContext = stripPersistentBranchLineage(session.sourceContext || null);
+    const nextTaskPoolMembership = buildPersistentTaskPoolMembership(id, nextPersistent, session?.taskPoolMembership || null);
+    const result = await mutateSessionMeta(id, (draft) => {
+      draft.persistent = nextPersistent;
+      if (nextTaskPoolMembership) {
+        draft.taskPoolMembership = nextTaskPoolMembership;
+      } else if (draft.taskPoolMembership) {
+        delete draft.taskPoolMembership;
+      }
+      if (nextGroup) {
+        draft.group = nextGroup;
+      }
+      if (nextName) {
+        draft.name = nextName;
+      }
+      const nextDescription = String(nextPersistent?.digest?.summary || '').trim();
+      if (nextDescription) {
+        draft.description = nextDescription;
+      }
+      draft.taskListOrigin = 'user';
+      draft.taskListVisibility = 'primary';
+      draft.rootSessionId = draft.id || id;
+      if (detachedSourceContext) {
+        draft.sourceContext = detachedSourceContext;
+      } else if (draft.sourceContext) {
+        delete draft.sourceContext;
+      }
+      delete draft.forkedFromSessionId;
+      delete draft.forkedFromSeq;
+      delete draft.forkedAt;
+      draft.updatedAt = nowIso();
+      return true;
+    });
 
-    if (!persistentSession) return null;
-    return persistentSession;
+    if (!result.meta) return null;
+    if (result.changed) {
+      broadcastSessionInvalidation(id);
+    }
+    return enrichSessionMeta(result.meta);
   }
 
   async function runSessionPersistent(id, options = {}) {

@@ -183,6 +183,11 @@ assert.equal(findAllByClass(host, 'operation-record-persistent-editor').length, 
 assert.equal(findAllByClass(host, 'operation-record-kind-btn').length, 2, 'renderer should show both persistent kind buttons');
 assert.equal(findAllByClass(host, 'operation-record-weekday-btn').length, 7, 'weekly cadence should render weekday toggles');
 assert.equal(
+  findAllByClass(host, 'operation-record-persistent-section-title').some((node) => node.textContent === '长期闭环'),
+  true,
+  'recurring-task editor should render the long-term loop section',
+);
+assert.equal(
   findAllByClass(host, 'modal-btn').some((node) => node.textContent === '保存为长期项'),
   true,
   'promote mode should keep the save CTA wording',

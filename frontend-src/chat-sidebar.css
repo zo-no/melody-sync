@@ -89,6 +89,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 6px;
   padding: 8px 8px 6px;
@@ -119,6 +120,21 @@
   background: var(--text);
   border-color: var(--text);
   color: var(--bg);
+}
+
+.sidebar-grouping-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.sidebar-grouping-chip-icon .rl-icon {
+  width: 15px;
+  height: 15px;
 }
 
 .sidebar-filters {
@@ -509,8 +525,24 @@
   background: color-mix(in srgb, #ccfbf1 76%, var(--bg-secondary));
   border-color: color-mix(in srgb, #5eead4 72%, var(--border));
 }
+.session-list-badge-stale {
+  color: color-mix(in srgb, var(--warning) 84%, var(--text));
+  background: color-mix(in srgb, var(--warning) 10%, var(--bg-secondary));
+  border-color: color-mix(in srgb, var(--warning) 26%, var(--border));
+}
+.session-list-badge-stale-cleanup {
+  color: color-mix(in srgb, #b45309 82%, var(--text));
+  background: color-mix(in srgb, #f59e0b 12%, var(--bg-secondary));
+  border-color: color-mix(in srgb, #f59e0b 30%, var(--border));
+}
 .session-item.is-branch-session {
   border-color: color-mix(in srgb, var(--notice) 16%, transparent);
+}
+.session-item.is-stale-cleanup-session {
+  border-color: color-mix(in srgb, #f59e0b 22%, transparent);
+}
+.session-item.is-stale-cleanup-session:hover {
+  background: color-mix(in srgb, #f59e0b 9%, var(--bg-secondary));
 }
 .session-item.is-complete-read:not(.active) .session-item-meta {
   color: var(--text-muted);
@@ -646,21 +678,6 @@
 }
 .task-cluster-tree-row.session-item.is-resolved .session-item-name {
   color: var(--text-muted);
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-}
-.session-item.is-done-session .session-item-name-text,
-.session-item.is-done-session .session-item-summary,
-.session-item.is-done-session .session-item-hint,
-.task-cluster-root-card.is-done-session .session-item-name-text,
-.task-cluster-root-card.is-done-session .session-item-summary,
-.task-cluster-root-card.is-done-session .session-item-hint,
-.task-cluster-main.session-item.is-done-session .session-item-name-text,
-.task-cluster-main.session-item.is-done-session .session-item-summary,
-.task-cluster-main.session-item.is-done-session .session-item-hint,
-.task-cluster-tree-row.session-item.is-done-session .session-item-name-text,
-.task-cluster-tree-row.session-item.is-done-session .session-item-summary,
-.task-cluster-tree-row.session-item.is-done-session .session-item-hint {
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
 }
@@ -824,6 +841,22 @@
   font-weight: 600;
   background: rgba(29, 39, 51, 0.08);
 }
+.task-branch-status.status-running {
+  color: color-mix(in srgb, var(--notice) 86%, var(--text));
+  background: color-mix(in srgb, var(--notice) 11%, var(--bg-secondary));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--notice) 18%, transparent);
+}
+.task-branch-status.status-parked {
+  color: color-mix(in srgb, var(--warning) 82%, var(--text));
+  background: color-mix(in srgb, var(--warning) 11%, var(--bg-secondary));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 18%, transparent);
+}
+.task-branch-status.status-done,
+.task-branch-status.status-completed {
+  color: color-mix(in srgb, var(--success) 82%, var(--text));
+  background: color-mix(in srgb, var(--success) 11%, var(--bg-secondary));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--success) 18%, transparent);
+}
 .task-branch-parent {
   display: inline-flex;
   align-items: center;
@@ -852,6 +885,24 @@
   padding: 0 2px;
 }
 .session-item-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
+.session-item-actions-toggle {
+  display: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.session-item-actions-toggle:hover {
+  color: var(--text);
+}
+.session-item-actions-toggle .rl-icon {
+  width: 14px;
+  height: 14px;
+}
 .session-action-btn {
   background: none; border: none; color: var(--text-muted); cursor: pointer;
   font-size: 13px; padding: 3px 5px; border-radius: 4px; line-height: 1;
@@ -949,6 +1000,7 @@
 .session-action-btn.pin { font-size: 12px; }
 .session-action-btn.pin.pinned { opacity: 1; color: var(--text-secondary); }
 .session-action-btn.archive:hover { background: var(--bg-tertiary); color: var(--text); }
+.session-action-btn.cleanup:hover { background: color-mix(in srgb, #f59e0b 14%, var(--bg-tertiary)); color: #b45309; }
 .session-action-btn.delete:hover { background: var(--error-bg); color: var(--error); }
 .session-action-btn.restore:hover { background: var(--bg-tertiary); color: var(--accent); }
 .session-action-btn.acknowledge:hover { background: color-mix(in srgb, var(--notice) 14%, var(--bg-tertiary)); color: var(--notice); }
@@ -978,6 +1030,16 @@
   padding: 6px 10px;
   color: var(--text-muted);
   font-size: 12px;
+}
+.session-list-empty {
+  margin: 4px 0 8px;
+  padding: 10px 12px;
+  border: 1px dashed color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
 }
 .session-filter-empty {
   padding: 12px 10px;
@@ -1383,6 +1445,82 @@
   background: rgba(41, 67, 53, 0.22) !important;
 }
 
+.session-item .session-item-meta .status-running,
+.task-cluster-root-card .session-item-meta .status-running,
+.task-cluster-main.session-item .session-item-meta .status-running,
+.task-cluster-tree-row.session-item .session-item-meta .status-running {
+  color: var(--notice) !important;
+}
+
+.session-item .session-item-meta .status-queued,
+.task-cluster-root-card .session-item-meta .status-queued,
+.task-cluster-main.session-item .session-item-meta .status-queued,
+.task-cluster-tree-row.session-item .session-item-meta .status-queued,
+.session-item .session-item-meta .status-compacting,
+.task-cluster-root-card .session-item-meta .status-compacting,
+.task-cluster-main.session-item .session-item-meta .status-compacting,
+.task-cluster-tree-row.session-item .session-item-meta .status-compacting,
+.session-item .session-item-meta .status-unread,
+.task-cluster-root-card .session-item-meta .status-unread,
+.task-cluster-main.session-item .session-item-meta .status-unread,
+.task-cluster-tree-row.session-item .session-item-meta .status-unread {
+  color: var(--notice) !important;
+}
+
+.session-item .session-item-meta .status-renaming,
+.task-cluster-root-card .session-item-meta .status-renaming,
+.task-cluster-main.session-item .session-item-meta .status-renaming,
+.task-cluster-tree-row.session-item .session-item-meta .status-renaming {
+  color: var(--naming) !important;
+}
+
+.session-item .session-item-meta .status-rename-failed,
+.task-cluster-root-card .session-item-meta .status-rename-failed,
+.task-cluster-main.session-item .session-item-meta .status-rename-failed,
+.task-cluster-tree-row.session-item .session-item-meta .status-rename-failed {
+  color: var(--issue) !important;
+}
+
+.session-item .session-item-meta .status-waiting-user,
+.task-cluster-root-card .session-item-meta .status-waiting-user,
+.task-cluster-main.session-item .session-item-meta .status-waiting-user,
+.task-cluster-tree-row.session-item .session-item-meta .status-waiting-user,
+.session-item .session-item-meta .status-persistent-paused,
+.task-cluster-root-card .session-item-meta .status-persistent-paused,
+.task-cluster-main.session-item .session-item-meta .status-persistent-paused,
+.task-cluster-tree-row.session-item .session-item-meta .status-persistent-paused {
+  color: var(--warning) !important;
+}
+
+.session-item .session-item-meta .status-done,
+.task-cluster-root-card .session-item-meta .status-done,
+.task-cluster-main.session-item .session-item-meta .status-done,
+.task-cluster-tree-row.session-item .session-item-meta .status-done,
+.session-item .session-item-meta .status-persistent-recurring,
+.task-cluster-root-card .session-item-meta .status-persistent-recurring,
+.task-cluster-main.session-item .session-item-meta .status-persistent-recurring,
+.task-cluster-tree-row.session-item .session-item-meta .status-persistent-recurring {
+  color: var(--success) !important;
+}
+
+.session-item .session-item-meta .status-parked,
+.task-cluster-root-card .session-item-meta .status-parked,
+.task-cluster-main.session-item .session-item-meta .status-parked,
+.task-cluster-tree-row.session-item .session-item-meta .status-parked,
+.session-item .session-item-meta .status-archived,
+.task-cluster-root-card .session-item-meta .status-archived,
+.task-cluster-main.session-item .session-item-meta .status-archived,
+.task-cluster-tree-row.session-item .session-item-meta .status-archived {
+  color: var(--text-muted) !important;
+}
+
+.session-item .session-item-meta .status-persistent-skill,
+.task-cluster-root-card .session-item-meta .status-persistent-skill,
+.task-cluster-main.session-item .session-item-meta .status-persistent-skill,
+.task-cluster-tree-row.session-item .session-item-meta .status-persistent-skill {
+  color: var(--accent) !important;
+}
+
 .session-item-name {
   font-size: 12px;
   font-weight: 700;
@@ -1574,6 +1712,86 @@
 
 .session-focus-items .session-item:hover {
   background: color-mix(in srgb, #ffffff 78%, var(--bg-secondary) 22%);
+}
+
+.session-long-term-context {
+  margin: 4px 0 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background:
+    linear-gradient(140deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 62%),
+    color-mix(in srgb, var(--bg-secondary) 84%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #ffffff 40%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 14%, var(--border));
+  display: grid;
+  gap: 10px;
+}
+
+.session-long-term-context-header {
+  display: grid;
+  gap: 4px;
+}
+
+.session-long-term-context-kicker,
+.session-long-term-context-related-label {
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-secondary) 84%, var(--accent));
+}
+
+.session-long-term-context-title {
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.session-long-term-context-summary {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.session-long-term-context-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.session-long-term-context-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elevated) 78%, #ffffff 22%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 14%, var(--border));
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+.session-long-term-context-related {
+  display: grid;
+  gap: 8px;
+}
+
+.session-long-term-context-items {
+  display: grid;
+  gap: 4px;
+}
+
+.session-long-term-context-items .session-item {
+  background: color-mix(in srgb, #ffffff 68%, transparent);
+}
+
+.session-long-term-context-items .session-item:hover {
+  background: color-mix(in srgb, #ffffff 80%, var(--bg-secondary) 20%);
 }
 
 .new-session-btn {
@@ -1970,10 +2188,6 @@
   border-bottom: 0 !important;
 }
 
-.sidebar-tabs {
-  display: none !important;
-}
-
 .folder-group-header,
 .archived-section-header,
 .pinned-section-header {
@@ -2062,6 +2276,38 @@
   color: var(--text-muted);
 }
 
+.session-item-summary.has-status-chips,
+.session-item-hint.has-status-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+}
+
+.session-item-summary.has-status-chips {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.session-item-hint.has-status-chips {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.session-item-preview-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-item-preview-separator {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
 .session-item.is-branch-session .session-item-hint {
   color: color-mix(in srgb, var(--notice) 68%, var(--text-secondary));
 }
@@ -2093,6 +2339,25 @@
   .session-item-hint,
   .session-item-meta {
     font-size: 10px;
+  }
+
+  .session-item-summary.has-status-chips,
+  .session-item-hint.has-status-chips {
+    gap: 4px;
+  }
+
+  .session-item-summary.has-status-chips {
+    row-gap: 4px;
+  }
+
+  .task-branch-status {
+    min-height: 18px;
+    padding: 0 6px;
+    font-size: 9px;
+  }
+
+  .session-item-preview-separator {
+    font-size: 9px;
   }
 }
 
@@ -2215,7 +2480,7 @@
   .sidebar-grouping-toolbar {
     flex-wrap: nowrap;
     gap: 8px;
-    padding: 14px 54px 8px 14px;
+    padding: 12px 52px 8px 12px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -2234,50 +2499,187 @@
     white-space: nowrap;
   }
 
+  .sidebar-grouping-chip-icon {
+    width: 34px;
+    padding: 0;
+  }
+
   .sidebar-list {
-    padding: 6px 12px 14px;
+    padding: 8px 12px 14px;
     scroll-padding-bottom: 18px;
+  }
+
+  .pinned-section,
+  .folder-group,
+  .archived-section {
+    margin-bottom: 14px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .folder-group-header,
+  .archived-section-header,
+  .pinned-section-header {
+    padding: 0 2px 8px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+
+  .folder-group-items,
+  .archived-items,
+  .pinned-items {
+    gap: 4px;
+    padding-top: 0;
   }
 
   .session-item,
   .task-cluster-main.session-item.task-tree-root-row,
   .task-cluster-tree-row.session-item {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas:
-      "lead info"
-      "lead actions";
     align-items: start;
     column-gap: 8px;
-    row-gap: 6px;
-    padding: 9px 10px 9px 11px;
-    border-radius: 14px;
+    row-gap: 5px;
+    padding: 10px 10px 10px 11px;
+    border-radius: 12px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .session-item.has-actions-toggle,
+  .task-cluster-main.session-item.task-tree-root-row.has-actions-toggle,
+  .task-cluster-tree-row.session-item.has-actions-toggle {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "lead info toggle"
+      "lead actions actions";
+  }
+
+  .session-item:not(.has-actions-toggle),
+  .task-cluster-main.session-item.task-tree-root-row:not(.has-actions-toggle),
+  .task-cluster-tree-row.session-item:not(.has-actions-toggle) {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "lead info";
+  }
+
+  .session-item.active,
+  .task-cluster-root-card.task-tree-root-row.active,
+  .task-cluster-main.session-item.task-tree-root-row.active,
+  .task-cluster-tree-row.session-item.active,
+  .task-cluster-tree-row.session-item.is-current-branch {
+    background: color-mix(in srgb, var(--bg-secondary) 90%, var(--bg));
+    border-color: color-mix(in srgb, var(--border-strong) 18%, var(--border));
+    box-shadow: none;
+  }
+
+  .session-item.is-running-session,
+  .task-cluster-root-card.is-running-session,
+  .task-cluster-main.session-item.is-running-session,
+  .task-cluster-tree-row.session-item.is-running-session,
+  .session-item.is-done-session,
+  .task-cluster-root-card.is-done-session,
+  .task-cluster-main.session-item.is-done-session,
+  .task-cluster-tree-row.session-item.is-done-session {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .session-item.is-running-session.active,
+  .task-cluster-root-card.is-running-session.active,
+  .task-cluster-main.session-item.is-running-session.active,
+  .task-cluster-tree-row.session-item.is-running-session.active,
+  .task-cluster-tree-row.session-item.is-running-session.is-current-branch {
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary)) !important;
+    border-color: color-mix(in srgb, var(--accent) 20%, var(--border)) !important;
+  }
+
+  .session-item.is-done-session.active,
+  .task-cluster-root-card.is-done-session.active,
+  .task-cluster-main.session-item.is-done-session.active,
+  .task-cluster-tree-row.session-item.is-done-session.active,
+  .task-cluster-tree-row.session-item.is-done-session.is-current-branch {
+    background: color-mix(in srgb, var(--success) 10%, var(--bg-secondary)) !important;
+    border-color: color-mix(in srgb, var(--success) 18%, var(--border)) !important;
   }
 
   .session-action-btn.session-item-leading-action {
     grid-area: lead;
     align-self: start;
-    margin-top: 3px;
+    margin-top: 4px;
   }
 
   .session-item-info {
     grid-area: info;
+    gap: 3px;
+  }
+
+  .session-item-actions-toggle {
+    display: inline-flex;
+    grid-area: toggle;
+    align-self: start;
+    justify-self: end;
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+  }
+
+  .session-item.is-actions-open .session-item-actions-toggle,
+  .session-item-actions-toggle[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--bg-secondary) 88%, var(--bg));
+    color: var(--text);
   }
 
   .session-item-actions {
     grid-area: actions;
-    justify-content: flex-end;
+    display: none;
+    justify-content: flex-start;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 6px;
     min-width: 0;
+    padding-top: 2px;
+  }
+
+  .session-item.is-actions-open .session-item-actions {
+    display: flex;
   }
 
   .session-action-btn {
     opacity: 1;
-    min-width: 28px;
-    min-height: 28px;
-    padding: 4px 6px;
+    min-width: 30px;
+    min-height: 30px;
+    padding: 6px 7px;
     border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+  }
+
+  .session-item-name {
+    align-items: flex-start;
+    gap: 5px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .session-item-name-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+  }
+
+  .session-item-summary {
+    font-size: 10.5px;
+    line-height: 1.42;
+  }
+
+  .session-item-hint,
+  .session-item-meta {
+    font-size: 10px;
+    line-height: 1.38;
   }
 
   .session-list-actions {
@@ -2285,16 +2687,14 @@
     bottom: 0;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-    padding: 10px 14px calc(12px + var(--safe-bottom));
+    padding: 8px 12px calc(10px + var(--safe-bottom));
     background:
-      linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 0%, transparent) 0%, color-mix(in srgb, var(--bg-secondary) 92%, var(--bg)) 42%);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+      linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 0%, transparent) 0%, color-mix(in srgb, var(--bg-secondary) 94%, var(--bg)) 46%);
   }
 
   .session-list-actions .new-session-btn {
-    min-height: 40px;
-    padding: 9px 12px;
-    font-size: 12px;
+    min-height: 38px;
+    padding: 8px 11px;
+    font-size: 11px;
   }
 }

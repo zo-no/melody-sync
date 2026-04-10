@@ -91,7 +91,7 @@ function buildNavigationUrl(state = {}) {
   url.searchParams.delete("source");
   if (nextSessionId) url.searchParams.set("session", nextSessionId);
   else url.searchParams.delete("session");
-  if (nextTab === "settings") {
+  if (nextTab !== "sessions") {
     url.searchParams.set("tab", nextTab);
   } else {
     url.searchParams.delete("tab");
@@ -185,12 +185,105 @@ function getArchivedSessions() {
     .sort((a, b) => getArchivedSessionSortTime(b) - getArchivedSessionSortTime(a));
 }
 
+function getSessionCatalogRecordById(sessionId = "") {
+  const normalizedSessionId = typeof sessionId === "string" ? sessionId.trim() : "";
+  if (!normalizedSessionId) return null;
+  return sessions.find((session) => session?.id === normalizedSessionId) || null;
+}
+
+function normalizeCatalogPersistentKind(value) {
+  const normalized = typeof value === "string"
+    ? value.trim().toLowerCase().replace(/[\s-]+/g, "_")
+    : "";
+  return normalized === "recurring_task" ? "recurring_task" : "";
+}
+
+function getCatalogLongTermTaskPoolMembership(session) {
+  const membership = session?.taskPoolMembership?.longTerm;
+  if (!membership || typeof membership !== "object" || Array.isArray(membership)) return null;
+  const sessionId = typeof session?.id === "string" ? session.id.trim() : "";
+  const projectSessionId = typeof membership?.projectSessionId === "string"
+    ? membership.projectSessionId.trim()
+    : "";
+  if (!projectSessionId) return null;
+  const requestedRole = typeof membership?.role === "string"
+    ? membership.role.trim().toLowerCase()
+    : "";
+  const role = requestedRole === "project"
+    ? "project"
+    : (projectSessionId === sessionId ? "project" : "member");
+  return {
+    role,
+    projectSessionId,
+    fixedNode: membership?.fixedNode === true || role === "project",
+  };
+}
+
+function isLongTermProjectRootSession(session) {
+  const sessionId = typeof session?.id === "string" ? session.id.trim() : "";
+  if (!sessionId) return false;
+  const membership = getCatalogLongTermTaskPoolMembership(session);
+  if (membership?.role === "project" && membership?.fixedNode === true) {
+    return membership.projectSessionId === sessionId;
+  }
+  return normalizeCatalogPersistentKind(session?.persistent?.kind) === "recurring_task";
+}
+
+function resolveLongTermProjectRootSessionId(session, visited = new Set()) {
+  const sessionId = typeof session?.id === "string" ? session.id.trim() : "";
+  if (!sessionId || visited.has(sessionId)) return "";
+  const membership = getCatalogLongTermTaskPoolMembership(session);
+  if (membership?.projectSessionId) return membership.projectSessionId;
+  if (isLongTermProjectRootSession(session)) return sessionId;
+
+  const nextVisited = new Set(visited);
+  nextVisited.add(sessionId);
+  const candidateIds = [];
+  const rootSessionId = typeof session?.rootSessionId === "string" ? session.rootSessionId.trim() : "";
+  const sourceRootSessionId = typeof session?.sourceContext?.rootSessionId === "string"
+    ? session.sourceContext.rootSessionId.trim()
+    : "";
+  const branchParentSessionId = typeof session?._branchParentSessionId === "string"
+    ? session._branchParentSessionId.trim()
+    : (typeof session?.branchParentSessionId === "string" ? session.branchParentSessionId.trim() : "");
+  const parentSessionId = typeof session?.sourceContext?.parentSessionId === "string"
+    ? session.sourceContext.parentSessionId.trim()
+    : "";
+  for (const candidateId of [rootSessionId, sourceRootSessionId, branchParentSessionId, parentSessionId]) {
+    if (!candidateId || candidateId === sessionId || candidateIds.includes(candidateId)) continue;
+    candidateIds.push(candidateId);
+  }
+  for (const candidateId of candidateIds) {
+    const candidate = getSessionCatalogRecordById(candidateId);
+    if (!candidate) continue;
+    const resolvedRootSessionId = resolveLongTermProjectRootSessionId(candidate, nextVisited);
+    if (resolvedRootSessionId) return resolvedRootSessionId;
+  }
+  return "";
+}
+
+function getSidebarTabForSession(session) {
+  return isLongTermProjectRootSession(session) ? "long-term" : "sessions";
+}
+
+function sessionMatchesSidebarTab(session, tab = activeTab) {
+  return getSidebarTabForSession(session) === normalizeSidebarTab(tab);
+}
+
 function getLatestSession() {
   return sessions[0] || null;
 }
 
 function getLatestActiveSession() {
   return sessions.find((session) => !session.archived) || null;
+}
+
+function getLatestSessionForSidebarTab(tab = activeTab) {
+  return sessions.find((session) => sessionMatchesSidebarTab(session, tab)) || null;
+}
+
+function getLatestActiveSessionForSidebarTab(tab = activeTab) {
+  return sessions.find((session) => !session.archived && sessionMatchesSidebarTab(session, tab)) || null;
 }
 
 function getLatestSessionForCurrentFilters() {
@@ -204,6 +297,7 @@ function getLatestActiveSessionForCurrentFilters() {
 }
 
 function resolveRestoreTargetSession() {
+  const preferredTab = pendingNavigationState?.tab || activeTab;
   if (pendingNavigationState?.sessionId) {
     const requested = sessions.find(
       (session) => session.id === pendingNavigationState.sessionId,
@@ -212,10 +306,21 @@ function resolveRestoreTargetSession() {
   }
   if (currentSessionId) {
     const current = sessions.find((session) => session.id === currentSessionId);
-    if (current) return current;
+    if (current) {
+      if (preferredTab === "long-term") {
+        const longTermRootSessionId = resolveLongTermProjectRootSessionId(current);
+        const longTermRootSession = getSessionCatalogRecordById(longTermRootSessionId);
+        if (longTermRootSession && longTermRootSession.archived !== true) {
+          return longTermRootSession;
+        }
+      }
+      if (sessionMatchesSidebarTab(current, preferredTab)) {
+        return current;
+      }
+    }
   }
-  return getLatestActiveSession()
-    || getLatestSession();
+  return getLatestActiveSessionForSidebarTab(preferredTab)
+    || getLatestSessionForSidebarTab(preferredTab);
 }
 
 function applyNavigationState(rawState) {
@@ -226,7 +331,11 @@ function applyNavigationState(rawState) {
   pendingNavigationState = next.sessionId ? next : null;
   if (next.sessionId) {
     const target = sessions.find((session) => session.id === next.sessionId);
+    const targetTab = next.tab || getSidebarTabForSession(target) || activeTab;
     if (target) {
+      if (targetTab !== activeTab) {
+        switchTab(targetTab, { syncState: false });
+      }
       attachSession(target.id, target);
       pendingNavigationState = null;
     } else {
@@ -234,7 +343,7 @@ function applyNavigationState(rawState) {
     }
     syncBrowserState({
       sessionId: next.sessionId,
-      tab: next.tab || activeTab,
+      tab: targetTab,
     });
     return;
   }

@@ -51,6 +51,40 @@
         .sort((a, b) => a - b);
     }
 
+    function normalizeLoopInstruction(value) {
+      return String(value || "").trim();
+    }
+
+    function normalizeLoopSources(value) {
+      const source = Array.isArray(value)
+        ? value
+        : String(value || "").split(/\n+/);
+      const seen = new Set();
+      return source
+        .map((entry) => String(entry || "").trim())
+        .filter((entry) => entry && !seen.has(entry.toLowerCase()) && (seen.add(entry.toLowerCase()) || true))
+        .slice(0, 8);
+    }
+
+    function createLoopDraft(loop = null) {
+      const source = loop && typeof loop === "object" && !Array.isArray(loop) ? loop : {};
+      return {
+        collect: {
+          sources: normalizeLoopSources(source?.collect?.sources || []),
+          instruction: normalizeLoopInstruction(source?.collect?.instruction || ""),
+        },
+        organize: {
+          instruction: normalizeLoopInstruction(source?.organize?.instruction || ""),
+        },
+        use: {
+          instruction: normalizeLoopInstruction(source?.use?.instruction || ""),
+        },
+        prune: {
+          instruction: normalizeLoopInstruction(source?.prune?.instruction || ""),
+        },
+      };
+    }
+
     function normalizeRuntimeMode(value, allowedModes, fallback) {
       const normalized = normalizeKey(value).replace(/[\s-]+/g, "_");
       return allowedModes.includes(normalized) ? normalized : fallback;
@@ -148,6 +182,7 @@
               || "",
           ).trim(),
         },
+        loop: createLoopDraft(persistent?.loop),
         manualMode,
         manualRuntime: normalizeRuntimeSnapshot(persistent?.runtimePolicy?.manual?.runtime, currentRuntime || sessionRuntime),
         scheduleMode,
@@ -234,6 +269,21 @@
             : [],
           timezone: String(draft.recurring?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "").trim(),
         };
+        payload.loop = {
+          collect: {
+            sources: normalizeLoopSources(draft.loop?.collect?.sources || []),
+            instruction: normalizeLoopInstruction(draft.loop?.collect?.instruction || ""),
+          },
+          organize: {
+            instruction: normalizeLoopInstruction(draft.loop?.organize?.instruction || ""),
+          },
+          use: {
+            instruction: normalizeLoopInstruction(draft.loop?.use?.instruction || ""),
+          },
+          prune: {
+            instruction: normalizeLoopInstruction(draft.loop?.prune?.instruction || ""),
+          },
+        };
       }
       return payload;
     }
@@ -260,6 +310,10 @@
       const host = documentRef.createElement("div");
       host.className = "operation-record-persistent-host";
       host.hidden = true;
+      host.addEventListener?.("click", (event) => {
+        if (event?.target !== host) return;
+        closePersistentEditor();
+      });
       bodyEl?.appendChild?.(host);
       persistentModalNodes = { host };
       return persistentModalNodes;

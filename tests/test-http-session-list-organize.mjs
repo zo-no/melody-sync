@@ -22,7 +22,7 @@ const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   'Never send read-only snapshot keys such as `title`, `brief`, `existingGroup`, and `existingSidebarOrder`, `currentGroup`, or `currentSidebarOrder` in PATCH bodies.',
   'Rename only when the current task name is generic, stale, or clearly weaker than the metadata snapshot.',
   'Keep group labels concise, stable, and task-shaped. Do not create a different group for every task.',
-  'Follow the grouping strategy provided in the task body. In template mode you must stay inside the provided template groups plus the fallback group.',
+  'Follow the folder strategy provided in the task body. Use only the provided user folders plus the fallback folder.',
   'Example PATCH body: {"name":"电影史学习路线","group":"研究任务","sidebarOrder":3}',
   'If `melodysync` is unavailable in PATH, use `node "$MELODYSYNC_PROJECT_ROOT/cli.js" api ...` instead.',
   '`sidebarOrder` must be a positive integer; smaller numbers sort first.',
@@ -34,20 +34,20 @@ const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
 function buildSessionListOrganizerTask(sessions = []) {
   return [
     'Organize the current non-archived MelodySync task list using the provided metadata snapshot.',
-    'AI free mode: choose a small number of concise, task-shaped groups yourself, then classify every task into one of them.',
+    'Use only these exact user-created folders, in this order: 收集箱, 知识库内容. If no folder fits, use 未分类.',
     'Improve sidebar ordering inside the chosen groups, and rename tasks only when the current title is weak.',
     'Apply changes by calling the MelodySync API from this machine; do not merely suggest them.',
     'Snapshot fields like `title`, `brief`, `existingGroup`, and `existingSidebarOrder` are read-only context.',
     'When patching a session, send only `name`, `group`, and `sidebarOrder` in the API body.',
-    'If a task does not fit any user template group, use 未分类.',
+    'If a task does not fit any user folder, use 未分类.',
     '',
     '<session_list_organizer_input>',
     JSON.stringify({
       generatedAt: new Date().toISOString(),
       strategy: {
-        mode: 'ai_free',
+        mode: 'user_template',
         fallbackGroup: '未分类',
-        templateGroups: [],
+        templateGroups: ['收集箱', '知识库内容'],
       },
       totalSessions: Array.isArray(sessions) ? sessions.length : 0,
       sessions: Array.isArray(sessions) ? sessions : [],
@@ -127,13 +127,13 @@ function buildFakeCodexScript() {
     '        if (!prompt.includes("Snapshot fields like `title`, `brief`, `existingGroup`, and `existingSidebarOrder` are read-only context.")) {',
     '          throw new Error("organizer task missing snapshot field guidance");',
     '        }',
-    '        if (!prompt.includes("AI free mode: choose a small number of concise, task-shaped groups yourself")) {',
-    '          throw new Error("organizer task missing grouping strategy guidance");',
+    '        if (!prompt.includes("Use only these exact user-created folders, in this order: 收集箱, 知识库内容. If no folder fits, use 未分类.")) {',
+    '          throw new Error("organizer task missing folder strategy guidance");',
     '        }',
     '        const payload = JSON.parse(organizerMatch[1]);',
     '        const sessions = Array.isArray(payload.sessions) ? payload.sessions.slice() : [];',
-    '        if (payload?.strategy?.mode !== "ai_free") {',
-    '          throw new Error("organizer payload should include the AI free grouping strategy");',
+    '        if (payload?.strategy?.mode !== "user_template") {',
+    '          throw new Error("organizer payload should include the folder grouping strategy");',
     '        }',
     '        if (sessions.some((session) => Object.prototype.hasOwnProperty.call(session, "currentGroup") || Object.prototype.hasOwnProperty.call(session, "currentSidebarOrder"))) {',
     '          throw new Error("organizer payload should use existing* snapshot fields");',
@@ -331,6 +331,7 @@ try {
   assert.equal(completedRun?.state, 'completed', 'organizer run should complete successfully');
 
   const organizerManifest = readJsonFromCandidates([
+    join(home, '.melodysync', 'runtime', 'sessions', 'runs', organize.json.run.id, 'manifest.json'),
     join(home, '.config', 'melody-sync', 'chat-runs', organize.json.run.id, 'manifest.json'),
     join(home, '.melodysync', 'sessions', 'runs', organize.json.run.id, 'manifest.json'),
   ]);
@@ -368,6 +369,7 @@ try {
   assert.equal(quartzEntry?.sidebarOrder, 2, 'organizer should patch the Quartz sidebar order');
 
   const storedMeta = readJsonFromCandidates([
+    join(home, '.melodysync', 'runtime', 'sessions', 'chat-sessions.json'),
     join(configDir, 'chat-sessions.json'),
     join(home, '.melodysync', 'sessions', 'chat-sessions.json'),
   ]);

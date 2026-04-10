@@ -40,7 +40,17 @@
 
   function normalizeEdgeType(value) {
     const normalized = trimText(value).toLowerCase();
-    return ["structural", "suggestion", "completion", "merge"].includes(normalized)
+    return [
+      "structural",
+      "related",
+      "depends_on",
+      "blocks",
+      "maintains",
+      "spawned_from",
+      "suggestion",
+      "completion",
+      "merge",
+    ].includes(normalized)
       ? normalized
       : "structural";
   }

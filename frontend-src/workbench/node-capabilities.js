@@ -63,8 +63,8 @@
     );
     return {
       branchReason: parentTitle
-        ? `从「${parentTitle}」继续拆出独立支线`
-        : "从当前任务拆出独立支线",
+        ? `从「${parentTitle}」继续展开关联任务`
+        : "从当前任务继续展开关联任务",
       checkpointSummary: trimText(node?.title),
     };
   }
@@ -72,7 +72,7 @@
   function buildManualBranchCreationPayload(node) {
     const sourceTitle = trimText(node?.title) || "当前任务";
     return {
-      branchReason: `从「${sourceTitle}」继续拆出独立支线`,
+      branchReason: `从「${sourceTitle}」继续展开关联任务`,
       checkpointSummary: sourceTitle,
     };
   }
@@ -89,12 +89,19 @@
     return !isClosedNodeStatus(node?.status);
   }
 
+  function canConnectSession(node, { isRichView = false, isDone = false } = {}) {
+    if (!node || isDone || isRichView) return false;
+    if (!isSessionBackedNode(node)) return false;
+    return !isClosedNodeStatus(node?.status);
+  }
+
   function createController({
     collapseTaskMapAfterAction = null,
     enterBranchFromSession = null,
     getSessionRecord = null,
     attachSession = null,
     reparentSession = null,
+    connectSessions = null,
     getCurrentSessionId = () => "",
   } = {}) {
     async function executeCreateBranch(node, { nodeMap = new Map() } = {}) {
@@ -158,6 +165,18 @@
       return true;
     }
 
+    async function executeConnectSession(node, targetSessionId = "", context = {}) {
+      const sourceSessionId = getNodeInstanceApi()?.resolveNodeSourceSessionId?.(node)
+        || trimText(node?.sourceSessionId || node?.sessionId);
+      const normalizedTargetSessionId = trimText(targetSessionId);
+      if (!sourceSessionId || !normalizedTargetSessionId || typeof connectSessions !== "function") return false;
+      await connectSessions(sourceSessionId, {
+        targetSessionId: normalizedTargetSessionId,
+        graphEdgeType: trimText(context?.graphEdgeType) || "related",
+      });
+      return true;
+    }
+
     async function executeGraphProposal(proposal, { sessionId = "" } = {}) {
       const normalizedSessionId = trimText(sessionId) || trimText(getCurrentSessionId?.() || "");
       if (!normalizedSessionId || !proposal?.graphOps) return false;
@@ -180,8 +199,10 @@
       buildManualBranchCreationPayload,
       canCreateManualBranch,
       canReparentSession,
+      canConnectSession,
       executeManualBranch,
       executeReparentSession,
+      executeConnectSession,
       executeGraphProposal,
       executePrimaryAction,
     });
@@ -196,6 +217,7 @@
     buildManualBranchCreationPayload,
     canCreateManualBranch,
     canReparentSession,
+    canConnectSession,
     createController,
   });
 

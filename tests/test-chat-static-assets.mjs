@@ -183,7 +183,7 @@ async function main() {
     );
     assert.equal(
       bootstrap.workbench?.nodeKindDefinitions?.find((definition) => definition.id === 'branch')?.label,
-      '子任务',
+      '任务',
       'bootstrap payload should expose canonical labeled node definitions',
     );
     assert.match(page.text, /<script src="\/chat\.js(?:\?v=[^"]+)?"/, 'chat page should load the split-asset loader');
@@ -193,6 +193,9 @@ async function main() {
     assert.doesNotMatch(page.text, /id="sessionAppFilterSelect"/);
     assert.doesNotMatch(page.text, /id="userFilterSelect"/);
     assert.match(page.text, /id="sortSessionListBtn"/, 'chat page should keep the dedicated task-list organizing entry');
+    assert.doesNotMatch(page.text, /id="longTermWorkspace"/, 'chat page should keep long-term tasks inside the normal session surface');
+    assert.doesNotMatch(page.text, /id="longTermWorkspaceList"/, 'chat page should not render a dedicated long-term list host');
+    assert.doesNotMatch(page.text, /id="longTermWorkspaceDetail"/, 'chat page should not render a dedicated long-term detail host');
     assert.match(page.text, /https:\/\/github\.com\/zo-no\/melody-sync/, 'chat page footer should point at the real open-source repository');
     assert.doesNotMatch(page.text, /id="settingsAppsList"/);
     assert.doesNotMatch(page.text, /id="tabBoard"/);
@@ -222,6 +225,8 @@ async function main() {
     assert.match(page.text, /id="taskMapRail"/, 'chat page should ship the dedicated middle-column task map rail');
     assert.match(page.text, /id="hooksSettingsBtn"/, 'chat page should ship the shared settings trigger in the sidebar actions');
     assert.match(page.text, /id="sidebarBranchVisibilityToggle"/, 'chat page should ship the branch visibility toggle in the sidebar toolbar');
+    assert.doesNotMatch(page.text, /id="sidebarGroupingModeAi"/, 'chat page should not ship the retired free-grouping toggle');
+    assert.doesNotMatch(page.text, /id="sidebarGroupingModeUser"/, 'chat page should not ship the old grouping-mode toggle');
     assert.match(page.text, /id="settingsTabEmail"/, 'chat page should ship the email tab inside the shared settings overlay');
     assert.match(page.text, /id="settingsTabVoice"/, 'chat page should ship the voice tab inside the shared settings overlay');
     assert.match(page.text, /id="settingsTabHooks"/, 'chat page should ship the hooks tab inside the shared settings overlay');
@@ -238,6 +243,7 @@ async function main() {
     assert.match(page.text, /id="taskCanvasPanel"/, 'chat page should ship the dedicated node canvas panel inside the task-map rail');
     assert.match(page.text, /id="taskCanvasBody"/, 'chat page should ship the dedicated node canvas body mount');
     assert.match(page.text, /id="taskMapDrawerBtn"/, 'chat page should ship the mobile task-map drawer toggle');
+    assert.match(page.text, /id="taskMapDrawerCloseBtn"/, 'chat page should ship the mobile task-map drawer close button');
     assert.match(page.text, /id="taskMapDrawerBackdrop"/, 'chat page should ship the mobile task-map drawer backdrop');
     assert.match(page.text, /id="questTrackerStatus"/, 'chat page should render the task-status mount inside the task bar');
     assert.match(page.text, /<div class="app-shell">/, 'chat page should render inside a dedicated app shell');
@@ -278,6 +284,11 @@ async function main() {
       'workbench stylesheet should use safe revalidation caching',
     );
     assert.ok(chatWorkbenchStylesheet.headers.etag, 'workbench stylesheet should expose an ETag');
+    assert.match(
+      chatWorkbenchStylesheet.text,
+      /\.quest-tracker-status\[hidden\],[\s\S]*?\.quest-tracker-footer\[hidden\],[\s\S]*?\.quest-tracker-persistent-summary\[hidden\],[\s\S]*?\.quest-tracker-persistent-actions\[hidden\][\s\S]*?display:\s*none !important;/,
+      'hidden tracker sections with custom display styles should collapse fully instead of leaving empty chrome behind',
+    );
     const combinedChatStyles = [
       chatBaseStylesheet.text,
       chatSidebarStylesheet.text,
@@ -295,8 +306,14 @@ async function main() {
     assert.match(combinedChatStyles, /\.task-manager-main-column\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\) auto auto;[\s\S]*?overflow:\s*hidden;/, 'task-manager main column should model task bar, messages, queued panel, and composer as explicit rows');
     assert.match(combinedChatStyles, /\.task-manager-body\s*\{[\s\S]*?grid-template-areas:\s*"rail"[\s\S]*?"main";/, 'task-manager body should explicitly model the task map and the main task column');
     assert.match(combinedChatStyles, /@media \(min-width: 768px\)\s*\{[\s\S]*?grid-template-areas:\s*"main rail";/, 'desktop task manager should use a single PC-first workspace with the map as the right-side rail');
-    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.sidebar-overlay\s*\{[\s\S]*?top:\s*calc\(50px \+ var\(--safe-top\)\);/, 'mobile sidebar overlay should start below the header so the menu button remains clickable');
-    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.sidebar\s*\{[\s\S]*?top:\s*calc\(50px \+ var\(--safe-top\) \+ 8px\);/, 'mobile sidebar drawer should also clear the header so the close button is not hidden behind header actions');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.sidebar-overlay\s*\{[\s\S]*?top:\s*0;/, 'mobile sidebar overlay should cover the full viewport as a dedicated panel');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.sidebar\s*\{[\s\S]*?top:\s*0;[\s\S]*?width:\s*100vw;/, 'mobile sidebar drawer should behave like a full-screen panel instead of a floating sheet');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-map-rail\.is-mobile-drawer\s*\{[\s\S]*?top:\s*0;[\s\S]*?width:\s*100vw;/, 'mobile task map drawer should also expand into a full-screen panel');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-manager-main-column\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;/, 'mobile main column should switch to a vertical flex stack so queued follow-ups and the composer do not overlap');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?body\.workbench-has-session \.task-manager-main-column \.messages-inner\s*\{[\s\S]*?min-height:\s*100%;[\s\S]*?justify-content:\s*flex-end;/, 'mobile message stacks should bottom-align when a session is attached so the transcript does not leave a dead zone above the composer');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-manager-main-column \.input-resize-handle\s*\{[\s\S]*?display:\s*none;/, 'mobile composer should not reserve resize-handle chrome above the input');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-manager-main-column \.input-footer\s*\{[\s\S]*?display:\s*flex;[\s\S]*?justify-content:\s*flex-end;/, 'mobile composer should keep a compact footer metadata row instead of dropping build information entirely');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-manager-main-column \.input-footer > a\s*\{[\s\S]*?display:\s*none;/, 'mobile composer should hide the low-priority footer link while keeping version metadata visible');
     assert.match(combinedChatStyles, /\.chat-area > \*\s*\{[\s\S]*?min-width:\s*0;/, 'chat-area grid children should be allowed to shrink horizontally instead of expanding the column');
     assert.match(combinedChatStyles, /\.messages\s*\{[\s\S]*?min-height:\s*0;/);
     assert.match(combinedChatStyles, /\.messages-inner\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/, 'message column should stay bound to the available chat width');
@@ -382,7 +399,7 @@ async function main() {
     );
     assert.ok(splitAsset.headers.etag, 'split asset should expose an ETag');
     assert.match(splitAsset.text, /const bootstrapStore = window\.MelodySyncBootstrap;/);
-    assert.match(splitAsset.text, /const buildInfo = bootstrapStore\?\.getBuildInfo\?\.\(\) \|\| \{\};/);
+    assert.match(splitAsset.text, /const buildInfo = bootstrapStore\?\.getBuildInfo\?\.\(\) \|\| window\.__MELODYSYNC_BUILD__ \|\| \{\};/);
     assert.doesNotMatch(splitAsset.text, /forkSessionBtn|organizeSessionBtn/, 'bootstrap should not look up detached header controls');
 
     const sessionHttpHelpersAsset = await request(port, 'GET', '/chat/session/http-helpers.js');
@@ -397,11 +414,18 @@ async function main() {
 
     const sessionHttpAsset = await request(port, 'GET', '/chat/session/http.js');
     assert.equal(sessionHttpAsset.status, 200, 'session http asset should load');
+    assert.match(sessionHttpAsset.text, /hasSidebarCollapseUserInteraction/, 'initial inbox seeding should respect explicit sidebar interaction before auto-collapsing');
+    assert.match(sessionHttpAsset.text, /function getSidebarTabForSessionId\(/, 'session http helpers should infer the correct sidebar tab for notifications and completion alerts');
     const bootstrapCatalogAsset = await request(port, 'GET', '/chat/core/bootstrap-session-catalog.js');
     assert.equal(bootstrapCatalogAsset.status, 200, 'bootstrap session catalog asset should load');
     assert.match(bootstrapCatalogAsset.text, /function getEffectiveSessionSourceName\(/);
+    assert.match(bootstrapCatalogAsset.text, /function getLatestActiveSessionForSidebarTab\(/, 'session catalog should restore the latest session inside the current sidebar tab instead of crossing back into another lane');
     assert.match(bootstrapCatalogAsset.text, /function sortSessionsInPlace\(/);
     assert.doesNotMatch(sessionHttpAsset.text, /getEffectiveSessionAppId\(/);
+
+    const bootstrapDataAsset = await request(port, 'GET', '/chat/core/bootstrap-data.js');
+    assert.equal(bootstrapDataAsset.status, 200, 'bootstrap data asset should load');
+    assert.match(bootstrapDataAsset.text, /getBuildInfo\(\)/, 'bootstrap data asset should expose build info readers before bootstrap.js runs');
 
     const versionedSplitAsset = await request(port, 'GET', '/chat/core/bootstrap.js?v=test-build');
     assert.equal(versionedSplitAsset.status, 200, 'versioned split chat asset should load');
@@ -527,6 +551,9 @@ async function main() {
     assert.match(sessionListUiAsset.text, /function renderSessionList\(/);
     assert.match(sessionListUiAsset.text, /function attachSession\(/);
     assert.match(sessionListUiAsset.text, /getSessionRenderKey/);
+    assert.match(sessionListUiAsset.text, /setGroupCollapsed\(groupKey, collapsed\)\s*\{[\s\S]*?persistCollapsedGroupState\(groupKey, collapsed\);[\s\S]*?renderSessionList\(\);/, 'session list group toggles should force a rerender after persisting collapsed state');
+    assert.match(sessionListUiAsset.text, /sidebar\.loadingSessions/, 'session list ui should expose a loading placeholder while the list is still empty');
+    assert.match(sessionListUiAsset.text, /session-list-empty/, 'session list ui should render a dedicated empty-state placeholder instead of leaving the list blank');
     assert.match(sessionListUiAsset.text, /focusComposer\(\{ preventScroll: true \}\)/);
     assert.doesNotMatch(sessionListUiAsset.text, /getSidebarTaskClusters/, 'session list ui should render from stable session list data instead of workbench task clusters');
 
@@ -677,7 +704,7 @@ async function main() {
     );
     assert.deepEqual(
       nodeDefinitionsJson.nodeEdgeTypes,
-      ['structural', 'suggestion', 'completion', 'merge'],
+      ['structural', 'related', 'depends_on', 'blocks', 'maintains', 'spawned_from', 'suggestion', 'completion', 'merge'],
       'workbench node definitions api should expose the current node edge types',
     );
     assert.deepEqual(
@@ -736,7 +763,7 @@ async function main() {
     );
     assert.deepEqual(
       taskMapPlanContractJson.edgeTypes,
-      ['structural', 'suggestion', 'completion', 'merge'],
+      ['structural', 'related', 'depends_on', 'blocks', 'maintains', 'spawned_from', 'suggestion', 'completion', 'merge'],
       'task-map-plan contract api should expose edge types',
     );
     assert.deepEqual(
@@ -778,6 +805,16 @@ async function main() {
       taskMapPlanContractJson.settings?.supportsSessionScopedSurfaceReadApi,
       true,
       'task-map-plan contract api should advertise the canonical session-scoped surface read entry',
+    );
+    assert.equal(
+      taskMapPlanContractJson.settings?.supportsCrossNodeConnections,
+      true,
+      'task-map-plan contract api should advertise arbitrary cross-node connections',
+    );
+    assert.equal(
+      taskMapPlanContractJson.settings?.preferredCrossNodeEdgeType,
+      'related',
+      'task-map-plan contract api should advertise the preferred lateral edge type',
     );
 
     const createdGoalPanelNodeDefinition = await request(port, 'POST', '/api/settings/nodes', {
@@ -1225,10 +1262,12 @@ async function main() {
     assert.match(sidebarUiAsset.text, /function openSidebar\(/);
     assert.match(sidebarUiAsset.text, /function toggleSidebarCollapsed\(\)\s*\{[\s\S]*?if \(!isDesktop\)\s*\{[\s\S]*?sidebarOverlay\.classList\.contains\("open"\)[\s\S]*?closeSidebarFn\(\);[\s\S]*?return;[\s\S]*?openSidebar\(\);/, 'mobile menu button should toggle the sidebar closed when the drawer is already open');
     assert.match(sidebarUiAsset.text, /function createNewSessionShortcut\(/);
+    assert.match(sidebarUiAsset.text, /function createNewLongTermProjectShortcut\(/);
     assert.match(sidebarUiAsset.text, /requestLayoutPass\("composer-images"\)/);
 
     const bootstrapAsset = await request(port, 'GET', '/chat/core/bootstrap.js');
     assert.equal(bootstrapAsset.status, 200, 'bootstrap asset should load');
+    assert.match(bootstrapAsset.text, /window\.__MELODYSYNC_BUILD__/, 'bootstrap should fall back to the inline build payload when the bootstrap store is not ready');
     assert.match(bootstrapAsset.text, /function shouldAutoReloadForFreshBuild\(\)/, 'bootstrap should expose stale-build auto reload gating');
     assert.match(bootstrapAsset.text, /document\.addEventListener\("visibilitychange",/, 'bootstrap should retry the stale-build reload path when the page goes into the background');
 
@@ -1239,6 +1278,7 @@ async function main() {
     assert.equal(composeAsset.status, 200, 'compose asset should load');
     assert.match(composeAsset.text, /focusComposer\(\{ force: true, preventScroll: true \}\)/);
     assert.match(composeAsset.text, /window\.MelodySyncLayout\?\.subscribe/);
+    assert.match(composeAsset.text, /switchTab\("long-term"/);
 
     const voiceInputAsset = await request(port, 'GET', '/chat/voice-input.js');
     assert.equal(voiceInputAsset.status, 404, 'removed voice input asset should no longer be served');

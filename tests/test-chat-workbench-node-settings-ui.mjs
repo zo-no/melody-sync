@@ -101,9 +101,9 @@ const context = {
           nodeTaskCardBindingKeys: ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps'],
           builtInNodeKinds: ['main', 'branch', 'candidate', 'note', 'done'],
           nodeKindDefinitions: [
-            { id: 'main', label: '主任务', lane: 'main', role: 'state', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
-            { id: 'branch', label: '子任务', lane: 'branch', role: 'state', mergePolicy: 'append', builtIn: true, editable: false, source: 'builtin' },
-            { id: 'candidate', label: '建议子任务', lane: 'branch', role: 'action', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
+            { id: 'main', label: '入口任务', lane: 'main', role: 'state', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
+            { id: 'branch', label: '任务', lane: 'branch', role: 'state', mergePolicy: 'append', builtIn: true, editable: false, source: 'builtin' },
+            { id: 'candidate', label: '建议任务', lane: 'branch', role: 'action', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
             { id: 'note', label: '笔记', lane: 'side', role: 'summary', mergePolicy: 'append', builtIn: true, editable: false, source: 'builtin' },
             { id: 'done', label: '收束', lane: 'main', role: 'summary', mergePolicy: 'replace-latest', builtIn: true, editable: false, source: 'builtin' },
             {
@@ -147,7 +147,7 @@ await flushMicrotasks();
 assert.deepEqual(fetchCalls, ['/api/settings/nodes']);
 assert.match(bodyEl.innerHTML, /系统节点/);
 assert.match(bodyEl.innerHTML, /自定义节点/);
-assert.match(bodyEl.innerHTML, /主任务/);
+assert.match(bodyEl.innerHTML, /入口任务/);
 assert.match(bodyEl.innerHTML, /<code class="task-map-node-id">main<\/code>/);
 assert.match(bodyEl.innerHTML, /复盘节点/);
 assert.match(bodyEl.innerHTML, /<code class="task-map-node-id">review-note<\/code>/);

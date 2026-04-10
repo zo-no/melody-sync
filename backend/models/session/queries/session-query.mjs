@@ -14,6 +14,10 @@ import {
   resolveSessionSourceName,
 } from '../../../session-source/meta-fields.mjs';
 import { stripEventAttachmentSavedPaths } from '../../../attachment-utils.mjs';
+import {
+  buildLongTermSessionProjection,
+  createLongTermProjectionContext,
+} from '../../../session/long-term-projection.mjs';
 
 export function createSessionQueryHelpers({
   getLiveSession,
@@ -74,6 +78,19 @@ export function createSessionQueryHelpers({
 
   function getSessionPinSortRank(meta) {
     return meta?.pinned === true ? 1 : 0;
+  }
+
+  function applyLongTermProjection(session, sessionsOrContext = []) {
+    if (!session || typeof session !== 'object') return session;
+    const longTerm = buildLongTermSessionProjection(session, sessionsOrContext);
+    if (!longTerm) return session;
+    return {
+      ...session,
+      sessionState: {
+        ...(session?.sessionState && typeof session.sessionState === 'object' ? session.sessionState : {}),
+        longTerm,
+      },
+    };
   }
 
   async function enrichSessionMeta(meta, _options = {}) {
@@ -196,16 +213,24 @@ export function createSessionQueryHelpers({
         getSessionPinSortRank(b) - getSessionPinSortRank(a)
         || getSessionSortTime(b) - getSessionSortTime(a)
       ));
-    return Promise.all(filtered.map((meta) => enrichSessionMetaForClient(meta, {
+    const enriched = await Promise.all(filtered.map((meta) => enrichSessionMetaForClient(meta, {
       includeQueuedMessages,
     })));
+    const projectionContext = createLongTermProjectionContext(
+      metas.filter((meta) => shouldExposeSession(meta)),
+    );
+    return enriched.map((session) => applyLongTermProjection(session, projectionContext));
   }
 
   async function getSession(id, options = {}) {
     const metas = await loadSessionsMeta();
     const meta = metas.find((entry) => entry.id === id) || await findSessionMeta(id);
     if (!meta) return null;
-    return enrichSessionMetaForClient(await reconcileSessionMeta(meta), options);
+    const session = await enrichSessionMetaForClient(await reconcileSessionMeta(meta), options);
+    const projectionContext = createLongTermProjectionContext(
+      metas.filter((entry) => shouldExposeSession(entry)),
+    );
+    return applyLongTermProjection(session, projectionContext);
   }
 
   async function getSessionEventsAfter(sessionId, afterSeq = 0, options = {}) {

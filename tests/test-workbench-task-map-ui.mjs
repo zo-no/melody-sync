@@ -135,8 +135,8 @@ assert.match(
 );
 assert.match(
   taskMapReactSource,
-  /const showHandoffTrigger = canHandoff && \(hovered \|\| composerOpen \|\| data\?\.current === true\);/,
-  'edge handoff controls should stay visible on the current edge so task-to-task transfer does not disappear behind hover-only affordances',
+  /const showHandoffTrigger = canHandoff && \(composerOpen \|\| data\?\.current === true\);/,
+  'edge handoff controls should stay visible on the current edge without relying on volatile hover toggles',
 );
 assert.match(
   taskMapReactSource,

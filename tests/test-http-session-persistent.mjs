@@ -134,7 +134,7 @@ try {
     },
   });
   assert.equal(promotedSkill.status, 200, 'promoting a skill should succeed');
-  assert.notEqual(promotedSkill.json.session?.id, skillSession.id, 'promoting should create a new skill session');
+  assert.equal(promotedSkill.json.session?.id, skillSession.id, 'promoting a skill should upgrade the current session in place');
   assert.equal(promotedSkill.json.session?.group, '快捷按钮', 'promoting a skill should move the session into the quick-actions group');
   assert.equal(promotedSkill.json.session?.persistent?.kind, 'skill', 'promoting should persist the skill kind');
   assert.ok(promotedSkill.json.session?.persistent?.digest?.summary, 'promoting should persist a digest summary');
@@ -145,15 +145,71 @@ try {
   assert.ok(runSkill.json.run?.id, 'running a persistent skill should return a run id');
 
   const detailAfterRun = await request(port, 'GET', `/api/sessions/${skillSession.id}`);
-  assert.equal(detailAfterRun.status, 200, 'original session detail should remain readable after persistent run');
-  assert.equal(detailAfterRun.json.session?.persistent, undefined, 'original session should remain non-persistent');
-
-  const promotedSkillDetail = await request(port, 'GET', `/api/sessions/${promotedSkill.json.session?.id}`);
-  assert.equal(promotedSkillDetail.status, 200, 'promoted skill session should be readable after run');
-  assert.equal(promotedSkillDetail.json.session?.persistent?.execution?.lastTriggerKind, 'manual', 'manual persistent run should update trigger metadata');
-  assert.ok(promotedSkillDetail.json.session?.persistent?.skill?.lastUsedAt, 'manual skill run should update last-used time');
+  assert.equal(detailAfterRun.status, 200, 'promoted session detail should remain readable after persistent run');
+  assert.equal(detailAfterRun.json.session?.persistent?.kind, 'skill', 'the original session should now hold the persistent skill metadata');
+  assert.equal(detailAfterRun.json.session?.persistent?.execution?.lastTriggerKind, 'manual', 'manual persistent run should update trigger metadata');
+  assert.ok(detailAfterRun.json.session?.persistent?.skill?.lastUsedAt, 'manual skill run should update last-used time');
 
   const recurringSession = await createSession(port, 'Recurring definition');
+  const createdRecurringDirect = await request(port, 'POST', '/api/sessions', {
+    folder: repoRoot,
+    tool: 'codex',
+    name: 'Direct recurring',
+    group: '长期任务',
+    persistent: {
+      kind: 'recurring_task',
+      digest: {
+        title: 'Direct recurring',
+      },
+      recurring: {
+        cadence: 'daily',
+        timeOfDay: '08:30',
+        timezone: 'Asia/Shanghai',
+      },
+      loop: {
+        collect: {
+          sources: ['运行日志'],
+          instruction: '先收集每天的新信号。',
+        },
+        organize: {
+          instruction: '按主题整理成简报。',
+        },
+        use: {
+          instruction: '用来驱动当天的跟进动作。',
+        },
+        prune: {
+          instruction: '清掉重复记录。',
+        },
+      },
+    },
+  });
+  assert.equal(createdRecurringDirect.status, 201, 'creating a recurring task directly should succeed');
+  assert.equal(createdRecurringDirect.json.session?.group, '长期任务', 'direct recurring creation should preserve the long-task group');
+  assert.equal(createdRecurringDirect.json.session?.persistent?.kind, 'recurring_task', 'direct recurring creation should persist the recurring kind');
+  assert.equal(createdRecurringDirect.json.session?.persistent?.recurring?.timeOfDay, '08:30', 'direct recurring creation should persist schedule defaults');
+  assert.deepEqual(
+    createdRecurringDirect.json.session?.taskPoolMembership,
+    {
+      longTerm: {
+        role: 'project',
+        projectSessionId: createdRecurringDirect.json.session?.id,
+        fixedNode: true,
+      },
+    },
+    'direct recurring creation should stamp explicit long-term pool membership onto the root session',
+  );
+  assert.deepEqual(createdRecurringDirect.json.session?.persistent?.loop?.collect?.sources, ['运行日志'], 'direct recurring creation should persist loop collection sources');
+
+  const invalidRecurringDirect = await request(port, 'POST', '/api/sessions', {
+    folder: repoRoot,
+    tool: 'codex',
+    name: 'Invalid recurring',
+    persistent: {
+      kind: 'recurring_task',
+    },
+  });
+  assert.equal(invalidRecurringDirect.status, 400, 'creating a recurring task directly should reject missing schedule config');
+
   const promotedRecurring = await request(port, 'POST', `/api/sessions/${recurringSession.id}/promote-persistent`, {
     kind: 'recurring_task',
     recurring: {
@@ -176,10 +232,25 @@ try {
         },
       },
     },
+    loop: {
+      collect: {
+        sources: ['任务完成记录', '用户反馈'],
+        instruction: '先把一周内的变化收齐。',
+      },
+      organize: {
+        instruction: '整理成稳定问题和机会列表。',
+      },
+      use: {
+        instruction: '据此决定下周维护项。',
+      },
+      prune: {
+        instruction: '删掉已经失效的旧假设。',
+      },
+    },
   });
   assert.equal(promotedRecurring.status, 200, 'promoting a recurring task should succeed');
   const recurringPromotedId = promotedRecurring.json.session?.id;
-  assert.notEqual(promotedRecurring.json.session?.id, recurringSession.id, 'promoting should create a distinct recurring session');
+  assert.equal(promotedRecurring.json.session?.id, recurringSession.id, 'promoting should upgrade the current recurring session in place');
   assert.equal(promotedRecurring.json.session?.group, '长期任务', 'promoting a recurring task should move the session into the long-task group');
   assert.equal(promotedRecurring.json.session?.persistent?.kind, 'recurring_task', 'recurring promotion should persist the recurring kind');
   assert.equal(promotedRecurring.json.session?.persistent?.recurring?.timeOfDay, '09:15', 'recurring promotion should persist the schedule time');
@@ -187,6 +258,19 @@ try {
   assert.ok(promotedRecurring.json.session?.persistent?.recurring?.nextRunAt, 'recurring promotion should precompute the next run time');
   assert.equal(promotedRecurring.json.session?.persistent?.runtimePolicy?.schedule?.mode, 'pinned', 'recurring promotion should persist the schedule runtime strategy');
   assert.equal(promotedRecurring.json.session?.persistent?.runtimePolicy?.schedule?.runtime?.tool, 'codex', 'recurring promotion should persist the pinned schedule runtime');
+  assert.deepEqual(
+    promotedRecurring.json.session?.taskPoolMembership,
+    {
+      longTerm: {
+        role: 'project',
+        projectSessionId: recurringSession.id,
+        fixedNode: true,
+      },
+    },
+    'recurring promotion should also stamp explicit long-term pool membership onto the owning root session',
+  );
+  assert.deepEqual(promotedRecurring.json.session?.persistent?.loop?.collect?.sources, ['任务完成记录', '用户反馈'], 'recurring promotion should persist loop collection sources');
+  assert.equal(promotedRecurring.json.session?.persistent?.loop?.prune?.instruction, '删掉已经失效的旧假设。', 'recurring promotion should persist pruning instructions');
 
   const patchedRecurring = await request(port, 'PATCH', `/api/sessions/${recurringPromotedId}`, {
     persistent: {
@@ -196,18 +280,40 @@ try {
         timeOfDay: '10:30',
         timezone: 'Asia/Shanghai',
       },
+      loop: {
+        use: {
+          instruction: '每天整理后直接驱动当天维护任务。',
+        },
+        prune: {
+          instruction: '把重复和过期线索清掉。',
+        },
+      },
     },
   });
   assert.equal(patchedRecurring.status, 200, 'PATCH should accept persistent updates');
   assert.equal(patchedRecurring.json.session?.persistent?.state, 'paused', 'PATCH should persist paused state');
   assert.equal(patchedRecurring.json.session?.persistent?.recurring?.cadence, 'daily', 'PATCH should update cadence');
   assert.equal(patchedRecurring.json.session?.persistent?.recurring?.timeOfDay, '10:30', 'PATCH should update time');
+  assert.deepEqual(
+    patchedRecurring.json.session?.taskPoolMembership,
+    {
+      longTerm: {
+        role: 'project',
+        projectSessionId: recurringSession.id,
+        fixedNode: true,
+      },
+    },
+    'PATCH updates should preserve explicit long-term pool membership for recurring roots',
+  );
+  assert.equal(patchedRecurring.json.session?.persistent?.loop?.use?.instruction, '每天整理后直接驱动当天维护任务。', 'PATCH should update loop use instructions');
+  assert.equal(patchedRecurring.json.session?.persistent?.loop?.prune?.instruction, '把重复和过期线索清掉。', 'PATCH should update loop prune instructions');
 
   const clearedPersistent = await request(port, 'PATCH', `/api/sessions/${recurringPromotedId}`, {
     persistent: null,
   });
   assert.equal(clearedPersistent.status, 200, 'PATCH should allow clearing persistent config');
   assert.equal(clearedPersistent.json.session?.persistent, undefined, 'clearing should remove persistent metadata');
+  assert.equal(clearedPersistent.json.session?.taskPoolMembership, undefined, 'clearing recurring persistence should also clear explicit long-term pool membership');
 
   const invalidRecurringPromotion = await request(port, 'POST', `/api/sessions/${recurringPromotedId}/promote-persistent`, {
     kind: 'recurring_task',
@@ -217,12 +323,10 @@ try {
   const listed = await request(port, 'GET', '/api/sessions');
   assert.equal(listed.status, 200, 'session list should remain readable');
   const listedSkill = (listed.json.sessions || []).find((entry) => entry.id === skillSession.id);
-  assert.equal(listedSkill?.persistent, undefined, 'original skill session should not expose persistent metadata');
-  const listedPersistentSkill = (listed.json.sessions || []).find((entry) => entry.id === promotedSkill.json.session?.id);
-  assert.equal(listedPersistentSkill?.persistent?.kind, 'skill', 'session list should expose persistent metadata for promoted sessions');
+  assert.equal(listedSkill?.persistent?.kind, 'skill', 'session list should expose persistent metadata on the original promoted session');
 
   console.log('test-http-session-persistent: ok');
 } finally {
   await stopServer(server);
-  rmSync(home, { recursive: true, force: true });
+  rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 }

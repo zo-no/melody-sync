@@ -59,6 +59,16 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
     : 'default';
   const flattenPrompt = toolDefinition?.flattenPrompt === true;
   const { hasResume } = resolveResumeState(effectiveTool, session, options);
+  const promptTaskCard = promptMode === 'default'
+    ? (session?.taskCard || projectTaskCardFromSessionState(session?.sessionState, {
+        sessionTitle: session?.name || '',
+      }))
+    : null;
+  const taskCardPromptBlock = promptMode === 'default' && options.internalOperation !== true
+    ? buildTaskCardPromptBlock(promptTaskCard, {
+        sessionTitle: session?.name || '',
+      })
+    : '';
   let continuationContext = '';
   let contextToolIndex = '';
 
@@ -70,26 +80,29 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
       snapshot || await getHistorySnapshot(sessionId),
       contextHead,
     );
-    continuationContext = buildPreparedContinuationContext(prepared, previousTool, effectiveTool, session?.sessionState || null);
+    continuationContext = buildPreparedContinuationContext(
+      prepared,
+      previousTool,
+      effectiveTool,
+      session?.sessionState || null,
+      {
+        includeSessionState: !taskCardPromptBlock,
+      },
+    );
   }
 
   let actualText = text;
   if (promptMode === 'default') {
     const turnSections = [];
-    const promptTaskCard = session?.taskCard || projectTaskCardFromSessionState(session?.sessionState, {
-      sessionTitle: session?.name || '',
-    });
-    const taskCardPromptBlock = options.internalOperation
-      ? ''
-      : buildTaskCardPromptBlock(promptTaskCard, {
-          sessionTitle: session?.name || '',
-        });
 
     if (continuationContext) {
       turnSections.push(buildPromptSection('Session continuity', continuationContext));
     }
     if (contextToolIndex) {
       turnSections.push(buildPromptSection('Earlier tool activity index', contextToolIndex));
+    }
+    if (typeof options.taskMapRoutingContext === 'string' && options.taskMapRoutingContext.trim()) {
+      turnSections.push(buildPromptSection('Task map routing hints', options.taskMapRoutingContext));
     }
     turnSections.push(`Current user message:\n${text}`);
     if (taskCardPromptBlock) {

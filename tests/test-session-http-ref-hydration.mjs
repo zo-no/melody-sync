@@ -1,13 +1,24 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sessionHttpSource = readFileSync(join(repoRoot, 'frontend/session/http-helpers.js'), 'utf8') + '\n' + readFileSync(join(repoRoot, 'frontend/session/http-list-state.js'), 'utf8') + '\n' + readFileSync(join(repoRoot, 'frontend/session/http.js'), 'utf8');
+function readSessionFrontendSource(filename) {
+  const sourcePath = existsSync(join(repoRoot, 'frontend-src', 'session', filename))
+    ? join(repoRoot, 'frontend-src', 'session', filename)
+    : join(repoRoot, 'frontend', 'session', filename);
+  return readFileSync(sourcePath, 'utf8');
+}
+
+const sessionHttpSource = readSessionFrontendSource('http-helpers.js')
+  + '\n'
+  + readSessionFrontendSource('http-list-state.js')
+  + '\n'
+  + readSessionFrontendSource('http.js');
 
 function sliceBetween(source, startToken, endToken) {
   const start = source.indexOf(startToken);

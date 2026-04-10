@@ -5,6 +5,7 @@ import {
   SESSION_WORKFLOW_STATE_PARKED,
   SESSION_WORKFLOW_STATE_WAITING_USER,
 } from '../session/workflow-state.mjs';
+import { getLongTermTaskPoolMembership } from '../session/task-pool-membership.mjs';
 import { getLatestSessionContext } from './continuity-store.mjs';
 import { listWorkbenchSessions } from './session-ports.mjs';
 import { loadWorkbenchState } from './state-store.mjs';
@@ -16,6 +17,8 @@ import {
 
 const RESOLVED_BRANCH_STATUSES = new Set(['resolved', 'merged']);
 const RECENT_LIST_LIMIT = 5;
+const OUTPUT_METRICS_SCOPE_SESSIONS = 'sessions';
+const OUTPUT_METRICS_SCOPE_LONG_TERM = 'long-term';
 
 function normalizeNonNegativeInt(value) {
   return Number.isInteger(value) && value >= 0 ? value : 0;
@@ -97,7 +100,102 @@ function clipText(value, max = 120) {
   return `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-function buildSessionMetricRecord(session, state) {
+function normalizePersistentKind(value) {
+  const normalized = normalizeNullableText(value).toLowerCase().replace(/[\s-]+/g, '_');
+  if (normalized === 'recurring_task') return 'recurring_task';
+  if (normalized === 'skill') return 'skill';
+  return '';
+}
+
+export function normalizeOutputMetricsScope(value) {
+  const normalized = normalizeNullableText(value).toLowerCase().replace(/[\s_]+/g, '-');
+  if (['long-term', 'longterm', 'persistent', 'recurring'].includes(normalized)) {
+    return OUTPUT_METRICS_SCOPE_LONG_TERM;
+  }
+  return OUTPUT_METRICS_SCOPE_SESSIONS;
+}
+
+function getSessionParentSessionId(session = null) {
+  return normalizeNullableText(
+    session?._branchParentSessionId
+    || session?.branchParentSessionId
+    || session?.sourceContext?.parentSessionId,
+  );
+}
+
+function buildSessionScopeIndex(sessions = []) {
+  const sessionById = new Map();
+  for (const session of Array.isArray(sessions) ? sessions : []) {
+    const sessionId = normalizeNullableText(session?.id);
+    if (sessionId) sessionById.set(sessionId, session);
+  }
+
+  const scopeById = new Map();
+  const resolving = new Set();
+
+  function resolveSessionScope(session = null) {
+    const sessionId = normalizeNullableText(session?.id);
+    if (!sessionId) return OUTPUT_METRICS_SCOPE_SESSIONS;
+    if (scopeById.has(sessionId)) return scopeById.get(sessionId);
+    if (resolving.has(sessionId)) return OUTPUT_METRICS_SCOPE_SESSIONS;
+
+    resolving.add(sessionId);
+    let scope = OUTPUT_METRICS_SCOPE_SESSIONS;
+
+    if (getLongTermTaskPoolMembership(session, {
+      getSessionById: (candidateId) => sessionById.get(normalizeNullableText(candidateId)) || null,
+    })) {
+      scope = OUTPUT_METRICS_SCOPE_LONG_TERM;
+    } else {
+      const ancestorIds = [];
+      const rootSessionId = normalizeNullableText(session?.rootSessionId);
+      const parentSessionId = getSessionParentSessionId(session);
+      if (rootSessionId && rootSessionId !== sessionId) {
+        ancestorIds.push(rootSessionId);
+      }
+      if (
+        parentSessionId
+        && parentSessionId !== sessionId
+        && !ancestorIds.includes(parentSessionId)
+      ) {
+        ancestorIds.push(parentSessionId);
+      }
+      for (const ancestorId of ancestorIds) {
+        const ancestor = sessionById.get(ancestorId);
+        if (!ancestor) continue;
+        if (resolveSessionScope(ancestor) === OUTPUT_METRICS_SCOPE_LONG_TERM) {
+          scope = OUTPUT_METRICS_SCOPE_LONG_TERM;
+          break;
+        }
+      }
+    }
+
+    resolving.delete(sessionId);
+    scopeById.set(sessionId, scope);
+    return scope;
+  }
+
+  for (const session of sessionById.values()) {
+    resolveSessionScope(session);
+  }
+
+  return scopeById;
+}
+
+export function resolveOutputMetricsScopeForSession(
+  sessions = [],
+  sessionId = '',
+  fallbackScope = OUTPUT_METRICS_SCOPE_SESSIONS,
+) {
+  const normalizedSessionId = normalizeNullableText(sessionId);
+  if (!normalizedSessionId) {
+    return normalizeOutputMetricsScope(fallbackScope);
+  }
+  const scopeById = buildSessionScopeIndex(sessions);
+  return scopeById.get(normalizedSessionId) || normalizeOutputMetricsScope(fallbackScope);
+}
+
+function buildSessionMetricRecord(session, state, sessionScopeIndex = null) {
   const latestContext = getLatestSessionContext(state, session?.id);
   const sessionState = resolveSessionStateFromSession(session, latestContext || null);
   const taskCard = session?.taskCard && typeof session.taskCard === 'object' ? session.taskCard : {};
@@ -125,9 +223,11 @@ function buildSessionMetricRecord(session, state) {
   );
   const structured = Boolean(checkpoint || knownConclusions.length > 0 || nextSteps.length > 0 || summary);
   const lineRole = sessionState?.lineRole === 'branch' ? 'branch' : 'main';
+  const persistentKind = normalizePersistentKind(session?.persistent?.kind || '');
+  const sessionId = normalizeNullableText(session?.id);
 
   return {
-    id: normalizeNullableText(session?.id),
+    id: sessionId,
     title: clipText(goal || mainGoal || session?.name || '未命名任务', 96),
     goal,
     mainGoal,
@@ -138,6 +238,10 @@ function buildSessionMetricRecord(session, state) {
     lineRole,
     workflowState,
     archived: session?.archived === true,
+    persistentKind,
+    scope: sessionScopeIndex instanceof Map
+      ? (sessionScopeIndex.get(sessionId) || OUTPUT_METRICS_SCOPE_SESSIONS)
+      : OUTPUT_METRICS_SCOPE_SESSIONS,
     touchedAt,
     createdAt,
     structured,
@@ -199,25 +303,81 @@ function buildWorkflowSignalSummary(sessionMetrics = []) {
   return summary;
 }
 
-function computeWindowScore({
-  completedSessions = 0,
-  resolvedBranches = 0,
-  structuredSessions = 0,
-  touchedSessions = 0,
-} = {}) {
-  const raw = (
-    completedSessions * 18
-    + resolvedBranches * 10
-    + structuredSessions * 4
-    + Math.min(10, touchedSessions * 2)
-  );
-  return Math.max(0, Math.min(100, raw));
+function roundRatio(value) {
+  return Number.isFinite(value) && value > 0
+    ? Math.round(value * 10000) / 10000
+    : 0;
 }
 
-function summarizeWindow(sessionMetrics, branchContexts, { startMs, endMs }) {
-  const touchedSessions = sessionMetrics.filter((entry) => isBetween(entry.touchedAt, startMs, endMs));
-  const completedSessions = touchedSessions.filter((entry) => entry.workflowState === SESSION_WORKFLOW_STATE_DONE);
-  const structuredSessions = touchedSessions.filter((entry) => entry.structured);
+function computeConvergenceRate({
+  openedSessions = 0,
+  closedSessions = 0,
+} = {}) {
+  if (openedSessions <= 0) {
+    return closedSessions > 0 ? 1 : 0;
+  }
+  return roundRatio(closedSessions / openedSessions);
+}
+
+function buildResolvedBranchClosedAtMap(branchContexts = []) {
+  const closedAtBySessionId = new Map();
+  for (const entry of Array.isArray(branchContexts) ? branchContexts : []) {
+    if (!RESOLVED_BRANCH_STATUSES.has(entry?.status)) continue;
+    const sessionId = normalizeNullableText(entry?.sessionId);
+    const updatedAtMs = toTimestamp(entry?.updatedAt);
+    if (!sessionId || updatedAtMs <= 0) continue;
+    const existing = closedAtBySessionId.get(sessionId) || 0;
+    if (existing <= 0 || updatedAtMs < existing) {
+      closedAtBySessionId.set(sessionId, updatedAtMs);
+    }
+  }
+  return closedAtBySessionId;
+}
+
+function getSessionClosedAt(entry, resolvedBranchClosedAtMap) {
+  const resolvedAt = resolvedBranchClosedAtMap instanceof Map
+    ? (resolvedBranchClosedAtMap.get(entry?.id) || 0)
+    : 0;
+  const doneAt = entry?.workflowState === SESSION_WORKFLOW_STATE_DONE
+    ? toTimestamp(entry?.touchedAt)
+    : 0;
+  if (resolvedAt > 0 && doneAt > 0) {
+    return Math.min(resolvedAt, doneAt);
+  }
+  return Math.max(resolvedAt, doneAt, 0);
+}
+
+function isSessionOpenAt(entry, resolvedBranchClosedAtMap, atMs) {
+  const createdAtMs = toTimestamp(entry?.createdAt);
+  if (createdAtMs <= 0 || createdAtMs >= atMs) {
+    return false;
+  }
+  const closedAtMs = getSessionClosedAt(entry, resolvedBranchClosedAtMap);
+  return closedAtMs <= 0 || closedAtMs >= atMs;
+}
+
+function countOpenSessionsAt(sessionMetrics, resolvedBranchClosedAtMap, atMs) {
+  return (Array.isArray(sessionMetrics) ? sessionMetrics : [])
+    .filter((entry) => isSessionOpenAt(entry, resolvedBranchClosedAtMap, atMs))
+    .length;
+}
+
+function summarizeWindow(sessionMetrics, branchContexts, { startMs, endMs, resolvedBranchClosedAtMap = null }) {
+  const effectiveResolvedBranchClosedAtMap = resolvedBranchClosedAtMap instanceof Map
+    ? resolvedBranchClosedAtMap
+    : buildResolvedBranchClosedAtMap(branchContexts);
+  const allResolvedBranchSessionIds = new Set(
+    effectiveResolvedBranchClosedAtMap.keys(),
+  );
+  const openedSessions = sessionMetrics.filter((entry) => isBetween(entry.createdAt, startMs, endMs));
+  const completedSessionIds = new Set(
+    sessionMetrics
+      .filter((entry) => entry.workflowState === SESSION_WORKFLOW_STATE_DONE)
+      .filter((entry) => !allResolvedBranchSessionIds.has(entry.id))
+      .filter((entry) => isBetween(entry.touchedAt, startMs, endMs))
+      .map((entry) => entry.id)
+      .filter(Boolean),
+  );
   const resolvedBranchIds = new Set(
     branchContexts
       .filter((entry) => RESOLVED_BRANCH_STATUSES.has(entry.status))
@@ -225,70 +385,71 @@ function summarizeWindow(sessionMetrics, branchContexts, { startMs, endMs }) {
       .map((entry) => entry.sessionId)
       .filter(Boolean),
   );
+  const closedSessions = completedSessionIds.size + resolvedBranchIds.size;
+  const netOpenDelta = openedSessions.length - closedSessions;
+  const endOpenSessions = countOpenSessionsAt(sessionMetrics, effectiveResolvedBranchClosedAtMap, endMs);
 
   return {
-    score: computeWindowScore({
-      completedSessions: completedSessions.length,
-      resolvedBranches: resolvedBranchIds.size,
-      structuredSessions: structuredSessions.length,
-      touchedSessions: touchedSessions.length,
-    }),
-    touchedSessions: touchedSessions.length,
-    completedSessions: completedSessions.length,
+    openedSessions: openedSessions.length,
+    completedSessions: completedSessionIds.size,
     resolvedBranches: resolvedBranchIds.size,
-    structuredSessions: structuredSessions.length,
+    closedSessions,
+    netOpenDelta,
+    endOpenSessions,
+    convergenceRate: computeConvergenceRate({
+      openedSessions: openedSessions.length,
+      closedSessions,
+    }),
   };
 }
 
-function computeFocusScore({
-  activeMainSessions = 0,
-  activeBranchSessions = 0,
-  waitingSessions = 0,
-  structuredOpenSessions = 0,
-} = {}) {
-  const overloadedMainPenalty = Math.max(0, activeMainSessions - 2) * 18;
-  const overloadedBranchPenalty = Math.max(0, activeBranchSessions - 3) * 10;
-  const waitingPenalty = waitingSessions * 8;
-  const structureBonus = Math.min(structuredOpenSessions * 4, 12);
-  const score = 100 - overloadedMainPenalty - overloadedBranchPenalty - waitingPenalty + structureBonus;
-  return Math.max(0, Math.min(100, score));
-}
-
-function describeFocus({
-  activeMainSessions = 0,
-  activeBranchSessions = 0,
-  waitingSessions = 0,
-  structuredOpenSessions = 0,
+function describeLoad({
   openSessions = 0,
-  focusScore = 0,
+  activeMainSessions = 0,
+  activeBranchSessions = 0,
+  waitingSessions = 0,
+  parkedSessions = 0,
+  structuredOpenSessions = 0,
 } = {}) {
-  if (activeMainSessions > 2) {
+  if (openSessions <= 0) {
     return {
-      label: focusScore >= 60 ? '可控' : '过载',
-      hint: '主线任务偏多，先收敛到 1-2 条主线更容易提升产出。',
+      label: '已清空',
+      hint: '当前没有在开任务，可以直接开启下一条。',
     };
   }
   if (waitingSessions > 0) {
     return {
-      label: focusScore >= 60 ? '可控' : '过载',
-      hint: '有任务在等你输入，先清掉等待项能直接释放推进速度。',
+      label: '待处理',
+      hint: `当前在开 ${openSessions} 条任务，其中 ${waitingSessions} 条等待你输入。`,
+    };
+  }
+  if (activeMainSessions > 2) {
+    return {
+      label: '主线偏多',
+      hint: `当前 ${activeMainSessions} 条主线同时进行，先收敛到 1-2 条更稳。`,
     };
   }
   if (activeBranchSessions > 3) {
     return {
-      label: focusScore >= 60 ? '可控' : '过载',
-      hint: '支线数量偏多，建议合并或结束一部分支线。',
+      label: '支线偏多',
+      hint: `当前 ${activeBranchSessions} 条支线还没收束，建议尽快合并或结束一部分。`,
     };
   }
-  if (openSessions > 0 && structuredOpenSessions < Math.ceil(openSessions / 2)) {
+  if (parkedSessions > 0 && activeMainSessions === 0 && activeBranchSessions === 0) {
     return {
-      label: focusScore >= 80 ? '聚焦' : '可控',
-      hint: '不少任务还缺 checkpoint，先补任务结构会更稳。',
+      label: '多为停放',
+      hint: `当前在开 ${openSessions} 条任务，但大多处于停放状态，可按优先级逐步重启。`,
+    };
+  }
+  if (structuredOpenSessions < Math.ceil(openSessions / 2)) {
+    return {
+      label: '待结构化',
+      hint: `当前在开 ${openSessions} 条任务，不少还缺 checkpoint 或结论，补结构更容易收口。`,
     };
   }
   return {
-    label: focusScore >= 80 ? '聚焦' : '可控',
-    hint: '当前主线数量可控，可以继续把完成数拉起来。',
+    label: '可控',
+    hint: `当前在开 ${openSessions} 条任务，其中 ${activeMainSessions} 条主线、${activeBranchSessions} 条支线。`,
   };
 }
 
@@ -364,15 +525,21 @@ function createTrendLabel(date) {
 
 export function buildWorkbenchOutputMetrics(state, sessions, options = {}) {
   const now = options?.now instanceof Date ? options.now : new Date();
+  const scope = normalizeOutputMetricsScope(options?.scope);
   const nowMs = now.getTime();
   const dayStartMs = startOfLocalDay(0, now).getTime();
   const tomorrowStartMs = startOfLocalDay(1, now).getTime();
   const weekStartMs = startOfLocalDay(-6, now).getTime();
+  const sessionScopeIndex = buildSessionScopeIndex(sessions);
 
   const sessionMetrics = (Array.isArray(sessions) ? sessions : [])
     .filter((session) => session?.id)
-    .map((session) => buildSessionMetricRecord(session, state))
+    .map((session) => buildSessionMetricRecord(session, state, sessionScopeIndex))
     .filter((entry) => entry.archived !== true);
+  const taskSessionMetrics = sessionMetrics.filter((entry) => (
+    !entry.persistentKind
+    && entry.scope === scope
+  ));
 
   const normalizedBranchContexts = (Array.isArray(state?.branchContexts) ? state.branchContexts : [])
     .map((entry) => ({
@@ -383,45 +550,43 @@ export function buildWorkbenchOutputMetrics(state, sessions, options = {}) {
       mainGoal: normalizeNullableText(entry?.mainGoal),
     }))
     .filter((entry) => entry.sessionId);
+  const resolvedBranchClosedAtMap = buildResolvedBranchClosedAtMap(normalizedBranchContexts);
 
-  const openSessions = sessionMetrics.filter((entry) => entry.workflowState !== SESSION_WORKFLOW_STATE_DONE);
+  const openSessions = taskSessionMetrics.filter((entry) => isSessionOpenAt(entry, resolvedBranchClosedAtMap, nowMs));
   const activeMainSessions = openSessions.filter((entry) => entry.lineRole === 'main' && entry.workflowState === '').length;
   const activeBranchSessions = openSessions.filter((entry) => entry.lineRole === 'branch' && entry.workflowState === '').length;
   const waitingSessions = openSessions.filter((entry) => entry.workflowState === SESSION_WORKFLOW_STATE_WAITING_USER).length;
   const parkedSessions = openSessions.filter((entry) => entry.workflowState === SESSION_WORKFLOW_STATE_PARKED).length;
   const structuredOpenSessions = openSessions.filter((entry) => entry.structured).length;
-  const workflowSignals = buildWorkflowSignalSummary(sessionMetrics);
-  const focusScore = computeFocusScore({
-    activeMainSessions,
-    activeBranchSessions,
-    waitingSessions,
-    structuredOpenSessions,
-  });
-  const focus = describeFocus({
-    activeMainSessions,
-    activeBranchSessions,
-    waitingSessions,
-    structuredOpenSessions,
+  const workflowSignals = buildWorkflowSignalSummary(taskSessionMetrics);
+  const load = describeLoad({
     openSessions: openSessions.length,
-    focusScore,
+    activeMainSessions,
+    activeBranchSessions,
+    waitingSessions,
+    parkedSessions,
+    structuredOpenSessions,
   });
 
-  const today = summarizeWindow(sessionMetrics, normalizedBranchContexts, {
+  const today = summarizeWindow(taskSessionMetrics, normalizedBranchContexts, {
     startMs: dayStartMs,
     endMs: tomorrowStartMs,
+    resolvedBranchClosedAtMap,
   });
-  const week = summarizeWindow(sessionMetrics, normalizedBranchContexts, {
+  const week = summarizeWindow(taskSessionMetrics, normalizedBranchContexts, {
     startMs: weekStartMs,
     endMs: tomorrowStartMs,
+    resolvedBranchClosedAtMap,
   });
 
   const trend = [];
   for (let offset = 6; offset >= 0; offset -= 1) {
     const start = startOfLocalDay(-offset, now);
     const end = startOfLocalDay(-offset + 1, now);
-    const summary = summarizeWindow(sessionMetrics, normalizedBranchContexts, {
+    const summary = summarizeWindow(taskSessionMetrics, normalizedBranchContexts, {
       startMs: start.getTime(),
       endMs: end.getTime(),
+      resolvedBranchClosedAtMap,
     });
     trend.push({
       date: start.toISOString().slice(0, 10),
@@ -432,22 +597,22 @@ export function buildWorkbenchOutputMetrics(state, sessions, options = {}) {
 
   return {
     generatedAt: new Date(nowMs).toISOString(),
+    scope,
     overview: {
+      openSessions: openSessions.length,
       activeMainSessions,
       activeBranchSessions,
       waitingSessions,
       parkedSessions,
-      structuredOpenSessions,
-      focusScore,
-      focusLabel: focus.label,
-      focusHint: focus.hint,
+      loadLabel: load.label,
+      loadHint: load.hint,
     },
     today,
     week,
     workflowSignals,
     trend,
-    recentWins: buildRecentWins(sessionMetrics, normalizedBranchContexts),
-    attention: buildAttentionList(sessionMetrics, { nowMs }),
+    recentWins: buildRecentWins(taskSessionMetrics, normalizedBranchContexts),
+    attention: buildAttentionList(taskSessionMetrics, { nowMs }),
   };
 }
 

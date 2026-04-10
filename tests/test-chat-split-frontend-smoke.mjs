@@ -110,6 +110,12 @@ assert.match(
 
 assert.match(
   workbenchTaskMapReactUiSource,
+  /function renderSessionCollections\(\{[\s\S]*?grouping = null,[\s\S]*?emptyState = null,[\s\S]*?archived = null,[\s\S]*?\}\s*=\s*\{\}\)\s*\{[\s\S]*?<SessionListCollections[\s\S]*?grouping=\{grouping\}[\s\S]*?emptyState=\{emptyState\}/,
+  'workbench React bundle should forward the session-list empty state through the renderSessionCollections bridge instead of dropping it before React render',
+);
+
+assert.match(
+  workbenchTaskMapReactUiSource,
   /folder-group-delete/,
   'workbench React bundle should expose per-folder delete actions in user mode',
 );
@@ -118,6 +124,23 @@ assert.doesNotMatch(
   sessionListReactUiSource,
   /renderCreateFolderSectionReact|appendCreateFolderSectionDom|createSessionListRenderer/,
   'session-list/react-ui.js should remain a thin compatibility shim instead of duplicating the renderer',
+);
+assert.doesNotMatch(
+  sidebarStylesheet,
+  /\.session-item\.is-done-session \.session-item-name-text,[\s\S]*?text-decoration:\s*line-through/s,
+  'done session rows should keep the green completion emphasis without crossing out the sidebar title',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-item \.session-item-meta \.status-running,[\s\S]*?\.task-cluster-tree-row\.session-item \.session-item-meta \.status-running \{\s*color:\s*var\(--notice\)\s*!important;/,
+  'task list running status should keep its accent color even inside tinted running session cards',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-item \.session-item-meta \.status-done,[\s\S]*?\.task-cluster-tree-row\.session-item \.session-item-meta \.status-persistent-recurring \{\s*color:\s*var\(--success\)\s*!important;/,
+  'task list completion statuses should keep their success color even inside tinted done session cards',
 );
 
 assert.match(
@@ -154,6 +177,12 @@ assert.match(
   sidebarStylesheet,
   /\.session-grouping-create-section\s*\{/,
   'sidebar stylesheet should include the create-folder section rendered above archive',
+);
+
+assert.doesNotMatch(
+  sidebarStylesheet,
+  /\.sidebar-tabs\s*\{[\s\S]*display:\s*none\s*!important;/,
+  'sidebar stylesheet should not globally hide the sidebar tab switcher because the long-term lane entry lives there',
 );
 
 assert.match(
@@ -214,6 +243,12 @@ assert.match(
   sidebarStylesheet,
   /\.session-action-checkbox-ring\s*\{/,
   'sidebar stylesheet should render the archive checkbox ring',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-item-actions-toggle\s*\{/,
+  'sidebar stylesheet should include the compact mobile actions toggle shell',
 );
 
 assert.match(

@@ -12,6 +12,7 @@ import {
   buildTemporarySessionName,
   isSessionAutoRenamePending,
 } from '../../session/naming.mjs';
+import { buildTaskMapRoutingPromptContext } from '../../session-prompt/task-map-routing-context.mjs';
 import { saveAttachments } from './attachment-storage-service.mjs';
 import { buildPrompt, resolveResumeState } from './prompt-service.mjs';
 
@@ -31,6 +32,7 @@ export function createSessionMessageSubmissionService({
   getFollowUpQueueCount,
   getLiveSession,
   getSession,
+  listSessions,
   hasRecentFollowUpRequestId,
   mutateSessionMeta,
   normalizeSourceContext,
@@ -214,6 +216,19 @@ export function createSessionMessageSubmissionService({
       }
     }
 
+    let taskMapRoutingContext = '';
+    const isStandaloneRootSession = !String(session?.sourceContext?.parentSessionId || '').trim()
+      && String(session?.rootSessionId || session?.id || '').trim() === String(session?.id || '').trim();
+    if (!options.internalOperation && isFirstRecordedUserMessage && isStandaloneRootSession && typeof listSessions === 'function') {
+      const sessions = await listSessions({ includeArchived: false });
+      taskMapRoutingContext = buildTaskMapRoutingPromptContext({
+        currentSession: session,
+        sessions,
+        turnText: normalizedText,
+      });
+    }
+    const autoAttachLongTermTaskMap = taskMapRoutingContext.includes('Candidate long-term task maps:');
+
     const {
       claudeSessionId: persistedClaudeSessionId,
       codexThreadId: persistedCodexThreadId,
@@ -241,7 +256,11 @@ export function createSessionMessageSubmissionService({
         requestId,
         folder: session.folder,
         tool: effectiveTool,
-        prompt: await buildPrompt(sessionId, session, normalizedText, previousTool, effectiveTool, snapshot, options),
+        ...(autoAttachLongTermTaskMap ? { autoAttachLongTermTaskMap: true } : {}),
+        prompt: await buildPrompt(sessionId, session, normalizedText, previousTool, effectiveTool, snapshot, {
+          ...options,
+          ...(taskMapRoutingContext ? { taskMapRoutingContext } : {}),
+        }),
         internalOperation: options.internalOperation || null,
         ...(typeof options.scheduledTriggerId === 'string' && options.scheduledTriggerId
           ? { scheduledTriggerId: options.scheduledTriggerId }

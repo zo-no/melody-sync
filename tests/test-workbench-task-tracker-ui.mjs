@@ -140,6 +140,56 @@ assert.deepEqual(
   'plain sessions should expose the promote action',
 );
 
+let openLongTermCount = 0;
+let attachLongTermCount = 0;
+let dismissLongTermCount = 0;
+renderer.renderPersistentActions(
+  {
+    id: 'session-suggested',
+    sessionState: {
+      longTerm: {
+        lane: 'sessions',
+        suggestion: {
+          rootSessionId: 'long-term-root',
+          title: 'MelodySync',
+        },
+      },
+    },
+  },
+  {
+    onAttachToLongTerm() { attachLongTermCount += 1; },
+    onDismissLongTermSuggestion() { dismissLongTermCount += 1; },
+  },
+);
+assert.deepEqual(
+  persistentHost.children.map((child) => child.textContent),
+  ['归入长期任务', '稍后'],
+  'suggested long-term matches should expose only classify and dismiss actions',
+);
+persistentHost.children[0].click();
+persistentHost.children[1].click();
+assert.equal(attachLongTermCount, 1, 'attach action should stay wired');
+assert.equal(dismissLongTermCount, 1, 'dismiss action should stay wired');
+
+renderer.renderPersistentActions(
+  {
+    id: 'session-member',
+    sessionState: {
+      longTerm: {
+        lane: 'long-term',
+        role: 'member',
+        rootSessionId: 'long-term-root',
+      },
+    },
+  },
+  {},
+);
+assert.deepEqual(
+  persistentHost.children.map((child) => child.textContent),
+  [],
+  'attached long-term members should not expose a second long-term entry action',
+);
+
 let runCount = 0;
 let toggleCount = 0;
 let configureCount = 0;

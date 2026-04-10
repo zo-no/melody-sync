@@ -81,11 +81,20 @@
           node?.title || "",
         ].join(":"))
         : [];
+      const edgeEntries = Array.isArray(activeQuest?.edges)
+        ? activeQuest.edges.map((edge) => [
+          edge?.id || "",
+          edge?.fromNodeId || edge?.from || "",
+          edge?.toNodeId || edge?.to || "",
+          edge?.type || edge?.variant || "",
+        ].join(":"))
+        : [];
       const renderKey = [
         state?.session?.id || "",
         activeQuest?.id || "",
         activeQuest?.currentNodeId || "",
         nodeEntries.join("|"),
+        edgeEntries.join("|"),
         String(flowRenderer.getRenderStateKey?.() || "").trim(),
       ].join("||");
       if (

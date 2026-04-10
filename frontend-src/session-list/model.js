@@ -1,9 +1,8 @@
 (function sessionListModelModule(root) {
   const sessionListContract = root.MelodySyncSessionListContract || null;
-  const SESSION_GROUPING_MODE_STORAGE_KEY = "melodysyncSessionGroupingMode";
+  const LEGACY_SESSION_GROUPING_MODE_STORAGE_KEY = "melodysyncSessionGroupingMode";
   const SESSION_GROUPING_TEMPLATE_GROUPS_STORAGE_KEY = "melodysyncSessionGroupingTemplateGroups";
   const SESSION_GROUPING_MODE_USER = "user";
-  const SESSION_GROUPING_MODE_AI = "ai";
   const BRANCH_TASK_VISIBILITY_STORAGE_KEY = "melodysyncBranchTaskVisibility";
   const BRANCH_TASK_VISIBILITY_SHOW = "show";
   const BRANCH_TASK_VISIBILITY_HIDE = "hide";
@@ -47,25 +46,18 @@
   }
 
   function normalizeSessionGroupingMode(value) {
-    return normalizeKey(value) === SESSION_GROUPING_MODE_AI
-      ? SESSION_GROUPING_MODE_AI
-      : SESSION_GROUPING_MODE_USER;
+    return SESSION_GROUPING_MODE_USER;
   }
 
   function getSessionGroupingMode() {
-    try {
-      return normalizeSessionGroupingMode(getStorage()?.getItem?.(SESSION_GROUPING_MODE_STORAGE_KEY));
-    } catch {
-      return SESSION_GROUPING_MODE_USER;
-    }
+    return SESSION_GROUPING_MODE_USER;
   }
 
-  function setSessionGroupingMode(mode) {
-    const normalized = normalizeSessionGroupingMode(mode);
+  function setSessionGroupingMode() {
     try {
-      getStorage()?.setItem?.(SESSION_GROUPING_MODE_STORAGE_KEY, normalized);
+      getStorage()?.removeItem?.(LEGACY_SESSION_GROUPING_MODE_STORAGE_KEY);
     } catch {}
-    return normalized;
+    return SESSION_GROUPING_MODE_USER;
   }
 
   function normalizeSessionGroupingTemplateGroups(value) {
@@ -198,6 +190,13 @@
       || null;
   }
 
+  function getSessionStalenessInfo(session) {
+    const stateModel = getSessionStateModel();
+    return typeof stateModel?.getSessionStalenessInfo === "function"
+      ? stateModel.getSessionStalenessInfo(session)
+      : null;
+  }
+
   function normalizeWorkflowState(value) {
     const stateModel = getSessionStateModel();
     if (typeof stateModel?.normalizeSessionWorkflowState === "function") {
@@ -249,7 +248,6 @@
 
   function getSessionGroupInfoWithOptions(session, options = {}) {
     const persistentKind = normalizeKey(session?.persistent?.kind || "");
-    const groupingMode = normalizeSessionGroupingMode(options?.groupingMode || getSessionGroupingMode());
     const templateGroups = normalizeSessionGroupingTemplateGroups(
       options?.templateGroups || getSessionGroupingTemplateGroups(),
     );
@@ -258,15 +256,11 @@
       : (persistentKind === "recurring_task"
         ? "长期任务"
         : trimText(session?.group));
-    const group = groupingMode === SESSION_GROUPING_MODE_USER
-      ? resolveTemplateTaskListGroup(effectiveGroupValue, templateGroups)
-      : resolveTaskListGroup(effectiveGroupValue, { allowCustom: true });
+    const group = resolveTemplateTaskListGroup(effectiveGroupValue, templateGroups);
     const label = trimText(group?.label)
       || (trimText(group?.labelKey) ? translate(group.labelKey) : "")
       || trimText(group?.storageValue)
-      || translate(groupingMode === SESSION_GROUPING_MODE_USER
-        ? "sidebar.group.uncategorized"
-        : "sidebar.group.inbox");
+      || translate("sidebar.group.uncategorized");
     return {
       key: group.key,
       label,
@@ -282,11 +276,86 @@
     return kind === "recurring_task" ? "recurring_task" : (kind === "skill" ? "skill" : "");
   }
 
+  function getLongTermTaskPoolMembership(session) {
+    const membership = session?.taskPoolMembership?.longTerm;
+    if (!membership || typeof membership !== "object" || Array.isArray(membership)) return null;
+    const sessionId = trimText(session?.id);
+    const projectSessionId = trimText(membership?.projectSessionId);
+    if (!projectSessionId) return null;
+    const requestedRole = normalizeKey(membership?.role || "");
+    const role = requestedRole === "project"
+      ? "project"
+      : (projectSessionId === sessionId ? "project" : "member");
+    return {
+      role,
+      projectSessionId,
+      fixedNode: membership?.fixedNode === true || role === "project",
+    };
+  }
+
+  function getKnownSessions() {
+    if (Array.isArray(root?.sessions)) return root.sessions;
+    if (Array.isArray(root?.window?.sessions)) return root.window.sessions;
+    return [];
+  }
+
+  function getKnownSessionById(sessionId = "") {
+    const normalizedSessionId = trimText(sessionId);
+    if (!normalizedSessionId) return null;
+    return getKnownSessions().find((entry) => trimText(entry?.id) === normalizedSessionId) || null;
+  }
+
+  function resolveLongTermProjectRootSessionId(session, visited = new Set()) {
+    const sessionId = trimText(session?.id);
+    if (!sessionId || visited.has(sessionId)) return "";
+    const membership = getLongTermTaskPoolMembership(session);
+    if (membership?.projectSessionId) {
+      return membership.projectSessionId;
+    }
+    if (getSidebarPersistentKind(session) === "recurring_task") {
+      return sessionId;
+    }
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(sessionId);
+    const candidateIds = [];
+    const rootSessionId = trimText(session?.rootSessionId || session?.sourceContext?.rootSessionId);
+    const parentSessionId = trimText(
+      session?._branchParentSessionId
+      || session?.branchParentSessionId
+      || session?.sourceContext?.parentSessionId,
+    );
+    for (const candidateId of [rootSessionId, parentSessionId]) {
+      if (!candidateId || candidateId === sessionId || candidateIds.includes(candidateId)) continue;
+      candidateIds.push(candidateId);
+    }
+    for (const candidateId of candidateIds) {
+      const candidate = getKnownSessionById(candidateId);
+      if (!candidate) continue;
+      const resolvedRootSessionId = resolveLongTermProjectRootSessionId(candidate, nextVisited);
+      if (resolvedRootSessionId) return resolvedRootSessionId;
+    }
+    return "";
+  }
+
   function getPersistentDockGroupKey(session) {
+    const membership = getLongTermTaskPoolMembership(session);
     const persistentKind = getSidebarPersistentKind(session);
+    if (membership?.role === "project" && membership?.fixedNode === true) return "group:long-term";
     if (persistentKind === "recurring_task") return "group:long-term";
     if (persistentKind === "skill") return "group:quick-actions";
     return "";
+  }
+
+  function isLongTermProjectSession(session) {
+    const membership = getLongTermTaskPoolMembership(session);
+    return membership?.role === "project" && membership?.fixedNode === true
+      ? true
+      : getSidebarPersistentKind(session) === "recurring_task";
+  }
+
+  function isLongTermLineSession(session) {
+    return Boolean(resolveLongTermProjectRootSessionId(session));
   }
 
   function isBranchTaskSession(session) {
@@ -344,7 +413,7 @@
   function isHiddenWorkflowStateSession(session, options = {}) {
     if (options?.archived === true || session?.archived === true) return false;
     const workflowState = normalizeWorkflowState(session?.workflowState || "");
-    return workflowState === "parked";
+    return workflowState === "parked" || workflowState === "done";
   }
 
   function isSidebarCompletionReviewSession(session, options = {}) {
@@ -459,6 +528,17 @@
         className: "session-list-badge session-list-badge-branch",
       });
     }
+    const staleInfo = entry?.staleInfo || getSessionStalenessInfo(session);
+    if (staleInfo?.label && entry?.archived !== true) {
+      badges.push({
+        key: staleInfo.key || "stale",
+        label: staleInfo.label,
+        title: staleInfo.title || staleInfo.label,
+        className: `session-list-badge ${staleInfo.stage === "cleanup"
+          ? "session-list-badge-stale-cleanup"
+          : "session-list-badge-stale"}`,
+      });
+    }
     return badges;
   }
 
@@ -474,6 +554,7 @@
     const persistentDockGroupKey = getPersistentDockGroupKey(session);
     const groupInfo = getSessionGroupInfoWithOptions(session, options);
     const needsReview = isSidebarCompletionReviewSession(session, options);
+    const staleInfo = !archived ? getSessionStalenessInfo(session) : null;
 
     let hiddenReason = "";
     if (!session?.id) {
@@ -484,6 +565,8 @@
       hiddenReason = "branch_filtered";
     } else if (!archived && taskListVisibility !== "primary" && !branch) {
       hiddenReason = "secondary_task";
+    } else if (!archived && workflowState === "done") {
+      hiddenReason = "done_mainline";
     } else if (!archived && workflowState === "parked") {
       hiddenReason = "parked_mainline";
     }
@@ -500,6 +583,7 @@
       persistentDockGroupKey,
       groupInfo,
       needsReview,
+      staleInfo,
     };
     return {
       ...entry,
@@ -527,6 +611,9 @@
     getSessionGroupInfoWithOptions,
     getSidebarPersistentKind,
     getPersistentDockGroupKey,
+    isLongTermProjectSession,
+    isLongTermLineSession,
+    getSessionStalenessInfo,
     getTaskListVisibility,
     isBranchTaskSession,
     getBranchTaskStatus,

@@ -62,7 +62,7 @@ assert.equal(api.canReparentSession(sessionNode), true);
 assert.deepEqual(
   JSON.parse(JSON.stringify(api.buildManualBranchCreationPayload(sessionNode))),
   {
-    branchReason: '从「视觉风格线」继续拆出独立支线',
+    branchReason: '从「视觉风格线」继续展开关联任务',
     checkpointSummary: '视觉风格线',
   },
   'session-backed current nodes should expose a dedicated manual branch payload builder',
@@ -76,6 +76,7 @@ assert.equal(
 const controllerCalls = [];
 const attachedSessions = [];
 const reparentCalls = [];
+const connectCalls = [];
 const controller = api.createController({
   collapseTaskMapAfterAction() {
     controllerCalls.push('collapse');
@@ -91,6 +92,9 @@ const controller = api.createController({
   },
   async reparentSession(sourceSessionId, payload) {
     reparentCalls.push({ sourceSessionId, payload });
+  },
+  async connectSessions(sourceSessionId, payload) {
+    connectCalls.push({ sourceSessionId, payload });
   },
 });
 
@@ -108,7 +112,7 @@ assert.deepEqual(
       sessionId: 'main-1',
       title: '补充复盘',
       payload: {
-        branchReason: '从「主任务」继续拆出独立支线',
+        branchReason: '从「主任务」继续展开关联任务',
         checkpointSummary: '补充复盘',
       },
     },
@@ -127,7 +131,7 @@ assert.deepEqual(
       sessionId: 'branch-1',
       title: '补充配色规范',
       payload: {
-        branchReason: '从「视觉风格线」继续拆出独立支线',
+        branchReason: '从「视觉风格线」继续展开关联任务',
         checkpointSummary: '视觉风格线',
       },
     },
@@ -168,6 +172,24 @@ assert.deepEqual(
     },
   ],
   'reparent action should route through the injected reparentSession handler',
+);
+
+assert.equal(api.canConnectSession(sessionNode), true);
+await controller.executeConnectSession(sessionNode, 'main-2', {
+  graphEdgeType: 'related',
+});
+assert.deepEqual(
+  JSON.parse(JSON.stringify(connectCalls)),
+  [
+    {
+      sourceSessionId: 'branch-1',
+      payload: {
+        targetSessionId: 'main-2',
+        graphEdgeType: 'related',
+      },
+    },
+  ],
+  'connect action should route through the injected connectSessions handler',
 );
 
 console.log('test-workbench-node-capabilities: ok');

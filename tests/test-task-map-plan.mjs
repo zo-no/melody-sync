@@ -118,12 +118,31 @@ const augmentPlan = api.normalizeTaskMapPlan({
         height: 280,
       },
     },
+    {
+      id: 'note:main-1:context',
+      kind: 'note',
+      title: '复盘上下文',
+      summary: '挂一个横向参考节点',
+      sourceSessionId: 'main-1',
+      parentId: 'session:main-1',
+      status: 'active',
+      lineRole: 'side',
+      view: {
+        type: 'markdown',
+        content: '## 相关线索',
+      },
+    },
   ],
   edges: [
     {
       from: 'session:main-1',
       to: 'candidate:main-1:review',
       type: 'suggestion',
+    },
+    {
+      from: 'candidate:main-1:review',
+      to: 'note:main-1:context',
+      type: 'related',
     },
   ],
 });
@@ -135,6 +154,7 @@ assert.equal(augmentPlan?.nodes[0]?.view?.width, 420);
 assert.deepEqual(toPlain(augmentPlan?.nodes[0]?.capabilities || []), ['create-branch', 'dismiss']);
 assert.deepEqual(toPlain(augmentPlan?.nodes[0]?.surfaceBindings || []), ['task-map', 'composer-suggestions']);
 assert.deepEqual(toPlain(augmentPlan?.nodes[0]?.taskCardBindings || []), ['candidateBranches']);
+assert.equal(augmentPlan?.edges[0]?.type, 'related');
 
 const augmentedProjection = api.applyTaskMapPlansToProjection({
   projection: { mainQuests: [baseQuest] },
@@ -158,6 +178,11 @@ assert.equal(
   'augment mode should preserve explicit edge semantics',
 );
 assert.equal(
+  augmentedProjection.mainQuests[0]?.edges.find((edge) => edge.toNodeId === 'note:main-1:context' && edge.fromNodeId === 'candidate:main-1:review')?.type,
+  'related',
+  'augment mode should preserve lateral related edges between arbitrary nodes',
+);
+assert.equal(
   augmentedProjection.mainQuests[0]?.counts?.candidateBranches,
   1,
   'augment mode should recalculate candidate counts from the merged graph',
@@ -172,8 +197,8 @@ const mergedCandidateNode = mergedProjection.mainQuests[0]?.nodes.find((node) =>
 assert.ok(mergedCandidateNode, 'augment mode should keep existing default nodes when the plan reuses the same node id');
 assert.equal(
   mergedProjection.mainQuests[0]?.nodes.length,
-  2,
-  'augment mode should merge matching node ids instead of duplicating the default candidate node',
+  3,
+  'augment mode should merge matching candidate ids without dropping additional related nodes from the same plan',
 );
 assert.equal(
   mergedCandidateNode?.summary,

@@ -26,6 +26,21 @@ const normalizedRecurring = normalizeSessionPersistent({
     weekdays: [1, 3, 5],
     timezone: 'Asia/Shanghai',
   },
+  loop: {
+    collect: {
+      sources: ['运行日志', '用户反馈', '运行日志'],
+      instruction: '先收集这一轮产生的新信号。',
+    },
+    organize: {
+      instruction: '按问题类型和频率整理成稳定模式。',
+    },
+    use: {
+      instruction: '用整理后的结果决定下一轮要调什么。',
+    },
+    prune: {
+      instruction: '删掉重复、过期和低信号记录。',
+    },
+  },
   execution: {
     runPrompt: '请按周期任务定义执行本轮产出。',
   },
@@ -48,6 +63,9 @@ assert.match(normalizedRecurring?.recurring?.nextRunAt || '', /^2026-04-/);
 assert.equal(normalizedRecurring?.runtimePolicy?.manual?.mode, 'follow_current');
 assert.equal(normalizedRecurring?.runtimePolicy?.schedule?.mode, 'pinned');
 assert.equal(normalizedRecurring?.runtimePolicy?.schedule?.runtime?.tool, 'codex');
+assert.deepEqual(normalizedRecurring?.loop?.collect?.sources, ['运行日志', '用户反馈']);
+assert.equal(normalizedRecurring?.loop?.organize?.instruction, '按问题类型和频率整理成稳定模式。');
+assert.equal(normalizedRecurring?.loop?.prune?.instruction, '删掉重复、过期和低信号记录。');
 
 const localMorning = new Date(2026, 3, 4, 8, 15, 0, 0);
 const nextDailyRun = computeNextRecurringRunAt({
@@ -202,5 +220,15 @@ assert.deepEqual(scheduledPinnedRuntime, {
   effort: '',
   thinking: true,
 });
+
+const recurringRunMessage = buildPersistentRunMessage({
+  name: '晨间日报',
+}, normalizedRecurring, {
+  triggerKind: 'schedule',
+});
+assert.match(recurringRunMessage, /数据收集：/);
+assert.match(recurringRunMessage, /数据整理：/);
+assert.match(recurringRunMessage, /数据使用：/);
+assert.match(recurringRunMessage, /冗余减枝：/);
 
 console.log('test-session-persistent: ok');

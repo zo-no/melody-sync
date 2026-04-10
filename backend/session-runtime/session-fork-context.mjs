@@ -1,18 +1,24 @@
 import { buildSessionContinuationContextFromBody } from '../session/continuation.mjs';
 
-export function buildPreparedContinuationContext(prepared, previousTool, effectiveTool, sessionState = null) {
+export function buildPreparedContinuationContext(
+  prepared,
+  previousTool,
+  effectiveTool,
+  sessionState = null,
+  options = {},
+) {
   if (!prepared) return '';
 
   const summary = typeof prepared.summary === 'string' ? prepared.summary.trim() : '';
-  const includesCompactionHandoff = prepared?.includesCompactionHandoff === true;
   const continuationBody = typeof prepared.continuationBody === 'string'
     ? prepared.continuationBody.trim()
     : '';
+  const includeSessionState = options?.includeSessionState !== false;
   const continuation = continuationBody
     ? buildSessionContinuationContextFromBody(continuationBody, {
         fromTool: previousTool,
         toTool: effectiveTool,
-        sessionState,
+        sessionState: includeSessionState ? sessionState : null,
       })
     : '';
 

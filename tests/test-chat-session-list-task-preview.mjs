@@ -63,9 +63,12 @@ const functionNames = [
   'getTaskClusterCurrentBranchSession',
   'getTaskClusterParentSession',
   'getTaskBranchStatusLabel',
+  'getTaskBranchStatusClassName',
+  'getTaskClusterBranchCountEntries',
   'summarizeTaskClusterBranchCounts',
   'looksLikeVisibleTaskTitle',
   'getSessionTaskPreview',
+  'renderSessionTaskPreviewLineHtml',
   'renderSessionTaskPreviewHtml',
 ];
 
@@ -171,7 +174,9 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(mainPreview)),
   {
     summaryLine: '把默认态变成任务恢复视图',
+    summarySegments: [],
     hintLine: '当前子任务：梳理优秀 To-Do 参考',
+    hintSegments: [],
   },
   'main task rows should expose both the resume checkpoint and the current active branch',
 );
@@ -181,7 +186,19 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(branchPreview)),
   {
     summaryLine: '提炼 Today、分层、快速恢复',
+    summarySegments: [],
     hintLine: '进行中 · 来自主线：优化任务列表',
+    hintSegments: [
+      {
+        variant: 'status',
+        text: '进行中',
+        className: 'status-running',
+      },
+      {
+        variant: 'text',
+        text: '来自主线：优化任务列表',
+      },
+    ],
   },
   'branch task rows should expose their checkpoint and mainline source',
 );
@@ -200,5 +217,208 @@ const previewHtml = context.renderSessionTaskPreviewHtml(mainSession);
 assert.match(previewHtml, /session-item-summary/, 'task preview html should render a summary row');
 assert.match(previewHtml, /session-item-hint/, 'task preview html should render a hint row');
 assert.match(previewHtml, /当前子任务：梳理优秀 To-Do 参考/, 'task preview html should include the active branch hint');
+
+const branchPreviewHtml = context.renderSessionTaskPreviewHtml(activeBranchSession);
+assert.match(branchPreviewHtml, /task-branch-status status-running/, 'branch preview html should expose the running status chip class');
+assert.match(branchPreviewHtml, /来自主线：优化任务列表/, 'branch preview html should keep the mainline source copy next to the status chip');
+
+taskCluster.currentBranchSessionId = '';
+const previousCheckpoint = mainSession.taskCard.checkpoint;
+mainSession.taskCard.checkpoint = '';
+const idleMainPreview = context.getSessionTaskPreview(mainSession);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(idleMainPreview.summarySegments)),
+  [
+    {
+      variant: 'status',
+      text: '进行中 1',
+      className: 'status-running',
+    },
+    {
+      variant: 'status',
+      text: '挂起 1',
+      className: 'status-parked',
+    },
+  ],
+  'main task summaries should carry per-status chip metadata when only branch counts remain',
+);
+const idleMainPreviewHtml = context.renderSessionTaskPreviewHtml(mainSession);
+assert.match(idleMainPreviewHtml, /task-branch-status status-running/, 'main task summary html should render the running count chip');
+assert.match(idleMainPreviewHtml, /task-branch-status status-parked/, 'main task summary html should render the parked count chip');
+mainSession.taskCard.checkpoint = previousCheckpoint;
+taskCluster.currentBranchSessionId = 'branch-1';
+
+const queueFunctionNames = [
+  'formatQueuedMessageTimestamp',
+  'isMessagesViewportNearBottom',
+  'getQueuedPanelAnchorKey',
+  'preserveQueuedPanelBottomAnchor',
+  'renderQueuedMessagePanel',
+];
+
+function makeClassList(initial = []) {
+  const values = new Set(initial);
+  return {
+    add(...tokens) {
+      tokens.forEach((token) => values.add(token));
+    },
+    remove(...tokens) {
+      tokens.forEach((token) => values.delete(token));
+    },
+    contains(token) {
+      return values.has(token);
+    },
+  };
+}
+
+function createDomElement(tagName = 'div') {
+  const element = {
+    tagName: String(tagName).toUpperCase(),
+    className: '',
+    textContent: '',
+    children: [],
+    dataset: {},
+    classList: makeClassList(),
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    },
+  };
+  let innerHtml = '';
+  Object.defineProperty(element, 'innerHTML', {
+    get() {
+      return innerHtml;
+    },
+    set(value) {
+      innerHtml = String(value);
+      this.children = [];
+    },
+  });
+  return element;
+}
+
+const queueContext = {
+  console,
+  currentSessionId: 'main-1',
+  messageTimeFormatter: {
+    format() {
+      return '10:00';
+    },
+  },
+  queuedPanel: createDomElement('div'),
+  messagesEl: {
+    scrollTop: 640,
+    scrollHeight: 1000,
+    clientHeight: 360,
+  },
+  document: {
+    createElement(tagName) {
+      return createDomElement(tagName);
+    },
+  },
+  getSessionActivity(session) {
+    return session?.activity || {
+      run: { state: 'idle' },
+      compact: { state: 'idle' },
+    };
+  },
+  getAttachmentDisplayName(image) {
+    return image?.name || '';
+  },
+  t(key, vars = {}) {
+    if (key === 'queue.single') return '1 follow-up queued';
+    if (key === 'queue.multiple') return `${vars.count} follow-ups queued`;
+    if (key === 'queue.note.afterRun') return 'after run';
+    if (key === 'queue.note.preparing') return 'preparing';
+    if (key === 'queue.timestamp.default') return 'queued';
+    if (key === 'queue.timestamp.withTime') return `queued at ${vars.time}`;
+    if (key === 'queue.attachmentOnly') return 'attachment only';
+    if (key === 'queue.attachments') return `attachments: ${vars.names}`;
+    if (key === 'queue.olderHidden.one') return '1 older hidden';
+    if (key === 'queue.olderHidden.multiple') return `${vars.count} older hidden`;
+    return key;
+  },
+};
+let scrollToBottomCalls = 0;
+queueContext.scrollToBottom = () => {
+  scrollToBottomCalls += 1;
+  queueContext.messagesEl.scrollTop = queueContext.messagesEl.scrollHeight;
+};
+queueContext.globalThis = queueContext;
+
+vm.runInNewContext(
+  queueFunctionNames
+    .map((name) => extractFunctionSource(sessionSurfaceUiSource, name))
+    .join('\n\n')
+    + '\n\nglobalThis.renderQueuedMessagePanel = renderQueuedMessagePanel;',
+  queueContext,
+  { filename: 'frontend-src/session/surface-ui.js' },
+);
+
+const queuedSession = {
+  id: 'main-1',
+  queuedMessages: [
+    { requestId: 'req-1', queuedAt: '2026-04-10T10:00:00.000Z', text: 'follow-up one', images: [] },
+  ],
+  activity: {
+    run: { state: 'running' },
+    compact: { state: 'idle' },
+  },
+};
+
+queueContext.renderQueuedMessagePanel(queuedSession);
+assert.equal(
+  scrollToBottomCalls,
+  1,
+  'queue panel should preserve the transcript bottom anchor when a new queued follow-up appears near the bottom',
+);
+assert.equal(
+  queueContext.messagesEl.scrollTop,
+  queueContext.messagesEl.scrollHeight,
+  'queue panel anchoring should keep the latest streamed content visible',
+);
+assert.equal(
+  queueContext.queuedPanel.classList.contains('visible'),
+  true,
+  'queue panel should become visible for the current session when queued follow-ups exist',
+);
+
+scrollToBottomCalls = 0;
+queueContext.messagesEl.scrollTop = 700;
+queueContext.messagesEl.clientHeight = 300;
+queueContext.messagesEl.scrollHeight = 1000;
+queueContext.renderQueuedMessagePanel(queuedSession);
+assert.equal(
+  scrollToBottomCalls,
+  0,
+  'queue panel refreshes should not keep snapping the viewport when the queued payload has not changed',
+);
+assert.equal(
+  queueContext.messagesEl.scrollTop,
+  700,
+  'unchanged queue renders should preserve the user scroll position',
+);
+
+scrollToBottomCalls = 0;
+queueContext.messagesEl.scrollTop = 120;
+queueContext.messagesEl.clientHeight = 300;
+queueContext.messagesEl.scrollHeight = 1000;
+queueContext.renderQueuedMessagePanel({
+  ...queuedSession,
+  queuedMessages: [
+    queuedSession.queuedMessages[0],
+    { requestId: 'req-2', queuedAt: '2026-04-10T10:01:00.000Z', text: 'follow-up two', images: [] },
+  ],
+});
+assert.equal(
+  scrollToBottomCalls,
+  0,
+  'queue panel updates should not steal scroll when the user is reading away from the bottom',
+);
+assert.equal(
+  queueContext.messagesEl.scrollTop,
+  120,
+  'queue panel updates should leave mid-transcript readers in place',
+);
 
 console.log('test-chat-session-list-task-preview: ok');

@@ -269,6 +269,12 @@ Universal learnings and patterns that apply to all MelodySync deployments, regar
 - When backfilling terminal state from `result.json`, prefer `result.cancelled` over a later `cancelRequested` flag. A user can press Stop after a successful run already completed, and that late cancel request must not rewrite a completed run into `cancelled`.
 - If a session record still carries `activeRunId`, force a detached-run sync on session reads even when the cached run already looks terminal/finalized; otherwise APIs like session fork can clone a half-reconciled history before the terminal spool flush has materialized into durable session state.
 
+### Queued Follow-Up Dispatch Must Not Wait On Slow Post-Run Hooks (2026-04-10)
+- In MelodySync, queued follow-up draining is part of core session continuity, not optional polish.
+- If queue scheduling happens only after `run.completed` hooks finish, a slow or hanging hook such as auto-naming can leave `activeRunId` cleared and the run finalized while `followUpQueue` stays stuck forever.
+- Schedule queued follow-up dispatch as soon as the terminal run is reconciled and the session is no longer busy, before waiting on slower hook-side effects.
+- Post-run hooks may still append status traces or mutate metadata later, but they must not block the next queued user turn from starting.
+
 ### Partial Run Results Must Not Block Detached-Run Recovery (2026-04-10)
 - In detached-run reconciliation, treat a result envelope that only adds derived fields like `assistantMessage` or `statePatch` as a partial result, not proof that the run has already reached a terminal state.
 - Otherwise the control plane can persist a non-terminal `result.json` from observed structured output before the sidecar writes `completedAt` / `exitCode`, and later startup or queue-replay recovery will stop short because "result exists" even though the run is still logically unfinished.
@@ -513,3 +519,8 @@ Universal learnings and patterns that apply to all MelodySync deployments, regar
 - Treat skills and shared learnings as side resources loaded on demand, not default startup payload.
 - Make multi-session routing a first-class principle: bounded work should prefer bounded context, so independently completable goals often deserve separate sessions.
 - Turn-level reminders should reinforce judgment priorities and invariants, not narrate every action as a long hidden checklist.
+
+### Task-Map Focus Should Not Reflow Graph Coordinates (2026-04-10)
+- In MelodySync's task-map UI, the active/current node and current-path state should affect highlighting and optional viewport restore, not the default graph coordinate projection.
+- If focus participates in band or level placement, switching the attached session can make nodes appear to "move" even when the underlying graph topology is unchanged.
+- Keep default node placement topology-driven and deterministic; treat viewport state as a separate concern that can be restored per graph without re-laying out the nodes.

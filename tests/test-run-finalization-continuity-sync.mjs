@@ -52,8 +52,10 @@ const deps = {
       goal: '旧 goal',
     },
   }),
-  getSessionQueueCount: () => 0,
-  scheduleQueuedFollowUpDispatch: () => {},
+  getSessionQueueCount: () => 1,
+  scheduleQueuedFollowUpDispatch: () => {
+    log.push('scheduleQueued');
+  },
   getFollowUpQueueCount: () => 0,
   maybePublishRunResultAssets: async () => false,
   syncSessionContinuityFromSession: async (session, options = {}) => {
@@ -81,6 +83,10 @@ assert.equal(log.includes('emitHook'), true, 'hooks should still execute after c
 assert.ok(
   log.indexOf('syncContinuity') < log.indexOf('emitHook'),
   'continuity sync should happen before hooks so map projection does not depend on hook execution',
+);
+assert.ok(
+  log.indexOf('scheduleQueued') < log.indexOf('emitHook'),
+  'queued follow-up dispatch should be scheduled before post-run hooks so slow hooks cannot block the next queued turn',
 );
 assert.deepEqual(
   continuityCalls[0].options.taskCard,

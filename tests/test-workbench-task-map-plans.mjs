@@ -81,6 +81,11 @@ try {
           type: 'completion',
         },
         {
+          from: 'review:main-1:summary',
+          to: 'session:main-1',
+          type: 'depends_on',
+        },
+        {
           from: 'session:main-1',
           to: 'invalid:main-1',
           type: 'structural',
@@ -139,7 +144,12 @@ try {
   );
   assert.deepEqual(
     persistedPlans[0].edges.map((edge) => edge.toNodeId),
-    ['review:main-1:summary'],
+    ['review:main-1:summary', 'session:main-1'],
+  );
+  assert.equal(
+    persistedPlans[0].edges[1]?.type,
+    'depends_on',
+    'task map plan store should preserve richer graph relation edges between arbitrary known nodes',
   );
   assert.equal(persistedPlans[1].source?.type, 'hook');
   assert.equal(persistedPlans[1].source?.hookId, 'builtin.branch-candidates');

@@ -1,7 +1,9 @@
 const GRAPH_OPS_TAG = 'graph_ops';
 const MAX_GRAPH_OPS = 8;
 const MAX_GRAPH_REF_CHARS = 160;
+const MAX_GRAPH_TITLE_CHARS = 160;
 const MAX_GRAPH_REASON_CHARS = 240;
+const MAX_GRAPH_CHECKPOINT_CHARS = 240;
 
 function clipText(value, maxChars) {
   const text = typeof value === 'string'
@@ -60,6 +62,23 @@ function normalizeGraphOpType(value) {
     return 'attach';
   }
   if ([
+    'expand',
+    'expand_branch',
+    'expand_task',
+    'branch',
+    'branch_out',
+    'spawn',
+    'spawn_branch',
+    'create_branch',
+    '拓展',
+    '扩展',
+    '展开',
+    '拆分',
+    '拆任务',
+  ].includes(normalized)) {
+    return 'expand';
+  }
+  if ([
     'promote_main',
     'promote',
     'detach',
@@ -77,6 +96,10 @@ function normalizeGraphOpType(value) {
     'discard',
     'dedupe',
     'merge_delete',
+    'prune',
+    'trim',
+    '减枝',
+    '剪枝',
     '归档',
     '删除',
     '移除',
@@ -85,6 +108,22 @@ function normalizeGraphOpType(value) {
     return 'archive';
   }
   return '';
+}
+
+function normalizeGraphExpandTitle(value, fallbackRef = null) {
+  const rawFallback = typeof fallbackRef === 'string'
+    ? fallbackRef
+    : (
+      fallbackRef && typeof fallbackRef === 'object' && !Array.isArray(fallbackRef)
+        ? (fallbackRef.title || fallbackRef.ref || fallbackRef.goal || fallbackRef.name || fallbackRef.sessionId || fallbackRef.id || '')
+        : ''
+    );
+  return clipText(
+    value
+      || rawFallback
+      || '',
+    MAX_GRAPH_TITLE_CHARS,
+  );
 }
 
 function normalizeGraphSessionRef(value) {
@@ -139,21 +178,47 @@ function normalizeGraphOperation(value) {
   );
   if (!source) return null;
 
-  const target = normalizeGraphSessionRef(
+  const rawTargetRef = (
     value.target
       || value.targetSession
       || value.targetRef
       || value.parent
       || value.parentSession
       || value.parentRef
-      || value.to,
+      || value.to
+  );
+  const target = normalizeGraphSessionRef(
+    rawTargetRef,
   );
   if (type === 'attach' && !target) return null;
+  const title = type === 'expand'
+    ? normalizeGraphExpandTitle(
+      value.title
+        || value.goal
+        || value.branchTitle
+        || value.branch
+        || value.task
+        || value.name,
+      rawTargetRef,
+    )
+    : '';
+  if (type === 'expand' && !title) return null;
+  const checkpoint = type === 'expand'
+    ? clipText(
+      value.checkpoint
+        || value.checkpointSummary
+        || value.resumeHint
+        || '',
+      MAX_GRAPH_CHECKPOINT_CHARS,
+    )
+    : '';
 
   return {
     type,
     source,
-    ...(target ? { target } : {}),
+    ...(type !== 'expand' && target ? { target } : {}),
+    ...(title ? { title } : {}),
+    ...(checkpoint ? { checkpoint } : {}),
     ...(clipText(value.reason || value.branchReason || value.note || value.summary || '', MAX_GRAPH_REASON_CHARS)
       ? { reason: clipText(value.reason || value.branchReason || value.note || value.summary || '', MAX_GRAPH_REASON_CHARS) }
       : {}),

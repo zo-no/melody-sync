@@ -235,4 +235,28 @@ assert.match(promptWithSessionStateOnly, /Fixed session task title: 收口会话
 assert.match(promptWithSessionStateOnly, /重构会话主链/);
 assert.match(promptWithSessionStateOnly, /下一步把 continuation 降为派生文本/);
 
+const promptWithTaskMapRoutingHints = await buildPrompt(
+  'session-test-9',
+  {
+    ...baseSession,
+    name: 'Map Attach Draft',
+  },
+  '继续整理任务地图。',
+  'codex',
+  'codex',
+  null,
+  {
+    skipSessionContinuation: true,
+    taskMapRoutingContext: [
+      'This is the first real user turn for a standalone session.',
+      'Candidate main task maps:',
+      '- MelodySync Session Map (sessionId: sess_root)',
+    ].join('\n'),
+  },
+);
+
+assert.match(promptWithTaskMapRoutingHints, /\[Task map routing hints\]/);
+assert.match(promptWithTaskMapRoutingHints, /Candidate main task maps:/);
+assert.match(promptWithTaskMapRoutingHints, /MelodySync Session Map/);
+
 console.log('test-session-manager-build-prompt: ok');

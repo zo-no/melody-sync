@@ -257,10 +257,12 @@ function createContext({
     sessionTemplateSelect: makeEventTarget(),
     saveTemplateBtn: makeEventTarget(),
     tabSessions: makeEventTarget(),
+    tabLongTerm: makeEventTarget(),
     tabSettings: makeEventTarget(),
     sessionListFooter: makeEventTarget(),
     sortSessionListBtn: makeEventTarget(),
     newSessionBtn: makeEventTarget(),
+    sidebarGroupingToolbar: makeEventTarget(),
     settingsPanel: {
       classList: {
         toggle() {},

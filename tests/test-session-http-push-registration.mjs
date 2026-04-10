@@ -1,22 +1,64 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sessionHttpSource = readFileSync(join(repoRoot, 'frontend/session/http.js'), 'utf8');
+const sessionHttpPath = existsSync(join(repoRoot, 'frontend-src', 'session', 'http.js'))
+  ? join(repoRoot, 'frontend-src', 'session', 'http.js')
+  : join(repoRoot, 'frontend', 'session', 'http.js');
+const sessionHttpSource = readFileSync(sessionHttpPath, 'utf8');
 
-const setupStart = sessionHttpSource.indexOf('async function setupPushNotifications()');
-if (setupStart === -1) throw new Error('Missing setupPushNotifications');
-const setupSnippet = `${sessionHttpSource.slice(setupStart)}\nglobalThis.setupPushNotifications = setupPushNotifications;`;
+function extractFunctionSource(source, functionName) {
+  const markers = [`async function ${functionName}(`, `function ${functionName}(`];
+  const start = markers
+    .map((marker) => source.indexOf(marker))
+    .find((index) => index >= 0) ?? -1;
+  assert.notEqual(start, -1, `${functionName} should exist`);
+  const paramsStart = source.indexOf('(', start);
+  let paramsDepth = 0;
+  let braceStart = -1;
+  for (let index = paramsStart; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '(') paramsDepth += 1;
+    if (char === ')') {
+      paramsDepth -= 1;
+      if (paramsDepth === 0) {
+        braceStart = source.indexOf('{', index);
+        break;
+      }
+    }
+  }
+  assert.notEqual(braceStart, -1, `${functionName} should have a body`);
+  let depth = 0;
+  for (let index = braceStart; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '{') depth += 1;
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(start, index + 1);
+      }
+    }
+  }
+  throw new Error(`Unable to extract ${functionName}`);
+}
+
+const setupSnippet = `
+${extractFunctionSource(sessionHttpSource, 'normalizePushApplicationServerKey')}
+${extractFunctionSource(sessionHttpSource, 'pushApplicationServerKeysMatch')}
+${extractFunctionSource(sessionHttpSource, 'setupPushNotifications')}
+globalThis.setupPushNotifications = setupPushNotifications;
+`;
 
 function createHarness({ existingSubscription }) {
   const fetchCalls = [];
   const subscriptionPayload = { endpoint: existingSubscription ? 'https://push.example/existing' : 'https://push.example/new' };
   const subscribeCalls = [];
+  const applicationServerKey = new Uint8Array([1, 2, 3, 4]);
   const registration = {
     update() {
       return Promise.resolve();
@@ -28,6 +70,12 @@ function createHarness({ existingSubscription }) {
       getSubscription() {
         return Promise.resolve(existingSubscription
           ? {
+              options: {
+                applicationServerKey,
+              },
+              unsubscribe() {
+                return Promise.resolve();
+              },
               toJSON() {
                 return subscriptionPayload;
               },
@@ -75,7 +123,7 @@ function createHarness({ existingSubscription }) {
       throw new Error(`Unexpected fetch: ${url}`);
     },
     urlBase64ToUint8Array(value) {
-      return value;
+      return value === 'BEl6Y3Rlc3RLZXk' ? applicationServerKey : new Uint8Array();
     },
   };
   vm.runInNewContext(setupSnippet, context, { filename: 'setupPushNotifications.vm' });
@@ -89,9 +137,11 @@ function createHarness({ existingSubscription }) {
 const existingHarness = createHarness({ existingSubscription: true });
 await existingHarness.setupPushNotifications();
 assert.equal(existingHarness.subscribeCalls.length, 0, 'existing subscriptions should not request a new browser subscription');
-assert.equal(existingHarness.fetchCalls.length, 1, 'existing subscriptions should still sync back to the backend');
-assert.equal(existingHarness.fetchCalls[0].url, '/api/push/subscribe');
-assert.deepEqual(JSON.parse(existingHarness.fetchCalls[0].options.body), {
+assert.deepEqual(existingHarness.fetchCalls.map((entry) => entry.url), [
+  '/api/push/vapid-public-key',
+  '/api/push/subscribe',
+], 'existing subscriptions should validate the current VAPID key before syncing back to the backend');
+assert.deepEqual(JSON.parse(existingHarness.fetchCalls[1].options.body), {
   endpoint: 'https://push.example/existing',
 }, 'existing subscription sync should post the current subscription payload');
 

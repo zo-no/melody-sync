@@ -9,6 +9,15 @@ const SIDEBAR_DESKTOP_MAX_WIDTH = 520;
 const SIDEBAR_DESKTOP_MAIN_RESERVE = 420;
 const SIDEBAR_DESKTOP_MAX_RATIO = 0.38;
 let sidebarResizeState = null;
+let sidebarCollapseUserInteracted = false;
+
+function markSidebarCollapseUserInteraction() {
+  sidebarCollapseUserInteracted = true;
+}
+
+function hasSidebarCollapseUserInteraction() {
+  return sidebarCollapseUserInteracted === true;
+}
 
 function getTaskMapDesktopWidthForSidebarLayout() {
   if (document.body?.classList?.contains?.("task-map-is-collapsed") === true) return 0;
@@ -192,6 +201,7 @@ function setSidebarCollapsed(collapsed, { persist = true } = {}) {
 }
 
 function toggleSidebarCollapsed() {
+  markSidebarCollapseUserInteraction();
   if (!isDesktop) {
     if (sidebarOverlay.classList.contains("open")) {
       closeSidebarFn();
@@ -204,6 +214,7 @@ function toggleSidebarCollapsed() {
 }
 
 function openSessionsSidebar() {
+  markSidebarCollapseUserInteraction();
   if (typeof switchTab === "function") {
     switchTab("sessions");
   }
@@ -216,6 +227,9 @@ function openSessionsSidebar() {
 }
 
 function createNewSessionShortcut({ closeSidebar = true } = {}) {
+  if (typeof getActiveSidebarTab === "function" && getActiveSidebarTab() === "long-term") {
+    return createNewLongTermProjectShortcut({ closeSidebar });
+  }
   const tool = preferredTool || selectedTool || toolsList[0]?.id;
   if (!tool) return false;
   if (closeSidebar && !isDesktop) closeSidebarFn();
@@ -231,23 +245,50 @@ function createNewSessionShortcut({ closeSidebar = true } = {}) {
   });
 }
 
+async function createNewLongTermProjectShortcut({ closeSidebar = true } = {}) {
+  const tool = preferredTool || selectedTool || toolsList[0]?.id;
+  if (!tool) return false;
+  const defaultTitle = t("sidebar.longTerm.untitled");
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  if (closeSidebar && !isDesktop) closeSidebarFn();
+  if (typeof switchTab === "function") {
+    switchTab("long-term");
+  }
+  const created = await dispatchAction({
+    action: "create",
+    folder: "~",
+    tool,
+    name: defaultTitle,
+    group: t("sidebar.group.longTerm"),
+    sourceId: DEFAULT_APP_ID,
+    persistent: {
+      kind: "recurring_task",
+      digest: {
+        title: defaultTitle,
+      },
+      recurring: {
+        cadence: "daily",
+        timeOfDay: "09:00",
+        timezone,
+      },
+      runtimePolicy: {
+        manual: {
+          mode: "follow_current",
+        },
+      },
+    },
+  });
+  if (!created) return false;
+  window.MelodySyncWorkbench?.openPersistentEditor?.({
+    mode: "configure",
+    kind: "recurring_task",
+  });
+  return true;
+}
+
 function createSortSessionListShortcut() {
   if (typeof organizeSessionListWithAgent !== "function") return false;
   return organizeSessionListWithAgent({ closeSidebar: false });
-}
-
-function getSessionGroupingModeForSidebar() {
-  const model = window.MelodySyncSessionListModel || null;
-  return typeof model?.getSessionGroupingMode === "function"
-    ? model.getSessionGroupingMode()
-    : "user";
-}
-
-function setSessionGroupingModeForSidebar(mode) {
-  const model = window.MelodySyncSessionListModel || null;
-  return typeof model?.setSessionGroupingMode === "function"
-    ? model.setSessionGroupingMode(mode)
-    : "user";
 }
 
 function getSessionGroupingTemplateGroupsForSidebar() {
@@ -397,18 +438,17 @@ async function removeSessionGroupingTemplateGroup(groupLabel = "", { runAfterSav
 }
 
 function syncSessionGroupingControls() {
-  const groupingMode = getSessionGroupingModeForSidebar();
-  const isUserMode = groupingMode === "user";
   const branchesHidden = getBranchTaskVisibilityModeForSidebar() === "hide";
   const summaryEl = ensureSidebarGroupingSummaryEl();
-  sidebarGroupingToolbar?.setAttribute?.("data-grouping-mode", groupingMode);
-  sidebarGroupingModeUserBtn?.classList?.toggle?.("is-active", isUserMode);
-  sidebarGroupingModeAiBtn?.classList?.toggle?.("is-active", !isUserMode);
-  sidebarGroupingModeUserBtn?.setAttribute?.("aria-pressed", isUserMode ? "true" : "false");
-  sidebarGroupingModeAiBtn?.setAttribute?.("aria-pressed", isUserMode ? "false" : "true");
   if (sidebarBranchVisibilityToggleBtn) {
     const label = t(branchesHidden ? "sidebar.branchVisibility.show" : "sidebar.branchVisibility.hide");
-    sidebarBranchVisibilityToggleBtn.textContent = label;
+    const iconName = branchesHidden ? "eye-off" : "eye";
+    const iconMarkup = window.MelodySyncIcons?.render?.(iconName);
+    if (iconMarkup) {
+      sidebarBranchVisibilityToggleBtn.innerHTML = iconMarkup;
+    } else {
+      sidebarBranchVisibilityToggleBtn.textContent = label;
+    }
     sidebarBranchVisibilityToggleBtn.title = label;
     sidebarBranchVisibilityToggleBtn.setAttribute("aria-label", label);
     sidebarBranchVisibilityToggleBtn.setAttribute("aria-pressed", branchesHidden ? "true" : "false");
@@ -416,9 +456,6 @@ function syncSessionGroupingControls() {
   }
   if (sidebarGroupingConfigBtn) {
     sidebarGroupingConfigBtn.hidden = true;
-  }
-  if (!isUserMode) {
-    closeSessionGroupingTemplatePopover();
   }
   if (summaryEl) {
     summaryEl.hidden = true;
@@ -434,9 +471,11 @@ globalThis.createSortSessionListShortcut = createSortSessionListShortcut;
 globalThis.syncSidebarCollapseState = syncSidebarCollapseState;
 globalThis.setSidebarCollapsed = setSidebarCollapsed;
 globalThis.syncSessionGroupingControls = syncSessionGroupingControls;
+globalThis.hasSidebarCollapseUserInteraction = hasSidebarCollapseUserInteraction;
 
 menuBtn.addEventListener("click", toggleSidebarCollapsed);
 closeSidebar.addEventListener("click", () => {
+  markSidebarCollapseUserInteraction();
   if (isDesktop) {
     setSidebarCollapsed(true);
     return;
@@ -444,7 +483,10 @@ closeSidebar.addEventListener("click", () => {
   closeSidebarFn();
 });
 sidebarOverlay.addEventListener("click", (e) => {
-  if (e.target === sidebarOverlay && !isDesktop) closeSidebarFn();
+  if (e.target === sidebarOverlay && !isDesktop) {
+    markSidebarCollapseUserInteraction();
+    closeSidebarFn();
+  }
 });
 restoreSidebarDesktopWidthPreference();
 syncSidebarCollapseState({ persist: false });
@@ -488,22 +530,7 @@ window.addEventListener("resize", () => {
 
 // ---- Session list actions ----
 newSessionBtn?.addEventListener("click", () => {
-  createNewSessionShortcut();
-});
-
-sidebarGroupingModeUserBtn?.addEventListener("click", () => {
-  setSessionGroupingModeForSidebar("user");
-  if (typeof cancelSessionListOrganizerAutoRun === "function") {
-    cancelSessionListOrganizerAutoRun();
-  }
-  syncSessionGroupingControls();
-  renderSessionList();
-});
-
-sidebarGroupingModeAiBtn?.addEventListener("click", () => {
-  setSessionGroupingModeForSidebar("ai");
-  syncSessionGroupingControls();
-  renderSessionList();
+  void createNewSessionShortcut();
 });
 
 sidebarBranchVisibilityToggleBtn?.addEventListener("click", () => {
@@ -522,7 +549,7 @@ sidebarGroupingConfigBtn?.addEventListener("click", () => {
 });
 
 sortSessionListBtn?.addEventListener("click", () => {
-  if (getSessionGroupingModeForSidebar() === "user" && !hasSessionGroupingTemplateGroupsForSidebar()) {
+  if (!hasSessionGroupingTemplateGroupsForSidebar()) {
     void openSessionGroupingTemplatePopover({ runAfterSave: false });
     return;
   }

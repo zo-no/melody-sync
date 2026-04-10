@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const sessionHttpSource = readFileSync(join(repoRoot, 'static', 'frontend', 'session', 'http.js'), 'utf8');
+const sessionHttpPath = existsSync(join(repoRoot, 'frontend-src', 'session', 'http.js'))
+  ? join(repoRoot, 'frontend-src', 'session', 'http.js')
+  : join(repoRoot, 'static', 'frontend', 'session', 'http.js');
+const sessionHttpSource = readFileSync(sessionHttpPath, 'utf8');
 
 function extractFunctionSource(code, functionName) {
   const marker = `function ${functionName}`;

@@ -22,7 +22,7 @@ assert.deepEqual(NODE_LANES, ['main', 'branch', 'side']);
 assert.deepEqual(NODE_ROLES, ['state', 'action', 'summary']);
 assert.deepEqual(NODE_MERGE_POLICIES, ['replace-latest', 'append']);
 assert.deepEqual(NODE_INTERACTIONS, ['open-session', 'create-branch', 'none']);
-assert.deepEqual(NODE_EDGE_TYPES, ['structural', 'suggestion', 'completion', 'merge']);
+assert.deepEqual(NODE_EDGE_TYPES, ['structural', 'related', 'depends_on', 'blocks', 'maintains', 'spawned_from', 'suggestion', 'completion', 'merge']);
 assert.deepEqual(NODE_LAYOUT_VARIANTS, ['root', 'default', 'compact', 'panel']);
 assert.deepEqual(NODE_CAPABILITIES, ['open-session', 'create-branch', 'dismiss']);
 assert.deepEqual(NODE_SURFACE_SLOTS, ['task-map', 'composer-suggestions']);
@@ -43,7 +43,9 @@ assert.equal(getNodeKindDefinition('candidate')?.composition?.defaultViewType, '
 assert.deepEqual(getNodeKindDefinition('candidate')?.composition?.surfaceBindings, ['task-map', 'composer-suggestions']);
 assert.deepEqual(getNodeKindDefinition('candidate')?.composition?.taskCardBindings, ['candidateBranches']);
 assert.equal(getNodeKindDefinition('note')?.composition?.defaultViewType, 'markdown');
+assert.equal(getNodeKindDefinition('note')?.composition?.defaultEdgeType, 'related');
 assert.equal(getNodeKindDefinition('note')?.composition?.requiresSourceSession, false);
+assert.equal(getNodeKindDefinition('main')?.composition?.connectsToAnyNode, true);
 assert.equal(getNodeKindDefinition('done')?.composition?.defaultEdgeType, 'completion');
 assert.equal(isKnownNodeKind('candidate'), true);
 assert.equal(isKnownNodeKind('note'), true);
@@ -66,7 +68,7 @@ assert.deepEqual(payload.nodeLanes, ['main', 'branch', 'side']);
 assert.deepEqual(payload.nodeRoles, ['state', 'action', 'summary']);
 assert.deepEqual(payload.nodeMergePolicies, ['replace-latest', 'append']);
 assert.deepEqual(payload.nodeInteractions, ['open-session', 'create-branch', 'none']);
-assert.deepEqual(payload.nodeEdgeTypes, ['structural', 'suggestion', 'completion', 'merge']);
+assert.deepEqual(payload.nodeEdgeTypes, ['structural', 'related', 'depends_on', 'blocks', 'maintains', 'spawned_from', 'suggestion', 'completion', 'merge']);
 assert.deepEqual(payload.nodeLayoutVariants, ['root', 'default', 'compact', 'panel']);
 assert.deepEqual(payload.nodeCapabilities, ['open-session', 'create-branch', 'dismiss']);
 assert.deepEqual(payload.nodeSurfaceSlots, ['task-map', 'composer-suggestions']);
@@ -74,7 +76,7 @@ assert.deepEqual(payload.nodeViewTypes, ['flow-node', 'markdown', 'html', 'ifram
 assert.deepEqual(payload.nodeTaskCardBindingKeys, ['mainGoal', 'goal', 'candidateBranches', 'summary', 'checkpoint', 'nextSteps']);
 assert.equal(
   payload.nodeKindDefinitions.find((definition) => definition.id === 'branch')?.label,
-  '子任务',
+  '任务',
 );
 assert.deepEqual(
   payload.nodeKindDefinitions.find((definition) => definition.id === 'branch')?.composition?.allowedParentKinds,
@@ -88,5 +90,7 @@ assert.equal(
   payload.nodeKindDefinitions.find((definition) => definition.id === 'note')?.composition?.defaultViewType,
   'markdown',
 );
+assert.equal(payload.settings?.supportsCrossNodeConnections, true);
+assert.equal(payload.settings?.preferredCrossNodeEdgeType, 'related');
 
 console.log('test-workbench-node-definitions: ok');

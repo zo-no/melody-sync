@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
@@ -8,30 +8,24 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
-const nodeContractSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-contract.js'),
-  'utf8',
-);
-const nodeEffectsSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-effects.js'),
-  'utf8',
-);
-const nodeInstanceSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'node-instance.js'),
-  'utf8',
-);
-const graphModelSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'graph-model.js'),
-  'utf8',
-);
-const taskMapPlanSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'task-map-plan.js'),
-  'utf8',
-);
-const surfaceProjectionSource = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench', 'surface-projection.js'),
-  'utf8',
-);
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend-src', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const nodeContractSource = readWorkbenchFrontendSource('node-contract.js');
+const nodeEffectsSource = readWorkbenchFrontendSource('node-effects.js');
+const nodeInstanceSource = readWorkbenchFrontendSource('node-instance.js');
+const graphModelSource = readWorkbenchFrontendSource('graph-model.js');
+const taskMapPlanSource = readWorkbenchFrontendSource('task-map-plan.js');
+const surfaceProjectionSource = readWorkbenchFrontendSource('surface-projection.js');
 
 const context = { console };
 context.globalThis = context;

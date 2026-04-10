@@ -163,10 +163,17 @@ async function main() {
     const initial = initialBuild.payload;
     assert.ok(initial.serviceLabel, 'build info should expose a service label');
     assert.ok(initial.serviceTitle, 'build info should expose a service title');
+    assert.ok(initial.serviceBuildVersion, 'build info should expose a backend build version');
+    assert.ok(initial.buildVersion, 'build info should expose a combined page build version');
     assert.match(
       initial.serviceLabel,
       new RegExp(`^Ver ${escapeRegex(initial.serviceVersion)}(?: · |$)`),
       'service label should lead with the user-facing release version',
+    );
+    assert.match(
+      initial.buildVersion,
+      new RegExp(`^${escapeRegex(initial.serviceBuildVersion)}\\.ui\\.${escapeRegex(initial.frontendFingerprint)}$`),
+      'combined page build version should append the frontend fingerprint to the backend build version',
     );
     assert.ok(initial.frontendFingerprint, 'build info should expose a frontend fingerprint');
     assert.match(initial.frontendLabel, /^ui:/, 'frontend label should be compact and explicit');
@@ -203,6 +210,7 @@ async function main() {
     assert.equal(chatPage.status, 200, 'chat page should render');
     assert.match(chatPage.text, new RegExp(escapeRegex(`Build ${initial.label}`)));
     assert.match(chatPage.text, new RegExp(escapeRegex(initial.title)));
+    assert.match(chatPage.text, new RegExp(escapeRegex(`v${initial.buildVersion}`)));
 
     await sleep(350);
     writeFileSync(frontendProbePath, 'window.__MELODYSYNC_BUILD_INFO_PROBE__ = true;\n', 'utf8');
@@ -223,10 +231,20 @@ async function main() {
       initial.serviceFingerprint,
       'frontend edits should keep the service fingerprint stable',
     );
+    assert.equal(
+      frontendUpdated.serviceBuildVersion,
+      initial.serviceBuildVersion,
+      'frontend edits should not change the backend build version',
+    );
     assert.notEqual(
       frontendUpdated.frontendFingerprint,
       initial.frontendFingerprint,
       'frontend edits should update the frontend fingerprint without restart',
+    );
+    assert.notEqual(
+      frontendUpdated.buildVersion,
+      initial.buildVersion,
+      'combined page build version should move when frontend assets change',
     );
     assert.notEqual(
       frontendUpdated.assetVersion,
@@ -253,10 +271,20 @@ async function main() {
       initial.serviceFingerprint,
       'service restart should refresh the startup fingerprint when backend files change',
     );
+    assert.notEqual(
+      restarted.serviceBuildVersion,
+      initial.serviceBuildVersion,
+      'backend restart should refresh the backend build version',
+    );
     assert.equal(
       restarted.frontendFingerprint,
       frontendUpdated.frontendFingerprint,
       'backend restart alone should keep the current frontend fingerprint',
+    );
+    assert.notEqual(
+      restarted.buildVersion,
+      frontendUpdated.buildVersion,
+      'combined page build version should move when the backend build changes',
     );
 
     console.log('✅ Build info versioning validated');

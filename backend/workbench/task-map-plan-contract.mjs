@@ -46,6 +46,9 @@ export function createTaskMapPlanContractPayload() {
       supportsSessionScopedGraphReadApi: true,
       supportsSessionScopedSurfaceReadApi: true,
       supportsRichCanvasViews: true,
+      supportsCrossNodeConnections: true,
+      parentNodeIdSemantics: 'layout-spine',
+      preferredCrossNodeEdgeType: 'related',
       fallbackProjection: 'continuity',
     },
   };

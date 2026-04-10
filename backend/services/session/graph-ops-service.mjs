@@ -1,3 +1,5 @@
+import { isLongTermProjectSession as isTaskPoolLongTermProjectSession } from '../../session/task-pool-membership.mjs';
+
 function normalizeAssistantGraphLookupKey(value) {
   return String(value || '')
     .trim()
@@ -98,16 +100,54 @@ function resolveAssistantGraphSessionRef(ref, {
   return null;
 }
 
+function isLongTermProjectRootSession(session) {
+  if (!session || session.archived === true) return false;
+  const sessionId = String(session.id || '').trim();
+  const rootSessionId = String(session.rootSessionId || sessionId).trim();
+  const parentSessionId = String(session?.sourceContext?.parentSessionId || '').trim();
+  return Boolean(sessionId)
+    && !parentSessionId
+    && sessionId === rootSessionId
+    && isTaskPoolLongTermProjectSession(session);
+}
+
+function resolveAssistantGraphExpandTitle(operation = {}) {
+  return String(
+    operation?.title
+    || operation?.goal
+    || operation?.branchTitle
+    || operation?.target?.title
+    || operation?.target?.ref
+    || operation?.target?.goal
+    || operation?.target?.name
+    || '',
+  ).trim();
+}
+
+function resolveAssistantGraphExpandCheckpoint(operation = {}, branchTitle = '') {
+  return String(
+    operation?.checkpoint
+    || operation?.checkpointSummary
+    || operation?.resumeHint
+    || branchTitle
+    || '',
+  ).trim();
+}
+
 export function createSessionGraphOpsService({
   appendEvent,
+  createBranchFromSession: createBranchFromSessionOverride,
   getSession,
   listSessions,
   setSessionArchived,
   statusEvent,
 }) {
-  async function applySessionGraphOps(sessionId, graphOps = null) {
+  async function applySessionGraphOps(sessionId, graphOps = null, options = {}) {
     const normalizedSessionId = String(sessionId || '').trim();
     const operations = Array.isArray(graphOps?.operations) ? graphOps.operations : [];
+    const requireCurrentAsSource = options?.requireCurrentAsSource === true;
+    const requireLongTermRootTarget = options?.requireLongTermRootTarget === true;
+    const onlyWhenSourceStandaloneRoot = options?.onlyWhenSourceStandaloneRoot === true;
     if (!normalizedSessionId || operations.length === 0) {
       return {
         historyChanged: false,
@@ -116,20 +156,25 @@ export function createSessionGraphOpsService({
       };
     }
 
-    const { reparentSession } = await import('../../workbench/branch-lifecycle.mjs');
+    const branchLifecycleModule = await import('../../workbench/branch-lifecycle.mjs');
+    const reparentSession = branchLifecycleModule?.reparentSession;
+    const createBranchFromSession = typeof createBranchFromSessionOverride === 'function'
+      ? createBranchFromSessionOverride
+      : branchLifecycleModule?.createBranchFromSession;
     let rootSessionId = '';
-    let scopedSessions = [];
+    let rootScopedSessions = [];
+    let allSessions = [];
 
     const refreshScopedSessions = async () => {
       const currentSession = await getSession(normalizedSessionId);
+      allSessions = await listSessions({ includeArchived: true });
       if (!currentSession) {
         rootSessionId = normalizedSessionId;
-        scopedSessions = [];
+        rootScopedSessions = [];
         return;
       }
       rootSessionId = String(currentSession.rootSessionId || currentSession.id || normalizedSessionId).trim();
-      const allSessions = await listSessions({ includeArchived: true });
-      scopedSessions = allSessions.filter((session) => {
+      rootScopedSessions = allSessions.filter((session) => {
         const candidateId = String(session?.id || '').trim();
         const candidateRootId = String(session?.rootSessionId || candidateId).trim();
         return candidateRootId === rootSessionId || candidateId === rootSessionId;
@@ -146,23 +191,49 @@ export function createSessionGraphOpsService({
       const sourceSession = resolveAssistantGraphSessionRef(operation?.source, {
         currentSessionId: normalizedSessionId,
         rootSessionId,
-        sessions: scopedSessions,
+        sessions: rootScopedSessions,
       });
       if (!sourceSession) {
         console.warn(`[assistant-graph-ops] source session not found in root ${rootSessionId || '(unknown)'}`);
         continue;
       }
+      if (requireCurrentAsSource && String(sourceSession.id || '').trim() !== normalizedSessionId) {
+        continue;
+      }
 
       const currentParentSessionId = String(sourceSession?.sourceContext?.parentSessionId || '').trim();
+
+      if (operation?.type === 'expand') {
+        const branchTitle = resolveAssistantGraphExpandTitle(operation);
+        if (!branchTitle || typeof createBranchFromSession !== 'function') {
+          continue;
+        }
+        await createBranchFromSession(sourceSession.id, {
+          goal: branchTitle,
+          branchReason: operation.reason || `AI整理任务图：从「${getAssistantGraphSessionDisplayTitle(sourceSession)}」继续展开`,
+          checkpointSummary: resolveAssistantGraphExpandCheckpoint(operation, branchTitle),
+        });
+        historyChanged = true;
+        sessionChanged = true;
+        appliedCount += 1;
+        await refreshScopedSessions();
+        continue;
+      }
 
       if (operation?.type === 'attach') {
         const targetSession = resolveAssistantGraphSessionRef(operation?.target, {
           currentSessionId: normalizedSessionId,
           rootSessionId,
-          sessions: scopedSessions,
+          sessions: allSessions,
         });
         if (!targetSession || String(targetSession.id || '').trim() === String(sourceSession.id || '').trim()) {
           console.warn('[assistant-graph-ops] attach target missing or self-referential');
+          continue;
+        }
+        if (onlyWhenSourceStandaloneRoot && currentParentSessionId) {
+          continue;
+        }
+        if (requireLongTermRootTarget && !isLongTermProjectRootSession(targetSession)) {
           continue;
         }
         if (String(targetSession.id || '').trim() === currentParentSessionId) {
@@ -206,7 +277,7 @@ export function createSessionGraphOpsService({
           ? resolveAssistantGraphSessionRef(operation.target, {
             currentSessionId: normalizedSessionId,
             rootSessionId,
-            sessions: scopedSessions,
+            sessions: rootScopedSessions,
           })
           : null;
         const archiveLabel = targetSession

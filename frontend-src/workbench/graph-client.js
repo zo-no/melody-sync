@@ -198,6 +198,15 @@
 
     const sessionRecord = getSessionRecord?.(normalizedSessionId)
       || (trimText(getCurrentSession?.()?.id || "") === normalizedSessionId ? getCurrentSession?.() : null);
+    const projectedLongTerm = sessionRecord?.sessionState?.longTerm;
+    const projectedLongTermRootSessionId = trimText(projectedLongTerm?.rootSessionId || "");
+    const projectedLongTermRole = trimText(projectedLongTerm?.role || "").toLowerCase();
+    if (
+      projectedLongTermRootSessionId
+      && (projectedLongTermRole === "member" || projectedLongTermRole === "project")
+    ) {
+      return projectedLongTermRootSessionId;
+    }
     const explicitRootSessionId = trimText(sessionRecord?.rootSessionId || "");
     if (explicitRootSessionId) return explicitRootSessionId;
 
@@ -295,12 +304,8 @@
       || nodes[0]
       || null;
     applyActiveNodeSelection(quest, activeNode, nodeById);
-    quest.nodeIds = Array.isArray(quest?.nodeIds) && quest.nodeIds.length > 0
-      ? quest.nodeIds
-      : nodes.map((node) => node.id);
-    quest.edgeIds = Array.isArray(quest?.edgeIds) && quest.edgeIds.length > 0
-      ? quest.edgeIds
-      : edges.map((edge) => edge.id);
+    quest.nodeIds = nodes.map((node) => node.id);
+    quest.edgeIds = edges.map((edge) => edge.id);
     return {
       mainQuests: [quest],
       activeMainQuestId: trimText(quest?.id),

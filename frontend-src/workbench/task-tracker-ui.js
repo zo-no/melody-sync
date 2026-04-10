@@ -119,12 +119,6 @@
     function getPrimaryDetail(state) {
       if (!state?.hasSession) return "";
       const summary = clipText(getCurrentTaskSummary(state), isMobileQuestTracker() ? 72 : 96);
-      if (state.isBranch) {
-        const mainline = clipText(`主线：${state.branchFrom || state.mainGoal || "当前主线"}`, isMobileQuestTracker() ? 72 : 96);
-        if (!isRedundantTrackerText(mainline, summary, state.currentGoal)) {
-          return mainline;
-        }
-      }
       if (summary && !isRedundantTrackerText(summary, state.currentGoal, state.mainGoal)) {
         return summary;
       }
@@ -151,6 +145,72 @@
         item.textContent = entry;
         container.appendChild(item);
       }
+    }
+
+    function getLongTermTrackerState(session) {
+      const longTerm = session?.sessionState?.longTerm;
+      if (!longTerm || typeof longTerm !== "object" || Array.isArray(longTerm)) return null;
+      const suggestion = longTerm?.suggestion && typeof longTerm.suggestion === "object" && !Array.isArray(longTerm.suggestion)
+        ? longTerm.suggestion
+        : null;
+      return {
+        lane: trimText(longTerm?.lane || "").toLowerCase() === "long-term" ? "long-term" : "sessions",
+        role: trimText(longTerm?.role || "").toLowerCase(),
+        rootSessionId: trimText(longTerm?.rootSessionId || ""),
+        suggestionRootSessionId: trimText(suggestion?.rootSessionId || ""),
+      };
+    }
+
+    function getPersistentActionButtons(session, {
+      onPromote = null,
+      onRun = null,
+      onToggle = null,
+      onConfigure = null,
+      onAttachToLongTerm = null,
+      onDismissLongTermSuggestion = null,
+    } = {}) {
+      const kind = trimText(session?.persistent?.kind || "").toLowerCase();
+      const longTermState = getLongTermTrackerState(session);
+      if (!session?.id || session?.archived === true) {
+        return [];
+      }
+      if (!kind && longTermState?.suggestionRootSessionId) {
+        return [
+          createPersistentActionButton("归入长期任务", () => onAttachToLongTerm?.(longTermState.suggestionRootSessionId)),
+          createPersistentActionButton("稍后", () => onDismissLongTermSuggestion?.(longTermState.suggestionRootSessionId), { secondary: true }),
+        ];
+      }
+      if (!kind && longTermState?.lane === "long-term" && longTermState?.role === "member") {
+        return [];
+      }
+      if (!kind) {
+        return [
+          createPersistentActionButton("沉淀为长期项", onPromote),
+        ];
+      }
+      if (isMobileQuestTracker()) {
+        return [
+          createPersistentActionButton("长期项设置", onConfigure),
+        ];
+      }
+      if (kind === "recurring_task") {
+        return [
+          createPersistentActionButton("立即执行", onRun),
+          createPersistentActionButton(
+            String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "恢复周期" : "暂停周期",
+            onToggle,
+            { secondary: true },
+          ),
+          createPersistentActionButton("设置", onConfigure, { secondary: true }),
+        ];
+      }
+      if (kind === "skill") {
+        return [
+          createPersistentActionButton("触发AI快捷按钮", onRun),
+          createPersistentActionButton("设置", onConfigure, { secondary: true }),
+        ];
+      }
+      return [];
     }
 
     function listVisibleCandidateBranches(taskCard, session = null) {
@@ -329,42 +389,24 @@
       onRun = null,
       onToggle = null,
       onConfigure = null,
+      onAttachToLongTerm = null,
+      onDismissLongTermSuggestion = null,
     } = {}) {
       const host = getPersistentActionsEl();
       if (!host) return;
       host.innerHTML = "";
-      const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
-      if (!session?.id) {
-        host.hidden = true;
-        return;
+      const buttons = getPersistentActionButtons(session, {
+        onPromote,
+        onRun,
+        onToggle,
+        onConfigure,
+        onAttachToLongTerm,
+        onDismissLongTermSuggestion,
+      });
+      for (const button of buttons) {
+        host.appendChild(button);
       }
-      if (!kind) {
-        if (session?.archived === true) {
-          host.hidden = true;
-          return;
-        }
-        host.appendChild(createPersistentActionButton("沉淀为长期项", onPromote));
-        host.hidden = false;
-        return;
-      }
-      if (kind === "recurring_task") {
-        host.appendChild(createPersistentActionButton("立即执行", onRun));
-        host.appendChild(createPersistentActionButton(
-          String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "恢复周期" : "暂停周期",
-          onToggle,
-          { secondary: true },
-        ));
-        host.appendChild(createPersistentActionButton("设置", onConfigure, { secondary: true }));
-        host.hidden = false;
-        return;
-      }
-      if (kind === "skill") {
-        host.appendChild(createPersistentActionButton("触发AI快捷按钮", onRun));
-        host.appendChild(createPersistentActionButton("设置", onConfigure, { secondary: true }));
-        host.hidden = false;
-        return;
-      }
-      host.hidden = true;
+      host.hidden = buttons.length === 0;
     }
 
     return {

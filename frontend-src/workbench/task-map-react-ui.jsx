@@ -4376,13 +4376,12 @@ function MelodyEdge({
     curvature: 0.32,
   });
   const [composerOpen, setComposerOpen] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const [direction, setDirection] = useState('forward');
   const [detailLevel, setDetailLevel] = useState('balanced');
   const [handoffBusy, setHandoffBusy] = useState(false);
   const handoffController = data?.rendererApi?.taskHandoffController || null;
   const canHandoff = data?.canHandoff === true && handoffController?.canHandoff?.(data) === true;
-  const showHandoffTrigger = canHandoff && (hovered || composerOpen || data?.current === true);
+  const showHandoffTrigger = canHandoff && (composerOpen || data?.current === true);
   const resolvedDetailLevel = resolveEdgeHandoffDetailLevel(detailLevel);
   const forwardPreview = canHandoff ? handoffController.buildPreview(data, 'forward', { detailLevel: resolvedDetailLevel }) : null;
   const reversePreview = canHandoff ? handoffController.buildPreview(data, 'reverse', { detailLevel: resolvedDetailLevel }) : null;
@@ -4406,12 +4405,7 @@ function MelodyEdge({
 
   return (
     <>
-      <g
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => {
-          if (!composerOpen) setHovered(false);
-        }}
-      >
+      <g>
         <BaseEdge
           className={className}
           path={edgePath}
@@ -4425,10 +4419,6 @@ function MelodyEdge({
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               pointerEvents: 'all',
-            }}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => {
-              if (!composerOpen) setHovered(false);
             }}
           >
             <button

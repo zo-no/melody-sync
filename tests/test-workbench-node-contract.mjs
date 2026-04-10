@@ -1,16 +1,26 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import vm from 'vm';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const source = readFileSync(
-  join(repoRoot, 'static', 'frontend', 'workbench/node-contract.js'),
-  'utf8',
-);
+
+function readWorkbenchFrontendSource(filename) {
+  const candidates = [
+    join(repoRoot, 'frontend-src', 'workbench', filename),
+    join(repoRoot, 'static', 'frontend', 'workbench', filename),
+  ];
+  const targetPath = candidates.find((candidate) => existsSync(candidate));
+  if (!targetPath) {
+    throw new Error(`Workbench frontend source not found for ${filename}`);
+  }
+  return readFileSync(targetPath, 'utf8');
+}
+
+const source = readWorkbenchFrontendSource('node-contract.js');
 
 const context = { console };
 context.globalThis = context;
@@ -24,7 +34,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_LANES)), ['main', 'bran
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_ROLES)), ['state', 'action', 'summary']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_MERGE_POLICIES)), ['replace-latest', 'append']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_INTERACTIONS)), ['open-session', 'create-branch', 'none']);
-assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_EDGE_TYPES)), ['structural', 'suggestion', 'completion', 'merge']);
+assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_EDGE_TYPES)), ['structural', 'related', 'depends_on', 'blocks', 'maintains', 'spawned_from', 'suggestion', 'completion', 'merge']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_LAYOUT_VARIANTS)), ['root', 'default', 'compact', 'panel']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_CAPABILITIES)), ['open-session', 'create-branch', 'dismiss']);
 assert.deepEqual(JSON.parse(JSON.stringify(contract.NODE_SURFACE_SLOTS)), ['task-map', 'composer-suggestions']);
@@ -61,7 +71,9 @@ const note = contract.getNodeKindDefinition('note');
 assert.equal(note?.lane, 'side');
 assert.equal(note?.role, 'summary');
 assert.equal(note?.composition?.defaultViewType, 'markdown');
+assert.equal(note?.composition?.defaultEdgeType, 'related');
 assert.equal(note?.composition?.requiresSourceSession, false);
+assert.equal(note?.composition?.connectsToAnyNode, true);
 
 assert.equal(contract.isKnownNodeKind('main'), true);
 assert.equal(contract.isKnownNodeKind('note'), true);

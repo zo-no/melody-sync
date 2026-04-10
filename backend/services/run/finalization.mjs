@@ -171,6 +171,29 @@ async function syncContinuityProjection({
   });
 }
 
+function scheduleAutoAttachLongTermTaskMap({
+  applySessionGraphOps,
+  sessionId,
+  graphOps,
+  manifest,
+  runState,
+} = {}) {
+  if (typeof applySessionGraphOps !== 'function') return false;
+  if (runState !== 'completed' || manifest?.autoAttachLongTermTaskMap !== true) return false;
+  const operations = Array.isArray(graphOps?.operations) ? graphOps.operations : [];
+  if (operations.length !== 1 || operations[0]?.type !== 'attach') return false;
+  setTimeout(() => {
+    void applySessionGraphOps(sessionId, graphOps, {
+      requireCurrentAsSource: true,
+      requireLongTermRootTarget: true,
+      onlyWhenSourceStandaloneRoot: true,
+    }).catch((error) => {
+      console.error(`[long-term-auto-attach] ${sessionId}: ${error.message}`);
+    });
+  }, 0);
+  return true;
+}
+
 export async function finalizeDetachedRunWithDeps(deps, {
   sessionId,
   run,
@@ -202,6 +225,7 @@ export async function finalizeDetachedRunWithDeps(deps, {
     syncSessionContinuityFromSession,
     emitHook,
     normalizeSessionTaskCard,
+    applySessionGraphOps,
     applyDirectCompactionResult,
     maybeAutoCompact,
     applyCompactionWorkerResult,
@@ -401,6 +425,16 @@ export async function finalizeDetachedRunWithDeps(deps, {
     });
   }
 
+  if (!sessionOrganizing && !compacting) {
+    scheduleAutoAttachLongTermTaskMap({
+      applySessionGraphOps,
+      sessionId,
+      graphOps: latestGraphOps,
+      manifest,
+      runState: finalizedRun.state,
+    });
+  }
+
   if (sessionOrganizing) {
     if (run.state === 'completed') {
       const organized = await finalizeSessionOrganizerRun(sessionId, finalizedRun, normalizedEvents);
@@ -430,6 +464,12 @@ export async function finalizeDetachedRunWithDeps(deps, {
   }
   if (FINALIZE_DEBUG) {
     console.log('[startup-finalize] resolved latest session');
+  }
+
+  // Queue draining is core session continuity and should not wait on slower
+  // post-run hooks such as auto-naming or external side effects.
+  if (getSessionQueueCount(latestSession) > 0) {
+    scheduleQueuedFollowUpDispatch(sessionId);
   }
 
   const runEvent = finalizedRun.state === 'completed' ? 'run.completed' : 'run.failed';

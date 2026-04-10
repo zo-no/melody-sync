@@ -11,6 +11,7 @@ import {
   promoteSessionToPersistent,
   runSessionPersistent,
 } from '../../session/manager.mjs';
+import { normalizeSessionPersistent } from '../../session-persistent/core.mjs';
 import { statOrNull } from '../../fs-utils.mjs';
 
 async function isDirectoryPath(path) {
@@ -92,6 +93,7 @@ export async function createSessionForHttp(payload = {}) {
     description,
     systemPrompt,
     internalRole,
+    persistent,
     completionTargets,
     externalTriggerId,
     sourceContext,
@@ -134,6 +136,19 @@ export async function createSessionForHttp(payload = {}) {
   }
   if (Object.prototype.hasOwnProperty.call(payload, 'sourceContext')) {
     createOptions.sourceContext = sourceContext;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, 'persistent')) {
+    if (persistent !== null && (typeof persistent !== 'object' || Array.isArray(persistent))) {
+      const error = new Error('persistent must be an object when provided');
+      error.statusCode = 400;
+      throw error;
+    }
+    if (persistent && !normalizeSessionPersistent(persistent)) {
+      const error = new Error('persistent configuration is invalid');
+      error.statusCode = 400;
+      throw error;
+    }
+    createOptions.persistent = persistent;
   }
   return createSession(resolvedFolder, tool, name || '', createOptions);
 }

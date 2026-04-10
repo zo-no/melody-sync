@@ -232,6 +232,14 @@
       } else {
         const form = documentRef.createElement("div");
         form.className = "persistent-editor-modal-form";
+        if (draft.kind === "recurring_task" && (!draft.loop || typeof draft.loop !== "object")) {
+          draft.loop = {
+            collect: { sources: [], instruction: "" },
+            organize: { instruction: "" },
+            use: { instruction: "" },
+            prune: { instruction: "" },
+          };
+        }
 
         const kindRow = documentRef.createElement("div");
         kindRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
@@ -328,6 +336,76 @@
             }
             form.appendChild(buildField("每周日期", weekdayRow));
           }
+
+          const loopSection = documentRef.createElement("div");
+          loopSection.className = "operation-record-persistent-section";
+
+          const loopTitle = documentRef.createElement("div");
+          loopTitle.className = "operation-record-persistent-section-title";
+          loopTitle.textContent = "长期闭环";
+          loopSection.appendChild(loopTitle);
+
+          const loopLead = documentRef.createElement("div");
+          loopLead.className = "operation-record-persistent-field-note";
+          loopLead.textContent = "每个长期任务都维护一圈：收集、整理、使用、以及复盘后的冗余减枝。";
+          loopSection.appendChild(loopLead);
+
+          const collectSourcesInput = documentRef.createElement("textarea");
+          collectSourcesInput.className = "operation-record-persistent-textarea";
+          collectSourcesInput.rows = 3;
+          collectSourcesInput.value = Array.isArray(draft.loop?.collect?.sources)
+            ? draft.loop.collect.sources.join("\n")
+            : "";
+          collectSourcesInput.placeholder = "每行一个数据来源，例如：运行日志、用户反馈、任务完成记录";
+          collectSourcesInput.addEventListener("input", () => {
+            draft.loop.collect.sources = String(collectSourcesInput.value || "")
+              .split(/\n+/)
+              .map((entry) => String(entry || "").trim())
+              .filter(Boolean);
+          });
+          loopSection.appendChild(buildField("数据收集", collectSourcesInput, "先定义长期任务持续看哪些输入信号。"));
+
+          const collectInstructionInput = documentRef.createElement("textarea");
+          collectInstructionInput.className = "operation-record-persistent-textarea";
+          collectInstructionInput.rows = 2;
+          collectInstructionInput.value = String(draft.loop?.collect?.instruction || "");
+          collectInstructionInput.placeholder = "采集时要特别关注什么";
+          collectInstructionInput.addEventListener("input", () => {
+            draft.loop.collect.instruction = collectInstructionInput.value;
+          });
+          loopSection.appendChild(buildField("收集要求", collectInstructionInput));
+
+          const organizeInput = documentRef.createElement("textarea");
+          organizeInput.className = "operation-record-persistent-textarea";
+          organizeInput.rows = 2;
+          organizeInput.value = String(draft.loop?.organize?.instruction || "");
+          organizeInput.placeholder = "如何把原始数据整理成可用信息";
+          organizeInput.addEventListener("input", () => {
+            draft.loop.organize.instruction = organizeInput.value;
+          });
+          loopSection.appendChild(buildField("数据整理", organizeInput));
+
+          const useInput = documentRef.createElement("textarea");
+          useInput.className = "operation-record-persistent-textarea";
+          useInput.rows = 2;
+          useInput.value = String(draft.loop?.use?.instruction || "");
+          useInput.placeholder = "整理后的数据要拿来驱动什么动作或判断";
+          useInput.addEventListener("input", () => {
+            draft.loop.use.instruction = useInput.value;
+          });
+          loopSection.appendChild(buildField("数据使用", useInput));
+
+          const pruneInput = documentRef.createElement("textarea");
+          pruneInput.className = "operation-record-persistent-textarea";
+          pruneInput.rows = 2;
+          pruneInput.value = String(draft.loop?.prune?.instruction || "");
+          pruneInput.placeholder = "复盘后哪些重复、低信号、过期内容要被剪掉";
+          pruneInput.addEventListener("input", () => {
+            draft.loop.prune.instruction = pruneInput.value;
+          });
+          loopSection.appendChild(buildField("冗余减枝", pruneInput));
+
+          form.appendChild(loopSection);
         }
 
         form.appendChild(buildRuntimeSection({

@@ -5,7 +5,6 @@
   const trackerStatusTextEl = document.getElementById("questTrackerStatusText");
   const headerTitleEl = document.getElementById("headerTitle");
   const headerTaskDetailBtn = document.getElementById("headerTaskDetailBtn");
-  const persistentSessionBtn = document.getElementById("persistentSessionBtn");
   const trackerTitleEl = document.getElementById("questTrackerTitle");
   const trackerBranchEl = document.getElementById("questTrackerBranch");
   const trackerBranchLabelEl = document.getElementById("questTrackerBranchLabel");
@@ -24,6 +23,7 @@
   const taskCanvasExpandBtn = document.getElementById("taskCanvasExpandBtn");
   const taskCanvasCloseBtn = document.getElementById("taskCanvasCloseBtn");
   const taskMapDrawerBtn = document.getElementById("taskMapDrawerBtn");
+  const taskMapDrawerCloseBtn = document.getElementById("taskMapDrawerCloseBtn");
   const taskMapDrawerBackdrop = document.getElementById("taskMapDrawerBackdrop");
   const trackerFooterEl = document.getElementById("questTrackerFooter");
   const trackerActionsEl = document.getElementById("questTrackerActions");
@@ -46,9 +46,11 @@
   if (!tracker) return;
 
   const SUPPRESSED_PREFIX = "melodysyncSuppressedBranch";
+  const LONG_TERM_SUGGESTION_SUPPRESSED_PREFIX = "melodysyncSuppressedLongTermSuggestion";
   const TASK_MAP_MOCK_STORAGE_KEY = "melodysyncTaskMapMockPreset";
   const TASK_MAP_DESKTOP_WIDTH_STORAGE_KEY = "melodysyncTaskMapDesktopWidth";
   const RECENT_REPARENT_TARGETS_STORAGE_KEY = "melodysyncRecentReparentTargets";
+  const RECENT_CONNECT_TARGETS_STORAGE_KEY = "melodysyncRecentConnectTargets";
   const TASK_MAP_DESKTOP_MIN_WIDTH = 260;
   const TASK_MAP_DESKTOP_MAX_WIDTH = 960;
   const TASK_MAP_DESKTOP_MAIN_RESERVE = 320;
@@ -275,6 +277,45 @@
       ...readRecentReparentTargetIds().filter((entry) => entry !== normalizedTargetSessionId),
     ];
     writeRecentReparentTargetIds(deduped);
+  }
+
+  function readRecentConnectTargetIds() {
+    try {
+      const raw = String(localStorage.getItem(RECENT_CONNECT_TARGETS_STORAGE_KEY) || "").trim();
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((entry) => normalizeSessionId(entry))
+        .filter(Boolean)
+        .slice(0, 8);
+    } catch {
+      return [];
+    }
+  }
+
+  function writeRecentConnectTargetIds(targetSessionIds = []) {
+    try {
+      const normalized = Array.isArray(targetSessionIds)
+        ? targetSessionIds.map((entry) => normalizeSessionId(entry)).filter(Boolean).slice(0, 8)
+        : [];
+      if (!normalized.length) {
+        localStorage.removeItem(RECENT_CONNECT_TARGETS_STORAGE_KEY);
+        return;
+      }
+      localStorage.setItem(RECENT_CONNECT_TARGETS_STORAGE_KEY, JSON.stringify(normalized));
+    } catch {
+    }
+  }
+
+  function rememberRecentConnectTarget(targetSessionId) {
+    const normalizedTargetSessionId = normalizeSessionId(targetSessionId);
+    if (!normalizedTargetSessionId) return;
+    const deduped = [
+      normalizedTargetSessionId,
+      ...readRecentConnectTargetIds().filter((entry) => entry !== normalizedTargetSessionId),
+    ];
+    writeRecentConnectTargetIds(deduped);
   }
 
   function isRedundantTrackerText(value, ...comparisons) {
@@ -624,7 +665,9 @@
     collapseTaskMapAfterAction,
     enterBranchFromSession,
     reparentSession: reparentSessionUnderTarget,
+    connectSessions: connectSessionTasks,
     listReparentTargets: ({ sourceSessionId }) => listReparentTargets(sourceSessionId),
+    listConnectTargets: ({ sourceSessionId }) => listConnectTargets(sourceSessionId),
     getSessionRecord,
     attachSession,
     buildTaskHandoffPreview,
@@ -716,11 +759,20 @@
         node?.title || "",
       ].join(":"))
       : [];
+    const edgeEntries = Array.isArray(activeQuest?.edges)
+      ? activeQuest.edges.map((edge) => [
+        edge?.id || "",
+        edge?.fromNodeId || edge?.from || "",
+        edge?.toNodeId || edge?.to || "",
+        edge?.type || edge?.variant || "",
+      ].join(":"))
+      : [];
     const renderKey = [
       state?.session?.id || "",
       activeQuest?.id || "",
       activeQuest?.currentNodeId || "",
       nodeEntries.join("|"),
+      edgeEntries.join("|"),
       String(taskMapFlowRenderer?.getRenderStateKey?.() || "").trim(),
     ].join("||");
     if (
@@ -1037,15 +1089,8 @@
   }
 
   function renderPersistentTrackerActions(session) {
-    const persistentActionsEl = ensureTrackerPersistentActionsEl();
-    if (isMobileQuestTracker()) {
-      if (persistentActionsEl) {
-        persistentActionsEl.hidden = true;
-        persistentActionsEl.innerHTML = "";
-      }
-      return;
-    }
-    trackerRenderer?.renderPersistentActions?.(session, {
+    const visibleSession = getPersistentUiSession(session);
+    trackerRenderer?.renderPersistentActions?.(visibleSession, {
       onPromote: () => {
         operationRecordController?.openPersistentEditor?.({ mode: "promote" });
       },
@@ -1067,6 +1112,36 @@
       },
       onConfigure: () => {
         operationRecordController?.openPersistentEditor?.({ mode: "configure" });
+      },
+      onAttachToLongTerm: async (targetSessionId = "") => {
+        const normalizedTargetSessionId = normalizeSessionId(
+          targetSessionId
+          || session?.sessionState?.longTerm?.suggestion?.rootSessionId
+          || "",
+        );
+        if (!session?.id || !normalizedTargetSessionId) return;
+        const targetSession = getSessionRecord(normalizedTargetSessionId) || null;
+        const targetTitle = String(
+          session?.sessionState?.longTerm?.suggestion?.title
+          || session?.sessionState?.longTerm?.rootTitle
+          || targetSession?.name
+          || "长期任务",
+        ).trim();
+        await reparentSessionUnderTarget(session.id, {
+          targetSessionId: normalizedTargetSessionId,
+          branchReason: `归入长期任务「${targetTitle}」下持续维护`,
+        });
+        setLongTermSuggestionSuppressed(session.id, normalizedTargetSessionId, false);
+      },
+      onDismissLongTermSuggestion: (targetSessionId = "") => {
+        const normalizedTargetSessionId = normalizeSessionId(
+          targetSessionId
+          || session?.sessionState?.longTerm?.suggestion?.rootSessionId
+          || "",
+        );
+        if (!session?.id || !normalizedTargetSessionId) return;
+        setLongTermSuggestionSuppressed(session.id, normalizedTargetSessionId, true);
+        renderTracker();
       },
     });
   }
@@ -1183,31 +1258,6 @@
     return normalizeSessionId(resolvedCluster?.currentBranchSessionId || "");
   }
 
-  function applyFocusedSessionToSnapshot(sessionId) {
-    const normalizedSessionId = normalizeSessionId(sessionId);
-    if (!normalizedSessionId) return false;
-    const clusters = Array.isArray(snapshot?.taskClusters) ? snapshot.taskClusters : [];
-    for (const cluster of clusters) {
-      const rootSessionId = normalizeSessionId(cluster?.mainSessionId || "");
-      if (!rootSessionId) continue;
-      if (normalizedSessionId === rootSessionId) {
-        if (normalizeSessionId(cluster?.currentBranchSessionId || "")) {
-          cluster.currentBranchSessionId = "";
-          return true;
-        }
-        return false;
-      }
-      if (getClusterBranchSessionIds(cluster).has(normalizedSessionId)) {
-        if (normalizeSessionId(cluster?.currentBranchSessionId || "") !== normalizedSessionId) {
-          cluster.currentBranchSessionId = normalizedSessionId;
-          return true;
-        }
-        return false;
-      }
-    }
-    return false;
-  }
-
   function setFocusedSessionId(sessionId, options = {}) {
     const nextFocusedSessionId = normalizeSessionId(sessionId) || getCurrentSessionIdSafe();
     const focusChanged = nextFocusedSessionId !== focusedSessionId;
@@ -1215,10 +1265,7 @@
       questHasSessionTracked = false;
     }
     focusedSessionId = nextFocusedSessionId;
-    const snapshotChanged = options.syncSnapshot === false
-      ? false
-      : applyFocusedSessionToSnapshot(nextFocusedSessionId);
-    if ((focusChanged || snapshotChanged) && options.render !== false) {
+    if (focusChanged && options.render !== false) {
       invalidateTaskMapRail();
       renderTracker();
       if (options.renderSessionList === true && typeof renderSessionList === "function") {
@@ -1694,11 +1741,193 @@
     return segments.join(" / ");
   }
 
+  function getSessionTaskManagementStatus(session) {
+    const sessionStateModel = window?.MelodySyncSessionStateModel || null;
+    const normalizedWorkflowState = typeof sessionStateModel?.normalizeSessionWorkflowState === "function"
+      ? sessionStateModel.normalizeSessionWorkflowState(session?.workflowState || "")
+      : normalizeStatusToken(session?.workflowState || "");
+    if (normalizedWorkflowState === "done") {
+      return { key: "done", rank: 3, label: "已完成" };
+    }
+    if (normalizedWorkflowState === "parked") {
+      return { key: "parked", rank: 2, label: "已挂起" };
+    }
+    if (normalizedWorkflowState === "waiting_user") {
+      return { key: "waiting_user", rank: 1, label: "等待输入" };
+    }
+    return { key: "active", rank: 0, label: "进行中" };
+  }
+
+  function collectReparentRecommendationTexts(session, fallbackTitle = "") {
+    const taskCard = getTaskCard(session);
+    return [
+      fallbackTitle || getSessionDisplayName(session),
+      taskCard?.goal,
+      taskCard?.mainGoal,
+      taskCard?.summary,
+      taskCard?.checkpoint,
+      taskCard?.branchReason,
+      getTaskCardList(taskCard, "nextSteps")[0] || "",
+      getTaskCardList(taskCard, "knownConclusions")[0] || "",
+    ]
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean);
+  }
+
+  function buildComparableBigrams(values = []) {
+    const bigrams = new Set();
+    for (const value of Array.isArray(values) ? values : []) {
+      const compact = normalizeComparableText(value).replace(/\s+/g, "");
+      if (compact.length < 2) continue;
+      for (let index = 0; index < compact.length - 1; index += 1) {
+        bigrams.add(compact.slice(index, index + 2));
+        if (bigrams.size >= 96) return bigrams;
+      }
+    }
+    return bigrams;
+  }
+
+  function countComparableOverlap(source = new Set(), target = new Set(), maxMatches = 12) {
+    let matches = 0;
+    for (const token of source) {
+      if (!target.has(token)) continue;
+      matches += 1;
+      if (matches >= maxMatches) break;
+    }
+    return matches;
+  }
+
+  function scoreReparentTargetRelevance(sourceSession, targetSession, {
+    sourceTitle = "",
+    targetTitle = "",
+  } = {}) {
+    const sourceTexts = collectReparentRecommendationTexts(sourceSession, sourceTitle);
+    const targetTexts = collectReparentRecommendationTexts(targetSession, targetTitle);
+    const normalizedSourceTexts = sourceTexts.map((entry) => normalizeComparableText(entry)).filter(Boolean);
+    const normalizedTargetTexts = targetTexts.map((entry) => normalizeComparableText(entry)).filter(Boolean);
+    const sourceJoined = normalizedSourceTexts.join(" ");
+    const targetJoined = normalizedTargetTexts.join(" ");
+    let inclusionBonus = 0;
+
+    for (const text of normalizedSourceTexts) {
+      if (text.length < 2) continue;
+      if (targetJoined.includes(text)) {
+        inclusionBonus = Math.max(inclusionBonus, Math.min(4, Math.ceil(text.length / 3)));
+      }
+    }
+    for (const text of normalizedTargetTexts) {
+      if (text.length < 2) continue;
+      if (sourceJoined.includes(text)) {
+        inclusionBonus = Math.max(inclusionBonus, Math.min(4, Math.ceil(text.length / 3)));
+      }
+    }
+
+    const bigramOverlap = countComparableOverlap(
+      buildComparableBigrams(sourceTexts),
+      buildComparableBigrams(targetTexts),
+      10,
+    );
+
+    return inclusionBonus + bigramOverlap;
+  }
+
+  function buildReparentTargetDisplayPath({
+    title = "",
+    path = "顶层任务",
+    sameCluster = false,
+    isRecent = false,
+    relatedScore = 0,
+    status = { key: "active", label: "" },
+  } = {}) {
+    const tags = [];
+    if (relatedScore >= 3) {
+      tags.push("相关内容");
+    } else if (sameCluster) {
+      tags.push("同图谱");
+    }
+    if (isRecent) {
+      tags.push("最近使用");
+    }
+    if (status?.key === "waiting_user" || status?.key === "parked" || status?.key === "done") {
+      tags.push(status.label || "");
+    }
+    const basePath = path === "顶层任务" ? (title || "顶层任务") : path;
+    return tags.filter(Boolean).length > 0
+      ? `${tags.filter(Boolean).join(" · ")} · ${basePath}`
+      : basePath;
+  }
+
+  function buildConnectTargetDisplayPath({
+    title = "",
+    path = "当前任务",
+    sameCluster = false,
+    isRecent = false,
+    relatedScore = 0,
+    status = { key: "active", label: "" },
+  } = {}) {
+    const tags = [];
+    if (relatedScore >= 3) {
+      tags.push("相关内容");
+    } else if (sameCluster) {
+      tags.push("同图谱");
+    }
+    if (isRecent) {
+      tags.push("最近使用");
+    }
+    if (status?.key === "waiting_user" || status?.key === "parked" || status?.key === "done") {
+      tags.push(status.label || "");
+    }
+    const basePath = path === "顶层任务" ? (title || "当前任务") : path;
+    return tags.filter(Boolean).length > 0
+      ? `${tags.filter(Boolean).join(" · ")} · ${basePath}`
+      : basePath;
+  }
+
+  function collectExistingConnectedSessionIds(sourceSessionId) {
+    const normalizedSourceSessionId = normalizeSessionId(sourceSessionId);
+    if (!normalizedSourceSessionId) return new Set();
+
+    const graphs = [];
+    const projection = getTaskMapProjection();
+    if (Array.isArray(projection?.mainQuests) && projection.mainQuests.length > 0) {
+      graphs.push(...projection.mainQuests);
+    } else if (snapshot?.taskMapGraph && typeof snapshot.taskMapGraph === "object") {
+      graphs.push(snapshot.taskMapGraph);
+    }
+
+    const connectedSessionIds = new Set();
+    for (const graph of graphs) {
+      const nodeById = new Map(
+        (Array.isArray(graph?.nodes) ? graph.nodes : [])
+          .filter((node) => normalizeTaskMapNodeId(node?.id))
+          .map((node) => [normalizeTaskMapNodeId(node.id), node]),
+      );
+      for (const edge of Array.isArray(graph?.edges) ? graph.edges : []) {
+        const edgeType = normalizeStatusToken(edge?.type || edge?.variant || "");
+        if (edgeType !== "related") continue;
+        const fromNode = nodeById.get(normalizeTaskMapNodeId(edge?.fromNodeId || edge?.from || ""));
+        const toNode = nodeById.get(normalizeTaskMapNodeId(edge?.toNodeId || edge?.to || ""));
+        const fromSessionId = normalizeSessionId(fromNode?.sessionId || "");
+        const toSessionId = normalizeSessionId(toNode?.sessionId || "");
+        if (!fromSessionId || !toSessionId) continue;
+        if (fromSessionId === normalizedSourceSessionId) {
+          connectedSessionIds.add(toSessionId);
+        }
+        if (toSessionId === normalizedSourceSessionId) {
+          connectedSessionIds.add(fromSessionId);
+        }
+      }
+    }
+
+    return connectedSessionIds;
+  }
+
   function listReparentTargets(sourceSessionId) {
     const normalizedSourceSessionId = normalizeSessionId(sourceSessionId);
     if (!normalizedSourceSessionId) return [];
     const { entriesById, childrenByParent } = collectTaskMapSessionEntries();
     const sourceEntry = entriesById.get(normalizedSourceSessionId) || null;
+    const sourceSession = sourceEntry?.session || getSessionRecord(normalizedSourceSessionId) || null;
     const sourceClusterRootSessionId = normalizeSessionId(sourceEntry?.clusterRootSessionId || "");
     const sourceSubtreeIds = collectSessionSubtreeIds(normalizedSourceSessionId, childrenByParent);
     const recentTargetIds = readRecentReparentTargetIds();
@@ -1712,42 +1941,138 @@
       targets.push({
         mode: "detach",
         sessionId: "",
-        title: "移出为主线",
+        title: "移出为独立任务",
         path: "从当前父任务下移出",
         sameCluster: true,
         depth: -1,
-        searchText: normalizeComparableText("移出为主线 从当前父任务下移出"),
+        searchText: normalizeComparableText("移出为独立任务 从当前父任务下移出"),
       });
     }
 
     for (const entry of entriesById.values()) {
       if (!entry?.sessionId || sourceSubtreeIds.has(entry.sessionId)) continue;
+      if (entry?.session?.archived === true) continue;
       const path = buildSessionPathLabel(entry.sessionId, entriesById);
       const recentIndex = recentTargetIndex.has(entry.sessionId)
         ? recentTargetIndex.get(entry.sessionId)
         : Number.POSITIVE_INFINITY;
       const isRecent = Number.isFinite(recentIndex);
+      const status = getSessionTaskManagementStatus(entry.session);
+      const relatedScore = scoreReparentTargetRelevance(sourceSession, entry.session, {
+        sourceTitle: sourceEntry?.title || getSessionDisplayName(sourceSession),
+        targetTitle: entry.title || getSessionDisplayName(entry.session),
+      });
       targets.push({
         mode: "attach",
         sessionId: entry.sessionId,
         title: entry.title || getSessionDisplayName(entry.session),
         path,
-        displayPath: isRecent
-          ? `最近使用 · ${path === "顶层任务" ? (entry.title || "顶层任务") : path}`
-          : path,
+        displayPath: buildReparentTargetDisplayPath({
+          title: entry.title || getSessionDisplayName(entry.session),
+          path,
+          sameCluster: normalizeSessionId(entry.clusterRootSessionId) === sourceClusterRootSessionId,
+          isRecent,
+          relatedScore,
+          status,
+        }),
         sameCluster: normalizeSessionId(entry.clusterRootSessionId) === sourceClusterRootSessionId,
         recentIndex,
+        relatedScore,
+        statusKey: status.key,
+        statusRank: status.rank,
         depth: Number.isFinite(entry.depth) ? entry.depth : 0,
-        searchText: normalizeComparableText(`${entry.title || ""} ${path}`),
+        searchText: normalizeComparableText([
+          entry.title || "",
+          path,
+          ...collectReparentRecommendationTexts(entry.session, entry.title || ""),
+        ].join(" ")),
       });
     }
 
     return targets.sort((left, right) => {
       if (left.mode !== right.mode) return left.mode === "detach" ? -1 : 1;
+      if ((left.statusRank || 0) !== (right.statusRank || 0)) {
+        return (left.statusRank || 0) - (right.statusRank || 0);
+      }
+      if ((left.relatedScore || 0) !== (right.relatedScore || 0)) {
+        return (right.relatedScore || 0) - (left.relatedScore || 0);
+      }
+      if (left.sameCluster !== right.sameCluster) return left.sameCluster ? -1 : 1;
       const leftRecentIndex = Number.isFinite(left.recentIndex) ? left.recentIndex : Number.POSITIVE_INFINITY;
       const rightRecentIndex = Number.isFinite(right.recentIndex) ? right.recentIndex : Number.POSITIVE_INFINITY;
       if (leftRecentIndex !== rightRecentIndex) return leftRecentIndex - rightRecentIndex;
+      if ((left.depth || 0) !== (right.depth || 0)) return (left.depth || 0) - (right.depth || 0);
+      return String(left.title || "").localeCompare(String(right.title || ""), "zh-Hans-CN");
+    });
+  }
+
+  function listConnectTargets(sourceSessionId) {
+    const normalizedSourceSessionId = normalizeSessionId(sourceSessionId);
+    if (!normalizedSourceSessionId) return [];
+    const { entriesById } = collectTaskMapSessionEntries();
+    const sourceEntry = entriesById.get(normalizedSourceSessionId) || null;
+    const sourceSession = sourceEntry?.session || getSessionRecord(normalizedSourceSessionId) || null;
+    const sourceClusterRootSessionId = normalizeSessionId(sourceEntry?.clusterRootSessionId || "");
+    const existingConnectedSessionIds = collectExistingConnectedSessionIds(normalizedSourceSessionId);
+    const recentTargetIds = readRecentConnectTargetIds();
+    const recentTargetIndex = new Map();
+    recentTargetIds.forEach((sessionId, index) => {
+      recentTargetIndex.set(sessionId, index);
+    });
+    const targets = [];
+
+    for (const entry of entriesById.values()) {
+      if (!entry?.sessionId || entry.sessionId === normalizedSourceSessionId) continue;
+      if (entry?.session?.archived === true) continue;
+      if (existingConnectedSessionIds.has(entry.sessionId)) continue;
+      const path = buildSessionPathLabel(entry.sessionId, entriesById);
+      const recentIndex = recentTargetIndex.has(entry.sessionId)
+        ? recentTargetIndex.get(entry.sessionId)
+        : Number.POSITIVE_INFINITY;
+      const isRecent = Number.isFinite(recentIndex);
+      const status = getSessionTaskManagementStatus(entry.session);
+      const relatedScore = scoreReparentTargetRelevance(sourceSession, entry.session, {
+        sourceTitle: sourceEntry?.title || getSessionDisplayName(sourceSession),
+        targetTitle: entry.title || getSessionDisplayName(entry.session),
+      });
+      targets.push({
+        mode: "connect",
+        sessionId: entry.sessionId,
+        title: entry.title || getSessionDisplayName(entry.session),
+        path,
+        displayPath: buildConnectTargetDisplayPath({
+          title: entry.title || getSessionDisplayName(entry.session),
+          path,
+          sameCluster: normalizeSessionId(entry.clusterRootSessionId) === sourceClusterRootSessionId,
+          isRecent,
+          relatedScore,
+          status,
+        }),
+        sameCluster: normalizeSessionId(entry.clusterRootSessionId) === sourceClusterRootSessionId,
+        recentIndex,
+        relatedScore,
+        statusKey: status.key,
+        statusRank: status.rank,
+        depth: Number.isFinite(entry.depth) ? entry.depth : 0,
+        searchText: normalizeComparableText([
+          entry.title || "",
+          path,
+          ...collectReparentRecommendationTexts(entry.session, entry.title || ""),
+        ].join(" ")),
+      });
+    }
+
+    return targets.sort((left, right) => {
+      if ((left.statusRank || 0) !== (right.statusRank || 0)) {
+        return (left.statusRank || 0) - (right.statusRank || 0);
+      }
+      if ((left.relatedScore || 0) !== (right.relatedScore || 0)) {
+        return (right.relatedScore || 0) - (left.relatedScore || 0);
+      }
       if (left.sameCluster !== right.sameCluster) return left.sameCluster ? -1 : 1;
+      const leftRecentIndex = Number.isFinite(left.recentIndex) ? left.recentIndex : Number.POSITIVE_INFINITY;
+      const rightRecentIndex = Number.isFinite(right.recentIndex) ? right.recentIndex : Number.POSITIVE_INFINITY;
+      if (leftRecentIndex !== rightRecentIndex) return leftRecentIndex - rightRecentIndex;
       if ((left.depth || 0) !== (right.depth || 0)) return (left.depth || 0) - (right.depth || 0);
       return String(left.title || "").localeCompare(String(right.title || ""), "zh-Hans-CN");
     });
@@ -1858,11 +2183,79 @@
     trackerPersistentSummaryEl.innerHTML = "";
   }
 
+  function getLongTermTrackerState(session) {
+    const longTerm = session?.sessionState?.longTerm;
+    if (!longTerm || typeof longTerm !== "object" || Array.isArray(longTerm)) return null;
+    const suggestion = longTerm?.suggestion && typeof longTerm.suggestion === "object" && !Array.isArray(longTerm.suggestion)
+      ? longTerm.suggestion
+      : null;
+    return {
+      lane: String(longTerm?.lane || "").trim().toLowerCase() === "long-term" ? "long-term" : "sessions",
+      role: String(longTerm?.role || "").trim().toLowerCase(),
+      rootSessionId: String(longTerm?.rootSessionId || "").trim(),
+      rootTitle: String(longTerm?.rootTitle || "").trim(),
+      rootSummary: String(longTerm?.rootSummary || "").trim(),
+      suggestion: suggestion
+        ? {
+          rootSessionId: String(suggestion?.rootSessionId || "").trim(),
+          title: String(suggestion?.title || "").trim(),
+          summary: String(suggestion?.summary || "").trim(),
+        }
+        : null,
+    };
+  }
+
+  function getLongTermSuggestionSuppressedStorageKey(sessionId, rootSessionId) {
+    return `${LONG_TERM_SUGGESTION_SUPPRESSED_PREFIX}:${String(sessionId || "").trim()}:${String(rootSessionId || "").trim()}`;
+  }
+
+  function isLongTermSuggestionSuppressed(sessionId, rootSessionId) {
+    if (!sessionId || !rootSessionId) return false;
+    return localStorage.getItem(getLongTermSuggestionSuppressedStorageKey(sessionId, rootSessionId)) === "1";
+  }
+
+  function setLongTermSuggestionSuppressed(sessionId, rootSessionId, suppressed = true) {
+    if (!sessionId || !rootSessionId) return;
+    if (suppressed) {
+      localStorage.setItem(getLongTermSuggestionSuppressedStorageKey(sessionId, rootSessionId), "1");
+      return;
+    }
+    localStorage.removeItem(getLongTermSuggestionSuppressedStorageKey(sessionId, rootSessionId));
+  }
+
+  function getPersistentUiSession(session) {
+    const longTermState = getLongTermTrackerState(session);
+    const suggestionRootSessionId = String(longTermState?.suggestion?.rootSessionId || "").trim();
+    if (!session?.id || !suggestionRootSessionId || !isLongTermSuggestionSuppressed(session.id, suggestionRootSessionId)) {
+      return session;
+    }
+    const rawLongTerm = session?.sessionState?.longTerm;
+    if (!rawLongTerm || typeof rawLongTerm !== "object" || Array.isArray(rawLongTerm)) {
+      return session;
+    }
+    return {
+      ...session,
+      sessionState: {
+        ...(session.sessionState && typeof session.sessionState === "object" ? session.sessionState : {}),
+        longTerm: {
+          ...rawLongTerm,
+          suggestion: null,
+        },
+      },
+    };
+  }
+
   function renderPersistentSummary(session) {
     if (!trackerPersistentSummaryEl) return;
-    const persistent = session?.persistent && typeof session.persistent === "object" ? session.persistent : null;
+    const visibleSession = getPersistentUiSession(session);
+    const persistent = visibleSession?.persistent && typeof visibleSession.persistent === "object" ? visibleSession.persistent : null;
     const kind = normalizePersistentKind(persistent?.kind || "");
-    if (!session?.id || !persistent || !kind) {
+    const longTermState = getLongTermTrackerState(visibleSession);
+    if (!visibleSession?.id) {
+      clearPersistentSummary();
+      return;
+    }
+    if ((!persistent || !kind) && !longTermState?.suggestion && !(longTermState?.lane === "long-term" && longTermState?.role === "member")) {
       clearPersistentSummary();
       return;
     }
@@ -1920,6 +2313,27 @@
       meta.appendChild(createPersistentSummaryChip("手动触发", "active"));
       if (lastUsedAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastUsedAt}`));
       meta.appendChild(createPersistentSummaryChip(`执行 ${runtimeLabel}`));
+    } else if (longTermState?.suggestion?.rootSessionId) {
+      const title = longTermState.suggestion.title || "长期任务";
+      const summary = longTermState.suggestion.summary;
+      kicker.textContent = "建议归入长期任务";
+      lead.textContent = summary
+        ? `当前这条会话更像属于「${title}」。${summary}`
+        : `当前这条会话更像属于「${title}」长期任务，后续迭代和维护建议在那里继续。`;
+
+      meta.appendChild(createPersistentSummaryChip(`建议 ${title}`, "active"));
+      if (summary) {
+        meta.appendChild(createPersistentSummaryChip(summary));
+      }
+    } else if (longTermState?.lane === "long-term" && longTermState?.role === "member") {
+      const title = longTermState.rootTitle || "长期任务";
+      kicker.textContent = "长期任务维护分支";
+      lead.textContent = `当前会话已经归入「${title}」长期任务，左侧列表继续保留当前任务，右侧任务地图跟随这个长期任务。`;
+
+      meta.appendChild(createPersistentSummaryChip(`归属 ${title}`, "live"));
+      if (longTermState.rootSummary) {
+        meta.appendChild(createPersistentSummaryChip(longTermState.rootSummary));
+      }
     } else {
       clearPersistentSummary();
       return;
@@ -1928,31 +2342,6 @@
     trackerPersistentSummaryEl.appendChild(kicker);
     trackerPersistentSummaryEl.appendChild(lead);
     trackerPersistentSummaryEl.appendChild(meta);
-  }
-
-  function syncPersistentHeaderButton(session) {
-    if (!persistentSessionBtn) return;
-    const persistent = session?.persistent && typeof session.persistent === "object" ? session.persistent : null;
-    const kind = normalizePersistentKind(persistent?.kind || "");
-    const hasSession = Boolean(session?.id && session?.archived !== true);
-    persistentSessionBtn.hidden = !hasSession;
-    if (!hasSession) {
-      persistentSessionBtn.classList.remove("is-persistent-active");
-      persistentSessionBtn.textContent = "自动化";
-      persistentSessionBtn.title = "自动化";
-      persistentSessionBtn.setAttribute("aria-label", "自动化");
-      return;
-    }
-    const label = "自动化";
-    const title = !kind
-      ? "把当前任务沉淀成长期任务或 AI 快捷按钮"
-      : (kind === "recurring_task"
-        ? "查看和修改后台任务 / 定时任务设置"
-        : "查看和修改 AI 快捷按钮设置");
-    persistentSessionBtn.classList.toggle("is-persistent-active", Boolean(kind));
-    persistentSessionBtn.textContent = label;
-    persistentSessionBtn.title = title;
-    persistentSessionBtn.setAttribute("aria-label", title);
   }
 
   function getSuppressedStorageKey(sessionId, branchTitle) {
@@ -1980,7 +2369,7 @@
 
   function deriveBranchTitleFromText(value) {
     const text = clipText(stripBranchTitleNoise(value), 72);
-    if (!text) return "继续这条支线";
+    if (!text) return "继续当前任务";
     const firstSegment = text.split(/[。！？.!?\n]/).map((entry) => entry.trim()).find(Boolean);
     return normalizeTitle(firstSegment || text);
   }
@@ -2096,7 +2485,6 @@
       tracker.hidden = true;
       tracker.classList.remove("is-branch-focus", "is-task-complete");
       headerTaskDetailBtn?.classList?.remove?.("is-task-complete");
-      syncPersistentHeaderButton(null);
       clearPersistentSummary();
       if (taskMapRail) taskMapRail.hidden = true;
       if (trackerTaskListEl) trackerTaskListEl.hidden = true;
@@ -2114,7 +2502,6 @@
     tracker.hidden = false;
     scrollWorkbenchToTopIfNeeded(state);
     syncQuestEmptyState(state);
-    syncPersistentHeaderButton(state.session);
     const showBranch = Boolean(state.isBranch && state.currentGoal);
     const taskCompleted = isTrackerTaskCompleted(state);
     tracker.classList.toggle("is-branch-focus", showBranch);
@@ -2151,7 +2538,7 @@
     const timeText = formatTrackerTime(sessionTime);
     if (trackerBranchEl) {
       trackerBranchEl.hidden = !trackerPrimaryDetail;
-      trackerBranchLabelEl.textContent = showBranch ? "主线任务" : "当前推进";
+      trackerBranchLabelEl.textContent = showBranch ? "补充信息" : "当前推进";
       trackerBranchTitleEl.textContent = trackerPrimaryDetail;
     }
     trackerNextEl.hidden = !trackerSecondaryDetail;
@@ -2353,7 +2740,7 @@
     const branchTitle = normalizeTitle(options.branchTitle || deriveBranchTitleFromText(text));
     if (!branchTitle) return null;
     return enterBranchFromCurrentSession(branchTitle, {
-      branchReason: options.branchReason || (state.isBranch ? "从当前支线继续拆出子任务" : "从当前对话另开一条支线"),
+      branchReason: options.branchReason || (state.isBranch ? "从当前任务继续展开关联任务" : "从当前对话继续展开关联任务"),
       checkpointSummary: options.checkpointSummary || state.nextStep || "",
     });
   }
@@ -2387,6 +2774,112 @@
     }
     await refreshTrackerSnapshot(normalizedSessionId);
     return response?.session || null;
+  }
+
+  function inferTaskMapPlanSessionNodeKind(session = null) {
+    const normalizedSessionId = normalizeSessionId(session?.id);
+    const normalizedRootSessionId = normalizeSessionId(session?.rootSessionId || session?.id);
+    return normalizedSessionId && normalizedSessionId === normalizedRootSessionId ? "main" : "branch";
+  }
+
+  function buildTaskConnectionNodeStub(session = null) {
+    const sessionId = normalizeSessionId(session?.id);
+    if (!sessionId) return null;
+    const taskCard = getTaskCard(session);
+    const status = getSessionTaskManagementStatus(session);
+    return {
+      id: `session:${sessionId}`,
+      kind: inferTaskMapPlanSessionNodeKind(session),
+      title: getSessionDisplayName(session),
+      summary: clipText(
+        taskCard?.summary
+          || taskCard?.checkpoint
+          || taskCard?.goal
+          || taskCard?.mainGoal
+          || "",
+        72,
+      ),
+      sessionId,
+      sourceSessionId: sessionId,
+      status: status.key || "active",
+      lineRole: String(taskCard?.lineRole || "").trim(),
+    };
+  }
+
+  function buildTaskConnectionPlan(sourceSession = null, targetSession = null, { anchorSessionId = "" } = {}) {
+    const sourceSessionId = normalizeSessionId(sourceSession?.id);
+    const targetSessionId = normalizeSessionId(targetSession?.id);
+    if (!sourceSessionId || !targetSessionId || sourceSessionId === targetSessionId) return null;
+    const stablePair = [sourceSessionId, targetSessionId].sort((left, right) => left.localeCompare(right, "en"));
+    const sourceNode = buildTaskConnectionNodeStub(sourceSession);
+    const targetNode = buildTaskConnectionNodeStub(targetSession);
+    if (!sourceNode || !targetNode) return null;
+    return {
+      id: `manual-related:${stablePair[0]}:${stablePair[1]}`,
+      mode: "augment-default",
+      activeNodeId: `session:${normalizeSessionId(anchorSessionId) || sourceSessionId}`,
+      source: {
+        type: "manual",
+      },
+      nodes: [sourceNode, targetNode],
+      edges: [
+        {
+          id: `edge:related:${stablePair[0]}:${stablePair[1]}`,
+          fromNodeId: sourceNode.id,
+          toNodeId: targetNode.id,
+          type: "related",
+        },
+      ],
+    };
+  }
+
+  async function persistTaskConnectionPlan(sessionId, plan = null) {
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!normalizedSessionId || !plan) return null;
+    return fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(normalizedSessionId)}/task-map-plans`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(plan),
+    });
+  }
+
+  async function connectSessionTasks(sessionId, options = {}) {
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    const normalizedTargetSessionId = normalizeSessionId(options?.targetSessionId || "");
+    if (!normalizedSessionId || !normalizedTargetSessionId || normalizedSessionId === normalizedTargetSessionId) {
+      return null;
+    }
+    const sourceSession = getSessionRecord(normalizedSessionId) || null;
+    const targetSession = getSessionRecord(normalizedTargetSessionId) || null;
+    if (!sourceSession || !targetSession) return null;
+
+    const sourcePlan = buildTaskConnectionPlan(sourceSession, targetSession, {
+      anchorSessionId: normalizedSessionId,
+    });
+    if (!sourcePlan) return null;
+    let response = await persistTaskConnectionPlan(normalizedSessionId, sourcePlan);
+
+    const sourceRootSessionId = normalizeSessionId(sourceSession?.rootSessionId || sourceSession?.id);
+    const targetRootSessionId = normalizeSessionId(targetSession?.rootSessionId || targetSession?.id);
+    if (sourceRootSessionId && targetRootSessionId && sourceRootSessionId !== targetRootSessionId) {
+      const mirrorPlan = buildTaskConnectionPlan(targetSession, sourceSession, {
+        anchorSessionId: normalizedTargetSessionId,
+      });
+      if (mirrorPlan) {
+        const mirrorResponse = await persistTaskConnectionPlan(normalizedTargetSessionId, mirrorPlan);
+        if (mirrorResponse?.snapshot) {
+          response = mirrorResponse;
+        }
+      }
+    }
+
+    snapshot = response?.snapshot || snapshot;
+    mergeSnapshotPatch(response);
+    rememberRecentConnectTarget(normalizedTargetSessionId);
+    await refreshTaskMapGraph(getFocusedSessionId() || getCurrentSessionIdSafe() || normalizedSessionId, { force: true });
+    renderTracker();
+    renderPathPanel();
+    return response?.taskMapPlan || null;
   }
 
   function createBranchSuggestionItem(evt) {
@@ -2525,6 +3018,10 @@
     setTaskMapDrawerExpanded(!isTaskMapExpanded());
   });
 
+  taskMapDrawerCloseBtn?.addEventListener("click", () => {
+    setTaskMapDrawerExpanded(false);
+  });
+
   taskMapDrawerBackdrop?.addEventListener("click", () => {
     setTaskMapDrawerExpanded(false);
   });
@@ -2627,14 +3124,6 @@
     refreshIfOpen() {},
     openPersistentEditor() {},
   };
-
-  persistentSessionBtn?.addEventListener("click", () => {
-    const session = getFocusedSessionRecord() || getCurrentSessionSafe();
-    if (!session?.id || session?.archived === true) return;
-    operationRecordController?.openPersistentEditor?.({
-      mode: normalizePersistentKind(session?.persistent?.kind || "") ? "configure" : "promote",
-    });
-  });
 
   // ─────────────────────────────────────────────────────────────────
 

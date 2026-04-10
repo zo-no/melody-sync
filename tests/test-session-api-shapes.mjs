@@ -49,6 +49,13 @@ const stateOnlyItem = createSessionListItem({
     mainGoal: '梳理会话交互流程',
     checkpoint: '下一步把 continuation 压回派生层',
     lineRole: 'main',
+    longTerm: {
+      lane: 'sessions',
+      suggestion: {
+        rootSessionId: 'lt-melodysync',
+        title: 'MelodySync',
+      },
+    },
   },
 });
 
@@ -57,6 +64,17 @@ assert.equal(stateOnlyItem.taskCard?.goal, '重构会话主链');
 assert.equal(stateOnlyItem.taskCard?.mainGoal, '梳理会话交互流程');
 assert.equal(stateOnlyItem.taskCard?.checkpoint, '下一步把 continuation 压回派生层');
 assert.equal(stateOnlyItem.taskCard?.lineRole, 'main');
+assert.deepEqual(
+  stateOnlyItem.sessionState?.longTerm,
+  {
+    lane: 'sessions',
+    suggestion: {
+      rootSessionId: 'lt-melodysync',
+      title: 'MelodySync',
+    },
+  },
+  'session api shapes should preserve projected long-term routing hints inside sessionState',
+);
 assert.deepEqual(
   stateOnlyItem.taskCard?.candidateBranches,
   [],

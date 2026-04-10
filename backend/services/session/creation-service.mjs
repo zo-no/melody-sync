@@ -25,6 +25,10 @@ import {
   normalizeSessionCompatInput,
 } from '../../session-source/meta-fields.mjs';
 import { normalizeSessionPersistent } from '../../session-persistent/core.mjs';
+import {
+  buildLongTermTaskPoolMembership,
+  normalizeTaskPoolMembership,
+} from '../../session/task-pool-membership.mjs';
 
 export async function createSessionWithDeps({
   ensureSessionManagerBuiltinHooksRegistered,
@@ -58,6 +62,9 @@ export async function createSessionWithDeps({
   const requestedEffort = typeof extra.effort === 'string' ? extra.effort.trim() : '';
   const hasRequestedThinking = Object.prototype.hasOwnProperty.call(extra, 'thinking');
   const requestedThinking = extra.thinking === true;
+  const requestedTaskPoolMembership = normalizeTaskPoolMembership(extra.taskPoolMembership, {
+    sessionId: '',
+  });
   const requestedPersistent = Object.prototype.hasOwnProperty.call(extra, 'persistent') && extra.persistent
     ? extra.persistent
     : null;
@@ -291,6 +298,13 @@ export async function createSessionWithDeps({
     }
     if (normalizedPersistent) {
       session.persistent = normalizedPersistent;
+    }
+    const normalizedTaskPoolMembership = requestedTaskPoolMembership
+      || (normalizedPersistent?.kind === 'recurring_task'
+        ? buildLongTermTaskPoolMembership(id, { role: 'project' })
+        : null);
+    if (normalizedTaskPoolMembership) {
+      session.taskPoolMembership = normalizedTaskPoolMembership;
     }
 
     metas.push(session);

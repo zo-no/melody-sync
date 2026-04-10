@@ -30,7 +30,7 @@ try {
 
   const payload = contractModule.createTaskMapPlanContractPayload();
   assert.deepEqual(payload.planModes, ['replace-default', 'augment-default']);
-  assert.deepEqual(payload.edgeTypes, ['structural', 'suggestion', 'completion', 'merge']);
+  assert.deepEqual(payload.edgeTypes, ['structural', 'related', 'depends_on', 'blocks', 'maintains', 'spawned_from', 'suggestion', 'completion', 'merge']);
   assert.deepEqual(payload.sourceTypes, ['manual', 'system', 'hook']);
   assert.deepEqual(payload.viewTypes, ['flow-node', 'markdown', 'html', 'iframe']);
   assert.deepEqual(payload.surfaceSlots, ['task-map', 'composer-suggestions']);
@@ -42,6 +42,9 @@ try {
   assert.equal(payload.settings?.supportsSessionScopedGraphReadApi, true);
   assert.equal(payload.settings?.supportsSessionScopedSurfaceReadApi, true);
   assert.equal(payload.settings?.supportsRichCanvasViews, true);
+  assert.equal(payload.settings?.supportsCrossNodeConnections, true);
+  assert.equal(payload.settings?.parentNodeIdSemantics, 'layout-spine');
+  assert.equal(payload.settings?.preferredCrossNodeEdgeType, 'related');
   assert.equal(
     payload.nodeKindDefinitions.some((definition) => definition.id === 'review-note'),
     true,

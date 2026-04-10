@@ -25,6 +25,109 @@ function restoreOwnerSessionSelection() {
   pendingNavigationState = null;
 }
 
+function getSessionRecordForHttp(sessionId = "") {
+  const normalizedSessionId = String(sessionId || "").trim();
+  if (!normalizedSessionId) return null;
+  return Array.isArray(sessions)
+    ? sessions.find((entry) => entry?.id === normalizedSessionId) || null
+    : null;
+}
+
+function normalizePersistentKindForHttp(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return normalized === "recurring_task" ? "recurring_task" : "";
+}
+
+function getLongTermTaskPoolMembershipForHttp(session) {
+  const membership = session?.taskPoolMembership?.longTerm;
+  if (!membership || typeof membership !== "object" || Array.isArray(membership)) return null;
+  const sessionId = String(session?.id || "").trim();
+  const projectSessionId = String(membership?.projectSessionId || "").trim();
+  if (!projectSessionId) return null;
+  const requestedRole = String(membership?.role || "").trim().toLowerCase();
+  const role = requestedRole === "project"
+    ? "project"
+    : (projectSessionId === sessionId ? "project" : "member");
+  return {
+    role,
+    projectSessionId,
+    fixedNode: membership?.fixedNode === true || role === "project",
+  };
+}
+
+function resolveLongTermProjectRootSessionIdForHttp(session, visited = new Set()) {
+  if (typeof resolveLongTermProjectRootSessionId === "function") {
+    return String(resolveLongTermProjectRootSessionId(session) || "").trim();
+  }
+  const sessionId = String(session?.id || "").trim();
+  if (!sessionId || visited.has(sessionId)) return "";
+  const membership = getLongTermTaskPoolMembershipForHttp(session);
+  if (membership?.projectSessionId) return membership.projectSessionId;
+  if (normalizePersistentKindForHttp(session?.persistent?.kind) === "recurring_task") {
+    return sessionId;
+  }
+  const nextVisited = new Set(visited);
+  nextVisited.add(sessionId);
+  const candidateIds = [];
+  const rootSessionId = String(
+    session?.rootSessionId
+    || session?.sourceContext?.rootSessionId
+    || "",
+  ).trim();
+  const parentSessionId = String(
+    session?._branchParentSessionId
+    || session?.branchParentSessionId
+    || session?.sourceContext?.parentSessionId
+    || "",
+  ).trim();
+  for (const candidateId of [rootSessionId, parentSessionId]) {
+    if (!candidateId || candidateId === sessionId || candidateIds.includes(candidateId)) continue;
+    candidateIds.push(candidateId);
+  }
+  for (const candidateId of candidateIds) {
+    const candidate = getSessionRecordForHttp(candidateId);
+    if (!candidate) continue;
+    const resolvedRootSessionId = resolveLongTermProjectRootSessionIdForHttp(candidate, nextVisited);
+    if (resolvedRootSessionId) return resolvedRootSessionId;
+  }
+  return "";
+}
+
+function getSidebarTabForSessionHttp(session) {
+  return resolveLongTermProjectRootSessionIdForHttp(session) ? "long-term" : "sessions";
+}
+
+function getSidebarTabForSessionId(sessionId = "") {
+  const normalizedSessionId = String(sessionId || "").trim();
+  if (!normalizedSessionId) return "sessions";
+  const session = getSessionRecordForHttp(normalizedSessionId);
+  return getSidebarTabForSessionHttp(session);
+}
+
+function getCompletionNavigationTarget(sessionOrId = null) {
+  const session = typeof sessionOrId === "string"
+    ? getSessionRecordForHttp(sessionOrId)
+    : sessionOrId;
+  const sessionId = String(session?.id || sessionOrId || "").trim();
+  if (!sessionId) {
+    return {
+      sessionId: "",
+      tab: "sessions",
+    };
+  }
+  const longTermRootSessionId = resolveLongTermProjectRootSessionIdForHttp(session);
+  if (longTermRootSessionId) {
+    return {
+      sessionId: longTermRootSessionId,
+      tab: "long-term",
+    };
+  }
+  return {
+    sessionId,
+    tab: getSidebarTabForSessionHttp(session),
+  };
+}
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type !== "melodysync:open-session") return;
@@ -48,8 +151,9 @@ function notifyCompletion(session) {
       requireInteraction: isLikelyMobileClient(),
     });
     n.onclick = () => {
+      const target = getCompletionNavigationTarget(session);
       window.focus();
-      applyNavigationState({ sessionId: session?.id, tab: "sessions" });
+      applyNavigationState(target);
       n.close();
     };
   } catch {}
@@ -364,7 +468,7 @@ if (typeof document !== "undefined" && typeof document?.addEventListener === "fu
 
 completionAttentionOpenBtn?.addEventListener?.("click", () => {
   if (completionAttentionSessionId) {
-    applyNavigationState({ sessionId: completionAttentionSessionId, tab: "sessions" });
+    applyNavigationState(getCompletionNavigationTarget(completionAttentionSessionId));
   }
   stopCompletionTitleFlash();
   hideCompletionAttention();
@@ -377,7 +481,7 @@ completionAttentionCloseBtn?.addEventListener?.("click", () => {
 
 completionAttentionModalOpenBtn?.addEventListener?.("click", () => {
   if (completionAttentionSessionId) {
-    applyNavigationState({ sessionId: completionAttentionSessionId, tab: "sessions" });
+    applyNavigationState(getCompletionNavigationTarget(completionAttentionSessionId));
   }
   stopCompletionTitleFlash();
   hideCompletionAttention();
@@ -581,31 +685,22 @@ function hasSessionListGroupingTemplateGroups() {
 }
 
 function getDefaultSortSessionListButtonLabel() {
-  if (getSessionListGroupingMode() === "ai") {
-    return translateSessionListUiText("sidebar.sortList.runAi", "整理 1 个任务");
-  }
   if (!hasSessionListGroupingTemplateGroups()) {
     return translateSessionListUiText("sidebar.sortList.createFolderFirst", "先新建文件夹");
   }
-  return translateSessionListUiText("sidebar.sortList.runTemplate", "按分组整理 1 个");
+  return translateSessionListUiText("sidebar.sortList.runTemplate", "整理到文件夹");
 }
 
 function getRunningSortSessionListButtonLabel() {
-  return getSessionListGroupingMode() === "ai"
-    ? translateSessionListUiText("sidebar.sortList.runningAi", "整理中…")
-    : translateSessionListUiText("sidebar.sortList.runningTemplate", "整理中…");
+  return translateSessionListUiText("sidebar.sortList.runningTemplate", "整理中…");
 }
 
 function getDoneSortSessionListButtonLabel() {
-  return getSessionListGroupingMode() === "ai"
-    ? translateSessionListUiText("sidebar.sortList.doneAi", "已整理 1 个")
-    : translateSessionListUiText("sidebar.sortList.doneTemplate", "已整理 1 个");
+  return translateSessionListUiText("sidebar.sortList.doneTemplate", "已整理到文件夹");
 }
 
 function getFailedSortSessionListButtonLabel() {
-  return getSessionListGroupingMode() === "ai"
-    ? translateSessionListUiText("sidebar.sortList.failedAi", "整理失败")
-    : translateSessionListUiText("sidebar.sortList.failedTemplate", "整理失败");
+  return translateSessionListUiText("sidebar.sortList.failedTemplate", "整理失败");
 }
 
 function getSessionListOrganizerWritableFieldsText() {
@@ -634,7 +729,7 @@ const SESSION_LIST_ORGANIZER_SYSTEM_PROMPT = [
   'Rename only when the current task name is generic, stale, or clearly tool-generated.',
   "Do not reorder the whole list. If you patch `sidebarOrder`, only change the target session and never touch any other session.",
   'Keep group labels concise, stable, and task-shaped. Do not create a different group for every task.',
-  'Follow the grouping strategy provided in the task body. In template mode you must stay inside the provided template groups plus the fallback group.',
+  'Follow the folder strategy provided in the task body. Stay inside the provided user folders plus the fallback folder.',
   'Example PATCH body: {"name":"电影史学习路线","group":"研究任务","sidebarOrder":3}',
   "If `melodysync` is unavailable in PATH, use `node \"$MELODYSYNC_PROJECT_ROOT/cli.js\" api ...` instead.",
   "`sidebarOrder` must be a positive integer when used.",
@@ -803,24 +898,20 @@ function clipSessionListOrganizerText(value, maxChars = 240) {
 }
 
 function buildSessionListOrganizerStrategy() {
-  const groupingMode = getSessionListGroupingMode();
   const templateGroups = getSessionListGroupingTemplateGroups();
   return {
-    mode: groupingMode === "ai" ? "ai_free" : "user_template",
+    mode: "user_template",
     fallbackGroup: getSessionListGroupingFallbackLabel(),
     templateGroups,
   };
 }
 
 function buildSessionListOrganizerStrategySummary(strategy = null) {
-  if (strategy?.mode === "user_template") {
-    const groups = Array.isArray(strategy?.templateGroups) ? strategy.templateGroups : [];
-    if (groups.length === 0) {
-      return "User folder mode is active, but no user-created folders are configured yet.";
-    }
-    return `User folder mode: use only these exact user-created groups, in this order: ${groups.join(", ")}. If no folder fits, use ${strategy.fallbackGroup || getSessionListGroupingFallbackLabel()}.`;
+  const groups = Array.isArray(strategy?.templateGroups) ? strategy.templateGroups : [];
+  if (groups.length === 0) {
+    return "Folder grouping is active, but no user-created folders are configured yet.";
   }
-  return "AI free mode: choose a concise task-shaped group for the single target task without reorganizing the whole list.";
+  return `Use only these exact user-created folders, in this order: ${groups.join(", ")}. If no folder fits, use ${strategy.fallbackGroup || getSessionListGroupingFallbackLabel()}.`;
 }
 
 function isPersistentSessionForOrganizer(session) {
@@ -995,7 +1086,10 @@ async function ensureInitialInboxSession() {
       if (!hasSelectedSession && typeof attachSession === "function") {
         attachSession(session.id, session);
       }
-      if (typeof globalThis.setSidebarCollapsed === "function") {
+      const sidebarInteractionLocked = typeof globalThis.hasSidebarCollapseUserInteraction === "function"
+        ? globalThis.hasSidebarCollapseUserInteraction()
+        : false;
+      if (!sidebarInteractionLocked && typeof globalThis.setSidebarCollapsed === "function") {
         globalThis.setSidebarCollapsed(true);
       }
       if (typeof window !== "undefined" && typeof window.MelodySyncWorkbench?.closeTaskMapDrawer === "function") {
@@ -1091,9 +1185,7 @@ function buildSessionListOrganizerTask(payload = null) {
     "Apply changes by calling the MelodySync API from this machine; do not merely suggest them.",
     `Snapshot fields like ${getSessionListOrganizerReadonlyFieldsText()} are read-only context.`,
     `When patching a session, send only ${getSessionListOrganizerWritableFieldsText()} in the API body.`,
-    strategy?.mode === "user_template"
-      ? `If a task does not fit any user template group, use ${strategy?.fallbackGroup || getSessionListGroupingFallbackLabel()}.`
-      : `For unclear or newly created work, use ${strategy?.fallbackGroup || getSessionListGroupingFallbackLabel()} instead of inventing a noisy category.`,
+    `If a task does not fit any user folder, use ${strategy?.fallbackGroup || getSessionListGroupingFallbackLabel()}.`,
     "",
     "<session_list_organizer_input>",
     JSON.stringify(taskPayload, null, 2),
@@ -1585,8 +1677,7 @@ async function organizeSessionListWithAgent({
   expectedFingerprint = "",
 } = {}) {
   if (sessionListOrganizerInFlight) return sessionListOrganizerInFlight;
-  const groupingMode = getSessionListGroupingMode();
-  if (groupingMode === "user" && !hasSessionListGroupingTemplateGroups()) {
+  if (!hasSessionListGroupingTemplateGroups()) {
     setSortSessionListButtonState(getDefaultSortSessionListButtonLabel(), { busy: false });
     return false;
   }

@@ -164,4 +164,29 @@ assert.equal(
   'graph client should propagate busy semantics from merged session activity so downstream task-map consumers share the session-list status chain',
 );
 
+assert.equal(
+  api.resolveTaskMapGraphRootSessionId({
+    sessionId: 'maintenance-1',
+    getSessionRecord(sessionId) {
+      if (sessionId !== 'maintenance-1') return null;
+      return {
+        id: 'maintenance-1',
+        rootSessionId: 'maintenance-1',
+        sessionState: {
+          longTerm: {
+            role: 'member',
+            rootSessionId: 'long-term-root',
+          },
+        },
+      };
+    },
+    getCurrentSession() {
+      return null;
+    },
+    snapshot: null,
+  }),
+  'long-term-root',
+  'graph client should prefer the owning long-term root for maintenance sessions so the right rail stays on the long-term map',
+);
+
 console.log('test-workbench-graph-client: ok');

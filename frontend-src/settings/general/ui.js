@@ -202,7 +202,13 @@
     const sessionsPath = loaded.sessionsPath || '';
     const logsPath = loaded.logsPath || '';
     const providerRuntimeHomesPath = loaded.providerRuntimeHomesPath || '';
-    const versionLabel = formatVersionLabel(buildInfo.serviceVersion || buildInfo.version || '');
+    const versionLabel = formatVersionLabel(
+      buildInfo.buildVersion
+      || buildInfo.serviceBuildVersion
+      || buildInfo.serviceVersion
+      || buildInfo.version
+      || '',
+    );
     const buildLabel = normalizeText(buildInfo.serviceLabel || buildInfo.label || '');
     const notificationState = describeBrowserNotificationState();
     const statusRow = error

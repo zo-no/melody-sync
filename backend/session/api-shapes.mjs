@@ -1,5 +1,6 @@
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 import { projectTaskCardFromSessionState } from './task-card.mjs';
+import { normalizeTaskPoolMembership } from './task-pool-membership.mjs';
 
 function cloneJson(value) {
   if (value === null || value === undefined) return value;
@@ -19,6 +20,14 @@ function stripSessionShape(session, {
   delete cloned.scheduledTrigger;
   if (!includeQueuedMessages) {
     delete cloned.queuedMessages;
+  }
+  const normalizedTaskPoolMembership = normalizeTaskPoolMembership(cloned.taskPoolMembership, {
+    sessionId: cloned?.id || '',
+  });
+  if (normalizedTaskPoolMembership) {
+    cloned.taskPoolMembership = normalizedTaskPoolMembership;
+  } else if (cloned.taskPoolMembership) {
+    delete cloned.taskPoolMembership;
   }
   cloned.sessionState = sessionState;
   if (!cloned.taskCard || typeof cloned.taskCard !== 'object') {

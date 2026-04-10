@@ -59,4 +59,64 @@ assert.deepEqual(
   'explicit sessionState should win over legacy taskCard fallbacks',
 );
 
+const branchOnlyTaskCardSession = {
+  name: '支线任务',
+  taskCard: {
+    goal: '补充支线验证',
+    mainGoal: '验证产出口径',
+    lineRole: 'branch',
+    branchFrom: '验证产出口径',
+    checkpoint: '确认分支状态能正确回填',
+  },
+};
+
+assert.deepEqual(
+  resolveSessionStateFromSession(branchOnlyTaskCardSession),
+  {
+    goal: '补充支线验证',
+    mainGoal: '验证产出口径',
+    checkpoint: '确认分支状态能正确回填',
+    needsUser: false,
+    lineRole: 'branch',
+    branchFrom: '验证产出口径',
+  },
+  'taskCard branch metadata should survive even when no explicit sessionState or parent context exists',
+);
+
+const longTermProjectionSession = {
+  name: 'MelodySync 迭代整理',
+  sessionState: {
+    goal: '继续推进 MelodySync',
+    mainGoal: '长期维护 MelodySync',
+    checkpoint: '回到长期任务根线整理闭环',
+    longTerm: {
+      lane: 'sessions',
+      suggestion: {
+        rootSessionId: 'lt-melodysync',
+        title: 'MelodySync',
+      },
+    },
+  },
+};
+
+assert.deepEqual(
+  resolveSessionStateFromSession(longTermProjectionSession),
+  {
+    goal: '继续推进 MelodySync',
+    mainGoal: '长期维护 MelodySync',
+    checkpoint: '回到长期任务根线整理闭环',
+    needsUser: false,
+    lineRole: 'main',
+    branchFrom: '',
+    longTerm: {
+      lane: 'sessions',
+      suggestion: {
+        rootSessionId: 'lt-melodysync',
+        title: 'MelodySync',
+      },
+    },
+  },
+  'session state should preserve normalized long-term projection payloads',
+);
+
 console.log('test-session-state: ok');

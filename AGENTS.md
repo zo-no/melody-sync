@@ -145,6 +145,7 @@ Important files under the active instance root:
 4. When removing a feature, update code, tests, and canonical docs together.
 5. Treat old fields like `appId` / `appName` as passive compatibility metadata unless the product explicitly revives that concept.
 6. Edit source modules, not generated/runtime artifacts. `.melody-sync-runtime/releases/` are immutable release snapshots and `.playwright-cli/` files are tool output, not source.
+7. Local development defaults to one source repo, one `main` branch, and one long-lived instance on `7760`; use MelodySync sessions for parallel exploration, and use `melodysync release` plus `npm run test:core-gate` when switching the live runtime.
 
 ## Fast Path By Change Type
 

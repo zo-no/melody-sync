@@ -159,7 +159,6 @@ function buildHarness({ currentSession, sessions }) {
     'questTrackerStatusText',
     'headerTitle',
     'headerTaskDetailBtn',
-    'persistentSessionBtn',
     'questTrackerTitle',
     'questTrackerBranch',
     'questTrackerBranchLabel',
