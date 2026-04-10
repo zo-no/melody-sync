@@ -1,8 +1,8 @@
 "use strict";
 
 const bootstrapStore = window.MelodySyncBootstrap;
-const buildInfo = bootstrapStore?.getBuildInfo?.() || {};
-const pageBootstrap = bootstrapStore?.getBootstrap?.() || {};
+const buildInfo = bootstrapStore?.getBuildInfo?.() || window.__MELODYSYNC_BUILD__ || {};
+const pageBootstrap = bootstrapStore?.getBootstrap?.() || window.__MELODYSYNC_BOOTSTRAP__ || {};
 const buildAssetVersion = buildInfo.assetVersion || "dev";
 const bootstrapT = window.melodySyncT || ((key) => key);
 const appStateStore = window.MelodySyncAppState || null;
@@ -142,8 +142,11 @@ async function applyBuildInfo(nextBuildInfo) {
     }
     return false;
   }
+  const isSamePendingBuild = nextBuildInfo.assetVersion === newerBuildInfo?.assetVersion;
   newerBuildInfo = nextBuildInfo;
-  frontendUpdatePromptDismissed = false;
+  if (!isSamePendingBuild) {
+    frontendUpdatePromptDismissed = false;
+  }
   updateFrontendRefreshUi();
   return maybeAutoReloadForFreshBuild(nextBuildInfo);
 }
@@ -167,6 +170,9 @@ const sessionList = document.getElementById("sessionList");
 const sessionListFooter = document.getElementById("sessionListFooter");
 const sortSessionListBtn = document.getElementById("sortSessionListBtn");
 const newSessionBtn = document.getElementById("newSessionBtn");
+const headerOverflow = document.getElementById("headerOverflow");
+const headerOverflowToggle = document.getElementById("headerOverflowToggle");
+const headerActions = document.getElementById("headerActions");
 const hooksSettingsBtn = document.getElementById("hooksSettingsBtn");
 const messagesEl = document.getElementById("messages");
 const messagesInner = document.getElementById("messagesInner");
@@ -195,6 +201,22 @@ const inputArea = document.getElementById("inputArea");
 const composerPendingState = document.getElementById("composerPendingState");
 const inputResizeHandle = document.getElementById("inputResizeHandle");
 
+function isMobileHeaderOverflowViewport() {
+  return Number(window?.innerWidth || 0) < 768;
+}
+
+function setHeaderOverflowOpen(open) {
+  if (!headerOverflow || !headerOverflowToggle) return;
+  const nextOpen = isMobileHeaderOverflowViewport() && open === true;
+  headerOverflow.classList.toggle("is-open", nextOpen);
+  headerOverflowToggle.setAttribute("aria-expanded", nextOpen ? "true" : "false");
+}
+
+function toggleHeaderOverflow() {
+  if (!headerOverflow) return;
+  setHeaderOverflowOpen(!headerOverflow.classList.contains("is-open"));
+}
+
 refreshFrontendBtn?.addEventListener("click", () => {
   void reloadForFreshBuild(newerBuildInfo);
 });
@@ -208,6 +230,32 @@ frontendUpdateDismissBtn?.addEventListener("click", () => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "hidden") return;
   void maybeAutoReloadForFreshBuild(newerBuildInfo);
+});
+headerOverflowToggle?.addEventListener("click", (event) => {
+  if (!isMobileHeaderOverflowViewport()) {
+    setHeaderOverflowOpen(false);
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  toggleHeaderOverflow();
+});
+headerActions?.addEventListener("click", (event) => {
+  if (!event.target?.closest?.("button")) return;
+  setHeaderOverflowOpen(false);
+});
+document.addEventListener("click", (event) => {
+  if (!headerOverflow?.classList?.contains?.("is-open")) return;
+  if (headerOverflow.contains(event.target)) return;
+  setHeaderOverflowOpen(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  setHeaderOverflowOpen(false);
+});
+window.addEventListener("resize", () => {
+  if (isMobileHeaderOverflowViewport()) return;
+  setHeaderOverflowOpen(false);
 });
 updateFrontendRefreshUi();
 
