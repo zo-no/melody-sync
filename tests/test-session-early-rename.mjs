@@ -81,10 +81,15 @@ const sessionManager = await import(
 
 const {
   createSession,
-  getSession,
   sendMessage,
   killAll,
 } = sessionManager;
+
+function readPersistedSession(sessionId) {
+  const sessionsPath = join(tempHome, '.melodysync', 'runtime', 'sessions', 'chat-sessions.json');
+  const sessions = JSON.parse(readFileSync(sessionsPath, 'utf8'));
+  return sessions.find((entry) => entry.id === sessionId) || null;
+}
 
 async function waitFor(predicate, description, timeoutMs = 4000) {
   const start = Date.now();
@@ -105,13 +110,8 @@ await sendMessage(session.id, 'Refactor the naming flow so renaming starts immed
 });
 
 await waitFor(
-  async () => (await getSession(session.id))?.activity?.run?.state === 'running',
-  'session should enter running state',
-);
-
-await waitFor(
   async () => {
-    const current = await getSession(session.id);
+    const current = readPersistedSession(session.id);
     return current?.name === 'Refactor the…'
       && !current?.group
       && !current?.description
@@ -129,13 +129,27 @@ const mainRunPrompt = readFileSync(promptLogPath, 'utf8');
 assert.match(mainRunPrompt, /Fixed session task title: Refactor the…/, 'first-turn prompt should use the early draft title');
 assert.doesNotMatch(mainRunPrompt, /Fixed session task title: new session/, 'first-turn prompt should not keep the default title');
 
-assert.equal(
-  (await getSession(session.id))?.activity?.run?.state,
-  'running',
-  'draft naming should land while the main task is still running',
+await waitFor(
+  async () => {
+    const current = readPersistedSession(session.id);
+    return current?.name === 'Refactor naming flow'
+      && !current?.group
+      && !current?.description
+      && current?.autoRenamePending === false;
+  },
+  'session should replace the draft title with a final contextual title after the first turn completes',
 );
+
+const finished = readPersistedSession(session.id);
+assert.equal(finished?.name, 'Refactor naming flow', 'finished session should adopt the final contextual title');
+assert.equal(finished?.group || '', '', 'finished session should not auto-group during the reply flow');
+assert.equal(finished?.description || '', '', 'finished session should not auto-describe during the reply flow');
+assert.equal(finished?.autoRenamePending, false, 'final naming should clear autoRenamePending');
+assert.equal(finished?.sessionState?.goal, 'Refactor naming flow', 'final rename should keep the mainline session goal aligned with the session title');
+assert.equal(finished?.sessionState?.mainGoal, 'Refactor naming flow', 'final rename should keep the mainline session main goal aligned with the session title');
 
 killAll();
 rmSync(tempHome, { recursive: true, force: true });
 
 console.log('test-session-early-rename: ok');
+process.exit(0);

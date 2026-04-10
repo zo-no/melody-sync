@@ -39,6 +39,7 @@ try {
   const byId = Object.fromEntries(hooksModule.listHooks().map((hook) => [hook.id, hook]));
   assert.equal(byId['builtin.push-notification']?.enabled, false, 'persisted settings should rehydrate repo hooks');
   assert.equal(byId['builtin.resume-completion-targets']?.enabled, false, 'persisted settings should rehydrate session-manager hooks');
+  assert.equal(byId['builtin.session-naming']?.enabled, true, 'session-manager hook registration should include automatic session naming');
 
   const stored = await readHookSettings();
   assert.deepEqual(stored.enabledById, {

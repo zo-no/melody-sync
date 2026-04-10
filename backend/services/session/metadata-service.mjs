@@ -61,6 +61,44 @@ function normalizeSessionReviewedAt(value) {
   return Number.isFinite(time) ? new Date(time).toISOString() : '';
 }
 
+function normalizeComparableTitle(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function syncMainlineTitleAnchorsOnRename(session, previousName, nextName) {
+  const oldTitle = normalizeComparableTitle(previousName);
+  const newTitle = normalizeComparableTitle(nextName);
+  if (!oldTitle || !newTitle || oldTitle === newTitle) return false;
+
+  let changed = false;
+
+  const taskCard = session?.taskCard && typeof session.taskCard === 'object' ? session.taskCard : null;
+  if (taskCard && String(taskCard.lineRole || 'main').trim().toLowerCase() !== 'branch') {
+    if (normalizeComparableTitle(taskCard.goal) === oldTitle) {
+      taskCard.goal = newTitle;
+      changed = true;
+    }
+    if (normalizeComparableTitle(taskCard.mainGoal) === oldTitle) {
+      taskCard.mainGoal = newTitle;
+      changed = true;
+    }
+  }
+
+  const sessionState = session?.sessionState && typeof session.sessionState === 'object' ? session.sessionState : null;
+  if (sessionState && String(sessionState.lineRole || 'main').trim().toLowerCase() !== 'branch') {
+    if (normalizeComparableTitle(sessionState.goal) === oldTitle) {
+      sessionState.goal = newTitle;
+      changed = true;
+    }
+    if (normalizeComparableTitle(sessionState.mainGoal) === oldTitle) {
+      sessionState.mainGoal = newTitle;
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
 export function createSessionMetadataMutationService({
   broadcastSessionInvalidation,
   broadcastSessionsInvalidation,
@@ -131,9 +169,11 @@ export function createSessionMetadataMutationService({
     if (!nextName) return null;
 
     const result = await mutateSessionMeta(id, (session) => {
+      const previousName = typeof session.name === 'string' ? session.name.trim() : '';
       const preserveAutoRename = options.preserveAutoRename === true;
       const nextPending = preserveAutoRename;
-      const changed = session.name !== nextName || session.autoRenamePending !== nextPending;
+      const titleAnchorsChanged = syncMainlineTitleAnchorsOnRename(session, previousName, nextName);
+      const changed = session.name !== nextName || session.autoRenamePending !== nextPending || titleAnchorsChanged;
       if (!changed) return false;
       session.name = nextName;
       session.autoRenamePending = nextPending;

@@ -3,6 +3,7 @@ import { getBuiltinHookDefinition } from '../builtin-hook-catalog.mjs';
 import { createBranchCandidatesHook } from '../branch-candidates-hook.mjs';
 import { createGraphContextBootstrapHook } from '../graph-context-bootstrap-hook.mjs';
 import { createResumeCompletionTargetsHook } from '../resume-completion-targets-hook.mjs';
+import { createSessionNamingHook } from '../session-naming-hook.mjs';
 import { syncBranchCandidateTaskMapPlan } from '../../workbench/task-map-plan-producers.mjs';
 import { appendGraphBootstrapPromptContext } from '../../workbench/graph-prompt-context.mjs';
 
@@ -56,6 +57,13 @@ export function registerSessionManagerBuiltinHooks(deps = {}) {
           updateSessionTaskCard: deps.updateSessionTaskCard,
         });
       },
+    }),
+  );
+  registerCatalogHook(
+    'builtin.session-naming',
+    createSessionNamingHook({
+      isSessionAutoRenamePending: deps.isSessionAutoRenamePending,
+      triggerAutomaticSessionLabeling: deps.triggerAutomaticSessionLabeling,
     }),
   );
 }

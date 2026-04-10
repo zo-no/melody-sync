@@ -42,6 +42,12 @@ assert.equal(
   'auto-generated session titles should be clipped before being stored',
 );
 
+assert.equal(
+  normalizeGeneratedSessionTitle('自动命名标题过长啦', ''),
+  '自动命名标题',
+  'Chinese auto-generated session titles should be capped at six characters',
+);
+
 assert.equal(formatSessionOrdinalBadge(12), '#12');
 assert.equal(formatSessionOrdinalSpeechLabel(12), '任务12');
 
