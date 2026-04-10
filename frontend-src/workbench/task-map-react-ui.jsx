@@ -4729,12 +4729,6 @@ function MelodyNode({ data }) {
 
   async function handleBodyClick() {
     if (isDraftBranchComposer) return;
-    if (hostsInlineActions) {
-      rendererApi?.setActiveActionNodeId?.(
-        actionStripActive && !manualComposerOpen && !reparentComposerOpen ? '' : (node?.id || ''),
-      );
-      return;
-    }
     if (primaryAction === 'open-session' && !isDone && node?.sessionId) {
       await rendererApi?.nodeActionController?.executePrimaryAction?.(node, {
         state,
@@ -4746,6 +4740,12 @@ function MelodyNode({ data }) {
     }
     if (isRichView && typeof rendererApi?.selectTaskCanvasNode === 'function') {
       rendererApi.selectTaskCanvasNode(node?.id || '', { render: true });
+      return;
+    }
+    if (hostsInlineActions) {
+      rendererApi?.setActiveActionNodeId?.(
+        actionStripActive && !manualComposerOpen && !reparentComposerOpen ? '' : (node?.id || ''),
+      );
     }
   }
 

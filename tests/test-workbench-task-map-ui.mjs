@@ -125,6 +125,16 @@ assert.match(
 );
 assert.match(
   taskMapReactSource,
+  /async function handleBodyClick\(\) \{\s*if \(isDraftBranchComposer\) return;\s*if \(primaryAction === 'open-session' && !isDone && node\?\.sessionId\) \{/s,
+  'task-map node clicks should prioritize switching into the target session before toggling inline actions',
+);
+assert.match(
+  taskMapReactSource,
+  /if \(isRichView && typeof rendererApi\?\.selectTaskCanvasNode === 'function'\) \{[\s\S]*?return;\s*\}\s*if \(hostsInlineActions\) \{/s,
+  'task-map inline actions should be a fallback after node-opening behaviors, not a higher-priority click trap',
+);
+assert.match(
+  taskMapReactSource,
   /transform:\s*translate\(10px, -50%\);/,
   'desktop connect ports should stay close to the node edge instead of overlapping the quick add rail',
 );
