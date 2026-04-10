@@ -1,6 +1,7 @@
 import { loadSessionsMeta } from '../session/meta-store.mjs';
 import { isPersistentRecurringDue } from './core.mjs';
 import { getSession, runSessionPersistent } from '../session/manager.mjs';
+import { scanDailySessionMaintenance } from './daily-maintenance.mjs';
 
 const DEFAULT_SCAN_INTERVAL_MS = 30 * 1000;
 
@@ -43,7 +44,10 @@ export async function scanDuePersistentSessions(nowValue = new Date()) {
 export function startPersistentSessionScheduler({ intervalMs = DEFAULT_SCAN_INTERVAL_MS } = {}) {
   if (schedulerTimer) return;
   const tick = () => {
-    scanDuePersistentSessions().catch((error) => {
+    Promise.all([
+      scanDuePersistentSessions(),
+      scanDailySessionMaintenance(),
+    ]).catch((error) => {
       console.error('[persistent-scheduler] Scan failed:', error.message);
     });
   };

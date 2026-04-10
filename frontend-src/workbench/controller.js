@@ -39,6 +39,8 @@
   const trackerConclusionsListEl = document.getElementById("questTrackerConclusionsList");
   const trackerMemoryRowEl = document.getElementById("questTrackerMemoryRow");
   const trackerMemoryListEl = document.getElementById("questTrackerMemoryList");
+  const trackerMemoryCandidatesRowEl = document.getElementById("questTrackerMemoryCandidatesRow");
+  const trackerMemoryCandidatesListEl = document.getElementById("questTrackerMemoryCandidatesList");
   const trackerCandidatesRowEl = document.getElementById("questTrackerCandidatesRow");
   const trackerCandidatesListEl = document.getElementById("questTrackerCandidatesList");
   if (!tracker) return;
@@ -84,9 +86,30 @@
   let operationRecordController = null;
   let trackerPersistentActionsEl = null;
   let selectedTaskCanvasNodeId = "";
+  let taskCanvasAutoOpenSuppressed = false;
   let mobileTaskDetailExpanded = false;
   let taskMapResizeState = null;
+  const liveTaskCardPreviewBySessionId = new Map();
+  const lastRunStateBySessionId = new Map();
   const workbenchViewModelListeners = new Set();
+  const pendingMemoryCandidatesBySessionId = new Map();
+  const memoryCandidateRefreshInFlightBySessionId = new Map();
+  const LIVE_TASK_CARD_SCALAR_KEYS = Object.freeze([
+    "mode",
+    "summary",
+    "goal",
+    "mainGoal",
+    "lineRole",
+    "branchFrom",
+    "branchReason",
+    "checkpoint",
+  ]);
+  const LIVE_TASK_CARD_ARRAY_KEYS = Object.freeze([
+    "candidateBranches",
+    "knownConclusions",
+    "memory",
+    "nextSteps",
+  ]);
 
   function getWorkbenchViewModelState() {
     const questState = deriveQuestState();
@@ -538,10 +561,14 @@
     trackerConclusionsListEl,
     trackerMemoryRowEl,
     trackerMemoryListEl,
+    trackerMemoryCandidateRowEl: trackerMemoryCandidatesRowEl,
+    trackerMemoryCandidateListEl: trackerMemoryCandidatesListEl,
     trackerCandidateBranchesRowEl: trackerCandidatesRowEl,
     trackerCandidateBranchesListEl: trackerCandidatesListEl,
     getPersistentActionsEl: ensureTrackerPersistentActionsEl,
     getCurrentSessionSafe,
+    getPendingMemoryCandidates,
+    reviewMemoryCandidate,
     isSuppressed,
     enterBranchFromCurrentSession,
     clipText,
@@ -734,7 +761,9 @@
   }
 
   function getCurrentSessionSafe() {
-    if (typeof getCurrentSession === "function") return getCurrentSession();
+    if (typeof getCurrentSession === "function") {
+      return withLiveTaskCardPreview(getCurrentSession());
+    }
     return null;
   }
 
@@ -742,8 +771,221 @@
     return String(value || "").trim();
   }
 
+  function normalizeMemoryCandidate(candidate = null) {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
+    const id = String(candidate.id || "").trim();
+    const text = String(candidate.text || "").trim();
+    const sessionId = normalizeSessionId(candidate.sessionId || "");
+    const status = String(candidate.status || "").trim().toLowerCase();
+    if (!id || !text || !sessionId) return null;
+    if (status && status !== "candidate") return null;
+    return {
+      ...candidate,
+      id,
+      text,
+      sessionId,
+      status: "candidate",
+      target: String(candidate.target || "").trim(),
+      type: String(candidate.type || "").trim(),
+      reason: String(candidate.reason || "").trim(),
+    };
+  }
+
+  function setPendingMemoryCandidatesForSession(sessionId, items = []) {
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!normalizedSessionId) return [];
+    const normalizedItems = (Array.isArray(items) ? items : [])
+      .map((entry) => normalizeMemoryCandidate(entry))
+      .filter(Boolean);
+    if (normalizedItems.length > 0) {
+      pendingMemoryCandidatesBySessionId.set(normalizedSessionId, normalizedItems);
+    } else {
+      pendingMemoryCandidatesBySessionId.delete(normalizedSessionId);
+    }
+    return normalizedItems;
+  }
+
+  function getPendingMemoryCandidates(session = null) {
+    const sessionId = normalizeSessionId(
+      session?.id
+      || getFocusedSessionId()
+      || getCurrentSessionIdSafe(),
+    );
+    if (!sessionId) return [];
+    return pendingMemoryCandidatesBySessionId.get(sessionId) || [];
+  }
+
+  async function refreshMemoryCandidates(sessionIdOverride = "", { force = false } = {}) {
+    const targetSessionId = normalizeSessionId(
+      sessionIdOverride
+      || getFocusedSessionId()
+      || getCurrentSessionIdSafe(),
+    );
+    if (!targetSessionId) return [];
+    if (!force && memoryCandidateRefreshInFlightBySessionId.has(targetSessionId)) {
+      return memoryCandidateRefreshInFlightBySessionId.get(targetSessionId);
+    }
+    if (!force && pendingMemoryCandidatesBySessionId.has(targetSessionId)) {
+      return pendingMemoryCandidatesBySessionId.get(targetSessionId) || [];
+    }
+    const request = (async () => {
+      try {
+        const response = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(targetSessionId)}/memory-candidates`);
+        return setPendingMemoryCandidatesForSession(targetSessionId, response?.memoryCandidates);
+      } catch {
+        return pendingMemoryCandidatesBySessionId.get(targetSessionId) || [];
+      } finally {
+        memoryCandidateRefreshInFlightBySessionId.delete(targetSessionId);
+      }
+    })();
+    memoryCandidateRefreshInFlightBySessionId.set(targetSessionId, request);
+    return request;
+  }
+
+  async function reviewMemoryCandidate(candidate = null, status = "", session = null) {
+    const sessionId = normalizeSessionId(session?.id || candidate?.sessionId || getFocusedSessionId() || getCurrentSessionIdSafe());
+    const candidateId = String(candidate?.id || "").trim();
+    const nextStatus = String(status || "").trim().toLowerCase();
+    if (!sessionId || !candidateId || !nextStatus) return null;
+    try {
+      await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(sessionId)}/memory-candidates/${encodeURIComponent(candidateId)}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      await refreshMemoryCandidates(sessionId, { force: true });
+      renderTracker();
+      return true;
+    } catch (error) {
+      console.warn("[quest] Failed to review memory candidate:", error?.message || error);
+      return false;
+    }
+  }
+
+  function normalizeLiveTaskCardText(value) {
+    return typeof value === "string" ? value.trim() : "";
+  }
+
+  function normalizeLiveTaskCardList(value) {
+    return Array.isArray(value)
+      ? value.filter((entry) => typeof entry === "string").map((entry) => entry.trim()).filter(Boolean)
+      : [];
+  }
+
+  function normalizeLiveTaskCardPreview(taskCard) {
+    if (!taskCard || typeof taskCard !== "object" || Array.isArray(taskCard)) return null;
+    const nextTaskCard = {};
+    for (const key of LIVE_TASK_CARD_SCALAR_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(taskCard, key)) continue;
+      const normalizedValue = normalizeLiveTaskCardText(taskCard[key]);
+      if (key === "lineRole") {
+        nextTaskCard[key] = normalizedValue.toLowerCase() === "branch" ? "branch" : "main";
+        continue;
+      }
+      nextTaskCard[key] = normalizedValue;
+    }
+    for (const key of LIVE_TASK_CARD_ARRAY_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(taskCard, key)) continue;
+      nextTaskCard[key] = normalizeLiveTaskCardList(taskCard[key]);
+    }
+    return Object.keys(nextTaskCard).length > 0 ? nextTaskCard : null;
+  }
+
+  function mergeLiveTaskCard(baseTaskCard = null, previewTaskCard = null) {
+    if (!previewTaskCard) return baseTaskCard;
+    const nextTaskCard = baseTaskCard && typeof baseTaskCard === "object"
+      ? { ...baseTaskCard }
+      : { version: 1, mode: "task" };
+    for (const key of LIVE_TASK_CARD_SCALAR_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(previewTaskCard, key)) continue;
+      nextTaskCard[key] = previewTaskCard[key];
+    }
+    for (const key of LIVE_TASK_CARD_ARRAY_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(previewTaskCard, key)) continue;
+      nextTaskCard[key] = [...previewTaskCard[key]];
+    }
+    return nextTaskCard;
+  }
+
+  function getLiveTaskCardPreview(session = null) {
+    const sessionId = normalizeSessionId(session?.id || "");
+    if (!sessionId) return null;
+    const runState = String(session?.activity?.run?.state || "").trim().toLowerCase();
+    if (runState !== "running") {
+      liveTaskCardPreviewBySessionId.delete(sessionId);
+      return null;
+    }
+    return liveTaskCardPreviewBySessionId.get(sessionId)?.taskCard || null;
+  }
+
+  function withLiveTaskCardPreview(session = null) {
+    if (!session || typeof session !== "object") return null;
+    const previewTaskCard = getLiveTaskCardPreview(session);
+    if (!previewTaskCard) return session;
+    return {
+      ...session,
+      taskCard: mergeLiveTaskCard(
+        session?.taskCard && typeof session.taskCard === "object" ? session.taskCard : null,
+        previewTaskCard,
+      ),
+    };
+  }
+
+  function setLiveTaskCardPreview(taskCard, options = {}) {
+    const sessionId = normalizeSessionId(options.sessionId || getCurrentSessionIdSafe());
+    if (!sessionId) return false;
+    const normalizedTaskCard = normalizeLiveTaskCardPreview(taskCard);
+    if (!normalizedTaskCard) return false;
+    const sourceSeq = Number.isInteger(options.sourceSeq) ? options.sourceSeq : 0;
+    const currentEntry = liveTaskCardPreviewBySessionId.get(sessionId) || null;
+    const currentSeq = Number.isInteger(currentEntry?.sourceSeq) ? currentEntry.sourceSeq : 0;
+    if (sourceSeq > 0 && currentSeq > sourceSeq) return false;
+    liveTaskCardPreviewBySessionId.set(sessionId, {
+      taskCard: normalizedTaskCard,
+      sourceSeq,
+    });
+    if (sessionId === getFocusedSessionId() || sessionId === getCurrentSessionIdSafe()) {
+      renderTracker();
+    }
+    renderSessionSurfaceForLiveTaskCard(sessionId);
+    return true;
+  }
+
+  function clearLiveTaskCardPreview(sessionId = "", options = {}) {
+    const normalizedSessionId = normalizeSessionId(sessionId || getCurrentSessionIdSafe());
+    if (!normalizedSessionId) return false;
+    const deleted = liveTaskCardPreviewBySessionId.delete(normalizedSessionId);
+    if (
+      deleted
+      && options.render !== false
+      && (normalizedSessionId === getFocusedSessionId() || normalizedSessionId === getCurrentSessionIdSafe())
+    ) {
+      renderTracker();
+    }
+    if (deleted) {
+      renderSessionSurfaceForLiveTaskCard(normalizedSessionId);
+    }
+    return deleted;
+  }
+
   function getCurrentSessionIdSafe() {
     return normalizeSessionId(getCurrentSessionSafe()?.id || "");
+  }
+
+  function renderSessionSurfaceForLiveTaskCard(sessionId = "") {
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!normalizedSessionId) return false;
+    if (
+      normalizedSessionId !== getCurrentSessionIdSafe()
+      && normalizedSessionId !== getFocusedSessionId()
+    ) {
+      return false;
+    }
+    if (typeof renderSessionList === "function") {
+      renderSessionList();
+      return true;
+    }
+    return false;
   }
 
   function getGraphClientApi() {
@@ -832,7 +1074,7 @@
     if (selectedNode && hasTaskCanvasView(selectedNode)) {
       return selectedNode;
     }
-    if (!allowAutoOpen) {
+    if (!allowAutoOpen || taskCanvasAutoOpenSuppressed) {
       selectedTaskCanvasNodeId = "";
       return null;
     }
@@ -861,6 +1103,7 @@
 
   function selectTaskCanvasNode(nodeId, options = {}) {
     selectedTaskCanvasNodeId = normalizeTaskMapNodeId(nodeId);
+    taskCanvasAutoOpenSuppressed = !selectedTaskCanvasNodeId;
     if (options.render !== false) {
       renderTracker();
     }
@@ -870,6 +1113,7 @@
 
   function clearTaskCanvasNode(options = {}) {
     selectedTaskCanvasNodeId = "";
+    taskCanvasAutoOpenSuppressed = options.allowAutoOpen === true ? false : true;
     if (options.render !== false) {
       renderTracker();
     }
@@ -957,6 +1201,13 @@
       if (options.renderSessionList === true && typeof renderSessionList === "function") {
         renderSessionList();
       }
+    }
+    if (focusChanged) {
+      void refreshMemoryCandidates(nextFocusedSessionId, { force: false }).then(() => {
+        if (getFocusedSessionId() === nextFocusedSessionId) {
+          renderTracker();
+        }
+      });
     }
     if (focusChanged && operationRecordController?.isOpen?.()) {
       operationRecordController.handleFocusChange();
@@ -1052,13 +1303,13 @@
   }
 
   function getSessionRecords() {
-    if (typeof sessions !== "undefined" && Array.isArray(sessions)) {
-      return sessions;
+    const sourceRecords = typeof sessions !== "undefined" && Array.isArray(sessions)
+      ? sessions
+      : (Array.isArray(window.sessions) ? window.sessions : []);
+    if (liveTaskCardPreviewBySessionId.size === 0) {
+      return sourceRecords;
     }
-    if (Array.isArray(window.sessions)) {
-      return window.sessions;
-    }
-    return [];
+    return sourceRecords.map((entry) => withLiveTaskCardPreview(entry) || entry);
   }
 
   function getSessionRecord(sessionId) {
@@ -1067,10 +1318,11 @@
   }
 
   function getSessionDisplayName(session) {
+    const taskCard = getTaskCard(session);
     const name = String(session?.name || "").trim();
-    const goal = String(session?.taskCard?.goal || "").trim();
-    const mainGoal = String(session?.taskCard?.mainGoal || "").trim();
-    const isBranch = String(session?.taskCard?.lineRole || "").trim().toLowerCase() === "branch"
+    const goal = String(taskCard?.goal || "").trim();
+    const mainGoal = String(taskCard?.mainGoal || "").trim();
+    const isBranch = String(taskCard?.lineRole || "").trim().toLowerCase() === "branch"
       || Boolean(String(session?.sourceContext?.parentSessionId || "").trim());
     return toConciseGoal(
       isBranch
@@ -1227,8 +1479,8 @@
   function buildTaskHandoffPreview(sourceSessionId, targetSessionId, options = {}) {
     const sourceSession = getSessionRecord(sourceSessionId) || null;
     const targetSession = getSessionRecord(targetSessionId) || null;
-    const sourceTaskCard = sourceSession?.taskCard && typeof sourceSession.taskCard === "object" ? sourceSession.taskCard : {};
-    const targetTaskCard = targetSession?.taskCard && typeof targetSession.taskCard === "object" ? targetSession.taskCard : {};
+    const sourceTaskCard = getTaskCard(sourceSession) || {};
+    const targetTaskCard = getTaskCard(targetSession) || {};
     const limits = HANDOFF_PREVIEW_LIMITS[resolveHandoffPreviewDetailLevel(options.detailLevel)];
     const sourceTitle = normalizeTitle(options.sourceTitle || getSessionDisplayName(sourceSession) || "源任务");
     const targetTitle = normalizeTitle(options.targetTitle || getSessionDisplayName(targetSession) || "目标任务");
@@ -1266,8 +1518,8 @@
     );
     const focus = dedupePreviewItems([
       sourceTaskCard?.goal ? `源任务目标：${clipText(sourceTaskCard.goal, 140)}` : "",
-      sourceTaskCard?.checkpoint ? `源任务检查点：${clipText(sourceTaskCard.checkpoint, 140)}` : "",
       targetTaskCard?.goal ? `目标任务目标：${clipText(targetTaskCard.goal, 140)}` : "",
+      sourceTaskCard?.checkpoint ? `源任务检查点：${clipText(sourceTaskCard.checkpoint, 140)}` : "",
       targetTaskCard?.checkpoint ? `目标任务接入点：${clipText(targetTaskCard.checkpoint, 140)}` : "",
     ]).slice(0, limits.focus);
     const targetAnchor = clipText(
@@ -1315,6 +1567,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           targetSessionId,
+          detailLevel: typeof payload?.detailLevel === "string" ? payload.detailLevel : undefined,
         }),
       });
       if (response?.session) {
@@ -1478,7 +1731,11 @@
   }
 
   function getTaskCard(session) {
-    return session?.taskCard && typeof session.taskCard === "object" ? session.taskCard : null;
+    if (!session || typeof session !== "object") return null;
+    return mergeLiveTaskCard(
+      session?.taskCard && typeof session.taskCard === "object" ? session.taskCard : null,
+      getLiveTaskCardPreview(session),
+    );
   }
 
   function getTaskCardList(taskCard, key) {
@@ -1822,6 +2079,7 @@
       if (trackerTaskListEl) trackerTaskListEl.hidden = true;
       if (headerTaskDetailBtn) headerTaskDetailBtn.hidden = true;
       if (headerTitleEl) headerTitleEl.hidden = true;
+      taskCanvasAutoOpenSuppressed = false;
       taskMapRail?.classList?.remove?.("has-node-canvas");
       taskCanvasController?.clear?.();
       syncTaskMapDrawerUi(false);
@@ -1896,7 +2154,7 @@
   }
 
   function renderTrackerDetail(session) {
-    trackerRenderer?.renderDetail(session?.taskCard, trackerDetailExpanded, session);
+    trackerRenderer?.renderDetail(getTaskCard(session), trackerDetailExpanded, session);
   }
 
   function renderPathPanel() {
@@ -1971,6 +2229,7 @@
         mergeSnapshotPatch(trackerSnapshot);
       } catch {}
       await refreshTaskMapGraph(targetSessionId, { force: true });
+      await refreshMemoryCandidates(targetSessionId, { force: true });
       renderTracker();
       renderPathPanel();
       void refreshComposerSuggestionSurface(getSessionRecord(targetSessionId) || getCurrentSessionSafe(), { force: true });
@@ -1998,6 +2257,7 @@
         };
       }
       await refreshTaskMapGraph(getFocusedSessionId() || getCurrentSessionIdSafe(), { force: false });
+      await refreshMemoryCandidates(getFocusedSessionId() || getCurrentSessionIdSafe(), { force: false });
       renderTracker();
       renderPathPanel();
       void refreshComposerSuggestionSurface(getCurrentSessionSafe(), { force: true });
@@ -2175,6 +2435,7 @@
     collapseTaskMapAfterAction({ render: false });
     mobileTaskDetailExpanded = false;
     selectedTaskCanvasNodeId = "";
+    taskCanvasAutoOpenSuppressed = false;
     snapshot.taskMapGraph = null;
     if (nextFocusedSessionId) {
       setFocusedSessionId(nextFocusedSessionId, { render: false });
@@ -2187,6 +2448,18 @@
     renderTracker();
     void refreshTrackerSnapshot(nextFocusedSessionId);
     scheduleFullSnapshotRefresh(1400);
+  });
+
+  window.addEventListener("melodysync:status-change", (event) => {
+    const session = event?.detail?.session || null;
+    const sessionId = normalizeSessionId(event?.detail?.sessionId || session?.id || "");
+    if (!sessionId) return;
+    const nextRunState = String(session?.activity?.run?.state || "").trim().toLowerCase();
+    const previousRunState = lastRunStateBySessionId.get(sessionId) || "";
+    lastRunStateBySessionId.set(sessionId, nextRunState);
+    if (nextRunState !== "running" || (previousRunState && previousRunState !== "running")) {
+      clearLiveTaskCardPreview(sessionId, { render: false });
+    }
   });
 
   window.addEventListener("focus", () => {
@@ -2346,6 +2619,8 @@
     getState: getWorkbenchViewModelState,
     subscribe: subscribeWorkbenchViewModel,
     getSnapshot: () => snapshot,
+    getSessionRecord,
+    getSessionRecords,
     getTaskMapProjection,
     getFocusedSessionId,
     setFocusedSessionId,
@@ -2369,6 +2644,10 @@
     getTaskMapRendererKind: () => String(taskMapFlowRenderer?.getRendererKind?.() || taskMapFlowRenderer?.rendererKind || "unknown"),
     selectTaskCanvasNode,
     clearTaskCanvasNode,
+    applyLiveTaskCardPreview: withLiveTaskCardPreview,
+    getLiveTaskCardPreview,
+    setLiveTaskCardPreview,
+    clearLiveTaskCardPreview,
     refreshOperationRecord: () => operationRecordController.refreshIfOpen(),
   };
   window.MelodySyncWorkbenchViewModel = Object.freeze({

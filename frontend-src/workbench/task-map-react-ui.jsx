@@ -205,6 +205,14 @@ const REACT_FLOW_EXTRA_CSS = `
   min-height: 100%;
 }
 
+.quest-task-flow-node.is-status-completed .quest-task-flow-node-title,
+.quest-task-flow-node.is-status-completed .quest-task-flow-node-summary,
+.quest-task-flow-node.is-resolved .quest-task-flow-node-title,
+.quest-task-flow-node.is-resolved .quest-task-flow-node-summary {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
 .quest-task-flow-react-node-actions {
   display: grid;
   gap: 6px;
@@ -877,6 +885,90 @@ function TrackerPersistentActionsContent({ buttons = [] }) {
   );
 }
 
+function formatMemoryCandidateMeta(candidate = {}) {
+  const type = trimText(candidate?.type || '').toLowerCase();
+  const target = trimText(candidate?.target || '');
+  const confidence = Number(candidate?.confidence);
+  const typeLabel = (
+    type === 'profile' ? '习惯'
+      : type === 'skill' ? '技能'
+        : type === 'corpus' ? '语料'
+          : type === 'project' ? '项目'
+            : type === 'episode' ? '过程'
+              : trimText(candidate?.type || '')
+  );
+  const confidenceLabel = Number.isFinite(confidence)
+    ? `置信 ${Math.round(Math.max(0, Math.min(1, confidence)) * 100)}%`
+    : '';
+  return [typeLabel, target, confidenceLabel].filter(Boolean).join(' · ');
+}
+
+function TrackerMemoryCandidateActionItem({
+  candidate = {},
+  session = null,
+  onReview = null,
+}) {
+  const [pendingStatus, setPendingStatus] = React.useState('');
+
+  async function handleReview(status) {
+    if (!candidate?.id || pendingStatus) return;
+    setPendingStatus(status);
+    try {
+      await onReview?.(candidate, status, session);
+    } finally {
+      setPendingStatus('');
+    }
+  }
+
+  return (
+    <div className="quest-memory-candidate-item">
+      <div className="quest-memory-candidate-main">
+        <div className="quest-memory-candidate-text">{String(candidate?.text || '')}</div>
+        {formatMemoryCandidateMeta(candidate) ? (
+          <div className="quest-memory-candidate-meta">{formatMemoryCandidateMeta(candidate)}</div>
+        ) : null}
+      </div>
+      <div className="quest-memory-candidate-actions">
+        <button
+          type="button"
+          className="quest-branch-btn quest-branch-btn-primary"
+          disabled={Boolean(pendingStatus)}
+          onClick={() => handleReview('approved')}
+        >
+          {pendingStatus === 'approved' ? '处理中…' : '采纳'}
+        </button>
+        <button
+          type="button"
+          className="quest-branch-btn quest-branch-btn-secondary"
+          disabled={Boolean(pendingStatus)}
+          onClick={() => handleReview('rejected')}
+        >
+          {pendingStatus === 'rejected' ? '处理中…' : '忽略'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TrackerMemoryCandidateActionsContent({
+  memoryCandidates = [],
+  session = null,
+  onReview = null,
+}) {
+  return (
+    <>
+      {memoryCandidates.map((candidate) => (
+        <TrackerMemoryCandidateActionItem
+          key={String(candidate?.id || candidate?.text || '')}
+          candidate={candidate}
+          session={session}
+          onReview={onReview}
+        />
+      ))}
+    </>
+  );
+}
+
 function createTrackerRenderer({
   documentRef = document,
   trackerStatusEl = null,
@@ -888,10 +980,14 @@ function createTrackerRenderer({
   trackerConclusionsListEl = null,
   trackerMemoryRowEl = null,
   trackerMemoryListEl = null,
+  trackerMemoryCandidateRowEl = null,
+  trackerMemoryCandidateListEl = null,
   trackerCandidateBranchesRowEl = null,
   trackerCandidateBranchesListEl = null,
   getPersistentActionsEl = () => null,
   getCurrentSessionSafe = () => null,
+  getPendingMemoryCandidates = () => [],
+  reviewMemoryCandidate = async () => null,
   isSuppressed = () => false,
   enterBranchFromCurrentSession = async () => null,
   clipText: clipTextImpl = (value) => String(value || '').trim(),
@@ -1029,6 +1125,19 @@ function createTrackerRenderer({
     );
   }
 
+  function renderMemoryCandidateActions(host, memoryCandidates = [], session = null) {
+    if (!host) return;
+    ensureRoot(host)?.render(
+      memoryCandidates.length > 0 ? (
+        <TrackerMemoryCandidateActionsContent
+          memoryCandidates={memoryCandidates}
+          session={session}
+          onReview={reviewMemoryCandidate}
+        />
+      ) : null,
+    );
+  }
+
   function renderDetail(taskCard, expanded, session = null) {
     if (!trackerDetailEl) return;
     const goal = taskCard?.goal || '';
@@ -1044,11 +1153,15 @@ function createTrackerRenderer({
     renderDetailList(trackerMemoryListEl, memory);
     if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = memory.length === 0;
 
+    const memoryCandidates = getPendingMemoryCandidates(session);
+    renderMemoryCandidateActions(trackerMemoryCandidateListEl, memoryCandidates, session);
+    if (trackerMemoryCandidateRowEl) trackerMemoryCandidateRowEl.hidden = memoryCandidates.length === 0;
+
     const candidateBranches = listVisibleCandidateBranches(taskCard, session);
     renderCandidateBranchActions(trackerCandidateBranchesListEl, candidateBranches);
     if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = candidateBranches.length === 0;
 
-    const hasAny = showGoal || conclusions.length > 0 || memory.length > 0 || candidateBranches.length > 0;
+    const hasAny = showGoal || conclusions.length > 0 || memory.length > 0 || memoryCandidates.length > 0 || candidateBranches.length > 0;
     if (trackerDetailToggleBtn) {
       trackerDetailToggleBtn.hidden = !hasAny;
       trackerDetailToggleBtn.textContent = expanded ? '详情 ▾' : '详情 ▸';
@@ -1093,7 +1206,7 @@ function createTrackerRenderer({
       ];
     } else if (kind === 'skill') {
       buttons = [
-        { label: '触发按钮', onClick: onRun, secondary: false },
+        { label: '触发AI快捷按钮', onClick: onRun, secondary: false },
         { label: '设置', onClick: onConfigure, secondary: true },
       ];
     }
@@ -1878,7 +1991,7 @@ function OperationRecordHeaderChildren({
     buttons.push({ label: state === 'paused' ? '恢复周期' : '暂停周期', secondary: true, onClick: onToggle });
     buttons.push({ label: '设置', secondary: true, onClick: onConfigure });
   } else if (kind === 'skill') {
-    buttons.push({ label: '触发按钮', secondary: false, onClick: onRun });
+    buttons.push({ label: '触发AI快捷按钮', secondary: false, onClick: onRun });
     buttons.push({ label: '设置', secondary: true, onClick: onConfigure });
   } else {
     buttons.push({ label: '沉淀为长期项', secondary: false, onClick: onPromote });
@@ -2230,6 +2343,7 @@ function SessionListItemMount({
   createSessionItem = null,
   session = null,
   archived = false,
+  renderKey = '',
 }) {
   const hostRef = useRef(null);
 
@@ -2249,7 +2363,7 @@ function SessionListItemMount({
       }
       host.removeChild(node);
     };
-  }, [archived, createSessionItem, session]);
+  }, [archived, createSessionItem, renderKey, session]);
 
   return <div className="melodysync-session-list-slot" style={{ display: 'contents' }} ref={hostRef} />;
 }
@@ -2263,10 +2377,42 @@ function SessionListChevron({ className = '', iconHtml = '' }) {
   );
 }
 
+function SessionListFocusSection({
+  focusSessions = [],
+  focusLabel = '',
+  hintLabel = '',
+  createSessionItem = null,
+  getSessionRenderKey = null,
+}) {
+  if (!Array.isArray(focusSessions) || focusSessions.length === 0) return null;
+  return (
+    <div className="session-focus-section">
+      <div className="session-focus-header">
+        <div className="session-focus-header-main">
+          <div className="session-focus-title">{focusLabel}</div>
+          {hintLabel ? <div className="session-focus-note">{hintLabel}</div> : null}
+        </div>
+        <span className="folder-count">{focusSessions.length}</span>
+      </div>
+      <div className="session-focus-items">
+        {focusSessions.map((session) => (
+          <SessionListItemMount
+            key={`focus:${session?.id || Math.random()}`}
+            createSessionItem={createSessionItem}
+            session={session}
+            renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SessionListPinnedSection({
   pinnedSessions = [],
   pinnedLabel = '',
   createSessionItem = null,
+  getSessionRenderKey = null,
 }) {
   if (!Array.isArray(pinnedSessions) || pinnedSessions.length === 0) return null;
   return (
@@ -2281,6 +2427,7 @@ function SessionListPinnedSection({
             key={`pinned:${session?.id || Math.random()}`}
             createSessionItem={createSessionItem}
             session={session}
+            renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
           />
         ))}
       </div>
@@ -2295,6 +2442,7 @@ function SessionListGroupSection({
   onToggleGroup = null,
   onRemoveGroup = null,
   createSessionItem = null,
+  getSessionRenderKey = null,
   chevronIconHtml = '',
   deleteIconHtml = '',
   deleteFolderLabel = '删除文件夹',
@@ -2342,6 +2490,7 @@ function SessionListGroupSection({
             key={`group:${groupEntry?.key || 'ungrouped'}:${session?.id || Math.random()}`}
             createSessionItem={createSessionItem}
             session={session}
+            renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
           />
         ))}
       </div>
@@ -2462,6 +2611,7 @@ function ArchivedSessionSection({
   onToggleArchived = null,
   onEnsureArchivedLoaded = null,
   createSessionItem = null,
+  getSessionRenderKey = null,
   chevronIconHtml = '',
 }) {
   const sessions = Array.isArray(archivedSessions) ? archivedSessions : [];
@@ -2522,6 +2672,7 @@ function ArchivedSessionSection({
               createSessionItem={createSessionItem}
               session={session}
               archived
+              renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
             />
           ))
           : null}
@@ -2530,102 +2681,8 @@ function ArchivedSessionSection({
   );
 }
 
-function PersistentDockSection({
-  groupKey = '',
-  label = '',
-  sessions = [],
-  isCollapsed = false,
-  onToggleSection = null,
-  createSessionItem = null,
-  chevronIconHtml = '',
-}) {
-  const safeSessions = Array.isArray(sessions) ? sessions : [];
-  return (
-    <div className={`persistent-dock-section${isCollapsed ? ' is-collapsed' : ''}`}>
-      <button
-        className="persistent-dock-header"
-        type="button"
-        aria-label={`${label} ${safeSessions.length} 项`}
-        aria-expanded={isCollapsed ? 'false' : 'true'}
-        onClick={() => onToggleSection?.(groupKey, !isCollapsed)}
-      >
-        <span className="persistent-dock-title">{label}</span>
-        <span className="persistent-dock-count">{safeSessions.length}</span>
-        <SessionListChevron className="persistent-dock-chevron" iconHtml={chevronIconHtml} />
-      </button>
-      <div className="persistent-dock-body" hidden={isCollapsed}>
-        {safeSessions.map((session) => (
-          <SessionListItemMount
-            key={`persistent:${groupKey}:${session?.id || Math.random()}`}
-            createSessionItem={createSessionItem}
-            session={session}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PersistentSessionDock({
-  longTermSessions = [],
-  quickActionSessions = [],
-  sectionTitle = '长期项',
-  longTermLabel = '长期任务',
-  quickActionsLabel = 'AI快捷按钮',
-  isCollapsed = false,
-  isSectionCollapsed = () => false,
-  onToggleDock = null,
-  onToggleSection = null,
-  createSessionItem = null,
-  chevronIconHtml = '',
-}) {
-  const hasLongTerm = Array.isArray(longTermSessions) && longTermSessions.length > 0;
-  const hasQuickActions = Array.isArray(quickActionSessions) && quickActionSessions.length > 0;
-  if (!hasLongTerm && !hasQuickActions) return null;
-  const totalCount = (hasLongTerm ? longTermSessions.length : 0) + (hasQuickActions ? quickActionSessions.length : 0);
-
-  return (
-    <div className={`session-list-persistent-dock${isCollapsed ? ' is-collapsed' : ''}`}>
-      <button
-        className="persistent-dock-overview"
-        type="button"
-        aria-label={`${sectionTitle} ${totalCount} 项`}
-        aria-expanded={isCollapsed ? 'false' : 'true'}
-        onClick={() => onToggleDock?.(!isCollapsed)}
-      >
-        <span className="persistent-dock-overview-title">{sectionTitle}</span>
-        <span className="persistent-dock-overview-count">{totalCount}</span>
-        <SessionListChevron className="persistent-dock-overview-chevron" iconHtml={chevronIconHtml} />
-      </button>
-      <div className="session-list-persistent-dock-body" hidden={isCollapsed}>
-        {hasLongTerm ? (
-          <PersistentDockSection
-            groupKey="group:long-term"
-            label={longTermLabel}
-            sessions={longTermSessions}
-            isCollapsed={isSectionCollapsed('group:long-term') === true}
-            onToggleSection={onToggleSection}
-            createSessionItem={createSessionItem}
-            chevronIconHtml={chevronIconHtml}
-          />
-        ) : null}
-        {hasQuickActions ? (
-          <PersistentDockSection
-            groupKey="group:quick-actions"
-            label={quickActionsLabel}
-            sessions={quickActionSessions}
-            isCollapsed={isSectionCollapsed('group:quick-actions') === true}
-            onToggleSection={onToggleSection}
-            createSessionItem={createSessionItem}
-            chevronIconHtml={chevronIconHtml}
-          />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 function SessionListCollections({
+  focus = null,
   pinnedSessions = [],
   orderedGroups = [],
   showGroupHeaders = false,
@@ -2633,6 +2690,7 @@ function SessionListCollections({
   onToggleGroup = null,
   onRemoveGroup = null,
   createSessionItem = null,
+  getSessionRenderKey = null,
   chevronIconHtml = '',
   deleteIconHtml = '',
   pinnedLabel = '',
@@ -2642,10 +2700,18 @@ function SessionListCollections({
 }) {
   return (
     <>
+      <SessionListFocusSection
+        focusSessions={Array.isArray(focus?.sessions) ? focus.sessions : []}
+        focusLabel={String(focus?.titleLabel || '')}
+        hintLabel={String(focus?.hintLabel || '')}
+        createSessionItem={createSessionItem}
+        getSessionRenderKey={getSessionRenderKey}
+      />
       <SessionListPinnedSection
         pinnedSessions={Array.isArray(pinnedSessions) ? pinnedSessions : []}
         pinnedLabel={pinnedLabel}
         createSessionItem={createSessionItem}
+        getSessionRenderKey={getSessionRenderKey}
       />
       {(Array.isArray(orderedGroups) ? orderedGroups : []).map((groupEntry) => (
         <SessionListGroupSection
@@ -2656,6 +2722,7 @@ function SessionListCollections({
           onToggleGroup={onToggleGroup}
           onRemoveGroup={onRemoveGroup}
           createSessionItem={createSessionItem}
+          getSessionRenderKey={getSessionRenderKey}
           chevronIconHtml={chevronIconHtml}
           deleteIconHtml={deleteIconHtml}
           deleteFolderLabel={String(grouping?.deleteFolderLabel || '')}
@@ -2687,6 +2754,7 @@ function SessionListCollections({
         onToggleArchived={archived?.onToggleArchived}
         onEnsureArchivedLoaded={archived?.onEnsureArchivedLoaded}
         createSessionItem={createSessionItem}
+        getSessionRenderKey={getSessionRenderKey}
         chevronIconHtml={chevronIconHtml}
       />
     </>
@@ -2716,6 +2784,7 @@ function createSessionListRenderer({
 
   function renderSessionCollections({
     listEl = null,
+    focus = null,
     pinnedSessions = [],
     orderedGroups = [],
     showGroupHeaders = false,
@@ -2723,12 +2792,14 @@ function createSessionListRenderer({
     onToggleGroup = null,
     onRemoveGroup = null,
     createSessionItem: createSessionItemOverride = null,
+    getSessionRenderKey = null,
     grouping = null,
     archived = null,
   } = {}) {
     if (!listEl) return;
     ensureRoot(listEl)?.render(
       <SessionListCollections
+        focus={focus}
         pinnedSessions={pinnedSessions}
         orderedGroups={orderedGroups}
         showGroupHeaders={showGroupHeaders}
@@ -2736,6 +2807,7 @@ function createSessionListRenderer({
         onToggleGroup={onToggleGroup}
         onRemoveGroup={onRemoveGroup}
         createSessionItem={createSessionItemOverride || createSessionItem}
+        getSessionRenderKey={getSessionRenderKey}
         chevronIconHtml={chevronIconHtml}
         deleteIconHtml={deleteIconHtml}
         pinnedLabel={String(translate('sidebar.pinned') || '')}
@@ -2746,44 +2818,6 @@ function createSessionListRenderer({
     );
   }
 
-  function renderPersistentDock({
-    containerEl = null,
-    persistentSessionsByGroup = {},
-    isDockCollapsed = false,
-    isSectionCollapsed = () => false,
-    onToggleDock = null,
-    onToggleSection = null,
-    createSessionItem: createSessionItemOverride = null,
-  } = {}) {
-    if (!containerEl) return;
-    const longTermSessions = Array.isArray(persistentSessionsByGroup?.['group:long-term'])
-      ? persistentSessionsByGroup['group:long-term']
-      : [];
-    const quickActionSessions = Array.isArray(persistentSessionsByGroup?.['group:quick-actions'])
-      ? persistentSessionsByGroup['group:quick-actions']
-      : [];
-    const hasPersistentDock = longTermSessions.length > 0 || quickActionSessions.length > 0;
-    containerEl.className = hasPersistentDock ? 'session-list-footer has-persistent-dock' : 'session-list-footer';
-    containerEl.hidden = !hasPersistentDock;
-    ensureRoot(containerEl)?.render(
-      hasPersistentDock ? (
-        <PersistentSessionDock
-          longTermSessions={longTermSessions}
-          quickActionSessions={quickActionSessions}
-          sectionTitle={String(translate('persistent.sectionTitle') || '')}
-          longTermLabel={String(translate('sidebar.group.longTerm') || '')}
-          quickActionsLabel={String(translate('sidebar.group.quickActions') || '')}
-          isCollapsed={isDockCollapsed === true}
-          isSectionCollapsed={isSectionCollapsed}
-          onToggleDock={onToggleDock}
-          onToggleSection={onToggleSection}
-          createSessionItem={createSessionItemOverride || createSessionItem}
-          chevronIconHtml={chevronIconHtml}
-        />
-      ) : null,
-    );
-  }
-
   return Object.freeze({
     renderSessionList(payload = {}) {
       const groups = Array.isArray(payload?.groups) ? payload.groups : [];
@@ -2791,6 +2825,7 @@ function createSessionListRenderer({
       const archivedStorageKey = String(archived?.storageKey || 'folder:archived');
       renderSessionCollections({
         listEl: payload?.sessionListEl || null,
+        focus: payload?.focus || null,
         pinnedSessions: Array.isArray(payload?.pinnedSessions) ? payload.pinnedSessions : [],
         orderedGroups: groups,
         showGroupHeaders: payload?.showGroupHeaders === true,
@@ -2804,6 +2839,7 @@ function createSessionListRenderer({
           payload?.actions?.removeTemplateFolder?.(groupLabel);
         },
         createSessionItem: payload?.helpers?.createSessionItem,
+        getSessionRenderKey: payload?.helpers?.getSessionRenderKey,
         grouping: {
           ...(payload?.grouping || {}),
           onOpenCreate() {
@@ -2843,7 +2879,6 @@ function createSessionListRenderer({
       return true;
     },
     renderSessionCollections,
-    renderPersistentDock,
   });
 }
 
@@ -3243,7 +3278,7 @@ function createTaskHandoffController({
         && typeof handoffSessionTaskData === 'function'
       );
     },
-    buildPreview(edgeData = null, direction = 'forward') {
+    buildPreview(edgeData = null, direction = 'forward', options = {}) {
       if (!this.canHandoff(edgeData) || typeof buildTaskHandoffPreview !== 'function') return null;
       const reverse = trimText(direction).toLowerCase() === 'reverse';
       const sourceSessionId = reverse
@@ -3255,9 +3290,10 @@ function createTaskHandoffController({
       return buildTaskHandoffPreview(sourceSessionId, targetSessionId, {
         sourceTitle: reverse ? edgeData?.targetTitle : edgeData?.sourceTitle,
         targetTitle: reverse ? edgeData?.sourceTitle : edgeData?.targetTitle,
+        detailLevel: trimText(options?.detailLevel || ''),
       });
     },
-    async executeHandoff(edgeData = null, direction = 'forward') {
+    async executeHandoff(edgeData = null, direction = 'forward', options = {}) {
       if (!this.canHandoff(edgeData) || typeof handoffSessionTaskData !== 'function') return null;
       const reverse = trimText(direction).toLowerCase() === 'reverse';
       const sourceSessionId = reverse
@@ -3268,6 +3304,7 @@ function createTaskHandoffController({
         : trimText(edgeData?.targetSessionId || '');
       return handoffSessionTaskData(sourceSessionId, {
         targetSessionId,
+        detailLevel: resolveEdgeHandoffDetailLevel(options?.detailLevel),
       });
     },
   });
@@ -3458,6 +3495,66 @@ function getEdgeHandoffDirectionLabel(preview = null) {
   return `${sourceTitle} -> ${targetTitle}`;
 }
 
+const EDGE_HANDOFF_DETAIL_LEVEL_OPTIONS = Object.freeze([
+  Object.freeze({ value: 'focused', label: '聚焦' }),
+  Object.freeze({ value: 'balanced', label: '平衡' }),
+  Object.freeze({ value: 'full', label: '完整' }),
+]);
+
+function resolveEdgeHandoffDetailLevel(value) {
+  const normalized = trimText(value).toLowerCase();
+  return EDGE_HANDOFF_DETAIL_LEVEL_OPTIONS.some((option) => option.value === normalized)
+    ? normalized
+    : 'balanced';
+}
+
+function EdgeHandoffPreviewContent({
+  preview = null,
+  detailLevel = 'balanced',
+  onSelectDetailLevel = null,
+}) {
+  const sections = Array.isArray(preview?.sections) ? preview.sections : [];
+  const summary = trimText(preview?.summary || '');
+  const selectedLevel = resolveEdgeHandoffDetailLevel(detailLevel);
+  return (
+    <>
+      {summary ? (
+        <div className="quest-task-flow-edge-handoff-summary">{summary}</div>
+      ) : null}
+      <div className="quest-task-flow-edge-handoff-detail-levels">
+        {EDGE_HANDOFF_DETAIL_LEVEL_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={`quest-task-flow-edge-handoff-detail-level nodrag nopan${option.value === selectedLevel ? ' is-active' : ''}`}
+            onPointerDown={stopEvent}
+            onClick={(event) => {
+              stopEvent(event);
+              onSelectDetailLevel?.(option.value);
+            }}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <div className="quest-task-flow-edge-handoff-preview">
+        {sections.length > 0 ? sections.map((section) => (
+          <div key={section.key || section.label} className="quest-task-flow-edge-handoff-section">
+            <div className="quest-task-flow-edge-handoff-section-title">{String(section.label || '')}</div>
+            <div className="quest-task-flow-edge-handoff-section-body">
+              {(Array.isArray(section.items) ? section.items : []).map((item) => (
+                <div key={item} className="quest-task-flow-edge-handoff-item">{String(item || '')}</div>
+              ))}
+            </div>
+          </div>
+        )) : (
+          <div className="quest-task-flow-edge-handoff-empty">当前没有可传递的结构化上下文。</div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function MelodyEdge({
   sourceX,
   sourceY,
@@ -3484,11 +3581,13 @@ function MelodyEdge({
   });
   const [composerOpen, setComposerOpen] = useState(false);
   const [direction, setDirection] = useState('forward');
+  const [detailLevel, setDetailLevel] = useState('balanced');
   const [handoffBusy, setHandoffBusy] = useState(false);
   const handoffController = data?.rendererApi?.taskHandoffController || null;
   const canHandoff = data?.canHandoff === true && handoffController?.canHandoff?.(data) === true;
-  const forwardPreview = canHandoff ? handoffController.buildPreview(data, 'forward') : null;
-  const reversePreview = canHandoff ? handoffController.buildPreview(data, 'reverse') : null;
+  const resolvedDetailLevel = resolveEdgeHandoffDetailLevel(detailLevel);
+  const forwardPreview = canHandoff ? handoffController.buildPreview(data, 'forward', { detailLevel: resolvedDetailLevel }) : null;
+  const reversePreview = canHandoff ? handoffController.buildPreview(data, 'reverse', { detailLevel: resolvedDetailLevel }) : null;
   const selectedPreview = trimText(direction).toLowerCase() === 'reverse' ? reversePreview : forwardPreview;
 
   async function confirmHandoff(event) {
@@ -3496,7 +3595,9 @@ function MelodyEdge({
     if (!canHandoff || handoffBusy) return;
     setHandoffBusy(true);
     try {
-      const outcome = await handoffController.executeHandoff(data, direction);
+      const outcome = await handoffController.executeHandoff(data, direction, {
+        detailLevel: resolvedDetailLevel,
+      });
       if (outcome) {
         setComposerOpen(false);
       }
@@ -3562,18 +3663,11 @@ function MelodyEdge({
                     {getEdgeHandoffDirectionLabel(reversePreview)}
                   </button>
                 </div>
-                <div className="quest-task-flow-edge-handoff-preview">
-                  {(Array.isArray(selectedPreview?.sections) ? selectedPreview.sections : []).map((section) => (
-                    <div key={section.key || section.label} className="quest-task-flow-edge-handoff-section">
-                      <div className="quest-task-flow-edge-handoff-section-title">{String(section.label || '')}</div>
-                      <div className="quest-task-flow-edge-handoff-section-body">
-                        {(Array.isArray(section.items) ? section.items : []).map((item) => (
-                          <div key={item} className="quest-task-flow-edge-handoff-item">{String(item || '')}</div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <EdgeHandoffPreviewContent
+                  preview={selectedPreview}
+                  detailLevel={resolvedDetailLevel}
+                  onSelectDetailLevel={setDetailLevel}
+                />
                 <div className="quest-task-flow-edge-handoff-actions">
                   <button
                     type="button"
@@ -4533,12 +4627,28 @@ function renderStaticFlowBoard({
       const previewHost = ensureCompatElement(documentRef.createElement('div'), documentRef);
       previewHost.className = 'quest-task-flow-edge-handoff-preview';
       popover.appendChild(previewHost);
+      const summaryEl = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      summaryEl.className = 'quest-task-flow-edge-handoff-summary';
+      popover.insertBefore(summaryEl, previewHost);
+      const detailLevelControls = ensureCompatElement(documentRef.createElement('div'), documentRef);
+      detailLevelControls.className = 'quest-task-flow-edge-handoff-detail-levels';
+      popover.insertBefore(detailLevelControls, previewHost);
 
       let activeDirection = 'forward';
+      let activeDetailLevel = 'balanced';
       const renderPreview = () => {
         previewHost.innerHTML = '';
-        const preview = rendererApi.taskHandoffController.buildPreview(edge.data, activeDirection);
-        for (const section of Array.isArray(preview?.sections) ? preview.sections : []) {
+        const preview = rendererApi.taskHandoffController.buildPreview(edge.data, activeDirection, {
+          detailLevel: activeDetailLevel,
+        });
+        summaryEl.textContent = trimText(preview?.summary || '');
+        summaryEl.hidden = !summaryEl.textContent;
+        const sections = Array.isArray(preview?.sections) ? preview.sections : [];
+        if (sections.length === 0) {
+          appendStaticNodeText(documentRef, previewHost, 'quest-task-flow-edge-handoff-empty', '当前没有可传递的结构化上下文。');
+          return;
+        }
+        for (const section of sections) {
           const sectionEl = ensureCompatElement(documentRef.createElement('div'), documentRef);
           sectionEl.className = 'quest-task-flow-edge-handoff-section';
           appendStaticNodeText(documentRef, sectionEl, 'quest-task-flow-edge-handoff-section-title', section.label || '');
@@ -4552,8 +4662,27 @@ function renderStaticFlowBoard({
         }
       };
 
+      for (const option of EDGE_HANDOFF_DETAIL_LEVEL_OPTIONS) {
+        const detailBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
+        detailBtn.type = 'button';
+        detailBtn.className = `quest-task-flow-edge-handoff-detail-level nodrag nopan${option.value === activeDetailLevel ? ' is-active' : ''}`;
+        detailBtn.textContent = option.label;
+        detailBtn.addEventListener('click', (event) => {
+          stopEvent(event);
+          activeDetailLevel = option.value;
+          for (const child of detailLevelControls.children || []) {
+            child.classList?.remove?.('is-active');
+          }
+          detailBtn.classList?.add?.('is-active');
+          renderPreview();
+        });
+        detailLevelControls.appendChild(detailBtn);
+      }
+
       for (const nextDirection of ['forward', 'reverse']) {
-        const preview = rendererApi.taskHandoffController.buildPreview(edge.data, nextDirection);
+        const preview = rendererApi.taskHandoffController.buildPreview(edge.data, nextDirection, {
+          detailLevel: activeDetailLevel,
+        });
         const directionBtn = ensureCompatElement(documentRef.createElement('button'), documentRef);
         directionBtn.type = 'button';
         directionBtn.className = `quest-task-flow-edge-handoff-direction nodrag nopan${nextDirection === activeDirection ? ' is-active' : ''}`;
@@ -4580,7 +4709,9 @@ function renderStaticFlowBoard({
         stopEvent(event);
         confirmBtn.disabled = true;
         try {
-          await rendererApi.taskHandoffController.executeHandoff(edge.data, activeDirection);
+          await rendererApi.taskHandoffController.executeHandoff(edge.data, activeDirection, {
+            detailLevel: activeDetailLevel,
+          });
           popover.hidden = true;
         } finally {
           confirmBtn.disabled = false;

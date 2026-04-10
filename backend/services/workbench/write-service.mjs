@@ -17,6 +17,11 @@ import {
   setWorkbenchSessionReminder,
 } from '../../workbench/branch-write-service.mjs';
 import {
+  listWorkbenchMemoryCandidatesForSession,
+  updateWorkbenchMemoryCandidateStatus,
+} from '../../workbench/memory-candidate-store.mjs';
+import { applyMemoryCandidateWriteback } from '../../hooks/memory-writeback-hook.mjs';
+import {
   applyWorkbenchSessionGraphOps,
   deleteWorkbenchTaskMapPlan,
   saveWorkbenchTaskMapPlan,
@@ -80,6 +85,27 @@ export async function setWorkbenchSessionReminderForWrite(sessionId, payload = {
 
 export async function mergeWorkbenchBranchReturnForWrite(sessionId, payload = {}) {
   return mergeWorkbenchBranchReturn(sessionId, payload);
+}
+
+export async function updateWorkbenchMemoryCandidateStatusForWrite(sessionId, candidateId, payload = {}) {
+  const nextStatus = typeof payload?.status === 'string' ? payload.status.trim() : '';
+  if (!nextStatus) {
+    throw new Error('status is required');
+  }
+  const current = (await listWorkbenchMemoryCandidatesForSession(sessionId, { includeResolved: true }))
+    .find((entry) => entry.id === candidateId);
+  if (!current) {
+    throw new Error('Memory candidate not found');
+  }
+
+  const updated = await updateWorkbenchMemoryCandidateStatus(sessionId, candidateId, nextStatus, payload);
+  if (['approved', 'active'].includes(updated.status)) {
+    await applyMemoryCandidateWriteback(updated, {
+      sessionId,
+      sessionName: updated.sessionName,
+    });
+  }
+  return updated;
 }
 
 export async function createWorkbenchProjectSummaryForWrite(projectId) {

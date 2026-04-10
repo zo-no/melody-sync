@@ -380,10 +380,38 @@ function insertAssistantBodyChild(container, node) {
   container.appendChild(node);
 }
 
+function resolveLiveTaskCardPreview(hiddenBlocks = [], event = null) {
+  if (event?.taskCard && typeof event.taskCard === "object" && !Array.isArray(event.taskCard)) {
+    return event.taskCard;
+  }
+  const taskCardBlock = [...(Array.isArray(hiddenBlocks) ? hiddenBlocks : [])]
+    .reverse()
+    .find((block) => block?.kind === "task_card" && typeof block?.content === "string" && block.content.trim());
+  if (!taskCardBlock) return null;
+  try {
+    const parsed = JSON.parse(taskCardBlock.content);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function notifyLiveTaskCardPreview(hiddenBlocks = [], event = null) {
+  const taskCard = resolveLiveTaskCardPreview(hiddenBlocks, event);
+  if (!taskCard) return false;
+  const workbench = window.MelodySyncWorkbench;
+  if (typeof workbench?.setLiveTaskCardPreview !== "function") return false;
+  return workbench.setLiveTaskCardPreview(taskCard, {
+    sessionId: currentSessionId || "",
+    sourceSeq: Number.isInteger(event?.seq) ? event.seq : 0,
+  }) === true;
+}
+
 function renderAssistantMessageBodyIntoNode(container, markdown, { bodyNode = null, event = null } = {}) {
   if (!container) return { hasVisible: false, hasSidecars: false };
   const { visibleContent, hiddenBlocks: extractedHiddenBlocks } = extractHiddenDisplayBlocks(markdown);
   const hiddenBlocks = Array.isArray(extractedHiddenBlocks) ? [...extractedHiddenBlocks] : [];
+  notifyLiveTaskCardPreview(hiddenBlocks, event);
   if (event?.graphOps && currentSessionId) {
     registerGraphOpsProposal(currentSessionId, event?.seq, event.graphOps);
   }

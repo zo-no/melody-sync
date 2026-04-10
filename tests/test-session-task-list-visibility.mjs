@@ -13,6 +13,9 @@ process.env.HOME = tempHome;
 const sessionManager = await import(
   pathToFileURL(join(repoRoot, 'backend', 'session', 'manager.mjs')).href
 );
+const { getSessionCatalogListForClient } = await import(
+  pathToFileURL(join(repoRoot, 'backend', 'services', 'session', 'catalog-read-service.mjs')).href
+);
 
 const {
   createSession,
@@ -67,6 +70,13 @@ assert.deepEqual(
   primaryTaskListSessions.map((session) => session.id),
   [primary.id],
   'primary task list queries should hide secondary and hidden sessions from the main sidebar feed',
+);
+
+const catalogList = await getSessionCatalogListForClient();
+assert.deepEqual(
+  (catalogList.sessions || []).map((session) => session.id),
+  [inferredSecondary.id, explicitSecondary.id, primary.id],
+  'catalog session list should expose active secondary sessions so the sidebar can choose whether to render them',
 );
 
 killAll();

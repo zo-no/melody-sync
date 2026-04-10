@@ -202,6 +202,18 @@ export function createSessionMessageSubmissionService({
       }
     }
 
+    if (!options.internalOperation && isFirstRecordedUserMessage && isSessionAutoRenamePending(session)) {
+      const draftName = buildTemporarySessionName(normalizedText);
+      if (draftName && draftName !== session.name) {
+        const renamed = await renameSession(sessionId, draftName, {
+          preserveAutoRename: true,
+        });
+        if (renamed) {
+          session = renamed;
+        }
+      }
+    }
+
     const {
       claudeSessionId: persistedClaudeSessionId,
       codexThreadId: persistedCodexThreadId,
@@ -284,28 +296,6 @@ export function createSessionMessageSubmissionService({
           appendEvent,
           statusEvent,
         }).catch(() => {});
-      }
-    }
-
-    if (!options.internalOperation && isFirstRecordedUserMessage && isSessionAutoRenamePending(session)) {
-      const draftName = buildTemporarySessionName(recordedUserText);
-      if (draftName && draftName !== session.name) {
-        const renamed = await renameSession(sessionId, draftName, {
-          preserveAutoRename: true,
-        });
-        if (renamed) {
-          session = renamed;
-        }
-      } else {
-        const updatedMeta = await mutateSessionMeta(sessionId, (draft) => {
-          if (draft.autoRenamePending !== true) return false;
-          draft.autoRenamePending = false;
-          draft.updatedAt = nowIso();
-          return true;
-        });
-        if (updatedMeta.meta) {
-          session = await enrichSessionMeta(updatedMeta.meta);
-        }
       }
     }
 

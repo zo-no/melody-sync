@@ -212,6 +212,8 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
     'questTrackerConclusionsList',
     'questTrackerMemoryRow',
     'questTrackerMemoryList',
+    'questTrackerMemoryCandidatesRow',
+    'questTrackerMemoryCandidatesList',
     'questTrackerCandidatesRow',
     'questTrackerCandidatesList',
     'questFinishPanel',
@@ -227,6 +229,7 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
   const fetchCalls = [];
   const fetchLog = [];
   const attachCalls = [];
+  let renderSessionListCalls = 0;
   const context = {
     console,
     window: {
@@ -288,23 +291,46 @@ function buildHarness({ currentSession, sessions, snapshot, innerWidth = 0, fetc
         },
       };
     },
-    renderSessionList() {},
+    renderSessionList() {
+      renderSessionListCalls += 1;
+    },
     attachSession(id, session) {
       attachCalls.push({ id, session });
     },
   };
   context.window.fetch = context.fetch;
   context.globalThis = context;
-  return { context, elements, fetchCalls, fetchLog, attachCalls };
+  return {
+    context,
+    elements,
+    fetchCalls,
+    fetchLog,
+    attachCalls,
+    getRenderSessionListCalls: () => renderSessionListCalls,
+  };
 }
 
 async function runScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
-  const { context, elements, fetchCalls, fetchLog, attachCalls } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
+  const {
+    context,
+    elements,
+    fetchCalls,
+    fetchLog,
+    attachCalls,
+    getRenderSessionListCalls,
+  } = buildHarness({ currentSession, sessions, snapshot, innerWidth, fetchResponder });
   await vm.runInNewContext(`(async () => { ${nodeContractSource}\n${taskRunStatusSource}\n${nodeEffectsSource}\n${nodeInstanceSource}\n${graphModelSource}\n${graphClientSource}\n${taskMapPlanSource}\n${taskMapClustersSource}\n${taskMapMockPresetsSource}\n${taskMapModelSource}\n${questStateSource}\n${taskTrackerUiSource}\n${nodeRichViewUiSource}\n${nodeCanvasUiSource}\n${taskMapReactBundleSource}\n${taskMapUiSource}\n${taskListUiSource}\n${statusCardUiSource}\n${persistentEditorUiSource}\n${branchActionsSource}\n${operationRecordUiSource}\n${source}\nawait Promise.resolve(); })();`, context, {
     filename: 'frontend-src/workbench/controller.js',
   });
   await flushAsync(8);
-  return { elements, fetchCalls, fetchLog, attachCalls, workbench: context.window.MelodySyncWorkbench };
+  return {
+    elements,
+    fetchCalls,
+    fetchLog,
+    attachCalls,
+    getRenderSessionListCalls,
+    workbench: context.window.MelodySyncWorkbench,
+  };
 }
 
 async function runReactScenario({ currentSession, sessions, snapshot, innerWidth = 0, fetchResponder = null }) {
@@ -533,6 +559,7 @@ assert.deepEqual(mainFetchCalls, [
   '/api/workbench/sessions/session-main/tracker',
   '/api/workbench',
   '/api/workbench/sessions/session-main/task-map-graph',
+  '/api/workbench/sessions/session-main/memory-candidates',
 ], 'tracker should fetch the lightweight session tracker snapshot before the full workbench snapshot');
 findAllByClass(mainElements.get('questTaskList'), 'quest-task-flow-node')
   .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === '表现主义')
@@ -541,6 +568,90 @@ assert.deepEqual(
   mainAttachCalls.map((entry) => entry.id),
   ['session-main-branch'],
   'clicking an existing flow node should still switch the workspace to that branch session',
+);
+
+const runningPreviewSession = {
+  id: 'session-live-preview',
+  name: '修任务卡展示',
+  taskCard: {
+    lineRole: 'main',
+    goal: '修任务卡展示',
+    mainGoal: '修任务卡展示',
+    summary: '',
+    checkpoint: '',
+    candidateBranches: [],
+    knownConclusions: [],
+    memory: [],
+  },
+  activity: {
+    run: {
+      state: 'running',
+      phase: 'running',
+      startedAt: '2026-04-10T01:30:00.000Z',
+      runId: 'run-live-preview',
+      cancelRequested: false,
+    },
+    queue: { state: 'idle', count: 0 },
+    rename: { state: 'idle', error: null },
+    compact: { state: 'idle' },
+  },
+};
+
+const {
+  elements: livePreviewElements,
+  getRenderSessionListCalls: getLivePreviewRenderSessionListCalls,
+  workbench: livePreviewWorkbench,
+} = await runScenario({
+  currentSession: runningPreviewSession,
+  sessions: [runningPreviewSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [],
+    skills: [],
+    summaries: [],
+  },
+});
+
+assert.match(
+  livePreviewElements.get('questTrackerBranchTitle').textContent,
+  /当前任务正在执行中|进行中|运行中/,
+  'running sessions without a concrete checkpoint should fall back to a generic execution summary before a live preview arrives',
+);
+assert.equal(
+  livePreviewWorkbench.setLiveTaskCardPreview({
+    summary: '修任务卡',
+    checkpoint: '让运行中页面也读取最新 task_card 进度',
+    knownConclusions: ['运行中的隐藏 task_card 不应再只停留在 transcript sidecar'],
+  }, {
+    sessionId: 'session-live-preview',
+    sourceSeq: 42,
+  }),
+  true,
+  'workbench should accept a live task-card preview patch for the currently running session',
+);
+assert.equal(
+  getLivePreviewRenderSessionListCalls(),
+  1,
+  'live task-card preview updates should also rerender the session surface so sidebar items pick up the new checkpoint immediately',
+);
+assert.equal(
+  livePreviewElements.get('questTrackerBranchTitle').textContent,
+  '让运行中页面也读取最新 task_card 进度',
+  'running task bars should immediately adopt the latest live task-card checkpoint instead of waiting for persisted session metadata',
+);
+livePreviewElements.get('questTrackerDetailToggle').click();
+assert.equal(
+  livePreviewElements.get('questTrackerConclusionsRow').hidden,
+  false,
+  'live task-card previews should also feed the expanded tracker detail rows',
+);
+assert.deepEqual(
+  findAllByClass(livePreviewElements.get('questTrackerConclusionsList'), 'quest-tracker-detail-item').map((entry) => entry?.textContent),
+  ['运行中的隐藏 task_card 不应再只停留在 transcript sidecar'],
+  'tracker detail should render conclusions from the live task-card preview payload',
 );
 
 const sparseIdleMainSession = {
@@ -852,6 +963,116 @@ assert.deepEqual(
   'opening a tracker-detail candidate suggestion should attach the newly created branch session into the main workspace flow',
 );
 
+const memoryReviewSession = {
+  id: 'session-memory-review',
+  name: '沉淀操作习惯',
+  taskCard: {
+    lineRole: 'main',
+    goal: '沉淀操作习惯',
+    mainGoal: '沉淀操作习惯',
+    checkpoint: '筛选值得留下的长期记忆',
+  },
+};
+
+let memoryReviewCandidates = [
+  {
+    id: 'memcand-review-1',
+    sessionId: 'session-memory-review',
+    text: '用户偏好先看 diff 再决定是否合并',
+    type: 'profile',
+    target: 'agent-profile',
+    confidence: 0.91,
+    status: 'candidate',
+  },
+];
+
+const {
+  elements: memoryReviewElements,
+  fetchLog: memoryReviewFetchLog,
+} = await runScenario({
+  currentSession: memoryReviewSession,
+  sessions: [memoryReviewSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-memory-review',
+        mainSession: memoryReviewSession,
+        mainGoal: '沉淀操作习惯',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+  fetchResponder: async (url, options, { snapshot }) => {
+    if (url === '/api/workbench/sessions/session-memory-review/memory-candidates') {
+      return {
+        memoryCandidates: memoryReviewCandidates,
+        snapshot,
+      };
+    }
+    if (
+      options?.method === 'POST'
+      && url === '/api/workbench/sessions/session-memory-review/memory-candidates/memcand-review-1/status'
+    ) {
+      memoryReviewCandidates = [];
+      return {
+        memoryCandidate: {
+          id: 'memcand-review-1',
+          sessionId: 'session-memory-review',
+          status: 'approved',
+        },
+        snapshot,
+      };
+    }
+    return snapshot;
+  },
+});
+
+memoryReviewElements.get('questTrackerDetailToggle').click();
+await flushAsync();
+assert.equal(
+  memoryReviewElements.get('questTrackerMemoryCandidatesRow').hidden,
+  false,
+  'tracker detail should expose a dedicated row when unresolved memory candidates exist',
+);
+assert.deepEqual(
+  findAllByClass(memoryReviewElements.get('questTrackerMemoryCandidatesList'), 'quest-memory-candidate-text')
+    .map((entry) => entry?.textContent),
+  ['用户偏好先看 diff 再决定是否合并'],
+  'memory review row should show staged candidate text',
+);
+assert.deepEqual(
+  findAllByClass(memoryReviewElements.get('questTrackerMemoryCandidatesList'), 'quest-memory-candidate-meta')
+    .map((entry) => entry?.textContent),
+  ['习惯 · agent-profile · 置信 91%'],
+  'memory review row should surface the candidate type, target, and confidence',
+);
+findAllByClass(memoryReviewElements.get('questTrackerMemoryCandidatesList'), 'quest-branch-btn')
+  .find((entry) => entry?.textContent === '采纳')
+  ?.click();
+await flushAsync(12);
+assert.equal(
+  memoryReviewFetchLog.some((entry) => (
+    entry.url === '/api/workbench/sessions/session-memory-review/memory-candidates/memcand-review-1/status'
+    && entry.options?.method === 'POST'
+    && JSON.parse(entry.options?.body || '{}').status === 'approved'
+  )),
+  true,
+  'reviewing a memory candidate should post the selected status to the new workbench endpoint',
+);
+assert.equal(
+  memoryReviewElements.get('questTrackerMemoryCandidatesRow').hidden,
+  true,
+  'approved memory candidates should disappear from the unresolved tracker queue after refresh',
+);
+
 const branchSession = {
   id: 'session-branch',
   name: 'Branch · 表现主义',
@@ -926,6 +1147,7 @@ assert.deepEqual(branchFetchCalls, [
   '/api/workbench/sessions/session-branch/tracker',
   '/api/workbench',
   '/api/workbench/sessions/session-main/task-map-graph',
+  '/api/workbench/sessions/session-branch/memory-candidates',
 ], 'branch tracker should resolve the task-map graph back to the root main session after the lightweight tracker payload');
 assert.equal(branchElements.get('questTrackerStatus').hidden, true, 'mobile branch tracker should avoid a redundant idle status badge inside the task bar');
 assert.equal(branchElements.get('taskMapDrawerBtn').hidden, false, 'mobile branch tracker should expose the header task-map drawer toggle');
@@ -1441,9 +1663,13 @@ assert.equal(richCanvasElements.get('taskMapRail').classList.contains('has-node-
 assert.equal(findAllByClass(richCanvasElements.get('taskCanvasBody'), 'quest-task-flow-node-rich-markdown').length >= 1, true, 'node canvas should render markdown nodes via the declared node view type');
 assert.match(richCanvasElements.get('taskCanvasTitle').textContent, /Markdown 视图/);
 assert.match(findFirstByClass(richCanvasElements.get('taskCanvasBody'), 'quest-task-flow-node-rich-body')?.innerHTML || '', /Markdown 内容/);
+richCanvasElements.get('taskCanvasCloseBtn').click();
+assert.equal(richCanvasElements.get('taskCanvasPanel').hidden, true, 'closing the node canvas should keep the rail closed until the user explicitly reopens a rich-view node');
+assert.equal(richCanvasElements.get('taskMapRail').classList.contains('has-node-canvas'), false, 'closing the node canvas should also clear the dedicated node-canvas rail state');
 findAllByClass(richBoard, 'quest-task-flow-node')
   .find((node) => findFirstByClass(node, 'quest-task-flow-node-title')?.textContent === 'HTML 视图')
   ?.click();
+assert.equal(richCanvasElements.get('taskCanvasPanel').hidden, false, 'explicitly selecting another rich-view node should reopen the node canvas rail');
 assert.equal(findAllByClass(richCanvasElements.get('taskCanvasBody'), 'quest-task-flow-node-rich-html').length >= 1, true, 'clicking a rich-view node should swap the node canvas to the selected html view');
 assert.match(
   findAllByClass(richCanvasElements.get('taskCanvasBody'), 'quest-task-flow-node-rich-body')

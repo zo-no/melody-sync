@@ -18,6 +18,32 @@ import {
   recordFailedAttempt,
 } from '../../middleware.mjs';
 
+export function buildPostAuthLocation(parsedUrl, pathname = '/') {
+  const nextPath = pathname === '/login' ? '/' : (typeof pathname === 'string' && pathname.trim() ? pathname : '/');
+  const nextQuery = new URLSearchParams();
+  const sourceQuery = parsedUrl?.query && typeof parsedUrl.query === 'object'
+    ? parsedUrl.query
+    : null;
+  if (sourceQuery) {
+    for (const [key, value] of Object.entries(sourceQuery)) {
+      if (key === 'token') continue;
+      if (Array.isArray(value)) {
+        for (const entry of value) {
+          if (typeof entry === 'string' && entry.length > 0) {
+            nextQuery.append(key, entry);
+          }
+        }
+        continue;
+      }
+      if (typeof value === 'string' && value.length > 0) {
+        nextQuery.set(key, value);
+      }
+    }
+  }
+  const serialized = nextQuery.toString();
+  return serialized ? `${nextPath}?${serialized}` : nextPath;
+}
+
 export async function handlePublicAuthRoutes({
   req,
   res,
@@ -37,7 +63,10 @@ export async function handlePublicAuthRoutes({
       const sessionToken = generateToken();
       sessions.set(sessionToken, { expiry: Date.now() + SESSION_EXPIRY });
       await saveAuthSessionsAsync();
-      res.writeHead(302, { Location: '/', 'Set-Cookie': setCookie(sessionToken) });
+      res.writeHead(302, {
+        Location: buildPostAuthLocation(parsedUrl, pathname),
+        'Set-Cookie': setCookie(sessionToken),
+      });
       res.end();
     } else {
       recordFailedAttempt(ip);

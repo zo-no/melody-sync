@@ -268,6 +268,11 @@ Universal learnings and patterns that apply to all MelodySync deployments, regar
 - Reconciliation should also treat a present `result.json` as terminal evidence if `status.json` is still non-terminal; that state can happen if the sidecar writes the result file and then dies or is interrupted before its final status write lands.
 - When backfilling terminal state from `result.json`, prefer `result.cancelled` over a later `cancelRequested` flag. A user can press Stop after a successful run already completed, and that late cancel request must not rewrite a completed run into `cancelled`.
 - If a session record still carries `activeRunId`, force a detached-run sync on session reads even when the cached run already looks terminal/finalized; otherwise APIs like session fork can clone a half-reconciled history before the terminal spool flush has materialized into durable session state.
+
+### Partial Run Results Must Not Block Detached-Run Recovery (2026-04-10)
+- In detached-run reconciliation, treat a result envelope that only adds derived fields like `assistantMessage` or `statePatch` as a partial result, not proof that the run has already reached a terminal state.
+- Otherwise the control plane can persist a non-terminal `result.json` from observed structured output before the sidecar writes `completedAt` / `exitCode`, and later startup or queue-replay recovery will stop short because "result exists" even though the run is still logically unfinished.
+- Gate terminal recovery on terminal result metadata (`completedAt`, `exitCode`, `signal`, or `cancelled`) rather than mere result presence, and when the provider processes are gone but assistant output was already observed, synthesize a completed terminal result instead of forcing a failure.
 - Reflection is valuable, but memory writes should be rare and selective. Persist only durable lessons with clear expected reuse.
 - Prefer editing, merging, or deleting existing memory instead of appending near-duplicate notes.
 - Memory hygiene should happen on a light cadence: daily during intense debugging or weekly otherwise.

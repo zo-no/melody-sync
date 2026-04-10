@@ -139,9 +139,15 @@ function continueSidebarResize(event) {
 
 function openSidebar() {
   sidebarOverlay.classList.add("open");
+  if (!isDesktop) {
+    syncSidebarCollapseState({ persist: false });
+  }
 }
 function closeSidebarFn() {
   sidebarOverlay.classList.remove("open");
+  if (!isDesktop) {
+    syncSidebarCollapseState({ persist: false });
+  }
 }
 
 function getSidebarCollapseLabel() {
@@ -162,12 +168,15 @@ function syncSidebarCollapseState({ persist = false } = {}) {
   if (!collapsed && isDesktop) {
     reconcileSidebarDesktopWidthPreference();
   }
+  const menuExpanded = isDesktop
+    ? !collapsed
+    : sidebarOverlay?.classList?.contains?.("open") === true;
   sidebarOverlay.classList.toggle("is-collapsed", collapsed);
   document.body?.classList?.toggle?.("sidebar-is-collapsed", collapsed);
   const menuLabel = isDesktop ? getSidebarCollapseLabel() : t("nav.sessions");
   menuBtn.title = menuLabel;
   menuBtn.setAttribute("aria-label", menuLabel);
-  menuBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  menuBtn.setAttribute("aria-expanded", menuExpanded ? "true" : "false");
   syncSidebarResizeHandle();
   if (persist) {
     persistSidebarCollapseState();
@@ -184,6 +193,10 @@ function setSidebarCollapsed(collapsed, { persist = true } = {}) {
 
 function toggleSidebarCollapsed() {
   if (!isDesktop) {
+    if (sidebarOverlay.classList.contains("open")) {
+      closeSidebarFn();
+      return;
+    }
     openSidebar();
     return;
   }

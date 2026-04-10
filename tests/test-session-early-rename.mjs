@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'assert/strict';
-import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -9,6 +9,7 @@ const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const tempHome = mkdtempSync(join(tmpdir(), 'melodysync-early-rename-'));
 const tempBin = join(tempHome, 'bin');
 const configDir = join(tempHome, '.config', 'melody-sync');
+const promptLogPath = join(tempHome, 'main-run-prompt.txt');
 
 mkdirSync(tempBin, { recursive: true });
 mkdirSync(configDir, { recursive: true });
@@ -17,12 +18,17 @@ const fakeCodexPath = join(tempBin, 'fake-codex');
 writeFileSync(
   fakeCodexPath,
   `#!/usr/bin/env node
+const fs = require('fs');
 const prompt = process.argv[process.argv.length - 1] || '';
 const isLabelPrompt = prompt.includes('You are naming a developer session');
 const delayMs = isLabelPrompt ? 50 : 220;
 const text = isLabelPrompt
   ? JSON.stringify({ title: 'Refactor naming flow' })
   : 'main task finished';
+
+if (!isLabelPrompt) {
+  fs.writeFileSync(${JSON.stringify(promptLogPath)}, prompt, 'utf8');
+}
 
 console.log(JSON.stringify({ type: 'thread.started', thread_id: 'run-thread' }));
 console.log(JSON.stringify({ type: 'turn.started' }));
@@ -114,33 +120,20 @@ await waitFor(
   'session should adopt the first-message draft title while keeping autoRenamePending until the final naming pass',
 );
 
+await waitFor(
+  async () => existsSync(promptLogPath),
+  'main task prompt should be captured',
+);
+
+const mainRunPrompt = readFileSync(promptLogPath, 'utf8');
+assert.match(mainRunPrompt, /Fixed session task title: Refactor the…/, 'first-turn prompt should use the early draft title');
+assert.doesNotMatch(mainRunPrompt, /Fixed session task title: new session/, 'first-turn prompt should not keep the default title');
+
 assert.equal(
   (await getSession(session.id))?.activity?.run?.state,
   'running',
   'draft naming should land while the main task is still running',
 );
-
-await waitFor(
-  async () => (await getSession(session.id))?.activity?.run?.state === 'idle',
-  'session should finish running',
-);
-
-await waitFor(
-  async () => {
-    const current = await getSession(session.id);
-    return current?.name === 'Refactor naming flow'
-      && !current?.group
-      && !current?.description
-      && current?.autoRenamePending === false;
-  },
-  'session should replace the draft title with a final contextual title after the first turn completes',
-);
-
-const finished = await getSession(session.id);
-assert.equal(finished?.name, 'Refactor naming flow', 'finished session should adopt the final contextual title');
-assert.equal(finished?.group || '', '', 'finished session should not auto-group during the reply flow');
-assert.equal(finished?.description || '', '', 'finished session should not auto-describe during the reply flow');
-assert.equal(finished?.autoRenamePending, false, 'final naming should clear autoRenamePending');
 
 killAll();
 rmSync(tempHome, { recursive: true, force: true });

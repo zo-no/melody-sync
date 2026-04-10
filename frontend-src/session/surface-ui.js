@@ -51,14 +51,17 @@ function toSingleGoalLabel(value, max = 42) {
 }
 
 function getPreferredSessionDisplayName(session) {
-  const name = typeof session?.name === "string" ? session.name.trim() : "";
-  const taskGoal = typeof session?.taskCard?.goal === "string" ? session.taskCard.goal.trim() : "";
-  const mainGoal = typeof session?.taskCard?.mainGoal === "string" ? session.taskCard.mainGoal.trim() : "";
+  const displaySession = typeof getDisplaySession === "function"
+    ? getDisplaySession(session)
+    : session;
+  const name = typeof displaySession?.name === "string" ? displaySession.name.trim() : "";
+  const taskGoal = typeof displaySession?.taskCard?.goal === "string" ? displaySession.taskCard.goal.trim() : "";
+  const mainGoal = typeof displaySession?.taskCard?.mainGoal === "string" ? displaySession.taskCard.mainGoal.trim() : "";
   const fallbackGoal = taskGoal || mainGoal;
-  if (fallbackGoal && (session?.autoRenamePending === true || !name || name === t("session.defaultName"))) {
+  if (fallbackGoal && (displaySession?.autoRenamePending === true || !name || name === t("session.defaultName"))) {
     return fallbackGoal;
   }
-  return name || fallbackGoal || getFolderLabel(session?.folder) || t("session.defaultName");
+  return name || fallbackGoal || getFolderLabel(displaySession?.folder) || t("session.defaultName");
 }
 
 function getSessionDisplayName(session) {
@@ -68,6 +71,271 @@ function getSessionDisplayName(session) {
     return clipTaskLabel(`${ordinalBadge} ${displayName}`, 38);
   }
   return ordinalBadge || displayName;
+}
+
+function normalizeComparableText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function getTaskCardList(taskCard, key) {
+  return Array.isArray(taskCard?.[key])
+    ? taskCard[key].filter((entry) => typeof entry === "string" && entry.trim())
+    : [];
+}
+
+function getTaskMapClustersApi() {
+  return window.MelodySyncTaskMapClusters
+    || globalThis.MelodySyncTaskMapClusters
+    || null;
+}
+
+function getWorkbenchApiForDisplay() {
+  return window.MelodySyncWorkbench
+    || globalThis.MelodySyncWorkbench
+    || null;
+}
+
+function getDisplaySession(session) {
+  if (!session || typeof session !== "object") return session || null;
+  const workbench = getWorkbenchApiForDisplay();
+  const sessionId = typeof session?.id === "string" ? session.id.trim() : "";
+  if (sessionId && typeof workbench?.getSessionRecord === "function") {
+    const record = workbench.getSessionRecord(sessionId);
+    if (record && typeof record === "object") return record;
+  }
+  if (typeof workbench?.applyLiveTaskCardPreview === "function") {
+    return workbench.applyLiveTaskCardPreview(session) || session;
+  }
+  return session;
+}
+
+function getWorkbenchSnapshot() {
+  return window.MelodySyncWorkbench?.getSnapshot?.() || null;
+}
+
+function getSessionCatalogRecords() {
+  if (typeof sessions !== "undefined" && Array.isArray(sessions)) {
+    return sessions;
+  }
+  return [];
+}
+
+function getTaskClusters() {
+  const snapshot = getWorkbenchSnapshot();
+  const taskMapClustersApi = getTaskMapClustersApi();
+  if (typeof taskMapClustersApi?.getClusterList === "function") {
+    return taskMapClustersApi.getClusterList(snapshot, getSessionCatalogRecords());
+  }
+  return Array.isArray(snapshot?.taskClusters) ? snapshot.taskClusters : [];
+}
+
+function getTaskClusterForSession(session) {
+  const sessionId = typeof session?.id === "string" ? session.id.trim() : "";
+  if (!sessionId) return null;
+  return getTaskClusters().find((cluster) => {
+    if (String(cluster?.mainSessionId || "").trim() === sessionId) return true;
+    if (Array.isArray(cluster?.branchSessionIds) && cluster.branchSessionIds.includes(sessionId)) return true;
+    return Array.isArray(cluster?.branchSessions)
+      && cluster.branchSessions.some((entry) => String(entry?.id || "").trim() === sessionId);
+  }) || null;
+}
+
+function getTaskClusterCurrentBranchSessionId(cluster, preferredSessionId = "") {
+  const normalizedPreferredSessionId = String(preferredSessionId || "").trim();
+  const mainSessionId = String(cluster?.mainSessionId || "").trim();
+  if (normalizedPreferredSessionId && normalizedPreferredSessionId !== mainSessionId) {
+    const branchIds = new Set(
+      [
+        ...(Array.isArray(cluster?.branchSessionIds) ? cluster.branchSessionIds : []),
+        ...(Array.isArray(cluster?.branchSessions) ? cluster.branchSessions.map((entry) => entry?.id) : []),
+      ]
+        .map((entry) => String(entry || "").trim())
+        .filter(Boolean),
+    );
+    if (branchIds.has(normalizedPreferredSessionId)) {
+      return normalizedPreferredSessionId;
+    }
+  }
+  return String(cluster?.currentBranchSessionId || "").trim();
+}
+
+function getTaskClusterCurrentBranchSession(cluster, preferredSessionId = "") {
+  const currentBranchSessionId = getTaskClusterCurrentBranchSessionId(cluster, preferredSessionId);
+  if (!currentBranchSessionId) return null;
+  return getSessionCatalogRecords().find((entry) => entry?.id === currentBranchSessionId)
+    || (Array.isArray(cluster?.branchSessions)
+      ? cluster.branchSessions.find((entry) => String(entry?.id || "").trim() === currentBranchSessionId)
+      : null)
+    || null;
+}
+
+function getTaskClusterParentSession(cluster, session) {
+  const sessionId = typeof session?.id === "string" ? session.id.trim() : "";
+  if (!cluster || !sessionId) return null;
+  const branchSession = Array.isArray(cluster?.branchSessions)
+    ? cluster.branchSessions.find((entry) => String(entry?.id || "").trim() === sessionId)
+    : null;
+  if (!branchSession) return null;
+  const parentSessionId = String(
+    branchSession?._branchParentSessionId
+    || session?._branchParentSessionId
+    || session?.branchParentSessionId
+    || session?.sourceContext?.parentSessionId
+    || cluster?.mainSessionId
+    || "",
+  ).trim();
+  if (!parentSessionId) return null;
+  if (parentSessionId === String(cluster?.mainSessionId || "").trim()) {
+    return getSessionCatalogRecords().find((entry) => entry?.id === parentSessionId)
+      || cluster?.mainSession
+      || null;
+  }
+  return getSessionCatalogRecords().find((entry) => entry?.id === parentSessionId)
+    || (Array.isArray(cluster?.branchSessions)
+      ? cluster.branchSessions.find((entry) => String(entry?.id || "").trim() === parentSessionId)
+      : null)
+    || null;
+}
+
+function getTaskBranchStatusLabel(session) {
+  const model = window.MelodySyncSessionListModel || null;
+  const status = typeof model?.getBranchTaskStatus === "function"
+    ? model.getBranchTaskStatus(session)
+    : "";
+  if (status === "parked") return "已挂起";
+  if (status === "merged") return "已带回主线";
+  if (["resolved", "done", "closed"].includes(status)) return "已关闭";
+  if (status === "active") return "进行中";
+  return "";
+}
+
+function summarizeTaskClusterBranchCounts(cluster, currentSessionId = "") {
+  const branchSessions = Array.isArray(cluster?.branchSessions) ? cluster.branchSessions : [];
+  if (branchSessions.length === 0) return "";
+  const model = window.MelodySyncSessionListModel || null;
+  const counters = {
+    active: 0,
+    parked: 0,
+    closed: 0,
+    merged: 0,
+  };
+  for (const entry of branchSessions) {
+    const status = typeof model?.getBranchTaskStatus === "function"
+      ? model.getBranchTaskStatus(entry)
+      : "";
+    if (status === "parked") {
+      counters.parked += 1;
+    } else if (status === "merged") {
+      counters.merged += 1;
+    } else if (["resolved", "done", "closed"].includes(status)) {
+      counters.closed += 1;
+    } else {
+      counters.active += 1;
+    }
+  }
+  const currentBranch = getTaskClusterCurrentBranchSession(cluster, currentSessionId);
+  if (currentBranch?.id && currentBranch.id !== String(cluster?.mainSessionId || "").trim()) {
+    return `当前子任务：${toSingleGoalLabel(getPreferredSessionDisplayName(currentBranch), 28)}`;
+  }
+  const parts = [];
+  if (counters.active > 0) parts.push(`进行中 ${counters.active}`);
+  if (counters.parked > 0) parts.push(`挂起 ${counters.parked}`);
+  if (counters.merged > 0) parts.push(`带回主线 ${counters.merged}`);
+  if (counters.closed > 0) parts.push(`已关闭 ${counters.closed}`);
+  if (parts.length > 0) return parts.join(" · ");
+  return `包含 ${branchSessions.length} 条子任务`;
+}
+
+function looksLikeVisibleTaskTitle(session, text) {
+  const displaySession = typeof getDisplaySession === "function"
+    ? getDisplaySession(session)
+    : session;
+  const normalizedText = normalizeComparableText(text);
+  if (!normalizedText) return false;
+  return [
+    getSessionDisplayName(displaySession),
+    getPreferredSessionDisplayName(displaySession),
+    displaySession?.taskCard?.goal,
+    displaySession?.taskCard?.mainGoal,
+    displaySession?.name,
+  ]
+    .map(normalizeComparableText)
+    .filter(Boolean)
+    .includes(normalizedText);
+}
+
+function getSessionTaskPreview(session) {
+  const displaySession = typeof getDisplaySession === "function"
+    ? (getDisplaySession(session) || session)
+    : session;
+  const taskCard = displaySession?.taskCard && typeof displaySession.taskCard === "object" ? displaySession.taskCard : {};
+  const model = window.MelodySyncSessionListModel || null;
+  const isBranch = typeof model?.isBranchTaskSession === "function"
+    ? model.isBranchTaskSession(displaySession)
+    : String(taskCard?.lineRole || "").trim().toLowerCase() === "branch";
+  const taskCluster = getTaskClusterForSession(displaySession);
+  const checkpoint = clipTaskLabel(String(taskCard?.checkpoint || "").trim(), 84);
+  const summary = clipTaskLabel(String(taskCard?.summary || "").trim(), 84);
+  const firstConclusion = clipTaskLabel(getTaskCardList(taskCard, "knownConclusions")[0] || "", 84);
+  let summaryLine = "";
+  for (const candidate of [checkpoint, summary, firstConclusion]) {
+    if (!candidate || looksLikeVisibleTaskTitle(displaySession, candidate)) continue;
+    summaryLine = candidate;
+    break;
+  }
+
+  let hintLine = "";
+  if (isBranch) {
+    const branchStatusLabel = getTaskBranchStatusLabel(displaySession);
+    const parentSession = getTaskClusterParentSession(taskCluster, displaySession);
+    const branchFrom = clipTaskLabel(
+      getPreferredSessionDisplayName(parentSession)
+      || String(taskCard?.branchFrom || "").trim()
+      || String(taskCard?.mainGoal || "").trim(),
+      30,
+    );
+    hintLine = [branchStatusLabel, branchFrom ? `来自主线：${branchFrom}` : ""].filter(Boolean).join(" · ");
+  } else if (taskCluster) {
+    hintLine = summarizeTaskClusterBranchCounts(taskCluster, displaySession?.id || "");
+  }
+
+  if (!summaryLine && hintLine) {
+    summaryLine = hintLine;
+    hintLine = "";
+  }
+
+  return {
+    summaryLine,
+    hintLine,
+  };
+}
+
+function renderSessionTaskPreviewHtml(session) {
+  const preview = getSessionTaskPreview(session);
+  const parts = [];
+  if (preview.summaryLine) {
+    parts.push(`<div class="session-item-summary" title="${esc(preview.summaryLine)}">${esc(preview.summaryLine)}</div>`);
+  }
+  if (preview.hintLine) {
+    parts.push(`<div class="session-item-hint" title="${esc(preview.hintLine)}">${esc(preview.hintLine)}</div>`);
+  }
+  return parts.join("");
+}
+
+function getSessionDisplayRenderKey(session) {
+  const displaySession = typeof getDisplaySession === "function"
+    ? (getDisplaySession(session) || session)
+    : session;
+  const preview = getSessionTaskPreview(displaySession);
+  return [
+    String(displaySession?.id || "").trim(),
+    getSessionDisplayName(displaySession),
+    getPreferredSessionDisplayName(displaySession),
+    String(preview?.summaryLine || "").trim(),
+    String(preview?.hintLine || "").trim(),
+    String(displaySession?.activity?.run?.state || "").trim().toLowerCase(),
+    String(displaySession?.workflowState || "").trim().toLowerCase(),
+  ].join("|");
 }
 
 function formatQueuedMessageTimestamp(stamp) {
@@ -269,6 +537,9 @@ function buildSessionActionConfigs(session, options = {}) {
     return options.actions.filter(Boolean);
   }
   const isArchivedSession = options.archived === true || session?.archived === true;
+  const isBusySession = typeof isSessionBusy === "function"
+    ? isSessionBusy(session)
+    : false;
   const hasUnreadUpdate = typeof getSessionReviewStatusInfo === "function"
     ? Boolean(getSessionReviewStatusInfo(session))
     : false;
@@ -288,7 +559,7 @@ function buildSessionActionConfigs(session, options = {}) {
     "运行完毕",
     "运行完成",
   ].includes(rawWorkflowState);
-  const isDoneSession = normalizedWorkflowState === "done" || fallbackDoneWorkflowState;
+  const isDoneSession = !isBusySession && (normalizedWorkflowState === "done" || fallbackDoneWorkflowState);
   if (isArchivedSession) {
     return [
       {
@@ -316,12 +587,18 @@ function buildSessionActionConfigs(session, options = {}) {
       className: session?.pinned === true ? "pin pinned" : "pin",
     },
     isDoneSession ? {
-      key: "restore-pending",
+      key: "restore_pending",
       action: "restore_pending",
       label: t("action.restorePending"),
       icon: "unarchive",
       className: "restore",
-    } : null,
+    } : {
+      key: "complete_pending",
+      action: "complete_pending",
+      label: t("action.completePending"),
+      icon: "check",
+      className: "complete",
+    },
     {
       key: "archive",
       action: "archive",
@@ -368,6 +645,7 @@ function createActiveSessionItem(session, options = {}) {
   const statusInfo = getSessionMetaStatusInfo(session);
   const touchStatusInfo = getSessionListTouchStatusInfo(session);
   const completeRead = isSessionCompleteAndReviewed(session);
+  const taskPreviewHtml = renderSessionTaskPreviewHtml(session);
   const extraClassName = typeof options.extraClassName === "string" && options.extraClassName.trim()
     ? ` ${options.extraClassName.trim()}`
     : "";
@@ -377,6 +655,7 @@ function createActiveSessionItem(session, options = {}) {
     + (session.pinned ? " pinned" : "")
     + (session.id === currentSessionId ? " active" : "")
     + (completeRead ? " is-complete-read" : "")
+    + (taskPreviewHtml ? " has-task-preview" : "")
     + (statusInfo.itemClass ? ` ${statusInfo.itemClass}` : "")
     + (touchStatusInfo?.itemClass && touchStatusInfo.itemClass !== statusInfo.itemClass ? ` ${touchStatusInfo.itemClass}` : "")
     + extraClassName;
@@ -390,7 +669,14 @@ function createActiveSessionItem(session, options = {}) {
     ? options.metaOverrideHtml
     : buildSessionMetaParts(session, { touchStatusInfo }).join(" · ");
   const actionConfigs = options.hideActions === true ? [] : buildSessionActionConfigs(session, options);
-  const leadingAction = actionConfigs.find((entry) => entry?.action === "archive" || entry?.key === "archive") || null;
+  const leadingAction = actionConfigs.find((entry) => (
+    entry?.action === "complete_pending"
+    || entry?.action === "restore_pending"
+    || entry?.action === "archive"
+    || entry?.key === "complete_pending"
+    || entry?.key === "restore_pending"
+    || entry?.key === "archive"
+  )) || null;
   const trailingActionConfigs = leadingAction
     ? actionConfigs.filter((entry) => entry !== leadingAction)
     : actionConfigs;
@@ -406,6 +692,7 @@ function createActiveSessionItem(session, options = {}) {
     ${leadingActionHtml}
     <div class="session-item-info">
       <div class="session-item-name" title="${esc(displayTitle)}">${titlePrefixHtml}${session.pinned ? `<span class="session-pin-badge" title="${esc(t("sidebar.pinned"))}">${renderSessionIcon("pinned")}</span>` : ""}<span class="session-item-name-text">${esc(displayName)}</span></div>
+      ${taskPreviewHtml}
       ${metaHtml ? `<div class="session-item-meta">${metaHtml}</div>` : ""}
     </div>
     ${trailingActionConfigs.length === 0 ? "" : `<div class="session-item-actions">${actionsHtml}</div>`}`;

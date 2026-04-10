@@ -3798,6 +3798,10 @@ button.quest-task-flow-node {
   border-top: 1px solid color-mix(in srgb, var(--border-strong) 14%, transparent);
 }
 
+.quest-tracker-detail-row#questTrackerMemoryCandidatesRow {
+  grid-column: 1 / -1;
+}
+
 .quest-tracker-detail-label {
   opacity: 1;
   font-size: 10px;
@@ -3836,6 +3840,44 @@ button.quest-task-flow-node {
 
 .quest-branch-suggestion-list {
   gap: 10px;
+}
+
+.quest-memory-candidate-list {
+  display: grid;
+  gap: 10px;
+}
+
+.quest-memory-candidate-item {
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-strong) 12%, transparent);
+}
+
+.quest-memory-candidate-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.quest-memory-candidate-main {
+  display: grid;
+  gap: 4px;
+}
+
+.quest-memory-candidate-text {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.quest-memory-candidate-meta {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.quest-memory-candidate-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
 }
 
 .quest-tracker-detail-row .quest-branch-suggestion-item {
@@ -3892,6 +3934,14 @@ button.quest-task-flow-node {
 }
 
 .quest-tracker-detail-row .quest-branch-btn {
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.quest-tracker-detail-row .quest-memory-candidate-item .quest-branch-btn {
   min-height: 0;
   padding: 0;
   border-radius: 0;
@@ -5790,6 +5840,7 @@ button.quest-task-flow-node {
     0 20px 42px color-mix(in srgb, #0b1520 24%, transparent),
     inset 0 1px 0 color-mix(in srgb, #ffffff 10%, transparent);
   backdrop-filter: blur(16px);
+  z-index: 24;
 }
 
 .quest-task-flow-edge-action-shell.is-static-fallback .quest-task-flow-edge-handoff-popover {
@@ -5802,6 +5853,41 @@ button.quest-task-flow-node {
 .quest-task-flow-edge-handoff-directions {
   display: grid;
   gap: 6px;
+}
+
+.quest-task-flow-edge-handoff-summary {
+  font-size: 11px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.quest-task-flow-edge-handoff-detail-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quest-task-flow-edge-handoff-detail-level {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+  background: color-mix(in srgb, var(--bg-secondary, var(--bg)) 84%, transparent);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  padding: 6px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.quest-task-flow-edge-handoff-detail-level:hover,
+.quest-task-flow-edge-handoff-detail-level.is-active {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 20%, var(--bg-secondary, var(--bg)));
+  color: var(--text);
 }
 
 .quest-task-flow-edge-handoff-direction {
@@ -5837,6 +5923,16 @@ button.quest-task-flow-node {
 .quest-task-flow-edge-handoff-preview {
   display: grid;
   gap: 8px;
+  max-height: min(52vh, 320px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.quest-task-flow-edge-handoff-empty {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  padding: 8px 2px 2px;
 }
 
 .quest-task-flow-edge-handoff-section {

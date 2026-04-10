@@ -16,7 +16,16 @@ const envelope = normalizeAgentResultEnvelope({
     { action: '' },
   ],
   memoryCandidates: [
-    { scope: 'project', text: 'hooks 应与 agent 核心调用链解耦', source: 'agent' },
+    {
+      scope: 'project',
+      text: 'hooks 应与 agent 核心调用链解耦',
+      source: 'agent',
+      type: 'skill',
+      status: 'pending',
+      confidence: '0.82',
+      reason: '最近多次重构都遇到相同耦合问题',
+      expiresAt: '2026-05-01T00:00:00.000Z',
+    },
     { scope: 'user', text: '' },
   ],
   trace: [
@@ -47,6 +56,11 @@ assert.deepEqual(
         scope: 'project',
         text: 'hooks 应与 agent 核心调用链解耦',
         source: 'agent',
+        type: 'skill',
+        status: 'candidate',
+        confidence: 0.82,
+        reason: '最近多次重构都遇到相同耦合问题',
+        expiresAt: '2026-05-01T00:00:00.000Z',
       },
     ],
     trace: [

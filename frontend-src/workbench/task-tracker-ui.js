@@ -1,4 +1,26 @@
 (function taskTrackerUiModule() {
+  function trimText(value) {
+    return typeof value === "string" ? value.trim() : "";
+  }
+
+  function formatMemoryCandidateMeta(candidate = {}) {
+    const type = trimText(candidate?.type || "").toLowerCase();
+    const target = trimText(candidate?.target || "");
+    const confidence = Number(candidate?.confidence);
+    const typeLabel = (
+      type === "profile" ? "习惯"
+        : type === "skill" ? "技能"
+          : type === "corpus" ? "语料"
+            : type === "project" ? "项目"
+              : type === "episode" ? "过程"
+                : trimText(candidate?.type || "")
+    );
+    const confidenceLabel = Number.isFinite(confidence)
+      ? `置信 ${Math.round(Math.max(0, Math.min(1, confidence)) * 100)}%`
+      : "";
+    return [typeLabel, target, confidenceLabel].filter(Boolean).join(" · ");
+  }
+
   function createFallbackTrackerRenderer({
     documentRef = document,
     trackerStatusEl = null,
@@ -12,10 +34,14 @@
     trackerConclusionsListEl = null,
     trackerMemoryRowEl = null,
     trackerMemoryListEl = null,
+    trackerMemoryCandidateRowEl = null,
+    trackerMemoryCandidateListEl = null,
     trackerCandidateBranchesRowEl = null,
     trackerCandidateBranchesListEl = null,
     getPersistentActionsEl = () => null,
     getCurrentSessionSafe = () => null,
+    getPendingMemoryCandidates = () => [],
+    reviewMemoryCandidate = async () => null,
     isSuppressed = () => false,
     enterBranchFromCurrentSession = async () => null,
     clipText = (value) => String(value || "").trim(),
@@ -181,6 +207,75 @@
       }
     }
 
+    function renderMemoryCandidateActions(container, memoryCandidates, session = null) {
+      if (!container) return;
+      container.innerHTML = "";
+      const sourceSession = session?.id ? session : getCurrentSessionSafe();
+      if (!sourceSession?.id) return;
+      for (const candidate of Array.isArray(memoryCandidates) ? memoryCandidates : []) {
+        const candidateId = trimText(candidate?.id || "");
+        const candidateText = trimText(candidate?.text || "");
+        if (!candidateId || !candidateText) continue;
+
+        const row = documentRef.createElement("div");
+        row.className = "quest-memory-candidate-item";
+
+        const main = documentRef.createElement("div");
+        main.className = "quest-memory-candidate-main";
+
+        const text = documentRef.createElement("div");
+        text.className = "quest-memory-candidate-text";
+        text.textContent = candidateText;
+        main.appendChild(text);
+
+        const metaText = formatMemoryCandidateMeta(candidate);
+        if (metaText) {
+          const meta = documentRef.createElement("div");
+          meta.className = "quest-memory-candidate-meta";
+          meta.textContent = metaText;
+          main.appendChild(meta);
+        }
+
+        row.appendChild(main);
+
+        const actions = documentRef.createElement("div");
+        actions.className = "quest-memory-candidate-actions";
+
+        const approveBtn = documentRef.createElement("button");
+        approveBtn.type = "button";
+        approveBtn.className = "quest-branch-btn quest-branch-btn-primary";
+        approveBtn.textContent = "采纳";
+
+        const rejectBtn = documentRef.createElement("button");
+        rejectBtn.type = "button";
+        rejectBtn.className = "quest-branch-btn quest-branch-btn-secondary";
+        rejectBtn.textContent = "忽略";
+
+        async function applyDecision(status) {
+          approveBtn.disabled = true;
+          rejectBtn.disabled = true;
+          try {
+            await reviewMemoryCandidate(candidate, status, sourceSession);
+          } finally {
+            approveBtn.disabled = false;
+            rejectBtn.disabled = false;
+          }
+        }
+
+        approveBtn.addEventListener("click", async () => {
+          await applyDecision("approved");
+        });
+        rejectBtn.addEventListener("click", async () => {
+          await applyDecision("rejected");
+        });
+
+        actions.appendChild(approveBtn);
+        actions.appendChild(rejectBtn);
+        row.appendChild(actions);
+        container.appendChild(row);
+      }
+    }
+
     function renderDetail(taskCard, expanded, session = null) {
       if (!trackerDetailEl) return;
       const goal = taskCard?.goal || "";
@@ -196,11 +291,15 @@
       renderDetailItems(trackerMemoryListEl, memory);
       if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = memory.length === 0;
 
+      const memoryCandidates = getPendingMemoryCandidates(session);
+      renderMemoryCandidateActions(trackerMemoryCandidateListEl, memoryCandidates, session);
+      if (trackerMemoryCandidateRowEl) trackerMemoryCandidateRowEl.hidden = memoryCandidates.length === 0;
+
       const candidateBranches = listVisibleCandidateBranches(taskCard, session);
       renderCandidateBranchActions(trackerCandidateBranchesListEl, candidateBranches, session);
       if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = candidateBranches.length === 0;
 
-      const hasAny = showGoal || conclusions.length > 0 || memory.length > 0 || candidateBranches.length > 0;
+      const hasAny = showGoal || conclusions.length > 0 || memory.length > 0 || memoryCandidates.length > 0 || candidateBranches.length > 0;
       if (trackerDetailToggleBtn) {
         trackerDetailToggleBtn.hidden = !hasAny;
         trackerDetailToggleBtn.textContent = expanded ? "详情 ▾" : "详情 ▸";

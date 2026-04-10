@@ -295,17 +295,22 @@ async function main() {
     assert.match(combinedChatStyles, /\.task-manager-main-column\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\) auto auto;[\s\S]*?overflow:\s*hidden;/, 'task-manager main column should model task bar, messages, queued panel, and composer as explicit rows');
     assert.match(combinedChatStyles, /\.task-manager-body\s*\{[\s\S]*?grid-template-areas:\s*"rail"[\s\S]*?"main";/, 'task-manager body should explicitly model the task map and the main task column');
     assert.match(combinedChatStyles, /@media \(min-width: 768px\)\s*\{[\s\S]*?grid-template-areas:\s*"main rail";/, 'desktop task manager should use a single PC-first workspace with the map as the right-side rail');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.sidebar-overlay\s*\{[\s\S]*?top:\s*calc\(50px \+ var\(--safe-top\)\);/, 'mobile sidebar overlay should start below the header so the menu button remains clickable');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.sidebar\s*\{[\s\S]*?top:\s*calc\(50px \+ var\(--safe-top\) \+ 8px\);/, 'mobile sidebar drawer should also clear the header so the close button is not hidden behind header actions');
     assert.match(combinedChatStyles, /\.chat-area > \*\s*\{[\s\S]*?min-width:\s*0;/, 'chat-area grid children should be allowed to shrink horizontally instead of expanding the column');
     assert.match(combinedChatStyles, /\.messages\s*\{[\s\S]*?min-height:\s*0;/);
     assert.match(combinedChatStyles, /\.messages-inner\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/, 'message column should stay bound to the available chat width');
     assert.match(combinedChatStyles, /\.input-resize-handle\s*\{[\s\S]*?margin:\s*0 calc\(var\(--chat-gutter\) \* -1\) 8px;/, 'resize handle should mirror the current chat gutter so it does not create horizontal overflow on mobile');
     assert.doesNotMatch(combinedChatStyles, /\.sidebar-overlay\.collapsed/, 'desktop sidebar should no longer render a collapsed state');
+    assert.match(combinedChatStyles, /\.sidebar-overlay\.is-collapsed\s*\{[\s\S]*?width:\s*0;[\s\S]*?padding:\s*0;/, 'desktop collapsed sidebar should clear its shell padding so the main pane can fully reclaim the width');
     assert.match(combinedChatStyles, /\.modal-backdrop\s*\{[\s\S]*?padding-left:\s*calc\(var\(--sidebar-width\) \+ 24px\);/, 'desktop modals should offset against the fixed-width sidebar');
     assert.match(combinedChatStyles, /body\.keyboard-open \.messages/);
     assert.match(combinedChatStyles, /body\.keyboard-open \.input-area/);
     assert.doesNotMatch(combinedChatStyles, /--app-top-offset/);
     assert.match(page.text, /\/chat\.js\?v=/, 'chat page should fingerprint the chat frontend URL so releases invalidate correctly');
     assert.match(page.text, /\/manifest\.json\?v=/, 'chat page should fingerprint the manifest URL so installed PWAs refresh policy changes');
+    assert.match(page.text, /id="frontendUpdateBanner"/, 'chat page should include a visible frontend update banner for stale tabs');
+    assert.match(page.text, /id="frontendUpdateReloadBtn"/, 'chat page should expose a dedicated reload action inside the update banner');
     assert.match(page.text, /title="Attach files"/, 'chat page should advertise file uploads in the composer');
     assert.match(page.text, /accept="\*\/\*"/, 'chat page should allow arbitrary file selection');
 
@@ -521,6 +526,7 @@ async function main() {
     assert.equal(sessionListUiAsset.status, 200, 'session list ui asset should load');
     assert.match(sessionListUiAsset.text, /function renderSessionList\(/);
     assert.match(sessionListUiAsset.text, /function attachSession\(/);
+    assert.match(sessionListUiAsset.text, /getSessionRenderKey/);
     assert.match(sessionListUiAsset.text, /focusComposer\(\{ preventScroll: true \}\)/);
     assert.doesNotMatch(sessionListUiAsset.text, /getSidebarTaskClusters/, 'session list ui should render from stable session list data instead of workbench task clusters');
 
@@ -1020,6 +1026,7 @@ async function main() {
     const taskMapReactBundleAsset = await request(port, 'GET', '/app/task-map-react.bundle.js');
     assert.equal(taskMapReactBundleAsset.status, 200, 'task map react bundle asset should load');
     assert.match(taskMapReactBundleAsset.text, /MelodySyncTaskMapReactUi/);
+    assert.match(taskMapReactBundleAsset.text, /getSessionRenderKey/);
 
     const taskMapUiAsset = await request(port, 'GET', '/chat/workbench/task-map-ui.js');
     assert.equal(taskMapUiAsset.status, 200, 'task map ui asset should load');
@@ -1216,8 +1223,14 @@ async function main() {
     const sidebarUiAsset = await request(port, 'GET', '/chat/session-list/sidebar-ui.js');
     assert.equal(sidebarUiAsset.status, 200, 'sidebar ui asset should load');
     assert.match(sidebarUiAsset.text, /function openSidebar\(/);
+    assert.match(sidebarUiAsset.text, /function toggleSidebarCollapsed\(\)\s*\{[\s\S]*?if \(!isDesktop\)\s*\{[\s\S]*?sidebarOverlay\.classList\.contains\("open"\)[\s\S]*?closeSidebarFn\(\);[\s\S]*?return;[\s\S]*?openSidebar\(\);/, 'mobile menu button should toggle the sidebar closed when the drawer is already open');
     assert.match(sidebarUiAsset.text, /function createNewSessionShortcut\(/);
     assert.match(sidebarUiAsset.text, /requestLayoutPass\("composer-images"\)/);
+
+    const bootstrapAsset = await request(port, 'GET', '/chat/core/bootstrap.js');
+    assert.equal(bootstrapAsset.status, 200, 'bootstrap asset should load');
+    assert.match(bootstrapAsset.text, /function shouldAutoReloadForFreshBuild\(\)/, 'bootstrap should expose stale-build auto reload gating');
+    assert.match(bootstrapAsset.text, /document\.addEventListener\("visibilitychange",/, 'bootstrap should retry the stale-build reload path when the page goes into the background');
 
     const legacySettingsUiAsset = await request(port, 'GET', '/chat/settings-ui.js');
     assert.equal(legacySettingsUiAsset.status, 404, 'removed settings ui asset should no longer be served');

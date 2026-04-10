@@ -7,7 +7,7 @@ import vm from 'vm';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
-const bootstrapSource = readFileSync(join(repoRoot, 'static', 'frontend', 'core', 'bootstrap.js'), 'utf8');
+const bootstrapSource = readFileSync(join(repoRoot, 'frontend-src', 'core', 'bootstrap.js'), 'utf8');
 
 function extractFunctionSource(source, functionName) {
   const marker = `function ${functionName}`;
@@ -69,6 +69,22 @@ function createButton() {
   };
 }
 
+function createBanner() {
+  return {
+    hidden: true,
+    classList: {
+      values: new Set(),
+      toggle(name, force) {
+        if (force) this.values.add(name);
+        else this.values.delete(name);
+      },
+      contains(name) {
+        return this.values.has(name);
+      },
+    },
+  };
+}
+
 const context = {
   console,
   bootstrapT(key) {
@@ -77,6 +93,22 @@ const context = {
     return key;
   },
   refreshFrontendBtn: createButton(),
+  frontendUpdateBanner: createBanner(),
+  frontendUpdatePromptDismissed: false,
+  document: {
+    body: {
+      classList: {
+        values: new Set(),
+        toggle(name, force) {
+          if (force) this.values.add(name);
+          else this.values.delete(name);
+        },
+        contains(name) {
+          return this.values.has(name);
+        },
+      },
+    },
+  },
   newerBuildInfo: null,
 };
 context.globalThis = context;
@@ -93,6 +125,8 @@ assert.equal(context.refreshFrontendBtn.title, '刷新到最新前端');
 assert.equal(context.refreshFrontendBtn.attributes.get('aria-label'), '刷新到最新前端');
 assert.equal(context.refreshFrontendBtn.classList.contains('ready'), false, 'refresh button should not be highlighted without a pending update');
 assert.equal(context.refreshFrontendBtn.attributes.has('aria-busy'), false, 'refresh button should clear busy state when no update is pending');
+assert.equal(context.frontendUpdateBanner.hidden, true, 'update banner should stay hidden when no update is pending');
+assert.equal(context.frontendUpdateBanner.classList.contains('is-visible'), false, 'update banner should not animate in without a pending update');
 
 context.newerBuildInfo = { assetVersion: 'build-2' };
 context.updateFrontendRefreshUi();
@@ -100,5 +134,15 @@ assert.equal(context.refreshFrontendBtn.hidden, false, 'refresh button should re
 assert.equal(context.refreshFrontendBtn.title, '有新前端版本，点这里刷新');
 assert.equal(context.refreshFrontendBtn.attributes.get('aria-label'), '有新前端版本，点这里刷新');
 assert.equal(context.refreshFrontendBtn.classList.contains('ready'), true, 'refresh button should highlight when an update is pending');
+assert.equal(context.frontendUpdateBanner.hidden, false, 'update banner should surface when a newer build is pending');
+assert.equal(context.frontendUpdateBanner.classList.contains('is-visible'), true, 'update banner should animate in when a newer build is pending');
+assert.equal(context.document.body.classList.contains('frontend-update-banner-active'), true, 'page should remember when the update banner is active');
+
+context.frontendUpdatePromptDismissed = true;
+context.updateFrontendRefreshUi();
+assert.equal(context.refreshFrontendBtn.hidden, false, 'refresh button should remain available after dismissing the banner');
+assert.equal(context.frontendUpdateBanner.hidden, true, 'dismissed update banner should hide while keeping the newer build state');
+assert.equal(context.frontendUpdateBanner.classList.contains('is-visible'), false, 'dismissed update banner should clear the visible state');
+assert.equal(context.document.body.classList.contains('frontend-update-banner-active'), false, 'page should clear the active banner body class after dismiss');
 
 console.log('test-chat-refresh-button-ui: ok');

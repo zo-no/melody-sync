@@ -2,6 +2,7 @@ import { getToolDefinitionAsync } from '../../../lib/tools.mjs';
 import { getContextHead, getHistorySnapshot } from '../../history.mjs';
 import { buildSourceRuntimePrompt } from '../../source-runtime-prompts.mjs';
 import { buildSystemContext } from '../../system-prompt.mjs';
+import { loadMemoryActivationPromptContext } from '../../session-prompt/memory-context.mjs';
 import { buildPreparedContinuationContext } from '../../session-runtime/session-fork-context.mjs';
 import {
   buildTaskCardPromptBlock,
@@ -100,6 +101,16 @@ export async function buildPrompt(sessionId, session, text, previousTool, effect
     if (!hasResume) {
       const systemContext = await buildSystemContext({ sessionId });
       const preambleSections = [buildPromptSection('Manager context', systemContext)];
+      const memoryPromptContext = await loadMemoryActivationPromptContext();
+      if (memoryPromptContext.bootstrapMemory) {
+        preambleSections.push(buildPromptSection('Bootstrap memory', memoryPromptContext.bootstrapMemory));
+      }
+      if (memoryPromptContext.profileMemory) {
+        preambleSections.push(buildPromptSection('Profile memory', memoryPromptContext.profileMemory));
+      }
+      if (memoryPromptContext.recentContextDigest) {
+        preambleSections.push(buildPromptSection('Recent context digest', memoryPromptContext.recentContextDigest));
+      }
       const sourceRuntimePrompt = buildSourceRuntimePrompt(session);
       if (sourceRuntimePrompt) {
         preambleSections.push(buildPromptSection('Source/runtime instructions', sourceRuntimePrompt));

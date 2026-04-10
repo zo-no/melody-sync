@@ -116,6 +116,7 @@ body::before {
 
   .sidebar-overlay.is-collapsed {
     width: 0;
+    padding: 0;
     opacity: 0;
     pointer-events: none;
   }
@@ -174,6 +175,11 @@ body::before {
 
   .sidebar-overlay.open .sidebar {
     left: auto;
+  }
+
+  /* Desktop sidebar header only contains the mobile close button. */
+  .sidebar-header {
+    display: none;
   }
 
   .sidebar-header #closeSidebar {
@@ -409,13 +415,14 @@ body::before {
   }
 
   .sidebar-overlay {
+    top: calc(50px + var(--safe-top));
     background: var(--overlay-backdrop);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
   }
 
   .sidebar {
-    top: 8px;
+    top: calc(50px + var(--safe-top) + 8px);
     bottom: 8px;
     left: calc(-1 * var(--sidebar-mobile-width) - 16px);
     width: var(--sidebar-mobile-width);
@@ -569,6 +576,27 @@ body::before {
 
 
 @media (max-width: 640px) {
+  .frontend-update-banner {
+    top: calc(var(--safe-top) + 52px);
+    width: calc(100vw - 16px);
+    padding: 12px 14px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .frontend-update-actions {
+    width: 100%;
+  }
+
+  .frontend-update-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  body.frontend-update-banner-active .completion-attention-banner {
+    top: calc(var(--safe-top) + 146px);
+  }
+
   .completion-attention-banner {
     top: calc(var(--safe-top) + 52px);
     width: calc(100vw - 16px);

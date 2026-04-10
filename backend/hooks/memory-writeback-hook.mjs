@@ -3,6 +3,7 @@ import { join } from 'path';
 
 import { MEMORY_DIR, SYSTEM_MEMORY_DIR } from '../../lib/config.mjs';
 import { createKeyedTaskQueue, ensureDir, pathExists, writeTextAtomic } from '../fs-utils.mjs';
+import { stageWorkbenchMemoryCandidate } from '../workbench/memory-candidate-store.mjs';
 
 const AGENT_PROFILE_MD = join(MEMORY_DIR, 'agent-profile.md');
 const CONTEXT_DIGEST_MD = join(MEMORY_DIR, 'context-digest.md');
@@ -37,6 +38,52 @@ function normalizeTarget(value) {
   if (['global', 'global.md'].includes(compact)) return 'global';
   if (['system', 'system.md'].includes(compact)) return 'system';
   return '';
+}
+
+function normalizeCandidateStatus(value, { explicitTarget = false } = {}) {
+  const normalized = normalizeText(value).toLowerCase();
+  if (!normalized) {
+    return explicitTarget ? 'active' : 'candidate';
+  }
+  if (['candidate', 'suggested', 'pending', 'review'].includes(normalized)) return 'candidate';
+  if (['approved', 'approve', 'promoted'].includes(normalized)) return 'approved';
+  if (['active', 'applied', 'writeback'].includes(normalized)) return 'active';
+  if (['rejected', 'reject', 'dismissed'].includes(normalized)) return 'rejected';
+  if (['invalidated', 'invalid', 'superseded'].includes(normalized)) return 'invalidated';
+  if (['expired', 'stale'].includes(normalized)) return 'expired';
+  return explicitTarget ? 'active' : 'candidate';
+}
+
+function isPromotableStatus(status) {
+  return status === 'approved' || status === 'active';
+}
+
+function formatCandidateEntry(candidate = {}, { target = '', text = '', status = '' } = {}) {
+  const normalizedText = normalizeText(text);
+  if (!normalizedText) return '';
+
+  const tags = [];
+  const normalizedStatus = normalizeText(status);
+  const normalizedTarget = normalizeText(target);
+  const normalizedType = normalizeText(candidate.type);
+  const normalizedScope = normalizeText(candidate.scope);
+  const normalizedSource = normalizeText(candidate.source);
+  const normalizedConfidence = typeof candidate.confidence === 'number'
+    ? String(candidate.confidence)
+    : normalizeText(candidate.confidence);
+  const normalizedExpiresAt = normalizeText(candidate.expiresAt);
+
+  if (normalizedStatus) tags.push(`status=${normalizedStatus}`);
+  if (normalizedTarget) tags.push(`target=${normalizedTarget}`);
+  if (normalizedType) tags.push(`type=${normalizedType}`);
+  if (normalizedScope) tags.push(`scope=${normalizedScope}`);
+  if (normalizedSource) tags.push(`source=${normalizedSource}`);
+  if (normalizedConfidence) tags.push(`confidence=${normalizedConfidence}`);
+  if (normalizedExpiresAt) tags.push(`expiresAt=${normalizedExpiresAt}`);
+
+  const reason = normalizeText(candidate.reason);
+  const prefix = tags.length > 0 ? `- [${tags.join(' | ')}] ` : '- ';
+  return `${prefix}${normalizedText}${reason ? ` — ${reason}` : ''}`;
 }
 
 function stripTargetPrefix(text) {
@@ -169,6 +216,18 @@ async function writeTaskCandidate({ sessionId, sessionName, text }) {
   }
 }
 
+async function writeTaskCandidateEntry({ sessionId, sessionName, heading, line }) {
+  const targetPath = buildTaskMemoryPath(sessionId);
+  const current = await readText(targetPath);
+  const header = current.trim()
+    ? current
+    : `# Task Memory\n\n- Session ID: \`${normalizeText(sessionId) || 'unknown'}\`\n${sessionName ? `- Session: ${normalizeText(sessionName)}\n` : ''}`;
+  const next = appendSection(header, heading, line);
+  if (next !== current) {
+    await writeTextAtomic(targetPath, next);
+  }
+}
+
 async function writeWorklogCandidate(text) {
   const targetPath = buildWorklogPath();
   const current = await readText(targetPath);
@@ -180,10 +239,33 @@ async function writeWorklogCandidate(text) {
   }
 }
 
-async function routeMemoryCandidate(candidate, context = {}) {
-  const target = inferTarget(candidate);
+export async function applyMemoryCandidateWriteback(candidate, context = {}) {
+  const explicitTarget = normalizeTarget(candidate.target || candidate.file || candidate.kind || candidate.memoryFile);
+  const target = explicitTarget || inferTarget(candidate);
   const text = stripTargetPrefix(candidate.text);
+  const status = normalizeCandidateStatus(candidate.status, { explicitTarget: !!explicitTarget });
   if (!target || !text) return false;
+
+  if (!isPromotableStatus(status)) {
+    await ensureDir(TASKS_DIR);
+    await writeTaskCandidateEntry({
+      sessionId: context.sessionId,
+      sessionName: context.sessionName,
+      heading: ['rejected', 'invalidated', 'expired'].includes(status)
+        ? 'Rejected memory candidates'
+        : 'Memory candidates',
+      line: formatCandidateEntry(candidate, { target, text, status }),
+    });
+    await stageWorkbenchMemoryCandidate({
+      ...candidate,
+      sessionId: context.sessionId,
+      sessionName: context.sessionName,
+      target,
+      text,
+      status,
+    });
+    return true;
+  }
 
   switch (target) {
     case 'agent-profile':
@@ -233,7 +315,7 @@ export async function memoryWritebackHook({ sessionId, session, manifest, result
     if (!await pathExists(MEMORY_DIR)) return;
     for (const candidate of candidates) {
       try {
-        await routeMemoryCandidate(candidate, {
+        await applyMemoryCandidateWriteback(candidate, {
           sessionId,
           sessionName: session?.name || '',
         });

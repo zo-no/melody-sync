@@ -100,8 +100,10 @@ const renderArchivedSectionSource = extractFunctionSource(sessionListSource, 're
 const actionContext = {
   t(key) {
     return {
+      'action.completePending': 'Complete',
       'action.archive': 'Archive',
       'action.restore': 'Restore',
+      'action.restorePending': 'Undo complete',
       'action.delete': 'Delete',
       'action.acknowledge': 'Acknowledge',
       'action.pin': 'Pin',
@@ -110,6 +112,9 @@ const actionContext = {
   },
   getSessionReviewStatusInfo() {
     return null;
+  },
+  isSessionBusy(session) {
+    return session?.busy === true;
   },
   markSessionReviewed() {},
 };
@@ -124,24 +129,34 @@ vm.runInNewContext(`
 
 assert.equal(
   actionContext.buildSessionActionConfigs({ id: 'active-task' }).map((entry) => entry.action).join(','),
-  'pin,archive',
-  'active tasks should expose pin and archive as the default sidebar actions',
+  'pin,complete_pending,archive',
+  'active tasks should expose complete-pending before archive so the circle becomes a soft-complete control',
 );
 assert.equal(
   actionContext.buildSessionActionConfigs({ id: 'active-task-pinned', pinned: true }).map((entry) => entry.action).join(','),
-  'unpin,archive',
-  'pinned tasks should expose an unpin action in place of pin',
+  'unpin,complete_pending,archive',
+  'pinned tasks should still expose soft-complete ahead of archive',
 );
 assert.equal(
   actionContext.buildSessionActionConfigs({ id: 'archived-task', archived: true }).map((entry) => entry.action).join(','),
   'unarchive,delete',
   'archived tasks should expose restore and delete actions inside the archived folder',
 );
+assert.equal(
+  actionContext.buildSessionActionConfigs({ id: 'done-task', workflowState: 'done' }).map((entry) => entry.action).join(','),
+  'pin,restore_pending,archive',
+  'done tasks should replace the leading soft-complete action with undo-complete while keeping archive available',
+);
+assert.equal(
+  actionContext.buildSessionActionConfigs({ id: 'done-task-busy', workflowState: 'done', busy: true }).map((entry) => entry.action).join(','),
+  'pin,complete_pending,archive',
+  'busy tasks should not flip the leading action into undo-complete while a run is still active',
+);
 actionContext.getSessionReviewStatusInfo = () => ({ label: "Unread" });
 assert.equal(
   actionContext.buildSessionActionConfigs({ id: 'active-task-unread' }).map((entry) => entry.action).join(','),
-  'pin,archive,acknowledge',
-  'active tasks with unread updates should append acknowledge without disturbing the primary pin/archive action order',
+  'pin,complete_pending,archive,acknowledge',
+  'active tasks with unread updates should append acknowledge without disturbing the complete/archive action order',
 );
 
 const statusContext = {

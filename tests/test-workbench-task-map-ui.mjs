@@ -261,6 +261,7 @@ vm.runInNewContext(taskMapReactBundleSource, context, { filename: 'workbench/tas
 vm.runInNewContext(taskMapUiSource, context, { filename: 'workbench/task-map-ui.js' });
 
 const handoffCalls = [];
+const handoffPreviewCalls = [];
 const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
   documentRef,
   windowRef,
@@ -279,14 +280,21 @@ const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
       },
     ];
   },
-  buildTaskHandoffPreview(sourceSessionId, targetSessionId) {
+  buildTaskHandoffPreview(sourceSessionId, targetSessionId, options = {}) {
+    const detailLevel = String(options?.detailLevel || '').trim() || 'balanced';
+    handoffPreviewCalls.push({
+      sourceSessionId,
+      targetSessionId,
+      detailLevel,
+    });
     return {
       sourceSessionId,
       targetSessionId,
       sourceTitle: sourceSessionId === 'main-1' ? '主任务' : '其他任务',
       targetTitle: targetSessionId === 'branch-running' ? '运行节点' : '其他节点',
+      summary: `${sourceSessionId} -> ${targetSessionId} (${detailLevel})`,
       sections: [
-        { key: 'conclusions', label: '结论', items: ['已经整理出需要传递的阶段信息'] },
+        { key: 'conclusions', label: '结论', items: [`已经整理出需要传递的阶段信息（${detailLevel}）`] },
         { key: 'nextSteps', label: '下一步', items: ['继续推进目标任务'] },
       ],
     };
@@ -295,6 +303,7 @@ const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
     handoffCalls.push({
       sourceSessionId,
       targetSessionId: payload?.targetSessionId || '',
+      detailLevel: payload?.detailLevel || '',
     });
     return { ok: true };
   },
@@ -534,6 +543,20 @@ handoffTrigger.dispatchEvent({ type: 'click' });
 const handoffPopover = findFirstByClass(board, 'quest-task-flow-edge-handoff-popover');
 assert.ok(handoffPopover, 'clicking the edge handoff trigger should reveal the preview popover');
 assert.equal(handoffPopover.hidden, false, 'handoff preview popover should open inline in the static fallback renderer');
+assert.equal(
+  Boolean(findFirstByClass(handoffPopover, 'quest-task-flow-edge-handoff-summary')?.textContent.includes('balanced')),
+  true,
+  'handoff popover should surface the preview summary so users can confirm the direction at a glance',
+);
+
+const fullDetailBtn = findFirst(handoffPopover, (node) => node?.textContent === '完整');
+assert.ok(fullDetailBtn, 'handoff popover should expose detail-level controls');
+await fullDetailBtn.dispatchEvent({ type: 'click' });
+assert.equal(
+  handoffPreviewCalls.some((entry) => entry.detailLevel === 'full'),
+  true,
+  'switching the handoff detail level should rebuild the preview with the selected richness',
+);
 
 const handoffConfirmBtn = findFirst(handoffPopover, (node) => node?.textContent === '确认传递');
 assert.ok(handoffConfirmBtn, 'handoff popover should expose a confirm action');
@@ -544,8 +567,9 @@ assert.deepEqual(
   {
     sourceSessionId: 'main-1',
     targetSessionId: 'branch-running',
+    detailLevel: 'full',
   },
-  'confirming edge handoff should call the injected task handoff action with the source and target session ids',
+  'confirming edge handoff should carry the selected detail level into the injected handoff action',
 );
 
 console.log('test-workbench-task-map-ui: ok');

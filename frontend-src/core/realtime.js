@@ -208,11 +208,44 @@ async function dispatchAction(msg) {
         }
         return true;
       }
+      case "complete_pending": {
+        const previousSession = applyOptimisticSessionWorkflowState(msg.sessionId, "done");
+        try {
+          const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ workflowState: "done" }),
+          });
+          if (data.session) {
+            const session = upsertSession(data.session) || data.session;
+            renderSessionList();
+            if (currentSessionId === msg.sessionId) {
+              applyAttachedSessionState(msg.sessionId, session);
+            }
+          } else if (currentSessionId === msg.sessionId) {
+            await refreshCurrentSession();
+          } else {
+            await refreshSidebarSession(msg.sessionId);
+          }
+        } catch (error) {
+          if (previousSession) {
+            restoreOptimisticSessionSnapshot(previousSession);
+          }
+          throw error;
+        }
+        return true;
+      }
       case "restore_pending": {
+        const previousSession = applyOptimisticSessionWorkflowState(msg.sessionId, "");
         const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ workflowState: "" }),
+        }).catch((error) => {
+          if (previousSession) {
+            restoreOptimisticSessionSnapshot(previousSession);
+          }
+          throw error;
         });
         if (data.session) {
           const session = upsertSession(data.session) || data.session;
@@ -489,6 +522,45 @@ function applyOptimisticSessionArchiveState(sessionId, archived) {
   } else if (previous?.archived === true && !archived) {
     archivedSessionCount = Math.max(0, archivedSessionCount - 1);
   }
+  sessions[index] = next;
+  if (typeof assignSessionListOrderHints === "function") {
+    assignSessionListOrderHints(sessions, new Map([[sessionId, previous]]));
+  }
+  sortSessionsInPlace();
+  if (currentSessionId === sessionId) {
+    applyAttachedSessionState(sessionId, next);
+  } else {
+    renderSessionList();
+  }
+  return previous;
+}
+
+function buildOptimisticWorkflowSession(previous, workflowState = "") {
+  if (!previous?.id) return null;
+  const normalizedWorkflowState = typeof workflowState === "string"
+    ? workflowState.trim()
+    : "";
+  const next = { ...previous };
+  if (normalizedWorkflowState) {
+    next.workflowState = normalizedWorkflowState;
+    if (normalizedWorkflowState === "done") {
+      next.workflowCompletedAt = new Date().toISOString();
+    } else {
+      delete next.workflowCompletedAt;
+    }
+  } else {
+    delete next.workflowState;
+    delete next.workflowCompletedAt;
+  }
+  return next;
+}
+
+function applyOptimisticSessionWorkflowState(sessionId, workflowState = "") {
+  const index = sessions.findIndex((session) => session.id === sessionId);
+  if (index === -1) return null;
+  const previous = sessions[index];
+  const next = buildOptimisticWorkflowSession(previous, workflowState);
+  if (!next) return null;
   sessions[index] = next;
   if (typeof assignSessionListOrderHints === "function") {
     assignSessionListOrderHints(sessions, new Map([[sessionId, previous]]));

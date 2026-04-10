@@ -8,6 +8,7 @@ const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), 'melodysync-build-promp
 process.env.HOME = tempHome;
 
 await fs.mkdir(path.join(tempHome, '.config', 'melody-sync'), { recursive: true });
+await fs.mkdir(path.join(tempHome, '.melodysync', 'memory'), { recursive: true });
 await fs.writeFile(
   path.join(tempHome, '.config', 'melody-sync', 'tools.json'),
   `${JSON.stringify([
@@ -22,6 +23,41 @@ await fs.writeFile(
       reasoning: { kind: 'none', label: 'Thinking' },
     },
   ], null, 2)}\n`,
+  'utf8',
+);
+await fs.writeFile(
+  path.join(tempHome, '.melodysync', 'memory', 'bootstrap.md'),
+  [
+    '# Bootstrap',
+    '',
+    '- Machine: test workstation.',
+    '- Primary repo pointer: `~/Desktop/melody-sync`.',
+    '- Startup rule: keep context light.',
+    '',
+  ].join('\n'),
+  'utf8',
+);
+await fs.writeFile(
+  path.join(tempHome, '.melodysync', 'memory', 'agent-profile.md'),
+  [
+    '# Agent Profile',
+    '',
+    '- User is usually on mobile.',
+    '- Replies should stay concise.',
+    '- Default to proactive execution.',
+    '',
+  ].join('\n'),
+  'utf8',
+);
+await fs.writeFile(
+  path.join(tempHome, '.melodysync', 'memory', 'context-digest.md'),
+  [
+    '# Context Digest',
+    '',
+    '- 2026-04-10: MelodySync repo is the active product workstream.',
+    '- Current direction: focus on memory and task continuity.',
+    '',
+  ].join('\n'),
   'utf8',
 );
 
@@ -48,6 +84,12 @@ const freshPrompt = await buildPrompt(
 );
 
 assert.match(freshPrompt, /\[Manager context\]/);
+assert.match(freshPrompt, /\[Bootstrap memory\]/);
+assert.match(freshPrompt, /Machine: test workstation/);
+assert.match(freshPrompt, /\[Profile memory\]/);
+assert.match(freshPrompt, /User is usually on mobile/);
+assert.match(freshPrompt, /\[Recent context digest\]/);
+assert.match(freshPrompt, /focus on memory and task continuity/);
 assert.match(freshPrompt, /Current user message:/);
 assert.match(freshPrompt, /do not mirror its headings, bullets, or checklist structure back to the user/);
 assert.match(freshPrompt, /melodysync session-spawn --task "<focused task>" --wait --internal --output-mode final-only --json/);
@@ -76,6 +118,8 @@ assert.match(resumedPrompt, /Current user message:/);
 assert.match(resumedPrompt, /append exactly one final hidden <private><task_card> JSON block/i);
 assert.match(resumedPrompt, /\[Task-card reply contract\]/);
 assert.doesNotMatch(resumedPrompt, /Memory System — Pointer-First Activation/);
+assert.doesNotMatch(resumedPrompt, /\[Bootstrap memory\]/);
+assert.doesNotMatch(resumedPrompt, /\[Profile memory\]/);
 assert.doesNotMatch(resumedPrompt, /active working agreements/);
 
 const splitPrompt = await buildPrompt(

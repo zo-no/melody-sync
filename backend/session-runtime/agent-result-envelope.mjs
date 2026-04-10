@@ -4,6 +4,39 @@ function normalizeText(value) {
     : '';
 }
 
+function normalizeMemoryCandidateType(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  if (!normalized) return '';
+  if (['profile', 'user-profile', 'agent-profile'].includes(normalized)) return 'profile';
+  if (['project', 'workspace'].includes(normalized)) return 'project';
+  if (['corpus', 'knowledge', 'source'].includes(normalized)) return 'corpus';
+  if (['skill', 'playbook', 'rule', 'workflow'].includes(normalized)) return 'skill';
+  if (['episode', 'event', 'reflection'].includes(normalized)) return 'episode';
+  if (['system'].includes(normalized)) return 'system';
+  return normalized;
+}
+
+function normalizeMemoryCandidateStatus(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  if (!normalized) return '';
+  if (['candidate', 'suggested', 'pending', 'review'].includes(normalized)) return 'candidate';
+  if (['approved', 'approve', 'promoted'].includes(normalized)) return 'approved';
+  if (['active', 'applied', 'writeback'].includes(normalized)) return 'active';
+  if (['rejected', 'reject', 'dismissed'].includes(normalized)) return 'rejected';
+  if (['invalidated', 'invalid', 'superseded'].includes(normalized)) return 'invalidated';
+  if (['expired', 'stale'].includes(normalized)) return 'expired';
+  return normalized;
+}
+
+function normalizeConfidence(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = typeof value === 'number' ? value : Number.parseFloat(String(value).trim());
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric < 0) return 0;
+  if (numeric > 1) return 1;
+  return Math.round(numeric * 1000) / 1000;
+}
+
 function normalizeLineRole(value) {
   const normalized = normalizeText(value).toLowerCase();
   return normalized === 'branch' ? 'branch' : 'main';
@@ -55,11 +88,21 @@ function normalizeMemoryCandidate(value = {}) {
   if (!text) return null;
   const source = normalizeText(value.source) || 'agent';
   const target = normalizeText(value.target || value.file || value.memoryFile || value.kind);
+  const type = normalizeMemoryCandidateType(value.type || value.memoryType || value.category);
+  const status = normalizeMemoryCandidateStatus(value.status || value.state);
+  const confidence = normalizeConfidence(value.confidence);
+  const reason = normalizeText(value.reason || value.rationale);
+  const expiresAt = normalizeText(value.expiresAt || value.expires_at);
   return {
     scope,
     text,
     source,
     ...(target ? { target } : {}),
+    ...(type ? { type } : {}),
+    ...(status ? { status } : {}),
+    ...(confidence !== null ? { confidence } : {}),
+    ...(reason ? { reason } : {}),
+    ...(expiresAt ? { expiresAt } : {}),
   };
 }
 

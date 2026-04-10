@@ -1,5 +1,6 @@
 import { readLatestCodexSessionMetrics } from '../codex-session-metrics.mjs';
 import {
+  getRunResult,
   getRunManifest,
   isTerminalRunState,
   materializeRunSpoolLine,
@@ -199,7 +200,23 @@ export function deriveRunFailureReasonFromResult(run, result) {
   return run?.failureReason || null;
 }
 
-export async function synthesizeDetachedRunTermination(runId, run) {
+export function hasTerminalRunResult(result) {
+  if (!result || typeof result !== 'object') return false;
+  return Boolean(
+    (typeof result.completedAt === 'string' && result.completedAt)
+    || Number.isInteger(result.exitCode)
+    || (typeof result.signal === 'string' && result.signal)
+    || result.cancelled === true
+  );
+}
+
+function hasAssistantOutput(result) {
+  return Boolean(
+    typeof result?.assistantMessage === 'string' && result.assistantMessage.trim()
+  );
+}
+
+export async function synthesizeDetachedRunTermination(runId, run, { result: existingResult } = {}) {
   const hasRecordedProcess = Number.isInteger(run?.runnerProcessId) || Number.isInteger(run?.toolProcessId);
   if (!hasRecordedProcess || isTerminalRunState(run?.state)) {
     return null;
@@ -222,26 +239,42 @@ export async function synthesizeDetachedRunTermination(runId, run) {
     return null;
   }
 
+  const result = existingResult && typeof existingResult === 'object'
+    ? { ...existingResult }
+    : (await getRunResult(runId)) || {};
   const completedAt = nowIso();
   const cancelled = run?.cancelRequested === true;
+  const hasObservedAssistantOutput = hasAssistantOutput(result);
   const runOutputPreview = await collectRunOutputPreview(runId);
   const error = cancelled
     ? null
-    : await deriveStructuredRuntimeFailureReason(runId, runOutputPreview);
-  const result = {
+    : (
+      typeof result.error === 'string' && result.error.trim()
+        ? result.error.trim()
+        : (typeof run?.failureReason === 'string' && run.failureReason.trim()
+          ? run.failureReason.trim()
+          : (!hasObservedAssistantOutput
+            ? await deriveStructuredRuntimeFailureReason(runId, runOutputPreview)
+            : null))
+    );
+  const nextState = cancelled
+    ? 'cancelled'
+    : (error ? 'failed' : 'completed');
+  const nextResult = {
+    ...result,
     completedAt,
-    exitCode: 1,
+    exitCode: error ? 1 : 0,
     signal: null,
     cancelled,
     ...(error ? { error } : {}),
   };
 
-  await writeRunResult(runId, result);
+  await writeRunResult(runId, nextResult);
   return await updateRun(runId, (current) => ({
     ...current,
-    state: cancelled ? 'cancelled' : 'failed',
+    state: nextState,
     completedAt,
-    result,
+    result: nextResult,
     failureReason: error,
   })) || run;
 }

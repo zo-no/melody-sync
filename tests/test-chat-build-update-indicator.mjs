@@ -44,6 +44,9 @@ function extractFunctionSource(source, functionName) {
 }
 
 const applyBuildInfoSource = extractFunctionSource(bootstrapSource, 'applyBuildInfo');
+const hasPendingFrontendWorkSource = extractFunctionSource(bootstrapSource, 'hasPendingFrontendWork');
+const shouldAutoReloadForFreshBuildSource = extractFunctionSource(bootstrapSource, 'shouldAutoReloadForFreshBuild');
+const maybeAutoReloadForFreshBuildSource = extractFunctionSource(bootstrapSource, 'maybeAutoReloadForFreshBuild');
 
 async function main() {
   const state = {
@@ -54,7 +57,19 @@ async function main() {
     console,
     buildRefreshScheduled: false,
     newerBuildInfo: null,
+    frontendUpdatePromptDismissed: false,
     buildAssetVersion: 'build-a',
+    document: { visibilityState: 'visible' },
+    msgInput: { value: '' },
+    pendingImages: [],
+    composerPendingState: {
+      classList: {
+        contains() {
+          return false;
+        },
+      },
+    },
+    sessionStatus: 'idle',
     updateFrontendRefreshUi() {
       state.refreshUiCalls += 1;
     },
@@ -66,7 +81,7 @@ async function main() {
   context.globalThis = context;
 
   vm.runInNewContext(
-    `${applyBuildInfoSource}\nglobalThis.applyBuildInfo = applyBuildInfo;`,
+    `${hasPendingFrontendWorkSource}\n${shouldAutoReloadForFreshBuildSource}\n${maybeAutoReloadForFreshBuildSource}\n${applyBuildInfoSource}\nglobalThis.applyBuildInfo = applyBuildInfo;`,
     context,
     { filename: 'frontend-src/core/bootstrap.js' },
   );
@@ -84,6 +99,14 @@ async function main() {
   assert.equal(state.reloadCalls, 0, 'same-version build info should not trigger reloads either');
   assert.equal(state.refreshUiCalls, 1, 'same-version build info should clear the indicator state');
   assert.equal(context.newerBuildInfo, null, 'same-version build info should clear stale update prompts');
+
+  context.document.visibilityState = 'hidden';
+  state.refreshUiCalls = 0;
+  const hiddenResult = await context.applyBuildInfo({ assetVersion: 'build-c', title: 'Frontend ui:build-c' });
+  assert.equal(hiddenResult, true, 'hidden idle pages should auto reload into the newer build');
+  assert.equal(state.reloadCalls, 1, 'hidden idle pages should hand off to the reload path immediately');
+  assert.equal(state.refreshUiCalls, 1, 'auto reload should still update the UI state before reloading');
+  assert.equal(context.frontendUpdatePromptDismissed, false, 'newer builds should reset any dismissed update prompt state');
 
   console.log('test-chat-build-update-indicator: ok');
 }

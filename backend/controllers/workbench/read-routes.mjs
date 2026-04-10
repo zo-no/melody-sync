@@ -5,6 +5,7 @@ import {
   buildWorkbenchTaskMapSurfaceResponse,
 } from '../../services/workbench/http-service.mjs';
 import {
+  getWorkbenchMemoryCandidatesForSessionForRead,
   getWorkbenchOutputMetricsForRead,
   getWorkbenchSnapshotForRead,
   getWorkbenchTrackerSnapshotForRead,
@@ -58,6 +59,16 @@ export async function handleWorkbenchReadRoutes({
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
     const trackerSnapshot = await getWorkbenchTrackerSnapshotForRead(sessionId);
     writeJson(res, 200, trackerSnapshot);
+    return true;
+  }
+
+  if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'memory-candidates') {
+    const sessionId = parts[3];
+    if (!requireSessionAccess(res, authSession, sessionId)) return true;
+    const memoryCandidates = await getWorkbenchMemoryCandidatesForSessionForRead(sessionId);
+    writeJson(res, 200, await buildWorkbenchSnapshotResponse({
+      memoryCandidates,
+    }));
     return true;
   }
 

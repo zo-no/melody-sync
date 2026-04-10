@@ -91,10 +91,7 @@ const getSidebarPersistentKindSource = extractFunctionSource(sessionListSource, 
 const getPersistentDockGroupKeySource = extractFunctionSource(sessionListSource, 'getPersistentDockGroupKey');
 const getSessionListModelSource = extractFunctionSource(sessionListSource, 'getSessionListModel');
 const shouldShowSessionInSidebarForListSource = extractFunctionSource(sessionListSource, 'shouldShowSessionInSidebarForList');
-const getDefaultPersistentDockCollapsedSource = extractFunctionSource(sessionListSource, 'getDefaultPersistentDockCollapsed');
-const isPersistentDockCollapsedSource = extractFunctionSource(sessionListSource, 'isPersistentDockCollapsed');
-const setPersistentDockCollapsedSource = extractFunctionSource(sessionListSource, 'setPersistentDockCollapsed');
-const renderPersistentSessionDockSource = extractFunctionSource(sessionListSource, 'renderPersistentSessionDock');
+const resetSessionListFooterSource = extractFunctionSource(sessionListSource, 'resetSessionListFooter');
 const renderSessionListSource = extractFunctionSource(sessionListSource, 'renderSessionList');
 
 const routingContext = {
@@ -128,6 +125,15 @@ const routingContext = {
       { id: 'closed-branch', name: '已收束支线', taskCard: { lineRole: 'branch' }, _branchStatus: 'merged' },
     ];
   },
+  getSessionFocusSectionData() {
+    return {
+      sessions: [],
+      hintLabel: '',
+    };
+  },
+  renderFocusSection() {
+    return null;
+  },
   getSessionGroupInfoForList(session) {
     return session.group === '长期任务'
       ? { key: 'group:long-term', label: '长期任务', title: '长期任务', order: 99998 }
@@ -147,6 +153,9 @@ const routingContext = {
       row.sessionId = session.id;
       host.appendChild(row);
     }
+  },
+  resetSessionListFooter() {
+    routingContext.footerReset = true;
   },
   renderPersistentSessionDock(groups) {
     routingContext.capturedDockGroups = groups;
@@ -211,68 +220,35 @@ const footerContext = {
   console,
   sessionListFooter: createElement('div'),
   document: { createElement },
-  localStorage: {
-    getItem() {
-      return null;
-    },
-    setItem() {},
-  },
-  t(key) {
-    return key === 'persistent.sectionTitle' ? '长期项' : key;
-  },
-  esc(value) {
-    return String(value || '');
-  },
-  renderUiIcon(name) {
-    return `<svg data-icon="${name}"></svg>`;
-  },
-  renderPersistentDockSection(groupKey) {
-    const node = createElement('div');
-    node.groupKey = groupKey;
-    return node;
-  },
-  window: {
-    matchMedia() {
-      return { matches: false };
-    },
-  },
 };
 footerContext.sessionListFooter.className = 'session-list-footer';
+footerContext.sessionListFooter.hidden = false;
+footerContext.sessionListFooter.innerHTML = 'legacy';
 footerContext.globalThis = footerContext;
 
 vm.runInNewContext(`
-  ${getDefaultPersistentDockCollapsedSource}
-  ${isPersistentDockCollapsedSource}
-  ${setPersistentDockCollapsedSource}
-  ${renderPersistentSessionDockSource}
-  globalThis.renderPersistentSessionDock = renderPersistentSessionDock;
+  ${resetSessionListFooterSource}
+  globalThis.resetSessionListFooter = resetSessionListFooter;
 `, footerContext, {
   filename: 'frontend-src/session-list/ui.js',
 });
 
-footerContext.renderPersistentSessionDock({
-  'group:long-term': [{ id: 'persistent-long-term' }],
-});
+footerContext.resetSessionListFooter();
 
-assert.match(
+assert.equal(
   footerContext.sessionListFooter.className,
-  /session-list-footer/,
-  'persistent dock should preserve the base footer class so bottom positioning styles stay active',
-);
-assert.match(
-  footerContext.sessionListFooter.className,
-  /has-persistent-dock/,
-  'persistent dock should add a dedicated modifier class instead of replacing the footer class',
+  'session-list-footer',
+  'footer reset should preserve the base footer class so shared bottom positioning styles stay active',
 );
 assert.equal(
-  footerContext.sessionListFooter.children[0]?.children[0]?.innerHTML.includes('长期项'),
+  footerContext.sessionListFooter.hidden,
   true,
-  'persistent dock should show an explicit long-lived section heading',
+  'footer reset should hide the now-unused dock container',
 );
 assert.equal(
-  footerContext.sessionListFooter.children[0]?.children[1]?.children.length,
-  1,
-  'persistent dock should render dock sections inside a collapsible body container',
+  footerContext.sessionListFooter.innerHTML,
+  '',
+  'footer reset should clear any legacy dock markup',
 );
 
 console.log('test-chat-persistent-dock-ui: ok');

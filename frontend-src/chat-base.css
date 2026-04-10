@@ -161,6 +161,76 @@ body {
   border-color: color-mix(in srgb, var(--notice) 28%, var(--border));
 }
 .header-refresh-btn[hidden] { display: none !important; }
+.frontend-update-banner {
+  position: fixed;
+  top: calc(var(--safe-top) + 58px);
+  left: 50%;
+  transform: translate(-50%, -14px);
+  width: min(640px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--notice) 24%, var(--border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--notice) 10%, var(--bg)) 0%, var(--bg) 100%);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+  z-index: 42;
+}
+.frontend-update-banner.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.frontend-update-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.frontend-update-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--notice);
+}
+.frontend-update-text {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+}
+.frontend-update-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.frontend-update-btn {
+  border: 1px solid color-mix(in srgb, var(--notice) 28%, var(--border));
+  background: color-mix(in srgb, var(--notice) 12%, var(--bg-secondary));
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.frontend-update-btn.secondary {
+  background: var(--bg-secondary);
+}
+.frontend-update-btn:hover {
+  background: color-mix(in srgb, var(--notice) 18%, var(--bg-secondary));
+}
+body.frontend-update-banner-active .completion-attention-banner {
+  top: calc(var(--safe-top) + 126px);
+}
 .completion-attention-banner {
   position: fixed;
   top: calc(var(--safe-top) + 58px);

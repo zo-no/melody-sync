@@ -196,7 +196,7 @@ renderer.renderPersistentActions(
 );
 assert.deepEqual(
   persistentHost.children.map((child) => child.textContent),
-  ['触发按钮', '设置'],
+  ['触发AI快捷按钮', '设置'],
   'skill persistent items should expose trigger and configure actions',
 );
 

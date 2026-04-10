@@ -222,8 +222,8 @@ function buildFocusSection(sourceSession = null, targetSession = null, max = 2) 
   const targetContext = buildSessionContextSummary(targetSession, '目标任务');
   return dedupeTexts([
     sourceContext.goal ? `源任务目标：${sourceContext.goal}` : '',
-    sourceContext.checkpoint ? `源任务检查点：${sourceContext.checkpoint}` : '',
     targetContext.goal ? `目标任务目标：${targetContext.goal}` : '',
+    sourceContext.checkpoint ? `源任务检查点：${sourceContext.checkpoint}` : '',
     targetContext.checkpoint ? `目标任务接入点：${targetContext.checkpoint}` : '',
   ]).slice(0, max);
 }

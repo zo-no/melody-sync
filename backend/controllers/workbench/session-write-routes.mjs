@@ -14,6 +14,7 @@ import {
   saveWorkbenchTaskMapPlanForWrite,
   setWorkbenchBranchSessionStatusForWrite,
   setWorkbenchCandidateSuppressionForWrite,
+  updateWorkbenchMemoryCandidateStatusForWrite,
   setWorkbenchSessionReminderForWrite,
 } from '../../services/workbench/write-service.mjs';
 import { normalizeNullableText } from '../../workbench/shared.mjs';
@@ -147,6 +148,17 @@ export async function handleWorkbenchSessionWriteRoutes({
     const reminder = await setWorkbenchSessionReminderForWrite(sessionId, payload);
     writeJson(res, 200, await buildWorkbenchSnapshotResponse({
       reminder,
+    }));
+    return true;
+  }
+
+  if (parts.length === 7 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'memory-candidates' && parts[6] === 'status') {
+    const sessionId = parts[3];
+    const candidateId = decodeURIComponent(parts[5]);
+    if (!requireSessionAccess(res, authSession, sessionId)) return true;
+    const memoryCandidate = await updateWorkbenchMemoryCandidateStatusForWrite(sessionId, candidateId, payload);
+    writeJson(res, 200, await buildWorkbenchSnapshotResponse({
+      memoryCandidate,
     }));
     return true;
   }

@@ -36,6 +36,17 @@
   <span id="statusText" data-i18n="status.disconnected">disconnected</span>
 </div>
 
+<div class="frontend-update-banner" id="frontendUpdateBanner" hidden role="status" aria-live="polite">
+  <div class="frontend-update-copy">
+    <span class="frontend-update-kicker" data-i18n="status.frontendUpdateKicker">Frontend updated</span>
+    <span class="frontend-update-text" id="frontendUpdateText" data-i18n="status.frontendUpdateBanner">This page is running an older frontend build. Reload to pick up the latest fixes.</span>
+  </div>
+  <div class="frontend-update-actions">
+    <button class="frontend-update-btn" id="frontendUpdateReloadBtn" type="button" data-i18n="action.reloadFrontend">Reload latest frontend</button>
+    <button class="frontend-update-btn secondary" id="frontendUpdateDismissBtn" type="button" data-i18n="action.later">Later</button>
+  </div>
+</div>
+
 <div class="completion-attention-banner" id="completionAttentionBanner" hidden role="status" aria-live="assertive">
   <div class="completion-attention-copy">
     <span class="completion-attention-kicker">MelodySync 任务完成</span>
@@ -220,6 +231,10 @@
               <div class="quest-tracker-detail-row" id="questTrackerMemoryRow" hidden>
                 <span class="quest-tracker-detail-label">记忆</span>
                 <div class="quest-tracker-detail-list" id="questTrackerMemoryList"></div>
+              </div>
+              <div class="quest-tracker-detail-row" id="questTrackerMemoryCandidatesRow" hidden>
+                <span class="quest-tracker-detail-label">待审记忆</span>
+                <div class="quest-memory-candidate-list" id="questTrackerMemoryCandidatesList"></div>
               </div>
               <div class="quest-tracker-detail-row" id="questTrackerCandidatesRow" hidden>
                 <span class="quest-tracker-detail-label">建议支线</span>

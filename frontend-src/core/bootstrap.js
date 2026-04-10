@@ -54,6 +54,7 @@ console.info(
 
 let buildRefreshScheduled = false;
 let newerBuildInfo = null;
+let frontendUpdatePromptDismissed = false;
 
 async function clearFrontendCaches() {
   if (!("serviceWorker" in navigator)) return;
@@ -68,8 +69,14 @@ async function clearFrontendCaches() {
 }
 
 function updateFrontendRefreshUi() {
-  if (!refreshFrontendBtn) return;
   const hasUpdate = !!newerBuildInfo?.assetVersion;
+  const showUpdateBanner = hasUpdate && frontendUpdatePromptDismissed !== true;
+  document.body?.classList?.toggle?.("frontend-update-banner-active", showUpdateBanner);
+  if (frontendUpdateBanner) {
+    frontendUpdateBanner.hidden = !showUpdateBanner;
+    frontendUpdateBanner.classList.toggle("is-visible", showUpdateBanner);
+  }
+  if (!refreshFrontendBtn) return;
   refreshFrontendBtn.hidden = !hasUpdate;
   refreshFrontendBtn.classList.toggle("ready", hasUpdate);
   const updateTitle = hasUpdate
@@ -80,6 +87,27 @@ function updateFrontendRefreshUi() {
   if (!hasUpdate) {
     refreshFrontendBtn.removeAttribute("aria-busy");
   }
+}
+
+function hasPendingFrontendWork() {
+  const draft = typeof msgInput?.value === "string" ? msgInput.value.trim() : "";
+  if (draft) return true;
+  if (Array.isArray(pendingImages) && pendingImages.length > 0) return true;
+  return composerPendingState?.classList?.contains?.("visible") === true;
+}
+
+function shouldAutoReloadForFreshBuild() {
+  if (buildRefreshScheduled) return false;
+  if (!newerBuildInfo?.assetVersion) return false;
+  if (document?.visibilityState !== "hidden") return false;
+  if (hasPendingFrontendWork()) return false;
+  return sessionStatus !== "running";
+}
+
+async function maybeAutoReloadForFreshBuild(nextBuildInfo = newerBuildInfo) {
+  if (!nextBuildInfo?.assetVersion) return false;
+  if (!shouldAutoReloadForFreshBuild()) return false;
+  return reloadForFreshBuild(nextBuildInfo);
 }
 
 async function reloadForFreshBuild(nextBuildInfo) {
@@ -109,13 +137,15 @@ async function applyBuildInfo(nextBuildInfo) {
   if (nextBuildInfo.assetVersion === buildAssetVersion) {
     if (!buildRefreshScheduled) {
       newerBuildInfo = null;
+      frontendUpdatePromptDismissed = false;
       updateFrontendRefreshUi();
     }
     return false;
   }
   newerBuildInfo = nextBuildInfo;
+  frontendUpdatePromptDismissed = false;
   updateFrontendRefreshUi();
-  return false;
+  return maybeAutoReloadForFreshBuild(nextBuildInfo);
 }
 
 window.MelodySyncBuild = {
@@ -146,6 +176,9 @@ const msgInput = document.getElementById("msgInput");
 const sendBtn = document.getElementById("sendBtn");
 const headerTitle = document.getElementById("headerTitle");
 const refreshFrontendBtn = document.getElementById("refreshFrontendBtn");
+const frontendUpdateBanner = document.getElementById("frontendUpdateBanner");
+const frontendUpdateReloadBtn = document.getElementById("frontendUpdateReloadBtn");
+const frontendUpdateDismissBtn = document.getElementById("frontendUpdateDismissBtn");
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 const imgBtn = document.getElementById("imgBtn");
@@ -164,6 +197,17 @@ const inputResizeHandle = document.getElementById("inputResizeHandle");
 
 refreshFrontendBtn?.addEventListener("click", () => {
   void reloadForFreshBuild(newerBuildInfo);
+});
+frontendUpdateReloadBtn?.addEventListener("click", () => {
+  void reloadForFreshBuild(newerBuildInfo);
+});
+frontendUpdateDismissBtn?.addEventListener("click", () => {
+  frontendUpdatePromptDismissed = true;
+  updateFrontendRefreshUi();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "hidden") return;
+  void maybeAutoReloadForFreshBuild(newerBuildInfo);
 });
 updateFrontendRefreshUi();
 

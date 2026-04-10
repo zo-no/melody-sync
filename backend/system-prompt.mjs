@@ -203,6 +203,7 @@ Reflection is required, but memory writeback must stay selective.
 5. Skip the write if nothing important was learned.
 6. Periodically prune stale or overlapping memory. Use a light cadence: daily during intense iteration or weekly otherwise.
 7. When you emit memory writeback suggestions in structured output, prefer an explicit \`memoryCandidates.target\` that matches the destination ("agent-profile", "context-digest", "bootstrap", "projects", "skills", "tasks", "worklog", "global", or "system"). If the target is unclear, omit the memory candidate instead of guessing.
+8. Prefer \`memoryCandidates.status: "candidate"\` by default. Use \`"approved"\` or \`"active"\` only when the memory is clearly ready for durable promotion. Include \`type\`, \`confidence\`, \`reason\`, or \`expiresAt\` when they materially improve routing or review.
 
 ## Skills
 Skills are reusable capabilities (scripts, knowledge docs, SOPs). Treat ${skillsPath} as an index, not startup payload. Load only what you need.

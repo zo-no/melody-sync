@@ -171,66 +171,6 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
   return item;
 }
 
-function getPersistentDockStorageState() {
-  const defaults = {
-    "group:long-term": true,
-    "group:quick-actions": true,
-  };
-  try {
-    const raw = localStorage.getItem("collapsedSessionPersistentDock");
-    if (!raw) return defaults;
-    const parsed = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return defaults;
-    return {
-      ...defaults,
-      ...(parsed || {}),
-    };
-  } catch {
-    return defaults;
-  }
-}
-
-function setPersistentDockStorageState(nextState) {
-  try {
-    localStorage.setItem(
-      "collapsedSessionPersistentDock",
-      JSON.stringify(nextState || {}),
-    );
-  } catch {}
-}
-
-function isPersistentDockSectionCollapsed(groupKey) {
-  const state = getPersistentDockStorageState();
-  return state[groupKey] !== false;
-}
-
-function setPersistentDockSectionCollapsed(groupKey, collapsed) {
-  const state = getPersistentDockStorageState();
-  state[groupKey] = collapsed === true;
-  setPersistentDockStorageState(state);
-}
-
-function getDefaultPersistentDockCollapsed() {
-  return typeof window?.matchMedia === "function"
-    ? window.matchMedia("(max-width: 767px)").matches
-    : false;
-}
-
-function isPersistentDockCollapsed() {
-  try {
-    const raw = localStorage.getItem("collapsedSessionPersistentDockRoot");
-    if (raw === "true") return true;
-    if (raw === "false") return false;
-  } catch {}
-  return getDefaultPersistentDockCollapsed();
-}
-
-function setPersistentDockCollapsed(collapsed) {
-  try {
-    localStorage.setItem("collapsedSessionPersistentDockRoot", collapsed === true ? "true" : "false");
-  } catch {}
-}
-
 function getPersistentDockGroupLabel(groupKey) {
   if (groupKey === "group:quick-actions") return t("sidebar.group.quickActions");
   if (groupKey === "group:long-term") return t("sidebar.group.longTerm");
@@ -263,86 +203,11 @@ function getPersistentSidebarGroupInfo(groupKey) {
   };
 }
 
-function renderPersistentDockSection(groupKey, sessions = []) {
-  const safeSessions = Array.isArray(sessions) ? sessions : [];
-  const section = document.createElement("div");
-  const isCollapsed = isPersistentDockSectionCollapsed(groupKey);
-  section.className = "persistent-dock-section" + (isCollapsed ? " is-collapsed" : "");
-
-  const header = document.createElement("button");
-  header.className = "persistent-dock-header";
-  header.type = "button";
-  header.setAttribute("aria-label", `${getPersistentDockGroupLabel(groupKey)} ${safeSessions.length} 项`);
-  header.innerHTML = `<span class="persistent-dock-title">${esc(getPersistentDockGroupLabel(groupKey))}</span>
-    <span class="persistent-dock-count">${safeSessions.length}</span>
-    <span class="persistent-dock-chevron">${renderUiIcon("chevron-down")}</span>`;
-  header.addEventListener("click", () => {
-    const nextCollapsed = !section.classList.contains("is-collapsed");
-    setPersistentDockSectionCollapsed(groupKey, nextCollapsed);
-    section.classList.toggle("is-collapsed", nextCollapsed);
-    body.hidden = nextCollapsed;
-  });
-
-  const body = document.createElement("div");
-  body.className = "persistent-dock-body";
-  body.hidden = isCollapsed;
-  appendSessionItems(body, safeSessions);
-
-  section.appendChild(header);
-  section.appendChild(body);
-  return section;
-}
-
-function renderPersistentSessionDock(persistentSessionsByGroup) {
+function resetSessionListFooter() {
   if (!sessionListFooter) return;
-  const container = sessionListFooter;
-  const hasLongTerm = Array.isArray(persistentSessionsByGroup["group:long-term"]) && persistentSessionsByGroup["group:long-term"].length > 0;
-  const hasQuickActions = Array.isArray(persistentSessionsByGroup["group:quick-actions"]) && persistentSessionsByGroup["group:quick-actions"].length > 0;
-
-  if (!hasLongTerm && !hasQuickActions) {
-    container.innerHTML = "";
-    container.className = "session-list-footer";
-    container.hidden = true;
-    return;
-  }
-
-  container.hidden = false;
-  container.innerHTML = "";
-  container.className = "session-list-footer has-persistent-dock";
-
-  const dock = document.createElement("div");
-  const totalCount = (hasLongTerm ? persistentSessionsByGroup["group:long-term"].length : 0)
-    + (hasQuickActions ? persistentSessionsByGroup["group:quick-actions"].length : 0);
-  const isCollapsed = isPersistentDockCollapsed();
-  dock.className = "session-list-persistent-dock" + (isCollapsed ? " is-collapsed" : "");
-
-  const overview = document.createElement("button");
-  overview.className = "persistent-dock-overview";
-  overview.type = "button";
-  overview.setAttribute("aria-label", `${t("persistent.sectionTitle")} ${totalCount} 项`);
-  overview.innerHTML = `<span class="persistent-dock-overview-title">${esc(t("persistent.sectionTitle"))}</span>
-    <span class="persistent-dock-overview-count">${totalCount}</span>
-    <span class="persistent-dock-overview-chevron">${renderUiIcon("chevron-down")}</span>`;
-  overview.addEventListener("click", () => {
-    const nextCollapsed = !dock.classList.contains("is-collapsed");
-    dock.classList.toggle("is-collapsed", nextCollapsed);
-    body.hidden = nextCollapsed;
-    setPersistentDockCollapsed(nextCollapsed);
-  });
-  dock.appendChild(overview);
-
-  const body = document.createElement("div");
-  body.className = "session-list-persistent-dock-body";
-  body.hidden = isCollapsed;
-  if (hasLongTerm) {
-    body.appendChild(renderPersistentDockSection("group:long-term", persistentSessionsByGroup["group:long-term"]));
-  }
-  if (hasQuickActions) {
-    body.appendChild(renderPersistentDockSection("group:quick-actions", persistentSessionsByGroup["group:quick-actions"]));
-  }
-  dock.appendChild(body);
-
-  container.appendChild(dock);
+  sessionListFooter.innerHTML = "";
+  sessionListFooter.className = "session-list-footer";
+  sessionListFooter.hidden = true;
 }
 
 function appendSessionItems(host, entries = [], options = {}) {
@@ -367,11 +232,115 @@ function getSessionListGroupPriority(groupEntry) {
   return 0;
 }
 
+function getSessionStateModelForList() {
+  return window.MelodySyncSessionStateModel || null;
+}
+
+function getSessionFocusReason(session) {
+  const stateModel = getSessionStateModelForList();
+  const workflowState = typeof stateModel?.normalizeSessionWorkflowState === "function"
+    ? stateModel.normalizeSessionWorkflowState(session?.workflowState || "")
+    : "";
+  const activity = typeof stateModel?.normalizeSessionActivity === "function"
+    ? stateModel.normalizeSessionActivity(session)
+    : { run: { state: "idle" } };
+  const hasUnreadUpdate = typeof stateModel?.hasSessionUnreadUpdate === "function"
+    ? stateModel.hasSessionUnreadUpdate(session)
+    : false;
+  const workflowPriority = typeof stateModel?.getSessionWorkflowPriorityInfo === "function"
+    ? stateModel.getSessionWorkflowPriorityInfo(session)
+    : null;
+
+  if (workflowState === "waiting_user") {
+    return { key: "waiting", rank: 0, label: payloadSafeTranslate("sidebar.focus.reason.waiting", "等待你") };
+  }
+  if (activity?.run?.state === "running") {
+    return { key: "running", rank: 1, label: payloadSafeTranslate("sidebar.focus.reason.running", "进行中") };
+  }
+  if (hasUnreadUpdate) {
+    return { key: "updated", rank: 2, label: payloadSafeTranslate("sidebar.focus.reason.updated", "有更新") };
+  }
+  if (workflowPriority?.key === "high") {
+    return { key: "priority", rank: 3, label: payloadSafeTranslate("sidebar.focus.reason.priority", "优先处理") };
+  }
+  return null;
+}
+
+function getSessionFocusSectionData(entries = []) {
+  const stateModel = getSessionStateModelForList();
+  const deduped = [];
+  const seen = new Set();
+  for (const session of Array.isArray(entries) ? entries : []) {
+    const sessionId = String(session?.id || "").trim();
+    if (!sessionId || seen.has(sessionId)) continue;
+    seen.add(sessionId);
+    deduped.push(session);
+  }
+
+  const focusEntries = deduped
+    .filter((session) => !getSidebarPersistentKind(session))
+    .map((session) => ({
+      session,
+      reason: getSessionFocusReason(session),
+    }))
+    .filter((entry) => entry.reason);
+
+  focusEntries.sort((left, right) => {
+    const rankDiff = (left.reason?.rank || 0) - (right.reason?.rank || 0);
+    if (rankDiff) return rankDiff;
+    if (typeof stateModel?.compareSessionListSessions === "function") {
+      return stateModel.compareSessionListSessions(left.session, right.session);
+    }
+    return String(left.session?.id || "").localeCompare(String(right.session?.id || ""));
+  });
+
+  const focusSessions = focusEntries.slice(0, 3).map((entry) => entry.session);
+  const reasonCounts = new Map();
+  for (const entry of focusEntries.slice(0, 3)) {
+    const reasonKey = String(entry.reason?.key || "").trim();
+    if (!reasonKey) continue;
+    reasonCounts.set(reasonKey, (reasonCounts.get(reasonKey) || 0) + 1);
+  }
+  const reasonLabelByKey = new Map(focusEntries.map((entry) => [entry.reason.key, entry.reason.label]));
+  const hintParts = ["waiting", "running", "updated", "priority"]
+    .filter((key) => reasonCounts.has(key))
+    .map((key) => `${reasonLabelByKey.get(key) || key} ${reasonCounts.get(key)}`);
+
+  return {
+    sessions: focusSessions,
+    hintLabel: hintParts.join(" · "),
+  };
+}
+
+function renderFocusSection({ focusSessions = [], focusLabel = "", hintLabel = "" } = {}) {
+  if (!Array.isArray(focusSessions) || focusSessions.length === 0) return null;
+  const section = document.createElement("div");
+  section.className = "session-focus-section";
+
+  const header = document.createElement("div");
+  header.className = "session-focus-header";
+  header.innerHTML = `
+    <div class="session-focus-header-main">
+      <div class="session-focus-title">${esc(focusLabel)}</div>
+      ${hintLabel ? `<div class="session-focus-note">${esc(hintLabel)}</div>` : ""}
+    </div>
+    <span class="folder-count">${focusSessions.length}</span>`;
+
+  const items = document.createElement("div");
+  items.className = "session-focus-items";
+  appendSessionItems(items, focusSessions);
+
+  section.appendChild(header);
+  section.appendChild(items);
+  return section;
+}
+
 function renderSessionList() {
   const groupingMode = getSessionGroupingModeForList();
   const showGroupingFolderControls = groupingMode === "user";
   const pinnedSessions = getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session));
   const visibleSessions = getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session));
+  const focusSection = getSessionFocusSectionData([...pinnedSessions, ...visibleSessions]);
 
   const groups = new Map();
   for (const session of visibleSessions) {
@@ -423,6 +392,11 @@ function renderSessionList() {
       sessionListEl: sessionList,
       sessionListFooterEl: sessionListFooter,
       pinnedSessions,
+      focus: {
+        sessions: focusSection.sessions,
+        titleLabel: payloadSafeTranslate("sidebar.focus.title", "焦点"),
+        hintLabel: focusSection.hintLabel,
+      },
       groups: orderedGroups.map(([groupKey, groupEntry]) => ({
         key: groupKey,
         label: groupEntry.label,
@@ -459,6 +433,9 @@ function renderSessionList() {
         renderUiIcon,
         appendSessionItems,
         createSessionItem: createSidebarSessionItem,
+        getSessionRenderKey: typeof getSessionDisplayRenderKey === "function"
+          ? getSessionDisplayRenderKey
+          : null,
       },
       actions: {
         setGroupCollapsed(groupKey, collapsed) {
@@ -492,12 +469,21 @@ function renderSessionList() {
       },
     });
     if (rendered === true) {
-      renderPersistentSessionDock(Object.create(null));
+      resetSessionListFooter();
       return;
     }
   }
 
   sessionList.innerHTML = "";
+
+  const focusSectionEl = renderFocusSection({
+    focusSessions: focusSection.sessions,
+    focusLabel: payloadSafeTranslate("sidebar.focus.title", "焦点"),
+    hintLabel: focusSection.hintLabel,
+  });
+  if (focusSectionEl) {
+    sessionList.appendChild(focusSectionEl);
+  }
 
   if (pinnedSessions.length > 0) {
     const section = document.createElement("div");
@@ -630,7 +616,7 @@ function renderSessionList() {
     sessionList.appendChild(createSection);
   }
 
-  renderPersistentSessionDock(Object.create(null));
+  resetSessionListFooter();
   renderArchivedSection();
 }
 

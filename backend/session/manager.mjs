@@ -90,6 +90,7 @@ import {
   getAutoCompactContextTokens,
   getAutoCompactStatusText,
   getRunLiveContextTokens,
+  hasTerminalRunResult,
   refreshCodexContextMetrics,
   synthesizeDetachedRunTermination,
 } from './run-health.mjs';
@@ -721,13 +722,6 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
 
   const isStructuredRuntime = projection.runtimeInvocation.isClaudeFamily || projection.runtimeInvocation.isCodexFamily;
   let result = await getRunResult(runId);
-  if (!result && !isTerminalRunState(run.state)) {
-    const reconciled = await synthesizeDetachedRunTermination(runId, run);
-    if (reconciled) {
-      run = reconciled;
-      result = await getRunResult(runId);
-    }
-  }
   const resultEnvelope = buildNormalizedRunResultEnvelope({
     result,
     normalizedEvents,
@@ -739,6 +733,13 @@ async function syncDetachedRunUnlocked(sessionId, runId) {
       result = await writeRunResult(runId, mergedResult);
     } else {
       result = mergedResult;
+    }
+  }
+  if (!isTerminalRunState(run.state) && !hasTerminalRunResult(result)) {
+    const reconciled = await synthesizeDetachedRunTermination(runId, run, { result });
+    if (reconciled) {
+      run = reconciled;
+      result = await getRunResult(runId);
     }
   }
   const inferredState = deriveRunStateFromResult(run, result);

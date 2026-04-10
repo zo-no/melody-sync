@@ -36,10 +36,16 @@ export function createSessionWorkflowRuntimeService({
           if (currentWorkflowState !== nextWorkflowState) {
             shouldSendCompletionPush = didSessionWorkflowTransitionToDone(nextWorkflowState, currentWorkflowState);
             session.workflowState = nextWorkflowState;
+            if (nextWorkflowState === 'done') {
+              session.workflowCompletedAt = nowIso();
+            } else {
+              delete session.workflowCompletedAt;
+            }
             changed = true;
           }
         } else if (currentWorkflowState) {
           delete session.workflowState;
+          delete session.workflowCompletedAt;
           changed = true;
         }
       }

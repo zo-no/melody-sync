@@ -86,8 +86,20 @@ assert.match(
 
 assert.match(
   workbenchTaskMapReactUiSource,
+  /function SessionListFocusSection\(/,
+  'workbench React bundle should own the sidebar focus section renderer',
+);
+
+assert.match(
+  workbenchTaskMapReactUiSource,
   /renderSessionList\(payload = \{\}\)/,
   'workbench React bundle should expose a renderSessionList entrypoint for the sidebar',
+);
+
+assert.doesNotMatch(
+  workbenchTaskMapReactUiSource,
+  /function renderPersistentDock\(/,
+  'workbench React bundle should not keep the retired persistent dock renderer around once the footer fallback owns that reset',
 );
 
 assert.match(
@@ -169,6 +181,30 @@ assert.match(
 );
 
 assert.match(
+  sessionSurfaceUiSource,
+  /function renderSessionTaskPreviewHtml\(/,
+  'session surface ui should build dedicated task preview rows for the sidebar',
+);
+
+assert.match(
+  sessionSurfaceUiSource,
+  /当前子任务：/,
+  'session surface ui should surface the current child task hint for mainline rows',
+);
+
+assert.match(
+  sessionSurfaceUiSource,
+  /来自主线：/,
+  'session surface ui should surface the parent mainline hint for branch rows',
+);
+
+assert.match(
+  sessionListUiSource,
+  /function getSessionFocusSectionData\(/,
+  'session list ui should compute a dedicated focus shortlist before grouped tasks',
+);
+
+assert.match(
   sidebarStylesheet,
   /\.session-action-btn\.session-item-leading-action\s*\{/,
   'sidebar stylesheet should style the leading archive checkbox shell',
@@ -178,6 +214,24 @@ assert.match(
   sidebarStylesheet,
   /\.session-action-checkbox-ring\s*\{/,
   'sidebar stylesheet should render the archive checkbox ring',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-item-summary\s*\{/,
+  'sidebar stylesheet should style the task checkpoint preview row',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-item-hint\s*\{/,
+  'sidebar stylesheet should style the task hint row',
+);
+
+assert.match(
+  sidebarStylesheet,
+  /\.session-focus-section\s*\{/,
+  'sidebar stylesheet should style the top focus section shell',
 );
 
 function escapeRegExp(value) {

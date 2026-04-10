@@ -53,8 +53,11 @@ const tryDecodeUtf8Base64TextSource = extractFunctionSource(realtimeSource, 'try
 const formatDecodedDisplayTextSource = extractFunctionSource(realtimeSource, 'formatDecodedDisplayText');
 const extractHiddenDisplayBlocksSource = extractFunctionSource(uiSource, 'extractHiddenDisplayBlocks');
 const renderMarkdownIntoNodeSource = extractFunctionSource(uiSource, 'renderMarkdownIntoNode');
+const resolveLiveTaskCardPreviewSource = extractFunctionSource(uiSource, 'resolveLiveTaskCardPreview');
+const notifyLiveTaskCardPreviewSource = extractFunctionSource(uiSource, 'notifyLiveTaskCardPreview');
 
 const parsedInputs = [];
+const liveTaskCardPreviewCalls = [];
 const context = {
   console,
   marked: {
@@ -65,8 +68,18 @@ const context = {
   },
   enhanceCodeBlocks() {},
   enhanceRenderedContentLinks() {},
+  currentSessionId: 'session-live',
+  window: {
+    MelodySyncWorkbench: {
+      setLiveTaskCardPreview(taskCard, options) {
+        liveTaskCardPreviewCalls.push({ taskCard, options });
+        return true;
+      },
+    },
+  },
 };
 context.globalThis = context;
+context.window.window = context.window;
 
 vm.runInNewContext(
   [
@@ -76,9 +89,13 @@ vm.runInNewContext(
     formatDecodedDisplayTextSource,
     extractHiddenDisplayBlocksSource,
     renderMarkdownIntoNodeSource,
+    resolveLiveTaskCardPreviewSource,
+    notifyLiveTaskCardPreviewSource,
     'globalThis.formatDecodedDisplayText = formatDecodedDisplayText;',
     'globalThis.extractHiddenDisplayBlocks = extractHiddenDisplayBlocks;',
     'globalThis.renderMarkdownIntoNode = renderMarkdownIntoNode;',
+    'globalThis.resolveLiveTaskCardPreview = resolveLiveTaskCardPreview;',
+    'globalThis.notifyLiveTaskCardPreview = notifyLiveTaskCardPreview;',
   ].join('\n\n'),
   context,
   { filename: 'frontend-src/session/transcript-ui.js' },
@@ -153,6 +170,44 @@ assert.equal(
   parsedInputs[0],
   'Hello\n<hide>secret</hide>\nworld',
   'generic markdown rendering should preserve raw hidden blocks unless the assistant render path splits them first',
+);
+
+const livePreviewTaskCard = context.resolveLiveTaskCardPreview([
+  {
+    kind: 'task_card',
+    content: '{"summary":"修任务卡","checkpoint":"让运行中页面也读取最新 task_card 进度"}',
+  },
+]);
+assert.equal(livePreviewTaskCard?.summary, '修任务卡');
+assert.equal(livePreviewTaskCard?.checkpoint, '让运行中页面也读取最新 task_card 进度');
+
+assert.equal(
+  context.notifyLiveTaskCardPreview([
+    {
+      kind: 'task_card',
+      content: '{"summary":"修任务卡","checkpoint":"让运行中页面也读取最新 task_card 进度"}',
+    },
+  ], {
+    seq: 42,
+  }),
+  true,
+  'hidden task_card sidecars should be forwarded to the live workbench preview when available',
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(liveTaskCardPreviewCalls)),
+  [
+    {
+      taskCard: {
+        summary: '修任务卡',
+        checkpoint: '让运行中页面也读取最新 task_card 进度',
+      },
+      options: {
+        sessionId: 'session-live',
+        sourceSeq: 42,
+      },
+    },
+  ],
+  'live task-card preview forwarding should preserve the parsed payload and current session context',
 );
 
 console.log('test-chat-hidden-display-blocks: ok');
