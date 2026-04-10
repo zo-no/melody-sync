@@ -111,37 +111,35 @@
     function getPrimaryTitle(state) {
       if (!state?.hasSession) return "当前任务";
       const baseTitle = state.isBranch
-        ? (getBranchDisplayName(state.session) || state.currentGoal || state.session?.name || state.mainGoal)
-        : (state.session?.name || state.mainGoal || state.currentGoal);
+        ? (state.currentGoal || getBranchDisplayName(state.session) || state.mainGoal || state.session?.name)
+        : (state.currentGoal || state.mainGoal || state.session?.name);
       return toConciseGoal(baseTitle, isMobileQuestTracker() ? 44 : 64) || "当前任务";
     }
 
     function getPrimaryDetail(state) {
       if (!state?.hasSession) return "";
+      const summary = clipText(getCurrentTaskSummary(state), isMobileQuestTracker() ? 72 : 96);
       if (state.isBranch) {
-        return clipText(`来自主线：${state.branchFrom || state.mainGoal || "当前主线"}`, isMobileQuestTracker() ? 84 : 112);
+        const mainline = clipText(`主线：${state.branchFrom || state.mainGoal || "当前主线"}`, isMobileQuestTracker() ? 72 : 96);
+        if (!isRedundantTrackerText(mainline, summary, state.currentGoal)) {
+          return mainline;
+        }
       }
-      const summary = clipText(getCurrentTaskSummary(state), isMobileQuestTracker() ? 80 : 112);
-      if (summary) return summary;
-      const currentGoal = clipText(state.currentGoal || "", isMobileQuestTracker() ? 80 : 112);
-      if (!isRedundantTrackerText(currentGoal, state.session?.name, state.mainGoal)) {
-        return currentGoal;
+      if (summary && !isRedundantTrackerText(summary, state.currentGoal, state.mainGoal)) {
+        return summary;
       }
-      return clipText(
+      const visualSummary = clipText(
         String(getTrackerVisualStatus(state)?.summary || ""),
-        isMobileQuestTracker() ? 84 : 112,
+        isMobileQuestTracker() ? 72 : 96,
       );
+      if (visualSummary && !isRedundantTrackerText(visualSummary, summary, state.currentGoal, state.mainGoal)) {
+        return visualSummary;
+      }
+      return "";
     }
 
     function getSecondaryDetail(state, primaryDetail = "") {
-      if (!state?.hasSession) return "";
-      if (!state.isBranch) {
-        const candidateCount = Number(state?.candidateBranchCount || 0);
-        return candidateCount > 0 ? `${candidateCount} 个建议` : "";
-      }
-      const nextStep = clipText(state.nextStep || "", isMobileQuestTracker() ? 72 : 96);
-      if (!nextStep) return "";
-      return isRedundantTrackerText(nextStep, state.currentGoal, primaryDetail) ? "" : nextStep;
+      return "";
     }
 
     function renderDetailItems(container, items) {
@@ -276,33 +274,39 @@
       }
     }
 
-    function renderDetail(taskCard, expanded, session = null) {
+    function renderDetail(taskCard, expanded, session = null, context = {}) {
       if (!trackerDetailEl) return;
-      const goal = taskCard?.goal || "";
-      const showGoal = Boolean(goal);
-      if (trackerGoalValEl) trackerGoalValEl.textContent = goal;
-      if (trackerGoalRowEl) trackerGoalRowEl.hidden = !showGoal;
+      const primaryDetail = clipText(context?.primaryDetail || "", isMobileQuestTracker() ? 72 : 96);
+      const resumePoint = clipText(
+        String(taskCard?.checkpoint || "").trim()
+        || (Array.isArray(taskCard?.nextSteps) ? String(taskCard.nextSteps.find((entry) => trimText(entry)) || "").trim() : "")
+        || String(taskCard?.summary || "").trim()
+        || String(taskCard?.goal || "").trim(),
+        isMobileQuestTracker() ? 84 : 112,
+      );
+      const showResumePoint = Boolean(resumePoint)
+        && !isRedundantTrackerText(resumePoint, taskCard?.goal, taskCard?.mainGoal);
+      const showDistinctResumePoint = showResumePoint
+        && !isRedundantTrackerText(resumePoint, primaryDetail);
+      if (trackerGoalValEl) trackerGoalValEl.textContent = showDistinctResumePoint ? resumePoint : "";
+      if (trackerGoalRowEl) trackerGoalRowEl.hidden = !showDistinctResumePoint;
 
-      const conclusions = Array.isArray(taskCard?.knownConclusions) ? taskCard.knownConclusions : [];
-      renderDetailItems(trackerConclusionsListEl, conclusions);
-      if (trackerConclusionsRowEl) trackerConclusionsRowEl.hidden = conclusions.length === 0;
+      renderDetailItems(trackerConclusionsListEl, []);
+      if (trackerConclusionsRowEl) trackerConclusionsRowEl.hidden = true;
 
-      const memory = Array.isArray(taskCard?.memory) ? taskCard.memory : [];
-      renderDetailItems(trackerMemoryListEl, memory);
-      if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = memory.length === 0;
+      renderDetailItems(trackerMemoryListEl, []);
+      if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = true;
 
-      const memoryCandidates = getPendingMemoryCandidates(session);
-      renderMemoryCandidateActions(trackerMemoryCandidateListEl, memoryCandidates, session);
-      if (trackerMemoryCandidateRowEl) trackerMemoryCandidateRowEl.hidden = memoryCandidates.length === 0;
+      renderMemoryCandidateActions(trackerMemoryCandidateListEl, [], session);
+      if (trackerMemoryCandidateRowEl) trackerMemoryCandidateRowEl.hidden = true;
 
-      const candidateBranches = listVisibleCandidateBranches(taskCard, session);
-      renderCandidateBranchActions(trackerCandidateBranchesListEl, candidateBranches, session);
-      if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = candidateBranches.length === 0;
+      renderCandidateBranchActions(trackerCandidateBranchesListEl, [], session);
+      if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = true;
 
-      const hasAny = showGoal || conclusions.length > 0 || memory.length > 0 || memoryCandidates.length > 0 || candidateBranches.length > 0;
+      const hasAny = showDistinctResumePoint;
       if (trackerDetailToggleBtn) {
         trackerDetailToggleBtn.hidden = !hasAny;
-        trackerDetailToggleBtn.textContent = expanded ? "详情 ▾" : "详情 ▸";
+        trackerDetailToggleBtn.textContent = expanded ? "恢复点 ▾" : "恢复点 ▸";
       }
       trackerDetailEl.hidden = !hasAny || !expanded;
     }

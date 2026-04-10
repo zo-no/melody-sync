@@ -442,6 +442,21 @@
 
   function renderTrackerStatus(state) {
     trackerRenderer?.renderStatus(state);
+    if (isMobileQuestTracker() && trackerStatusEl) {
+      trackerStatusEl.hidden = true;
+    }
+  }
+
+  function hasVisibleTrackerActions() {
+    if (!trackerActionsEl) return false;
+    return Array.from(trackerActionsEl.children || []).some((child) => child && child.hidden !== true);
+  }
+
+  function syncTrackerFooterVisibility() {
+    if (!trackerFooterEl) return;
+    const showStatus = Boolean(trackerStatusEl && trackerStatusEl.hidden !== true);
+    const showActions = hasVisibleTrackerActions();
+    trackerFooterEl.hidden = !showStatus && !showActions;
   }
 
   function setTaskMapDrawerExpanded(expanded, options = {}) {
@@ -1022,6 +1037,14 @@
   }
 
   function renderPersistentTrackerActions(session) {
+    const persistentActionsEl = ensureTrackerPersistentActionsEl();
+    if (isMobileQuestTracker()) {
+      if (persistentActionsEl) {
+        persistentActionsEl.hidden = true;
+        persistentActionsEl.innerHTML = "";
+      }
+      return;
+    }
     trackerRenderer?.renderPersistentActions?.(session, {
       onPromote: () => {
         operationRecordController?.openPersistentEditor?.({ mode: "promote" });
@@ -2136,8 +2159,8 @@
     trackerNextEl.classList.toggle("is-next-step-hint", Boolean(showBranch && trackerSecondaryDetail));
     trackerNextEl.textContent = trackerSecondaryDetail;
     if (trackerTimeEl) {
-      trackerTimeEl.hidden = !timeText;
-      trackerTimeEl.textContent = timeText;
+      trackerTimeEl.hidden = true;
+      trackerTimeEl.textContent = "";
     }
     renderPersistentSummary(state.session);
     if (trackerToggleBtn) {
@@ -2149,12 +2172,16 @@
     renderPersistentTrackerActions(state.session);
     branchActionController?.syncTrackerButtons(state);
     renderTaskMapRail(state);
-    renderTrackerDetail(state.session);
+    renderTrackerDetail(state);
+    syncTrackerFooterVisibility();
     notifyWorkbenchViewModel("render");
   }
 
-  function renderTrackerDetail(session) {
-    trackerRenderer?.renderDetail(getTaskCard(session), trackerDetailExpanded, session);
+  function renderTrackerDetail(state) {
+    const session = state?.session || null;
+    trackerRenderer?.renderDetail(getTaskCard(session), trackerDetailExpanded, session, {
+      primaryDetail: getTrackerPrimaryDetail(state),
+    });
   }
 
   function renderPathPanel() {

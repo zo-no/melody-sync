@@ -1063,37 +1063,35 @@ function createTrackerRenderer({
   function getPrimaryTitle(state) {
     if (!state?.hasSession) return '当前任务';
     const baseTitle = state.isBranch
-      ? (getBranchDisplayName(state.session) || state.currentGoal || state.session?.name || state.mainGoal)
-      : (state.session?.name || state.mainGoal || state.currentGoal);
+      ? (state.currentGoal || getBranchDisplayName(state.session) || state.mainGoal || state.session?.name)
+      : (state.currentGoal || state.mainGoal || state.session?.name);
     return toConciseGoal(baseTitle, isMobileQuestTracker() ? 44 : 64) || '当前任务';
   }
 
   function getPrimaryDetail(state) {
     if (!state?.hasSession) return '';
+    const summary = clipTextImpl(getCurrentTaskSummary(state), isMobileQuestTracker() ? 72 : 96);
     if (state.isBranch) {
-      return clipTextImpl(`来自主线：${state.branchFrom || state.mainGoal || '当前主线'}`, isMobileQuestTracker() ? 84 : 112);
+      const mainline = clipTextImpl(`主线：${state.branchFrom || state.mainGoal || '当前主线'}`, isMobileQuestTracker() ? 72 : 96);
+      if (!isRedundantTrackerText(mainline, summary, state.currentGoal)) {
+        return mainline;
+      }
     }
-    const summary = clipTextImpl(getCurrentTaskSummary(state), isMobileQuestTracker() ? 80 : 112);
-    if (summary) return summary;
-    const currentGoal = clipTextImpl(state.currentGoal || '', isMobileQuestTracker() ? 80 : 112);
-    if (!isRedundantTrackerText(currentGoal, state.session?.name, state.mainGoal)) {
-      return currentGoal;
+    if (summary && !isRedundantTrackerText(summary, state.currentGoal, state.mainGoal)) {
+      return summary;
     }
-    return clipTextImpl(
+    const visualSummary = clipTextImpl(
       String(getTrackerVisualStatus(state)?.summary || ''),
-      isMobileQuestTracker() ? 84 : 112,
+      isMobileQuestTracker() ? 72 : 96,
     );
+    if (visualSummary && !isRedundantTrackerText(visualSummary, summary, state.currentGoal, state.mainGoal)) {
+      return visualSummary;
+    }
+    return '';
   }
 
   function getSecondaryDetail(state, primaryDetail = '') {
-    if (!state?.hasSession) return '';
-    if (!state.isBranch) {
-      const candidateCount = Number(state?.candidateBranchCount || 0);
-      return candidateCount > 0 ? `${candidateCount} 个建议` : '';
-    }
-    const nextStep = clipTextImpl(state.nextStep || '', isMobileQuestTracker() ? 72 : 96);
-    if (!nextStep) return '';
-    return isRedundantTrackerText(nextStep, state.currentGoal, primaryDetail) ? '' : nextStep;
+    return '';
   }
 
   function renderDetailList(host, items) {
@@ -1138,33 +1136,39 @@ function createTrackerRenderer({
     );
   }
 
-  function renderDetail(taskCard, expanded, session = null) {
+  function renderDetail(taskCard, expanded, session = null, context = {}) {
     if (!trackerDetailEl) return;
-    const goal = taskCard?.goal || '';
-    const showGoal = Boolean(goal);
-    if (trackerGoalValEl) trackerGoalValEl.textContent = goal;
-    if (trackerGoalRowEl) trackerGoalRowEl.hidden = !showGoal;
+    const primaryDetail = clipTextImpl(context?.primaryDetail || '', isMobileQuestTracker() ? 72 : 96);
+    const resumePoint = clipTextImpl(
+      String(taskCard?.checkpoint || '').trim()
+      || (Array.isArray(taskCard?.nextSteps) ? String(taskCard.nextSteps.find((entry) => trimText(entry)) || '').trim() : '')
+      || String(taskCard?.summary || '').trim()
+      || String(taskCard?.goal || '').trim(),
+      isMobileQuestTracker() ? 84 : 112,
+    );
+    const showResumePoint = Boolean(resumePoint)
+      && !isRedundantTrackerText(resumePoint, taskCard?.goal, taskCard?.mainGoal);
+    const showDistinctResumePoint = showResumePoint
+      && !isRedundantTrackerText(resumePoint, primaryDetail);
+    if (trackerGoalValEl) trackerGoalValEl.textContent = showDistinctResumePoint ? resumePoint : '';
+    if (trackerGoalRowEl) trackerGoalRowEl.hidden = !showDistinctResumePoint;
 
-    const conclusions = Array.isArray(taskCard?.knownConclusions) ? taskCard.knownConclusions : [];
-    renderDetailList(trackerConclusionsListEl, conclusions);
-    if (trackerConclusionsRowEl) trackerConclusionsRowEl.hidden = conclusions.length === 0;
+    renderDetailList(trackerConclusionsListEl, []);
+    if (trackerConclusionsRowEl) trackerConclusionsRowEl.hidden = true;
 
-    const memory = Array.isArray(taskCard?.memory) ? taskCard.memory : [];
-    renderDetailList(trackerMemoryListEl, memory);
-    if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = memory.length === 0;
+    renderDetailList(trackerMemoryListEl, []);
+    if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = true;
 
-    const memoryCandidates = getPendingMemoryCandidates(session);
-    renderMemoryCandidateActions(trackerMemoryCandidateListEl, memoryCandidates, session);
-    if (trackerMemoryCandidateRowEl) trackerMemoryCandidateRowEl.hidden = memoryCandidates.length === 0;
+    renderMemoryCandidateActions(trackerMemoryCandidateListEl, [], session);
+    if (trackerMemoryCandidateRowEl) trackerMemoryCandidateRowEl.hidden = true;
 
-    const candidateBranches = listVisibleCandidateBranches(taskCard, session);
-    renderCandidateBranchActions(trackerCandidateBranchesListEl, candidateBranches);
-    if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = candidateBranches.length === 0;
+    renderCandidateBranchActions(trackerCandidateBranchesListEl, []);
+    if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = true;
 
-    const hasAny = showGoal || conclusions.length > 0 || memory.length > 0 || memoryCandidates.length > 0 || candidateBranches.length > 0;
+    const hasAny = showDistinctResumePoint;
     if (trackerDetailToggleBtn) {
       trackerDetailToggleBtn.hidden = !hasAny;
-      trackerDetailToggleBtn.textContent = expanded ? '详情 ▾' : '详情 ▸';
+      trackerDetailToggleBtn.textContent = expanded ? '恢复点 ▾' : '恢复点 ▸';
     }
     trackerDetailEl.hidden = !hasAny || !expanded;
   }
@@ -2597,6 +2601,14 @@ function SessionListCreateFolderSection({
   );
 }
 
+function SessionListEmptyState({
+  show = false,
+  label = '',
+}) {
+  if (!show || !label) return null;
+  return <div className="session-list-empty">{label}</div>;
+}
+
 function ArchivedSessionSection({
   shouldRenderSection = false,
   isCollapsed = false,
@@ -2695,6 +2707,7 @@ function SessionListCollections({
   deleteIconHtml = '',
   pinnedLabel = '',
   grouping = null,
+  emptyState = null,
   translate = (key) => key,
   archived = null,
 }) {
@@ -2728,6 +2741,10 @@ function SessionListCollections({
           deleteFolderLabel={String(grouping?.deleteFolderLabel || '')}
         />
       ))}
+      <SessionListEmptyState
+        show={emptyState?.show === true}
+        label={String(emptyState?.label || '')}
+      />
       <SessionListCreateFolderSection
         showCreateFolder={grouping?.showCreateFolder === true}
         createFolderLabel={String(grouping?.createFolderLabel || '')}
@@ -2852,6 +2869,7 @@ function createSessionListRenderer({
             return payload?.actions?.createTemplateFolder?.(label);
           },
         },
+        emptyState: payload?.emptyState || null,
         archived: archived
           ? {
               shouldRenderSection: archived?.shouldRenderSection === true,
