@@ -885,10 +885,13 @@ function createActiveSessionItem(session, options = {}) {
   const leadingActionHtml = leadingAction
     ? renderSessionActionButtonHtml(session, leadingAction, { leading: true })
     : "";
-  const actionsHtml = trailingActionConfigs
+  // inlineHidden actions are hidden from the inline bar but shown in the overflow menu
+  const inlineTrailingConfigs = trailingActionConfigs.filter((entry) => !entry?.inlineHidden);
+  const actionsHtml = inlineTrailingConfigs
     .map((entry) => renderSessionActionButtonHtml(session, entry))
     .join("");
-  const compactActions = options.compactActions === true && trailingActionConfigs.length > 0;
+  const hasOverflowActions = trailingActionConfigs.some((entry) => entry?.inlineHidden);
+  const compactActions = (options.compactActions === true || hasOverflowActions) && trailingActionConfigs.length > 0;
   const compactActionsLabel = esc(
     typeof options.compactActionsLabel === "string" && options.compactActionsLabel.trim()
       ? options.compactActionsLabel
@@ -907,7 +910,8 @@ function createActiveSessionItem(session, options = {}) {
       ${metaHtml ? `<div class="session-item-meta">${metaHtml}</div>` : ""}
     </div>
     ${compactActions ? `<button class="session-item-actions-toggle" type="button" title="${compactActionsLabel}" aria-label="${compactActionsLabel}" aria-expanded="false">${renderSessionIcon("menu")}</button>` : ""}
-    ${trailingActionConfigs.length === 0 ? "" : `<div class="session-item-actions">${actionsHtml}</div>`}`;
+    ${inlineTrailingConfigs.length === 0 ? "" : `<div class="session-item-actions">${actionsHtml}</div>`}
+    ${hasOverflowActions ? `<div class="session-item-overflow-menu">${trailingActionConfigs.filter((e) => e?.inlineHidden).map((e) => `<button class="session-action-btn session-overflow-action ${esc(e.className || e.key || '')}" type="button" data-id="${session.id}" data-action="${esc(e.key || e.action || '')}">${esc(e.label || '')}</button>`).join("")}</div>` : ""}`;
 
   div.addEventListener("click", (e) => {
     if (e.target.closest(".session-action-btn") || e.target.closest(".session-item-actions-toggle")) {

@@ -50,18 +50,14 @@ function getActiveSessionContext(state, sessionId) {
   )) || null;
 }
 
-function trimText(value) {
-  return normalizeNullableText(value);
-}
-
 function clipText(value, max = 64) {
-  const text = trimText(value);
+  const text = normalizeNullableText(value);
   if (!text) return '';
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
 
 function toConciseGoal(value, max = 64) {
-  const compact = trimText(value);
+  const compact = normalizeNullableText(value);
   if (!compact) return '';
   const firstSegment = compact
     .split(/[。！？.!?\n]/)
@@ -71,9 +67,9 @@ function toConciseGoal(value, max = 64) {
 }
 
 function getSessionTitle(session) {
-  const name = trimText(session?.name || '');
-  const goal = trimText(session?.taskCard?.goal || '');
-  const mainGoal = trimText(session?.taskCard?.mainGoal || '');
+  const name = normalizeNullableText(session?.name || '');
+  const goal = normalizeNullableText(session?.taskCard?.goal || '');
+  const mainGoal = normalizeNullableText(session?.taskCard?.mainGoal || '');
   const lineRole = normalizeLineRole(
     session?.taskCard?.lineRole
     || (session?.sourceContext?.parentSessionId ? 'branch' : 'main'),

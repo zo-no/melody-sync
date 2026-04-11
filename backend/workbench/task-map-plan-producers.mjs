@@ -2,14 +2,11 @@ import { getNodeKindDefinition } from './node-definitions.mjs';
 import { createNodeInstance } from './node-instance.mjs';
 import { readTaskMapPlans } from './task-map-plans.mjs';
 import { persistTaskMapPlansWithSessionSync } from './task-map-plan-sync.mjs';
+import { trimText } from './shared.mjs';
 
 const BRANCH_CANDIDATE_HOOK_ID = 'builtin.branch-candidates';
 const BRANCH_CANDIDATE_EVENT = 'branch.suggested';
 const DEFAULT_CANDIDATE_SUMMARY = '建议拆分';
-
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
 
 function normalizeText(value) {
   return trimText(value).replace(/\s+/g, ' ');

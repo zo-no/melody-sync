@@ -84,6 +84,7 @@ function buildSessionPersistentPatch(currentPersistent, patch = {}) {
   const recurringPatch = hasOwn(patch, 'recurring') ? patch.recurring : patch?.schedule;
   const hasSkillPatch = hasOwn(patch, 'skill');
   const hasKnowledgeBasePathPatch = hasOwn(patch, 'knowledgeBasePath');
+  const hasWorkspacePatch = hasOwn(patch, 'workspace');
   return {
     ...(currentPersistent && typeof currentPersistent === 'object' ? currentPersistent : {}),
     ...(patch && typeof patch === 'object' ? patch : {}),
@@ -94,6 +95,9 @@ function buildSessionPersistentPatch(currentPersistent, patch = {}) {
     loop: mergePersistentLoopShape(currentPersistent?.loop, patch?.loop),
     skill: mergeOptionalPersistentObject(currentPersistent?.skill, patch?.skill, hasSkillPatch),
     knowledgeBasePath: hasKnowledgeBasePathPatch ? patch?.knowledgeBasePath || '' : currentPersistent?.knowledgeBasePath || '',
+    workspace: hasWorkspacePatch
+      ? (patch.workspace && typeof patch.workspace === 'object' ? mergeObjectShape(currentPersistent?.workspace, patch.workspace) : null)
+      : (currentPersistent?.workspace || null),
     runtimePolicy: {
       ...currentRuntimePolicy,
       ...patchRuntimePolicy,

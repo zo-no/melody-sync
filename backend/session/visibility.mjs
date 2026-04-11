@@ -1,6 +1,4 @@
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
+import { trimText } from './text.mjs';
 
 export function normalizeSessionTaskListOrigin(value) {
   const normalized = trimText(value).toLowerCase();

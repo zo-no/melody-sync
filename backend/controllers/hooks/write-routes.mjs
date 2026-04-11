@@ -1,7 +1,8 @@
 import { readJsonRequestBody } from '../../shared/http/request-body.mjs';
-import { updateHookSettingsAlias } from '../../services/hooks/http-service.mjs';
+import { updateHookEnabledState } from '../../settings/hooks.mjs';
 
-export async function handleHookWriteRoutes({ req, res, pathname, writeJson } = {}) {
+export async function handleHookWriteRoutes(ctx) {
+  const { req, res, pathname, writeJson } = ctx;
   if (pathname.startsWith('/api/hooks/') && req?.method === 'PATCH') {
     const hookId = decodeURIComponent(pathname.slice('/api/hooks/'.length));
     if (!hookId) {
@@ -20,7 +21,7 @@ export async function handleHookWriteRoutes({ req, res, pathname, writeJson } = 
       return true;
     }
     try {
-      writeJson(res, 200, await updateHookSettingsAlias(hookId, body.enabled));
+      writeJson(res, 200, await updateHookEnabledState(hookId, body.enabled));
       return true;
     } catch (error) {
       const message = error?.message || 'Failed to update hook settings';

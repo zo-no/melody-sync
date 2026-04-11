@@ -13,13 +13,8 @@ function writeInvalidBody(writeJson, res) {
   writeJson(res, 400, { error: 'Invalid request body' });
 }
 
-export async function handleSettingsWriteRoutes({
-  req,
-  res,
-  pathname,
-  writeJson,
-  scheduleConfigReload,
-} = {}) {
+export async function handleSettingsWriteRoutes(ctx) {
+  const { req, res, pathname, writeJson, scheduleConfigReload } = ctx;
   const isSettingsRoute = pathname === '/api/settings' || pathname === '/api/settings/';
   const isEmailSettingsRoute = pathname === '/api/settings/email' || pathname === '/api/settings/email/';
   const isVoiceSettingsRoute = pathname === '/api/settings/voice' || pathname === '/api/settings/voice/';

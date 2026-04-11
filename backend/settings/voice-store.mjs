@@ -16,16 +16,13 @@ import {
 } from '../../lib/voice-connector-presets.mjs';
 import { ensureDir, readJson, writeJsonAtomic } from '../fs-utils.mjs';
 import { readGeneralSettings } from './general-store.mjs';
+import { trimText } from '../shared/text.mjs';
 
 const DEFAULT_TTS_VOLUME = 50;
 const DEFAULT_PLAYBACK_VOLUME = 0.8;
 
-function trimString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 function normalizeStringField(value) {
-  return trimString(value);
+  return trimText(value);
 }
 
 function normalizeBooleanField(value) {
@@ -43,7 +40,7 @@ function normalizeBoundedNumberField(value, {
   fallback,
   decimals = null,
 } = {}) {
-  if (typeof value === 'string' && !trimString(value)) return fallback;
+  if (typeof value === 'string' && !trimText(value)) return fallback;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   const clamped = Math.max(min, Math.min(max, parsed));
@@ -57,7 +54,7 @@ function normalizeEnvMap(value = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return Object.fromEntries(
     Object.entries(value)
-      .map(([key, entryValue]) => [trimString(key), entryValue])
+      .map(([key, entryValue]) => [trimText(key), entryValue])
       .filter(([key, entryValue]) => key && entryValue !== undefined && entryValue !== null)
       .map(([key, entryValue]) => [key, String(entryValue)]),
   );
@@ -78,7 +75,7 @@ async function ensureVoiceConfigFile(path) {
 async function readVoiceStatus(paths) {
   let pid = '';
   try {
-    pid = trimString(await readFile(paths.voiceConnectorPidFile, 'utf8'));
+    pid = trimText(await readFile(paths.voiceConnectorPidFile, 'utf8'));
     if (pid) {
       process.kill(Number(pid), 0);
       return {

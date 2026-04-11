@@ -171,7 +171,159 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
       startRename(itemEl, currentSession);
     },
   };
-  const actionList = [renameAction, ...visibleBaseActions].filter(Boolean);
+
+  // ── Assign to long-term project ─────────────────────────────────
+  const assignToProjectAction = !isArchivedSession ? {
+    key: "assign-to-project",
+    label: "归入长期项目",
+    className: "assign-to-project",
+    inlineHidden: true,
+    onClick(event, currentSession) {
+      event?.preventDefault?.();
+      if (!currentSession?.id) return;
+      const projects = typeof window.getLongTermProjectList === "function"
+        ? window.getLongTermProjectList()
+        : [];
+      if (projects.length === 0) {
+        window.alert("还没有长期项目，请先创建一个长期项目。");
+        return;
+      }
+      const listText = projects.map((p, i) => `${i + 1}. ${p.name}`).join("\n");
+      const input = window.prompt(`选择要归入的长期项目（输入编号）：\n\n${listText}`);
+      if (!input) return;
+      const index = Number.parseInt(input.trim(), 10) - 1;
+      if (!Number.isInteger(index) || index < 0 || index >= projects.length) {
+        window.alert("编号无效，请重新操作。");
+        return;
+      }
+      const target = projects[index];
+      void (typeof fetchJsonOrRedirect === "function"
+        ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              taskPoolMembership: {
+                longTerm: {
+                  role: "member",
+                  projectSessionId: target.id,
+                  bucket: "inbox",
+                },
+              },
+            }),
+          })
+        : Promise.reject(new Error("no fetch"))
+      ).then(() => {
+        if (typeof renderSessionList === "function") renderSessionList();
+      }).catch((err) => {
+        console.error("[lt] assign to project failed:", err);
+        window.alert("归入失败，请重试。");
+      });
+    },
+  } : null;
+
+  // ── Long-term project member actions ────────────────────────────
+  const ltMembership = !isArchivedSession ? session?.taskPoolMembership?.longTerm : null;
+  const ltProjectId = ltMembership?.projectSessionId
+    ? String(ltMembership.projectSessionId).trim() : "";
+  const ltRole = ltMembership?.role
+    ? String(ltMembership.role).trim().toLowerCase() : "";
+  const isLtMember = Boolean(ltProjectId && ltRole === "member");
+  const currentBucket = isLtMember
+    ? String(ltMembership?.bucket || "inbox").trim().toLowerCase() : "";
+
+  const BUCKET_LABELS = {
+    long_term: "长期任务",
+    short_term: "短期任务",
+    waiting: "等待任务",
+    inbox: "收集箱",
+  };
+
+  const moveToBucketActions = isLtMember
+    ? Object.entries(BUCKET_LABELS)
+        .filter(([key]) => key !== currentBucket)
+        .map(([key, label]) => ({
+          key: `move-to-${key}`,
+          label: `移到「${label}」`,
+          className: "move-bucket",
+          inlineHidden: true,
+          onClick(event, currentSession) {
+            event?.preventDefault?.();
+            if (!currentSession?.id) return;
+            void (typeof fetchJsonOrRedirect === "function"
+              ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    taskPoolMembership: { longTerm: { ...ltMembership, bucket: key } },
+                  }),
+                })
+              : Promise.reject(new Error("no fetch"))
+            ).then(() => {
+              if (typeof renderSessionList === "function") renderSessionList();
+            }).catch((err) => console.error("[lt] move bucket failed:", err));
+          },
+        }))
+    : [];
+
+  const removeFromProjectAction = isLtMember ? {
+    key: "remove-from-project",
+    label: "移出长期项目",
+    className: "remove-from-project",
+    inlineHidden: true,
+    onClick(event, currentSession) {
+      event?.preventDefault?.();
+      if (!currentSession?.id) return;
+      if (!window.confirm("将此任务移出长期项目？它将回到普通任务列表。")) return;
+      void (typeof fetchJsonOrRedirect === "function"
+        ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskPoolMembership: { longTerm: null } }),
+          })
+        : Promise.reject(new Error("no fetch"))
+      ).then(() => {
+        if (typeof renderSessionList === "function") renderSessionList();
+      }).catch((err) => console.error("[lt] remove from project failed:", err));
+    },
+  } : null;
+
+  // ── Demote persistent task to regular session ────────────────────
+  const persistentKind = getSidebarPersistentKind(session);
+  const isPersistentTask = !isArchivedSession
+    && (persistentKind === "recurring_task"
+      || persistentKind === "scheduled_task"
+      || persistentKind === "waiting_task");
+  const demoteAction = isPersistentTask ? {
+    key: "demote-persistent",
+    label: "降级为普通任务",
+    className: "demote-persistent",
+    inlineHidden: true,
+    onClick(event, currentSession) {
+      event?.preventDefault?.();
+      if (!currentSession?.id) return;
+      if (!window.confirm("将此任务降级为普通任务？定时/循环配置将被清除。")) return;
+      void (typeof fetchJsonOrRedirect === "function"
+        ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ persistent: null }),
+          })
+        : Promise.reject(new Error("no fetch"))
+      ).then(() => {
+        if (typeof renderSessionList === "function") renderSessionList();
+      }).catch((err) => console.error("[lt] demote failed:", err));
+    },
+  } : null;
+
+  const actionList = [
+    renameAction,
+    assignToProjectAction,
+    ...moveToBucketActions,
+    removeFromProjectAction,
+    demoteAction,
+    ...visibleBaseActions,
+  ].filter(Boolean);
+
   if (!canRunSidebarQuickAction(session, { archived })) {
     return actionList;
   }

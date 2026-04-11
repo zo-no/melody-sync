@@ -13,6 +13,7 @@ import {
   getBuiltinHookDefinition,
   getBuiltinHookTaskMapPlanPolicy,
 } from '../hooks/builtin-hook-catalog.mjs';
+import { trimText } from './shared.mjs';
 
 const TASK_MAP_PLAN_MODES = Object.freeze(['replace-default', 'augment-default']);
 const TASK_MAP_EDGE_TYPES = Object.freeze([
@@ -27,9 +28,6 @@ const TASK_MAP_EDGE_TYPES = Object.freeze([
   'merge',
 ]);
 const TASK_MAP_PLAN_SOURCE_TYPES = Object.freeze(['manual', 'system', 'hook']);
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
 
 function normalizePlanMode(value) {
   const normalized = trimText(value).toLowerCase();

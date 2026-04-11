@@ -7,7 +7,8 @@ import {
   getVoiceSettingsForClient,
 } from '../../services/settings/http-service.mjs';
 
-export async function handleSettingsReadRoutes({ req, res, pathname, writeJson } = {}) {
+export async function handleSettingsReadRoutes(ctx) {
+  const { req, res, pathname, writeJson } = ctx;
   const isSettingsRoute = pathname === '/api/settings' || pathname === '/api/settings/';
   const isSettingsCatalogRoute = pathname === '/api/settings/catalog' || pathname === '/api/settings/catalog/';
   const isEmailSettingsRoute = pathname === '/api/settings/email' || pathname === '/api/settings/email/';

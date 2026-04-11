@@ -1,20 +1,8 @@
 import { getOutputPanelPayload } from '../../services/output-panel/read-service.mjs';
+import { getQueryValue } from '../../shared/http/query.mjs';
 
-function getQueryValue(value) {
-  if (Array.isArray(value)) {
-    return typeof value[0] === 'string' ? value[0] : '';
-  }
-  return typeof value === 'string' ? value : '';
-}
-
-export async function handleOutputPanelReadRoutes({
-  req,
-  res,
-  pathname,
-  parsedUrl,
-  writeJson,
-  writeJsonCached,
-} = {}) {
+export async function handleOutputPanelReadRoutes(ctx) {
+  const { req, res, pathname, parsedUrl, writeJson, writeJsonCached } = ctx;
   if (pathname !== '/api/output-panel' || req?.method !== 'GET') {
     return false;
   }

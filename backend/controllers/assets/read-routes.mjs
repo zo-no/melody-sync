@@ -1,17 +1,18 @@
 import { parseFileAssetRoute } from './file-asset-route.mjs';
 
-export async function handleAssetReadRoutes({
-  req,
-  res,
-  pathname,
-  authSession,
-  requireSessionAccess,
-  getFileAsset,
-  getFileAssetForClient,
-  buildFileAssetDirectUrl,
-  writeJson,
-  buildHeaders,
-} = {}) {
+export async function handleAssetReadRoutes(ctx) {
+  const {
+    req,
+    res,
+    pathname,
+    authSession,
+    requireSessionAccess,
+    getFileAsset,
+    getFileAssetForClient,
+    buildFileAssetDirectUrl,
+    writeJson,
+    buildHeaders,
+  } = ctx;
   const fileAssetRoute = parseFileAssetRoute(pathname);
 
   if (fileAssetRoute && req?.method === 'GET' && !fileAssetRoute.action) {

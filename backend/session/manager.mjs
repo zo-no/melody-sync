@@ -1,3 +1,39 @@
+/**
+ * Session and run orchestration — the central domain entry point.
+ *
+ * WHAT THIS FILE OWNS:
+ *   - Session CRUD (create, list, get, archive, delete, pin, rename, patch)
+ *   - Run lifecycle (start, cancel, reconcile detached runs on startup)
+ *   - Prompt construction and context assembly
+ *   - Event persistence (via history.mjs)
+ *   - Session invalidation broadcasts (via invalidation.mjs)
+ *
+ * WHAT THIS FILE DELEGATES (do not inline these back):
+ *   - Message submission flow → services/session/message-submission-service.mjs
+ *   - Follow-up queue replay  → services/session/follow-up-queue-service.mjs
+ *   - Compaction              → services/session/compaction-service.mjs
+ *   - Branch / fork / delegate → services/session/branching-service.mjs
+ *   - Persistent task flows   → services/session/persistent-service.mjs
+ *   - Organizer (auto-rename) → services/session/organizer-service.mjs
+ *   - Task card stabilization → services/session/task-card-service.mjs
+ *   - Detached run sync       → services/session/detached-run-sync-service.mjs
+ *   - Graph ops               → services/session/graph-ops-service.mjs
+ *
+ * SERVICE FACTORY PATTERN:
+ *   Each service is instantiated once at module load via createXxxService({...deps}).
+ *   Dependencies are injected so services can be tested independently.
+ *   Do not call service constructors from outside this file.
+ *
+ * EXPORTED FUNCTIONS used by HTTP controllers:
+ *   listSessions, getSession, getSessionEventsAfter, getSessionTimelineEvents,
+ *   getSessionSourceContext, getRunState, organizeSession, createSession,
+ *   setSessionArchived, deleteSessionPermanently, setSessionPinned,
+ *   renameSession, updateSession*, cancelActiveRun, startDetachedRunObservers
+ *
+ * EXPORTED UTILITIES re-exported from sub-modules (avoid importing those directly):
+ *   trimString, broadcastSessionInvalidation, broadcastSessionsInvalidation,
+ *   resolveSavedAttachments, saveAttachments, buildPrompt, resolveResumeState
+ */
 import { randomBytes } from 'crypto';
 import { watch } from 'fs';
 import { dirname, join, resolve } from 'path';

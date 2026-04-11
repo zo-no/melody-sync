@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { VOICE_CONFIG_FILE, VOICE_LOGS_DIR } from '../lib/config.mjs';
 import { buildToolProcessEnv } from '../lib/user-shell-env.mjs';
 import { isXfyunAvailable, synthesizeSpeechWithXfyun } from './xfyun-completion-tts.mjs';
+import { trimText } from './shared/text.mjs';
 
 const SAY_COMMAND = '/usr/bin/say';
 const AFPLAY_COMMAND = '/usr/bin/afplay';
@@ -34,12 +35,8 @@ async function appendCompletionSoundLog(message) {
   } catch {}
 }
 
-function trimString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 function parseFiniteNumber(value, fallback) {
-  if (typeof value === 'string' && !trimString(value)) return fallback;
+  if (typeof value === 'string' && !trimText(value)) return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
@@ -51,11 +48,11 @@ async function readRuntimeVoiceXfyunConfig(configPath = VOICE_CONFIG_FILE) {
     const tts = config?.tts && typeof config.tts === 'object' ? config.tts : {};
     const env = tts?.env && typeof tts.env === 'object' ? tts.env : {};
     return {
-      appId: trimString(env.XFYUN_APP_ID),
-      apiKey: trimString(env.XFYUN_API_KEY),
-      apiSecret: trimString(env.XFYUN_API_SECRET),
-      host: trimString(env.XFYUN_HOST),
-      voice: trimString(env.XFYUN_VOICE || tts.voice),
+      appId: trimText(env.XFYUN_APP_ID),
+      apiKey: trimText(env.XFYUN_API_KEY),
+      apiSecret: trimText(env.XFYUN_API_SECRET),
+      host: trimText(env.XFYUN_HOST),
+      voice: trimText(env.XFYUN_VOICE || tts.voice),
       speed: parseFiniteNumber(env.XFYUN_SPEED, undefined),
       volume: parseFiniteNumber(env.XFYUN_VOLUME, undefined),
       pitch: parseFiniteNumber(env.XFYUN_PITCH, undefined),
@@ -189,10 +186,10 @@ async function playXfyunSpeech({
 }) {
   const synthesis = await synthesizeSpeechWithXfyun({
     text: speechText,
-    appId: trimString(process.env.XFYUN_APP_ID || xfyunConfig.appId),
-    apiKey: trimString(process.env.XFYUN_API_KEY || xfyunConfig.apiKey),
-    apiSecret: trimString(process.env.XFYUN_API_SECRET || xfyunConfig.apiSecret),
-    host: trimString(process.env.XFYUN_HOST || xfyunConfig.host) || undefined,
+    appId: trimText(process.env.XFYUN_APP_ID || xfyunConfig.appId),
+    apiKey: trimText(process.env.XFYUN_API_KEY || xfyunConfig.apiKey),
+    apiSecret: trimText(process.env.XFYUN_API_SECRET || xfyunConfig.apiSecret),
+    host: trimText(process.env.XFYUN_HOST || xfyunConfig.host) || undefined,
     voice: String(process.env.XFYUN_VOICE || xfyunConfig.voice || mapVoiceToXfyun(voice)),
     speed: Number.isFinite(Number(process.env.XFYUN_SPEED))
       ? Number(process.env.XFYUN_SPEED)

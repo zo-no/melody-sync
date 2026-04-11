@@ -48,11 +48,7 @@ const MAX_TITLE_CHARS = 88;
 const MIN_LONG_TERM_SUGGESTION_SCORE = 6;
 const CLEAR_LONG_TERM_SUGGESTION_SCORE = 8;
 
-function trimText(value) {
-  return typeof value === 'string'
-    ? value.replace(/\s+/g, ' ').trim()
-    : '';
-}
+import { collapseText as trimText } from './text.mjs';
 
 function clipText(value, maxChars) {
   const text = trimText(value);

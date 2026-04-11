@@ -1,6 +1,4 @@
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
+import { trimText } from './text.mjs';
 
 function escapeInline(value) {
   return String(value || '').replace(/\r?\n+/g, ' ').trim();

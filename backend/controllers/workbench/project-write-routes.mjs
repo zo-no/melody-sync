@@ -13,7 +13,7 @@ export async function handleWorkbenchProjectWriteRoutes({
   payload,
   res,
   writeJson,
-} = {}) {
+}) {
   if (parts.length === 3 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'captures') {
     const captureItem = await createWorkbenchCaptureForWrite(payload);
     writeJson(res, 201, await buildWorkbenchSnapshotResponse({

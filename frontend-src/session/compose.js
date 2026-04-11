@@ -585,6 +585,7 @@ let activeTab = normalizeSidebarTab(
 const longTermWorkspace = document.getElementById("longTermWorkspace");
 const longTermWorkspaceList = document.getElementById("longTermWorkspaceList");
 const longTermWorkspaceDetail = document.getElementById("longTermWorkspaceDetail");
+const longTermOutputDetail = document.getElementById("longTermOutputDetail");
 const longTermWorkspaceCount = document.getElementById("longTermWorkspaceCount");
 const longTermWorkspaceNewBtn = document.getElementById("longTermWorkspaceNewBtn");
 const longTermWorkspaceTimeFormatter = new Intl.DateTimeFormat(undefined, {
@@ -928,6 +929,21 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
   const longTermCount = memberSessions.filter((s) => getBucket(s) === "long_term").length;
   const shortTermCount = memberSessions.filter((s) => getBucket(s) === "short_term").length;
 
+  // Find archived members of this project from all sessions
+  const projectSessionId = String(selectedProject?.id || "").trim();
+  const archivedMemberSessions = Array.isArray(sessions)
+    ? sessions.filter((s) => {
+        if (!s?.archived) return false;
+        const mem = s?.taskPoolMembership?.longTerm;
+        return String(mem?.projectSessionId || "").trim() === projectSessionId
+          && String(mem?.role || "").trim().toLowerCase() !== "project";
+      }).sort((a, b) => {
+        const ta = new Date(a?.workflowCompletedAt || a?.updatedAt || 0).getTime();
+        const tb = new Date(b?.workflowCompletedAt || b?.updatedAt || 0).getTime();
+        return tb - ta;
+      })
+    : [];
+
   // ── 2. Trigger info ─────────────────────────────────────────────
   const persistent = selectedProject?.persistent || {};
   const lastTriggerAt = persistent?.execution?.lastTriggerAt || persistent?.recurring?.lastRunAt || "";
@@ -961,6 +977,127 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
         </button>`;
       }).join("");
 
+  // ── 5. Recent outputs (self-iteration feed) ──────────────────────
+  // Collect completed branch sessions, sorted by completion time (newest first)
+  const completedBranches = branchSessions
+    .filter((s) => {
+      const state = String(s?.workflowState || "").toLowerCase();
+      return state === "done" || state === "complete" || state === "completed";
+    })
+    .sort((a, b) => {
+      const ta = new Date(a?.workflowCompletedAt || a?.updatedAt || a?.lastEventAt || 0).getTime();
+      const tb = new Date(b?.workflowCompletedAt || b?.updatedAt || b?.lastEventAt || 0).getTime();
+      return tb - ta;
+    })
+    .slice(0, 5);
+
+  const outputsHtml = completedBranches.length === 0
+    ? `<div class="ltcp-output-empty">尚无产出记录。项目执行后，每次的结论和检查点会在这里积累。</div>`
+    : completedBranches.map((s) => {
+        const name = escapeLongTermWorkspaceHtml(
+          String(s?.taskCard?.goal || s?.name || "").trim() || "未命名执行"
+        );
+        const checkpoint = escapeLongTermWorkspaceHtml(
+          String(s?.taskCard?.checkpoint || s?.taskCard?.summary || "").trim()
+        );
+        const conclusions = Array.isArray(s?.taskCard?.knownConclusions)
+          ? s.taskCard.knownConclusions.filter(Boolean).slice(0, 3)
+          : [];
+        const memory = Array.isArray(s?.taskCard?.memory)
+          ? s.taskCard.memory.filter(Boolean).slice(0, 2)
+          : [];
+        const completedAt = escapeLongTermWorkspaceHtml(
+          formatLongTermWorkspaceStamp(s?.workflowCompletedAt || s?.updatedAt || "")
+        );
+        const branchId = escapeLongTermWorkspaceHtml(String(s?.id || ""));
+        return `<button class="ltcp-output-item" type="button" data-output-branch-id="${branchId}">
+          <div class="ltcp-output-header">
+            <span class="ltcp-output-name">${name}</span>
+            <span class="ltcp-output-meta">
+              ${completedAt ? `<span class="ltcp-output-time">${completedAt}</span>` : ""}
+              <span class="ltcp-output-chevron">›</span>
+            </span>
+          </div>
+          ${checkpoint ? `<div class="ltcp-output-checkpoint">${checkpoint}</div>` : ""}
+        </button>`;
+      }).join("");
+
+  // ── 6. Digest + Loop config (self-iteration setup) ───────────────
+  const digest = persistent?.digest || {};
+  const loop = persistent?.loop || {};
+  const digestGoal = escapeLongTermWorkspaceHtml(String(digest.goal || digest.summary || "").trim());
+  const keyPoints = Array.isArray(digest.keyPoints) ? digest.keyPoints.filter(Boolean) : [];
+  const recipe = Array.isArray(digest.recipe) ? digest.recipe.filter(Boolean) : [];
+  const loopCollectInstruction = escapeLongTermWorkspaceHtml(String(loop.collect?.instruction || "").trim());
+  const loopCollectSources = Array.isArray(loop.collect?.sources) ? loop.collect.sources.filter(Boolean) : [];
+  const loopOrganize = escapeLongTermWorkspaceHtml(String(loop.organize?.instruction || "").trim());
+  const loopUse = escapeLongTermWorkspaceHtml(String(loop.use?.instruction || "").trim());
+  const loopPrune = escapeLongTermWorkspaceHtml(String(loop.prune?.instruction || "").trim());
+
+  const hasDigestContent = digestGoal || keyPoints.length > 0 || recipe.length > 0;
+  const hasLoopContent = loopCollectInstruction || loopCollectSources.length > 0 || loopOrganize || loopUse || loopPrune;
+
+  const digestHtml = hasDigestContent ? `
+    ${digestGoal ? `<div class="ltcp-digest-goal">${digestGoal}</div>` : ""}
+    ${keyPoints.length > 0 ? `
+      <div class="ltcp-digest-group">
+        <div class="ltcp-digest-label">核心记录</div>
+        <ul class="ltcp-digest-list">${keyPoints.map((p) => `<li>${escapeLongTermWorkspaceHtml(p)}</li>`).join("")}</ul>
+      </div>` : ""}
+    ${recipe.length > 0 ? `
+      <div class="ltcp-digest-group">
+        <div class="ltcp-digest-label">执行提示</div>
+        <ul class="ltcp-digest-list">${recipe.map((r) => `<li>${escapeLongTermWorkspaceHtml(r)}</li>`).join("")}</ul>
+      </div>` : ""}
+  ` : `<div class="ltcp-digest-empty">暂无沉淀摘要。项目执行后 AI 会自动更新。</div>`;
+
+  const loopHtml = hasLoopContent ? `
+    ${loopCollectSources.length > 0 ? `
+      <div class="ltcp-loop-stage">
+        <span class="ltcp-loop-stage-label">数据来源</span>
+        <span class="ltcp-loop-stage-value">${loopCollectSources.map((s) => escapeLongTermWorkspaceHtml(s)).join(" · ")}</span>
+      </div>` : ""}
+    ${loopCollectInstruction ? `
+      <div class="ltcp-loop-stage">
+        <span class="ltcp-loop-stage-label">收集</span>
+        <span class="ltcp-loop-stage-value">${loopCollectInstruction}</span>
+      </div>` : ""}
+    ${loopOrganize ? `
+      <div class="ltcp-loop-stage">
+        <span class="ltcp-loop-stage-label">整理</span>
+        <span class="ltcp-loop-stage-value">${loopOrganize}</span>
+      </div>` : ""}
+    ${loopUse ? `
+      <div class="ltcp-loop-stage">
+        <span class="ltcp-loop-stage-label">产出</span>
+        <span class="ltcp-loop-stage-value">${loopUse}</span>
+      </div>` : ""}
+    ${loopPrune ? `
+      <div class="ltcp-loop-stage">
+        <span class="ltcp-loop-stage-label">减枝</span>
+        <span class="ltcp-loop-stage-value">${loopPrune}</span>
+      </div>` : ""}
+  ` : `<div class="ltcp-loop-empty">未配置循环指令。在对话中告诉 AI 如何收集、整理和产出，它会自动写入。</div>`;
+
+  const runPrompt = escapeLongTermWorkspaceHtml(String(persistent?.execution?.runPrompt || "").trim());
+
+  // ── 7. Archived members ──────────────────────────────────────────
+  const archivedHtml = archivedMemberSessions.length === 0
+    ? `<div class="ltcp-archived-empty">暂无已归档任务</div>`
+    : archivedMemberSessions.slice(0, 20).map((s) => {
+        const name = escapeLongTermWorkspaceHtml(
+          String(s?.taskCard?.goal || s?.name || "").trim() || "未命名任务"
+        );
+        const completedAt = escapeLongTermWorkspaceHtml(
+          formatLongTermWorkspaceStamp(s?.workflowCompletedAt || s?.updatedAt || "")
+        );
+        const sid = escapeLongTermWorkspaceHtml(String(s?.id || ""));
+        return `<div class="ltcp-archived-item">
+          <span class="ltcp-archived-name">${name}</span>
+          ${completedAt ? `<span class="ltcp-archived-time">${completedAt}</span>` : ""}
+        </div>`;
+      }).join("");
+
   longTermWorkspaceDetail.innerHTML = `
     <div class="ltcp-shell">
       <div class="ltcp-header">
@@ -970,6 +1107,14 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
             ${schedule ? `<span class="ltcp-chip">${schedule}</span>` : ""}
             <span class="ltcp-chip ltcp-chip-status">${status}</span>
           </div>
+        </div>
+        <div class="ltcp-header-actions">
+          <button class="ltcp-action-btn ltcp-action-btn-secondary" type="button"
+            data-project-action="cleanup" data-project-id="${projectId}"
+            title="归档所有已完成任务">清理</button>
+          <button class="ltcp-action-btn ltcp-action-btn-danger" type="button"
+            data-project-action="delete" data-project-id="${projectId}"
+            title="解散项目：成员任务回到任务列表，项目本身归档">解散</button>
         </div>
       </div>
 
@@ -1022,7 +1167,137 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
           ${waitingHtml}
         </div>
       </div>
+
+      <div class="ltcp-section ltcp-archived-section">
+        <details class="ltcp-archived-details">
+          <summary class="ltcp-archived-summary">
+            <span class="ltcp-section-title">已归档</span>
+            <span class="ltcp-archived-count">${archivedMemberSessions.length}</span>
+          </summary>
+          <div class="ltcp-archived-list">
+            ${archivedHtml}
+          </div>
+        </details>
+      </div>
+
+      <div class="ltcp-section ltcp-outputs-section">
+        <div class="ltcp-section-title">近期产出</div>
+        <div class="ltcp-outputs-list">
+          ${outputsHtml}
+        </div>
+      </div>
+
+      <div class="ltcp-section ltcp-digest-section">
+        <div class="ltcp-section-header">
+          <span class="ltcp-section-title">沉淀摘要</span>
+          <span class="ltcp-section-hint">AI 自动更新</span>
+        </div>
+        <div class="ltcp-digest-content">
+          ${digestHtml}
+        </div>
+      </div>
+
+      ${hasLoopContent || runPrompt ? `
+      <div class="ltcp-section ltcp-loop-section">
+        <div class="ltcp-section-header">
+          <span class="ltcp-section-title">循环配置</span>
+          <span class="ltcp-section-hint">每次执行的指令</span>
+        </div>
+        <div class="ltcp-loop-content">
+          ${loopHtml}
+          ${runPrompt ? `
+            <div class="ltcp-loop-stage ltcp-loop-run-prompt">
+              <span class="ltcp-loop-stage-label">执行提示词</span>
+              <span class="ltcp-loop-stage-value">${runPrompt}</span>
+            </div>` : ""}
+        </div>
+      </div>` : ""}
     </div>`;
+}
+
+let selectedOutputBranchId = "";
+
+function renderOutputDetail(branchSession) {
+  if (!longTermOutputDetail) return;
+  if (!branchSession) {
+    longTermOutputDetail.hidden = true;
+    longTermOutputDetail.innerHTML = "";
+    selectedOutputBranchId = "";
+    return;
+  }
+  selectedOutputBranchId = String(branchSession?.id || "").trim();
+
+  const name = escapeLongTermWorkspaceHtml(
+    String(branchSession?.taskCard?.goal || branchSession?.name || "").trim() || "未命名执行"
+  );
+  const checkpoint = escapeLongTermWorkspaceHtml(
+    String(branchSession?.taskCard?.checkpoint || branchSession?.taskCard?.summary || "").trim()
+  );
+  const goal = escapeLongTermWorkspaceHtml(
+    String(branchSession?.taskCard?.goal || "").trim()
+  );
+  const conclusions = Array.isArray(branchSession?.taskCard?.knownConclusions)
+    ? branchSession.taskCard.knownConclusions.filter(Boolean)
+    : [];
+  const memory = Array.isArray(branchSession?.taskCard?.memory)
+    ? branchSession.taskCard.memory.filter(Boolean)
+    : [];
+  const nextSteps = Array.isArray(branchSession?.taskCard?.nextSteps)
+    ? branchSession.taskCard.nextSteps.filter(Boolean)
+    : [];
+  const completedAt = escapeLongTermWorkspaceHtml(
+    formatLongTermWorkspaceStamp(branchSession?.workflowCompletedAt || branchSession?.updatedAt || "")
+  );
+  const branchId = escapeLongTermWorkspaceHtml(String(branchSession?.id || ""));
+
+  longTermOutputDetail.innerHTML = `
+    <div class="ltod-shell">
+      <div class="ltod-header">
+        <button class="ltod-back" type="button" data-output-detail-close>‹ 返回</button>
+        <button class="ltod-open-chat" type="button" data-open-branch-id="${branchId}">打开对话 ›</button>
+      </div>
+      <div class="ltod-title">${name}</div>
+      ${completedAt ? `<div class="ltod-time">${completedAt}</div>` : ""}
+
+      ${checkpoint ? `
+        <div class="ltod-section">
+          <div class="ltod-section-label">进展摘要</div>
+          <div class="ltod-section-text">${checkpoint}</div>
+        </div>` : ""}
+
+      ${goal && goal !== name ? `
+        <div class="ltod-section">
+          <div class="ltod-section-label">目标</div>
+          <div class="ltod-section-text">${goal}</div>
+        </div>` : ""}
+
+      ${conclusions.length > 0 ? `
+        <div class="ltod-section">
+          <div class="ltod-section-label">关键结论</div>
+          <ul class="ltod-list ltod-list-conclusions">
+            ${conclusions.map((c) => `<li>${escapeLongTermWorkspaceHtml(c)}</li>`).join("")}
+          </ul>
+        </div>` : ""}
+
+      ${memory.length > 0 ? `
+        <div class="ltod-section">
+          <div class="ltod-section-label">持久记忆</div>
+          <ul class="ltod-list ltod-list-memory">
+            ${memory.map((m) => `<li>${escapeLongTermWorkspaceHtml(m)}</li>`).join("")}
+          </ul>
+        </div>` : ""}
+
+      ${nextSteps.length > 0 ? `
+        <div class="ltod-section">
+          <div class="ltod-section-label">下一步</div>
+          <ul class="ltod-list ltod-list-nextsteps">
+            ${nextSteps.map((n) => `<li>${escapeLongTermWorkspaceHtml(n)}</li>`).join("")}
+          </ul>
+        </div>` : ""}
+    </div>`;
+
+  longTermOutputDetail.hidden = false;
+  if (longTermWorkspaceDetail) longTermWorkspaceDetail.hidden = true;
 }
 
 function renderLongTermWorkspace() {
@@ -1143,6 +1418,10 @@ function switchTab(tab, { syncState = true } = {}) {
 globalThis.switchTab = switchTab;
 globalThis.getActiveSidebarTab = getActiveSidebarTab;
 globalThis.renderLongTermWorkspace = renderLongTermWorkspace;
+globalThis.getLongTermProjectList = () => getLongTermWorkspaceProjects().map((s) => ({
+  id: String(s?.id || "").trim(),
+  name: String(s?.name || s?.taskCard?.goal || "").trim() || "未命名项目",
+}));
 globalThis.getSelectedLongTermProjectId = () => selectedLongTermProjectId;
 
 globalThis.setSelectedLongTermProjectId = (id) => {
@@ -1165,6 +1444,12 @@ globalThis.showLongTermProjectPanel = (projectId) => {
 globalThis.hideLongTermProjectPanel = () => {
   document.body.classList.remove("long-term-workspace-active");
   if (longTermWorkspace) longTermWorkspace.hidden = true;
+  // Also close the output detail if open
+  if (longTermOutputDetail) {
+    longTermOutputDetail.hidden = true;
+    longTermOutputDetail.innerHTML = "";
+  }
+  selectedOutputBranchId = "";
 };
 
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
@@ -1182,6 +1467,28 @@ longTermWorkspaceList?.addEventListener("click", (event) => {
 });
 
 longTermWorkspaceDetail?.addEventListener("click", (event) => {
+  // Output item: open detail panel inline
+  const outputItem = event.target?.closest?.("[data-output-branch-id]");
+  if (outputItem) {
+    const branchId = String(outputItem.dataset?.outputBranchId || "").trim();
+    const branchSession = Array.isArray(sessions)
+      ? sessions.find((entry) => entry?.id === branchId) || null
+      : null;
+    if (!branchSession?.id) return;
+    // Toggle: click same item again to close
+    if (selectedOutputBranchId === branchId) {
+      renderOutputDetail(null);
+      if (longTermWorkspaceDetail) longTermWorkspaceDetail.hidden = false;
+    } else {
+      renderOutputDetail(branchSession);
+    }
+    // Mark active state on the button
+    longTermWorkspaceDetail.querySelectorAll("[data-output-branch-id]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset?.outputBranchId === branchId && selectedOutputBranchId === branchId);
+    });
+    return;
+  }
+
   const openBranchButton = event.target?.closest?.("[data-open-branch-id]");
   if (openBranchButton) {
     const branchId = String(openBranchButton.dataset?.openBranchId || "").trim();
@@ -1242,6 +1549,34 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
   if (!projectSession?.id) return;
   selectedLongTermProjectId = projectId;
 
+  if (action === "cleanup") {
+    // Archive all done/completed member sessions in this project
+    const doneStates = ["done", "complete", "completed", "finished", "完成", "已完成", "运行完毕", "运行完成"];
+    const toCleanup = memberSessions.filter((s) => {
+      const state = String(s?.workflowState || "").trim().toLowerCase();
+      return doneStates.includes(state);
+    });
+    if (toCleanup.length === 0) {
+      window.alert("没有已完成的任务需要清理。");
+      return;
+    }
+    if (!window.confirm(`将 ${toCleanup.length} 个已完成任务移入归档？`)) return;
+    void Promise.all(
+      toCleanup.map((s) =>
+        fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ archived: true }),
+        }).catch((err) => console.error(`[lt] cleanup archive ${s.id} failed:`, err))
+      )
+    ).then(() => {
+      const projects = getLongTermWorkspaceProjects();
+      renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
+      if (typeof renderSessionList === "function") renderSessionList();
+    });
+    return;
+  }
+
   if (action === "configure") {
     attachSession(projectSession.id, projectSession);
     window.MelodySyncWorkbench?.openPersistentEditor?.({
@@ -1257,6 +1592,74 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
       sessionId: projectSession.id,
       runtime: window.MelodySyncSessionTooling?.getCurrentRuntimeSelectionSnapshot?.() || undefined,
     });
+    return;
+  }
+
+  if (action === "demote") {
+    if (!window.confirm(`将「${projectSession.name || "此项目"}」降级为普通任务？定时/循环配置将被清除，但对话记录保留。`)) return;
+    void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ persistent: null }),
+    }).then(() => {
+      if (typeof window.hideLongTermProjectPanel === "function") window.hideLongTermProjectPanel();
+      if (typeof switchTab === "function") switchTab("sessions");
+      if (typeof renderSessionList === "function") renderSessionList();
+    }).catch((err) => {
+      console.error("[lt] demote project failed:", err);
+      window.alert("降级失败，请重试。");
+    });
+    return;
+  }
+
+  if (action === "delete") {
+    const memberCount = memberSessions?.length || 0;
+    const confirmMsg = memberCount > 0
+      ? `解散「${projectSession.name || "此项目"}」？\n\n${memberCount} 个归属任务将回到任务列表，项目本身将被归档。`
+      : `解散「${projectSession.name || "此项目"}」？项目将被归档。`;
+    if (!window.confirm(confirmMsg)) return;
+    // Demote all member sessions (clear project membership → they go back to tasks tab)
+    // then archive the project root itself
+    void Promise.all([
+      ...memberSessions.map((s) =>
+        fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskPoolMembership: { longTerm: null } }),
+        }).catch((err) => console.error(`[lt] demote member ${s.id} failed:`, err))
+      ),
+      fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: true }),
+      }).catch((err) => console.error(`[lt] archive root failed:`, err)),
+    ]).then(() => {
+      if (typeof window.hideLongTermProjectPanel === "function") window.hideLongTermProjectPanel();
+      if (typeof switchTab === "function") switchTab("sessions");
+      if (typeof renderSessionList === "function") renderSessionList();
+    });
+    return;
+  }
+});
+
+longTermOutputDetail?.addEventListener("click", (event) => {
+  // Back button: close detail, show main panel
+  if (event.target?.closest?.("[data-output-detail-close]")) {
+    renderOutputDetail(null);
+    if (longTermWorkspaceDetail) longTermWorkspaceDetail.hidden = false;
+    return;
+  }
+  // Open chat button: navigate to the branch session
+  const openBranchButton = event.target?.closest?.("[data-open-branch-id]");
+  if (openBranchButton) {
+    const branchId = String(openBranchButton.dataset?.openBranchId || "").trim();
+    const branchSession = Array.isArray(sessions)
+      ? sessions.find((entry) => entry?.id === branchId) || null
+      : null;
+    if (!branchSession?.id) return;
+    renderOutputDetail(null);
+    switchTab("sessions");
+    attachSession(branchSession.id, branchSession);
   }
 });
 

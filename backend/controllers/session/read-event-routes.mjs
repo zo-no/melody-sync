@@ -5,25 +5,12 @@ import {
   listSessionRawEvents,
   listSessionVisibleEvents,
 } from '../../services/session/event-read-service.mjs';
+import { getQueryValue } from '../../shared/http/query.mjs';
 
 const IMMUTABLE_PRIVATE_EVENT_CACHE_CONTROL = 'private, max-age=1296000, immutable';
 
-function getQueryStringValue(value) {
-  return typeof value === 'string'
-    ? String(value || '').trim()
-    : '';
-}
-
-export async function handleSessionEventReadRoutes({
-  req,
-  res,
-  parsedUrl,
-  sessionGetRoute,
-  authSession,
-  requireSessionAccess,
-  writeJsonCached,
-  writeJson,
-} = {}) {
+export async function handleSessionEventReadRoutes(ctx) {
+  const { req, res, parsedUrl, sessionGetRoute, authSession, requireSessionAccess, writeJsonCached, writeJson } = ctx;
   if (!sessionGetRoute || req?.method !== 'GET') {
     return false;
   }
@@ -31,7 +18,7 @@ export async function handleSessionEventReadRoutes({
   if (sessionGetRoute.kind === 'events') {
     const { sessionId } = sessionGetRoute;
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
-    const filter = getQueryStringValue(parsedUrl?.query?.filter).toLowerCase();
+    const filter = getQueryValue(parsedUrl?.query?.filter).toLowerCase();
     if (filter === 'all') {
       const events = await listSessionRawEvents(sessionId);
       writeJsonCached(req, res, { sessionId, filter: 'all', events });

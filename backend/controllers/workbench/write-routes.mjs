@@ -6,26 +6,15 @@ import {
   handleWorkbenchSessionWriteRoutes,
 } from './session-write-routes.mjs';
 
-export async function handleWorkbenchWriteRoutes({
-  req,
-  res,
-  pathname,
-  authSession,
-  requireSessionAccess,
-  writeJson,
-} = {}) {
-  if (await handleWorkbenchNodeDefinitionWriteRoutes({
-    req,
-    res,
-    pathname,
-    writeJson,
-  })) {
+export async function handleWorkbenchWriteRoutes(ctx) {
+  const { req, res, pathname, pathParts: parts, authSession, requireSessionAccess, writeJson } = ctx;
+  if (await handleWorkbenchNodeDefinitionWriteRoutes(ctx)) {
     return true;
   }
 
   if (pathname.startsWith('/api/workbench/') && req?.method === 'DELETE') {
     if (await handleWorkbenchSessionDeleteRoutes({
-      pathname,
+      parts,
       authSession,
       requireSessionAccess,
       res,
@@ -40,7 +29,6 @@ export async function handleWorkbenchWriteRoutes({
     return false;
   }
 
-  const parts = pathname.split('/').filter(Boolean);
   let payload = {};
   try {
     payload = await readJsonRequestBody(req, 65536);

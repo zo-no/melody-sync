@@ -44,12 +44,8 @@ export function buildPostAuthLocation(parsedUrl, pathname = '/') {
   return serialized ? `${nextPath}?${serialized}` : nextPath;
 }
 
-export async function handlePublicAuthRoutes({
-  req,
-  res,
-  parsedUrl,
-  pathname,
-} = {}) {
+export async function handlePublicAuthRoutes(ctx) {
+  const { req, res, parsedUrl, pathname } = ctx;
   const queryToken = parsedUrl?.query?.token;
   if (queryToken) {
     const ip = getClientIp(req);

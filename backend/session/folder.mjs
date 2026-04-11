@@ -1,10 +1,7 @@
 import { statSync } from 'fs';
 import { homedir } from 'os';
 import { join, relative, resolve, sep } from 'path';
-
-function trimString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
+import { trimText } from './text.mjs';
 
 function normalizeHomeDir(homeDir = homedir()) {
   return resolve(homeDir || homedir());
@@ -12,7 +9,7 @@ function normalizeHomeDir(homeDir = homedir()) {
 
 export function resolveSessionFolderPath(folder, homeDir = homedir()) {
   const normalizedHome = normalizeHomeDir(homeDir);
-  const trimmed = trimString(folder);
+  const trimmed = trimText(folder);
   if (!trimmed || trimmed === '~') return normalizedHome;
   if (trimmed.startsWith('~/')) return join(normalizedHome, trimmed.slice(2));
   return resolve(trimmed);
@@ -61,7 +58,7 @@ function buildCurrentHomeRebaseCandidate(resolvedFolder, homeDir = homedir()) {
 }
 
 export function canonicalizeSessionFolder(folder, options = {}) {
-  const trimmed = trimString(folder);
+  const trimmed = trimText(folder);
   if (!trimmed) return '~';
   return canonicalizeResolvedFolder(
     resolveSessionFolderPath(trimmed, options.homeDir),
@@ -71,7 +68,7 @@ export function canonicalizeSessionFolder(folder, options = {}) {
 
 export function inspectSessionFolder(folder, options = {}) {
   const normalizedHome = normalizeHomeDir(options.homeDir);
-  const trimmed = trimString(folder) || '~';
+  const trimmed = trimText(folder) || '~';
   const resolvedFolder = resolveSessionFolderPath(trimmed, normalizedHome);
   const canonicalFolder = canonicalizeResolvedFolder(resolvedFolder, normalizedHome);
 
@@ -121,6 +118,6 @@ export function inspectSessionFolder(folder, options = {}) {
 }
 
 export function buildSessionFolderUnavailableMessage(folder) {
-  const label = trimString(folder) || '~';
+  const label = trimText(folder) || '~';
   return `Session working directory does not exist on this machine: ${label}. Update the session folder or recreate the session in a valid directory.`;
 }

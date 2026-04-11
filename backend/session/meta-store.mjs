@@ -1,3 +1,21 @@
+/**
+ * Session metadata persistence — reads and writes chat-sessions.json.
+ *
+ * STORAGE CONTRACT:
+ *   - chat-sessions.json is the single source of truth for all session metadata.
+ *   - All writes go through withSessionsMetaMutation() which serializes mutations.
+ *   - On every load, normalizeStoredSessionMeta() cleans up stale/invalid fields.
+ *   - SESSIONS.md is a human-readable index derived from the JSON — always regenerated alongside.
+ *
+ * CRITICAL: All mutations MUST use withSessionsMetaMutation() or mutateSessionMeta().
+ *   Direct writes bypass the serial queue and will corrupt the file under concurrent load.
+ *
+ * NORMALIZATION (happens on every load):
+ *   - Invalid workflowState/workflowPriority values are deleted
+ *   - Malformed timestamps are deleted
+ *   - Missing folder gets defaulted to '~'
+ *   - Missing ordinals are assigned sequentially
+ */
 import { dirname } from 'path';
 import { CHAT_SESSIONS_FILE, CHAT_SESSIONS_INDEX_FILE } from '../../lib/config.mjs';
 import {

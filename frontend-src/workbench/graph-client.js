@@ -198,6 +198,8 @@
 
     const sessionRecord = getSessionRecord?.(normalizedSessionId)
       || (trimText(getCurrentSession?.()?.id || "") === normalizedSessionId ? getCurrentSession?.() : null);
+
+    // 1. Check sessionState.longTerm (projected membership)
     const projectedLongTerm = sessionRecord?.sessionState?.longTerm;
     const projectedLongTermRootSessionId = trimText(projectedLongTerm?.rootSessionId || "");
     const projectedLongTermRole = trimText(projectedLongTerm?.role || "").toLowerCase();
@@ -207,6 +209,15 @@
     ) {
       return projectedLongTermRootSessionId;
     }
+
+    // 2. Check taskPoolMembership.longTerm (explicit API-set membership)
+    const ltMembership = sessionRecord?.taskPoolMembership?.longTerm;
+    const ltProjectSessionId = trimText(ltMembership?.projectSessionId || "");
+    const ltRole = trimText(ltMembership?.role || "").toLowerCase();
+    if (ltProjectSessionId && ltRole !== "project") {
+      return ltProjectSessionId;
+    }
+
     const explicitRootSessionId = trimText(sessionRecord?.rootSessionId || "");
     if (explicitRootSessionId) return explicitRootSessionId;
 

@@ -14,6 +14,7 @@ import {
 } from '../../lib/agent-mailbox.mjs';
 import { ensureDir } from '../fs-utils.mjs';
 import { readGeneralSettings } from './general-store.mjs';
+import { trimText } from '../shared/text.mjs';
 
 const EMAIL_PROVIDER_OPTIONS = Object.freeze([
   { value: 'apple_mail', label: 'Apple Mail' },
@@ -29,24 +30,20 @@ const INSTANCE_ADDRESS_MODE_OPTIONS = Object.freeze([
   { value: 'local_part', label: '本地地址' },
 ]);
 
-function trimString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 function normalizeList(values = []) {
   return Array.from(new Set(
     (Array.isArray(values) ? values : [])
-      .map((value) => trimString(value))
+      .map((value) => trimText(value))
       .filter(Boolean),
   )).sort((left, right) => left.localeCompare(right));
 }
 
 function normalizeIdentityPatch(value = {}) {
   return {
-    ...(Object.prototype.hasOwnProperty.call(value, 'name') ? { name: trimString(value.name) } : {}),
-    ...(Object.prototype.hasOwnProperty.call(value, 'localPart') ? { localPart: trimString(value.localPart) } : {}),
-    ...(Object.prototype.hasOwnProperty.call(value, 'domain') ? { domain: trimString(value.domain) } : {}),
-    ...(Object.prototype.hasOwnProperty.call(value, 'description') ? { description: trimString(value.description) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(value, 'name') ? { name: trimText(value.name) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(value, 'localPart') ? { localPart: trimText(value.localPart) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(value, 'domain') ? { domain: trimText(value.domain) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(value, 'description') ? { description: trimText(value.description) } : {}),
     ...(Object.prototype.hasOwnProperty.call(value, 'instanceAddressMode')
       ? { instanceAddressMode: normalizeInstanceAddressMode(value.instanceAddressMode) }
       : {}),
@@ -54,14 +51,14 @@ function normalizeIdentityPatch(value = {}) {
 }
 
 function normalizeOutboundPatch(value = {}, current = {}) {
-  const requestedProvider = trimString(value.provider).toLowerCase();
+  const requestedProvider = trimText(value.provider).toLowerCase();
   return {
     ...current,
     ...(Object.prototype.hasOwnProperty.call(value, 'provider')
       ? { provider: requestedProvider === 'apple_mail' ? 'apple_mail' : 'apple_mail' }
       : {}),
-    ...(Object.prototype.hasOwnProperty.call(value, 'account') ? { account: trimString(value.account) } : {}),
-    ...(Object.prototype.hasOwnProperty.call(value, 'from') ? { from: trimString(value.from) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(value, 'account') ? { account: trimText(value.account) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(value, 'from') ? { from: trimText(value.from) } : {}),
   };
 }
 
@@ -73,16 +70,16 @@ function normalizeAutomationPatch(value = {}, current = {}) {
       ? { allowlistAutoApprove: value.allowlistAutoApprove === true }
       : {}),
     ...(Object.prototype.hasOwnProperty.call(value, 'autoApproveReviewer')
-      ? { autoApproveReviewer: trimString(value.autoApproveReviewer) || trimString(current.autoApproveReviewer) }
+      ? { autoApproveReviewer: trimText(value.autoApproveReviewer) || trimText(current.autoApproveReviewer) }
       : {}),
     ...(Object.prototype.hasOwnProperty.call(value, 'chatBaseUrl')
-      ? { chatBaseUrl: trimString(value.chatBaseUrl) || trimString(current.chatBaseUrl) }
+      ? { chatBaseUrl: trimText(value.chatBaseUrl) || trimText(current.chatBaseUrl) }
       : {}),
     ...(Object.prototype.hasOwnProperty.call(value, 'authFile')
-      ? { authFile: trimString(value.authFile) || trimString(current.authFile) }
+      ? { authFile: trimText(value.authFile) || trimText(current.authFile) }
       : {}),
     ...(Object.prototype.hasOwnProperty.call(value, 'deliveryMode')
-      ? { deliveryMode: trimString(value.deliveryMode) || trimString(current.deliveryMode) }
+      ? { deliveryMode: trimText(value.deliveryMode) || trimText(current.deliveryMode) }
       : {}),
   };
 }

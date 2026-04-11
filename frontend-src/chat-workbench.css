@@ -3,12 +3,13 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: start;
-  margin-bottom: 6px;
+  margin-bottom: 0;
   padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 14%, var(--border));
-  background: color-mix(in srgb, #ffffff 78%, var(--bg) 22%);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 56%, transparent);
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  box-shadow: none;
 }
 
 .quest-tracker[hidden],
@@ -2107,9 +2108,9 @@
   min-width: 0;
   max-width: 100%;
   padding: 6px 8px 10px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
-  background: color-mix(in srgb, var(--bg) 30%, transparent);
+  border-radius: 0;
+  border: 0;
+  background: transparent;
 }
 
 .quest-task-flow-canvas {
@@ -4025,7 +4026,7 @@ button.quest-task-flow-node {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  min-width: min-content;
   flex: 1 1 auto;
   margin-right: auto;
 }
@@ -4033,7 +4034,7 @@ button.quest-task-flow-node {
 .quest-tracker-handoff-row .quest-tracker-btn {
   flex-shrink: 0;
   white-space: nowrap;
-  min-width: 0;
+  min-width: min-content;
 }
 
 .quest-tracker-handoff-select {
@@ -6462,7 +6463,6 @@ button.quest-task-flow-node {
   stroke-dasharray: 9 6 !important;
 }
 
-body.long-term-workspace-active #taskMapRail,
 body.long-term-workspace-active .task-manager-main-column > .quest-tracker,
 body.long-term-workspace-active .task-manager-main-column > .messages,
 body.long-term-workspace-active .task-manager-main-column > .queued-panel,

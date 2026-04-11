@@ -6,6 +6,7 @@ import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from '../fs-uti
 import { loadSessionsMeta } from '../session/meta-store.mjs';
 import { getSession, setSessionArchived } from '../session/manager.mjs';
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
+import { trimText } from '../shared/text.mjs';
 
 const DAILY_MAINTENANCE_STATE_FILE = join(CONFIG_DIR, 'session-daily-maintenance.json');
 const CONTEXT_DIGEST_MD = join(MEMORY_DIR, 'context-digest.md');
@@ -13,10 +14,6 @@ const TASKS_DIR = join(MEMORY_DIR, 'tasks');
 const WORKLOG_DIR = join(MEMORY_DIR, 'worklog');
 
 let maintenanceInFlight = false;
-
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
 
 function normalizeText(value) {
   return trimText(String(value || '').replace(/\r\n/g, '\n').replace(/\s+/g, ' '));

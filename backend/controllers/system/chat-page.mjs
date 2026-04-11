@@ -9,17 +9,18 @@ import {
   serializeJsonForScript,
 } from '../../views/system/page-template.mjs';
 
-export async function handleChatPageRequest({
-  req,
-  res,
-  pathname,
-  nonce,
-  getAuthSession,
-  refreshAuthSession,
-  buildChatPageBootstrap,
-  prepareResponseBody,
-  buildHeaders,
-} = {}) {
+export async function handleChatPageRequest(ctx) {
+  const {
+    req,
+    res,
+    pathname,
+    nonce,
+    getAuthSession,
+    refreshAuthSession,
+    buildChatPageBootstrap,
+    prepareResponseBody,
+    buildHeaders,
+  } = ctx;
   if (pathname !== '/') return false;
 
   try {

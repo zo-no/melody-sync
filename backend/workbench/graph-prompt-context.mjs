@@ -1,8 +1,5 @@
 import { createTaskMapPlanContractPayload } from './task-map-plan-contract.mjs';
-
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
+import { trimText } from './shared.mjs';
 
 function clipText(value, max = 88) {
   const text = trimText(value).replace(/\s+/g, ' ');

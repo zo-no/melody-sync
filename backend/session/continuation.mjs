@@ -4,9 +4,7 @@ const MAX_EVENT_CHARS = 4000;
 const MAX_CONTEXT_CHARS = 24000;
 const TRUNCATED_MARKER = '\n[... truncated by MelodySync ...]\n';
 
-function normalizeText(value) {
-  return String(value ?? '').replace(/\r\n/g, '\n').trim();
-}
+import { normalizeText } from './text.mjs';
 
 function formatTemplateSourceLabel(evt) {
   const sourceSessionName = normalizeText(evt?.sourceSessionName);

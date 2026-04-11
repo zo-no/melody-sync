@@ -8,6 +8,7 @@ import { getAvailableToolsAsync } from '../../../lib/tools.mjs';
 
 import { pathExists, statOrNull } from '../../fs-utils.mjs';
 import { getModelsForTool } from '../../models.mjs';
+import { getQueryValue } from '../../shared/http/query.mjs';
 import { getPublicKey } from '../../push.mjs';
 import { buildAuthInfo } from '../../views/system/auth.mjs';
 import { normalizeBranchDispatchSignal } from '../../workbench/branch-dispatch-signals.mjs';
@@ -63,11 +64,6 @@ const PM_LOOP_EMPTY_APPROVAL_STATE = {
 
 function jsonError(writeJson, res, statusCode, message) {
   writeJson(res, statusCode, { error: message });
-}
-
-function getQueryValue(value, fallback = '') {
-  if (Array.isArray(value)) return typeof value[0] === 'string' ? value[0] : fallback;
-  return typeof value === 'string' ? value : fallback;
 }
 
 async function readTextIfExists(filepath, fallback = '') {
@@ -374,17 +370,18 @@ async function isDirectoryPath(path) {
   return (await statOrNull(path))?.isDirectory() === true;
 }
 
-export async function handleSystemReadRoutes({
-  req,
-  res,
-  pathname,
-  parsedUrl,
-  writeJson,
-  writeJsonCached,
-  writeFileCached,
-  getAuthSession: getAuthSessionImpl = getAuthSession,
-  refreshAuthSession: refreshAuthSessionImpl = refreshAuthSession,
-} = {}) {
+export async function handleSystemReadRoutes(ctx) {
+  const {
+    req,
+    res,
+    pathname,
+    parsedUrl,
+    writeJson,
+    writeJsonCached,
+    writeFileCached,
+    getAuthSession: getAuthSessionImpl = getAuthSession,
+    refreshAuthSession: refreshAuthSessionImpl = refreshAuthSession,
+  } = ctx;
   if (pathname === '/api/models' && req.method === 'GET') {
     const toolId = getQueryValue(parsedUrl?.query?.tool);
     const result = await getModelsForTool(toolId);

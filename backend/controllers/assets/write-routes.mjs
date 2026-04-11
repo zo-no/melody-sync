@@ -2,17 +2,18 @@ import { readJsonRequestBody } from '../../shared/http/request-body.mjs';
 
 import { parseFileAssetRoute } from './file-asset-route.mjs';
 
-export async function handleAssetWriteRoutes({
-  req,
-  res,
-  pathname,
-  authSession,
-  requireSessionAccess,
-  createFileAssetUploadIntent,
-  getFileAsset,
-  finalizeFileAssetUpload,
-  writeJson,
-} = {}) {
+export async function handleAssetWriteRoutes(ctx) {
+  const {
+    req,
+    res,
+    pathname,
+    authSession,
+    requireSessionAccess,
+    createFileAssetUploadIntent,
+    getFileAsset,
+    finalizeFileAssetUpload,
+    writeJson,
+  } = ctx;
   const fileAssetRoute = parseFileAssetRoute(pathname);
 
   if (pathname === '/api/assets/upload-intents' && req?.method === 'POST') {

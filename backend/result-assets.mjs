@@ -2,6 +2,7 @@ import { homedir } from 'os';
 import { basename, dirname, extname, isAbsolute, resolve } from 'path';
 
 import { statOrNull } from './fs-utils.mjs';
+import { trimText } from './shared/text.mjs';
 
 const MIME_EXTENSIONS = {
   'application/json': '.json',
@@ -31,12 +32,8 @@ const EXTENSION_MIME_TYPES = Object.fromEntries(
 const RESULT_FILE_MAX_ATTACHMENTS = 4;
 const RESULT_FILE_COMMAND_OUTPUT_FLAGS = new Set(['-o', '--output', '--out', '--export']);
 
-function trimString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 function expandHomePath(value) {
-  const trimmed = trimString(value);
+  const trimmed = trimText(value);
   if (!trimmed) return '';
   if (trimmed === '~') return homedir();
   if (trimmed.startsWith('~/')) return resolve(homedir(), trimmed.slice(2));
@@ -44,7 +41,7 @@ function expandHomePath(value) {
 }
 
 function pushUnique(values, candidate) {
-  const normalized = trimString(candidate);
+  const normalized = trimText(candidate);
   if (!normalized || values.includes(normalized)) return false;
   values.push(normalized);
   return true;
@@ -58,7 +55,7 @@ export function sanitizeOriginalAttachmentName(value) {
 }
 
 function normalizeResultFilePathCandidate(value) {
-  let candidate = trimString(value);
+  let candidate = trimText(value);
   if (!candidate) return '';
   candidate = candidate.replace(/^file:\/\//i, '');
   candidate = candidate.replace(/^[<('"`]+/, '').replace(/[>)'"`,;]+$/, '');
@@ -128,14 +125,14 @@ function extractSearchRootsFromCommand(command, fallbackRoot = '') {
 
 function collectResultFileSearchRoots(manifest, command = '') {
   const roots = [];
-  for (const root of extractSearchRootsFromCommand(command, trimString(manifest?.folder))) {
+  for (const root of extractSearchRootsFromCommand(command, trimText(manifest?.folder))) {
     pushUnique(roots, root);
   }
-  for (const root of extractSearchRootsFromText(manifest?.prompt || '', trimString(manifest?.folder))) {
+  for (const root of extractSearchRootsFromText(manifest?.prompt || '', trimText(manifest?.folder))) {
     pushUnique(roots, root);
   }
-  if (trimString(manifest?.folder)) {
-    pushUnique(roots, resolve(trimString(manifest.folder)));
+  if (trimText(manifest?.folder)) {
+    pushUnique(roots, resolve(trimText(manifest.folder)));
   }
   return roots;
 }
@@ -223,7 +220,7 @@ export async function collectGeneratedResultFilesFromRun(run, manifest, normaliz
 
   for (const event of normalizedEvents || []) {
     if (event?.type === 'tool_use' && event.toolName === 'bash') {
-      activeCommand = trimString(event.toolInput);
+      activeCommand = trimText(event.toolInput);
       continue;
     }
     if (event?.type !== 'tool_result' || event.toolName !== 'bash') {
@@ -262,7 +259,7 @@ export async function collectGeneratedResultFilesFromRun(run, manifest, normaliz
 export function normalizePublishedResultAssetAttachments(assets = []) {
   return (assets || [])
     .map((asset) => {
-      const assetId = trimString(asset?.assetId || asset?.id);
+      const assetId = trimText(asset?.assetId || asset?.id);
       if (!assetId) return null;
       const originalName = sanitizeOriginalAttachmentName(asset?.originalName || '');
       return {

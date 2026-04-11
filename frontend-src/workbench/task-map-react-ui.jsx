@@ -1241,6 +1241,42 @@ function getTrackerPersistentActionButtons(session, {
   if (!kind) {
     return [
       { label: isMobile ? '长期项' : '沉淀为长期项', onClick: onPromote, secondary: false },
+      {
+        label: isMobile ? '归入项目' : '归入已有项目',
+        secondary: true,
+        onClick: () => {
+          const projects = typeof window.getLongTermProjectList === 'function'
+            ? window.getLongTermProjectList()
+            : [];
+          if (projects.length === 0) {
+            window.alert('还没有长期项目，请先创建一个。');
+            return;
+          }
+          const listText = projects.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+          const input = window.prompt(`选择要归入的长期项目（输入编号）：\n\n${listText}`);
+          if (!input) return;
+          const index = Number.parseInt(input.trim(), 10) - 1;
+          if (!Number.isInteger(index) || index < 0 || index >= projects.length) {
+            window.alert('编号无效，请重新操作。');
+            return;
+          }
+          const target = projects[index];
+          if (typeof window.fetchJsonOrRedirect === 'function') {
+            void window.fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(session.id)}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                taskPoolMembership: {
+                  longTerm: { role: 'member', projectSessionId: target.id, bucket: 'inbox' },
+                },
+              }),
+            }).catch((err) => {
+              console.error('[lt] assign failed:', err);
+              window.alert('归入失败，请重试。');
+            });
+          }
+        },
+      },
     ];
   }
   if (isMobile) {
@@ -3144,6 +3180,7 @@ function SessionListGroupSection({
 }) {
   const sessions = Array.isArray(groupEntry?.sessions) ? groupEntry.sessions : [];
   const isLongTermProject = groupEntry?.type === 'long-term-project';
+  const isTasksInbox = groupEntry?.type === 'tasks-inbox';
 
   const toggleGroup = () => {
     if (isLongTermProject) {
@@ -3194,11 +3231,30 @@ function SessionListGroupSection({
   }
 
   return (
-    <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}${isLongTermProject ? ' is-long-term-project-group' : ''}`}>
+    <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}${isLongTermProject ? ' is-long-term-project-group' : ''}${isTasksInbox ? ' is-tasks-inbox-group' : ''}`}>
       {showGroupHeaders ? (
-        isLongTermProject ? (
+        isTasksInbox ? (
+          // Tasks inbox: bucket sections only, no card header, no panel entry
+          <div className="tasks-inbox-buckets">
+            {Object.values(groupEntry?.buckets || {})
+              .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
+              .map((bucketEntry) => (
+                <SessionListBucketSection
+                  key={`bucket-section:${groupEntry?.key}:${bucketEntry?.key}`}
+                  groupKey={groupEntry?.key || ''}
+                  bucketEntry={bucketEntry}
+                  isCollapsed={isGroupCollapsed(`${groupEntry?.key}:${bucketEntry?.key}`) === true}
+                  onToggleGroup={onToggleGroup}
+                  createSessionItem={createSessionItem}
+                  getSessionRenderKey={getSessionRenderKey}
+                  chevronIconHtml={chevronIconHtml}
+                />
+              ))
+            }
+          </div>
+        ) : isLongTermProject ? (
           // Long-term project: single card wrapping title + content
-          <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}`}>
+          <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}${groupEntry?.isSystem ? ' is-system' : ''}`}>
             {/* Title row: chevron + name + count — click to collapse/expand */}
             <div
               className="lt-project-card-top"
@@ -3213,8 +3269,8 @@ function SessionListGroupSection({
               }}
             >
               <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
-              {groupEntry?.isSystem ? <span className="lt-project-card-system-icon" title="内置项目" aria-label="内置项目">⊛</span> : null}
               <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
+              {groupEntry?.isSystem ? <span className="lt-project-card-default-badge">默认</span> : null}
               <span className="lt-project-card-count">{memberCount}</span>
             </div>
             {/* Collapsible content: panel entry + task buckets */}

@@ -8,16 +8,8 @@ import {
   renderPageTemplate,
 } from '../../views/system/page-template.mjs';
 
-export async function handlePublicPageRoutes({
-  req,
-  res,
-  parsedUrl,
-  pathname,
-  nonce,
-  buildHeaders,
-  prepareResponseBody,
-  writeJsonCached,
-} = {}) {
+export async function handlePublicPageRoutes(ctx) {
+  const { req, res, parsedUrl, pathname, nonce, buildHeaders, prepareResponseBody, writeJsonCached } = ctx;
   if (pathname === '/login') {
     const hasError = parsedUrl?.query?.error === '1';
     const mode = parsedUrl?.query?.mode === 'token' ? 'token' : 'pw';

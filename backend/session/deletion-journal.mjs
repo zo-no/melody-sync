@@ -16,9 +16,7 @@ function createDeleteError(message, statusCode = 409) {
   return error;
 }
 
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
+import { trimText } from './text.mjs';
 
 function clipText(value, maxChars = 160) {
   const text = trimText(value).replace(/\s+/g, ' ');

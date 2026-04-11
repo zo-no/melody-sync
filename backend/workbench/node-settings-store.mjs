@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { WORKBENCH_NODE_SETTINGS_FILE } from '../../lib/config.mjs';
 import { writeJsonAtomic } from '../fs-utils.mjs';
+import { trimText } from './shared.mjs';
 
 const NODE_LANES = Object.freeze(['main', 'branch', 'side']);
 const NODE_ROLES = Object.freeze(['state', 'action', 'summary']);
@@ -30,10 +31,6 @@ const NODE_TASK_CARD_BINDING_KEYS = Object.freeze([
   'nextSteps',
 ]);
 const RESERVED_NODE_KIND_IDS = new Set(['main', 'branch', 'candidate', 'note', 'done']);
-
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
 
 function normalizeToken(value, fallback, allowlist) {
   const normalized = trimText(value).toLowerCase();

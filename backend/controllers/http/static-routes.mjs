@@ -10,7 +10,7 @@ export async function handleStaticHttpRoutes({
   query,
   writeFileCached,
   buildHeaders,
-} = {}) {
+}) {
   const staticAsset = await resolveStaticAsset(pathname, query);
   if (!staticAsset) {
     return false;

@@ -2,19 +2,11 @@ import { applySessionHttpPatch } from '../../services/session/http-mutation-serv
 import { readSessionPatchRequest } from './patch-request.mjs';
 import { createClientSessionDetail } from '../../views/session/client.mjs';
 
-export async function handleSessionPatchRoutes({
-  req,
-  res,
-  pathname,
-  authSession,
-  requireSessionAccess,
-  writeJson,
-} = {}) {
+export async function handleSessionPatchRoutes(ctx) {
+  const { req, res, pathname, pathParts: parts, authSession, requireSessionAccess, writeJson } = ctx;
   if (!(pathname.startsWith('/api/sessions/') && req?.method === 'PATCH')) {
     return false;
   }
-
-  const parts = pathname.split('/').filter(Boolean);
   const sessionId = parts[2];
   if (parts.length !== 3 || parts[0] !== 'api' || parts[1] !== 'sessions' || !sessionId) {
     writeJson(res, 400, { error: 'Invalid session path' });

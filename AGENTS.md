@@ -31,13 +31,53 @@ Browser / mobile shell
 - Restarts are acceptable because sessions and runs reconcile from durable state
 - Use `MELODYSYNC_INSTANCE_ROOT` for isolated local/dev runtimes
 
+## HTTP Routing Architecture
+
+All authenticated routes go through a single `ctx` object (request context). The routing flow is:
+
+```
+router.mjs
+  → handleStaticHttpRoutes        (versioned frontend assets)
+  → publicRouter                  (login page, build-info, auth)
+  → handleAuthenticatedHttpRoutes (all /api/* routes)
+      builds ctx = { req, res, pathname, pathParts, parsedUrl, authSession,
+                     sessionGetRoute, writeJson, writeJsonCached, requireSessionAccess, ... }
+      → createRouter().use(handler1).use(handler2)...dispatch(ctx)
+```
+
+To add a new API route: write a handler `(ctx) => bool` and add `.use(myHandler)` in `authenticated-routes.mjs`.
+The `ctx` object contains everything a handler needs — no manual parameter threading.
+
+**Route table** (in dispatch order) — `authenticated-routes.mjs`:
+| Handler | Covers |
+|---------|--------|
+| handleAssetReadRoutes | GET /api/assets/* |
+| handleAssetWriteRoutes | POST /api/assets/* |
+| handleSessionCatalogReadRoutes | GET /api/sessions, /api/sessions/:id |
+| handleSessionEventReadRoutes | GET /api/sessions/:id/events, /source-context, /event-block |
+| handleOutputPanelReadRoutes | GET /api/output-panel |
+| handleWorkbenchReadRoutes | GET /api/workbench/* |
+| handleWorkbenchWriteRoutes | POST/DELETE /api/workbench/* |
+| handleSettingsReadRoutes | GET /api/settings/* |
+| handleSettingsWriteRoutes | PATCH/POST/DELETE /api/settings/* |
+| handleSessionPostRoutes | POST /api/sessions/:id/* (messages, fork, delegate, ...) |
+| handleSessionPatchRoutes | PATCH /api/sessions/:id |
+| handleSessionDeleteRoutes | DELETE /api/sessions/:id |
+| handleRunReadRoutes | GET /api/runs/:id |
+| handleRunWriteRoutes | POST /api/runs/:id/cancel |
+| handleHookReadRoutes | GET /api/hooks |
+| handleHookWriteRoutes | PATCH /api/hooks/:id |
+| handleSystemReadRoutes | GET /api/tools, /api/models, /api/auth/me, ... |
+| handleSystemWriteRoutes | POST /api/runtime-selection, push subscriptions, ... |
+| handleChatPageRequest | GET / (chat shell HTML) |
+
 ## High-Signal Code Map
 
 ### Backend
 
 - [`backend/router.mjs`](backend/router.mjs): main HTTP surface plus response/cache/static dispatch
 - [`backend/controllers/http/static-routes.mjs`](backend/controllers/http/static-routes.mjs): static frontend asset HTTP controller
-- [`backend/controllers/http/authenticated-routes.mjs`](backend/controllers/http/authenticated-routes.mjs): authenticated HTTP dispatch controller for app pages and APIs
+- [`backend/controllers/http/authenticated-routes.mjs`](backend/controllers/http/authenticated-routes.mjs): **route table** — all authenticated API routes registered here via `createRouter().use()`
 - [`backend/controllers/assets/read-routes.mjs`](backend/controllers/assets/read-routes.mjs): file asset HTTP read controller
 - [`backend/controllers/assets/write-routes.mjs`](backend/controllers/assets/write-routes.mjs): file asset HTTP mutation controller
 - [`backend/controllers/hooks/read-routes.mjs`](backend/controllers/hooks/read-routes.mjs): legacy hook alias HTTP read controller
@@ -63,7 +103,6 @@ Browser / mobile shell
 - [`backend/controllers/workbench/node-definition-write-routes.mjs`](backend/controllers/workbench/node-definition-write-routes.mjs): workbench node-definition HTTP mutation controller helpers
 - [`backend/controllers/workbench/project-write-routes.mjs`](backend/controllers/workbench/project-write-routes.mjs): workbench capture/project/node HTTP mutation controller helpers
 - [`backend/controllers/workbench/session-write-routes.mjs`](backend/controllers/workbench/session-write-routes.mjs): workbench branch/session/task-map HTTP mutation controller helpers
-- [`backend/services/workbench/read-service.mjs`](backend/services/workbench/read-service.mjs): workbench snapshot/tracker HTTP read orchestration
 - [`backend/services/workbench/write-service.mjs`](backend/services/workbench/write-service.mjs): workbench HTTP mutation orchestration
 - [`backend/workbench/branch-write-service.mjs`](backend/workbench/branch-write-service.mjs): workbench branch/session mutation orchestration
 - [`backend/workbench/project-write-service.mjs`](backend/workbench/project-write-service.mjs): workbench project/capture/node write wrappers
@@ -87,13 +126,15 @@ Browser / mobile shell
 - [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs): session metadata persistence
 - [`backend/session/api-shapes.mjs`](backend/session/api-shapes.mjs): API projection helpers
 - [`backend/services/settings/http-service.mjs`](backend/services/settings/http-service.mjs): settings read/update orchestration for HTTP routes
-- [`backend/services/hooks/http-service.mjs`](backend/services/hooks/http-service.mjs): legacy hook alias orchestration layered on hook settings
 - [`backend/services/session/http-message-service.mjs`](backend/services/session/http-message-service.mjs): attachment resolution plus HTTP message submission orchestration
 - [`backend/services/system/config-reload-service.mjs`](backend/services/system/config-reload-service.mjs): deferred process restart scheduling for config changes
 - [`backend/services/system/page-build-service.mjs`](backend/services/system/page-build-service.mjs): service/frontend build info, template file cache, and static asset resolution
 - [`backend/views/system/page-template.mjs`](backend/views/system/page-template.mjs): chat/login shell placeholder projection and script-safe bootstrap serialization
 - [`backend/shared/http/response-cache.mjs`](backend/shared/http/response-cache.mjs): shared HTTP ETag/compression/cached response writers
 - [`backend/shared/http/request-body.mjs`](backend/shared/http/request-body.mjs): shared JSON request-body parsing for HTTP controllers
+- [`backend/shared/http/router.mjs`](backend/shared/http/router.mjs): lightweight request router — `createRouter().use(handler).dispatch(ctx)`
+- [`backend/shared/http/query.mjs`](backend/shared/http/query.mjs): shared query-string value parser for HTTP controllers
+- [`backend/session/text.mjs`](backend/session/text.mjs): shared text-normalization helpers for the session domain
 - [`backend/workbench/index.mjs`](backend/workbench/index.mjs): task/workbench domain entry layered on sessions
 
 ### Frontend
@@ -151,7 +192,7 @@ Important files under the active instance root:
 
 - session or run semantics: start with [`backend/session/README.md`](backend/session/README.md), [`backend/run/README.md`](backend/run/README.md), then open [`backend/session/manager.mjs`](backend/session/manager.mjs)
 - storage and retention: read [`docs/application-storage-architecture.md`](docs/application-storage-architecture.md), then inspect [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs) and [`backend/run/store.mjs`](backend/run/store.mjs)
-- HTTP or route changes: start at [`backend/router.mjs`](backend/router.mjs), then narrow into `backend/routes/`
+- HTTP or route changes: start at [`backend/controllers/http/authenticated-routes.mjs`](backend/controllers/http/authenticated-routes.mjs) — the route table is there; each `.use()` entry links to the handler file
 - hooks or settings: start at [`backend/hooks/README.md`](backend/hooks/README.md) or [`backend/settings/README.md`](backend/settings/README.md)
 - workbench changes: start at [`backend/workbench/index.mjs`](backend/workbench/index.mjs) and then the matching `frontend-src/workbench/` module
 

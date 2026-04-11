@@ -1,5 +1,6 @@
 import { normalizeSessionTaskCard } from '../session/task-card.mjs';
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
+import { trimText } from '../shared/text.mjs';
 
 const MAX_DIGEST_TEXT_CHARS = 280;
 const MAX_DIGEST_ITEM_CHARS = 140;
@@ -8,10 +9,6 @@ const MAX_MESSAGE_PREVIEW_CHARS = 120;
 const MAX_LOOP_SOURCE_ITEMS = 8;
 const MAX_LOOP_SOURCE_CHARS = 120;
 const MAX_KNOWLEDGE_BASE_PATH_CHARS = 480;
-
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
 
 function clipText(value, maxChars) {
   const text = trimText(String(value || '').replace(/\s+/g, ' '));
@@ -201,6 +198,19 @@ function normalizeTimeOfDay(value) {
 
 function normalizeKnowledgeBasePath(value) {
   return clipText(value || '', MAX_KNOWLEDGE_BASE_PATH_CHARS);
+}
+
+const MAX_WORKSPACE_PATH_CHARS = 480;
+const MAX_WORKSPACE_LABEL_CHARS = 120;
+
+function normalizeWorkspace(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const path = clipText(value.path || value.dir || value.folder || '', MAX_WORKSPACE_PATH_CHARS);
+  if (!path) return null;
+  return {
+    path,
+    label: clipText(value.label || value.name || '', MAX_WORKSPACE_LABEL_CHARS),
+  };
 }
 
 function normalizeWeekdays(value) {
@@ -485,6 +495,10 @@ export function normalizeSessionPersistent(value, options = {}) {
     if (knowledgeBasePath) {
       normalized.knowledgeBasePath = knowledgeBasePath;
     }
+    const workspace = normalizeWorkspace(value.workspace || null);
+    if (workspace) {
+      normalized.workspace = workspace;
+    }
     normalized.loop = normalizePersistentLoop(value.loop, options.defaultLoop);
   } else {
     const skill = value.skill && typeof value.skill === 'object' && !Array.isArray(value.skill)
@@ -629,6 +643,12 @@ export function buildPersistentRunMessage(session = {}, persistent = {}, options
   }
   if (persistent?.knowledgeBasePath) {
     loopSections.push(`知识库路径：\n- ${persistent.knowledgeBasePath}`);
+  }
+  if (persistent?.workspace?.path) {
+    const workspaceLabel = persistent.workspace.label
+      ? `${persistent.workspace.label}（${persistent.workspace.path}）`
+      : persistent.workspace.path;
+    loopSections.push(`工作区目录：\n- ${workspaceLabel}\n- 执行任务时以此目录为工作根，可读写其中文件。`);
   }
   const titleByKind = (
     persistent?.kind === 'recurring_task' ? '[长期任务执行]'

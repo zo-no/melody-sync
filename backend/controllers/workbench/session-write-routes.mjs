@@ -20,13 +20,12 @@ import {
 import { normalizeNullableText } from '../../workbench/shared.mjs';
 
 export async function handleWorkbenchSessionDeleteRoutes({
-  pathname,
+  parts,
   authSession,
   requireSessionAccess,
   res,
   writeJson,
-} = {}) {
-  const parts = pathname.split('/').filter(Boolean);
+}) {
   if (parts.length === 6 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'task-map-plans') {
     const sessionId = parts[3];
     const planId = decodeURIComponent(parts[5]);
@@ -52,7 +51,7 @@ export async function handleWorkbenchSessionWriteRoutes({
   requireSessionAccess,
   res,
   writeJson,
-} = {}) {
+}) {
   if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'nodes' && parts[4] === 'branch') {
     const nodeId = parts[3];
     const sourceSessionId = normalizeNullableText(payload?.sourceSessionId);

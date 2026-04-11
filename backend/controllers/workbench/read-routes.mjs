@@ -5,29 +5,21 @@ import {
   buildWorkbenchTaskMapSurfaceResponse,
 } from '../../services/workbench/http-service.mjs';
 import {
-  getWorkbenchMemoryCandidatesForSessionForRead,
-  getWorkbenchOutputMetricsForRead,
-  getWorkbenchSnapshotForRead,
-  getWorkbenchTrackerSnapshotForRead,
-} from '../../services/workbench/read-service.mjs';
-import {
-  getWorkbenchNodeDefinitionsResponse,
-} from '../../services/workbench/node-definitions-http-service.mjs';
+  getWorkbenchSnapshot,
+  getWorkbenchTrackerSnapshot,
+} from '../../workbench/continuity-store.mjs';
+import { getWorkbenchOutputMetrics } from '../../workbench/output-metrics-service.mjs';
+import { listWorkbenchMemoryCandidatesForSession } from '../../workbench/memory-candidate-store.mjs';
+import { createWorkbenchNodeDefinitionsPayload } from '../../workbench/node-definitions.mjs';
 import { createTaskMapPlanContractPayload } from '../../workbench/task-map-plan-contract.mjs';
 import { listTaskMapPlansForSession } from '../../workbench/task-map-plan-service.mjs';
 import { getTaskMapGraphForSession } from '../../workbench/task-map-graph-service.mjs';
 import { getTaskMapSurfaceForSession } from '../../workbench/task-map-surface-service.mjs';
 
-export async function handleWorkbenchReadRoutes({
-  req,
-  res,
-  pathname,
-  authSession,
-  requireSessionAccess,
-  writeJson,
-} = {}) {
+export async function handleWorkbenchReadRoutes(ctx) {
+  const { req, res, pathname, pathParts: parts, authSession, requireSessionAccess, writeJson } = ctx;
   if (pathname === '/api/workbench/node-definitions' && req?.method === 'GET') {
-    writeJson(res, 200, getWorkbenchNodeDefinitionsResponse());
+    writeJson(res, 200, createWorkbenchNodeDefinitionsPayload());
     return true;
   }
 
@@ -37,14 +29,12 @@ export async function handleWorkbenchReadRoutes({
   }
 
   if (pathname === '/api/workbench' && req?.method === 'GET') {
-    const snapshot = await getWorkbenchSnapshotForRead();
-    writeJson(res, 200, snapshot);
+    writeJson(res, 200, await getWorkbenchSnapshot());
     return true;
   }
 
   if (pathname === '/api/workbench/output-metrics' && req?.method === 'GET') {
-    const metrics = await getWorkbenchOutputMetricsForRead();
-    writeJson(res, 200, metrics);
+    writeJson(res, 200, getWorkbenchOutputMetrics());
     return true;
   }
 
@@ -52,23 +42,19 @@ export async function handleWorkbenchReadRoutes({
     return false;
   }
 
-  const parts = pathname.split('/').filter(Boolean);
 
   if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'tracker') {
     const sessionId = parts[3];
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
-    const trackerSnapshot = await getWorkbenchTrackerSnapshotForRead(sessionId);
-    writeJson(res, 200, trackerSnapshot);
+    writeJson(res, 200, await getWorkbenchTrackerSnapshot(sessionId));
     return true;
   }
 
   if (parts.length === 5 && parts[0] === 'api' && parts[1] === 'workbench' && parts[2] === 'sessions' && parts[4] === 'memory-candidates') {
     const sessionId = parts[3];
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
-    const memoryCandidates = await getWorkbenchMemoryCandidatesForSessionForRead(sessionId);
-    writeJson(res, 200, await buildWorkbenchSnapshotResponse({
-      memoryCandidates,
-    }));
+    const memoryCandidates = await listWorkbenchMemoryCandidatesForSession(sessionId);
+    writeJson(res, 200, await buildWorkbenchSnapshotResponse({ memoryCandidates }));
     return true;
   }
 

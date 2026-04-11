@@ -32,14 +32,14 @@ writeFileSync(
 );
 
 try {
-  const { handleSettingsRoutes } = await import(
-    pathToFileURL(join(repoRoot, 'backend/routes/settings.mjs')).href
+  const { handleSettingsWriteRoutes } = await import(
+    pathToFileURL(join(repoRoot, 'backend/controllers/settings/write-routes.mjs')).href
   );
 
   const req = Readable.from([JSON.stringify({ brainRoot: secondAppRoot, runtimeRoot: secondRuntimeRoot })]);
   req.method = 'PATCH';
   const result = {};
-  const handled = await handleSettingsRoutes({
+  const handled = await handleSettingsWriteRoutes({
     req,
     res: {},
     pathname: '/api/settings',

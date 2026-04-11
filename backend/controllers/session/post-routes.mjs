@@ -17,16 +17,9 @@ import {
 import { submitSessionHttpMessageForClient } from '../../services/session/http-message-service.mjs';
 import { createClientSessionDetail } from '../../views/session/client.mjs';
 
-export async function handleSessionPostRoutes({
-  req,
-  res,
-  pathname,
-  authSession,
-  requireSessionAccess,
-  writeJson,
-} = {}) {
+export async function handleSessionPostRoutes(ctx) {
+  const { req, res, pathname, pathParts: parts, authSession, requireSessionAccess, writeJson } = ctx;
   if (pathname.startsWith('/api/sessions/') && req?.method === 'POST') {
-    const parts = pathname.split('/').filter(Boolean);
     const sessionId = parts[2];
     const action = parts[3] || null;
 

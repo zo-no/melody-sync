@@ -303,7 +303,8 @@ curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" \\
       "digest": { "title": "任务名称", "summary": "任务摘要" },
       "execution": { "mode": "spawn_session", "runPrompt": "执行时要做什么" },
       "recurring": { "cadence": "daily", "timeOfDay": "09:00", "timezone": "Asia/Shanghai" },
-      "knowledgeBasePath": "/absolute/path/to/knowledge/folder"
+      "knowledgeBasePath": "/absolute/path/to/knowledge/folder",
+      "workspace": { "path": "/absolute/path/to/workspace", "label": "工作区名称" }
     }
   }'
 \`\`\`
@@ -321,7 +322,8 @@ curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions/$SESSION_ID/promote-pers
     "digest": { "title": "任务名称", "summary": "任务摘要" },
     "execution": { "mode": "spawn_session", "runPrompt": "执行时要做什么" },
     "recurring": { "cadence": "daily", "timeOfDay": "09:00", "timezone": "Asia/Shanghai" },
-    "knowledgeBasePath": "/path/to/knowledge/folder"
+    "knowledgeBasePath": "/path/to/knowledge/folder",
+    "workspace": { "path": "/path/to/workspace", "label": "工作区名称" }
   }'
 \`\`\`
 
@@ -332,13 +334,21 @@ For a one-time scheduled task use \`"kind":"scheduled_task"\` and replace \`recu
 
 For a waiting task (human-triggered, no auto-schedule) use \`"kind":"waiting_task"\` with no \`scheduled\` or \`recurring\` field.
 
-### Update a Task's Schedule
+### Update a Task's Schedule or Workspace
 \`\`\`bash
 curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
   -H "Content-Type: application/json" \\
   -d '{"persistent":{"recurring":{"cadence":"weekly","timeOfDay":"10:00","weekdays":[1,3,5],"timezone":"Asia/Shanghai"}}}'
 \`\`\`
 To clear a schedule: \`{"persistent":{"scheduled":null}}\` or \`{"persistent":{"recurring":null}}\`.
+
+**Set or update workspace binding:**
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"persistent":{"workspace":{"path":"/Users/kual/projects/investing","label":"理财工作区"}}}'
+\`\`\`
+To clear workspace: \`{"persistent":{"workspace":null}}\`.
 
 ### Manually Trigger a Task Now
 \`\`\`bash
@@ -353,8 +363,9 @@ When building a project pipeline (e.g., investment workflow, product iteration):
 3. Create waiting tasks for human checkpoints (record amounts, confirm decisions, provide input).
 4. Create scheduled tasks for one-time milestones.
 5. Set \`knowledgeBasePath\` on each task to the relevant local folder.
-6. After creating all tasks, list them back to confirm the schedule.
-7. Waiting tasks block dependent recurring tasks — when the user completes a waiting task and triggers it manually, the AI picks up the next step.
+6. Set \`workspace.path\` on the project root to bind it to a local directory. When executing tasks, treat this as the working root — read source files from it, write outputs into it. \`workspace.label\` is a human-readable name shown in the UI.
+7. After creating all tasks, list them back to confirm the schedule.
+8. Waiting tasks block dependent recurring tasks — when the user completes a waiting task and triggers it manually, the AI picks up the next step.
 
 ### Task List Management (AI-Operated)
 You can manage the user's task list directly via PATCH. Do this proactively — don't wait to be asked.
@@ -387,11 +398,54 @@ curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
   -d '{"group":"短期任务"}'
 \`\`\`
 
+**Remove a session from a long-term project** (clear membership):
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"taskPoolMembership":{"longTerm":null}}'
+\`\`\`
+
+**Demote a persistent task back to a regular session** (clear persistent config):
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"persistent":null}'
+\`\`\`
+
+**Archive a completed task** (moves it to the project archive section):
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"archived":true}'
+\`\`\`
+
+### Cleanup Skill Pattern
+Create a reusable cleanup shortcut button (\`kind: "skill"\`) for a long-term project:
+\`\`\`bash
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "清理已完成任务",
+    "folder": "~/.melodysync/runtime",
+    "tool": "claude",
+    "persistent": {
+      "kind": "skill",
+      "digest": { "title": "清理已完成任务", "summary": "归档项目内所有已完成任务，整理收集箱" },
+      "execution": {
+        "mode": "in_place",
+        "runPrompt": "请检查当前长期项目内的所有任务，将 workflowState 为 done/complete 的任务归档（PATCH archived:true），并将收集箱中超过7天未处理的任务整理分类到合适的 bucket。完成后汇报清理了多少任务。"
+      }
+    }
+  }'
+\`\`\`
+
 Rules:
 - When a session's goal is clearly achieved, mark it done without asking.
 - When a new session clearly belongs to an existing project, attach it to the right bucket.
 - When the user asks you to organize their task list, sort and group all at once.
-- Use \`GET $MELODYSYNC_CHAT_BASE_URL/api/sessions?view=refs\` to list sessions before bulk operations.`;
+- Use \`GET $MELODYSYNC_CHAT_BASE_URL/api/sessions?view=refs\` to list sessions before bulk operations.
+- When a task is moved between buckets, update \`taskPoolMembership.longTerm.bucket\` via PATCH.
+- Cleanup skills appear as one-click shortcut buttons in the Skill tab.`;
   }
 
   if (options?.includeDelegationDocs) {

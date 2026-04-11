@@ -356,11 +356,12 @@ body::before {
     position: sticky;
     top: 0;
     z-index: 12;
-    margin: 0 0 12px;
+    margin: 0 0 0;
     padding: 14px 16px 13px;
-    border: 1px solid color-mix(in srgb, var(--border-strong) 20%, var(--border));
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--bg-secondary) 94%, var(--bg));
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--bg);
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -557,28 +558,29 @@ body::before {
   .sidebar-overlay {
     top: 0;
     background: var(--overlay-backdrop);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     z-index: 170;
   }
 
   .sidebar {
-    top: 0;
-    bottom: 0;
-    left: -100vw;
-    width: 100vw;
-    max-width: 100vw;
+    top: calc(var(--safe-top, 0px) + 8px);
+    bottom: 8px;
+    left: calc(-85vw - 24px);
+    width: 85vw;
+    max-width: 360px;
     padding-top: 0;
-    border: 0;
-    border-radius: 0;
-    background: color-mix(in srgb, var(--bg) 96%, var(--bg-secondary) 4%);
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    border-radius: 16px 20px 20px 16px;
+    background: color-mix(in srgb, var(--bg) 92%, var(--bg-secondary) 8%);
+    box-shadow: 4px 0 40px rgba(0, 0, 0, 0.2), 0 0 0 0.5px color-mix(in srgb, var(--border) 40%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: left 0.26s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   .sidebar-overlay.open .sidebar {
-    left: 0;
+    left: 8px;
   }
 
   .sidebar-header,
@@ -591,9 +593,9 @@ body::before {
     justify-content: space-between;
     gap: 12px;
     min-height: 0;
-    padding: calc(var(--safe-top) + 8px) 16px 10px;
-    background: color-mix(in srgb, var(--bg) 94%, var(--bg-secondary) 6%);
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    padding: 14px 16px 12px;
+    background: transparent;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
     z-index: 5;
   }
 
@@ -627,7 +629,7 @@ body::before {
   }
 
   .session-list-actions {
-    padding: 0 16px calc(14px + var(--safe-bottom));
+    padding: 0 16px 16px;
   }
 
   .task-manager-body {
@@ -658,11 +660,12 @@ body::before {
     position: sticky;
     top: 0;
     z-index: 24;
-    margin: 0 0 10px;
+    margin: 0 0 0;
     padding: 12px 12px 11px;
-    border: 1px solid color-mix(in srgb, var(--border-strong) 20%, var(--border));
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--bg-secondary) 94%, var(--bg));
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--bg);
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -763,23 +766,24 @@ body::before {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
+    top: calc(var(--safe-top, 0px) + 8px);
+    right: 8px;
+    bottom: 8px;
+    width: 85vw;
+    max-width: 360px;
     padding-top: 0;
-    border: 0;
-    border-radius: 0;
-    background: color-mix(in srgb, var(--bg) 96%, var(--bg-secondary) 4%);
-    box-shadow: none;
-    transform: translateX(100%);
-    transition: transform 0.22s ease, opacity 0.22s ease;
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    border-radius: 20px 16px 16px 20px;
+    background: color-mix(in srgb, var(--bg) 92%, var(--bg-secondary) 8%);
+    box-shadow: -4px 0 40px rgba(0, 0, 0, 0.2), 0 0 0 0.5px color-mix(in srgb, var(--border) 40%, transparent);
+    transform: translateX(calc(100% + 32px));
+    transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.26s ease;
     opacity: 0;
     overflow: hidden;
     z-index: 180;
     pointer-events: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
   .task-map-rail.is-mobile-drawer.is-mobile-open {
@@ -800,7 +804,7 @@ body::before {
     height: 100%;
     max-height: 100%;
     overflow: auto;
-    padding: 12px 14px calc(18px + var(--safe-bottom));
+    padding: 12px 14px 18px;
   }
 
   .task-map-rail.is-mobile-drawer .quest-task-mindmap-scroll {

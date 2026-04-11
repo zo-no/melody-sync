@@ -1,9 +1,7 @@
-function trimString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
+import { trimText } from './shared/text.mjs';
 
 function normalizeSourceKey(value) {
-  return trimString(value).toLowerCase();
+  return trimText(value).toLowerCase();
 }
 
 function buildVoiceRuntimePrompt() {
@@ -39,7 +37,7 @@ function buildObserverRuntimePrompt() {
 }
 
 function buildGithubRuntimePrompt(session) {
-  const sourceName = trimString(session?.sourceName) || 'GitHub';
+  const sourceName = trimText(session?.sourceName) || 'GitHub';
   return [
     `You are interacting through ${sourceName} via MelodySync on the user's own machine.`,
     'Behave like the same local workspace agent you would be in MelodySync chat: when the user asks you to inspect, modify, verify, or troubleshoot code, actually do the work before replying.',

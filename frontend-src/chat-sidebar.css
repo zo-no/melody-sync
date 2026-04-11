@@ -748,6 +748,7 @@
 }
 
 .session-item {
+  position: relative;
   padding: 6px 7px 6px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 1px;
   border: 1px solid transparent; display: flex; align-items: flex-start; gap: 6px;
   transition: background 0.12s ease;
@@ -1234,6 +1235,45 @@
   padding: 0 2px;
 }
 .session-item-actions { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
+
+/* Overflow menu for inlineHidden actions */
+.session-item-overflow-menu {
+  display: none;
+  position: absolute;
+  right: 4px;
+  top: calc(100% + 2px);
+  z-index: 200;
+  min-width: 140px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 4px;
+  flex-direction: column;
+  gap: 1px;
+}
+.session-item.is-actions-open .session-item-overflow-menu {
+  display: flex;
+}
+.session-overflow-action {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  opacity: 1 !important;
+}
+.session-overflow-action:hover { background: var(--bg-secondary); color: var(--text); }
+.session-overflow-action.remove-from-project,
+.session-overflow-action.demote-persistent { color: color-mix(in srgb, #e53e3e 70%, var(--text-secondary)); }
+.session-overflow-action.remove-from-project:hover,
+.session-overflow-action.demote-persistent:hover { background: color-mix(in srgb, #e53e3e 8%, var(--bg-secondary)); }
 .session-item-actions-toggle {
   display: none;
   appearance: none;
@@ -1244,6 +1284,16 @@
   align-items: center;
   justify-content: center;
   padding: 0;
+}
+
+/* Show toggle on desktop when item has overflow actions */
+.session-item.has-actions-toggle:hover .session-item-actions-toggle,
+.session-item.has-actions-toggle.is-actions-open .session-item-actions-toggle {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 .session-item-actions-toggle:hover {
   color: var(--text);

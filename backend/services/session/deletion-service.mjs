@@ -9,10 +9,7 @@ import { loadSessionsMeta, withSessionsMetaMutation } from '../../session/meta-s
 import { normalizePublishedResultAssetAttachments } from '../../result-assets.mjs';
 import { workbenchQueue } from '../../workbench/queues.mjs';
 import { loadWorkbenchState, saveWorkbenchState } from '../../workbench/state-store.mjs';
-
-function trimString(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
+import { trimText } from '../../shared/text.mjs';
 
 export function collectSessionTreeIds(rootSessionId, metas = []) {
   const queue = [rootSessionId];
@@ -38,8 +35,8 @@ export function collectSessionTreeIds(rootSessionId, metas = []) {
 }
 
 function isManagedSessionPath(candidatePath, managedDir) {
-  const target = trimString(candidatePath);
-  const baseDir = trimString(managedDir);
+  const target = trimText(candidatePath);
+  const baseDir = trimText(managedDir);
   if (!target || !baseDir) return false;
   const resolvedTarget = resolve(target);
   const resolvedBase = resolve(managedDir);
@@ -57,8 +54,8 @@ function collectSessionManagedArtifacts(historiesBySessionId = {}, sessionIds = 
     for (const event of events) {
       if (!Array.isArray(event?.images)) continue;
       for (const image of event.images) {
-        const savedPath = trimString(image?.savedPath);
-        const assetId = trimString(image?.assetId);
+        const savedPath = trimText(image?.savedPath);
+        const assetId = trimText(image?.assetId);
         if (savedPath && (
           isManagedSessionPath(savedPath, CHAT_IMAGES_DIR)
           || isManagedSessionPath(savedPath, CHAT_FILE_ASSET_CACHE_DIR)
@@ -87,8 +84,8 @@ async function collectRunPublishedFileAssetIds(sessionIds = []) {
     const run = await getRun(runId);
     if (!run?.sessionId || !targets.has(run.sessionId)) continue;
     for (const attachment of normalizePublishedResultAssetAttachments(run?.publishedResultAssets || [])) {
-      if (trimString(attachment?.assetId)) {
-        fileAssetIds.add(trimString(attachment.assetId));
+      if (trimText(attachment?.assetId)) {
+        fileAssetIds.add(trimText(attachment.assetId));
       }
     }
   }
@@ -103,52 +100,52 @@ async function pruneWorkbenchSessionArtifacts(sessionIds = []) {
     const state = await loadWorkbenchState();
     const removedProjectIds = new Set(
       (state.projects || [])
-        .filter((entry) => targetIds.has(trimString(entry?.scopeKey)))
-        .map((entry) => trimString(entry?.id))
+        .filter((entry) => targetIds.has(trimText(entry?.scopeKey)))
+        .map((entry) => trimText(entry?.id))
         .filter(Boolean),
     );
 
-    state.projects = (state.projects || []).filter((entry) => !targetIds.has(trimString(entry?.scopeKey)));
+    state.projects = (state.projects || []).filter((entry) => !targetIds.has(trimText(entry?.scopeKey)));
     state.branchContexts = (state.branchContexts || []).filter((entry) => (
-      !targetIds.has(trimString(entry?.sessionId))
-      && !targetIds.has(trimString(entry?.parentSessionId))
+      !targetIds.has(trimText(entry?.sessionId))
+      && !targetIds.has(trimText(entry?.parentSessionId))
     ));
     state.taskMapPlans = (state.taskMapPlans || []).flatMap((plan) => {
-      if (targetIds.has(trimString(plan?.rootSessionId))) {
+      if (targetIds.has(trimText(plan?.rootSessionId))) {
         return [];
       }
       const removedNodeIds = new Set(
         (Array.isArray(plan?.nodes) ? plan.nodes : [])
           .filter((node) => (
-            targetIds.has(trimString(node?.sessionId))
-            || targetIds.has(trimString(node?.sourceSessionId))
+            targetIds.has(trimText(node?.sessionId))
+            || targetIds.has(trimText(node?.sourceSessionId))
           ))
-          .map((node) => trimString(node?.id))
+          .map((node) => trimText(node?.id))
           .filter(Boolean),
       );
       if (!removedNodeIds.size) {
         return [plan];
       }
-      const nodes = (plan.nodes || []).filter((node) => !removedNodeIds.has(trimString(node?.id)));
+      const nodes = (plan.nodes || []).filter((node) => !removedNodeIds.has(trimText(node?.id)));
       if (!nodes.length) {
         return [];
       }
-      const nodeIds = new Set(nodes.map((node) => trimString(node?.id)).filter(Boolean));
+      const nodeIds = new Set(nodes.map((node) => trimText(node?.id)).filter(Boolean));
       const edges = (plan.edges || []).filter((edge) => (
-        nodeIds.has(trimString(edge?.fromNodeId))
-        && nodeIds.has(trimString(edge?.toNodeId))
+        nodeIds.has(trimText(edge?.fromNodeId))
+        && nodeIds.has(trimText(edge?.toNodeId))
       ));
       return [{
         ...plan,
         nodes,
         edges,
-        activeNodeId: nodeIds.has(trimString(plan?.activeNodeId))
-          ? trimString(plan.activeNodeId)
-          : trimString(nodes[0]?.id),
+        activeNodeId: nodeIds.has(trimText(plan?.activeNodeId))
+          ? trimText(plan.activeNodeId)
+          : trimText(nodes[0]?.id),
       }];
     });
-    state.nodes = (state.nodes || []).filter((entry) => !removedProjectIds.has(trimString(entry?.projectId)));
-    state.summaries = (state.summaries || []).filter((entry) => !removedProjectIds.has(trimString(entry?.projectId)));
+    state.nodes = (state.nodes || []).filter((entry) => !removedProjectIds.has(trimText(entry?.projectId)));
+    state.summaries = (state.summaries || []).filter((entry) => !removedProjectIds.has(trimText(entry?.projectId)));
 
     await saveWorkbenchState(state);
   });
@@ -210,7 +207,7 @@ export async function writePermanentSessionDeletionJournal(deletionPlan) {
 export async function deleteSessionTreeMetadata(targetIdSet) {
   return withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
     const treeIds = metas
-      .map((meta) => trimString(meta?.id))
+      .map((meta) => trimText(meta?.id))
       .filter((sessionId) => sessionId && targetIdSet.has(sessionId));
     if (!treeIds.length) return [];
     const matchedIds = new Set(treeIds);

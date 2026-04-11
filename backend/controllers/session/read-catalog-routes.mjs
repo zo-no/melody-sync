@@ -2,29 +2,16 @@ import {
   getSessionCatalogDetailForClient,
   getSessionCatalogListForClient,
 } from '../../services/session/catalog-read-service.mjs';
+import { getQueryValue } from '../../shared/http/query.mjs';
 
-function getQueryStringValue(value) {
-  return typeof value === 'string'
-    ? String(value || '').trim()
-    : '';
-}
-
-export async function handleSessionCatalogReadRoutes({
-  req,
-  res,
-  parsedUrl,
-  sessionGetRoute,
-  authSession,
-  requireSessionAccess,
-  writeJsonCached,
-  writeJson,
-} = {}) {
+export async function handleSessionCatalogReadRoutes(ctx) {
+  const { req, res, parsedUrl, sessionGetRoute, authSession, requireSessionAccess, writeJsonCached, writeJson } = ctx;
   if (!sessionGetRoute || req?.method !== 'GET') {
     return false;
   }
 
   if (sessionGetRoute.kind === 'list' || sessionGetRoute.kind === 'archived-list') {
-    const view = getQueryStringValue(parsedUrl?.query?.view).toLowerCase();
+    const view = getQueryValue(parsedUrl?.query?.view).toLowerCase();
     const payload = await getSessionCatalogListForClient({
       sourceId: typeof parsedUrl?.query?.sourceId === 'string' ? parsedUrl.query.sourceId : '',
       folder: typeof parsedUrl?.query?.folder === 'string' ? parsedUrl.query.folder : '',
@@ -38,7 +25,7 @@ export async function handleSessionCatalogReadRoutes({
   if (sessionGetRoute.kind === 'detail') {
     const { sessionId } = sessionGetRoute;
     if (!requireSessionAccess(res, authSession, sessionId)) return true;
-    const view = getQueryStringValue(parsedUrl?.query?.view).toLowerCase();
+    const view = getQueryValue(parsedUrl?.query?.view).toLowerCase();
     const session = await getSessionCatalogDetailForClient(sessionId, {
       summaryOnly: view === 'summary' || view === 'sidebar',
     });

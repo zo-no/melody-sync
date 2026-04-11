@@ -117,6 +117,21 @@ export function buildTaskClusters(state, sessions = []) {
     }
   }
 
+  // Build a map of long-term project memberships:
+  // projectSessionId → Set of member session IDs
+  const longTermProjectMembers = new Map();
+  for (const session of allSessions) {
+    const membership = session?.taskPoolMembership?.longTerm;
+    if (!membership?.projectSessionId) continue;
+    const projectId = normalizeNullableText(membership.projectSessionId);
+    const role = normalizeNullableText(membership.role).toLowerCase();
+    if (!projectId || role === 'project') continue;
+    if (!longTermProjectMembers.has(projectId)) {
+      longTermProjectMembers.set(projectId, new Set());
+    }
+    longTermProjectMembers.get(projectId).add(session.id);
+  }
+
   const branchChildren = new Map();
   const roots = [];
   for (const session of allSessions) {
@@ -126,13 +141,30 @@ export function buildTaskClusters(state, sessions = []) {
     const explicitParent = explicitParentId && sessionMap.has(explicitParentId)
       ? sessionMap.get(explicitParentId)
       : null;
+
+    // Long-term project membership: treat project root as parent
+    const ltMembership = session?.taskPoolMembership?.longTerm;
+    const ltProjectId = ltMembership?.projectSessionId
+      ? normalizeNullableText(ltMembership.projectSessionId)
+      : '';
+    const ltRole = ltMembership?.role ? normalizeNullableText(ltMembership.role).toLowerCase() : '';
+    const ltProjectRoot = ltProjectId && ltRole !== 'project' && sessionMap.has(ltProjectId)
+      ? sessionMap.get(ltProjectId)
+      : null;
+
     const goalParent = !explicitParent && lineRole === 'branch'
       ? mainSessionsByGoal.get(getSessionClusterGoal(session, context).toLowerCase()) || null
       : null;
-    const parent = explicitParent || goalParent;
-    if (lineRole === 'branch' && parent?.id) {
+
+    // Priority: explicit parent > long-term project root > goal-matched parent
+    const parent = explicitParent || ltProjectRoot || goalParent;
+    if (parent?.id && (lineRole === 'branch' || ltProjectRoot)) {
       if (!branchChildren.has(parent.id)) branchChildren.set(parent.id, []);
-      branchChildren.get(parent.id).push({ session, context });
+      // Avoid duplicates
+      const existing = branchChildren.get(parent.id);
+      if (!existing.some((e) => e.session.id === session.id)) {
+        existing.push({ session, context });
+      }
       continue;
     }
     if (!session?.archived) {

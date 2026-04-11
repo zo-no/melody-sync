@@ -83,23 +83,24 @@ function buildOpportunityDispatchPayload(opportunity = {}, spec = null) {
   };
 }
 
-export async function handleSystemWriteRoutes({
-  req,
-  res,
-  pathname,
-  writeJson,
-  getAuthSession: getAuthSessionImpl = getAuthSession,
-  playHostCompletionSound: playHostCompletionSoundImpl = playHostCompletionSound,
-  readPmLoopState = () => readJsonIfExists(PM_LOOP_STATE_PATH, {
-    opportunities: [],
-    specs: [],
-  }),
-  readPmLoopApprovalState = () => readJsonIfExists(PM_LOOP_APPROVAL_STATE_PATH, PM_LOOP_EMPTY_APPROVAL_STATE),
-  writePmLoopApprovalState = (payload) => writeJsonFile(PM_LOOP_APPROVAL_STATE_PATH, payload),
-  getWorkbenchSession: getWorkbenchSessionImpl = getWorkbenchSession,
-  createBranchFromSession: createBranchFromSessionImpl = createBranchFromSession,
-  recordBranchDispatchSignal: recordBranchDispatchSignalImpl = recordBranchDispatchSignal,
-} = {}) {
+export async function handleSystemWriteRoutes(ctx) {
+  const {
+    req,
+    res,
+    pathname,
+    writeJson,
+    getAuthSession: getAuthSessionImpl = getAuthSession,
+    playHostCompletionSound: playHostCompletionSoundImpl = playHostCompletionSound,
+    readPmLoopState = () => readJsonIfExists(PM_LOOP_STATE_PATH, {
+      opportunities: [],
+      specs: [],
+    }),
+    readPmLoopApprovalState = () => readJsonIfExists(PM_LOOP_APPROVAL_STATE_PATH, PM_LOOP_EMPTY_APPROVAL_STATE),
+    writePmLoopApprovalState = (payload) => writeJsonFile(PM_LOOP_APPROVAL_STATE_PATH, payload),
+    getWorkbenchSession: getWorkbenchSessionImpl = getWorkbenchSession,
+    createBranchFromSession: createBranchFromSessionImpl = createBranchFromSession,
+    recordBranchDispatchSignal: recordBranchDispatchSignalImpl = recordBranchDispatchSignal,
+  } = ctx;
   if (pathname === '/api/runtime-selection' && req.method === 'POST') {
     let body;
     try {

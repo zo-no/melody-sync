@@ -18,6 +18,7 @@ import {
   resolveMelodySyncRuntimeRoot,
 } from '../../lib/config.mjs';
 import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from '../fs-utils.mjs';
+import { trimText } from '../shared/text.mjs';
 
 const DEFAULT_SETTINGS = Object.freeze({
   brainRoot: '',
@@ -29,10 +30,6 @@ const DEFAULT_APP_SCOPED_SETTINGS = Object.freeze({});
 const DEFAULT_COMPLETION_SOUND_ENABLED = true;
 const TASK_LIST_TEMPLATE_GROUP_MAX_ITEMS = 12;
 const TASK_LIST_TEMPLATE_GROUP_MAX_CHARS = 32;
-
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
 
 function normalizeAppRootPath(value) {
   const trimmed = trimText(value);
