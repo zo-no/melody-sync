@@ -278,18 +278,11 @@ function isSkillSessionForList(session) {
 
 function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
   if (tab === "sessions") {
-    // Tasks tab: aggregate view — show long_term + short_term members from all projects
-    // (inbox, waiting, skill buckets are excluded — they need separate attention)
-    if (isLongTermProjectSessionForList(session)) return false; // project roots not shown here
-    const model = getSessionListModel();
-    const membership = typeof model?.getLongTermTaskPoolMembership === "function"
-      ? model.getLongTermTaskPoolMembership(session)
-      : null;
-    if (!membership?.projectSessionId) return false;
-    const bucket = inferLongTermSessionBucket(session);
-    // Show all active task buckets — long_term, short_term, and inbox (general tasks)
-    // Exclude waiting (needs human action, shown separately) and skill (quick actions)
-    return bucket === "long_term" || bucket === "short_term" || bucket === "inbox";
+    // Project roots never shown in tasks tab
+    if (isLongTermProjectSessionForList(session)) return false;
+    // Skills never shown in tasks tab
+    if (isSkillSessionForList(session)) return false;
+    return true;
   }
   if (tab === "long-term") {
     return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
@@ -307,43 +300,45 @@ function renderSessionList() {
   const isSessionsTab = activeSidebarTab === "sessions";
   const groupingMode = getSessionGroupingModeForList();
   const showGroupingFolderControls = !isLongTermTab;
-  const pinnedSessions = filterSessionsForSidebarTab(
-    getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
-    activeSidebarTab,
-  );
+  // Pinned sessions only shown in the sessions tab, not in the long-term projects tab
+  const pinnedSessions = isLongTermTab
+    ? []
+    : filterSessionsForSidebarTab(
+        getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
+        activeSidebarTab,
+      );
   const visibleSessions = filterSessionsForSidebarTab(
     getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
     activeSidebarTab,
   );
   const groups = new Map();
   if (isSessionsTab) {
-    // Tasks tab: flat per-project groups (no bucket sub-folders)
-    // Shows long_term + short_term members from all projects
-    const model = getSessionListModel();
-    const allActive = typeof getVisibleActiveSessions === "function" ? getVisibleActiveSessions() : [];
+    // Tasks tab: unclassified tasks shown in a "任务一览" group with bucket sub-sections
+    const INBOX_GROUP_KEY = "group:tasks-inbox";
+    const INBOX_BUCKET_DEFS = [
+      { key: "long_term", label: "长期任务", order: 0 },
+      { key: "short_term", label: "短期任务", order: 1 },
+      { key: "waiting", label: "等待任务", order: 2 },
+      { key: "inbox", label: "收集箱", order: 3 },
+    ];
     for (const session of visibleSessions) {
       if (!session?.id) continue;
-      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
-        ? model.getLongTermTaskPoolMembership(session)
-        : null;
-      const projectId = membership?.projectSessionId || "";
-      if (!projectId) continue;
-      const groupKey = `group:tasks-project:${projectId}`;
-      if (!groups.has(groupKey)) {
-        const projectSession = allActive.find((s) => s?.id === projectId) || null;
-        const projectTitle = String(projectSession?.name || "项目").trim() || "项目";
-        const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
-        groups.set(groupKey, {
-          key: groupKey,
-          label: projectTitle,
-          title: projectTitle,
-          order: isSystemProject ? -(groups.size + 1) : groups.size,
-          type: "tasks-project",
-          projectId,
+      if (!groups.has(INBOX_GROUP_KEY)) {
+        groups.set(INBOX_GROUP_KEY, {
+          key: INBOX_GROUP_KEY,
+          label: "任务一览",
+          title: "任务一览",
+          order: 0,
+          type: "tasks-inbox",
           sessions: [],
+          buckets: Object.fromEntries(INBOX_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
         });
       }
-      groups.get(groupKey).sessions.push(session);
+      const groupEntry = groups.get(INBOX_GROUP_KEY);
+      groupEntry.sessions.push(session);
+      const bucket = inferLongTermSessionBucket(session);
+      const bucketKey = (bucket === "long_term" || bucket === "short_term" || bucket === "waiting") ? bucket : "inbox";
+      groupEntry.buckets[bucketKey].sessions.push(session);
     }
   } else if (isLongTermTab) {
     // Build per-project groups with bucket sub-folders
@@ -468,6 +463,16 @@ function renderSessionList() {
           projectId: groupEntry.projectId,
           isSystem: groupEntry.isSystem === true,
           projectSession: groupEntry.projectSession || null,
+          buckets: Object.values(groupEntry.buckets).map((b) => ({
+            key: b.key,
+            label: b.label,
+            order: b.order,
+            sessions: b.sessions,
+            collapsed: collapsedFolders[`${groupKey}:${b.key}`] === true,
+          })),
+        } : {}),
+        ...(groupEntry.type === "tasks-inbox" ? {
+          type: "tasks-inbox",
           buckets: Object.values(groupEntry.buckets).map((b) => ({
             key: b.key,
             label: b.label,
@@ -895,6 +900,10 @@ function attachSession(id, session) {
     }
     if (typeof window.showLongTermProjectPanel === "function") {
       window.showLongTermProjectPanel(id);
+    }
+    // Still render the session list so the sidebar shows the correct project tab
+    if (typeof renderSessionList === "function") {
+      renderSessionList();
     }
     return;
   }

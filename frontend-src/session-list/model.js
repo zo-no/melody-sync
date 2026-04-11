@@ -559,7 +559,10 @@
         className: "session-list-badge session-list-badge-source-voice",
       });
     }
-    if ((entry?.branch ?? isBranchTaskSession(session)) === true) {
+    // Skip branch badge for project members — they have explicit project membership,
+    // the branch lineage is just how they were originally created
+    const hasProjectMembership = Boolean(getLongTermTaskPoolMembership(session)?.projectSessionId);
+    if (!hasProjectMembership && (entry?.branch ?? isBranchTaskSession(session)) === true) {
       badges.push({
         key: "branch",
         label: translate("sidebar.branchTag"),
@@ -571,7 +574,9 @@
 
   function getSessionListEntry(session, options = {}) {
     const archived = options?.archived === true || session?.archived === true;
-    const branch = isBranchTaskSession(session);
+    // Project members are not treated as branches even if they have branch lineage
+    const hasProjectMembership = Boolean(getLongTermTaskPoolMembership(session)?.projectSessionId);
+    const branch = !hasProjectMembership && isBranchTaskSession(session);
     const branchStatus = branch ? getBranchTaskStatus(session) : "";
     const hideBranchTasks = options?.hideBranchTasks === true
       || (options?.hideBranchTasks !== false && shouldHideBranchTaskSessions());
