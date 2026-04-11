@@ -1,3 +1,31 @@
+/**
+ * Workbench coordinator — wires the task tracker, task map, and task canvas panels.
+ *
+ * WHAT THIS FILE OWNS:
+ *   - Tracker panel: renders session state, branch candidates, persistent task summary
+ *   - Task map rail: renders the graph board (delegated to MelodySyncTaskMapFlowRenderer)
+ *   - Task canvas: renders node detail panel when a graph node is selected
+ *   - Resize/layout: desktop task map resize handle, mobile drawer
+ *   - Refresh scheduling: debounced snapshot refresh, tracker refresh, task map graph refresh
+ *
+ * STATE (module-level, all private to this IIFE):
+ *   snapshot        — latest workbench snapshot from /api/workbench
+ *   focusedSessionId — which session the tracker is pinned to (empty = follow active session)
+ *   taskMapRailBoard — current React root for the task map (destroyed/recreated on session change)
+ *   taskCanvasController — current task canvas instance
+ *
+ * KEY INVARIANT:
+ *   renderTaskMapRailBoard() guards against re-rendering the same board object —
+ *   always check `if (board && taskMapRailBoard === board) return` before destroying.
+ *   Skipping this causes React root flicker on node clicks.
+ *
+ * EXTERNAL DEPENDENCIES (globals injected by other modules):
+ *   window.MelodySyncTaskMapFlowRenderer, window.MelodySyncBranchActions,
+ *   window.MelodySyncTaskCanvas, window.MelodySyncGraphClient
+ *
+ * TO ADD A NEW TRACKER SECTION: add a renderXxx() call inside renderTracker().
+ * TO ADD A NEW TASK MAP SURFACE: update the graph client and add a case in renderTaskMapRail().
+ */
 (function workbenchModule() {
   const tracker = document.getElementById("questTracker");
   const trackerStatusEl = document.getElementById("questTrackerStatus");
@@ -2396,6 +2424,7 @@
     if (["short_term", "short_term_iteration", "短期任务", "短期迭代"].includes(normalized)) return "short_term";
     if (["waiting", "waiting_user", "waiting_for", "等待任务", "等待"].includes(normalized)) return "waiting";
     if (["inbox", "collect", "collection", "capture", "收集箱"].includes(normalized)) return "inbox";
+    if (["skill", "quick_action", "quick-action", "快捷按钮", "快捷动作"].includes(normalized)) return "skill";
     return "";
   }
 
@@ -2406,6 +2435,7 @@
     if (persistentKind === "recurring_task") return "long_term";
     if (persistentKind === "scheduled_task") return "short_term";
     if (persistentKind === "waiting_task") return "waiting";
+    if (persistentKind === "skill") return "skill";
     const workflowState = normalizeWorkflowState(session?.workflowState || "");
     if (workflowState === "waiting_user") return "waiting";
     return "inbox";

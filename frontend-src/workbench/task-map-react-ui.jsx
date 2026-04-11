@@ -3053,11 +3053,12 @@ function SessionListBucketSection({
   const bucketKey = `${groupKey}:${bucketEntry?.key || ''}`;
   const bucketSessions = Array.isArray(bucketEntry?.sessions) ? bucketEntry.sessions : [];
   if (bucketSessions.length === 0) return null;
+  const isSkillBucket = bucketEntry?.key === 'skill';
   const toggleBucket = () => onToggleGroup?.(bucketKey, !isCollapsed);
   return (
-    <div className="folder-group folder-group-bucket">
+    <div className={`folder-group folder-group-bucket${isSkillBucket ? ' folder-group-bucket-skill' : ''}`}>
       <div
-        className={`folder-group-header folder-group-bucket-header${isCollapsed ? ' collapsed' : ''}`}
+        className={`folder-group-header folder-group-bucket-header${isCollapsed ? ' collapsed' : ''}${isSkillBucket ? ' folder-group-bucket-skill-header' : ''}`}
         role="button"
         tabIndex={0}
         aria-expanded={isCollapsed ? 'false' : 'true'}
@@ -3068,7 +3069,10 @@ function SessionListBucketSection({
           toggleBucket();
         }}
       >
-        <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
+        {isSkillBucket
+          ? <span className="folder-bucket-skill-icon">⚡</span>
+          : <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
+        }
         <span className="folder-name">{String(bucketEntry?.label || '')}</span>
         <span className="folder-count">{bucketSessions.length}</span>
       </div>
@@ -3107,9 +3111,11 @@ function SessionListProjectPanel({ projectSession = null }) {
     scheduleLabel = '等待触发';
   }
 
+  // Don't render if there's nothing meaningful to show
+  if (!summary && !scheduleLabel) return null;
+
   return (
     <div className="lt-project-panel">
-      {title ? <div className="lt-project-panel-title">{title}</div> : null}
       {summary ? <div className="lt-project-panel-summary">{summary}</div> : null}
       <div className="lt-project-panel-chips">
         <span className={`lt-project-panel-chip lt-project-panel-chip-status${isPaused ? ' is-paused' : ' is-active'}`}>
@@ -3141,16 +3147,23 @@ function SessionListGroupSection({
 
   const toggleGroup = () => {
     if (isLongTermProject) {
-      // For project groups: always expand and show the control panel
-      if (isCollapsed) {
-        onToggleGroup?.(groupEntry?.key || '', false);
-      }
-      // Open the right-side control panel
-      if (typeof window.showLongTermProjectPanel === 'function') {
-        window.showLongTermProjectPanel(groupEntry?.projectId || '');
+      const willCollapse = !isCollapsed;
+      onToggleGroup?.(groupEntry?.key || '', willCollapse);
+      if (willCollapse && typeof window.hideLongTermProjectPanel === 'function') {
+        window.hideLongTermProjectPanel();
       }
     } else {
       onToggleGroup?.(groupEntry?.key || '', !isCollapsed);
+    }
+  };
+
+  const openProjectPanel = (event) => {
+    event.stopPropagation();
+    if (!isCollapsed) {
+      onToggleGroup?.(groupEntry?.key || '', false);
+    }
+    if (typeof window.showLongTermProjectPanel === 'function') {
+      window.showLongTermProjectPanel(groupEntry?.projectId || '');
     }
   };
 
@@ -3159,72 +3172,147 @@ function SessionListGroupSection({
     ? Object.values(groupEntry?.buckets || {}).reduce((sum, b) => sum + (Array.isArray(b?.sessions) ? b.sessions.length : 0), 0)
     : sessions.length;
 
+  // For long-term projects, extract summary and schedule from projectSession
+  let projectSummary = '';
+  let projectSchedule = '';
+  if (isLongTermProject && groupEntry?.projectSession) {
+    const ps = groupEntry.projectSession;
+    const persistent = ps?.persistent || null;
+    projectSummary = String(persistent?.digest?.summary || ps?.description || '').trim();
+    const kind = String(persistent?.kind || '').trim().toLowerCase();
+    const cadence = persistent?.recurring?.cadence || '';
+    const timeOfDay = persistent?.recurring?.timeOfDay || '';
+    if (kind === 'recurring_task' && cadence) {
+      const cadenceMap = { daily: '每天', weekly: '每周', hourly: '每小时' };
+      projectSchedule = cadenceMap[cadence] || cadence;
+      if (timeOfDay) projectSchedule += ` ${timeOfDay}`;
+    } else if (kind === 'scheduled_task') {
+      projectSchedule = '一次性定时';
+    } else if (kind === 'waiting_task') {
+      projectSchedule = '等待触发';
+    }
+  }
+
   return (
     <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}${isLongTermProject ? ' is-long-term-project-group' : ''}`}>
       {showGroupHeaders ? (
-        <div
-          className={`folder-group-header${isCollapsed ? ' collapsed' : ''}${isLongTermProject ? ' is-long-term-project-header' : ''}`}
-          role="button"
-          tabIndex={0}
-          aria-expanded={isCollapsed ? 'false' : 'true'}
-          onClick={toggleGroup}
-          onKeyDown={(event) => {
-            if (event.key !== 'Enter' && event.key !== ' ') return;
-            event.preventDefault();
-            toggleGroup();
-          }}
-        >
-          <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
-          <span className="folder-name" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
-          <span className="folder-count">{memberCount}</span>
-          {groupEntry?.canDelete ? (
-            <button
-              type="button"
-              className="folder-group-delete"
-              title={deleteFolderLabel}
-              aria-label={deleteFolderLabel}
-              onClick={(event) => {
+        isLongTermProject ? (
+          // Long-term project: single card wrapping title + content
+          <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}`}>
+            {/* Title row: chevron + name + count — click to collapse/expand */}
+            <div
+              className="lt-project-card-top"
+              role="button"
+              tabIndex={0}
+              aria-expanded={isCollapsed ? 'false' : 'true'}
+              onClick={toggleGroup}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
-                event.stopPropagation();
-                onRemoveGroup?.(groupEntry?.label || '');
+                toggleGroup();
               }}
             >
-              <span dangerouslySetInnerHTML={{ __html: String(deleteIconHtml || '') }} />
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      <div className="folder-group-items" hidden={showGroupHeaders && isCollapsed}>
-        {isLongTermProject ? (
-          <>
-            {/* Bucket sub-folders */}
-            {Object.values(groupEntry?.buckets || {})
-              .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
-              .map((bucketEntry) => (
-                <SessionListBucketSection
-                  key={`bucket-section:${groupEntry?.key}:${bucketEntry?.key}`}
-                  groupKey={groupEntry?.key || ''}
-                  bucketEntry={bucketEntry}
-                  isCollapsed={isGroupCollapsed(`${groupEntry?.key}:${bucketEntry?.key}`) === true}
-                  onToggleGroup={onToggleGroup}
-                  createSessionItem={createSessionItem}
-                  getSessionRenderKey={getSessionRenderKey}
-                  chevronIconHtml={chevronIconHtml}
-                />
-              ))
-            }
-          </>
+              <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
+              <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
+              <span className="lt-project-card-count">{memberCount}</span>
+            </div>
+            {/* Collapsible content: panel entry + task buckets */}
+            <div className="lt-project-card-content" hidden={isCollapsed}>
+              {/* Panel entry row — same visual weight as a bucket, click to open panel */}
+              <div
+                className="lt-project-card-body"
+                role="button"
+                tabIndex={0}
+                title="打开控制面板"
+                onClick={openProjectPanel}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  openProjectPanel(event);
+                }}
+              >
+                <div className="lt-project-card-body-text">
+                  {projectSummary
+                    ? <div className="lt-project-card-desc">{projectSummary}</div>
+                    : <div className="lt-project-card-panel-hint">控制面板</div>}
+                </div>
+                <span className="lt-project-card-panel-icon" aria-hidden="true">›</span>
+              </div>
+              {/* Bucket sub-folders */}
+              {Object.values(groupEntry?.buckets || {})
+                .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
+                .map((bucketEntry) => (
+                  <SessionListBucketSection
+                    key={`bucket-section:${groupEntry?.key}:${bucketEntry?.key}`}
+                    groupKey={groupEntry?.key || ''}
+                    bucketEntry={bucketEntry}
+                    isCollapsed={isGroupCollapsed(`${groupEntry?.key}:${bucketEntry?.key}`) === true}
+                    onToggleGroup={onToggleGroup}
+                    createSessionItem={createSessionItem}
+                    getSessionRenderKey={getSessionRenderKey}
+                    chevronIconHtml={chevronIconHtml}
+                  />
+                ))
+              }
+            </div>
+          </div>
         ) : (
-          sessions.map((session) => (
+          <>
+            <div
+              className={`folder-group-header${isCollapsed ? ' collapsed' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-expanded={isCollapsed ? 'false' : 'true'}
+              onClick={toggleGroup}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                toggleGroup();
+              }}
+            >
+              <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
+              <span className="folder-name" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
+              <span className="folder-count">{memberCount}</span>
+              {groupEntry?.canDelete ? (
+                <button
+                  type="button"
+                  className="folder-group-delete"
+                  title={deleteFolderLabel}
+                  aria-label={deleteFolderLabel}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onRemoveGroup?.(groupEntry?.label || '');
+                  }}
+                >
+                  <span dangerouslySetInnerHTML={{ __html: String(deleteIconHtml || '') }} />
+                </button>
+              ) : null}
+            </div>
+            <div className="folder-group-items" hidden={isCollapsed}>
+              {sessions.map((session) => (
+                <SessionListItemMount
+                  key={`group:${groupEntry?.key || 'ungrouped'}:${session?.id || Math.random()}`}
+                  createSessionItem={createSessionItem}
+                  session={session}
+                  renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
+                />
+              ))}
+            </div>
+          </>
+        )
+      ) : (
+        <div className="folder-group-items">
+          {sessions.map((session) => (
             <SessionListItemMount
               key={`group:${groupEntry?.key || 'ungrouped'}:${session?.id || Math.random()}`}
               createSessionItem={createSessionItem}
               session={session}
               renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -3566,7 +3654,17 @@ function createSessionListRenderer({
         orderedGroups: groups,
         showGroupHeaders: payload?.showGroupHeaders === true,
         isGroupCollapsed(groupKey) {
-          return groups.find((groupEntry) => groupEntry?.key === groupKey)?.collapsed === true;
+          // Top-level group
+          const topGroup = groups.find((groupEntry) => groupEntry?.key === groupKey);
+          if (topGroup) return topGroup.collapsed === true;
+          // Bucket key: "group:long-term-project:xxx:bucket_key"
+          // Find the parent group and look inside its buckets
+          for (const groupEntry of groups) {
+            if (!groupEntry?.buckets) continue;
+            const bucket = groupEntry.buckets.find((b) => `${groupEntry.key}:${b?.key}` === groupKey);
+            if (bucket) return bucket.collapsed === true;
+          }
+          return false;
         },
         onToggleGroup(groupKey, collapsed) {
           payload?.actions?.setGroupCollapsed?.(groupKey, collapsed);

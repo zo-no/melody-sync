@@ -23,6 +23,7 @@ const LONG_TERM_BUCKET_DEFS = [
   { key: "short_term", label: "短期任务", order: 1 },
   { key: "waiting", label: "等待任务", order: 2 },
   { key: "inbox", label: "收集箱", order: 3 },
+  { key: "skill", label: "快捷按钮", order: 4 },
 ];
 
 function inferLongTermSessionBucket(session) {
@@ -39,6 +40,7 @@ function inferLongTermSessionBucket(session) {
   if (kind === "recurring_task") return "long_term";
   if (kind === "scheduled_task") return "short_term";
   if (kind === "waiting_task") return "waiting";
+  if (kind === "skill") return "skill";
   const workflowState = String(session?.workflowState || "").trim().toLowerCase();
   if (workflowState === "waiting_user") return "waiting";
   return "inbox";

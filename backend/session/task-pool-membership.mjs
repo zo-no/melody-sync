@@ -1,6 +1,4 @@
-function trimText(value) {
-  return typeof value === 'string' ? value.trim() : '';
-}
+import { trimText } from './text.mjs';
 
 function normalizePersistentKind(value) {
   const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
@@ -26,6 +24,9 @@ function normalizeLongTermBucket(value) {
   }
   if (['waiting', 'waiting_for', 'waiting_user', '等待任务', '等待'].includes(normalized)) {
     return 'waiting';
+  }
+  if (['skill', 'quick_action', 'quick-action', '快捷按钮', '快捷动作'].includes(normalized)) {
+    return 'skill';
   }
   return '';
 }
