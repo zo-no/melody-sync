@@ -1265,7 +1265,6 @@ function getTrackerPersistentActionButtons(session, {
               }),
             }).catch((err) => {
               console.error('[lt] assign failed:', err);
-              window.alert('归入失败，请重试。');
             });
           }
         },

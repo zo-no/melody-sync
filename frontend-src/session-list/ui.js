@@ -267,7 +267,7 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
     onClick(event, currentSession) {
       event?.preventDefault?.();
       if (!currentSession?.id) return;
-      if (!window.confirm("将此任务移出长期项目？它将回到普通任务列表。")) return;
+      
       void (typeof fetchJsonOrRedirect === "function"
         ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
             method: "PATCH",
@@ -295,7 +295,7 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
     onClick(event, currentSession) {
       event?.preventDefault?.();
       if (!currentSession?.id) return;
-      if (!window.confirm("将此任务降级为普通任务？定时/循环配置将被清除。")) return;
+      
       void (typeof fetchJsonOrRedirect === "function"
         ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
             method: "PATCH",

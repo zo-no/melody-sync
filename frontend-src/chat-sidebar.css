@@ -1407,6 +1407,10 @@
 .session-item.is-quick-action-item .session-item-meta .session-list-badge-persistent-skill {
   color: color-mix(in srgb, var(--naming) 86%, var(--text));
 }
+/* Skill items already have ⚡ icon and project badge in title — hide meta badges */
+.session-item.is-quick-action-item .session-item-meta .session-list-badge {
+  display: none;
+}
 .session-action-btn.quick-run {
   color: color-mix(in srgb, var(--accent) 78%, var(--text));
 }
