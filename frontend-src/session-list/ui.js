@@ -451,14 +451,11 @@ function renderSessionList() {
         setGroupCollapsed(groupKey, collapsed) {
           persistCollapsedGroupState(groupKey, collapsed);
           renderSessionList();
-          // When a long-term project group is expanded, sync the right-side panel
+          // When a long-term project group is expanded, show the project control panel
           if (!collapsed && groupKey.startsWith("group:long-term-project:")) {
             const projectId = groupKey.replace("group:long-term-project:", "");
-            if (typeof window.setSelectedLongTermProjectId === "function") {
-              window.setSelectedLongTermProjectId(projectId);
-            }
-            if (typeof window.renderLongTermWorkspace === "function") {
-              window.renderLongTermWorkspace();
+            if (typeof window.showLongTermProjectPanel === "function") {
+              window.showLongTermProjectPanel(projectId);
             }
           }
         },
@@ -794,8 +791,41 @@ function resolveAttachedSessionRecord(id, session) {
   return existing || session || null;
 }
 
+function isLongTermProjectRootForPanel(session) {
+  // Returns true only for the project root session (recurring_task with role=project)
+  // — not for member sessions that belong to a project
+  const kind = getSidebarPersistentKind(session);
+  if (kind !== "recurring_task") return false;
+  const model = getSessionListModel();
+  if (typeof model?.getLongTermTaskPoolMembership === "function") {
+    const membership = model.getLongTermTaskPoolMembership(session);
+    if (membership) {
+      return membership.role === "project";
+    }
+  }
+  // Fallback: no membership means it's a standalone recurring_task (treat as root)
+  return true;
+}
+
 function attachSession(id, session) {
   const resolvedSession = resolveAttachedSessionRecord(id, session);
+
+  // If this is a long-term project root, show the control panel instead of the chat UI
+  if (isLongTermProjectRootForPanel(resolvedSession)) {
+    if (typeof window.setSelectedLongTermProjectId === "function") {
+      window.setSelectedLongTermProjectId(id);
+    }
+    if (typeof window.showLongTermProjectPanel === "function") {
+      window.showLongTermProjectPanel(id);
+    }
+    return;
+  }
+
+  // Normal session: hide the project panel and show chat UI
+  if (typeof window.hideLongTermProjectPanel === "function") {
+    window.hideLongTermProjectPanel();
+  }
+
   if (typeof window !== "undefined" && typeof window.MelodySyncWorkbench?.setFocusedSessionId === "function") {
     window.MelodySyncWorkbench.setFocusedSessionId(id, { render: false });
   }

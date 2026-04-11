@@ -973,16 +973,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
 }
 
 function renderLongTermWorkspace() {
-  const isLongTermTab = getActiveSidebarTab() === "long-term";
-  // Toggle body class — CSS hides/shows messages, input, taskMap rail, etc.
-  document.body.classList.toggle("long-term-workspace-active", isLongTermTab);
-  if (longTermWorkspace) {
-    longTermWorkspace.hidden = !isLongTermTab;
-  }
-  if (isLongTermTab) {
-    const projects = getLongTermWorkspaceProjects();
-    renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
-  }
+  // No-op: workspace panel is shown/hidden by attachSession based on session type
 }
 
 function getSidebarTabForComposeSession(session, projects = getLongTermWorkspaceProjects()) {
@@ -1059,6 +1050,11 @@ function syncSidebarTabUi() {
     }
   }
   renderLongTermWorkspace();
+  // If leaving Projects tab, close the project control panel
+  if (!isLongTermTab && document.body.classList.contains("long-term-workspace-active")) {
+    document.body.classList.remove("long-term-workspace-active");
+    if (longTermWorkspace) longTermWorkspace.hidden = true;
+  }
   if (typeof requestLayoutPass === "function") {
     requestLayoutPass("sidebar-tab-switch");
   }
@@ -1085,6 +1081,20 @@ globalThis.getActiveSidebarTab = getActiveSidebarTab;
 globalThis.renderLongTermWorkspace = renderLongTermWorkspace;
 globalThis.setSelectedLongTermProjectId = (id) => {
   selectedLongTermProjectId = String(id || "").trim();
+};
+
+globalThis.showLongTermProjectPanel = (projectId) => {
+  selectedLongTermProjectId = String(projectId || "").trim();
+  // Toggle body class — existing CSS hides messages, input, taskMap rail
+  document.body.classList.add("long-term-workspace-active");
+  if (longTermWorkspace) longTermWorkspace.hidden = false;
+  const projects = getLongTermWorkspaceProjects();
+  renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
+};
+
+globalThis.hideLongTermProjectPanel = () => {
+  document.body.classList.remove("long-term-workspace-active");
+  if (longTermWorkspace) longTermWorkspace.hidden = true;
 };
 
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
