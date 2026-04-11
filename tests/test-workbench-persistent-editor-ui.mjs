@@ -189,7 +189,7 @@ renderer.renderPersistentEditorModal(host, {
 
 assert.equal(host.hidden, false, 'rendering the editor should reveal the host');
 assert.equal(findAllByClass(host, 'operation-record-persistent-editor').length, 1, 'renderer should mount the inline editor shell');
-assert.equal(findAllByClass(host, 'operation-record-kind-btn').length, 6, 'renderer should show four task kind buttons plus two trigger toggles');
+assert.equal(findAllByClass(host, 'operation-record-kind-btn').length, 5, 'renderer should show four task kind buttons plus one trigger toggle for recurring_task');
 assert.equal(findAllByClass(host, 'operation-record-weekday-btn').length, 7, 'weekly cadence should render weekday toggles');
 assert.equal(
   findAllByClass(host, 'operation-record-persistent-section-title').some((node) => node.textContent === '长期闭环'),

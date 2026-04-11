@@ -359,6 +359,7 @@
           });
           form.appendChild(buildField("知识库路径", knowledgeBaseInput, "默认指向这条任务所属的本地文件路径。"));
 
+          if (draft.kind !== "waiting_task" && draft.kind !== "recurring_task") {
           const scheduledToggleRow = documentRef.createElement("div");
           scheduledToggleRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
           const scheduledToggleBtn = documentRef.createElement("button");
@@ -372,6 +373,7 @@
           });
           scheduledToggleRow.appendChild(scheduledToggleBtn);
           form.appendChild(buildField("定时触发", scheduledToggleRow, "在指定时间自动执行一次。"));
+          }
 
           if (draft.scheduledEnabled === true) {
             const scheduledInput = documentRef.createElement("input");
@@ -384,6 +386,7 @@
             form.appendChild(buildField("定时时间", scheduledInput));
           }
 
+          if (draft.kind !== "waiting_task" && draft.kind !== "scheduled_task") {
           const recurringToggleRow = documentRef.createElement("div");
           recurringToggleRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
           const recurringToggleBtn = documentRef.createElement("button");
@@ -397,6 +400,7 @@
           });
           recurringToggleRow.appendChild(recurringToggleBtn);
           form.appendChild(buildField("循环触发", recurringToggleRow, "按固定周期反复执行。"));
+          }
 
           if (draft.recurringEnabled === true) {
           const cadenceSelect = documentRef.createElement("select");
