@@ -646,15 +646,35 @@
 .session-item.is-complete-read:not(.active) .session-item-meta {
   color: var(--text-muted);
 }
-.session-item-count { font-variant-numeric: tabular-nums; }
-.session-item-meta .status-running { color: var(--notice); font-weight: 600; }
+/* Running dot animation */
+@keyframes session-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
+.session-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+.session-status-dot-running {
+  background: var(--notice);
+  animation: session-dot-pulse 1.2s ease-in-out infinite;
+}
+.session-status-dot-done {
+  background: var(--success);
+  opacity: 0.7;
+}
+/* Status text styles */
 .session-item-meta .status-queued { color: var(--queue); }
 .session-item-meta .status-compacting { color: var(--notice); }
 .session-item-meta .status-renaming { color: var(--naming); }
 .session-item-meta .status-rename-failed { color: var(--issue); }
 .session-item-meta .status-unread { color: var(--notice); }
 .session-item-meta .status-waiting-user { color: var(--warning); font-weight: 600; }
-.session-item-meta .status-done { color: var(--success); }
 .session-item-meta .status-parked { color: var(--text-muted); }
 .session-item-meta .status-persistent-recurring { color: var(--success); }
 .session-item-meta .status-persistent-paused { color: var(--warning); }

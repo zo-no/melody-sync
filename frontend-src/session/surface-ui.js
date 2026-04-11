@@ -692,8 +692,6 @@ function buildSessionMetaParts(session, { touchStatusInfo = null } = {}) {
   const parts = [];
   const touchStatusHtml = renderSessionStatusHtml(touchStatusInfo || getSessionListTouchStatusInfo(session));
   if (touchStatusHtml) parts.push(touchStatusHtml);
-  const countHtml = renderSessionMessageCount(session);
-  if (countHtml) parts.push(countHtml);
   return parts;
 }
 
@@ -714,12 +712,26 @@ function getFilteredSessionEmptyText({ archived = false } = {}) {
 }
 
 function renderSessionStatusHtml(statusInfo) {
-  if (!statusInfo?.label) return "";
+  if (!statusInfo?.key) return "";
   const title = statusInfo.title ? ` title="${esc(statusInfo.title)}"` : "";
+  // Running: animated dot only, no text
+  if (statusInfo.key === "running") {
+    return `<span class="session-status-dot session-status-dot-running"${title}></span>`;
+  }
+  // Done / finished: static dot, no text
+  if (statusInfo.key === "done" || statusInfo.key === "finished") {
+    return `<span class="session-status-dot session-status-dot-done"${title}></span>`;
+  }
+  // Waiting for user: small label (user needs to act)
+  if (statusInfo.key === "waiting_user" || statusInfo.className === "status-waiting-user") {
+    return `<span class="${statusInfo.className || "status-waiting-user"}"${title}>${esc(statusInfo.label)}</span>`;
+  }
+  // Other states (queued, compacting, etc.): show label
+  if (!statusInfo.label) return "";
   if (!statusInfo.className) {
     return `<span${title}>${esc(statusInfo.label)}</span>`;
   }
-  return `<span class="${statusInfo.className}"${title}>● ${esc(statusInfo.label)}</span>`;
+  return `<span class="${statusInfo.className}"${title}>${esc(statusInfo.label)}</span>`;
 }
 
 function buildSessionActionConfigs(session, options = {}) {
