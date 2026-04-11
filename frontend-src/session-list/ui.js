@@ -228,10 +228,13 @@ function isSkillSessionForList(session) {
 }
 
 function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
-  if (tab === "long-term") return isLongTermProjectSessionForList(session);
+  if (tab === "long-term") {
+    // Include project roots AND their member sessions (for bucket sub-folders)
+    return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
+  }
   if (tab === "skill") return isSkillSessionForList(session);
-  // sessions tab: exclude long-term projects and skills
-  return !isLongTermProjectSessionForList(session) && !isSkillSessionForList(session);
+  // sessions tab: exclude long-term line sessions (projects + members) and skills
+  return !isLongTermLineSessionForList(session) && !isSkillSessionForList(session);
 }
 
 function filterSessionsForSidebarTab(entries = [], tab = getActiveSidebarTabForList()) {

@@ -350,9 +350,12 @@
 
   function isLongTermProjectSession(session) {
     const membership = getLongTermTaskPoolMembership(session);
-    return membership?.role === "project" && membership?.fixedNode === true
-      ? true
-      : getSidebarPersistentKind(session) === "recurring_task";
+    if (membership) {
+      // If we have explicit membership, trust it: only project role is a project
+      return membership.role === "project" && membership.fixedNode === true;
+    }
+    // No membership: recurring_task defaults to being a project root
+    return getSidebarPersistentKind(session) === "recurring_task";
   }
 
   function isLongTermLineSession(session) {
