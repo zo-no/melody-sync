@@ -101,6 +101,8 @@ function buildSessionListMetaHtml(session, options = {}) {
   const badgeHtml = Array.isArray(badges)
     ? badges
         .filter((badge) => !(options?.hideBranchBadge === true && badge?.key === "branch"))
+        // project badge is shown in titlePrefixHtml (before the title), not in meta
+        .filter((badge) => badge?.key !== "project")
         .filter((badge) => badge?.label)
         .map((badge) => `<span class="${esc(badge.className || "session-list-badge")}" title="${esc(badge.title || badge.label)}">${esc(badge.label)}</span>`)
     : [];
@@ -212,9 +214,17 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
   const branchBadge = Array.isArray(entry?.badges)
     ? entry.badges.find((badge) => badge?.key === "branch" && badge?.label)
     : null;
-  const titlePrefixHtml = isBranch
-    ? `<span class="session-title-badge session-title-badge-branch" title="${esc(branchBadge?.label || t("sidebar.branchTag"))}">${esc(branchBadge?.label || t("sidebar.branchTag"))}</span>`
-    : "";
+  const projectBadge = Array.isArray(entry?.badges)
+    ? entry.badges.find((badge) => badge?.key === "project" && badge?.label)
+    : null;
+  const titlePrefixHtml = [
+    isBranch
+      ? `<span class="session-title-badge session-title-badge-branch" title="${esc(branchBadge?.label || t("sidebar.branchTag"))}">${esc(branchBadge?.label || t("sidebar.branchTag"))}</span>`
+      : "",
+    projectBadge
+      ? `<span class="session-title-badge session-title-badge-project" title="${esc(projectBadge.title || projectBadge.label)}">${esc(projectBadge.label)}</span>`
+      : "",
+  ].join("");
   const metaOverrideHtml = buildSessionListMetaHtml(session, { archived, hideBranchBadge: isBranch });
   const item = createActiveSessionItem(session, {
     extraClassName: extraClassNames.join(" "),

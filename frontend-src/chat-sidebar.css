@@ -796,6 +796,14 @@
   color: var(--notice);
   background: color-mix(in srgb, var(--notice) 12%, var(--bg-tertiary));
 }
+.session-title-badge-project {
+  color: color-mix(in srgb, var(--accent) 80%, var(--text-secondary));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-tertiary));
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .session-pin-badge {
   display: inline-flex;
   align-items: center;
