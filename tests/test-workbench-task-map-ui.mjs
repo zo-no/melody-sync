@@ -622,8 +622,8 @@ assert.equal(
   null,
   'root-only task maps should stay clean instead of showing a placeholder hint',
 );
-assert.equal(mobileRootFlowNode.style.getPropertyValue('width'), '150px', 'mobile root cards should use the compact width budget');
-assert.equal(mobileRunningFlowNode.style.getPropertyValue('width'), '128px', 'mobile child cards should use the narrower width budget so wide task maps fit better');
+assert.equal(mobileRootFlowNode.style.getPropertyValue('width'), '164px', 'mobile root cards should use the compact width budget');
+assert.equal(mobileRunningFlowNode.style.getPropertyValue('width'), '144px', 'mobile child cards should use the narrower width budget so wide task maps fit better');
 
 assert.equal(runningFlowNode.classList.contains('is-status-running'), true);
 assert.equal(waitingFlowNode.classList.contains('is-status-waiting-user'), true);

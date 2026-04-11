@@ -3792,17 +3792,17 @@ function getTaskFlowNodeStatusUi(windowRef, node) {
 function getProjectedTaskFlowConfig(isMobileQuestTracker = () => false) {
   const mobile = isMobileQuestTracker() === true;
   return {
-    nodeWidth: mobile ? 128 : 182,
-    rootWidth: mobile ? 150 : 216,
-    richNodeWidth: mobile ? 140 : 204,
-    nodeHeight: mobile ? 88 : 96,
-    rootHeight: mobile ? 102 : 112,
-    candidateHeight: mobile ? 100 : 116,
-    richNodeHeight: mobile ? 112 : 124,
+    nodeWidth: mobile ? 144 : 212,
+    rootWidth: mobile ? 164 : 240,
+    richNodeWidth: mobile ? 156 : 228,
+    nodeHeight: mobile ? 96 : 108,
+    rootHeight: mobile ? 110 : 124,
+    candidateHeight: mobile ? 108 : 124,
+    richNodeHeight: mobile ? 120 : 136,
     levelGap: mobile ? 56 : 72,
     siblingGap: mobile ? 10 : 16,
-    graphColumnGap: mobile ? 92 : 116,
-    graphBandGap: mobile ? 104 : 118,
+    graphColumnGap: mobile ? 100 : 132,
+    graphBandGap: mobile ? 112 : 128,
     paddingX: mobile ? 18 : 72,
     paddingY: mobile ? 36 : 56,
   };

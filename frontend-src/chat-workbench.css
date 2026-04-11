@@ -2477,52 +2477,77 @@ button.quest-task-flow-node {
 }
 
 .quest-task-flow-node {
-  gap: 4px;
-  padding: 8px 9px;
-  border-radius: 10px;
-  border-color: color-mix(in srgb, var(--border-strong) 14%, var(--border));
-  background: transparent;
+  gap: 5px;
+  padding: 10px 12px 11px;
+  border-radius: 11px;
+  border-color: color-mix(in srgb, var(--border-strong) 32%, var(--border));
+  background: var(--bg);
+  box-shadow:
+    0 1px 3px color-mix(in srgb, #0b1520 8%, transparent),
+    0 4px 12px color-mix(in srgb, #0b1520 5%, transparent);
 }
 
 .quest-task-flow-node:hover {
   transform: none;
-  background: color-mix(in srgb, var(--bg-secondary) 22%, transparent);
+  border-color: color-mix(in srgb, var(--border-strong) 48%, var(--border));
+  background: var(--bg);
+  box-shadow:
+    0 2px 6px color-mix(in srgb, #0b1520 10%, transparent),
+    0 6px 18px color-mix(in srgb, #0b1520 7%, transparent);
 }
 
 .quest-task-flow-node.is-root {
-  background: color-mix(in srgb, var(--bg-secondary) 32%, transparent);
+  border-color: color-mix(in srgb, var(--border-strong) 52%, var(--border));
+  background: color-mix(in srgb, var(--bg-secondary) 80%, var(--bg));
+  box-shadow:
+    0 2px 8px color-mix(in srgb, #0b1520 12%, transparent),
+    0 8px 24px color-mix(in srgb, #0b1520 8%, transparent);
 }
 
 .quest-task-flow-node.is-current {
+  --quest-task-flow-node-border: color-mix(in srgb, var(--accent) 64%, var(--border-strong));
+  border-color: var(--quest-task-flow-node-border);
   background: var(--quest-task-flow-node-bg);
-  box-shadow: none;
+  box-shadow:
+    0 2px 8px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 6px 20px color-mix(in srgb, #0b1520 10%, transparent),
+    inset 4px 0 0 var(--accent);
 }
 
 .quest-task-flow-node.is-current-path:not(.is-current) {
+  --quest-task-flow-node-border: color-mix(in srgb, var(--accent) 28%, var(--border-strong));
+  border-color: var(--quest-task-flow-node-border);
   background: var(--quest-task-flow-node-bg);
 }
 
 .quest-task-flow-node.is-candidate {
-  background: transparent;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--border-strong) 24%, var(--border));
+  background: color-mix(in srgb, var(--bg-secondary) 30%, var(--bg));
+  box-shadow: none;
 }
 
 .quest-task-flow-node-badge {
-  font-size: 8px;
-  letter-spacing: 0.08em;
+  font-size: 9px;
+  letter-spacing: 0.06em;
 }
 
 .quest-task-flow-node-title {
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.3;
+  -webkit-line-clamp: 3;
 }
 
 .quest-task-flow-node-summary {
-  font-size: 9px;
+  font-size: 10px;
+  line-height: 1.4;
+  -webkit-line-clamp: 2;
 }
 
 .quest-task-flow-node.is-rich-view {
   gap: 6px;
-  padding: 9px 10px;
-  background: color-mix(in srgb, var(--bg-secondary) 58%, transparent);
+  padding: 10px 12px 11px;
+  background: color-mix(in srgb, var(--bg-secondary) 58%, var(--bg));
 }
 
 .quest-task-flow-node-rich {
@@ -6451,6 +6476,10 @@ body.long-term-workspace-active .task-manager-main-column {
   overflow: hidden;
 }
 
+.long-term-workspace[hidden] {
+  display: none !important;
+}
+
 /* ── Long-term project control panel ─────────────────────────── */
 .long-term-workspace-detail {
   overflow-y: auto;
@@ -6532,7 +6561,31 @@ body.long-term-workspace-active .task-manager-main-column {
 .ltcp-trigger-value { font-size: 13px; color: var(--text); font-weight: 500; }
 
 .ltcp-section { display: flex; flex-direction: column; gap: 10px; }
+.ltcp-section-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ltcp-section-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Workspace section */
+.ltcp-workspace-section { gap: 6px; }
+.ltcp-workspace-edit-btn {
+  appearance: none; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-secondary); color: var(--text-secondary);
+  font: inherit; font-size: 11px; font-weight: 600; padding: 3px 8px;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+.ltcp-workspace-edit-btn:hover { background: var(--bg-tertiary); color: var(--text); }
+.ltcp-workspace-path {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 8px 10px; border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-secondary) 50%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+.ltcp-workspace-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.ltcp-workspace-raw {
+  font-size: 11px; color: var(--text-muted); font-family: monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ltcp-workspace-empty { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
 .ltcp-waiting-list { display: flex; flex-direction: column; gap: 4px; }
 .ltcp-waiting-empty { font-size: 13px; color: var(--text-muted); padding: 12px 0; }

@@ -181,7 +181,7 @@ assert.match(
 
 assert.doesNotMatch(
   sidebarStylesheet,
-  /\.sidebar-tabs\s*\{[\s\S]*display:\s*none\s*!important;/,
+  /\.sidebar-tabs\s*\{[^}]*display:\s*none\s*!important;/,
   'sidebar stylesheet should not globally hide the sidebar tab switcher because the long-term lane entry lives there',
 );
 
