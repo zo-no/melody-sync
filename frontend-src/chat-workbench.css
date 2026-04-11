@@ -2552,7 +2552,7 @@ button.quest-task-flow-node {
 
 .quest-tracker {
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
+  gap: 8px 18px;
   padding: 14px 16px 13px;
   border: 1px solid color-mix(in srgb, var(--border-strong) 16%, var(--border));
   border-radius: 20px;
@@ -2821,6 +2821,7 @@ button.quest-task-flow-node {
 
 .quest-tracker-footer {
   display: grid;
+  grid-column: 1 / -1;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 12px 14px;
   align-items: center;
