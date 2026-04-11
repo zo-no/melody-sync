@@ -287,7 +287,9 @@ function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForL
       : null;
     if (!membership?.projectSessionId) return false;
     const bucket = inferLongTermSessionBucket(session);
-    return bucket === "long_term" || bucket === "short_term";
+    // Show all active task buckets — long_term, short_term, and inbox (general tasks)
+    // Exclude waiting (needs human action, shown separately) and skill (quick actions)
+    return bucket === "long_term" || bucket === "short_term" || bucket === "inbox";
   }
   if (tab === "long-term") {
     return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
