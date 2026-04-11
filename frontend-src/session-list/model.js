@@ -563,14 +563,19 @@
     const membership = getLongTermTaskPoolMembership(session);
     const hasProjectMembership = Boolean(membership?.projectSessionId);
     if (hasProjectMembership && membership.role === "member") {
-      const projectSession = getKnownSessionById(membership.projectSessionId);
+      // Try getKnownSessionById first, then fall back to global getVisibleActiveSessions
+      let projectSession = getKnownSessionById(membership.projectSessionId);
+      if (!projectSession && typeof root?.window?.getVisibleActiveSessions === "function") {
+        const allSessions = root.window.getVisibleActiveSessions();
+        projectSession = allSessions.find((s) => trimText(s?.id) === membership.projectSessionId) || null;
+      }
       const projectName = trimText(projectSession?.name || "");
       if (projectName) {
         badges.push({
           key: "project",
           label: projectName,
           className: "session-list-badge session-list-badge-project",
-          title: `归属项目：${projectName}`,
+          title: "归属项目：" + projectName,
         });
       }
     }
