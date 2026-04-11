@@ -313,32 +313,40 @@ function renderSessionList() {
   );
   const groups = new Map();
   if (isSessionsTab) {
-    // Tasks tab: unclassified tasks shown in a "任务一览" group with bucket sub-sections
-    const INBOX_GROUP_KEY = "group:tasks-inbox";
-    const INBOX_BUCKET_DEFS = [
-      { key: "long_term", label: "长期任务", order: 0 },
-      { key: "short_term", label: "短期任务", order: 1 },
-      { key: "waiting", label: "等待任务", order: 2 },
-      { key: "inbox", label: "收集箱", order: 3 },
-    ];
+    // Tasks tab: flat per-project groups — one group per project, sessions listed directly
+    const model = getSessionListModel();
+    const allActive = typeof getVisibleActiveSessions === "function" ? getVisibleActiveSessions() : [];
+    const ungroupedKey = "group:tasks-ungrouped";
     for (const session of visibleSessions) {
       if (!session?.id) continue;
-      if (!groups.has(INBOX_GROUP_KEY)) {
-        groups.set(INBOX_GROUP_KEY, {
-          key: INBOX_GROUP_KEY,
-          label: "任务一览",
-          title: "任务一览",
-          order: 0,
-          type: "tasks-inbox",
-          sessions: [],
-          buckets: Object.fromEntries(INBOX_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
-        });
+      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
+        ? model.getLongTermTaskPoolMembership(session)
+        : null;
+      const projectId = membership?.projectSessionId || "";
+      if (projectId) {
+        const groupKey = `group:tasks-project:${projectId}`;
+        if (!groups.has(groupKey)) {
+          const projectSession = allActive.find((s) => s?.id === projectId) || null;
+          const projectTitle = String(projectSession?.name || "项目").trim() || "项目";
+          const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
+          groups.set(groupKey, {
+            key: groupKey,
+            label: projectTitle,
+            title: projectTitle,
+            order: isSystemProject ? -(groups.size + 1) : groups.size,
+            type: "tasks-project",
+            projectId,
+            sessions: [],
+          });
+        }
+        groups.get(groupKey).sessions.push(session);
+      } else {
+        // No project — put in ungrouped
+        if (!groups.has(ungroupedKey)) {
+          groups.set(ungroupedKey, { key: ungroupedKey, label: "其他", title: "其他", order: 99999, type: "tasks-project", sessions: [] });
+        }
+        groups.get(ungroupedKey).sessions.push(session);
       }
-      const groupEntry = groups.get(INBOX_GROUP_KEY);
-      groupEntry.sessions.push(session);
-      const bucket = inferLongTermSessionBucket(session);
-      const bucketKey = (bucket === "long_term" || bucket === "short_term" || bucket === "waiting") ? bucket : "inbox";
-      groupEntry.buckets[bucketKey].sessions.push(session);
     }
   } else if (isLongTermTab) {
     // Build per-project groups with bucket sub-folders
@@ -463,16 +471,6 @@ function renderSessionList() {
           projectId: groupEntry.projectId,
           isSystem: groupEntry.isSystem === true,
           projectSession: groupEntry.projectSession || null,
-          buckets: Object.values(groupEntry.buckets).map((b) => ({
-            key: b.key,
-            label: b.label,
-            order: b.order,
-            sessions: b.sessions,
-            collapsed: collapsedFolders[`${groupKey}:${b.key}`] === true,
-          })),
-        } : {}),
-        ...(groupEntry.type === "tasks-inbox" ? {
-          type: "tasks-inbox",
           buckets: Object.values(groupEntry.buckets).map((b) => ({
             key: b.key,
             label: b.label,
