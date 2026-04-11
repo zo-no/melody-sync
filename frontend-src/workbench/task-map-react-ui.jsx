@@ -3138,15 +3138,21 @@ function SessionListGroupSection({
 }) {
   const sessions = Array.isArray(groupEntry?.sessions) ? groupEntry.sessions : [];
   const isLongTermProject = groupEntry?.type === 'long-term-project';
-  const toggleGroup = () => onToggleGroup?.(groupEntry?.key || '', !isCollapsed);
 
-  // Find the project root session for the control panel
-  const projectRootSession = isLongTermProject
-    ? sessions.find((s) => {
-        const mem = s?.taskPoolMembership?.longTerm;
-        return !mem?.projectSessionId || mem?.role === 'project';
-      }) || null
-    : null;
+  const toggleGroup = () => {
+    if (isLongTermProject) {
+      // For project groups: always expand and show the control panel
+      if (isCollapsed) {
+        onToggleGroup?.(groupEntry?.key || '', false);
+      }
+      // Open the right-side control panel
+      if (typeof window.showLongTermProjectPanel === 'function') {
+        window.showLongTermProjectPanel(groupEntry?.projectId || '');
+      }
+    } else {
+      onToggleGroup?.(groupEntry?.key || '', !isCollapsed);
+    }
+  };
 
   // For long-term projects: count only member sessions (not the project root itself)
   const memberCount = isLongTermProject
@@ -3188,25 +3194,9 @@ function SessionListGroupSection({
           ) : null}
         </div>
       ) : null}
-      {/* Project control panel — shown when not collapsed */}
-      {isLongTermProject && showGroupHeaders && !isCollapsed ? (
-        <SessionListProjectPanel projectSession={projectRootSession} />
-      ) : null}
       <div className="folder-group-items" hidden={showGroupHeaders && isCollapsed}>
         {isLongTermProject ? (
           <>
-            {/* Project root sessions first */}
-            {sessions.filter((s) => {
-              const mem = s?.taskPoolMembership?.longTerm;
-              return !mem?.projectSessionId || mem?.role === 'project';
-            }).map((session) => (
-              <SessionListItemMount
-                key={`group:${groupEntry?.key || 'ungrouped'}:${session?.id || Math.random()}`}
-                createSessionItem={createSessionItem}
-                session={session}
-                renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
-              />
-            ))}
             {/* Bucket sub-folders */}
             {Object.values(groupEntry?.buckets || {})
               .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
