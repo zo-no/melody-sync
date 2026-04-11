@@ -117,19 +117,16 @@
       const baseTitle = state.isBranch
         ? (state.currentGoal || getBranchDisplayName(state.session) || state.mainGoal || state.session?.name)
         : (state.currentGoal || state.mainGoal || state.session?.name);
-      return toConciseGoal(baseTitle, isMobileQuestTracker() ? 44 : 64) || "当前任务";
+      return toConciseGoal(baseTitle, isMobileQuestTracker() ? 72 : 160) || "当前任务";
     }
 
     function getPrimaryDetail(state) {
       if (!state?.hasSession) return "";
-      const summary = clipText(getCurrentTaskSummary(state), isMobileQuestTracker() ? 72 : 96);
+      const summary = trimText(getCurrentTaskSummary(state) || "");
       if (summary && !isRedundantTrackerText(summary, state.currentGoal, state.mainGoal)) {
         return summary;
       }
-      const visualSummary = clipText(
-        String(getTrackerVisualStatus(state)?.summary || ""),
-        isMobileQuestTracker() ? 72 : 96,
-      );
+      const visualSummary = trimText(String(getTrackerVisualStatus(state)?.summary || ""));
       if (visualSummary && !isRedundantTrackerText(visualSummary, summary, state.currentGoal, state.mainGoal)) {
         return visualSummary;
       }
