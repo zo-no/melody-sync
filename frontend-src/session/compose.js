@@ -1036,7 +1036,6 @@ function getSidebarTabForComposeSession(session, projects = getLongTermWorkspace
       : [],
   );
   if (resolveLongTermWorkspaceRootSessionId(session, validIds)) return "long-term";
-  if (String(session?.persistent?.kind || "").trim().toLowerCase() === "skill") return "skill";
   return "sessions";
 }
 
@@ -1050,15 +1049,6 @@ function resolveSidebarTabAttachmentTarget(tab = activeTab) {
   if (normalizedTab === "long-term") {
     selectedLongTermProjectId = resolveLongTermWorkspaceProjectSelection(projects);
     return projects.find((entry) => String(entry?.id || "").trim() === selectedLongTermProjectId) || null;
-  }
-
-  if (normalizedTab === "skill") {
-    if (currentSession && String(currentSession?.persistent?.kind || "").trim().toLowerCase() === "skill") {
-      return currentSession;
-    }
-    return Array.isArray(sessions)
-      ? sessions.find((entry) => entry?.archived !== true && String(entry?.persistent?.kind || "").trim().toLowerCase() === "skill") || null
-      : null;
   }
 
   if (currentSession && getSidebarTabForComposeSession(currentSession, projects) === "sessions") {

@@ -757,18 +757,19 @@ function renderArchivedSection() {
   if (existing) existing.remove();
   const activeSidebarTab = getActiveSidebarTabForList();
   const isLongTermTab = activeSidebarTab === "long-term";
+  const isSessionsTab = activeSidebarTab === "sessions";
   const archivedSessions = filterSessionsForSidebarTab(
     getVisibleArchivedSessions().filter((session) => shouldShowSessionInSidebarForList(session, { archived: true })),
     activeSidebarTab,
   );
-  const shouldRenderSection = isLongTermTab
+  const shouldRenderSection = (isLongTermTab || isSessionsTab)
     ? archivedSessions.length > 0
     : (archivedSessionsLoading || archivedSessionCount > 0 || archivedSessions.length > 0);
   if (!shouldRenderSection) return;
 
   const ARCHIVED_FOLDER_KEY = "folder:archived";
   const isCollapsed = collapsedFolders[ARCHIVED_FOLDER_KEY] === true;
-  const count = isLongTermTab
+  const count = (isLongTermTab || isSessionsTab)
     ? archivedSessions.length
     : (archivedSessionsLoaded ? archivedSessions.length : Math.max(archivedSessionCount, archivedSessions.length));
 
