@@ -3086,6 +3086,43 @@ function SessionListBucketSection({
   );
 }
 
+function SessionListProjectPanel({ projectSession = null }) {
+  if (!projectSession) return null;
+  const persistent = projectSession?.persistent || null;
+  const title = String(persistent?.digest?.title || projectSession?.name || '').trim();
+  const summary = String(persistent?.digest?.summary || projectSession?.description || '').trim();
+  const isPaused = String(persistent?.state || '').trim().toLowerCase() === 'paused';
+  const kind = String(persistent?.kind || '').trim().toLowerCase();
+  const cadence = persistent?.recurring?.cadence || '';
+  const timeOfDay = persistent?.recurring?.timeOfDay || '';
+
+  let scheduleLabel = '';
+  if (kind === 'recurring_task' && cadence) {
+    const cadenceMap = { daily: '每天', weekly: '每周', hourly: '每小时' };
+    scheduleLabel = cadenceMap[cadence] || cadence;
+    if (timeOfDay) scheduleLabel += ` ${timeOfDay}`;
+  } else if (kind === 'scheduled_task') {
+    scheduleLabel = '一次性定时';
+  } else if (kind === 'waiting_task') {
+    scheduleLabel = '等待触发';
+  }
+
+  return (
+    <div className="lt-project-panel">
+      {title ? <div className="lt-project-panel-title">{title}</div> : null}
+      {summary ? <div className="lt-project-panel-summary">{summary}</div> : null}
+      <div className="lt-project-panel-chips">
+        <span className={`lt-project-panel-chip lt-project-panel-chip-status${isPaused ? ' is-paused' : ' is-active'}`}>
+          {isPaused ? '已暂停' : '维护中'}
+        </span>
+        {scheduleLabel ? (
+          <span className="lt-project-panel-chip">{scheduleLabel}</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function SessionListGroupSection({
   groupEntry = null,
   showGroupHeaders = false,
@@ -3102,6 +3139,14 @@ function SessionListGroupSection({
   const sessions = Array.isArray(groupEntry?.sessions) ? groupEntry.sessions : [];
   const isLongTermProject = groupEntry?.type === 'long-term-project';
   const toggleGroup = () => onToggleGroup?.(groupEntry?.key || '', !isCollapsed);
+
+  // Find the project root session for the control panel
+  const projectRootSession = isLongTermProject
+    ? sessions.find((s) => {
+        const mem = s?.taskPoolMembership?.longTerm;
+        return !mem?.projectSessionId || mem?.role === 'project';
+      }) || null
+    : null;
 
   // For long-term projects: count only member sessions (not the project root itself)
   const memberCount = isLongTermProject
@@ -3142,6 +3187,10 @@ function SessionListGroupSection({
             </button>
           ) : null}
         </div>
+      ) : null}
+      {/* Project control panel — shown when not collapsed */}
+      {isLongTermProject && showGroupHeaders && !isCollapsed ? (
+        <SessionListProjectPanel projectSession={projectRootSession} />
       ) : null}
       <div className="folder-group-items" hidden={showGroupHeaders && isCollapsed}>
         {isLongTermProject ? (
