@@ -348,12 +348,11 @@
 
     function renderDetail(taskCard, expanded, session = null, context = {}) {
       if (!trackerDetailEl) return;
-      const primaryDetail = clipText(context?.primaryDetail || "", isMobileQuestTracker() ? 72 : 96);
-      const resumePoint = clipText(
+      const primaryDetail = trimText(context?.primaryDetail || "");
+      const resumePoint = trimText(
         String(taskCard?.checkpoint || "").trim()
         || (Array.isArray(taskCard?.nextSteps) ? String(taskCard.nextSteps.find((entry) => trimText(entry)) || "").trim() : "")
         || String(taskCard?.goal || "").trim(),
-        isMobileQuestTracker() ? 84 : 112,
       );
       const showResumePoint = Boolean(resumePoint)
         && !isRedundantTrackerText(resumePoint, taskCard?.goal, taskCard?.mainGoal);

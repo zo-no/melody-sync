@@ -1395,10 +1395,12 @@
 }
 
 .quest-task-item-summary,
-.quest-task-item-parent,
+.quest-task-item-parent {
+  -webkit-line-clamp: 2;
+}
 .quest-tracker-branch-title,
 .quest-tracker-next {
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
 }
 
 .quest-tracker-time {
@@ -1495,6 +1497,9 @@
   font-size: 11px;
   color: var(--text-secondary);
   line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .quest-tracker-detail-item {
@@ -2587,7 +2592,7 @@ button.quest-task-flow-node {
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-secondary);
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
 }
 
 .quest-tracker-actions {
