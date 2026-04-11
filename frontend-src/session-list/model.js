@@ -541,6 +541,13 @@
 
   function getSessionListBadges(session, entry = null) {
     const badges = [];
+    if ((entry?.isSystem ?? normalizeKey(session?.taskListOrigin || "") === "system") === true) {
+      badges.push({
+        key: "system",
+        label: "内置",
+        className: "session-list-badge session-list-badge-system",
+      });
+    }
     const persistentBadge = getPersistentBadge(session);
     if (persistentBadge) badges.push(persistentBadge);
     const persistentScheduleBadge = getPersistentScheduleBadge(session);
@@ -589,6 +596,7 @@
       hiddenReason = "parked_mainline";
     }
 
+    const isSystem = normalizeKey(session?.taskListOrigin || "") === "system";
     const entry = {
       visible: hiddenReason === "",
       hiddenReason,
@@ -600,6 +608,7 @@
       persistentKind,
       groupInfo,
       needsReview,
+      isSystem,
     };
     return {
       ...entry,

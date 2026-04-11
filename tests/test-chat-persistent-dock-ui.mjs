@@ -94,6 +94,7 @@ const getActiveSidebarTabForListSource = extractFunctionSource(sessionListSource
 const isLongTermProjectSessionForListSource = extractFunctionSource(sessionListSource, 'isLongTermProjectSessionForList');
 const isLongTermLineSessionForListSource = extractFunctionSource(sessionListSource, 'isLongTermLineSessionForList');
 const isSkillSessionForListSource = extractFunctionSource(sessionListSource, 'isSkillSessionForList');
+const getShowLongTermSessionsInTasksTabSource = extractFunctionSource(sessionListSource, 'getShowLongTermSessionsInTasksTab');
 const shouldIncludeSessionInSidebarTabSource = extractFunctionSource(sessionListSource, 'shouldIncludeSessionInSidebarTab');
 const filterSessionsForSidebarTabSource = extractFunctionSource(sessionListSource, 'filterSessionsForSidebarTab');
 const shouldShowSessionInSidebarForListSource = extractFunctionSource(sessionListSource, 'shouldShowSessionInSidebarForList');
@@ -234,6 +235,8 @@ vm.runInNewContext(`
   ${isLongTermProjectSessionForListSource}
   ${isLongTermLineSessionForListSource}
   ${isSkillSessionForListSource}
+  let showLongTermSessionsInTasksTab = false;
+  ${getShowLongTermSessionsInTasksTabSource}
   ${shouldIncludeSessionInSidebarTabSource}
   ${filterSessionsForSidebarTabSource}
   ${shouldShowSessionInSidebarForListSource}

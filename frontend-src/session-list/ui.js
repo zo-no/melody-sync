@@ -3,6 +3,21 @@ function t(key, vars) {
   return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
+// Whether to show long-term project member sessions in the tasks tab
+// Default: hidden (false). User can toggle via the eye icon.
+let showLongTermSessionsInTasksTab = false;
+
+function getShowLongTermSessionsInTasksTab() {
+  return showLongTermSessionsInTasksTab === true;
+}
+
+function setShowLongTermSessionsInTasksTab(value) {
+  showLongTermSessionsInTasksTab = value === true;
+}
+
+globalThis.getShowLongTermSessionsInTasksTab = getShowLongTermSessionsInTasksTab;
+globalThis.setShowLongTermSessionsInTasksTab = setShowLongTermSessionsInTasksTab;
+
 const LONG_TERM_BUCKET_DEFS = [
   { key: "long_term", label: "长期任务", order: 0 },
   { key: "short_term", label: "短期任务", order: 1 },
@@ -129,6 +144,10 @@ function canRunSidebarQuickAction(session, { archived = false } = {}) {
 }
 
 function buildSidebarSessionActions(session, { archived = false } = {}) {
+  // System sessions are read-only — no actions
+  const model = getSessionListModel();
+  const entry = model?.getSessionListEntry?.(session, { archived }) || null;
+  if (entry?.isSystem === true) return [];
   const isArchivedSession = archived || session?.archived === true;
   const baseActions = typeof buildSessionActionConfigs === "function"
     ? buildSessionActionConfigs(session, { archived: isArchivedSession })
@@ -176,9 +195,11 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
   const entry = getSessionListModel()?.getSessionListEntry?.(session, { archived }) || null;
   const isBranch = entry ? entry.branch === true : isBranchTaskSessionForList(session, { archived });
   const persistentKind = entry?.persistentKind || getSidebarPersistentKind(session);
+  const isSystem = entry?.isSystem === true;
   const extraClassNames = [];
   if (archived) extraClassNames.push("archived-item");
   if (isBranch) extraClassNames.push(archived ? "is-archived-branch" : "is-branch-session");
+  if (isSystem) extraClassNames.push("is-system-item");
   if (persistentKind === "skill" || persistentKind === "recurring_task" || persistentKind === "scheduled_task" || persistentKind === "waiting_task") {
     extraClassNames.push("is-persistent-item");
   }
@@ -259,8 +280,11 @@ function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForL
     return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
   }
   if (tab === "skill") return isSkillSessionForList(session);
-  // sessions tab: exclude long-term line sessions (projects + members) and skills
-  return !isLongTermLineSessionForList(session) && !isSkillSessionForList(session);
+  // sessions tab: exclude skills always
+  if (isSkillSessionForList(session)) return false;
+  // sessions tab: long-term member sessions hidden by default, shown when toggle is on
+  if (isLongTermLineSessionForList(session)) return getShowLongTermSessionsInTasksTab();
+  return true;
 }
 
 function filterSessionsForSidebarTab(entries = [], tab = getActiveSidebarTabForList()) {
@@ -297,7 +321,9 @@ function renderSessionList() {
       if (!groups.has(groupKey)) {
         const projectSession = isProject
           ? session
-          : (getVisibleActiveSessions().find((s) => s?.id === projectId) || null);
+          : (typeof getSessionCatalogRecordById === "function"
+              ? getSessionCatalogRecordById(projectId)
+              : getVisibleActiveSessions().find((s) => s?.id === projectId) || null);
         const projectTitle = String(projectSession?.name || projectSession?.description || "长期项目").trim() || "长期项目";
         groups.set(groupKey, {
           key: groupKey,
@@ -306,6 +332,7 @@ function renderSessionList() {
           order: groups.size,
           type: "long-term-project",
           projectId,
+          projectSession: projectSession || null,
           sessions: [],
           buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
         });
@@ -314,7 +341,12 @@ function renderSessionList() {
       groupEntry.sessions.push(session);
       if (!isProject) {
         const bucket = inferLongTermSessionBucket(session);
-        groupEntry.buckets[bucket].sessions.push(session);
+        if (groupEntry.buckets[bucket]) {
+          groupEntry.buckets[bucket].sessions.push(session);
+        } else {
+          // fallback: unknown bucket key → put in inbox
+          groupEntry.buckets.inbox.sessions.push(session);
+        }
       }
     }
   } else if (isSkillTab) {
@@ -402,6 +434,7 @@ function renderSessionList() {
         ...(groupEntry.type === "long-term-project" ? {
           type: "long-term-project",
           projectId: groupEntry.projectId,
+          projectSession: groupEntry.projectSession || null,
           buckets: Object.values(groupEntry.buckets).map((b) => ({
             key: b.key,
             label: b.label,
@@ -451,11 +484,19 @@ function renderSessionList() {
         setGroupCollapsed(groupKey, collapsed) {
           persistCollapsedGroupState(groupKey, collapsed);
           renderSessionList();
-          // When a long-term project group is expanded, show the project control panel
-          if (!collapsed && groupKey.startsWith("group:long-term-project:")) {
-            const projectId = groupKey.replace("group:long-term-project:", "");
-            if (typeof window.showLongTermProjectPanel === "function") {
-              window.showLongTermProjectPanel(projectId);
+          // Only react to top-level project group keys — bucket sub-keys look like
+          // "group:long-term-project:xxx:long_term" and must NOT trigger the panel
+          const projectGroupMatch = /^group:long-term-project:([^:]+)$/.exec(groupKey);
+          if (projectGroupMatch) {
+            const projectId = projectGroupMatch[1];
+            if (!collapsed) {
+              if (typeof window.showLongTermProjectPanel === "function") {
+                window.showLongTermProjectPanel(projectId);
+              }
+            } else {
+              if (typeof window.hideLongTermProjectPanel === "function") {
+                window.hideLongTermProjectPanel();
+              }
             }
           }
         },
@@ -800,11 +841,14 @@ function isLongTermProjectRootForPanel(session) {
   if (typeof model?.getLongTermTaskPoolMembership === "function") {
     const membership = model.getLongTermTaskPoolMembership(session);
     if (membership) {
+      // Must be explicitly role=project to show the panel
       return membership.role === "project";
     }
+    // model exists but no membership found → not a project root
+    return false;
   }
-  // Fallback: no membership means it's a standalone recurring_task (treat as root)
-  return true;
+  // model unavailable → conservative fallback: don't show panel
+  return false;
 }
 
 function attachSession(id, session) {
