@@ -5,6 +5,7 @@ import { pushNotificationHook } from '../push-notification-hook.mjs';
 import { emailCompletionHook } from '../email-completion-hook.mjs';
 import { hostCompletionVoiceHook } from '../host-completion-voice-hook.mjs';
 import { memoryWritebackHook } from '../memory-writeback-hook.mjs';
+import { relevantMemoryHook } from '../relevant-memory-hook.mjs';
 
 let builtinHooksRegistered = false;
 
@@ -27,4 +28,5 @@ export function registerBuiltinHooks() {
   registerCatalogHook('builtin.memory-writeback', memoryWritebackHook);
   registerCatalogHook('builtin.host-completion-voice', hostCompletionVoiceHook);
   registerCatalogHook('builtin.email-completion', emailCompletionHook);
+  registerCatalogHook('builtin.relevant-memory', relevantMemoryHook);
 }

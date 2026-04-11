@@ -93,6 +93,16 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     layer: 'lifecycle',
     sourceModule: 'backend/hooks/session-naming-hook.mjs',
   }),
+  createHookDefinition({
+    id: 'builtin.relevant-memory',
+    eventPattern: 'session.first_user_message',
+    label: '注入相关记忆',
+    description: '首条消息到达后，从记忆库检索与当前话题相关的条目并注入会话上下文。',
+    builtIn: true,
+    owner: 'hooks',
+    layer: 'lifecycle',
+    sourceModule: 'backend/hooks/relevant-memory-hook.mjs',
+  }),
 ]);
 
 const BUILTIN_HOOK_DEFINITION_INDEX = new Map(

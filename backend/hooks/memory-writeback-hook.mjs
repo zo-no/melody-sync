@@ -3,6 +3,7 @@ import { join } from 'path';
 
 import { MEMORY_DIR, SYSTEM_MEMORY_DIR } from '../../lib/config.mjs';
 import { createKeyedTaskQueue, ensureDir, pathExists, writeTextAtomic } from '../fs-utils.mjs';
+import { writeMemoryEntry } from '../memory/memory-store.mjs';
 import { stageWorkbenchMemoryCandidate } from '../workbench/memory-candidate-store.mjs';
 
 const AGENT_PROFILE_MD = join(MEMORY_DIR, 'agent-profile.md');
@@ -267,39 +268,76 @@ export async function applyMemoryCandidateWriteback(candidate, context = {}) {
     return true;
   }
 
+  // Shared store entry for all promotable targets
+  const storeFields = {
+    text,
+    target,
+    sessionId: context.sessionId,
+    sessionName: context.sessionName,
+    source: normalizeText(candidate.source) || 'agent',
+    type: normalizeText(candidate.type),
+    confidence: candidate.confidence,
+    importance: candidate.confidence,
+    reason: normalizeText(candidate.reason),
+    expiresAt: normalizeText(candidate.expiresAt),
+  };
+
   switch (target) {
     case 'agent-profile':
-      await appendMarkdownLine(AGENT_PROFILE_MD, 'Auto-captured', bulletize(text));
+      await Promise.all([
+        appendMarkdownLine(AGENT_PROFILE_MD, 'Auto-captured', bulletize(text)),
+        writeMemoryEntry(storeFields).catch(() => {}),
+      ]);
       return true;
     case 'context-digest':
-      await appendMarkdownLine(CONTEXT_DIGEST_MD, 'Auto-captured', bulletize(text), { updateDigestTimestamp: true });
+      await Promise.all([
+        appendMarkdownLine(CONTEXT_DIGEST_MD, 'Auto-captured', bulletize(text), { updateDigestTimestamp: true }),
+        writeMemoryEntry(storeFields).catch(() => {}),
+      ]);
       return true;
     case 'bootstrap':
-      await appendMarkdownLine(join(MEMORY_DIR, 'bootstrap.md'), 'Auto-captured', bulletize(text));
+      await Promise.all([
+        appendMarkdownLine(join(MEMORY_DIR, 'bootstrap.md'), 'Auto-captured', bulletize(text)),
+        writeMemoryEntry(storeFields).catch(() => {}),
+      ]);
       return true;
     case 'projects':
-      await appendMarkdownLine(PROJECTS_MD, 'Auto-captured', bulletize(text));
+      await Promise.all([
+        appendMarkdownLine(PROJECTS_MD, 'Auto-captured', bulletize(text)),
+        writeMemoryEntry(storeFields).catch(() => {}),
+      ]);
       return true;
     case 'skills':
-      await appendMarkdownLine(SKILLS_MD, 'Auto-captured', bulletize(text));
+      await Promise.all([
+        appendMarkdownLine(SKILLS_MD, 'Auto-captured', bulletize(text)),
+        writeMemoryEntry(storeFields).catch(() => {}),
+      ]);
       return true;
     case 'tasks':
       await ensureDir(TASKS_DIR);
-      await writeTaskCandidate({
-        sessionId: context.sessionId,
-        sessionName: context.sessionName,
-        text,
-      });
+      await Promise.all([
+        writeTaskCandidate({ sessionId: context.sessionId, sessionName: context.sessionName, text }),
+        writeMemoryEntry(storeFields).catch(() => {}),
+      ]);
       return true;
     case 'worklog':
       await ensureDir(WORKLOG_DIR);
-      await writeWorklogCandidate(text);
+      await Promise.all([
+        writeWorklogCandidate(text),
+        writeMemoryEntry(storeFields).catch(() => {}),
+      ]);
       return true;
     case 'global':
-      await appendMarkdownLine(GLOBAL_MD, 'Auto-captured', bulletize(text));
+      await Promise.all([
+        appendMarkdownLine(GLOBAL_MD, 'Auto-captured', bulletize(text)),
+        writeMemoryEntry(storeFields).catch(() => {}),
+      ]);
       return true;
     case 'system':
-      await appendMarkdownLine(SYSTEM_MD, 'Auto-captured', bulletize(text));
+      await Promise.all([
+        appendMarkdownLine(SYSTEM_MD, 'Auto-captured', bulletize(text)),
+        writeMemoryEntry(storeFields).catch(() => {}),
+      ]);
       return true;
     default:
       return false;
