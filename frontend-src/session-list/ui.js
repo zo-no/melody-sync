@@ -313,40 +313,26 @@ function renderSessionList() {
   );
   const groups = new Map();
   if (isSessionsTab) {
-    // Tasks tab: flat per-project groups — one group per project, sessions listed directly
-    const model = getSessionListModel();
-    const allActive = typeof getVisibleActiveSessions === "function" ? getVisibleActiveSessions() : [];
-    const ungroupedKey = "group:tasks-ungrouped";
+    // Tasks tab: GTD-style groups by task type (bucket), not by project
+    // Sessions show a project name badge if they belong to a project
+    const GTD_GROUPS = [
+      { key: "group:gtd-long-term",  label: "长期任务", buckets: ["long_term"],  order: 0 },
+      { key: "group:gtd-short-term", label: "短期任务", buckets: ["short_term"], order: 1 },
+      { key: "group:gtd-waiting",    label: "等待任务", buckets: ["waiting"],    order: 2 },
+      { key: "group:gtd-inbox",      label: "收集箱",   buckets: ["inbox", ""],  order: 3 },
+    ];
+    for (const def of GTD_GROUPS) {
+      groups.set(def.key, { ...def, type: "gtd-group", sessions: [] });
+    }
     for (const session of visibleSessions) {
       if (!session?.id) continue;
-      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
-        ? model.getLongTermTaskPoolMembership(session)
-        : null;
-      const projectId = membership?.projectSessionId || "";
-      if (projectId) {
-        const groupKey = `group:tasks-project:${projectId}`;
-        if (!groups.has(groupKey)) {
-          const projectSession = allActive.find((s) => s?.id === projectId) || null;
-          const projectTitle = String(projectSession?.name || "项目").trim() || "项目";
-          const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
-          groups.set(groupKey, {
-            key: groupKey,
-            label: projectTitle,
-            title: projectTitle,
-            order: isSystemProject ? -(groups.size + 1) : groups.size,
-            type: "tasks-project",
-            projectId,
-            sessions: [],
-          });
-        }
-        groups.get(groupKey).sessions.push(session);
-      } else {
-        // No project — put in ungrouped
-        if (!groups.has(ungroupedKey)) {
-          groups.set(ungroupedKey, { key: ungroupedKey, label: "其他", title: "其他", order: 99999, type: "tasks-project", sessions: [] });
-        }
-        groups.get(ungroupedKey).sessions.push(session);
-      }
+      const bucket = inferLongTermSessionBucket(session);
+      const groupDef = GTD_GROUPS.find((g) => g.buckets.includes(bucket)) || GTD_GROUPS[3];
+      groups.get(groupDef.key).sessions.push(session);
+    }
+    // Remove empty groups
+    for (const def of GTD_GROUPS) {
+      if (groups.get(def.key).sessions.length === 0) groups.delete(def.key);
     }
   } else if (isLongTermTab) {
     // Build per-project groups with bucket sub-folders

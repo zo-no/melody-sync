@@ -559,9 +559,22 @@
         className: "session-list-badge session-list-badge-source-voice",
       });
     }
-    // Skip branch badge for project members — they have explicit project membership,
-    // the branch lineage is just how they were originally created
-    const hasProjectMembership = Boolean(getLongTermTaskPoolMembership(session)?.projectSessionId);
+    // Project membership badge — show project name for sessions in the tasks tab
+    const membership = getLongTermTaskPoolMembership(session);
+    const hasProjectMembership = Boolean(membership?.projectSessionId);
+    if (hasProjectMembership && membership.role === "member") {
+      const projectSession = getKnownSessionById(membership.projectSessionId);
+      const projectName = trimText(projectSession?.name || "");
+      if (projectName) {
+        badges.push({
+          key: "project",
+          label: projectName,
+          className: "session-list-badge session-list-badge-project",
+          title: `归属项目：${projectName}`,
+        });
+      }
+    }
+    // Skip branch badge for project members — they have explicit project membership
     if (!hasProjectMembership && (entry?.branch ?? isBranchTaskSession(session)) === true) {
       badges.push({
         key: "branch",

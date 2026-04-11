@@ -400,6 +400,43 @@
   background: color-mix(in srgb, var(--accent) 3%, var(--bg) 97%);
 }
 
+/* System/default projects: square corners, distinct style */
+.lt-project-card.is-system {
+  border-radius: 6px;
+  border-color: color-mix(in srgb, var(--border-strong) 40%, var(--border));
+  background: color-mix(in srgb, var(--bg-secondary) 50%, var(--bg) 50%);
+}
+
+.lt-project-card.is-system .lt-project-card-top {
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+}
+
+.lt-project-card.is-system .lt-project-card-top:hover {
+  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+}
+
+.lt-project-card.is-system .lt-project-card-title {
+  color: var(--text);
+}
+
+.lt-project-card.is-system .lt-project-card-count {
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+  color: var(--text-muted);
+}
+
+/* "默认" badge */
+.lt-project-card-default-badge {
+  flex: 0 0 auto;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--border-strong) 25%, transparent);
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  margin-right: 2px;
+}
+
 /* Title row: chevron + name + count */
 .lt-project-card-top {
   display: flex;
@@ -543,6 +580,35 @@
 }
 
 .lt-project-card-content .folder-group-bucket-items {
+  padding: 2px 0 4px;
+}
+
+/* Tasks inbox group (sessions tab) — same bucket card style */
+.is-tasks-inbox-group {
+  margin-bottom: 4px;
+}
+
+.tasks-inbox-buckets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.is-tasks-inbox-group .folder-group-bucket {
+  margin: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-secondary) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  overflow: hidden;
+}
+
+.is-tasks-inbox-group .folder-group-bucket-header {
+  padding: 7px 10px 7px 12px;
+  font-size: 10.5px;
+  background: color-mix(in srgb, var(--bg-secondary) 40%, transparent);
+}
+
+.is-tasks-inbox-group .folder-group-bucket-items {
   padding: 2px 0 4px;
 }
 
@@ -780,6 +846,15 @@
   color: var(--text-muted);
   background: color-mix(in srgb, var(--text-muted) 8%, var(--bg-tertiary));
   border: 1px solid color-mix(in srgb, var(--text-muted) 18%, transparent);
+}
+.session-list-badge-project {
+  color: color-mix(in srgb, var(--accent) 75%, var(--text-secondary));
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-tertiary));
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .session-item.is-system-item {
   opacity: 0.85;
