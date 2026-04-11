@@ -578,7 +578,14 @@
   white-space: nowrap;
 }
 .session-item.is-complete-read:not(.active) .session-item-name {
-  color: var(--text-secondary);
+  color: var(--text-muted);
+}
+.session-item.is-complete-read:not(.active) .session-item-name-text {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--text-muted) 60%, transparent);
+}
+.session-item.is-complete-read:not(.active) {
+  opacity: 0.62;
 }
 .session-title-badge {
   display: inline-flex;
@@ -1422,17 +1429,26 @@
 .task-cluster-root-card.is-done-session,
 .task-cluster-main.session-item.is-done-session,
 .task-cluster-tree-row.session-item.is-done-session {
-  background: color-mix(in srgb, var(--success) 8%, var(--bg)) !important;
-  border-color: color-mix(in srgb, var(--success) 16%, var(--border)) !important;
   box-shadow: none !important;
+}
+/* Done session: filled checkbox */
+.session-item.is-done-session .session-action-btn.session-item-leading-action.archive-checkbox .session-action-checkbox-ring {
+  background: color-mix(in srgb, var(--success) 80%, transparent);
+  border-color: color-mix(in srgb, var(--success) 80%, transparent);
+  color: var(--bg);
+}
+.session-item.is-done-session .session-action-btn.session-item-leading-action.archive-checkbox .session-action-checkbox-icon {
+  opacity: 1;
+  transform: scale(1);
+  color: var(--bg);
 }
 
 .session-item.is-running-session,
 .task-cluster-root-card.is-running-session,
 .task-cluster-main.session-item.is-running-session,
 .task-cluster-tree-row.session-item.is-running-session {
-  background: color-mix(in srgb, var(--notice) 8%, var(--bg)) !important;
-  border-color: color-mix(in srgb, var(--notice) 16%, var(--border)) !important;
+  background: color-mix(in srgb, var(--notice) 5%, var(--bg)) !important;
+  border-color: color-mix(in srgb, var(--notice) 12%, var(--border)) !important;
   box-shadow: none !important;
 }
 
@@ -1440,7 +1456,7 @@
 .task-cluster-root-card.is-running-session:hover,
 .task-cluster-main.session-item.is-running-session:hover,
 .task-cluster-tree-row.session-item.is-running-session:hover {
-  background: color-mix(in srgb, var(--notice) 11%, var(--bg)) !important;
+  background: color-mix(in srgb, var(--notice) 8%, var(--bg)) !important;
 }
 
 .session-item.is-running-session.active,
@@ -2179,10 +2195,16 @@
 
 .session-item-summary {
   margin-top: 1px;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   font-size: 11px;
   line-height: 1.45;
   color: var(--text-secondary);
+}
+
+/* Hide summary/hint for non-active, non-pinned items — keep list clean */
+.session-item:not(.active):not(.pinned) .session-item-summary,
+.session-item:not(.active):not(.pinned) .session-item-hint {
+  display: none;
 }
 
 .session-item-hint {
