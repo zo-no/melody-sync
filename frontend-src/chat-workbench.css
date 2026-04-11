@@ -3795,9 +3795,9 @@ button.quest-task-flow-node {
 }
 
 .quest-tracker-detail {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin-top: 4px;
   padding-top: 14px;
   border-top: 1px solid color-mix(in srgb, var(--border-strong) 14%, transparent);
@@ -3805,7 +3805,7 @@ button.quest-task-flow-node {
 
 .quest-tracker-detail-row {
   min-height: 0;
-  gap: 7px;
+  gap: 5px;
   padding: 0;
   border-radius: 0;
   background: transparent;
@@ -3813,13 +3813,12 @@ button.quest-task-flow-node {
 }
 
 .quest-tracker-detail-row#questTrackerCandidatesRow {
-  grid-column: 1 / -1;
   padding-top: 8px;
   border-top: 1px solid color-mix(in srgb, var(--border-strong) 14%, transparent);
 }
 
 .quest-tracker-detail-row#questTrackerMemoryCandidatesRow {
-  grid-column: 1 / -1;
+  /* no special layout needed in single-column mode */
 }
 
 .quest-tracker-detail-label {
@@ -3839,19 +3838,19 @@ button.quest-task-flow-node {
 
 .quest-tracker-detail-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .quest-tracker-detail-item {
   padding-left: 0;
   font-size: 12px;
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--text-secondary);
 }
 
 .quest-tracker-detail-item + .quest-tracker-detail-item {
-  padding-top: 5px;
-  border-top: 1px solid color-mix(in srgb, var(--border-strong) 12%, transparent);
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--border-strong) 10%, transparent);
 }
 
 .quest-tracker-detail-item::before {
@@ -4035,10 +4034,6 @@ button.quest-task-flow-node {
     font-size: 20px;
   }
 
-  .quest-tracker-detail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .quest-tracker-footer {
     min-width: 0;
   }
@@ -4103,7 +4098,6 @@ button.quest-task-flow-node {
   }
 
   .quest-tracker-detail {
-    grid-template-columns: 1fr;
     padding-top: 12px;
   }
 

@@ -291,6 +291,7 @@ export function normalizeSessionTaskCard(value, options = {}) {
   const assumptions = normalizeTaskCardList(value.assumptions || value.openAssumptions || value.hypotheses);
   const knownConclusions = normalizeTaskCardList(
     value.knownConclusions || value.conclusions || value.knownFindings || value.findings,
+    { maxItems: 4 },
   );
   const nextSteps = normalizeTaskCardList(value.nextSteps || value.nextActions || value.actions, {
     maxItems: MAX_TASK_CARD_NEXT_STEP_ITEMS,
@@ -396,6 +397,7 @@ function buildTaskCardReplyContractBlock(normalized, fixedTaskTitle) {
     'Set branchFrom to the main line or parent line the current branch diverged from. Leave branchFrom empty when lineRole is "main".',
     'Set branchReason only when there is a clear reason a branch already exists or should split out, such as a distinct deliverable, a different research track, or a line that would pollute the current context if kept in the same thread.',
     'Set checkpoint to one short resume hint that would let the user or the system continue later without rereading the full history.',
+    'Set knownConclusions to at most 3-4 short items that record key decisions or confirmed facts that would otherwise be forgotten — things the session has definitively settled that are worth carrying forward. Do not list every step taken or every sub-question answered. Leave knownConclusions empty if nothing has been firmly decided yet.',
     'Default candidateBranches to an empty list.',
     'Add candidateBranches when the user has already started drifting into a different goal or when there are clear independent side lines that are likely to deserve their own branch next.',
     'Use candidateBranches for branch recommendations only. Do not change the main task title just because a candidate branch appeared.',
