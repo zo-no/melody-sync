@@ -68,6 +68,10 @@ function getSessionDisplayName(session) {
   const ordinalBadge = formatSessionOrdinalBadge(session?.ordinal);
   const displayName = toSingleGoalLabel(getPreferredSessionDisplayName(session), 38);
   if (ordinalBadge && displayName) {
+    // Don't prepend badge if the name already starts with it
+    if (displayName.startsWith(ordinalBadge)) {
+      return clipTaskLabel(displayName, 38);
+    }
     return clipTaskLabel(`${ordinalBadge} ${displayName}`, 38);
   }
   return ordinalBadge || displayName;
