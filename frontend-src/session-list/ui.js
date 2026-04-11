@@ -451,6 +451,16 @@ function renderSessionList() {
         setGroupCollapsed(groupKey, collapsed) {
           persistCollapsedGroupState(groupKey, collapsed);
           renderSessionList();
+          // When a long-term project group is expanded, sync the right-side panel
+          if (!collapsed && groupKey.startsWith("group:long-term-project:")) {
+            const projectId = groupKey.replace("group:long-term-project:", "");
+            if (typeof window.setSelectedLongTermProjectId === "function") {
+              window.setSelectedLongTermProjectId(projectId);
+            }
+            if (typeof window.renderLongTermWorkspace === "function") {
+              window.renderLongTermWorkspace();
+            }
+          }
         },
         openGroupingCreate(anchorEl) {
           window.openSessionGroupingTemplatePopoverAtAnchor?.(anchorEl, { runAfterSave: false });

@@ -973,8 +973,15 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
 }
 
 function renderLongTermWorkspace() {
+  const isLongTermTab = getActiveSidebarTab() === "long-term";
+  // Toggle body class — CSS hides/shows messages, input, taskMap rail, etc.
+  document.body.classList.toggle("long-term-workspace-active", isLongTermTab);
   if (longTermWorkspace) {
-    longTermWorkspace.hidden = true;
+    longTermWorkspace.hidden = !isLongTermTab;
+  }
+  if (isLongTermTab) {
+    const projects = getLongTermWorkspaceProjects();
+    renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
   }
 }
 
@@ -1075,6 +1082,10 @@ function switchTab(tab, { syncState = true } = {}) {
 
 globalThis.switchTab = switchTab;
 globalThis.getActiveSidebarTab = getActiveSidebarTab;
+globalThis.renderLongTermWorkspace = renderLongTermWorkspace;
+globalThis.setSelectedLongTermProjectId = (id) => {
+  selectedLongTermProjectId = String(id || "").trim();
+};
 
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
 tabLongTerm?.addEventListener("click", () => switchTab("long-term"));
