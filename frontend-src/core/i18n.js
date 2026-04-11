@@ -306,7 +306,7 @@
       "sidebar.sortList.configureTemplate": "先新建文件夹",
       "sidebar.sortList.createFolderFirst": "先新建文件夹",
       "sidebar.newSession": "开始任务",
-      "sidebar.newLongTerm": "新长期任务",
+      "sidebar.newLongTerm": "新建项目",
       "sidebar.bootstrapSession": "初始化任务",
       "sidebar.collapse": "收起任务栏",
       "sidebar.expand": "展开任务栏",

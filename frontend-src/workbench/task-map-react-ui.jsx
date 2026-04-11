@@ -1249,18 +1249,11 @@ function getTrackerPersistentActionButtons(session, {
             ? window.getLongTermProjectList()
             : [];
           if (projects.length === 0) {
-            window.alert('还没有长期项目，请先创建一个。');
+            if (typeof window.switchTab === 'function') window.switchTab('long-term');
             return;
           }
-          const listText = projects.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
-          const input = window.prompt(`选择要归入的长期项目（输入编号）：\n\n${listText}`);
-          if (!input) return;
-          const index = Number.parseInt(input.trim(), 10) - 1;
-          if (!Number.isInteger(index) || index < 0 || index >= projects.length) {
-            window.alert('编号无效，请重新操作。');
-            return;
-          }
-          const target = projects[index];
+          const userProjects = projects.filter((p) => p.taskListOrigin !== 'system');
+          const target = userProjects[0] || projects[0];
           if (typeof window.fetchJsonOrRedirect === 'function') {
             void window.fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(session.id)}`, {
               method: 'PATCH',
@@ -1281,7 +1274,7 @@ function getTrackerPersistentActionButtons(session, {
   }
   if (isMobile) {
     return [
-      { label: '长期项设置', onClick: onConfigure, secondary: false },
+      { label: '长期项目设置', onClick: onConfigure, secondary: false },
     ];
   }
   if (kind === 'recurring_task') {
@@ -2168,7 +2161,7 @@ function PersistentEditorModal({
 
   const cadence = normalizeRecurringCadence(draft?.recurring?.cadence);
   const editorStep = draft?.editorStep === 'details' ? 'details' : 'pick_kind';
-  const dialogTitle = draft?.mode === 'configure' ? '长期项设置' : '沉淀为长期项';
+  const dialogTitle = draft?.mode === 'configure' ? '长期项目设置' : '沉淀为长期项';
   if (draft?.kind !== 'skill' && (!draft.loop || typeof draft.loop !== 'object')) {
     draft.loop = {
       collect: { sources: [], instruction: '' },

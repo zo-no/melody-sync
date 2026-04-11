@@ -185,18 +185,13 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
         ? window.getLongTermProjectList()
         : [];
       if (projects.length === 0) {
-        window.alert("还没有长期项目，请先创建一个长期项目。");
+        // No projects yet — switch to Projects tab so user can create one
+        if (typeof switchTab === "function") switchTab("long-term");
         return;
       }
-      const listText = projects.map((p, i) => `${i + 1}. ${p.name}`).join("\n");
-      const input = window.prompt(`选择要归入的长期项目（输入编号）：\n\n${listText}`);
-      if (!input) return;
-      const index = Number.parseInt(input.trim(), 10) - 1;
-      if (!Number.isInteger(index) || index < 0 || index >= projects.length) {
-        window.alert("编号无效，请重新操作。");
-        return;
-      }
-      const target = projects[index];
+      // Use the first non-system user project, or the first project if all are system
+      const userProjects = projects.filter((p) => p.taskListOrigin !== "system");
+      const target = userProjects[0] || projects[0];
       void (typeof fetchJsonOrRedirect === "function"
         ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
             method: "PATCH",
@@ -216,7 +211,6 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
         if (typeof renderSessionList === "function") renderSessionList();
       }).catch((err) => {
         console.error("[lt] assign to project failed:", err);
-        window.alert("归入失败，请重试。");
       });
     },
   } : null;
@@ -423,7 +417,9 @@ function isLongTermProjectSessionForList(session) {
   if (typeof model?.isLongTermProjectSession === "function") {
     return model.isLongTermProjectSession(session);
   }
-  return getSidebarPersistentKind(session) === "recurring_task";
+  if (getSidebarPersistentKind(session) === "recurring_task") return true;
+  const ltRole = String(session?.taskPoolMembership?.longTerm?.role || "").trim().toLowerCase();
+  return ltRole === "project";
 }
 
 function isLongTermLineSessionForList(session) {
@@ -431,7 +427,9 @@ function isLongTermLineSessionForList(session) {
   if (typeof model?.isLongTermLineSession === "function") {
     return model.isLongTermLineSession(session);
   }
-  return isLongTermProjectSessionForList(session);
+  if (isLongTermProjectSessionForList(session)) return true;
+  const ltMembership = session?.taskPoolMembership?.longTerm;
+  return Boolean(ltMembership?.projectSessionId && ltMembership?.role === "member");
 }
 
 function isSkillSessionForList(session) {
@@ -442,6 +440,8 @@ function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForL
   if (tab === "sessions") {
     // Project roots never shown in tasks tab
     if (isLongTermProjectSessionForList(session)) return false;
+    // Long-term project members belong to the long-term tab, not tasks tab
+    if (isLongTermLineSessionForList(session)) return false;
     // Skills never shown in tasks tab
     if (isSkillSessionForList(session)) return false;
     return true;

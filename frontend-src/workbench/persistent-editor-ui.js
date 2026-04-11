@@ -150,14 +150,14 @@
       const dialog = documentRef.createElement("section");
       dialog.className = "operation-record-persistent-editor persistent-editor-popover";
       dialog.setAttribute("role", "group");
-      dialog.setAttribute("aria-label", draft?.mode === "configure" ? "长期项设置" : "沉淀为长期项");
+      dialog.setAttribute("aria-label", draft?.mode === "configure" ? "长期项目设置" : "沉淀为长期项目");
 
       const header = documentRef.createElement("div");
       header.className = "operation-record-persistent-editor-header persistent-editor-modal-header";
 
       const title = documentRef.createElement("div");
       title.className = "operation-record-persistent-editor-title persistent-editor-modal-title";
-      title.textContent = draft?.mode === "configure" ? "长期项设置" : "沉淀为长期项";
+      title.textContent = draft?.mode === "configure" ? "长期项目设置" : "沉淀为长期项目";
       header.appendChild(title);
 
       const closeBtn = documentRef.createElement("button");

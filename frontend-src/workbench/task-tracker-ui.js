@@ -186,12 +186,12 @@
       }
       if (!kind) {
         return [
-          createPersistentActionButton("沉淀为长期项", onPromote),
+          createPersistentActionButton("沉淀为长期项目", onPromote),
         ];
       }
       if (isMobileQuestTracker()) {
         return [
-          createPersistentActionButton("长期项设置", onConfigure),
+          createPersistentActionButton("长期项目设置", onConfigure),
         ];
       }
       if (kind === "skill") {
