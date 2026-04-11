@@ -655,6 +655,8 @@
     getSessionGroupInfo,
     getSessionGroupInfoWithOptions,
     getSidebarPersistentKind,
+    getKnownSessions,
+    getKnownSessionById,
     getLongTermTaskPoolMembership,
     isLongTermProjectSession,
     isLongTermLineSession,
