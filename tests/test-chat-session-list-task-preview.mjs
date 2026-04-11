@@ -213,6 +213,39 @@ assert.equal(
   'cluster summaries should fall back to compact branch status counts when there is no active branch focus',
 );
 
+const recurringCluster = {
+  id: 'cluster:main-recurring',
+  mainSessionId: 'main-recurring',
+  mainSession: {
+    id: 'main-recurring',
+    persistent: { kind: 'recurring_task' },
+  },
+  currentBranchSessionId: '',
+  branchSessions: [
+    {
+      id: 'branch-long',
+      taskPoolMembership: { longTerm: { bucket: 'long_term' } },
+    },
+    {
+      id: 'branch-short',
+      persistent: { kind: 'scheduled_task' },
+    },
+    {
+      id: 'branch-waiting',
+      workflowState: 'waiting_user',
+    },
+    {
+      id: 'branch-inbox',
+    },
+  ],
+};
+
+assert.equal(
+  context.summarizeTaskClusterBranchCounts(recurringCluster, 'main-recurring'),
+  '长期任务 1 · 短期任务 1 · 等待任务 1 · 收集箱 1',
+  'recurring project summaries should expose GTD bucket counts for attached tasks',
+);
+
 const previewHtml = context.renderSessionTaskPreviewHtml(mainSession);
 assert.match(previewHtml, /session-item-summary/, 'task preview html should render a summary row');
 assert.match(previewHtml, /session-item-hint/, 'task preview html should render a hint row');

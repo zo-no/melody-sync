@@ -94,13 +94,7 @@ const getActiveSidebarTabForListSource = extractFunctionSource(sessionListSource
 const isLongTermProjectSessionForListSource = extractFunctionSource(sessionListSource, 'isLongTermProjectSessionForList');
 const shouldIncludeSessionInSidebarTabSource = extractFunctionSource(sessionListSource, 'shouldIncludeSessionInSidebarTab');
 const filterSessionsForSidebarTabSource = extractFunctionSource(sessionListSource, 'filterSessionsForSidebarTab');
-const getSessionStateModelForListSource = extractFunctionSource(sessionListSource, 'getSessionStateModelForList');
 const shouldShowSessionInSidebarForListSource = extractFunctionSource(sessionListSource, 'shouldShowSessionInSidebarForList');
-const clipSidebarLongTermContextTextSource = extractFunctionSource(sessionListSource, 'clipSidebarLongTermContextText');
-const getSessionLongTermStateForSidebarSource = extractFunctionSource(sessionListSource, 'getSessionLongTermStateForSidebar');
-const getSessionLongTermRootIdForSidebarSource = extractFunctionSource(sessionListSource, 'getSessionLongTermRootIdForSidebar');
-const getSidebarLongTermContextDataSource = extractFunctionSource(sessionListSource, 'getSidebarLongTermContextData');
-const renderSidebarLongTermContextSectionSource = extractFunctionSource(sessionListSource, 'renderSidebarLongTermContextSection');
 const resetSessionListFooterSource = extractFunctionSource(sessionListSource, 'resetSessionListFooter');
 const renderSessionListSource = extractFunctionSource(sessionListSource, 'renderSessionList');
 
@@ -160,8 +154,11 @@ const routingContext = {
   payloadSafeTranslate(_key, fallback) {
     return fallback;
   },
+  t(key) {
+    return key === 'sidebar.pinned' ? '置顶' : key;
+  },
   getVisiblePinnedSessions() {
-    return [];
+    return [sessions[0]];
   },
   getVisibleActiveSessions() {
     return sessions;
@@ -176,14 +173,17 @@ const routingContext = {
     return null;
   },
   getSessionGroupInfoForList(session) {
-    return session.group === '长期任务'
-      ? { key: 'group:long-term', label: '长期任务', title: '长期任务', order: 99998 }
-      : { key: 'group:inbox', label: '收集箱', title: '收集箱', order: 0 };
+    return session?.id === 'maintenance-branch'
+      ? { key: 'group:template:project-a', label: '项目 A', title: '项目 A', order: 1 }
+      : { key: 'group:uncategorized', label: '未分类', title: '未分类', order: 999 };
   },
   getPersistentSidebarGroupInfo(groupKey) {
     return groupKey === 'group:long-term'
       ? { key: 'group:long-term', label: '长期任务', title: '长期任务', order: 90000 }
       : { key: 'group:quick-actions', label: 'AI快捷按钮', title: 'AI快捷按钮', order: 90001 };
+  },
+  isUserTemplateFolderGroup(groupKey) {
+    return String(groupKey || '').startsWith('group:template:');
   },
   getVisibleArchivedSessions() {
     return [];
@@ -232,13 +232,7 @@ vm.runInNewContext(`
   ${isLongTermProjectSessionForListSource}
   ${shouldIncludeSessionInSidebarTabSource}
   ${filterSessionsForSidebarTabSource}
-  ${getSessionStateModelForListSource}
   ${shouldShowSessionInSidebarForListSource}
-  ${clipSidebarLongTermContextTextSource}
-  ${getSessionLongTermStateForSidebarSource}
-  ${getSessionLongTermRootIdForSidebarSource}
-  ${getSidebarLongTermContextDataSource}
-  ${renderSidebarLongTermContextSectionSource}
   ${renderSessionListSource}
   globalThis.getPersistentDockGroupKey = getPersistentDockGroupKey;
   globalThis.renderSessionList = renderSessionList;
@@ -256,6 +250,16 @@ assert.equal(
   'group:long-term',
   'persistent recurring sessions should route into the bottom dock',
 );
+assert.equal(
+  routingContext.getPersistentDockGroupKey({ persistent: { kind: 'scheduled_task' } }),
+  '',
+  'scheduled tasks should stay in the main list instead of the bottom dock',
+);
+assert.equal(
+  routingContext.getPersistentDockGroupKey({ persistent: { kind: 'waiting_task' } }),
+  '',
+  'waiting tasks should stay in the main list instead of the bottom dock',
+);
 
 routingContext.renderSessionList();
 
@@ -270,14 +274,14 @@ function collectRenderedSessionIds(host, output = []) {
 }
 
 assert.equal(
-  routingContext.sessionList.children[0]?.className,
-  'session-long-term-context',
-  'fallback sidebar rendering should prepend a long-term context panel when the current session belongs to a long-term task',
+  routingContext.sessionList.children.some((child) => child?.className === 'session-long-term-context'),
+  false,
+  'fallback sidebar rendering should no longer prepend long-term ownership context panels',
 );
 assert.equal(
   JSON.stringify(collectRenderedSessionIds(routingContext.sessionList).sort()),
   JSON.stringify(['maintenance-branch', 'recommended-long-term']),
-  'fallback sidebar rendering should keep the current long-term maintenance session in the ordinary list while hiding the long-term root itself',
+  'fallback sidebar rendering should keep only pinned sessions and user-folder sessions in the ordinary list',
 );
 assert.equal(
   Object.keys(routingContext.capturedDockGroups || {}).length,

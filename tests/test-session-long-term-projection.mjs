@@ -63,4 +63,28 @@ assert.equal(
   'unrelated sessions should not produce noisy long-term suggestions',
 );
 
+assert.equal(
+  buildLongTermSessionProjection({
+    id: 'session-scheduled',
+    name: '一次性账单提醒',
+    persistent: {
+      kind: 'scheduled_task',
+    },
+  }, [longTermRoot]),
+  null,
+  'scheduled tasks should be treated as persistent sessions instead of producing long-term suggestions',
+);
+
+assert.equal(
+  buildLongTermSessionProjection({
+    id: 'session-waiting',
+    name: '等用户确认',
+    persistent: {
+      kind: 'waiting_task',
+    },
+  }, [longTermRoot]),
+  null,
+  'waiting tasks should be treated as persistent sessions instead of producing long-term suggestions',
+);
+
 console.log('test-session-long-term-projection: ok');

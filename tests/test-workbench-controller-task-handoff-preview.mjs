@@ -199,6 +199,7 @@ function buildHarness({ currentSession, sessions }) {
   const elements = new Map(elementIds.map((id) => [id, makeElement('div', id)]));
   const captured = {
     rendererOptions: null,
+    trackerRendererOptions: null,
   };
 
   const context = {
@@ -235,13 +236,15 @@ function buildHarness({ currentSession, sessions }) {
         },
       },
       MelodySyncTaskTrackerUi: {
-        createTrackerRenderer() {
+        createTrackerRenderer(options = {}) {
+          captured.trackerRendererOptions = options;
           return {
             renderStatus() {},
             getPrimaryTitle() { return '当前任务'; },
             getPrimaryDetail() { return ''; },
             getSecondaryDetail() { return ''; },
             renderDetail() {},
+            renderHandoffActions() {},
             renderPersistentActions() {},
           };
         },
@@ -397,8 +400,8 @@ await vm.runInNewContext(`(async () => { ${controllerSource}\nawait Promise.reso
   filename: 'frontend-src/workbench/controller.js',
 });
 
-const previewBuilder = captured.rendererOptions?.buildTaskHandoffPreview;
-assert.equal(typeof previewBuilder, 'function', 'controller should inject a handoff preview builder into the task-map renderer');
+const previewBuilder = captured.trackerRendererOptions?.buildTaskHandoffPreview;
+assert.equal(typeof previewBuilder, 'function', 'controller should inject a handoff preview builder into the task-card renderer');
 
 const preview = previewBuilder(sourceSession.id, targetSession.id, {});
 assert.equal(preview?.sourceSessionId, sourceSession.id, 'preview should keep the source session id');

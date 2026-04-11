@@ -21,8 +21,47 @@ function getStableBranchEntryTimestamp(entry) {
   ) || 0;
 }
 
+function normalizeLongTermBucket(value) {
+  const normalized = normalizeNullableText(value).toLowerCase().replace(/[\s-]+/g, '_');
+  if (['long_term', 'long_term_iteration', '长期任务', '长期迭代'].includes(normalized)) return 'long_term';
+  if (['short_term', 'short_term_iteration', '短期任务', '短期迭代'].includes(normalized)) return 'short_term';
+  if (['waiting', 'waiting_user', 'waiting_for', '等待任务', '等待'].includes(normalized)) return 'waiting';
+  if (['inbox', 'collect', 'collection', 'capture', '收集箱'].includes(normalized)) return 'inbox';
+  return '';
+}
+
+function inferLongTermBucketFromSession(session = null) {
+  const explicitBucket = normalizeLongTermBucket(session?.taskPoolMembership?.longTerm?.bucket || '');
+  if (explicitBucket) return explicitBucket;
+  const persistentKind = normalizeNullableText(session?.persistent?.kind).toLowerCase().replace(/[\s-]+/g, '_');
+  if (persistentKind === 'recurring_task') return 'long_term';
+  if (persistentKind === 'scheduled_task') return 'short_term';
+  if (persistentKind === 'waiting_task') return 'waiting';
+  const workflowState = normalizeNullableText(session?.workflowState).toLowerCase().replace(/[\s-]+/g, '_');
+  if (workflowState === 'waiting_user') return 'waiting';
+  return 'inbox';
+}
+
+function getLongTermBucketOrder(session = null) {
+  switch (inferLongTermBucketFromSession(session)) {
+    case 'long_term':
+      return 0;
+    case 'short_term':
+      return 1;
+    case 'waiting':
+      return 2;
+    case 'inbox':
+      return 3;
+    default:
+      return 4;
+  }
+}
+
 function sortBranchEntriesStable(items) {
   return [...items].sort((left, right) => {
+    const leftBucketOrder = getLongTermBucketOrder(left?.session);
+    const rightBucketOrder = getLongTermBucketOrder(right?.session);
+    if (leftBucketOrder !== rightBucketOrder) return leftBucketOrder - rightBucketOrder;
     const leftTime = getStableBranchEntryTimestamp(left);
     const rightTime = getStableBranchEntryTimestamp(right);
     if (leftTime !== rightTime) return leftTime - rightTime;

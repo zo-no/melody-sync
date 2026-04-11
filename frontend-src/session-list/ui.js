@@ -72,7 +72,10 @@ function getSidebarPersistentKind(session) {
     return model.getSidebarPersistentKind(session);
   }
   const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
-  return kind === "recurring_task" ? "recurring_task" : (kind === "skill" ? "skill" : "");
+  if (kind === "recurring_task") return "recurring_task";
+  if (kind === "scheduled_task") return "scheduled_task";
+  if (kind === "waiting_task") return "waiting_task";
+  return kind === "skill" ? "skill" : "";
 }
 
 function getPersistentDockGroupKey(session) {
@@ -101,24 +104,12 @@ function canRunSidebarQuickAction(session, { archived = false } = {}) {
 
 function buildSidebarSessionActions(session, { archived = false } = {}) {
   const isArchivedSession = archived || session?.archived === true;
-  const entry = getSessionListModel()?.getSessionListEntry?.(session, { archived: isArchivedSession }) || null;
   const baseActions = typeof buildSessionActionConfigs === "function"
     ? buildSessionActionConfigs(session, { archived: isArchivedSession })
     : [];
   const visibleBaseActions = isArchivedSession
     ? baseActions
-    : baseActions
-      .filter((actionEntry) => actionEntry?.action !== "delete")
-      .map((actionEntry) => {
-        if (actionEntry?.action !== "archive" || entry?.staleInfo?.stage !== "cleanup") {
-          return actionEntry;
-        }
-        return {
-          ...actionEntry,
-          label: t("action.cleanup"),
-          className: "cleanup",
-        };
-      });
+    : baseActions.filter((actionEntry) => actionEntry?.action !== "delete");
   const renameAction = isArchivedSession ? null : {
     key: "rename",
     label: t("action.rename"),
@@ -162,12 +153,13 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
   const extraClassNames = [];
   if (archived) extraClassNames.push("archived-item");
   if (isBranch) extraClassNames.push(archived ? "is-archived-branch" : "is-branch-session");
-  if (persistentKind === "skill" || persistentKind === "recurring_task") {
+  if (persistentKind === "skill" || persistentKind === "recurring_task" || persistentKind === "scheduled_task" || persistentKind === "waiting_task") {
     extraClassNames.push("is-persistent-item");
   }
   if (persistentKind === "skill") extraClassNames.push("is-quick-action-item");
   if (persistentKind === "recurring_task") extraClassNames.push("is-persistent-recurring-item");
-  if (entry?.staleInfo?.itemClass) extraClassNames.push(entry.staleInfo.itemClass);
+  if (persistentKind === "scheduled_task") extraClassNames.push("is-persistent-scheduled-item");
+  if (persistentKind === "waiting_task") extraClassNames.push("is-persistent-waiting-item");
   const branchBadge = Array.isArray(entry?.badges)
     ? entry.badges.find((badge) => badge?.key === "branch" && badge?.label)
     : null;
@@ -185,38 +177,6 @@ function createSidebarSessionItem(session, { archived = false } = {}) {
     ...(metaOverrideHtml ? { metaOverrideHtml } : {}),
   });
   return item;
-}
-
-function getPersistentDockGroupLabel(groupKey) {
-  if (groupKey === "group:quick-actions") return t("sidebar.group.quickActions");
-  if (groupKey === "group:long-term") return t("sidebar.group.longTerm");
-  return t(groupKey);
-}
-
-function getPersistentSidebarGroupInfo(groupKey) {
-  const label = getPersistentDockGroupLabel(groupKey);
-  if (groupKey === "group:long-term") {
-    return {
-      key: groupKey,
-      label,
-      title: label,
-      order: 90000,
-    };
-  }
-  if (groupKey === "group:quick-actions") {
-    return {
-      key: groupKey,
-      label,
-      title: label,
-      order: 90001,
-    };
-  }
-  return {
-    key: groupKey,
-    label,
-    title: label,
-    order: 90002,
-  };
 }
 
 function resetSessionListFooter() {
@@ -239,13 +199,6 @@ function persistCollapsedGroupState(groupKey, collapsed) {
     COLLAPSED_GROUPS_STORAGE_KEY,
     JSON.stringify(collapsedFolders),
   );
-}
-
-function getSessionListGroupPriority(groupEntry) {
-  const groupKey = String(groupEntry?.key || "").trim();
-  if (groupKey === "group:quick-actions") return -2;
-  if (groupKey === "group:long-term") return -1;
-  return 0;
 }
 
 function getActiveSidebarTabForList() {
@@ -280,239 +233,9 @@ function filterSessionsForSidebarTab(entries = [], tab = getActiveSidebarTabForL
   return (Array.isArray(entries) ? entries : []).filter((session) => shouldIncludeSessionInSidebarTab(session, tab));
 }
 
-function getSessionStateModelForList() {
-  return window.MelodySyncSessionStateModel || null;
-}
-
-function getSessionFocusReason(session) {
-  const stateModel = getSessionStateModelForList();
-  const workflowState = typeof stateModel?.normalizeSessionWorkflowState === "function"
-    ? stateModel.normalizeSessionWorkflowState(session?.workflowState || "")
-    : "";
-  const activity = typeof stateModel?.normalizeSessionActivity === "function"
-    ? stateModel.normalizeSessionActivity(session)
-    : { run: { state: "idle" } };
-  const hasUnreadUpdate = typeof stateModel?.hasSessionUnreadUpdate === "function"
-    ? stateModel.hasSessionUnreadUpdate(session)
-    : false;
-  const workflowPriority = typeof stateModel?.getSessionWorkflowPriorityInfo === "function"
-    ? stateModel.getSessionWorkflowPriorityInfo(session)
-    : null;
-
-  if (workflowState === "waiting_user") {
-    return { key: "waiting", rank: 0, label: payloadSafeTranslate("sidebar.focus.reason.waiting", "等待你") };
-  }
-  if (activity?.run?.state === "running") {
-    return { key: "running", rank: 1, label: payloadSafeTranslate("sidebar.focus.reason.running", "进行中") };
-  }
-  if (hasUnreadUpdate) {
-    return { key: "updated", rank: 2, label: payloadSafeTranslate("sidebar.focus.reason.updated", "有更新") };
-  }
-  if (workflowPriority?.key === "high") {
-    return { key: "priority", rank: 3, label: payloadSafeTranslate("sidebar.focus.reason.priority", "优先处理") };
-  }
-  return null;
-}
-
-function getSessionFocusSectionData(entries = []) {
-  const stateModel = getSessionStateModelForList();
-  const deduped = [];
-  const seen = new Set();
-  for (const session of Array.isArray(entries) ? entries : []) {
-    const sessionId = String(session?.id || "").trim();
-    if (!sessionId || seen.has(sessionId)) continue;
-    seen.add(sessionId);
-    deduped.push(session);
-  }
-
-  const focusEntries = deduped
-    .filter((session) => !getSidebarPersistentKind(session))
-    .map((session) => ({
-      session,
-      reason: getSessionFocusReason(session),
-    }))
-    .filter((entry) => entry.reason);
-
-  focusEntries.sort((left, right) => {
-    const rankDiff = (left.reason?.rank || 0) - (right.reason?.rank || 0);
-    if (rankDiff) return rankDiff;
-    if (typeof stateModel?.compareSessionListSessions === "function") {
-      return stateModel.compareSessionListSessions(left.session, right.session);
-    }
-    return String(left.session?.id || "").localeCompare(String(right.session?.id || ""));
-  });
-
-  const focusSessions = focusEntries.slice(0, 3).map((entry) => entry.session);
-  const reasonCounts = new Map();
-  for (const entry of focusEntries.slice(0, 3)) {
-    const reasonKey = String(entry.reason?.key || "").trim();
-    if (!reasonKey) continue;
-    reasonCounts.set(reasonKey, (reasonCounts.get(reasonKey) || 0) + 1);
-  }
-  const reasonLabelByKey = new Map(focusEntries.map((entry) => [entry.reason.key, entry.reason.label]));
-  const hintParts = ["waiting", "running", "updated", "priority"]
-    .filter((key) => reasonCounts.has(key))
-    .map((key) => `${reasonLabelByKey.get(key) || key} ${reasonCounts.get(key)}`);
-
-  return {
-    sessions: focusSessions,
-    hintLabel: hintParts.join(" · "),
-  };
-}
-
-function clipSidebarLongTermContextText(value, max = 140) {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  if (!text) return "";
-  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
-}
-
-function getSessionLongTermStateForSidebar(session) {
-  const longTerm = session?.sessionState?.longTerm;
-  if (!longTerm || typeof longTerm !== "object" || Array.isArray(longTerm)) return null;
-  const rootSessionId = String(longTerm?.rootSessionId || "").trim();
-  if (!rootSessionId) return null;
-  const role = String(longTerm?.role || "").trim().toLowerCase();
-  return {
-    lane: String(longTerm?.lane || "").trim().toLowerCase() === "long-term" ? "long-term" : "sessions",
-    role: role === "project" || role === "member" ? role : "",
-    rootSessionId,
-    rootTitle: String(longTerm?.rootTitle || "").trim(),
-    rootSummary: String(longTerm?.rootSummary || "").trim(),
-  };
-}
-
-function getSessionLongTermRootIdForSidebar(session) {
-  const projected = getSessionLongTermStateForSidebar(session);
-  if (projected?.rootSessionId) return projected.rootSessionId;
-  const sessionId = String(session?.id || "").trim();
-  return isLongTermProjectSessionForList(session) ? sessionId : "";
-}
-
-function getSidebarLongTermContextData(tab = getActiveSidebarTabForList()) {
-  if (tab === "long-term") return null;
-  const currentSession = Array.isArray(sessions)
-    ? sessions.find((session) => session?.id === currentSessionId) || null
-    : null;
-  const longTermState = getSessionLongTermStateForSidebar(currentSession);
-  if (!currentSession?.id || longTermState?.role !== "member" || !longTermState.rootSessionId) {
-    return null;
-  }
-
-  const rootSessionId = longTermState.rootSessionId;
-  const rootSession = Array.isArray(sessions)
-    ? sessions.find((session) => session?.id === rootSessionId) || null
-    : null;
-  const rootTitle = clipSidebarLongTermContextText(
-    longTermState.rootTitle
-      || (typeof getPreferredSessionDisplayName === "function" ? getPreferredSessionDisplayName(rootSession) : "")
-      || (typeof getSessionDisplayName === "function" ? getSessionDisplayName(rootSession) : "")
-      || String(rootSession?.name || "").trim()
-      || "长期任务",
-    48,
-  );
-  const rootSummary = clipSidebarLongTermContextText(
-    longTermState.rootSummary
-      || rootSession?.persistent?.digest?.summary
-      || rootSession?.taskCard?.checkpoint
-      || rootSession?.taskCard?.summary
-      || rootSession?.description
-      || "",
-    160,
-  );
-  const relatedSessions = (Array.isArray(sessions) ? sessions : [])
-    .filter((session) => session?.archived !== true)
-    .filter((session) => String(session?.id || "").trim() !== rootSessionId)
-    .filter((session) => String(session?.id || "").trim() !== String(currentSession?.id || "").trim())
-    .filter((session) => getSessionLongTermRootIdForSidebar(session) === rootSessionId)
-    .filter((session) => shouldShowSessionInSidebarForList(session))
-    .slice()
-    .sort((left, right) => {
-      const stateModel = getSessionStateModelForList();
-      if (typeof stateModel?.compareSessionListSessions === "function") {
-        return stateModel.compareSessionListSessions(left, right);
-      }
-      return String(left?.id || "").localeCompare(String(right?.id || ""));
-    })
-    .slice(0, 3);
-  const memberCount = (Array.isArray(sessions) ? sessions : [])
-    .filter((session) => session?.archived !== true)
-    .filter((session) => String(session?.id || "").trim() !== rootSessionId)
-    .filter((session) => getSessionLongTermRootIdForSidebar(session) === rootSessionId)
-    .length;
-
-  return {
-    rootSessionId,
-    rootTitle,
-    rootSummary,
-    memberCount,
-    relatedSessions,
-  };
-}
-
-function renderSidebarLongTermContextSection(contextData = null) {
-  if (!contextData?.rootSessionId) return null;
-  const section = document.createElement("section");
-  section.className = "session-long-term-context";
-  section.innerHTML = `
-    <div class="session-long-term-context-header">
-      <div class="session-long-term-context-kicker">${esc(payloadSafeTranslate("sidebar.longTerm.context.kicker", "归属长期任务"))}</div>
-      <div class="session-long-term-context-title">${esc(contextData.rootTitle || "长期任务")}</div>
-      <div class="session-long-term-context-summary">${esc(
-        contextData.rootSummary
-          || payloadSafeTranslate("sidebar.longTerm.context.summary", "当前会话继续留在普通列表执行，右侧任务地图跟随这个长期任务。"),
-      )}</div>
-      <div class="session-long-term-context-meta">
-        <span class="session-long-term-context-chip">${esc(payloadSafeTranslate("sidebar.longTerm.context.current", "当前会话已归入"))}</span>
-        <span class="session-long-term-context-chip">${esc(
-          `${payloadSafeTranslate("sidebar.longTerm.context.memberCount", "维护项")} ${Math.max(1, Number(contextData.memberCount) || 0)}`,
-        )}</span>
-      </div>
-    </div>`;
-  if (Array.isArray(contextData.relatedSessions) && contextData.relatedSessions.length > 0) {
-    const related = document.createElement("div");
-    related.className = "session-long-term-context-related";
-
-    const label = document.createElement("div");
-    label.className = "session-long-term-context-related-label";
-    label.textContent = payloadSafeTranslate("sidebar.longTerm.context.related", "同长期任务下的维护项");
-    related.appendChild(label);
-
-    const items = document.createElement("div");
-    items.className = "session-long-term-context-items";
-    appendSessionItems(items, contextData.relatedSessions);
-    related.appendChild(items);
-    section.appendChild(related);
-  }
-  return section;
-}
-
-function renderFocusSection({ focusSessions = [], focusLabel = "", hintLabel = "" } = {}) {
-  if (!Array.isArray(focusSessions) || focusSessions.length === 0) return null;
-  const section = document.createElement("div");
-  section.className = "session-focus-section";
-
-  const header = document.createElement("div");
-  header.className = "session-focus-header";
-  header.innerHTML = `
-    <div class="session-focus-header-main">
-      <div class="session-focus-title">${esc(focusLabel)}</div>
-      ${hintLabel ? `<div class="session-focus-note">${esc(hintLabel)}</div>` : ""}
-    </div>
-    <span class="folder-count">${focusSessions.length}</span>`;
-
-  const items = document.createElement("div");
-  items.className = "session-focus-items";
-  appendSessionItems(items, focusSessions);
-
-  section.appendChild(header);
-  section.appendChild(items);
-  return section;
-}
-
 function renderSessionList() {
   const activeSidebarTab = getActiveSidebarTabForList();
   const isLongTermTab = activeSidebarTab === "long-term";
-  const longTermContext = getSidebarLongTermContextData(activeSidebarTab);
   const groupingMode = getSessionGroupingModeForList();
   const showGroupingFolderControls = !isLongTermTab;
   const pinnedSessions = filterSessionsForSidebarTab(
@@ -523,14 +246,9 @@ function renderSessionList() {
     getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
     activeSidebarTab,
   );
-  const focusSection = isLongTermTab
-    ? { sessions: [], hintLabel: "" }
-    : getSessionFocusSectionData([...pinnedSessions, ...visibleSessions]);
-
   const groups = new Map();
   for (const session of visibleSessions) {
     if (!session?.id) continue;
-    const persistentDockGroupKey = getPersistentDockGroupKey(session);
     const groupInfo = isLongTermTab
       ? {
           key: "group:long-term-projects",
@@ -538,25 +256,23 @@ function renderSessionList() {
           title: payloadSafeTranslate("sidebar.longTerm.projects", "长期任务"),
           order: 0,
         }
-      : (persistentDockGroupKey
-        ? getPersistentSidebarGroupInfo(persistentDockGroupKey)
-        : getSessionGroupInfoForList(session));
+      : getSessionGroupInfoForList(session);
     if (!groups.has(groupInfo.key)) {
       groups.set(groupInfo.key, { ...groupInfo, sessions: [], insertOrder: groups.size });
     }
     groups.get(groupInfo.key).sessions.push(session);
   }
 
-  const showGroupHeaders = groups.size > 0;
   const orderedGroups = [...groups.entries()].sort(([, left], [, right]) => {
-    const leftPriority = getSessionListGroupPriority(left);
-    const rightPriority = getSessionListGroupPriority(right);
-    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
     const leftOrder = Number.isInteger(left?.order) ? left.order : 100000;
     const rightOrder = Number.isInteger(right?.order) ? right.order : 100000;
     if (leftOrder !== rightOrder) return leftOrder - rightOrder;
     return String(left?.label || "").localeCompare(String(right?.label || ""));
   });
+  const visibleGroups = isLongTermTab
+    ? orderedGroups
+    : orderedGroups.filter(([groupKey]) => isUserTemplateFolderGroup(groupKey));
+  const showGroupHeaders = visibleGroups.length > 0;
 
   const archivedSessions = filterSessionsForSidebarTab(
     (typeof getVisibleArchivedSessions === "function" ? getVisibleArchivedSessions() : [])
@@ -578,9 +294,8 @@ function renderSessionList() {
       : Math.max(archivedSessionTotal, archivedSessions.length));
   const sessionsLoaded = typeof hasLoadedSessions !== "undefined" && hasLoadedSessions === true;
   const shouldShowSessionListEmptyState =
-    focusSection.sessions.length === 0
-    && pinnedSessions.length === 0
-    && orderedGroups.length === 0
+    pinnedSessions.length === 0
+    && visibleGroups.length === 0
     && !shouldRenderArchivedSection;
   const sessionListEmptyLabel = shouldShowSessionListEmptyState
     ? payloadSafeTranslate(
@@ -602,27 +317,7 @@ function renderSessionList() {
       sessionListEl: sessionList,
       sessionListFooterEl: sessionListFooter,
       pinnedSessions,
-      contextPanel: longTermContext
-        ? {
-          rootSessionId: longTermContext.rootSessionId,
-          kicker: payloadSafeTranslate("sidebar.longTerm.context.kicker", "归属长期任务"),
-          title: longTermContext.rootTitle || "长期任务",
-          summary: longTermContext.rootSummary
-            || payloadSafeTranslate("sidebar.longTerm.context.summary", "当前会话继续留在普通列表执行，右侧任务地图跟随这个长期任务。"),
-          chips: [
-            payloadSafeTranslate("sidebar.longTerm.context.current", "当前会话已归入"),
-            `${payloadSafeTranslate("sidebar.longTerm.context.memberCount", "维护项")} ${Math.max(1, Number(longTermContext.memberCount) || 0)}`,
-          ],
-          relatedLabel: payloadSafeTranslate("sidebar.longTerm.context.related", "同长期任务下的维护项"),
-          relatedSessions: longTermContext.relatedSessions,
-        }
-        : null,
-      focus: {
-        sessions: focusSection.sessions,
-        titleLabel: payloadSafeTranslate("sidebar.focus.title", "焦点"),
-        hintLabel: focusSection.hintLabel,
-      },
-      groups: orderedGroups.map(([groupKey, groupEntry]) => ({
+      groups: visibleGroups.map(([groupKey, groupEntry]) => ({
         key: groupKey,
         label: groupEntry.label,
         title: groupEntry.title,
@@ -706,20 +401,6 @@ function renderSessionList() {
 
   sessionList.innerHTML = "";
 
-  const longTermContextEl = renderSidebarLongTermContextSection(longTermContext);
-  if (longTermContextEl) {
-    sessionList.appendChild(longTermContextEl);
-  }
-
-  const focusSectionEl = renderFocusSection({
-    focusSessions: focusSection.sessions,
-    focusLabel: payloadSafeTranslate("sidebar.focus.title", "焦点"),
-    hintLabel: focusSection.hintLabel,
-  });
-  if (focusSectionEl) {
-    sessionList.appendChild(focusSectionEl);
-  }
-
   if (pinnedSessions.length > 0) {
     const section = document.createElement("div");
     section.className = "pinned-section";
@@ -744,7 +425,7 @@ function renderSessionList() {
     sessionList.appendChild(empty);
   }
 
-  for (const [groupKey, groupEntry] of orderedGroups) {
+  for (const [groupKey, groupEntry] of visibleGroups) {
     const groupSessions = groupEntry.sessions;
     const group = document.createElement("div");
     group.className = "folder-group" + (showGroupHeaders ? "" : " is-ungrouped");

@@ -473,6 +473,7 @@ const {
   updateSessionPersistent: updateSessionPersistentViaPersistentService,
 } = createSessionPersistentService({
   broadcastSessionInvalidation,
+  createSession,
   createInternalRequestId,
   enrichSessionMeta,
   getSession,

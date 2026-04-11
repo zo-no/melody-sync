@@ -28,10 +28,6 @@ const taskMapReactSource = readFileSync(
   join(repoRoot, 'frontend-src', 'workbench', 'task-map-react-ui.jsx'),
   'utf8',
 );
-const chatWorkbenchCssSource = readFileSync(
-  join(repoRoot, 'frontend-src', 'chat-workbench.css'),
-  'utf8',
-);
 
 assert.match(
   taskMapReactSource,
@@ -58,11 +54,6 @@ assert.match(
   /minZoom:\s*isMobile \? 0\.25 : 0\.42/,
   'mobile task-map fit should allow a much wider zoom-out range so dense graphs still fit on narrow screens',
 );
-assert.match(
-  taskMapReactSource,
-  /const connectActionAvailable = canConnectSession && Array\.isArray\(rawTargets\) && rawTargets\.length > 0;/,
-  'task-map React UI should only expose connect actions when the node still has valid targets',
-);
 assert.doesNotMatch(
   taskMapReactSource,
   /const canConnectSession = node\?\.isCurrent === true/,
@@ -80,23 +71,13 @@ assert.match(
 );
 assert.match(
   taskMapReactSource,
-  /nodesConnectable=\{!interactionConfig\.isMobile\}/,
-  'task-map React UI should enable native edge dragging on desktop-sized task maps',
+  /nodesConnectable=\{false\}/,
+  'task-map React UI should fully disable native drag-connect gestures after removing graph linking',
 );
-assert.match(
+assert.doesNotMatch(
   taskMapReactSource,
   /onConnect=\{handleConnect\}/,
-  'task-map React UI should route native drag-connect gestures through the task connection handler',
-);
-assert.match(
-  taskMapReactSource,
-  /title=\{quickConnectBusy \? '连接中' : '拖线连接'\}/,
-  'task-map React UI should keep the drag-connect affordance discoverable even after shrinking the source handle back into a compact graph port',
-);
-assert.match(
-  taskMapReactSource,
-  /className=\{`quest-task-flow-connect-handle is-source\$\{showDesktopConnectHandle \? ' is-visible' : ''\}/,
-  'desktop task-map source ports should stay directly draggable whenever the node can connect, even before the quick-action rail is opened',
+  'task-map React UI should not wire connect callbacks once graph linking is removed',
 );
 assert.match(
   taskMapReactSource,
@@ -145,11 +126,6 @@ assert.match(
 );
 assert.match(
   taskMapReactSource,
-  /const showHandoffTrigger = canHandoff && \(composerOpen \|\| data\?\.current === true\);/,
-  'edge handoff controls should stay visible on the current edge without relying on volatile hover toggles',
-);
-assert.match(
-  taskMapReactSource,
   /const lastAppliedViewportSyncKeyRef = useRef\(''\);/,
   'viewport sync should remember which topology key it has already applied so repeated node re-initialization does not re-fit the same graph',
 );
@@ -187,11 +163,6 @@ assert.match(
   taskMapReactSource,
   /if \(!reactFlowBoardContainer \|\| !reactFlowBoardRoot\) \{/,
   'task-map renderer should only create a new ReactFlow mount when no stable board root exists yet',
-);
-assert.match(
-  chatWorkbenchCssSource,
-  /\.quest-task-flow-edge-handoff-popover[\s\S]*var\(--bg-elevated, var\(--bg-secondary, var\(--bg\)\)\)/s,
-  'edge handoff popovers should derive their surface from theme tokens so dark mode keeps the copy readable',
 );
 assert.doesNotMatch(
   taskMapReactSource,
@@ -405,8 +376,6 @@ vm.runInNewContext(nodeEffectsSource, context, { filename: 'workbench/node-effec
 vm.runInNewContext(taskMapReactBundleSource, context, { filename: 'workbench/task-map-react.bundle.js' });
 vm.runInNewContext(taskMapUiSource, context, { filename: 'workbench/task-map-ui.js' });
 
-const handoffCalls = [];
-const handoffPreviewCalls = [];
 const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
   documentRef,
   windowRef,
@@ -424,33 +393,6 @@ const renderer = context.window.MelodySyncTaskMapUi.createRenderer({
         searchText: '目标任务 方案讨论',
       },
     ];
-  },
-  buildTaskHandoffPreview(sourceSessionId, targetSessionId, options = {}) {
-    const detailLevel = String(options?.detailLevel || '').trim() || 'balanced';
-    handoffPreviewCalls.push({
-      sourceSessionId,
-      targetSessionId,
-      detailLevel,
-    });
-    return {
-      sourceSessionId,
-      targetSessionId,
-      sourceTitle: sourceSessionId === 'main-1' ? '主任务' : '其他任务',
-      targetTitle: targetSessionId === 'branch-running' ? '运行节点' : '其他节点',
-      summary: `${sourceSessionId} -> ${targetSessionId} (${detailLevel})`,
-      sections: [
-        { key: 'conclusions', label: '结论', items: [`已经整理出需要传递的阶段信息（${detailLevel}）`] },
-        { key: 'nextSteps', label: '下一步', items: ['继续推进目标任务'] },
-      ],
-    };
-  },
-  async handoffSessionTaskData(sourceSessionId, payload = {}) {
-    handoffCalls.push({
-      sourceSessionId,
-      targetSessionId: payload?.targetSessionId || '',
-      detailLevel: payload?.detailLevel || '',
-    });
-    return { ok: true };
   },
 });
 
@@ -703,51 +645,15 @@ assert.equal(
 );
 
 const reparentActionBtn = findFirst(editableFlowNode, (node) => node?.textContent === '连接...');
-assert.ok(reparentActionBtn, 'current active session nodes should expose a lightweight connect entry');
-reparentActionBtn.dispatchEvent({ type: 'click' });
+assert.equal(reparentActionBtn, null, 'task-map nodes should stop exposing graph-link choosers after moving handoff into the task card');
 
 const reparentComposer = findFirstByClass(editableFlowNode, 'quest-task-flow-reparent-composer');
-assert.ok(reparentComposer, 'clicking the connect action should open the inline chooser composer');
-assert.equal(
-  findFirstByClass(reparentComposer, 'quest-task-flow-reparent-option-path')?.textContent,
-  '最近使用 · 目标任务 / 方案讨论',
-  'connect chooser should render the display path used for recent targets',
-);
+assert.equal(reparentComposer, null, 'task-map should no longer render inline graph-link composers');
 
 const handoffTrigger = findFirstByClass(board, 'quest-task-flow-edge-handoff-btn');
-assert.ok(handoffTrigger, 'task-map edges should render a visible handoff trigger when both endpoints are sessions');
-handoffTrigger.dispatchEvent({ type: 'click' });
+assert.equal(handoffTrigger, null, 'task-map edges should no longer expose handoff triggers');
 
 const handoffPopover = findFirstByClass(board, 'quest-task-flow-edge-handoff-popover');
-assert.ok(handoffPopover, 'clicking the edge handoff trigger should reveal the preview popover');
-assert.equal(handoffPopover.hidden, false, 'handoff preview popover should open inline in the static fallback renderer');
-assert.equal(
-  Boolean(findFirstByClass(handoffPopover, 'quest-task-flow-edge-handoff-summary')?.textContent.includes('balanced')),
-  true,
-  'handoff popover should surface the preview summary so users can confirm the direction at a glance',
-);
-
-const fullDetailBtn = findFirst(handoffPopover, (node) => node?.textContent === '完整');
-assert.ok(fullDetailBtn, 'handoff popover should expose detail-level controls');
-await fullDetailBtn.dispatchEvent({ type: 'click' });
-assert.equal(
-  handoffPreviewCalls.some((entry) => entry.detailLevel === 'full'),
-  true,
-  'switching the handoff detail level should rebuild the preview with the selected richness',
-);
-
-const handoffConfirmBtn = findFirst(handoffPopover, (node) => node?.textContent === '确认传递');
-assert.ok(handoffConfirmBtn, 'handoff popover should expose a confirm action');
-await handoffConfirmBtn.dispatchEvent({ type: 'click' });
-
-assert.deepEqual(
-  handoffCalls[0],
-  {
-    sourceSessionId: 'main-1',
-    targetSessionId: 'branch-running',
-    detailLevel: 'full',
-  },
-  'confirming edge handoff should carry the selected detail level into the injected handoff action',
-);
+assert.equal(handoffPopover, null, 'task-map should no longer mount edge handoff popovers');
 
 console.log('test-workbench-task-map-ui: ok');

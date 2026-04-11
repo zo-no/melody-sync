@@ -10,13 +10,13 @@ export function createClientSessionListItem(session) {
 }
 
 export function createClientSessionSummaryPayload(session) {
-  return { session: createClientSessionListItem(session) };
+  return { session };
 }
 
 export function createClientSessionSummaryEtag(session) {
-  return createHash('sha1')
+  return `"${createHash('sha1')
     .update(JSON.stringify(createClientSessionSummaryPayload(session)))
-    .digest('base64url');
+    .digest('hex')}"`;
 }
 
 export function createClientSessionSummaryRef(session) {

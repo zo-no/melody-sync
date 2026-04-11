@@ -14,6 +14,15 @@ import {
 import { normalizeSessionPersistent } from '../../session-persistent/core.mjs';
 import { statOrNull } from '../../fs-utils.mjs';
 
+function getPersistentSessionGroup(kind = '') {
+  const normalizedKind = typeof kind === 'string' ? kind.trim().toLowerCase() : '';
+  if (normalizedKind === 'skill') return '快捷按钮';
+  if (normalizedKind === 'recurring_task') return '长期任务';
+  if (normalizedKind === 'scheduled_task') return '短期任务';
+  if (normalizedKind === 'waiting_task') return '等待任务';
+  return '';
+}
+
 async function isDirectoryPath(path) {
   return (await statOrNull(path))?.isDirectory() === true;
 }
@@ -116,7 +125,7 @@ export async function createSessionForHttp(payload = {}) {
     userName: typeof userName === 'string' ? userName : '',
     sourceId: typeof sourceId === 'string' ? sourceId : '',
     sourceName: typeof sourceName === 'string' ? sourceName : '',
-    group: (typeof group === 'string' && group.trim()) ? group : '收集箱',
+    group: (typeof group === 'string' && group.trim()) ? group : '',
     description: description || '',
     completionTargets: Array.isArray(completionTargets) ? completionTargets : [],
     externalTriggerId: typeof externalTriggerId === 'string' ? externalTriggerId : '',
@@ -143,12 +152,19 @@ export async function createSessionForHttp(payload = {}) {
       error.statusCode = 400;
       throw error;
     }
-    if (persistent && !normalizeSessionPersistent(persistent)) {
+    const normalizedPersistent = persistent ? normalizeSessionPersistent(persistent) : null;
+    if (persistent && !normalizedPersistent) {
       const error = new Error('persistent configuration is invalid');
       error.statusCode = 400;
       throw error;
     }
     createOptions.persistent = persistent;
+    if (!createOptions.group) {
+      createOptions.group = getPersistentSessionGroup(normalizedPersistent?.kind || '');
+    }
+  }
+  if (!createOptions.group) {
+    createOptions.group = '收集箱';
   }
   return createSession(resolvedFolder, tool, name || '', createOptions);
 }

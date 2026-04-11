@@ -39,6 +39,7 @@
     trackerCandidateBranchesRowEl = null,
     trackerCandidateBranchesListEl = null,
     getPersistentActionsEl = () => null,
+    getHandoffActionsEl = () => null,
     getCurrentSessionSafe = () => null,
     getPendingMemoryCandidates = () => [],
     reviewMemoryCandidate = async () => null,
@@ -50,6 +51,9 @@
     isRedundantTrackerText = () => false,
     getCurrentTaskSummary = () => "",
     getBranchDisplayName = (session) => String(session?.name || "").trim(),
+    listTaskHandoffTargets = () => [],
+    buildTaskHandoffPreview = null,
+    handoffSessionTaskData = async () => null,
   } = {}) {
     function getTaskRunStatusApi() {
       return globalThis?.MelodySyncTaskRunStatus
@@ -201,6 +205,23 @@
             onToggle,
             { secondary: true },
           ),
+          createPersistentActionButton("设置", onConfigure, { secondary: true }),
+        ];
+      }
+      if (kind === "scheduled_task") {
+        return [
+          createPersistentActionButton("立即执行", onRun),
+          createPersistentActionButton(
+            String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "恢复定时" : "暂停定时",
+            onToggle,
+            { secondary: true },
+          ),
+          createPersistentActionButton("设置", onConfigure, { secondary: true }),
+        ];
+      }
+      if (kind === "waiting_task") {
+        return [
+          createPersistentActionButton("立即执行", onRun),
           createPersistentActionButton("设置", onConfigure, { secondary: true }),
         ];
       }
@@ -384,6 +405,95 @@
       return button;
     }
 
+    function createHandoffTargetOptionLabel(target = {}) {
+      const title = trimText(target?.title || "") || "未命名任务";
+      const detail = trimText(target?.displayPath || target?.path || "");
+      if (!detail || detail === title) return title;
+      return `${title} · ${detail}`;
+    }
+
+    function renderHandoffActions(session = null, {
+      targets = [],
+      buildPreview = null,
+      onHandoff = null,
+    } = {}) {
+      const host = getHandoffActionsEl?.();
+      if (!host) return;
+      host.innerHTML = "";
+      const sourceSessionId = trimText(session?.id || "");
+      const validTargets = Array.isArray(targets)
+        ? targets.filter((entry) => trimText(entry?.sessionId || ""))
+        : [];
+      if (!sourceSessionId || session?.archived === true || validTargets.length === 0 || typeof onHandoff !== "function") {
+        host.hidden = true;
+        return;
+      }
+
+      host.hidden = false;
+      const row = documentRef.createElement("div");
+      row.className = "quest-tracker-handoff-row";
+
+      const select = documentRef.createElement("select");
+      select.className = "quest-tracker-handoff-select";
+      select.setAttribute("aria-label", "选择传递目标");
+      for (const target of validTargets) {
+        const option = documentRef.createElement("option");
+        option.value = trimText(target?.sessionId || "");
+        option.textContent = createHandoffTargetOptionLabel(target);
+        select.appendChild(option);
+      }
+      row.appendChild(select);
+
+      const handoffBtn = documentRef.createElement("button");
+      handoffBtn.type = "button";
+      handoffBtn.className = "quest-tracker-btn";
+      handoffBtn.textContent = "传递信息";
+      row.appendChild(handoffBtn);
+
+      const previewEl = documentRef.createElement("div");
+      previewEl.className = "quest-tracker-handoff-preview";
+
+      let handoffBusy = false;
+
+      function syncPreview() {
+        const targetSessionId = trimText(select.value || "");
+        const selectedTarget = validTargets.find((entry) => trimText(entry?.sessionId || "") === targetSessionId) || null;
+        const preview = targetSessionId && typeof buildPreview === "function"
+          ? buildPreview(targetSessionId, { detailLevel: "balanced" })
+          : null;
+        const fallbackText = selectedTarget
+          ? `将把当前阶段信息传给「${trimText(selectedTarget.title || selectedTarget.path || "目标任务")}」`
+          : "";
+        previewEl.textContent = trimText(preview?.summary || "") || fallbackText;
+        previewEl.hidden = !previewEl.textContent;
+        handoffBtn.disabled = handoffBusy || !targetSessionId;
+      }
+
+      select.addEventListener("change", () => {
+        syncPreview();
+      });
+      handoffBtn.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const targetSessionId = trimText(select.value || "");
+        if (!targetSessionId || handoffBusy) return;
+        handoffBusy = true;
+        handoffBtn.disabled = true;
+        handoffBtn.textContent = "传递中…";
+        try {
+          await onHandoff(targetSessionId, { detailLevel: "balanced" });
+        } finally {
+          handoffBusy = false;
+          handoffBtn.textContent = "传递信息";
+          syncPreview();
+        }
+      });
+
+      host.appendChild(row);
+      host.appendChild(previewEl);
+      syncPreview();
+    }
+
     function renderPersistentActions(session, {
       onPromote = null,
       onRun = null,
@@ -414,6 +524,7 @@
       getPrimaryTitle,
       getSecondaryDetail,
       renderDetail,
+      renderHandoffActions,
       renderPersistentActions,
       renderStatus,
     };

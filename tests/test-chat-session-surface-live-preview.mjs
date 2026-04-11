@@ -68,6 +68,7 @@ const functionNames = [
   'summarizeTaskClusterBranchCounts',
   'looksLikeVisibleTaskTitle',
   'getSessionTaskPreview',
+  'renderSessionTaskPreviewLineHtml',
   'renderSessionTaskPreviewHtml',
 ];
 
@@ -149,7 +150,9 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(context.getSessionTaskPreview(runningSession))),
   {
     summaryLine: '读取运行态 checkpoint',
+    summarySegments: [],
     hintLine: '',
+    hintSegments: [],
   },
   'session rows should render the running checkpoint from the live task-card preview instead of stale session.taskCard data',
 );

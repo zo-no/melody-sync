@@ -360,10 +360,19 @@ async function dispatchAction(msg) {
             ...(msg.runtime ? { runtime: msg.runtime } : {}),
           }),
         });
+        if (data.parentSession) {
+          const parentSession = upsertSession(data.parentSession) || data.parentSession;
+          if (currentSessionId === msg.sessionId) {
+            applyAttachedSessionState(msg.sessionId, parentSession);
+          }
+        }
+        if (data.spawnedSession) {
+          upsertSession(data.spawnedSession);
+        }
         if (data.session) {
           const session = upsertSession(data.session) || data.session;
           renderSessionList();
-          if (currentSessionId === msg.sessionId) {
+          if (!data.parentSession && currentSessionId === msg.sessionId) {
             applyAttachedSessionState(msg.sessionId, session);
           }
           await window.MelodySyncWorkbench?.refreshOperationRecord?.();

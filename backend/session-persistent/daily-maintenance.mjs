@@ -92,7 +92,10 @@ function isDoneWorkflowState(value) {
 
 function isPersistentSession(session = {}) {
   const kind = trimText(session?.persistent?.kind).toLowerCase();
-  return kind === 'skill' || kind === 'recurring_task';
+  return kind === 'skill'
+    || kind === 'recurring_task'
+    || kind === 'scheduled_task'
+    || kind === 'waiting_task';
 }
 
 function bulletize(text) {

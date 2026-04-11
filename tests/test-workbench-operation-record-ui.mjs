@@ -138,6 +138,22 @@ function findAllByClass(root, className) {
 const persistentEditorSource = readWorkbenchFrontendSource('persistent-editor-ui.js');
 const operationRecordSource = readWorkbenchFrontendSource('operation-record-ui.js');
 
+assert.match(
+  operationRecordSource,
+  /payload\.scheduled\s*=\s*null/,
+  'operation-record payloads should explicitly clear disabled scheduled triggers',
+);
+assert.match(
+  operationRecordSource,
+  /payload\.recurring\s*=\s*null/,
+  'operation-record payloads should explicitly clear disabled recurring triggers',
+);
+assert.match(
+  operationRecordSource,
+  /mode:\s*draft\.executionMode === "spawn_session" \? "spawn_session" : "in_place"/,
+  'operation-record payloads should carry the selected persistent execution mode',
+);
+
 const body = makeElement('body');
 const documentListeners = new Map();
 const context = {
@@ -192,8 +208,8 @@ assert.equal(
 );
 assert.equal(
   findAllByClass(host, 'persistent-editor-kind-card').length,
-  2,
-  'promote mode should start on the kind picker step',
+  4,
+  'promote mode should start on the four-kind picker step',
 );
 
 host.click();

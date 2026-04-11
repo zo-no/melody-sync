@@ -86,9 +86,47 @@ const finishedBranchSession = {
   },
 };
 
+const inboxBranchSession = {
+  id: 'branch-inbox',
+  name: 'Branch · 收集箱任务',
+  updatedAt: '2026-04-03T10:05:00.000Z',
+  sourceContext: { parentSessionId: 'main-2' },
+  sessionState: {
+    goal: '收集箱任务',
+    mainGoal: '整理写作计划',
+    lineRole: 'branch',
+  },
+  taskPoolMembership: {
+    longTerm: {
+      role: 'member',
+      projectSessionId: 'main-2',
+      bucket: 'inbox',
+    },
+  },
+};
+
+const scheduledBranchSession = {
+  id: 'branch-short',
+  name: 'Branch · 短期任务',
+  updatedAt: '2026-04-03T10:01:00.000Z',
+  sourceContext: { parentSessionId: 'main-2' },
+  sessionState: {
+    goal: '短期任务',
+    mainGoal: '整理写作计划',
+    lineRole: 'branch',
+  },
+  taskPoolMembership: {
+    longTerm: {
+      role: 'member',
+      projectSessionId: 'main-2',
+      bucket: 'short_term',
+    },
+  },
+};
+
 const clusters = api.getClusterList(
   { taskClusters: [] },
-  [mainSession, branchSession, nestedBranchSession, finishedBranchSession],
+  [mainSession, inboxBranchSession, scheduledBranchSession, branchSession, nestedBranchSession, finishedBranchSession],
 );
 
 assert.equal(clusters.length, 1, 'cluster helper should synthesize a main cluster when no workbench cluster exists yet');
@@ -101,11 +139,13 @@ assert.deepEqual(
     status: session._branchStatus,
   })))),
   [
+    { id: 'branch-short', parent: 'main-2', depth: 1, status: 'active' },
+    { id: 'branch-inbox', parent: 'main-2', depth: 1, status: 'active' },
     { id: 'branch-2', parent: 'main-2', depth: 1, status: 'active' },
     { id: 'branch-2-1', parent: 'branch-2', depth: 2, status: 'active' },
     { id: 'branch-done', parent: 'main-2', depth: 1, status: 'resolved' },
   ],
-  'cluster helper should preserve synthetic branch lineage metadata for the default projection source',
+  'cluster helper should preserve lineage metadata while grouping long-term children by GTD bucket order',
 );
 
 const lineageIds = api.getBranchCurrentLineageSessionIds(

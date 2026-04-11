@@ -1121,6 +1121,86 @@ function TrackerPersistentActionsContent({ buttons = [] }) {
   );
 }
 
+function createHandoffTargetOptionLabel(target = {}) {
+  const title = trimText(target?.title || '') || '未命名任务';
+  const detail = trimText(target?.displayPath || target?.path || '');
+  if (!detail || detail === title) return title;
+  return `${title} · ${detail}`;
+}
+
+function TrackerHandoffActionsContent({
+  sessionId = '',
+  targets = [],
+  buildPreview = null,
+  onHandoff = null,
+}) {
+  const normalizedSessionId = trimText(sessionId || '');
+  const validTargets = Array.isArray(targets)
+    ? targets.filter((entry) => trimText(entry?.sessionId || ''))
+    : [];
+  const [selectedTargetId, setSelectedTargetId] = useState(() => trimText(validTargets[0]?.sessionId || ''));
+  const [handoffBusy, setHandoffBusy] = useState(false);
+
+  useEffect(() => {
+    if (!validTargets.length) {
+      if (selectedTargetId) setSelectedTargetId('');
+      return;
+    }
+    if (validTargets.some((entry) => trimText(entry?.sessionId || '') === trimText(selectedTargetId))) {
+      return;
+    }
+    setSelectedTargetId(trimText(validTargets[0]?.sessionId || ''));
+  }, [validTargets, selectedTargetId]);
+
+  const selectedTarget = validTargets.find((entry) => trimText(entry?.sessionId || '') === trimText(selectedTargetId)) || null;
+  const preview = normalizedSessionId && selectedTargetId && typeof buildPreview === 'function'
+    ? buildPreview(selectedTargetId, { detailLevel: 'balanced' })
+    : null;
+  const previewText = trimText(preview?.summary || '')
+    || (selectedTarget ? `将把当前阶段信息传给「${trimText(selectedTarget.title || selectedTarget.path || '目标任务')}」` : '');
+
+  async function handleHandoff(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!selectedTargetId || handoffBusy || typeof onHandoff !== 'function') return;
+    setHandoffBusy(true);
+    try {
+      await onHandoff(selectedTargetId, { detailLevel: 'balanced' });
+    } finally {
+      setHandoffBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="quest-tracker-handoff-row">
+        <select
+          className="quest-tracker-handoff-select"
+          aria-label="选择传递目标"
+          value={selectedTargetId}
+          onChange={(event) => setSelectedTargetId(trimText(event.target.value || ''))}
+          disabled={handoffBusy || validTargets.length === 0}
+        >
+          {validTargets.map((target) => (
+            <option key={trimText(target?.sessionId || '')} value={trimText(target?.sessionId || '')}>
+              {createHandoffTargetOptionLabel(target)}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="quest-tracker-btn"
+          onClick={handleHandoff}
+          disabled={handoffBusy || !selectedTargetId}
+        >
+          {handoffBusy ? '传递中…' : '传递信息'}
+        </button>
+      </div>
+      {previewText ? <div className="quest-tracker-handoff-preview">{previewText}</div> : null}
+    </>
+  );
+}
+
 function getTrackerLongTermState(session) {
   const longTerm = session?.sessionState?.longTerm;
   if (!longTerm || typeof longTerm !== 'object' || Array.isArray(longTerm)) return null;
@@ -1176,6 +1256,23 @@ function getTrackerPersistentActionButtons(session, {
         onClick: onToggle,
         secondary: true,
       },
+      { label: '设置', onClick: onConfigure, secondary: true },
+    ];
+  }
+  if (kind === 'scheduled_task') {
+    return [
+      { label: '立即执行', onClick: onRun, secondary: false },
+      {
+        label: String(session?.persistent?.state || '').trim().toLowerCase() === 'paused' ? '恢复定时' : '暂停定时',
+        onClick: onToggle,
+        secondary: true,
+      },
+      { label: '设置', onClick: onConfigure, secondary: true },
+    ];
+  }
+  if (kind === 'waiting_task') {
+    return [
+      { label: '立即执行', onClick: onRun, secondary: false },
       { label: '设置', onClick: onConfigure, secondary: true },
     ];
   }
@@ -1288,6 +1385,7 @@ function createTrackerRenderer({
   trackerCandidateBranchesRowEl = null,
   trackerCandidateBranchesListEl = null,
   getPersistentActionsEl = () => null,
+  getHandoffActionsEl = () => null,
   getCurrentSessionSafe = () => null,
   getPendingMemoryCandidates = () => [],
   reviewMemoryCandidate = async () => null,
@@ -1470,6 +1568,30 @@ function getPrimaryDetail(state) {
     trackerDetailEl.hidden = !hasAny || !expanded;
   }
 
+  function renderHandoffActions(session = null, {
+    targets = [],
+    buildPreview = null,
+    onHandoff = null,
+  } = {}) {
+    const host = getHandoffActionsEl?.();
+    if (!host) return;
+    const validTargets = Array.isArray(targets)
+      ? targets.filter((entry) => trimText(entry?.sessionId || ''))
+      : [];
+    const hidden = !trimText(session?.id || '') || session?.archived === true || validTargets.length === 0 || typeof onHandoff !== 'function';
+    host.hidden = hidden;
+    ensureRoot(host)?.render(
+      hidden ? null : (
+        <TrackerHandoffActionsContent
+          sessionId={trimText(session?.id || '')}
+          targets={validTargets}
+          buildPreview={buildPreview}
+          onHandoff={onHandoff}
+        />
+      )
+    );
+  }
+
   function renderPersistentActions(session, {
     onPromote = null,
     onRun = null,
@@ -1499,6 +1621,7 @@ function getPrimaryDetail(state) {
     getPrimaryTitle,
     getSecondaryDetail,
     renderDetail,
+    renderHandoffActions,
     renderPersistentActions,
     renderStatus,
   };
@@ -1938,11 +2061,28 @@ function PersistentEditorModal({
     return /^\d{2}:\d{2}$/.test(text) ? text : fallback;
   },
   normalizeWeekdays = (value) => (Array.isArray(value) ? value : []),
+  normalizeDateTimeLocal = (value) => {
+    const text = String(value || '').trim();
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text) ? text : '';
+  },
 }) {
   const [, setVersion] = useState(0);
 
   function rerender() {
     setVersion((value) => value + 1);
+  }
+
+  function getDefaultScheduledRunAtLocal() {
+    const next = new Date();
+    next.setSeconds(0, 0);
+    next.setMinutes(0);
+    next.setHours(next.getHours() + 1);
+    const year = next.getFullYear();
+    const month = String(next.getMonth() + 1).padStart(2, '0');
+    const day = String(next.getDate()).padStart(2, '0');
+    const hour = String(next.getHours()).padStart(2, '0');
+    const minute = String(next.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hour}:${minute}`;
   }
 
   function pinRuntime(targetKey) {
@@ -1954,7 +2094,7 @@ function PersistentEditorModal({
   function updateKind(nextKind) {
     if (!draft) return;
     draft.kind = nextKind;
-    if (nextKind === 'recurring_task') {
+    if (nextKind !== 'skill') {
       if (draft.scheduleMode !== 'pinned' && draft.scheduleMode !== 'session_default') {
         draft.scheduleMode = currentRuntime?.tool ? 'pinned' : 'session_default';
       }
@@ -1962,6 +2102,14 @@ function PersistentEditorModal({
         draft.scheduleRuntime = cloneJson(currentRuntime);
       }
     }
+    draft.scheduledEnabled = nextKind === 'scheduled_task' ? true : Boolean(draft.scheduledEnabled);
+    if (!draft.scheduled || typeof draft.scheduled !== 'object') {
+      draft.scheduled = { runAtLocal: '', timezone: '' };
+    }
+    if (nextKind === 'scheduled_task' && !draft.scheduled?.runAtLocal) {
+      draft.scheduled.runAtLocal = getDefaultScheduledRunAtLocal();
+    }
+    draft.recurringEnabled = nextKind === 'recurring_task' ? true : Boolean(draft.recurringEnabled);
     if (draft.mode !== 'configure') {
       draft.editorStep = 'details';
     }
@@ -1983,7 +2131,7 @@ function PersistentEditorModal({
   const cadence = normalizeRecurringCadence(draft?.recurring?.cadence);
   const editorStep = draft?.editorStep === 'details' ? 'details' : 'pick_kind';
   const dialogTitle = draft?.mode === 'configure' ? '长期项设置' : '沉淀为长期项';
-  if (draft?.kind === 'recurring_task' && (!draft.loop || typeof draft.loop !== 'object')) {
+  if (draft?.kind !== 'skill' && (!draft.loop || typeof draft.loop !== 'object')) {
     draft.loop = {
       collect: { sources: [], instruction: '' },
       organize: { instruction: '' },
@@ -1998,6 +2146,28 @@ function PersistentEditorModal({
         ? '沉淀后会出现在任务列表顶部的长期区。'
         : '先选择要沉淀成哪种长期能力。'))
     : '正在整理当前会话内容…';
+  const kindOptions = [
+    {
+      kind: 'recurring_task',
+      label: '长期任务',
+      description: '按循环节奏持续执行，适合巡检、整理和长期维护。',
+    },
+    {
+      kind: 'scheduled_task',
+      label: '短期任务',
+      description: '在指定时间执行一次，适合到点处理的任务。',
+    },
+    {
+      kind: 'waiting_task',
+      label: '等待任务',
+      description: '主要等待人类处理，但仍可一键触发梳理上下文。',
+    },
+    {
+      kind: 'skill',
+      label: 'AI快捷按钮',
+      description: '手动点击后触发，由 AI 执行一段可复用动作。',
+    },
+  ];
 
   return (
     <section className="operation-record-persistent-editor persistent-editor-popover" role="group" aria-label={dialogTitle}>
@@ -2019,18 +2189,7 @@ function PersistentEditorModal({
         ) : (
           draft.mode !== 'configure' && editorStep !== 'details' ? (
             <div className="persistent-editor-kind-grid">
-              {[
-                {
-                  kind: 'skill',
-                  label: 'AI快捷按钮',
-                  description: '手动点击后触发，由 AI 执行一段可复用动作。',
-                },
-                {
-                  kind: 'recurring_task',
-                  label: '长期任务',
-                  description: '按固定周期自动执行，适合巡检、整理和定时跟进。',
-                },
-              ].map((entry) => (
+              {kindOptions.map((entry) => (
                 <button
                   key={entry.kind}
                   type="button"
@@ -2046,10 +2205,7 @@ function PersistentEditorModal({
             <div className="persistent-editor-modal-form">
               <PersistentEditorField label="类型">
                 <div className="operation-record-persistent-kind-row persistent-editor-modal-kind-row">
-                  {[
-                    { kind: 'recurring_task', label: '长期任务' },
-                    { kind: 'skill', label: 'AI快捷按钮' },
-                  ].map((entry) => (
+                  {kindOptions.map((entry) => (
                     <button
                       key={entry.kind}
                       type="button"
@@ -2098,62 +2254,148 @@ function PersistentEditorModal({
                 />
               </PersistentEditorField>
 
-              {draft.kind === 'recurring_task' ? (
-                <>
-                  <PersistentEditorField label="触发周期">
-                    <select
-                      className="operation-record-persistent-select"
-                      value={cadence}
-                      onChange={(event) => {
-                        draft.recurring.cadence = event.target.value;
-                        rerender();
-                      }}
-                    >
-                      <option value="hourly">每小时</option>
-                      <option value="daily">每天</option>
-                      <option value="weekly">每周</option>
-                    </select>
-                  </PersistentEditorField>
+              <PersistentEditorField
+                label="执行方式"
+                note="创建支线时，本轮执行会进入新的任务分支，原任务只保留调度状态。"
+              >
+                <select
+                  className="operation-record-persistent-select"
+                  value={draft.executionMode === 'spawn_session' ? 'spawn_session' : 'in_place'}
+                  onChange={(event) => {
+                    draft.executionMode = event.currentTarget.value === 'spawn_session' ? 'spawn_session' : 'in_place';
+                    rerender();
+                  }}
+                >
+                  <option value="in_place">当前会话执行</option>
+                  <option value="spawn_session">创建支线执行</option>
+                </select>
+              </PersistentEditorField>
 
-                  <PersistentEditorField label={cadence === 'hourly' ? '触发分钟' : '触发时间'}>
+              {draft.kind !== 'skill' ? (
+                <>
+                  <PersistentEditorField
+                    label="知识库路径"
+                    note="默认指向这条任务所属的本地文件路径。"
+                  >
                     <input
-                      type="time"
+                      type="text"
                       className="operation-record-persistent-input"
-                      defaultValue={normalizeTimeOfDay(draft.recurring?.timeOfDay)}
+                      defaultValue={String(draft.knowledgeBasePath || '')}
+                      placeholder="知识库对应的底层文件路径"
                       onInput={(event) => {
-                        draft.recurring.timeOfDay = normalizeTimeOfDay(event.currentTarget.value);
+                        draft.knowledgeBasePath = event.currentTarget.value;
                       }}
                     />
                   </PersistentEditorField>
 
-                  {cadence === 'weekly' ? (
-                    <PersistentEditorField label="每周日期">
-                      <div className="operation-record-weekday-row">
-                        {['日', '一', '二', '三', '四', '五', '六'].map((label, day) => {
-                          const active = normalizeWeekdays(draft.recurring?.weekdays).includes(day);
-                          return (
-                            <button
-                              key={label}
-                              type="button"
-                              className={`operation-record-weekday-btn${active ? ' is-active' : ''}`}
-                              onClick={() => toggleWeekday(day)}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                  <PersistentEditorField
+                    label="定时触发"
+                    note="在指定时间自动执行一次。"
+                  >
+                    <div className="operation-record-persistent-kind-row persistent-editor-modal-kind-row">
+                      <button
+                        type="button"
+                        className={`operation-record-kind-btn${draft.scheduledEnabled === true ? ' is-active' : ''}`}
+                        onClick={() => {
+                          draft.scheduledEnabled = draft.scheduledEnabled !== true;
+                          rerender();
+                        }}
+                      >
+                        {draft.scheduledEnabled === true ? '已开启' : '未开启'}
+                      </button>
+                    </div>
+                  </PersistentEditorField>
+
+                  {draft.scheduledEnabled === true ? (
+                    <PersistentEditorField label="定时时间">
+                      <input
+                        type="datetime-local"
+                        className="operation-record-persistent-input"
+                        value={normalizeDateTimeLocal(draft.scheduled?.runAtLocal || '')}
+                        onChange={(event) => {
+                          draft.scheduled.runAtLocal = normalizeDateTimeLocal(event.currentTarget.value);
+                          rerender();
+                        }}
+                      />
                     </PersistentEditorField>
+                  ) : null}
+
+                  <PersistentEditorField
+                    label="循环触发"
+                    note="按固定周期反复执行。"
+                  >
+                    <div className="operation-record-persistent-kind-row persistent-editor-modal-kind-row">
+                      <button
+                        type="button"
+                        className={`operation-record-kind-btn${draft.recurringEnabled === true ? ' is-active' : ''}`}
+                        onClick={() => {
+                          draft.recurringEnabled = draft.recurringEnabled !== true;
+                          rerender();
+                        }}
+                      >
+                        {draft.recurringEnabled === true ? '已开启' : '未开启'}
+                      </button>
+                    </div>
+                  </PersistentEditorField>
+
+                  {draft.recurringEnabled === true ? (
+                    <>
+                      <PersistentEditorField label="触发周期">
+                        <select
+                          className="operation-record-persistent-select"
+                          value={cadence}
+                          onChange={(event) => {
+                            draft.recurring.cadence = event.target.value;
+                            rerender();
+                          }}
+                        >
+                          <option value="hourly">每小时</option>
+                          <option value="daily">每天</option>
+                          <option value="weekly">每周</option>
+                        </select>
+                      </PersistentEditorField>
+
+                      <PersistentEditorField label={cadence === 'hourly' ? '触发分钟' : '触发时间'}>
+                        <input
+                          type="time"
+                          className="operation-record-persistent-input"
+                          defaultValue={normalizeTimeOfDay(draft.recurring?.timeOfDay)}
+                          onInput={(event) => {
+                            draft.recurring.timeOfDay = normalizeTimeOfDay(event.currentTarget.value);
+                          }}
+                        />
+                      </PersistentEditorField>
+
+                      {cadence === 'weekly' ? (
+                        <PersistentEditorField label="每周日期">
+                          <div className="operation-record-weekday-row">
+                            {['日', '一', '二', '三', '四', '五', '六'].map((label, day) => {
+                              const active = normalizeWeekdays(draft.recurring?.weekdays).includes(day);
+                              return (
+                                <button
+                                  key={label}
+                                  type="button"
+                                  className={`operation-record-weekday-btn${active ? ' is-active' : ''}`}
+                                  onClick={() => toggleWeekday(day)}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </PersistentEditorField>
+                      ) : null}
+                    </>
                   ) : null}
 
                   <div className="operation-record-persistent-section">
                     <div className="operation-record-persistent-section-title">长期闭环</div>
                     <div className="operation-record-persistent-field-note">
-                      每个长期任务都维护一圈：收集、整理、使用、以及复盘后的冗余减枝。
+                      每个 GTD 任务都可以维护一圈：收集、整理、使用，以及复盘后的冗余减枝。
                     </div>
                     <PersistentEditorField
                       label="数据收集"
-                      note="每行一个来源，例如：运行日志、用户反馈、任务完成记录。"
+                      note="先定义长期任务持续看哪些输入信号。"
                     >
                       <textarea
                         className="operation-record-persistent-textarea"
@@ -2236,9 +2478,9 @@ function PersistentEditorModal({
                 formatRuntimeSummary={formatRuntimeSummary}
               />
 
-              {draft.kind === 'recurring_task' ? (
+              {draft.kind !== 'skill' ? (
                 <PersistentRuntimeSection
-                  title="周期执行"
+                  title="自动触发"
                   mode={draft.scheduleMode}
                   allowedModes={['session_default', 'pinned']}
                   runtime={draft.scheduleRuntime}
@@ -2302,6 +2544,10 @@ function createPersistentEditorRenderer({
     return /^\d{2}:\d{2}$/.test(text) ? text : fallback;
   },
   normalizeWeekdays = (value) => (Array.isArray(value) ? value : []),
+  normalizeDateTimeLocal = (value) => {
+    const text = String(value || '').trim();
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text) ? text : '';
+  },
 } = {}) {
   ensureReactDocumentCompat(documentRef);
 
@@ -2335,6 +2581,7 @@ function createPersistentEditorRenderer({
         normalizeRecurringCadence={normalizeRecurringCadence}
         normalizeTimeOfDay={normalizeTimeOfDay}
         normalizeWeekdays={normalizeWeekdays}
+        normalizeDateTimeLocal={normalizeDateTimeLocal}
       />,
     );
   }
@@ -2360,6 +2607,13 @@ function OperationRecordHeaderChildren({
   if (kind === 'recurring_task') {
     buttons.push({ label: '立即执行', secondary: false, onClick: onRun });
     buttons.push({ label: state === 'paused' ? '恢复周期' : '暂停周期', secondary: true, onClick: onToggle });
+    buttons.push({ label: '设置', secondary: true, onClick: onConfigure });
+  } else if (kind === 'scheduled_task') {
+    buttons.push({ label: '立即执行', secondary: false, onClick: onRun });
+    buttons.push({ label: state === 'paused' ? '恢复定时' : '暂停定时', secondary: true, onClick: onToggle });
+    buttons.push({ label: '设置', secondary: true, onClick: onConfigure });
+  } else if (kind === 'waiting_task') {
+    buttons.push({ label: '立即执行', secondary: false, onClick: onRun });
     buttons.push({ label: '设置', secondary: true, onClick: onConfigure });
   } else if (kind === 'skill') {
     buttons.push({ label: '触发AI快捷按钮', secondary: false, onClick: onRun });
@@ -2758,79 +3012,6 @@ function SessionListChevron({ className = '', iconHtml = '' }) {
   );
 }
 
-function SessionListFocusSection({
-  focusSessions = [],
-  focusLabel = '',
-  hintLabel = '',
-  createSessionItem = null,
-  getSessionRenderKey = null,
-}) {
-  if (!Array.isArray(focusSessions) || focusSessions.length === 0) return null;
-  return (
-    <div className="session-focus-section">
-      <div className="session-focus-header">
-        <div className="session-focus-header-main">
-          <div className="session-focus-title">{focusLabel}</div>
-          {hintLabel ? <div className="session-focus-note">{hintLabel}</div> : null}
-        </div>
-        <span className="folder-count">{focusSessions.length}</span>
-      </div>
-      <div className="session-focus-items">
-        {focusSessions.map((session) => (
-          <SessionListItemMount
-            key={`focus:${session?.id || Math.random()}`}
-            createSessionItem={createSessionItem}
-            session={session}
-            renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SessionListLongTermContextSection({
-  contextPanel = null,
-  createSessionItem = null,
-  getSessionRenderKey = null,
-}) {
-  if (!contextPanel?.rootSessionId) return null;
-  const relatedSessions = Array.isArray(contextPanel?.relatedSessions) ? contextPanel.relatedSessions : [];
-  return (
-    <section className="session-long-term-context">
-      <div className="session-long-term-context-header">
-        <div className="session-long-term-context-kicker">{String(contextPanel?.kicker || '')}</div>
-        <div className="session-long-term-context-title">{String(contextPanel?.title || '')}</div>
-        <div className="session-long-term-context-summary">{String(contextPanel?.summary || '')}</div>
-        <div className="session-long-term-context-meta">
-          {(Array.isArray(contextPanel?.chips) ? contextPanel.chips : [])
-            .filter((chip) => String(chip || '').trim())
-            .map((chip) => (
-              <span key={`context-chip:${chip}`} className="session-long-term-context-chip">{String(chip)}</span>
-            ))}
-        </div>
-      </div>
-      {relatedSessions.length > 0 ? (
-        <div className="session-long-term-context-related">
-          <div className="session-long-term-context-related-label">
-            {String(contextPanel?.relatedLabel || '')}
-          </div>
-          <div className="session-long-term-context-items">
-            {relatedSessions.map((session) => (
-              <SessionListItemMount
-                key={`context:${session?.id || Math.random()}`}
-                createSessionItem={createSessionItem}
-                session={session}
-                renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
 function SessionListPinnedSection({
   pinnedSessions = [],
   pinnedLabel = '',
@@ -3113,8 +3294,6 @@ function ArchivedSessionSection({
 }
 
 function SessionListCollections({
-  contextPanel = null,
-  focus = null,
   pinnedSessions = [],
   orderedGroups = [],
   showGroupHeaders = false,
@@ -3133,18 +3312,6 @@ function SessionListCollections({
 }) {
   return (
     <>
-      <SessionListLongTermContextSection
-        contextPanel={contextPanel}
-        createSessionItem={createSessionItem}
-        getSessionRenderKey={getSessionRenderKey}
-      />
-      <SessionListFocusSection
-        focusSessions={Array.isArray(focus?.sessions) ? focus.sessions : []}
-        focusLabel={String(focus?.titleLabel || '')}
-        hintLabel={String(focus?.hintLabel || '')}
-        createSessionItem={createSessionItem}
-        getSessionRenderKey={getSessionRenderKey}
-      />
       <SessionListPinnedSection
         pinnedSessions={Array.isArray(pinnedSessions) ? pinnedSessions : []}
         pinnedLabel={pinnedLabel}
@@ -3226,8 +3393,6 @@ function createSessionListRenderer({
 
   function renderSessionCollections({
     listEl = null,
-    contextPanel = null,
-    focus = null,
     pinnedSessions = [],
     orderedGroups = [],
     showGroupHeaders = false,
@@ -3243,8 +3408,6 @@ function createSessionListRenderer({
     if (!listEl) return;
     ensureRoot(listEl)?.render(
       <SessionListCollections
-        contextPanel={contextPanel}
-        focus={focus}
         pinnedSessions={pinnedSessions}
         orderedGroups={orderedGroups}
         showGroupHeaders={showGroupHeaders}
@@ -3271,8 +3434,6 @@ function createSessionListRenderer({
       const archivedStorageKey = String(archived?.storageKey || 'folder:archived');
       renderSessionCollections({
         listEl: payload?.sessionListEl || null,
-        contextPanel: payload?.contextPanel || null,
-        focus: payload?.focus || null,
         pinnedSessions: Array.isArray(payload?.pinnedSessions) ? payload.pinnedSessions : [],
         orderedGroups: groups,
         showGroupHeaders: payload?.showGroupHeaders === true,
@@ -5393,7 +5554,7 @@ function TaskFlowBoard({
             nodeTypes={{ 'melody-node': MelodyNode }}
             edgeTypes={{ 'melody-edge': MelodyEdge }}
             nodesDraggable={interactionConfig.nodesDraggable}
-            nodesConnectable={!interactionConfig.isMobile}
+            nodesConnectable={false}
             nodesFocusable={false}
             edgesFocusable={false}
             edgesUpdatable={false}
@@ -5413,16 +5574,6 @@ function TaskFlowBoard({
             maxZoom={interactionConfig.maxZoom}
             proOptions={{ hideAttribution: true }}
             nodeDragThreshold={interactionConfig.nodeDragThreshold}
-            onConnectStart={(_event, params) => {
-              const sourceNodeId = trimText(params?.nodeId || '');
-              if (!sourceNodeId) return;
-              setActiveActionNodeId(sourceNodeId);
-              setPendingConnectSourceNodeId(sourceNodeId);
-            }}
-            onConnect={handleConnect}
-            onConnectEnd={() => {
-              setPendingConnectSourceNodeId('');
-            }}
             onMoveEnd={(_event, viewport) => {
               writeTaskMapViewportMemory(viewportMemoryKey, viewport);
             }}
@@ -5827,12 +5978,7 @@ function createRenderer({
     getSessionRecord,
     attachSession,
     reparentSession,
-    connectSessions,
     getCurrentSessionId,
-  });
-  const taskHandoffController = createTaskHandoffController({
-    buildTaskHandoffPreview,
-    handoffSessionTaskData,
   });
   let reactFlowBoardContainer = null;
   let reactFlowBoardRoot = null;
@@ -5843,12 +5989,10 @@ function createRenderer({
     clipText: clipTextImpl,
     translate,
     listReparentTargets,
-    listConnectTargets,
     selectTaskCanvasNode,
     getSelectedTaskCanvasNodeId,
     getCurrentSessionId,
     nodeActionController,
-    taskHandoffController,
   };
 
   return {

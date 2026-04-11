@@ -30,6 +30,15 @@ import {
   normalizeTaskPoolMembership,
 } from '../../session/task-pool-membership.mjs';
 
+function getPersistentSessionGroup(kind = '') {
+  const normalizedKind = typeof kind === 'string' ? kind.trim().toLowerCase() : '';
+  if (normalizedKind === 'skill') return '快捷按钮';
+  if (normalizedKind === 'recurring_task') return '长期任务';
+  if (normalizedKind === 'scheduled_task') return '短期任务';
+  if (normalizedKind === 'waiting_task') return '等待任务';
+  return '';
+}
+
 export async function createSessionWithDeps({
   ensureSessionManagerBuiltinHooksRegistered,
   normalizeSourceContext,
@@ -274,7 +283,9 @@ export async function createSessionWithDeps({
       requestedUserName,
     });
 
+    const inferredPersistentGroup = getPersistentSessionGroup(normalizedPersistent?.kind || '');
     if (requestedGroup) session.group = requestedGroup;
+    else if (inferredPersistentGroup) session.group = inferredPersistentGroup;
     if (requestedDescription) session.description = requestedDescription;
     if (requestedTaskListOrigin) session.taskListOrigin = requestedTaskListOrigin;
     if (requestedTaskListVisibility) session.taskListVisibility = requestedTaskListVisibility;

@@ -525,24 +525,8 @@
   background: color-mix(in srgb, #ccfbf1 76%, var(--bg-secondary));
   border-color: color-mix(in srgb, #5eead4 72%, var(--border));
 }
-.session-list-badge-stale {
-  color: color-mix(in srgb, var(--warning) 84%, var(--text));
-  background: color-mix(in srgb, var(--warning) 10%, var(--bg-secondary));
-  border-color: color-mix(in srgb, var(--warning) 26%, var(--border));
-}
-.session-list-badge-stale-cleanup {
-  color: color-mix(in srgb, #b45309 82%, var(--text));
-  background: color-mix(in srgb, #f59e0b 12%, var(--bg-secondary));
-  border-color: color-mix(in srgb, #f59e0b 30%, var(--border));
-}
 .session-item.is-branch-session {
   border-color: color-mix(in srgb, var(--notice) 16%, transparent);
-}
-.session-item.is-stale-cleanup-session {
-  border-color: color-mix(in srgb, #f59e0b 22%, transparent);
-}
-.session-item.is-stale-cleanup-session:hover {
-  background: color-mix(in srgb, #f59e0b 9%, var(--bg-secondary));
 }
 .session-item.is-complete-read:not(.active) .session-item-meta {
   color: var(--text-muted);
@@ -1000,7 +984,6 @@
 .session-action-btn.pin { font-size: 12px; }
 .session-action-btn.pin.pinned { opacity: 1; color: var(--text-secondary); }
 .session-action-btn.archive:hover { background: var(--bg-tertiary); color: var(--text); }
-.session-action-btn.cleanup:hover { background: color-mix(in srgb, #f59e0b 14%, var(--bg-tertiary)); color: #b45309; }
 .session-action-btn.delete:hover { background: var(--error-bg); color: var(--error); }
 .session-action-btn.restore:hover { background: var(--bg-tertiary); color: var(--accent); }
 .session-action-btn.acknowledge:hover { background: color-mix(in srgb, var(--notice) 14%, var(--bg-tertiary)); color: var(--notice); }
@@ -1660,140 +1643,6 @@
   padding: 0 14px 14px;
 }
 
-.session-focus-section {
-  margin: 4px 0 12px;
-  padding: 10px 10px 8px;
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 58%),
-    color-mix(in srgb, var(--bg-secondary) 78%, transparent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 46%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 10%, var(--border));
-}
-
-.session-focus-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-
-.session-focus-header-main {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.session-focus-title {
-  font-size: 11px;
-  line-height: 1.2;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--text-secondary) 88%, var(--accent));
-}
-
-.session-focus-note {
-  font-size: 10px;
-  line-height: 1.35;
-  color: var(--text-muted);
-}
-
-.session-focus-items {
-  display: grid;
-  gap: 2px;
-}
-
-.session-focus-items .session-item {
-  background: color-mix(in srgb, #ffffff 66%, transparent);
-}
-
-.session-focus-items .session-item:hover {
-  background: color-mix(in srgb, #ffffff 78%, var(--bg-secondary) 22%);
-}
-
-.session-long-term-context {
-  margin: 4px 0 12px;
-  padding: 12px;
-  border-radius: 18px;
-  background:
-    linear-gradient(140deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 62%),
-    color-mix(in srgb, var(--bg-secondary) 84%, transparent);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #ffffff 40%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 14%, var(--border));
-  display: grid;
-  gap: 10px;
-}
-
-.session-long-term-context-header {
-  display: grid;
-  gap: 4px;
-}
-
-.session-long-term-context-kicker,
-.session-long-term-context-related-label {
-  font-size: 11px;
-  line-height: 1.25;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--text-secondary) 84%, var(--accent));
-}
-
-.session-long-term-context-title {
-  font-size: 15px;
-  line-height: 1.25;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.session-long-term-context-summary {
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--text-secondary);
-}
-
-.session-long-term-context-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 2px;
-}
-
-.session-long-term-context-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-elevated) 78%, #ffffff 22%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 14%, var(--border));
-  font-size: 11px;
-  line-height: 1;
-  color: var(--text-secondary);
-}
-
-.session-long-term-context-related {
-  display: grid;
-  gap: 8px;
-}
-
-.session-long-term-context-items {
-  display: grid;
-  gap: 4px;
-}
-
-.session-long-term-context-items .session-item {
-  background: color-mix(in srgb, #ffffff 68%, transparent);
-}
-
-.session-long-term-context-items .session-item:hover {
-  background: color-mix(in srgb, #ffffff 80%, var(--bg-secondary) 20%);
-}
-
 .new-session-btn {
   margin: 0;
   min-height: 42px;
@@ -2216,12 +2065,6 @@
     padding: 0 14px 12px;
   }
 
-  .session-focus-section {
-    margin-bottom: 10px;
-    padding: 9px 9px 7px;
-    border-radius: 16px;
-  }
-
   .session-list-actions .new-session-btn {
     min-height: 38px;
     padding: 8px 10px;
@@ -2408,31 +2251,6 @@
 
   .session-item.is-branch-session .session-item-hint {
     color: color-mix(in srgb, var(--notice) 72%, rgba(221, 230, 240, 0.72));
-  }
-
-  .session-focus-section {
-    background:
-      linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 56%),
-      rgba(255, 255, 255, 0.04);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.05),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  }
-
-  .session-focus-title {
-    color: color-mix(in srgb, #eef4fb 82%, var(--accent));
-  }
-
-  .session-focus-note {
-    color: rgba(221, 230, 240, 0.62);
-  }
-
-  .session-focus-items .session-item {
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .session-focus-items .session-item:hover {
-    background: rgba(255, 255, 255, 0.08);
   }
 
   .new-session-btn {

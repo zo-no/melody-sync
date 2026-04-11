@@ -14,6 +14,10 @@
       return /^\d{2}:\d{2}$/.test(text) ? text : fallback;
     },
     normalizeWeekdays = (value) => (Array.isArray(value) ? value : []),
+    normalizeDateTimeLocal = (value) => {
+      const text = String(value || "").trim();
+      return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text) ? text : "";
+    },
   } = {}) {
     function clearPersistentEditorModal(host) {
       if (!host) return;
@@ -198,14 +202,24 @@
         chooser.className = "persistent-editor-kind-grid";
         [
           {
+            kind: "recurring_task",
+            label: "长期任务",
+            description: "按循环节奏持续执行，适合巡检、整理和长期维护。",
+          },
+          {
+            kind: "scheduled_task",
+            label: "短期任务",
+            description: "在指定时间执行一次，适合到点处理的任务。",
+          },
+          {
+            kind: "waiting_task",
+            label: "等待任务",
+            description: "主要等待人类处理，但仍可一键触发梳理上下文。",
+          },
+          {
             kind: "skill",
             label: "AI快捷按钮",
             description: "手动点击后触发，由 AI 执行一段可复用动作。",
-          },
-          {
-            kind: "recurring_task",
-            label: "长期任务",
-            description: "按固定周期自动执行，适合巡检、整理和定时跟进。",
           },
         ].forEach((entry) => {
           const button = documentRef.createElement("button");
@@ -215,7 +229,7 @@
             <span class="persistent-editor-kind-card-description">${entry.description}</span>`;
           button.addEventListener("click", () => {
             draft.kind = entry.kind;
-            if (entry.kind === "recurring_task") {
+            if (entry.kind !== "skill") {
               if (draft.scheduleMode !== "pinned" && draft.scheduleMode !== "session_default") {
                 draft.scheduleMode = currentRuntime?.tool ? "pinned" : "session_default";
               }
@@ -223,6 +237,20 @@
                 draft.scheduleRuntime = cloneJson(currentRuntime);
               }
             }
+            draft.scheduledEnabled = entry.kind === "scheduled_task" ? true : Boolean(draft.scheduledEnabled);
+            if (entry.kind === "scheduled_task" && !draft.scheduled?.runAtLocal) {
+              const next = new Date();
+              next.setSeconds(0, 0);
+              next.setMinutes(0);
+              next.setHours(next.getHours() + 1);
+              const year = next.getFullYear();
+              const month = String(next.getMonth() + 1).padStart(2, "0");
+              const day = String(next.getDate()).padStart(2, "0");
+              const hour = String(next.getHours()).padStart(2, "0");
+              const minute = String(next.getMinutes()).padStart(2, "0");
+              draft.scheduled.runAtLocal = `${year}-${month}-${day}T${hour}:${minute}`;
+            }
+            draft.recurringEnabled = entry.kind === "recurring_task" ? true : Boolean(draft.recurringEnabled);
             draft.editorStep = "details";
             renderPersistentEditorModal(host, props);
           });
@@ -232,7 +260,7 @@
       } else {
         const form = documentRef.createElement("div");
         form.className = "persistent-editor-modal-form";
-        if (draft.kind === "recurring_task" && (!draft.loop || typeof draft.loop !== "object")) {
+        if (draft.kind !== "skill" && (!draft.loop || typeof draft.loop !== "object")) {
           draft.loop = {
             collect: { sources: [], instruction: "" },
             organize: { instruction: "" },
@@ -245,6 +273,8 @@
         kindRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
         [
           { kind: "recurring_task", label: "长期任务" },
+          { kind: "scheduled_task", label: "短期任务" },
+          { kind: "waiting_task", label: "等待任务" },
           { kind: "skill", label: "AI快捷按钮" },
         ].forEach((entry) => {
           const button = documentRef.createElement("button");
@@ -254,7 +284,7 @@
           button.textContent = entry.label;
           button.addEventListener("click", () => {
             draft.kind = entry.kind;
-            if (entry.kind === "recurring_task") {
+            if (entry.kind !== "skill") {
               if (draft.scheduleMode !== "pinned" && draft.scheduleMode !== "session_default") {
                 draft.scheduleMode = currentRuntime?.tool ? "pinned" : "session_default";
               }
@@ -262,6 +292,8 @@
                 draft.scheduleRuntime = cloneJson(currentRuntime);
               }
             }
+            draft.scheduledEnabled = entry.kind === "scheduled_task" ? true : Boolean(draft.scheduledEnabled);
+            draft.recurringEnabled = entry.kind === "recurring_task" ? true : Boolean(draft.recurringEnabled);
             renderPersistentEditorModal(host, props);
           });
           kindRow.appendChild(button);
@@ -298,8 +330,75 @@
         });
         form.appendChild(buildField(draft.kind === "skill" ? "触发动作" : "执行动作", promptInput));
 
+        const executionModeSelect = documentRef.createElement("select");
+        executionModeSelect.className = "operation-record-persistent-select";
+        [
+          { value: "in_place", label: "当前会话执行" },
+          { value: "spawn_session", label: "创建支线执行" },
+        ].forEach((entry) => {
+          const option = documentRef.createElement("option");
+          option.value = entry.value;
+          option.textContent = entry.label;
+          executionModeSelect.appendChild(option);
+        });
+        executionModeSelect.value = draft.executionMode === "spawn_session" ? "spawn_session" : "in_place";
+        executionModeSelect.addEventListener("change", () => {
+          draft.executionMode = executionModeSelect.value === "spawn_session" ? "spawn_session" : "in_place";
+        });
+        form.appendChild(buildField("执行方式", executionModeSelect, "创建支线时，本轮执行会进入新的任务分支，原任务只保留调度状态。"));
+
         const cadence = normalizeRecurringCadence(draft.recurring?.cadence);
-        if (draft.kind === "recurring_task") {
+        if (draft.kind !== "skill") {
+          const knowledgeBaseInput = documentRef.createElement("input");
+          knowledgeBaseInput.type = "text";
+          knowledgeBaseInput.className = "operation-record-persistent-input";
+          knowledgeBaseInput.value = String(draft.knowledgeBasePath || "");
+          knowledgeBaseInput.placeholder = "知识库对应的底层文件路径";
+          knowledgeBaseInput.addEventListener("input", () => {
+            draft.knowledgeBasePath = knowledgeBaseInput.value;
+          });
+          form.appendChild(buildField("知识库路径", knowledgeBaseInput, "默认指向这条任务所属的本地文件路径。"));
+
+          const scheduledToggleRow = documentRef.createElement("div");
+          scheduledToggleRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
+          const scheduledToggleBtn = documentRef.createElement("button");
+          scheduledToggleBtn.type = "button";
+          scheduledToggleBtn.className = "operation-record-kind-btn";
+          scheduledToggleBtn.classList.toggle("is-active", draft.scheduledEnabled === true);
+          scheduledToggleBtn.textContent = draft.scheduledEnabled === true ? "已开启" : "未开启";
+          scheduledToggleBtn.addEventListener("click", () => {
+            draft.scheduledEnabled = draft.scheduledEnabled !== true;
+            renderPersistentEditorModal(host, props);
+          });
+          scheduledToggleRow.appendChild(scheduledToggleBtn);
+          form.appendChild(buildField("定时触发", scheduledToggleRow, "在指定时间自动执行一次。"));
+
+          if (draft.scheduledEnabled === true) {
+            const scheduledInput = documentRef.createElement("input");
+            scheduledInput.type = "datetime-local";
+            scheduledInput.className = "operation-record-persistent-input";
+            scheduledInput.value = normalizeDateTimeLocal(draft.scheduled?.runAtLocal || "");
+            scheduledInput.addEventListener("input", () => {
+              draft.scheduled.runAtLocal = normalizeDateTimeLocal(scheduledInput.value);
+            });
+            form.appendChild(buildField("定时时间", scheduledInput));
+          }
+
+          const recurringToggleRow = documentRef.createElement("div");
+          recurringToggleRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
+          const recurringToggleBtn = documentRef.createElement("button");
+          recurringToggleBtn.type = "button";
+          recurringToggleBtn.className = "operation-record-kind-btn";
+          recurringToggleBtn.classList.toggle("is-active", draft.recurringEnabled === true);
+          recurringToggleBtn.textContent = draft.recurringEnabled === true ? "已开启" : "未开启";
+          recurringToggleBtn.addEventListener("click", () => {
+            draft.recurringEnabled = draft.recurringEnabled !== true;
+            renderPersistentEditorModal(host, props);
+          });
+          recurringToggleRow.appendChild(recurringToggleBtn);
+          form.appendChild(buildField("循环触发", recurringToggleRow, "按固定周期反复执行。"));
+
+          if (draft.recurringEnabled === true) {
           const cadenceSelect = documentRef.createElement("select");
           cadenceSelect.className = "operation-record-persistent-select";
           [
@@ -336,6 +435,7 @@
             }
             form.appendChild(buildField("每周日期", weekdayRow));
           }
+          }
 
           const loopSection = documentRef.createElement("div");
           loopSection.className = "operation-record-persistent-section";
@@ -347,7 +447,7 @@
 
           const loopLead = documentRef.createElement("div");
           loopLead.className = "operation-record-persistent-field-note";
-          loopLead.textContent = "每个长期任务都维护一圈：收集、整理、使用、以及复盘后的冗余减枝。";
+          loopLead.textContent = "每个 GTD 任务都可以维护一圈：收集、整理、使用，以及复盘后的冗余减枝。";
           loopSection.appendChild(loopLead);
 
           const collectSourcesInput = documentRef.createElement("textarea");
@@ -428,11 +528,11 @@
           },
         }));
 
-        if (draft.kind === "recurring_task") {
+        if (draft.kind !== "skill") {
           form.appendChild(buildRuntimeSection({
             host,
             props,
-            title: "周期执行",
+            title: "自动触发",
             mode: draft.scheduleMode,
             allowedModes: ["session_default", "pinned"],
             runtime: draft.scheduleRuntime,

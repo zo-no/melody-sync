@@ -1,5 +1,5 @@
 import { loadSessionsMeta } from '../session/meta-store.mjs';
-import { isPersistentRecurringDue } from './core.mjs';
+import { resolvePersistentDueTriggerKind } from './core.mjs';
 import { getSession, runSessionPersistent } from '../session/manager.mjs';
 import { scanDailySessionMaintenance } from './daily-maintenance.mjs';
 
@@ -23,13 +23,14 @@ export async function scanDuePersistentSessions(nowValue = new Date()) {
     for (const meta of Array.isArray(sessions) ? sessions : []) {
       const sessionId = typeof meta?.id === 'string' ? meta.id.trim() : '';
       if (!sessionId || meta?.archived === true || dispatchingSessionIds.has(sessionId)) continue;
-      if (!isPersistentRecurringDue(meta?.persistent, nowValue)) continue;
+      const triggerKind = resolvePersistentDueTriggerKind(meta?.persistent, nowValue);
+      if (!triggerKind) continue;
 
       dispatchingSessionIds.add(sessionId);
       try {
         const session = await getSession(sessionId, { includeQueuedMessages: true });
         if (!session || session.archived === true || isSessionBusy(session)) continue;
-        await runSessionPersistent(sessionId, { triggerKind: 'schedule' });
+        await runSessionPersistent(sessionId, { triggerKind });
       } catch (error) {
         console.error(`[persistent-scheduler] Failed to run ${sessionId}: ${error.message}`);
       } finally {

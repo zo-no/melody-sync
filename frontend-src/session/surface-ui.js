@@ -225,6 +225,44 @@ function getTaskClusterBranchCountEntries(cluster, currentSessionId = "") {
   const branchSessions = Array.isArray(cluster?.branchSessions) ? cluster.branchSessions : [];
   if (branchSessions.length === 0) return [];
   const model = window.MelodySyncSessionListModel || null;
+  const mainPersistentKind = String(cluster?.mainSession?.persistent?.kind || "").trim().toLowerCase();
+  if (mainPersistentKind === "recurring_task") {
+    function normalizeBucket(value) {
+      const normalized = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+      if (["long_term", "long_term_iteration", "长期任务", "长期迭代"].includes(normalized)) return "long_term";
+      if (["short_term", "short_term_iteration", "短期任务", "短期迭代"].includes(normalized)) return "short_term";
+      if (["waiting", "waiting_user", "waiting_for", "等待任务", "等待"].includes(normalized)) return "waiting";
+      if (["inbox", "collect", "collection", "capture", "收集箱"].includes(normalized)) return "inbox";
+      return "";
+    }
+
+    function inferBucket(session) {
+      const explicitBucket = normalizeBucket(session?.taskPoolMembership?.longTerm?.bucket || "");
+      if (explicitBucket) return explicitBucket;
+      const persistentKind = String(session?.persistent?.kind || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+      if (persistentKind === "recurring_task") return "long_term";
+      if (persistentKind === "scheduled_task") return "short_term";
+      if (persistentKind === "waiting_task") return "waiting";
+      if (String(session?.workflowState || "").trim().toLowerCase().replace(/[\s-]+/g, "_") === "waiting_user") return "waiting";
+      return "inbox";
+    }
+
+    const counters = {
+      long_term: 0,
+      short_term: 0,
+      waiting: 0,
+      inbox: 0,
+    };
+    for (const entry of branchSessions) {
+      counters[inferBucket(entry)] += 1;
+    }
+    return [
+      { key: "long_term", label: "长期任务", count: counters.long_term, className: "" },
+      { key: "short_term", label: "短期任务", count: counters.short_term, className: "" },
+      { key: "waiting", label: "等待任务", count: counters.waiting, className: "" },
+      { key: "inbox", label: "收集箱", count: counters.inbox, className: "" },
+    ].filter((entry) => entry.count > 0);
+  }
   const counters = {
     active: 0,
     parked: 0,

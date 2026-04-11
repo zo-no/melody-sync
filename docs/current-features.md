@@ -12,6 +12,7 @@ This document lists the current shipped MelodySync feature surface and explicitl
 | Messaging | Send messages, queue follow-ups while busy, cancel active runs | HTTP is canonical, WebSocket is invalidation only |
 | Inputs | Text, file uploads, pasted images | Assets can be saved and reused in a session |
 | Task flow | Fork session, delegate subtask, task-map / branch tracking | Keeps the session-first workflow model |
+| Persistent GTD tasks | Long-term recurring tasks, short-term scheduled tasks, waiting-for-human tasks, knowledge-base file paths | Each persistent task can run manually, by one-time schedule, by recurring loop, or in a spawned task branch |
 | Runtime preferences | Tool, model, effort, thinking | Stored per session |
 | Session organization | Auto title, user folders, sidebar sorting helpers, flat task list | Sidebar stays a foldered work list; task structure lives in the map/tracker |
 | UI | Phone + desktop web UI, reconnect refresh, build update prompt | No frontend build step required |
@@ -25,7 +26,7 @@ This document lists the current shipped MelodySync feature surface and explicitl
 | Legacy app CRUD / template layer | Removed |
 | User management surface | Removed |
 | Session `apply-template` / `save-template` flows | Removed |
-| Session-level scheduled triggers | Removed |
+| Legacy session-level scheduled triggers | Removed; persistent GTD task schedules are the current supported path |
 | Global `/api/triggers` control plane | Removed |
 | Public share links / visitor mode | Removed |
 

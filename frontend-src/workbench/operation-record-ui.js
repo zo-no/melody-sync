@@ -19,7 +19,42 @@
     }
 
     function normalizePersistentKind(value) {
-      return normalizeKey(value) === "recurring_task" ? "recurring_task" : "skill";
+      const normalized = normalizeKey(value);
+      if (normalized === "recurring_task") return "recurring_task";
+      if (normalized === "scheduled_task") return "scheduled_task";
+      if (normalized === "waiting_task") return "waiting_task";
+      return normalized === "skill" ? "skill" : "recurring_task";
+    }
+
+    function normalizeDateTimeLocal(value) {
+      const text = String(value || "").trim();
+      return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text) ? text : "";
+    }
+
+    function toDateTimeLocalInput(value) {
+      const date = value ? new Date(value) : null;
+      if (!date || !Number.isFinite(date.getTime())) return "";
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const hour = String(date.getHours()).padStart(2, "0");
+      const minute = String(date.getMinutes()).padStart(2, "0");
+      return `${year}-${month}-${day}T${hour}:${minute}`;
+    }
+
+    function getDefaultScheduledRunAtLocal() {
+      const next = new Date();
+      next.setSeconds(0, 0);
+      next.setMinutes(0);
+      next.setHours(next.getHours() + 1);
+      return toDateTimeLocalInput(next);
+    }
+
+    function toIsoFromDateTimeLocal(value) {
+      const normalized = normalizeDateTimeLocal(value);
+      if (!normalized) return "";
+      const date = new Date(normalized);
+      return Number.isFinite(date.getTime()) ? date.toISOString() : "";
     }
 
     function normalizeRecurringCadence(value) {
@@ -142,6 +177,7 @@
       normalizeRecurringCadence,
       normalizeTimeOfDay,
       normalizeWeekdays,
+      normalizeDateTimeLocal,
     }) || null;
 
     function createPersistentEditorDraft(data = {}, options = {}) {
@@ -172,6 +208,32 @@
             || (Array.isArray(digest?.recipe) ? digest.recipe.join("\n") : "")
             || "",
         ).trim(),
+        executionMode: String(persistent?.execution?.mode || "").trim().toLowerCase() === "spawn_session"
+          ? "spawn_session"
+          : "in_place",
+        scheduledEnabled: Boolean(
+          persistent?.scheduled?.runAt
+          || persistent?.scheduled?.nextRunAt
+          || kind === "scheduled_task"
+        ),
+        scheduled: {
+          runAtLocal: normalizeDateTimeLocal(
+            toDateTimeLocalInput(
+              persistent?.scheduled?.nextRunAt
+              || persistent?.scheduled?.runAt
+              || (kind === "scheduled_task" ? getDefaultScheduledRunAtLocal() : "")
+            )
+          ) || (kind === "scheduled_task" ? getDefaultScheduledRunAtLocal() : ""),
+          timezone: String(
+            persistent?.scheduled?.timezone
+              || Intl.DateTimeFormat().resolvedOptions().timeZone
+              || "",
+          ).trim(),
+        },
+        recurringEnabled: Boolean(
+          persistent?.recurring?.timeOfDay
+          || kind === "recurring_task"
+        ),
         recurring: {
           cadence: normalizeRecurringCadence(persistent?.recurring?.cadence || "daily"),
           timeOfDay: normalizeTimeOfDay(persistent?.recurring?.timeOfDay || "09:00"),
@@ -183,6 +245,11 @@
           ).trim(),
         },
         loop: createLoopDraft(persistent?.loop),
+        knowledgeBasePath: String(
+          persistent?.knowledgeBasePath
+            || data?.folder
+            || ""
+        ).trim(),
         manualMode,
         manualRuntime: normalizeRuntimeSnapshot(persistent?.runtimePolicy?.manual?.runtime, currentRuntime || sessionRuntime),
         scheduleMode,
@@ -221,12 +288,31 @@
     function validatePersistentEditorDraft(draft) {
       if (!draft) return "缺少长期项配置";
       if (!String(draft.digestTitle || "").trim()) return "请填写长期项名称";
+      if (draft.kind === "scheduled_task") {
+        if (!draft.scheduledEnabled || !toIsoFromDateTimeLocal(draft.scheduled?.runAtLocal)) {
+          return "短期任务需要有效的定时触发时间";
+        }
+      }
       if (draft.kind === "recurring_task") {
+        if (!draft.recurringEnabled) {
+          return "长期任务需要有效的循环触发配置";
+        }
         if (!/^\d{2}:\d{2}$/.test(String(draft.recurring?.timeOfDay || "").trim())) {
           return "长期任务需要有效的执行时间";
         }
         if (normalizeRecurringCadence(draft.recurring?.cadence) === "weekly" && normalizeWeekdays(draft.recurring?.weekdays).length === 0) {
           return "每周周期至少选择一天";
+        }
+      }
+      if (draft.scheduledEnabled && !toIsoFromDateTimeLocal(draft.scheduled?.runAtLocal)) {
+        return "请填写有效的定时触发时间";
+      }
+      if (draft.recurringEnabled) {
+        if (!/^\d{2}:\d{2}$/.test(String(draft.recurring?.timeOfDay || "").trim())) {
+          return "请填写有效的循环触发时间";
+        }
+        if (normalizeRecurringCadence(draft.recurring?.cadence) === "weekly" && normalizeWeekdays(draft.recurring?.weekdays).length === 0) {
+          return "每周循环至少选择一天";
         }
       }
       return "";
@@ -239,7 +325,7 @@
           ...(draft.manualMode === "pinned" && draft.manualRuntime ? { runtime: cloneJson(draft.manualRuntime) } : {}),
         },
       };
-      if (draft.kind === "recurring_task") {
+      if (draft.kind !== "skill") {
         policy.schedule = {
           mode: draft.scheduleMode,
           ...(draft.scheduleMode === "pinned" && draft.scheduleRuntime ? { runtime: cloneJson(draft.scheduleRuntime) } : {}),
@@ -256,19 +342,36 @@
           summary: String(draft.digestSummary || "").trim(),
         },
         execution: {
+          mode: draft.executionMode === "spawn_session" ? "spawn_session" : "in_place",
           runPrompt: String(draft.runPrompt || "").trim(),
         },
         runtimePolicy: buildRuntimePolicyPayload(draft),
       };
-      if (draft.kind === "recurring_task") {
-        payload.recurring = {
-          cadence: normalizeRecurringCadence(draft.recurring?.cadence),
-          timeOfDay: normalizeTimeOfDay(draft.recurring?.timeOfDay),
-          weekdays: normalizeRecurringCadence(draft.recurring?.cadence) === "weekly"
-            ? normalizeWeekdays(draft.recurring?.weekdays)
-            : [],
-          timezone: String(draft.recurring?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "").trim(),
-        };
+      if (draft.kind !== "skill") {
+        const knowledgeBasePath = String(draft.knowledgeBasePath || "").trim();
+        if (knowledgeBasePath) {
+          payload.knowledgeBasePath = knowledgeBasePath;
+        }
+        if (draft.scheduledEnabled) {
+          payload.scheduled = {
+            runAt: toIsoFromDateTimeLocal(draft.scheduled?.runAtLocal),
+            timezone: String(draft.scheduled?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "").trim(),
+          };
+        } else {
+          payload.scheduled = null;
+        }
+        if (draft.recurringEnabled) {
+          payload.recurring = {
+            cadence: normalizeRecurringCadence(draft.recurring?.cadence),
+            timeOfDay: normalizeTimeOfDay(draft.recurring?.timeOfDay),
+            weekdays: normalizeRecurringCadence(draft.recurring?.cadence) === "weekly"
+              ? normalizeWeekdays(draft.recurring?.weekdays)
+              : [],
+            timezone: String(draft.recurring?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "").trim(),
+          };
+        } else {
+          payload.recurring = null;
+        }
         payload.loop = {
           collect: {
             sources: normalizeLoopSources(draft.loop?.collect?.sources || []),

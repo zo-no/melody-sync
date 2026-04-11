@@ -24,8 +24,6 @@ const translations = {
   'persistent.kind.recurringTask': 'Recurring task',
   'persistent.kind.recurringPaused': 'Recurring paused',
   'persistent.kind.skill': 'Quick action',
-  'workflow.status.stale': '{days}d idle',
-  'workflow.status.staleCleanup': 'cleanup',
 };
 
 const localStorageState = new Map();
@@ -185,6 +183,11 @@ assert.equal(
   'Uncategorized',
   'folder mode should route unmatched groups into the uncategorized fallback bucket',
 );
+assert.match(
+  model.getSessionGroupInfo({ group: '项目 Alpha', persistent: { kind: 'recurring_task' } }, { groupingMode: 'user' }).key,
+  /^group:template:/,
+  'explicit folder assignment should take precedence over persistent task defaults in the sidebar grouping',
+);
 assert.equal(
   model.getSessionGroupInfo({ group: '研究任务' }, { groupingMode: 'ai' }).label,
   'Uncategorized',
@@ -286,15 +289,18 @@ assert.equal(
   'sidebar entry classification should keep review-needed tasks visible while marking the review state',
 );
 assert.equal(
-  model.getSessionListEntry({ id: 'stale-cleanup', taskCard: { lineRole: 'main' } }).staleInfo?.stage,
-  'cleanup',
-  'sidebar entry classification should carry stale cleanup metadata for ordinary tasks',
+  Object.prototype.hasOwnProperty.call(
+    model.getSessionListEntry({ id: 'stale-cleanup', taskCard: { lineRole: 'main' } }),
+    'staleInfo',
+  ),
+  false,
+  'sidebar entry classification should not carry stale cleanup reminder metadata',
 );
 assert.equal(
   model.getSessionListBadges({ id: 'stale-warning', taskCard: { lineRole: 'main' } })
     .some((badge) => badge?.label === 'cleanup'),
-  true,
-  'ordinary tasks from previous days should surface a cleanup badge in the sidebar meta row',
+  false,
+  'ordinary tasks from previous days should not surface cleanup badges in the sidebar meta row',
 );
 assert.equal(
   model.getSessionListBadges({ id: 'long-term-stale', persistent: { kind: 'recurring_task' } })
@@ -343,9 +349,12 @@ assert.equal(
   'sidebar entry classification should explain when a session is hidden because it is not a primary task',
 );
 assert.equal(
-  model.getSessionListEntry({ id: 'entry-recurring', persistent: { kind: 'recurring_task' } }).persistentDockGroupKey,
-  'group:long-term',
-  'sidebar entry classification should route recurring tasks into the persistent dock',
+  Object.prototype.hasOwnProperty.call(
+    model.getSessionListEntry({ id: 'entry-recurring', persistent: { kind: 'recurring_task' } }),
+    'persistentDockGroupKey',
+  ),
+  false,
+  'sidebar entry classification should not route recurring tasks into a persistent dock category',
 );
 assert.equal(
   model.isLongTermProjectSession({ id: 'entry-recurring', persistent: { kind: 'recurring_task' } }),
@@ -356,20 +365,6 @@ assert.equal(
   model.isLongTermLineSession({ id: 'long-term-branch', rootSessionId: 'long-term-root', sourceContext: { parentSessionId: 'long-term-root' } }),
   true,
   'session list model should also classify branches under a long-term root as long-term-line sessions',
-);
-assert.equal(
-  model.getPersistentDockGroupKey({
-    id: 'explicit-long-term-root',
-    taskPoolMembership: {
-      longTerm: {
-        role: 'project',
-        projectSessionId: 'explicit-long-term-root',
-        fixedNode: true,
-      },
-    },
-  }),
-  'group:long-term',
-  'explicit long-term project membership should surface in the long-term dock even without the legacy recurring kind',
 );
 assert.equal(
   model.isLongTermProjectSession({

@@ -7,6 +7,7 @@ const MAX_DIGEST_ITEMS = 6;
 const MAX_MESSAGE_PREVIEW_CHARS = 120;
 const MAX_LOOP_SOURCE_ITEMS = 8;
 const MAX_LOOP_SOURCE_CHARS = 120;
+const MAX_KNOWLEDGE_BASE_PATH_CHARS = 480;
 
 function trimText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -49,8 +50,14 @@ function normalizeList(value, { maxItems = MAX_DIGEST_ITEMS, maxChars = MAX_DIGE
 function normalizePersistentKind(value) {
   const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
   if (['skill', 'long_skill', 'persistent_skill'].includes(normalized)) return 'skill';
-  if (['recurring_task', 'recurring', 'scheduled_task', 'periodic_task'].includes(normalized)) {
+  if (['recurring_task', 'recurring', 'periodic_task'].includes(normalized)) {
     return 'recurring_task';
+  }
+  if (['scheduled_task', 'short_term_task', 'short_task', 'short_term', 'scheduled_once', 'timed_task', 'scheduled_job'].includes(normalized)) {
+    return 'scheduled_task';
+  }
+  if (['waiting_task', 'waiting', 'human_task', 'needs_user_task'].includes(normalized)) {
+    return 'waiting_task';
   }
   return '';
 }
@@ -91,7 +98,7 @@ function getDefaultRuntimePolicy(kind, defaultRuntime = null) {
       mode: 'follow_current',
     },
   };
-  if (kind === 'recurring_task') {
+  if (kind && kind !== 'skill') {
     policy.schedule = {
       mode: fallbackRuntime ? 'pinned' : 'session_default',
       ...(fallbackRuntime ? { runtime: fallbackRuntime } : {}),
@@ -150,7 +157,7 @@ function normalizePersistentRuntimePolicy(value, { kind, defaultRuntime } = {}) 
       : manual,
   };
 
-  if (kind === 'recurring_task') {
+  if (kind && kind !== 'skill') {
     const scheduleFallbackMode = fallbackPolicy.schedule?.mode || 'session_default';
     const scheduleFallbackRuntime = fallbackPolicy.schedule?.runtime || fallbackRuntime;
     const schedule = normalizeRuntimeRule(
@@ -174,6 +181,7 @@ function normalizePersistentRuntimePolicy(value, { kind, defaultRuntime } = {}) 
 
 function normalizeRecurringCadence(value) {
   const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
+  if (normalized === 'hourly') return 'hourly';
   if (normalized === 'weekly') return 'weekly';
   return 'daily';
 }
@@ -189,6 +197,10 @@ function normalizeTimeOfDay(value) {
     return '';
   }
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function normalizeKnowledgeBasePath(value) {
+  return clipText(value || '', MAX_KNOWLEDGE_BASE_PATH_CHARS);
 }
 
 function normalizeWeekdays(value) {
@@ -242,6 +254,16 @@ export function computeNextRecurringRunAt(recurring = {}, fromValue = new Date()
   const time = parseTimeOfDay(recurring?.timeOfDay || recurring?.time || '');
   if (!time) return '';
 
+  if (cadence === 'hourly') {
+    const candidate = new Date(parsedFrom.getTime());
+    candidate.setSeconds(0, 0);
+    candidate.setMinutes(time.minute);
+    if (candidate.getTime() <= parsedFrom.getTime()) {
+      candidate.setHours(candidate.getHours() + 1);
+    }
+    return candidate.toISOString();
+  }
+
   if (cadence === 'weekly') {
     const weekdays = normalizeWeekdays(recurring?.weekdays);
     const targetDays = weekdays.length > 0 ? weekdays : [parsedFrom.getDay()];
@@ -272,6 +294,18 @@ function defaultRunPrompt(kind, digest = {}) {
   if (kind === 'recurring_task') {
     return clipText(
       `请按这个长期任务的沉淀定义执行本轮产出。先回忆沉淀摘要，再给出当前这一轮的结果。${title ? ` 任务：${title}。` : ''}${summary ? ` 摘要：${summary}` : ''}`,
+      240,
+    );
+  }
+  if (kind === 'scheduled_task') {
+    return clipText(
+      `请按这个短期任务的沉淀定义执行本轮产出。先回忆沉淀摘要，再完成这次定时任务。${title ? ` 任务：${title}。` : ''}${summary ? ` 摘要：${summary}` : ''}`,
+      240,
+    );
+  }
+  if (kind === 'waiting_task') {
+    return clipText(
+      `请按这个等待任务的沉淀定义执行当前触发。先回忆沉淀摘要，再明确本轮需要人类处理的事项和下一步。${title ? ` 任务：${title}。` : ''}${summary ? ` 摘要：${summary}` : ''}`,
       240,
     );
   }
@@ -350,9 +384,34 @@ function normalizePersistentExecution(value, { kind, digest } = {}) {
     mode,
     runPrompt: clipText(execution.runPrompt || defaultRunPrompt(kind, digest), 240),
     lastTriggerAt: normalizeIsoTimestamp(execution.lastTriggerAt),
-    lastTriggerKind: trimText(execution.lastTriggerKind).toLowerCase() === 'schedule'
-      ? 'schedule'
-      : (trimText(execution.lastTriggerKind).toLowerCase() === 'manual' ? 'manual' : ''),
+    lastTriggerKind: (() => {
+      const normalized = trimText(execution.lastTriggerKind).toLowerCase();
+      if (normalized === 'recurring') return 'recurring';
+      if (normalized === 'schedule') return 'schedule';
+      if (normalized === 'manual') return 'manual';
+      return '';
+    })(),
+  };
+}
+
+function normalizePersistentScheduled(value, options = {}) {
+  const scheduled = value && typeof value === 'object' && !Array.isArray(value)
+    ? value
+    : {};
+  const hasExplicitNextRunAt = Object.prototype.hasOwnProperty.call(scheduled, 'nextRunAt');
+  const explicitNextRunAt = hasExplicitNextRunAt ? normalizeIsoTimestamp(scheduled.nextRunAt) : '';
+  const runAt = normalizeIsoTimestamp(
+    scheduled.runAt
+    || scheduled.at
+    || scheduled.dateTime
+    || explicitNextRunAt,
+  );
+  if (!runAt) return null;
+  return {
+    runAt,
+    timezone: clipText(scheduled.timezone || options.defaultTimezone || '', 80),
+    nextRunAt: hasExplicitNextRunAt ? explicitNextRunAt : runAt,
+    lastRunAt: normalizeIsoTimestamp(scheduled.lastRunAt),
   };
 }
 
@@ -400,10 +459,32 @@ export function normalizeSessionPersistent(value, options = {}) {
     }),
   };
 
-  if (kind === 'recurring_task') {
-    const recurring = normalizePersistentRecurring(value.recurring || value.schedule, options);
-    if (!recurring) return null;
-    normalized.recurring = recurring;
+  if (kind !== 'skill') {
+    const scheduled = normalizePersistentScheduled(value.scheduled, options);
+    const recurringSource = value.recurring
+      || ((value.schedule && typeof value.schedule === 'object' && !Array.isArray(value.schedule) && value.schedule.timeOfDay)
+        ? value.schedule
+        : null);
+    const recurring = normalizePersistentRecurring(recurringSource, options);
+    const knowledgeBasePath = normalizeKnowledgeBasePath(
+      value.knowledgeBasePath
+      || value.knowledgeBase?.path
+      || value.filePath
+      || '',
+    );
+
+    if (kind === 'recurring_task' && !recurring) return null;
+    if (kind === 'scheduled_task' && !scheduled) return null;
+
+    if (scheduled) {
+      normalized.scheduled = scheduled;
+    }
+    if (recurring) {
+      normalized.recurring = recurring;
+    }
+    if (knowledgeBasePath) {
+      normalized.knowledgeBasePath = knowledgeBasePath;
+    }
     normalized.loop = normalizePersistentLoop(value.loop, options.defaultLoop);
   } else {
     const skill = value.skill && typeof value.skill === 'object' && !Array.isArray(value.skill)
@@ -484,13 +565,33 @@ export function buildPersistentDigest(session = {}, history = []) {
 }
 
 export function isPersistentRecurringDue(persistent, nowValue = new Date()) {
-  if (!persistent || persistent.kind !== 'recurring_task' || persistent.state !== 'active') return false;
+  if (!persistent || persistent.state !== 'active') return false;
   const nextRunAt = normalizeIsoTimestamp(persistent?.recurring?.nextRunAt);
   if (!nextRunAt) return false;
   const now = parseDate(nowValue);
   const dueAt = parseDate(nextRunAt);
   if (!now || !dueAt) return false;
   return dueAt.getTime() <= now.getTime();
+}
+
+export function isPersistentScheduledDue(persistent, nowValue = new Date()) {
+  if (!persistent || persistent.state !== 'active') return false;
+  const scheduled = persistent?.scheduled && typeof persistent.scheduled === 'object' && !Array.isArray(persistent.scheduled)
+    ? persistent.scheduled
+    : {};
+  const hasExplicitNextRunAt = Object.prototype.hasOwnProperty.call(scheduled, 'nextRunAt');
+  const nextRunAt = normalizeIsoTimestamp(hasExplicitNextRunAt ? scheduled.nextRunAt : scheduled.runAt);
+  if (!nextRunAt) return false;
+  const now = parseDate(nowValue);
+  const dueAt = parseDate(nextRunAt);
+  if (!now || !dueAt) return false;
+  return dueAt.getTime() <= now.getTime();
+}
+
+export function resolvePersistentDueTriggerKind(persistent, nowValue = new Date()) {
+  if (isPersistentScheduledDue(persistent, nowValue)) return 'schedule';
+  if (isPersistentRecurringDue(persistent, nowValue)) return 'recurring';
+  return '';
 }
 
 export function buildPersistentRunMessage(session = {}, persistent = {}, options = {}) {
@@ -502,7 +603,10 @@ export function buildPersistentRunMessage(session = {}, persistent = {}, options
       || defaultRunPrompt(persistent?.kind, digest),
     240,
   );
-  const triggerKind = trimText(options.triggerKind).toLowerCase() === 'schedule' ? '定时触发' : '手动触发';
+  const normalizedTriggerKind = trimText(options.triggerKind).toLowerCase();
+  const triggerKind = normalizedTriggerKind === 'recurring'
+    ? '循环触发'
+    : (normalizedTriggerKind === 'schedule' ? '定时触发' : '一键触发');
   const loopSections = [];
   if ((loop.collect?.sources || []).length > 0 || loop.collect?.instruction) {
     const collectLines = [];
@@ -523,8 +627,17 @@ export function buildPersistentRunMessage(session = {}, persistent = {}, options
   if (loop.prune?.instruction) {
     loopSections.push(`冗余减枝：\n- 减枝要求：${loop.prune.instruction}`);
   }
+  if (persistent?.knowledgeBasePath) {
+    loopSections.push(`知识库路径：\n- ${persistent.knowledgeBasePath}`);
+  }
+  const titleByKind = (
+    persistent?.kind === 'recurring_task' ? '[长期任务执行]'
+      : persistent?.kind === 'scheduled_task' ? '[短期任务执行]'
+        : persistent?.kind === 'waiting_task' ? '[等待任务触发]'
+          : '[快捷按钮触发]'
+  );
   const lines = [
-    persistent?.kind === 'recurring_task' ? '[长期任务执行]' : '[快捷按钮触发]',
+    titleByKind,
     `名称：${digest.title || session?.name || '未命名长期项'}`,
     digest.summary ? `摘要：${digest.summary}` : '',
     digest.goal ? `目标：${digest.goal}` : '',
@@ -547,7 +660,10 @@ export function resolvePersistentRunRuntime(session = {}, persistent = {}, optio
   if (!normalizedPersistent) {
     return sessionRuntime;
   }
-  const triggerKind = trimText(options.triggerKind).toLowerCase() === 'schedule' ? 'schedule' : 'manual';
+  const requestedTriggerKind = trimText(options.triggerKind).toLowerCase();
+  const triggerKind = requestedTriggerKind === 'schedule' || requestedTriggerKind === 'recurring'
+    ? 'schedule'
+    : 'manual';
   const requestedRuntime = normalizeRuntimeSnapshot(options.runtime, sessionRuntime);
   const runtimeRule = triggerKind === 'schedule'
     ? normalizedPersistent?.runtimePolicy?.schedule || { mode: 'session_default' }

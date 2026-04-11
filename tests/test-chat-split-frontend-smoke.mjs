@@ -84,10 +84,10 @@ assert.match(
   'workbench React bundle should own the inline create-folder section',
 );
 
-assert.match(
+assert.doesNotMatch(
   workbenchTaskMapReactUiSource,
   /function SessionListFocusSection\(/,
-  'workbench React bundle should own the sidebar focus section renderer',
+  'workbench React bundle should not keep the retired sidebar focus section renderer',
 );
 
 assert.match(
@@ -227,10 +227,10 @@ assert.match(
   'session surface ui should surface the parent mainline hint for branch rows',
 );
 
-assert.match(
+assert.doesNotMatch(
   sessionListUiSource,
   /function getSessionFocusSectionData\(/,
-  'session list ui should compute a dedicated focus shortlist before grouped tasks',
+  'session list ui should no longer compute a dedicated focus shortlist before grouped tasks',
 );
 
 assert.match(
@@ -263,10 +263,10 @@ assert.match(
   'sidebar stylesheet should style the task hint row',
 );
 
-assert.match(
+assert.doesNotMatch(
   sidebarStylesheet,
   /\.session-focus-section\s*\{/,
-  'sidebar stylesheet should style the top focus section shell',
+  'sidebar stylesheet should not keep the retired top focus section shell',
 );
 
 function escapeRegExp(value) {

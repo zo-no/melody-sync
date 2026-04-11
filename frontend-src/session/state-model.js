@@ -370,6 +370,46 @@
         t("persistent.kind.recurringTaskTitle"),
       );
     }
+    if (kind === "scheduled_task") {
+      if (state === "paused") {
+        return createStatus(
+          "persistent-scheduled-paused",
+          t("persistent.kind.scheduledPaused"),
+          "status-persistent-paused",
+          "persistent-paused",
+          "",
+          t("persistent.kind.scheduledPausedTitle"),
+        );
+      }
+      return createStatus(
+        "persistent-scheduled",
+        t("persistent.kind.scheduledTask"),
+        "status-persistent-recurring",
+        "persistent-recurring",
+        "",
+        t("persistent.kind.scheduledTaskTitle"),
+      );
+    }
+    if (kind === "waiting_task") {
+      if (state === "paused") {
+        return createStatus(
+          "persistent-waiting-paused",
+          t("persistent.kind.waitingPaused"),
+          "status-persistent-paused",
+          "persistent-paused",
+          "",
+          t("persistent.kind.waitingPausedTitle"),
+        );
+      }
+      return createStatus(
+        "persistent-waiting",
+        t("persistent.kind.waitingTask"),
+        "status-persistent-recurring",
+        "persistent-recurring",
+        "",
+        t("persistent.kind.waitingTaskTitle"),
+      );
+    }
     if (kind === "skill") {
       return createStatus(
         "persistent-skill",

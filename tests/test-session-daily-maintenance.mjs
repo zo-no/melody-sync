@@ -74,6 +74,26 @@ try {
     return true;
   });
 
+  const waitingPersistent = await createSession(workdir, 'codex', '等待确认任务');
+  await mutateSessionMeta(waitingPersistent.id, (draft) => {
+    draft.workflowState = 'done';
+    draft.workflowCompletedAt = '2026-04-10T12:00:00.000Z';
+    draft.updatedAt = '2026-04-10T12:00:00.000Z';
+    draft.persistent = {
+      kind: 'waiting_task',
+      digest: {
+        title: '等待确认任务',
+      },
+      loop: {
+        collect: { sources: [] },
+        organize: {},
+        use: {},
+        prune: {},
+      },
+    };
+    return true;
+  });
+
   const beforeSweep = await getSession(olderDone.id);
   assert.match(beforeSweep?.workflowCompletedAt || '', /^2026-04-10T15:30:00.000Z$/, 'done transitions should persist workflowCompletedAt for later sweeps');
 
@@ -84,8 +104,10 @@ try {
 
   const archivedSession = await getSession(olderDone.id);
   const stillActiveSession = await getSession(freshDone.id);
+  const waitingPersistentSession = await getSession(waitingPersistent.id);
   assert.equal(archivedSession?.archived, true, 'older done tasks should be archived by the midnight sweep');
   assert.notEqual(stillActiveSession?.archived, true, 'tasks completed after midnight should stay active until the next sweep');
+  assert.notEqual(waitingPersistentSession?.archived, true, 'persistent waiting tasks should be excluded from the nightly archive sweep');
 
   const worklogPath = join(MEMORY_DIR, 'worklog', '2026', '04', '2026-04-10.md');
   assert.ok(existsSync(worklogPath), 'midnight sweep should write the human-readable completion log to the previous day worklog');

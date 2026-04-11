@@ -200,6 +200,133 @@ try {
   );
   assert.deepEqual(createdRecurringDirect.json.session?.persistent?.loop?.collect?.sources, ['运行日志'], 'direct recurring creation should persist loop collection sources');
 
+  const projectChild = await request(port, 'POST', '/api/sessions', {
+    folder: repoRoot,
+    tool: 'codex',
+    name: 'Recurring child',
+    sourceContext: {
+      rootSessionId: createdRecurringDirect.json.session?.id,
+      parentSessionId: createdRecurringDirect.json.session?.id,
+    },
+  });
+  assert.equal(projectChild.status, 201, 'creating a long-term project child should succeed');
+  const promotedRecurringChild = await request(port, 'POST', `/api/sessions/${projectChild.json.session?.id}/promote-persistent`, {
+    kind: 'recurring_task',
+    recurring: {
+      cadence: 'daily',
+      timeOfDay: '07:45',
+      timezone: 'Asia/Shanghai',
+    },
+  });
+  assert.equal(promotedRecurringChild.status, 200, 'promoting a project child to a recurring task should succeed');
+  assert.deepEqual(
+    promotedRecurringChild.json.session?.taskPoolMembership,
+    {
+      longTerm: {
+        role: 'member',
+        projectSessionId: createdRecurringDirect.json.session?.id,
+        fixedNode: false,
+        bucket: 'long_term',
+      },
+    },
+    'recurring project children should stay inside the owning long-term list as long-term tasks',
+  );
+
+  const clearedRecurringChildTrigger = await request(port, 'PATCH', `/api/sessions/${projectChild.json.session?.id}`, {
+    persistent: {
+      kind: 'waiting_task',
+      recurring: null,
+      scheduled: null,
+      knowledgeBasePath: '',
+    },
+  });
+  assert.equal(clearedRecurringChildTrigger.status, 200, 'PATCH should clear a recurring trigger when requested');
+  assert.equal(clearedRecurringChildTrigger.json.session?.persistent?.kind, 'waiting_task', 'cleared recurring child should become a waiting task');
+  assert.equal(clearedRecurringChildTrigger.json.session?.persistent?.recurring, undefined, 'recurring trigger should be removed when patched to null');
+  assert.equal(clearedRecurringChildTrigger.json.session?.persistent?.scheduled, undefined, 'scheduled trigger should stay absent when patched to null');
+  assert.equal(clearedRecurringChildTrigger.json.session?.persistent?.knowledgeBasePath, undefined, 'empty knowledge-base path should clear the stored path');
+  assert.deepEqual(
+    clearedRecurringChildTrigger.json.session?.taskPoolMembership,
+    {
+      longTerm: {
+        role: 'member',
+        projectSessionId: createdRecurringDirect.json.session?.id,
+        fixedNode: false,
+        bucket: 'waiting',
+      },
+    },
+    'changing a project child to a waiting task should move it into the waiting bucket',
+  );
+
+  const createdScheduledDirect = await request(port, 'POST', '/api/sessions', {
+    folder: repoRoot,
+    tool: 'codex',
+    name: 'Direct scheduled',
+    persistent: {
+      kind: 'scheduled_task',
+      digest: {
+        title: 'Direct scheduled',
+      },
+      scheduled: {
+        runAt: '2026-04-11T09:30:00.000Z',
+        timezone: 'Asia/Shanghai',
+      },
+      knowledgeBasePath: '/tmp/direct-scheduled',
+      loop: {
+        collect: {
+          sources: ['任务清单'],
+        },
+        organize: {},
+        use: {},
+        prune: {},
+      },
+    },
+  });
+  assert.equal(createdScheduledDirect.status, 201, 'creating a scheduled task directly should succeed');
+  assert.equal(createdScheduledDirect.json.session?.group, '短期任务', 'direct scheduled creation should infer the short-task group');
+  assert.equal(createdScheduledDirect.json.session?.persistent?.kind, 'scheduled_task', 'direct scheduled creation should persist the scheduled kind');
+  assert.equal(createdScheduledDirect.json.session?.persistent?.scheduled?.runAt, '2026-04-11T09:30:00.000Z', 'direct scheduled creation should persist the scheduled run time');
+  assert.equal(createdScheduledDirect.json.session?.persistent?.knowledgeBasePath, '/tmp/direct-scheduled', 'direct scheduled creation should persist the knowledge base path');
+
+  const clearedScheduledTrigger = await request(port, 'PATCH', `/api/sessions/${createdScheduledDirect.json.session?.id}`, {
+    persistent: {
+      kind: 'waiting_task',
+      scheduled: null,
+      recurring: null,
+      knowledgeBasePath: '',
+    },
+  });
+  assert.equal(clearedScheduledTrigger.status, 200, 'PATCH should clear a scheduled trigger when requested');
+  assert.equal(clearedScheduledTrigger.json.session?.persistent?.kind, 'waiting_task', 'cleared scheduled task should become a waiting task');
+  assert.equal(clearedScheduledTrigger.json.session?.persistent?.scheduled, undefined, 'scheduled trigger should be removed when patched to null');
+  assert.equal(clearedScheduledTrigger.json.session?.persistent?.recurring, undefined, 'recurring trigger should stay absent when patched to null');
+  assert.equal(clearedScheduledTrigger.json.session?.persistent?.knowledgeBasePath, undefined, 'empty knowledge-base path should clear the stored scheduled-task path');
+
+  const createdWaitingDirect = await request(port, 'POST', '/api/sessions', {
+    folder: repoRoot,
+    tool: 'codex',
+    name: 'Direct waiting',
+    persistent: {
+      kind: 'waiting_task',
+      digest: {
+        title: 'Direct waiting',
+      },
+      knowledgeBasePath: '/tmp/direct-waiting',
+      loop: {
+        collect: {
+          sources: ['用户回复'],
+        },
+        organize: {},
+        use: {},
+        prune: {},
+      },
+    },
+  });
+  assert.equal(createdWaitingDirect.status, 201, 'creating a waiting task directly should succeed');
+  assert.equal(createdWaitingDirect.json.session?.group, '等待任务', 'direct waiting creation should infer the waiting group');
+  assert.equal(createdWaitingDirect.json.session?.persistent?.kind, 'waiting_task', 'direct waiting creation should persist the waiting kind');
+  assert.equal(createdWaitingDirect.json.session?.persistent?.knowledgeBasePath, '/tmp/direct-waiting', 'direct waiting creation should persist the knowledge base path');
+
   const invalidRecurringDirect = await request(port, 'POST', '/api/sessions', {
     folder: repoRoot,
     tool: 'codex',

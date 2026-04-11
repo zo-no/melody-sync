@@ -132,6 +132,7 @@ function findAllByClass(root, className) {
 }
 
 const source = readWorkbenchFrontendSource('persistent-editor-ui.js');
+assert.match(source, /创建支线执行/, 'persistent editor should expose branch-spawn execution mode');
 const context = {
   console,
   document: {
@@ -163,11 +164,19 @@ renderer.renderPersistentEditorModal(host, {
     digestTitle: '每小时检查',
     digestSummary: '继续优化任务图',
     runPrompt: '检查并优化',
+    scheduledEnabled: false,
+    scheduled: {
+      runAtLocal: '',
+      timezone: 'Asia/Shanghai',
+    },
+    recurringEnabled: true,
     recurring: {
       cadence: 'weekly',
       timeOfDay: '09:30',
       weekdays: [1, 3],
+      timezone: 'Asia/Shanghai',
     },
+    knowledgeBasePath: '/tmp/knowledge-base',
     manualMode: 'follow_current',
     manualRuntime: null,
     scheduleMode: 'pinned',
@@ -180,7 +189,7 @@ renderer.renderPersistentEditorModal(host, {
 
 assert.equal(host.hidden, false, 'rendering the editor should reveal the host');
 assert.equal(findAllByClass(host, 'operation-record-persistent-editor').length, 1, 'renderer should mount the inline editor shell');
-assert.equal(findAllByClass(host, 'operation-record-kind-btn').length, 2, 'renderer should show both persistent kind buttons');
+assert.equal(findAllByClass(host, 'operation-record-kind-btn').length, 6, 'renderer should show four task kind buttons plus two trigger toggles');
 assert.equal(findAllByClass(host, 'operation-record-weekday-btn').length, 7, 'weekly cadence should render weekday toggles');
 assert.equal(
   findAllByClass(host, 'operation-record-persistent-section-title').some((node) => node.textContent === '长期闭环'),

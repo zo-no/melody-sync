@@ -926,6 +926,100 @@ assert.deepEqual(
   'mobile persistent trackers should keep a direct settings entry instead of hiding the automation surface entirely',
 );
 
+const handoffSourceSession = {
+  id: 'session-main-handoff',
+  name: '整理运行数据',
+  taskCard: {
+    lineRole: 'main',
+    goal: '整理运行数据',
+    mainGoal: '整理运行数据',
+    checkpoint: '汇总当前阶段结论',
+    nextSteps: ['把阶段信息传给下游任务'],
+  },
+};
+
+const handoffTargetSession = {
+  id: 'session-target-handoff',
+  name: '接住上游信息',
+  taskCard: {
+    lineRole: 'main',
+    goal: '接住上游信息',
+    mainGoal: '接住上游信息',
+    checkpoint: '等待上游同步阶段信息',
+  },
+};
+
+const { elements: handoffElements, fetchLog: handoffFetchLog } = await runScenario({
+  currentSession: handoffSourceSession,
+  sessions: [handoffSourceSession, handoffTargetSession],
+  snapshot: {
+    captureItems: [],
+    projects: [],
+    nodes: [],
+    branchContexts: [],
+    taskClusters: [
+      {
+        mainSessionId: 'session-main-handoff',
+        mainSession: handoffSourceSession,
+        mainGoal: '整理运行数据',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+      {
+        mainSessionId: 'session-target-handoff',
+        mainSession: handoffTargetSession,
+        mainGoal: '接住上游信息',
+        currentBranchSessionId: '',
+        branchSessionIds: [],
+        branchSessions: [],
+      },
+    ],
+    skills: [],
+    summaries: [],
+  },
+  fetchResponder: async (url, options, { snapshot }) => {
+    if (options?.method === 'POST' && url === '/api/workbench/sessions/session-main-handoff/handoff') {
+      return {
+        session: handoffSourceSession,
+        snapshot,
+      };
+    }
+    return snapshot;
+  },
+});
+
+const handoffActions = findFirstByClass(handoffElements.get('questTrackerActions'), 'quest-tracker-handoff-actions');
+assert.ok(handoffActions, 'task cards should render a dedicated handoff control group');
+
+const handoffSelect = findAllByTagName(handoffActions, 'select')[0];
+assert.ok(handoffSelect, 'task-card handoff controls should include a target selector');
+handoffSelect.value = 'session-target-handoff';
+handoffSelect.trigger('change');
+
+const handoffPreview = findFirstByClass(handoffActions, 'quest-tracker-handoff-preview');
+assert.equal(
+  Boolean(handoffPreview?.textContent.includes('整理运行数据') && handoffPreview?.textContent.includes('接住上游信息')),
+  true,
+  'task-card handoff controls should preview the source and target tasks before sending',
+);
+
+findAllByTagName(handoffActions, 'button')
+  .find((node) => node?.textContent === '传递信息')
+  ?.click();
+await flushAsync();
+
+assert.equal(
+  handoffFetchLog.some((entry) => (
+    entry.url === '/api/workbench/sessions/session-main-handoff/handoff'
+    && entry.options?.method === 'POST'
+    && JSON.parse(entry.options?.body || '{}').targetSessionId === 'session-target-handoff'
+    && JSON.parse(entry.options?.body || '{}').detailLevel === 'balanced'
+  )),
+  true,
+  'task-card handoff should submit the selected target through the existing handoff endpoint',
+);
+
 const completedMainSession = {
   id: 'session-main-done',
   name: '系统学习电影史',

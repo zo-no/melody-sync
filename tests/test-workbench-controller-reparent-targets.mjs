@@ -192,6 +192,7 @@ function buildHarness({ currentSession, sessions, recentTargetIds = [], taskMapG
   const elements = new Map(elementIds.map((id) => [id, makeElement('div', id)]));
   const captured = {
     rendererOptions: null,
+    trackerRendererOptions: null,
   };
 
   const context = {
@@ -247,13 +248,15 @@ function buildHarness({ currentSession, sessions, recentTargetIds = [], taskMapG
         },
       },
       MelodySyncTaskTrackerUi: {
-        createTrackerRenderer() {
+        createTrackerRenderer(options = {}) {
+          captured.trackerRendererOptions = options;
           return {
             renderStatus() {},
             getPrimaryTitle() { return '当前任务'; },
             getPrimaryDetail() { return ''; },
             getSecondaryDetail() { return ''; },
             renderDetail() {},
+            renderHandoffActions() {},
             renderPersistentActions() {},
           };
         },
@@ -466,11 +469,12 @@ await vm.runInNewContext(`(async () => { ${controllerSource}\nawait Promise.reso
 
 const listReparentTargets = captured.rendererOptions?.listReparentTargets;
 assert.equal(typeof listReparentTargets, 'function', 'controller should inject a reparent-target lister into the task-map renderer');
-const listConnectTargets = captured.rendererOptions?.listConnectTargets;
-assert.equal(typeof listConnectTargets, 'function', 'controller should inject a connect-target lister into the task-map renderer');
+assert.equal(captured.rendererOptions?.listConnectTargets, undefined, 'controller should stop injecting connect-target listers into the task-map renderer');
+const listHandoffTargets = captured.trackerRendererOptions?.listTaskHandoffTargets;
+assert.equal(typeof listHandoffTargets, 'function', 'controller should inject a handoff-target lister into the task-card renderer');
 
 const targets = listReparentTargets({ sourceSessionId: sourceSession.id }).filter((entry) => entry.mode === 'attach');
-const connectTargets = listConnectTargets({ sourceSessionId: sourceSession.id }).filter((entry) => entry.mode === 'connect');
+const handoffTargets = listHandoffTargets(sourceSession.id).filter((entry) => entry.mode === 'handoff');
 assert.deepEqual(
   JSON.parse(JSON.stringify(targets.map((entry) => entry.sessionId))),
   [
@@ -481,13 +485,13 @@ assert.deepEqual(
   'reparent target ranking should prioritize related open tasks ahead of recent but unrelated or completed targets',
 );
 assert.deepEqual(
-  JSON.parse(JSON.stringify(connectTargets.map((entry) => entry.sessionId))),
+  JSON.parse(JSON.stringify(handoffTargets.map((entry) => entry.sessionId))),
   [
     relatedOpenTarget.id,
     recentUnrelatedTarget.id,
     relatedDoneTarget.id,
   ],
-  'connect target ranking should prioritize related open tasks ahead of recent but unrelated or completed targets',
+  'handoff target ranking should prioritize related open tasks ahead of recent but unrelated or completed targets',
 );
 assert.equal(
   String(targets[0]?.displayPath || '').includes('相关内容'),
@@ -553,14 +557,16 @@ await vm.runInNewContext(`(async () => { ${controllerSource}\nawait Promise.reso
   filename: 'frontend-src/workbench/controller.js',
 });
 
-const connectedTargets = connectedCaptured.rendererOptions?.listConnectTargets?.({ sourceSessionId: sourceSession.id }) || [];
+assert.equal(connectedCaptured.rendererOptions?.listConnectTargets, undefined, 'task-map renderer should keep graph-link target listers disconnected');
+const connectedTargets = connectedCaptured.trackerRendererOptions?.listTaskHandoffTargets?.(sourceSession.id) || [];
 assert.deepEqual(
   JSON.parse(JSON.stringify(connectedTargets.map((entry) => entry.sessionId))),
   [
+    relatedOpenTarget.id,
     recentUnrelatedTarget.id,
     relatedDoneTarget.id,
   ],
-  'connect target listing should suppress tasks that are already linked by a related edge',
+  'task-card handoff targets should stay available even when tasks are already related on the graph',
 );
 
 console.log('test-workbench-controller-reparent-targets: ok');

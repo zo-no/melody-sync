@@ -916,7 +916,10 @@ function buildSessionListOrganizerStrategySummary(strategy = null) {
 
 function isPersistentSessionForOrganizer(session) {
   const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
-  return kind === "skill" || kind === "recurring_task";
+  return kind === "skill"
+    || kind === "recurring_task"
+    || kind === "scheduled_task"
+    || kind === "waiting_task";
 }
 
 function isGenericSessionTitleForOrganizer(name = "") {

@@ -103,6 +103,8 @@ function collectComparableTokens(value) {
 function normalizePersistentKind(value) {
   const normalized = normalizeComparableText(value).replace(/\s+/g, '_');
   if (normalized === 'recurring_task') return 'recurring_task';
+  if (normalized === 'scheduled_task') return 'scheduled_task';
+  if (normalized === 'waiting_task') return 'waiting_task';
   if (normalized === 'skill') return 'skill';
   return '';
 }
@@ -277,8 +279,9 @@ function normalizeLongTermSuggestion(value = null) {
 function normalizeLongTermBucket(value = '') {
   const normalized = trimText(value || '').toLowerCase().replace(/[\s-]+/g, '_');
   if (normalized === 'inbox') return 'inbox';
-  if (normalized === 'short_term_iteration') return 'short_term_iteration';
-  if (normalized === 'long_term_iteration') return 'long_term_iteration';
+  if (['short_term_iteration', 'short_term', '短期任务'].includes(normalized)) return 'short_term';
+  if (['long_term_iteration', 'long_term', '长期任务'].includes(normalized)) return 'long_term';
+  if (['waiting', 'waiting_for', 'waiting_user', '等待任务', '等待'].includes(normalized)) return 'waiting';
   return '';
 }
 

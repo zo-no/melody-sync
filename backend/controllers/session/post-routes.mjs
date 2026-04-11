@@ -80,6 +80,8 @@ export async function handleSessionPostRoutes({
           queued: outcome.queued,
           run: outcome.run || null,
           session: createClientSessionDetail(outcome.session),
+          ...(outcome.parentSession ? { parentSession: createClientSessionDetail(outcome.parentSession) } : {}),
+          ...(outcome.spawnedSession ? { spawnedSession: createClientSessionDetail(outcome.spawnedSession) } : {}),
         });
       } catch (error) {
         writeJson(res, error?.statusCode || 409, { error: error.message || 'Failed to run persistent session' });

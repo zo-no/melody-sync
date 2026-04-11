@@ -251,11 +251,17 @@
     const templateGroups = normalizeSessionGroupingTemplateGroups(
       options?.templateGroups || getSessionGroupingTemplateGroups(),
     );
-    const effectiveGroupValue = persistentKind === "skill"
+    const explicitGroupValue = trimText(session?.group);
+    const fallbackGroupValue = persistentKind === "skill"
       ? "快捷按钮"
       : (persistentKind === "recurring_task"
         ? "长期任务"
-        : trimText(session?.group));
+        : (persistentKind === "scheduled_task"
+          ? "短期任务"
+          : (persistentKind === "waiting_task"
+            ? "等待任务"
+            : "")));
+    const effectiveGroupValue = explicitGroupValue || fallbackGroupValue;
     const group = resolveTemplateTaskListGroup(effectiveGroupValue, templateGroups);
     const label = trimText(group?.label)
       || (trimText(group?.labelKey) ? translate(group.labelKey) : "")
@@ -273,7 +279,10 @@
 
   function getSidebarPersistentKind(session) {
     const kind = normalizeKey(session?.persistent?.kind || "");
-    return kind === "recurring_task" ? "recurring_task" : (kind === "skill" ? "skill" : "");
+    if (kind === "recurring_task") return "recurring_task";
+    if (kind === "scheduled_task") return "scheduled_task";
+    if (kind === "waiting_task") return "waiting_task";
+    return kind === "skill" ? "skill" : "";
   }
 
   function getLongTermTaskPoolMembership(session) {
@@ -290,6 +299,7 @@
       role,
       projectSessionId,
       fixedNode: membership?.fixedNode === true || role === "project",
+      bucket: normalizeKey(membership?.bucket || ""),
     };
   }
 
@@ -335,15 +345,6 @@
       const resolvedRootSessionId = resolveLongTermProjectRootSessionId(candidate, nextVisited);
       if (resolvedRootSessionId) return resolvedRootSessionId;
     }
-    return "";
-  }
-
-  function getPersistentDockGroupKey(session) {
-    const membership = getLongTermTaskPoolMembership(session);
-    const persistentKind = getSidebarPersistentKind(session);
-    if (membership?.role === "project" && membership?.fixedNode === true) return "group:long-term";
-    if (persistentKind === "recurring_task") return "group:long-term";
-    if (persistentKind === "skill") return "group:quick-actions";
     return "";
   }
 
@@ -443,6 +444,20 @@
         className: "session-list-badge session-list-badge-persistent-recurring",
       };
     }
+    if (kind === "scheduled_task") {
+      return {
+        key: state === "paused" ? "persistent-scheduled-paused" : "persistent-scheduled",
+        label: translate(state === "paused" ? "persistent.kind.scheduledPaused" : "persistent.kind.scheduledTask"),
+        className: "session-list-badge session-list-badge-persistent-recurring",
+      };
+    }
+    if (kind === "waiting_task") {
+      return {
+        key: state === "paused" ? "persistent-waiting-paused" : "persistent-waiting",
+        label: translate(state === "paused" ? "persistent.kind.waitingPaused" : "persistent.kind.waitingTask"),
+        className: "session-list-badge session-list-badge-persistent-recurring",
+      };
+    }
     if (kind === "skill") {
       return {
         key: "persistent-skill",
@@ -485,21 +500,34 @@
   }
 
   function getPersistentScheduleBadge(session) {
-    if (getSidebarPersistentKind(session) !== "recurring_task") return null;
-    const recurring = session?.persistent?.recurring && typeof session.persistent.recurring === "object"
-      ? session.persistent.recurring
-      : {};
-    const label = formatRecurringCadenceBadge(recurring);
-    if (!label) return null;
+    const persistentKind = getSidebarPersistentKind(session);
     const titleParts = [];
-    const nextRunAt = formatPersistentBadgeTime(recurring?.nextRunAt || "");
-    if (nextRunAt) {
-      titleParts.push(`下次执行 ${nextRunAt}`);
+    let label = "";
+    if (persistentKind === "recurring_task") {
+      const recurring = session?.persistent?.recurring && typeof session.persistent.recurring === "object"
+        ? session.persistent.recurring
+        : {};
+      label = formatRecurringCadenceBadge(recurring);
+      const nextRunAt = formatPersistentBadgeTime(recurring?.nextRunAt || "");
+      if (nextRunAt) {
+        titleParts.push(`下次执行 ${nextRunAt}`);
+      }
+      const timezone = trimText(recurring?.timezone || "");
+      if (timezone) {
+        titleParts.push(`时区 ${timezone}`);
+      }
+    } else if (persistentKind === "scheduled_task") {
+      const scheduled = session?.persistent?.scheduled && typeof session.persistent.scheduled === "object"
+        ? session.persistent.scheduled
+        : {};
+      const runAt = formatPersistentBadgeTime(scheduled?.nextRunAt || scheduled?.runAt || "");
+      label = runAt ? `定时 ${runAt}` : "定时任务";
+      const timezone = trimText(scheduled?.timezone || "");
+      if (timezone) {
+        titleParts.push(`时区 ${timezone}`);
+      }
     }
-    const timezone = trimText(recurring?.timezone || "");
-    if (timezone) {
-      titleParts.push(`时区 ${timezone}`);
-    }
+    if (!label) return null;
     return {
       key: "persistent-schedule",
       label,
@@ -528,17 +556,6 @@
         className: "session-list-badge session-list-badge-branch",
       });
     }
-    const staleInfo = entry?.staleInfo || getSessionStalenessInfo(session);
-    if (staleInfo?.label && entry?.archived !== true) {
-      badges.push({
-        key: staleInfo.key || "stale",
-        label: staleInfo.label,
-        title: staleInfo.title || staleInfo.label,
-        className: `session-list-badge ${staleInfo.stage === "cleanup"
-          ? "session-list-badge-stale-cleanup"
-          : "session-list-badge-stale"}`,
-      });
-    }
     return badges;
   }
 
@@ -551,10 +568,8 @@
     const workflowState = normalizeWorkflowState(session?.workflowState || "");
     const taskListVisibility = getTaskListVisibility(session);
     const persistentKind = getSidebarPersistentKind(session);
-    const persistentDockGroupKey = getPersistentDockGroupKey(session);
     const groupInfo = getSessionGroupInfoWithOptions(session, options);
     const needsReview = isSidebarCompletionReviewSession(session, options);
-    const staleInfo = !archived ? getSessionStalenessInfo(session) : null;
 
     let hiddenReason = "";
     if (!session?.id) {
@@ -580,10 +595,8 @@
       workflowState,
       taskListVisibility,
       persistentKind,
-      persistentDockGroupKey,
       groupInfo,
       needsReview,
-      staleInfo,
     };
     return {
       ...entry,
@@ -610,7 +623,6 @@
     getSessionGroupInfo,
     getSessionGroupInfoWithOptions,
     getSidebarPersistentKind,
-    getPersistentDockGroupKey,
     isLongTermProjectSession,
     isLongTermLineSession,
     getSessionStalenessInfo,

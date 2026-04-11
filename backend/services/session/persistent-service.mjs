@@ -18,6 +18,16 @@ function mergeObjectShape(current, patch) {
   return { ...currentValue, ...patchValue };
 }
 
+function hasOwn(value, key) {
+  return Boolean(value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, key));
+}
+
+function mergeOptionalPersistentObject(current, patch, hasPatch) {
+  if (!hasPatch) return current;
+  if (patch === null || patch === false) return null;
+  return mergeObjectShape(current, patch);
+}
+
 function mergePersistentLoopShape(current, patch) {
   const currentLoop = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
   const patchLoop = patch && typeof patch === 'object' && !Array.isArray(patch) ? patch : {};
@@ -31,10 +41,14 @@ function mergePersistentLoopShape(current, patch) {
   };
 }
 
+const PERSISTENT_GROUPS = new Set(['长期任务', '短期任务', '等待任务', '快捷按钮']);
+
 function getPersistentSessionGroup(kind = '') {
   const normalizedKind = typeof kind === 'string' ? kind.trim().toLowerCase() : '';
   if (normalizedKind === 'skill') return '快捷按钮';
   if (normalizedKind === 'recurring_task') return '长期任务';
+  if (normalizedKind === 'scheduled_task') return '短期任务';
+  if (normalizedKind === 'waiting_task') return '等待任务';
   return '';
 }
 
@@ -65,14 +79,21 @@ function buildSessionPersistentPatch(currentPersistent, patch = {}) {
   const patchRuntimePolicy = patch?.runtimePolicy && typeof patch.runtimePolicy === 'object'
     ? patch.runtimePolicy
     : {};
+  const hasScheduledPatch = hasOwn(patch, 'scheduled');
+  const hasRecurringPatch = hasOwn(patch, 'recurring') || hasOwn(patch, 'schedule');
+  const recurringPatch = hasOwn(patch, 'recurring') ? patch.recurring : patch?.schedule;
+  const hasSkillPatch = hasOwn(patch, 'skill');
+  const hasKnowledgeBasePathPatch = hasOwn(patch, 'knowledgeBasePath');
   return {
     ...(currentPersistent && typeof currentPersistent === 'object' ? currentPersistent : {}),
     ...(patch && typeof patch === 'object' ? patch : {}),
     digest: mergeObjectShape(currentPersistent?.digest, patch?.digest),
     execution: mergeObjectShape(currentPersistent?.execution, patch?.execution),
-    recurring: mergeObjectShape(currentPersistent?.recurring, patch?.recurring || patch?.schedule),
+    scheduled: mergeOptionalPersistentObject(currentPersistent?.scheduled, patch?.scheduled, hasScheduledPatch),
+    recurring: mergeOptionalPersistentObject(currentPersistent?.recurring, recurringPatch, hasRecurringPatch),
     loop: mergePersistentLoopShape(currentPersistent?.loop, patch?.loop),
-    skill: mergeObjectShape(currentPersistent?.skill, patch?.skill),
+    skill: mergeOptionalPersistentObject(currentPersistent?.skill, patch?.skill, hasSkillPatch),
+    knowledgeBasePath: hasKnowledgeBasePathPatch ? patch?.knowledgeBasePath || '' : currentPersistent?.knowledgeBasePath || '',
     runtimePolicy: {
       ...currentRuntimePolicy,
       ...patchRuntimePolicy,
@@ -82,8 +103,91 @@ function buildSessionPersistentPatch(currentPersistent, patch = {}) {
   };
 }
 
-function buildPersistentTaskPoolMembership(sessionId, persistent, currentTaskPoolMembership = null) {
+function inferLongTermBucketFromSession(session = null, persistent = null) {
+  const normalizedKind = typeof persistent?.kind === 'string'
+    ? persistent.kind.trim().toLowerCase()
+    : '';
+  if (normalizedKind === 'recurring_task') return 'long_term';
+  if (normalizedKind === 'scheduled_task') return 'short_term';
+  if (normalizedKind === 'waiting_task') return 'waiting';
+  const workflowState = typeof session?.workflowState === 'string'
+    ? session.workflowState.trim().toLowerCase()
+    : '';
+  if (workflowState === 'waiting_user') return 'waiting';
+  return 'inbox';
+}
+
+function buildPersistentTriggerLabel(triggerKind = '') {
+  if (triggerKind === 'recurring') return '循环触发';
+  if (triggerKind === 'schedule') return '定时触发';
+  return '一键触发';
+}
+
+function buildPersistentSpawnGoal(session = null, persistent = null, triggerKind = '') {
+  const title = String(
+    persistent?.digest?.title
+    || session?.name
+    || '',
+  ).trim() || '未命名任务';
+  return `${buildPersistentTriggerLabel(triggerKind)} · ${title}`;
+}
+
+function buildPersistentSpawnCheckpoint(session = null, persistent = null) {
+  return String(
+    persistent?.digest?.summary
+    || persistent?.digest?.goal
+    || session?.description
+    || session?.taskCard?.checkpoint
+    || '',
+  ).trim();
+}
+
+function buildPersistentSpawnReason(persistent = null, triggerKind = '') {
+  const kind = normalizePersistentKind(persistent?.kind || '');
+  const taskType = kind === 'recurring_task'
+    ? '长期任务'
+    : (kind === 'scheduled_task'
+      ? '短期任务'
+      : (kind === 'waiting_task' ? '等待任务' : '快捷按钮'));
+  return `${taskType}${buildPersistentTriggerLabel(triggerKind)}创建的执行支线`;
+}
+
+function normalizeSessionId(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizePersistentKind(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase().replace(/[\s-]+/g, '_') : '';
+}
+
+function collectLongTermLineageCandidateIds(session = null) {
+  const sessionId = normalizeSessionId(session?.id || '');
+  const candidateIds = [];
+  for (const candidateId of [
+    session?.rootSessionId,
+    session?.sourceContext?.rootSessionId,
+    session?._branchParentSessionId,
+    session?.branchParentSessionId,
+    session?.sourceContext?.parentSessionId,
+  ]) {
+    const normalizedCandidateId = normalizeSessionId(candidateId || '');
+    if (!normalizedCandidateId || normalizedCandidateId === sessionId || candidateIds.includes(normalizedCandidateId)) {
+      continue;
+    }
+    candidateIds.push(normalizedCandidateId);
+  }
+  return candidateIds;
+}
+
+function buildPersistentTaskPoolMembership(sessionId, persistent, currentTaskPoolMembership = null, session = null) {
   const normalizedSessionId = typeof sessionId === 'string' ? sessionId.trim() : '';
+  const currentLongTermMembership = currentTaskPoolMembership?.longTerm || null;
+  if (currentLongTermMembership?.projectSessionId && currentLongTermMembership.role !== 'project') {
+    return buildLongTermTaskPoolMembership(currentLongTermMembership.projectSessionId, {
+      role: 'member',
+      bucket: inferLongTermBucketFromSession(session, persistent),
+    });
+  }
   if (persistent?.kind === 'recurring_task') {
     return buildLongTermTaskPoolMembership(normalizedSessionId, { role: 'project' });
   }
@@ -94,6 +198,8 @@ function buildPersistentTaskPoolMembership(sessionId, persistent, currentTaskPoo
 
 export function createSessionPersistentService({
   broadcastSessionInvalidation,
+  createBranchFromSession: createBranchFromSessionOverride,
+  createSession,
   createInternalRequestId,
   enrichSessionMeta,
   getSession,
@@ -103,6 +209,157 @@ export function createSessionPersistentService({
   nowIso,
   submitHttpMessage,
 }) {
+  async function resolveCurrentTaskPoolMembership(session = null, { sessionId = '', visited = new Set() } = {}) {
+    const normalizedSessionId = normalizeSessionId(sessionId || session?.id || '');
+    const explicitMembership = normalizeTaskPoolMembership(session?.taskPoolMembership, {
+      sessionId: normalizedSessionId,
+    });
+    if (explicitMembership) return explicitMembership;
+    if (!normalizedSessionId || visited.has(normalizedSessionId)) return null;
+    if (normalizePersistentKind(session?.persistent?.kind || '') === 'recurring_task') {
+      return buildLongTermTaskPoolMembership(normalizedSessionId, { role: 'project' });
+    }
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(normalizedSessionId);
+    for (const candidateId of collectLongTermLineageCandidateIds(session)) {
+      const candidate = await getSession(candidateId, { includeQueuedMessages: false }).catch(() => null);
+      if (!candidate) continue;
+      const candidateMembership = await resolveCurrentTaskPoolMembership(candidate, {
+        sessionId: candidateId,
+        visited: nextVisited,
+      });
+      const projectSessionId = candidateMembership?.longTerm?.projectSessionId || '';
+      if (!projectSessionId) continue;
+      return buildLongTermTaskPoolMembership(projectSessionId, {
+        role: projectSessionId === normalizedSessionId ? 'project' : 'member',
+        bucket: inferLongTermBucketFromSession(session, session?.persistent || null),
+      });
+    }
+    return null;
+  }
+
+  async function stampPersistentSpawnedSessionMembership(childSessionId, sourceSession, persistent) {
+    const normalizedChildSessionId = normalizeSessionId(childSessionId);
+    if (!normalizedChildSessionId) return null;
+    const sourceMembership = await resolveCurrentTaskPoolMembership(sourceSession, {
+      sessionId: sourceSession?.id || '',
+    });
+    const projectSessionId = normalizeSessionId(
+      sourceMembership?.longTerm?.projectSessionId
+      || (persistent?.kind === 'recurring_task' ? sourceSession?.id : '')
+      || sourceSession?.rootSessionId
+      || sourceSession?.sourceContext?.rootSessionId
+      || '',
+    );
+    if (!projectSessionId) {
+      return getSession(normalizedChildSessionId, { includeQueuedMessages: true }).catch(() => null);
+    }
+    const taskPoolMembership = buildLongTermTaskPoolMembership(projectSessionId, {
+      role: 'member',
+      bucket: inferLongTermBucketFromSession(sourceSession, persistent),
+    });
+    if (!taskPoolMembership) {
+      return getSession(normalizedChildSessionId, { includeQueuedMessages: true }).catch(() => null);
+    }
+    const result = await mutateSessionMeta(normalizedChildSessionId, (draft) => {
+      draft.taskPoolMembership = taskPoolMembership;
+      draft.rootSessionId = projectSessionId;
+      draft.sourceContext = {
+        ...(draft.sourceContext && typeof draft.sourceContext === 'object' && !Array.isArray(draft.sourceContext)
+          ? draft.sourceContext
+          : {}),
+        rootSessionId: projectSessionId,
+        parentSessionId: normalizeSessionId(sourceSession?.id || ''),
+      };
+      draft.updatedAt = nowIso();
+      return true;
+    }).catch(() => null);
+    if (result?.changed) {
+      broadcastSessionInvalidation(normalizedChildSessionId);
+    }
+    return result?.meta
+      ? enrichSessionMeta(result.meta)
+      : getSession(normalizedChildSessionId, { includeQueuedMessages: true }).catch(() => null);
+  }
+
+  async function createPersistentSpawnedSession(session, persistent, triggerKind) {
+    const sourceSessionId = normalizeSessionId(session?.id || '');
+    const goal = buildPersistentSpawnGoal(session, persistent, triggerKind);
+    const checkpointSummary = buildPersistentSpawnCheckpoint(session, persistent);
+    const branchReason = buildPersistentSpawnReason(persistent, triggerKind);
+
+    try {
+      const createBranchFromSession = typeof createBranchFromSessionOverride === 'function'
+        ? createBranchFromSessionOverride
+        : (await import('../../workbench/branch-lifecycle.mjs'))?.createBranchFromSession;
+      if (typeof createBranchFromSession === 'function') {
+        const branch = await createBranchFromSession(sourceSessionId, {
+          goal,
+          branchReason,
+          checkpointSummary,
+          nextStep: String(persistent?.execution?.runPrompt || '').trim(),
+        });
+        if (branch?.session?.id) {
+          return await stampPersistentSpawnedSessionMembership(branch.session.id, session, persistent)
+            || branch.session;
+        }
+      }
+    } catch (error) {
+      console.warn(`[persistent-spawn] Falling back to session branch creation: ${error.message}`);
+    }
+
+    if (typeof createSession !== 'function') {
+      throw new Error('Persistent branch creation is unavailable');
+    }
+
+    const sourceMembership = await resolveCurrentTaskPoolMembership(session, {
+      sessionId: sourceSessionId,
+    });
+    const projectSessionId = normalizeSessionId(
+      sourceMembership?.longTerm?.projectSessionId
+      || (persistent?.kind === 'recurring_task' ? sourceSessionId : '')
+      || session?.rootSessionId
+      || session?.sourceContext?.rootSessionId
+      || '',
+    );
+    const child = await createSession(session.folder, session.tool, `Branch · ${goal}`, {
+      group: session.group || getPersistentSessionGroup(persistent?.kind || ''),
+      description: checkpointSummary || session.description || '',
+      sourceId: session.sourceId || '',
+      sourceName: session.sourceName || '',
+      userId: session.userId || '',
+      userName: session.userName || '',
+      systemPrompt: session.systemPrompt || '',
+      activeAgreements: session.activeAgreements || [],
+      model: session.model || '',
+      effort: session.effort || '',
+      thinking: session.thinking === true,
+      rootSessionId: projectSessionId || session.rootSessionId || sourceSessionId,
+      sourceContext: {
+        kind: 'persistent_task_run',
+        parentSessionId: sourceSessionId,
+        rootSessionId: projectSessionId || session.rootSessionId || sourceSessionId,
+        persistentKind: persistent?.kind || '',
+        triggerKind,
+      },
+      taskListOrigin: triggerKind === 'manual' ? 'user' : 'system',
+      taskListVisibility: 'secondary',
+      ...(projectSessionId
+        ? {
+            taskPoolMembership: buildLongTermTaskPoolMembership(projectSessionId, {
+              role: 'member',
+              bucket: inferLongTermBucketFromSession(session, persistent),
+            }),
+          }
+        : {}),
+    });
+    if (!child?.id) {
+      throw new Error('Persistent branch creation failed');
+    }
+    return child;
+  }
+
   async function updateSessionPersistent(id, persistent, options = {}) {
     const currentSession = await getSession(id, { includeQueuedMessages: true });
     if (!currentSession) return null;
@@ -128,6 +385,9 @@ export function createSessionPersistentService({
         },
       );
 
+    const resolvedCurrentTaskPoolMembership = await resolveCurrentTaskPoolMembership(currentSession, {
+      sessionId: id,
+    });
     const result = await mutateSessionMeta(id, (session) => {
       const currentNormalized = normalizeSessionPersistent(session.persistent || null, {
         defaultDigest,
@@ -136,14 +396,15 @@ export function createSessionPersistentService({
       });
       const currentTaskPoolMembership = normalizeTaskPoolMembership(session.taskPoolMembership, {
         sessionId: session?.id || id,
-      });
+      }) || resolvedCurrentTaskPoolMembership;
       const nextTaskPoolMembership = buildPersistentTaskPoolMembership(
         session?.id || id,
         nextPersistent,
         currentTaskPoolMembership,
+        session,
       );
       const nextGroup = nextPersistent ? getPersistentSessionGroup(nextPersistent.kind) : '';
-      const shouldClearPersistentGroup = !nextPersistent && (session.group === '长期任务' || session.group === '快捷按钮');
+      const shouldClearPersistentGroup = !nextPersistent && PERSISTENT_GROUPS.has(session.group);
       if (
         JSON.stringify(currentNormalized) === JSON.stringify(nextPersistent)
         && JSON.stringify(currentTaskPoolMembership) === JSON.stringify(nextTaskPoolMembership)
@@ -159,7 +420,7 @@ export function createSessionPersistentService({
         }
       } else if (session.persistent) {
         delete session.persistent;
-        if (session.group === '长期任务' || session.group === '快捷按钮') {
+        if (PERSISTENT_GROUPS.has(session.group)) {
           delete session.group;
         }
       }
@@ -191,15 +452,22 @@ export function createSessionPersistentService({
 
     const timezone = resolveLocalTimezone();
     const defaultDigest = await buildSessionPersistentDigest(id, session);
+    const hasScheduledPayload = hasOwn(payload, 'scheduled');
+    const hasRecurringPayload = hasOwn(payload, 'recurring') || hasOwn(payload, 'schedule');
+    const recurringPayload = hasOwn(payload, 'recurring') ? payload.recurring : payload?.schedule;
+    const hasSkillPayload = hasOwn(payload, 'skill');
+    const hasKnowledgeBasePathPayload = hasOwn(payload, 'knowledgeBasePath');
     const nextPersistent = normalizeSessionPersistent({
       ...(session?.persistent && typeof session.persistent === 'object' ? session.persistent : {}),
       ...(payload && typeof payload === 'object' ? payload : {}),
       kind: payload?.kind || payload?.type,
       digest: mergeObjectShape(defaultDigest, payload?.digest),
       execution: mergeObjectShape(session?.persistent?.execution, payload?.execution),
-      recurring: mergeObjectShape(session?.persistent?.recurring, payload?.recurring || payload?.schedule),
+      scheduled: mergeOptionalPersistentObject(session?.persistent?.scheduled, payload?.scheduled, hasScheduledPayload),
+      recurring: mergeOptionalPersistentObject(session?.persistent?.recurring, recurringPayload, hasRecurringPayload),
       loop: mergePersistentLoopShape(session?.persistent?.loop, payload?.loop),
-      skill: mergeObjectShape(session?.persistent?.skill, payload?.skill),
+      skill: mergeOptionalPersistentObject(session?.persistent?.skill, payload?.skill, hasSkillPayload),
+      knowledgeBasePath: hasKnowledgeBasePathPayload ? payload?.knowledgeBasePath || '' : session?.persistent?.knowledgeBasePath || '',
       runtimePolicy: {
         ...(session?.persistent?.runtimePolicy && typeof session.persistent.runtimePolicy === 'object'
           ? session.persistent.runtimePolicy
@@ -227,7 +495,15 @@ export function createSessionPersistentService({
     const nextName = String(nextPersistent?.digest?.title || session?.name || '').trim() || '未命名长期项';
     const nextGroup = getPersistentSessionGroup(nextPersistent.kind);
     const detachedSourceContext = stripPersistentBranchLineage(session.sourceContext || null);
-    const nextTaskPoolMembership = buildPersistentTaskPoolMembership(id, nextPersistent, session?.taskPoolMembership || null);
+    const resolvedCurrentTaskPoolMembership = await resolveCurrentTaskPoolMembership(session, {
+      sessionId: id,
+    });
+    const nextTaskPoolMembership = buildPersistentTaskPoolMembership(
+      id,
+      nextPersistent,
+      resolvedCurrentTaskPoolMembership,
+      session,
+    );
     const result = await mutateSessionMeta(id, (draft) => {
       draft.persistent = nextPersistent;
       if (nextTaskPoolMembership) {
@@ -283,14 +559,17 @@ export function createSessionPersistentService({
     if (session.archived === true) {
       throw new Error('Archived sessions cannot be executed');
     }
-    if (persistent.kind === 'recurring_task' && persistent.state !== 'active' && options.triggerKind === 'schedule') {
-      throw new Error('Recurring task is paused');
+    if (persistent.state !== 'active' && options.triggerKind && options.triggerKind !== 'manual') {
+      throw new Error('Persistent task is paused');
     }
     if (isSessionRunning(session) || getSessionQueueCount(session) > 0) {
       throw new Error('Session is busy');
     }
 
-    const triggerKind = String(options.triggerKind || '').trim().toLowerCase() === 'schedule' ? 'schedule' : 'manual';
+    const requestedTriggerKind = String(options.triggerKind || '').trim().toLowerCase();
+    const triggerKind = requestedTriggerKind === 'recurring'
+      ? 'recurring'
+      : (requestedTriggerKind === 'schedule' ? 'schedule' : 'manual');
     const runtime = resolvePersistentRunRuntime(session, persistent, {
       triggerKind,
       runtime: options.runtime,
@@ -299,15 +578,36 @@ export function createSessionPersistentService({
       triggerKind,
       runPrompt: options.runPrompt || '',
     });
-    const outcome = await submitHttpMessage(id, text, [], {
-      requestId: createInternalRequestId(triggerKind === 'schedule' ? 'persistent_schedule' : 'persistent_run'),
+    const requestId = createInternalRequestId(
+      triggerKind === 'recurring'
+        ? 'persistent_recurring'
+        : (triggerKind === 'schedule' ? 'persistent_schedule' : 'persistent_run'),
+    );
+    const submitOptions = {
+      requestId,
       queueIfBusy: false,
-      scheduledTriggerId: triggerKind === 'schedule' ? `persistent:${id}` : '',
+      scheduledTriggerId: triggerKind === 'schedule' || triggerKind === 'recurring' ? `persistent:${id}` : '',
       ...(runtime?.tool ? { tool: runtime.tool } : {}),
       ...(runtime?.model ? { model: runtime.model } : {}),
       ...(runtime?.effort ? { effort: runtime.effort } : {}),
       thinking: runtime?.thinking === true,
+    };
+    const spawnedSession = persistent?.execution?.mode === 'spawn_session'
+      ? await createPersistentSpawnedSession(session, persistent, triggerKind)
+      : null;
+    const outcome = await submitHttpMessage(spawnedSession?.id || id, text, [], {
+      ...submitOptions,
+      ...(spawnedSession?.id ? {
+        requestId: createInternalRequestId(
+          triggerKind === 'recurring'
+            ? 'persistent_recurring_branch'
+            : (triggerKind === 'schedule' ? 'persistent_schedule_branch' : 'persistent_run_branch'),
+        ),
+      } : {}),
     });
+
+    const parentSessionBeforeUpdate = session;
+    let parentSessionAfterUpdate = null;
 
     const referenceTime = new Date();
     await updateSessionPersistent(id, {
@@ -316,7 +616,7 @@ export function createSessionPersistentService({
         lastTriggerAt: referenceTime.toISOString(),
         lastTriggerKind: triggerKind,
       },
-      ...(persistent.kind === 'recurring_task'
+      ...(triggerKind === 'recurring'
         ? {
             recurring: {
               ...(persistent.recurring || {}),
@@ -324,17 +624,44 @@ export function createSessionPersistentService({
               nextRunAt: computeNextRecurringRunAt(persistent.recurring || {}, referenceTime),
             },
           }
-        : {
-            skill: {
-              ...(persistent.skill || {}),
-              lastUsedAt: referenceTime.toISOString(),
-            },
-          }),
+        : (triggerKind === 'schedule'
+          ? {
+              scheduled: {
+                ...(persistent.scheduled || {}),
+                lastRunAt: referenceTime.toISOString(),
+                nextRunAt: '',
+              },
+            }
+          : persistent.kind === 'skill'
+            ? {
+                skill: {
+                  ...(persistent.skill || {}),
+                  lastUsedAt: referenceTime.toISOString(),
+                },
+              }
+            : {})),
     }, {
       referenceTime,
+    }).then((updatedSession) => {
+      parentSessionAfterUpdate = updatedSession || null;
     }).catch(() => {});
 
-    return outcome;
+    if (spawnedSession?.id) {
+      const resolvedSpawnedSession = outcome.session
+        || await getSession(spawnedSession.id, { includeQueuedMessages: true })
+        || spawnedSession;
+      return {
+        ...outcome,
+        session: resolvedSpawnedSession,
+        spawnedSession: resolvedSpawnedSession,
+        parentSession: parentSessionAfterUpdate || parentSessionBeforeUpdate,
+      };
+    }
+
+    return {
+      ...outcome,
+      parentSession: parentSessionAfterUpdate || null,
+    };
   }
 
   return {

@@ -18,11 +18,14 @@ function normalizeLongTermRole(value) {
 function normalizeLongTermBucket(value) {
   const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
   if (['inbox', 'collection', 'collect', 'capture', '收集箱'].includes(normalized)) return 'inbox';
-  if (['short_term_iteration', 'short_term', 'short', 'iteration', '短期迭代'].includes(normalized)) {
-    return 'short_term_iteration';
+  if (['short_term_iteration', 'short_term', 'short', 'iteration', '短期迭代', '短期任务'].includes(normalized)) {
+    return 'short_term';
   }
-  if (['long_term_iteration', 'long_term', 'long', '长期迭代'].includes(normalized)) {
-    return 'long_term_iteration';
+  if (['long_term_iteration', 'long_term', 'long', '长期迭代', '长期任务'].includes(normalized)) {
+    return 'long_term';
+  }
+  if (['waiting', 'waiting_for', 'waiting_user', '等待任务', '等待'].includes(normalized)) {
+    return 'waiting';
   }
   return '';
 }

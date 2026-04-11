@@ -57,7 +57,7 @@ const sessions = [
       longTerm: {
         role: 'member',
         projectSessionId: 'explicit-root',
-        bucket: 'short_term_iteration',
+        bucket: 'short_term',
       },
     },
   },
@@ -91,7 +91,7 @@ assert.deepEqual(
     role: 'member',
     projectSessionId: 'explicit-root',
     fixedNode: false,
-    bucket: 'short_term_iteration',
+    bucket: 'short_term',
   },
   'explicit member sessions should preserve their project relationship without falling back to lineage',
 );

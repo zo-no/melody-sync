@@ -51,6 +51,7 @@
   const TASK_MAP_DESKTOP_WIDTH_STORAGE_KEY = "melodysyncTaskMapDesktopWidth";
   const RECENT_REPARENT_TARGETS_STORAGE_KEY = "melodysyncRecentReparentTargets";
   const RECENT_CONNECT_TARGETS_STORAGE_KEY = "melodysyncRecentConnectTargets";
+  const RECENT_HANDOFF_TARGETS_STORAGE_KEY = "melodysyncRecentHandoffTargets";
   const TASK_MAP_DESKTOP_MIN_WIDTH = 260;
   const TASK_MAP_DESKTOP_MAX_WIDTH = 960;
   const TASK_MAP_DESKTOP_MAIN_RESERVE = 320;
@@ -87,6 +88,7 @@
   let trackerRenderer = null;
   let operationRecordController = null;
   let trackerPersistentActionsEl = null;
+  let trackerHandoffActionsEl = null;
   let selectedTaskCanvasNodeId = "";
   let taskCanvasAutoOpenSuppressed = false;
   let mobileTaskDetailExpanded = false;
@@ -316,6 +318,45 @@
       ...readRecentConnectTargetIds().filter((entry) => entry !== normalizedTargetSessionId),
     ];
     writeRecentConnectTargetIds(deduped);
+  }
+
+  function readRecentHandoffTargetIds() {
+    try {
+      const raw = String(localStorage.getItem(RECENT_HANDOFF_TARGETS_STORAGE_KEY) || "").trim();
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((entry) => normalizeSessionId(entry))
+        .filter(Boolean)
+        .slice(0, 8);
+    } catch {
+      return [];
+    }
+  }
+
+  function writeRecentHandoffTargetIds(targetSessionIds = []) {
+    try {
+      const normalized = Array.isArray(targetSessionIds)
+        ? targetSessionIds.map((entry) => normalizeSessionId(entry)).filter(Boolean).slice(0, 8)
+        : [];
+      if (!normalized.length) {
+        localStorage.removeItem(RECENT_HANDOFF_TARGETS_STORAGE_KEY);
+        return;
+      }
+      localStorage.setItem(RECENT_HANDOFF_TARGETS_STORAGE_KEY, JSON.stringify(normalized));
+    } catch {
+    }
+  }
+
+  function rememberRecentHandoffTarget(targetSessionId) {
+    const normalizedTargetSessionId = normalizeSessionId(targetSessionId);
+    if (!normalizedTargetSessionId) return;
+    const deduped = [
+      normalizedTargetSessionId,
+      ...readRecentHandoffTargetIds().filter((entry) => entry !== normalizedTargetSessionId),
+    ];
+    writeRecentHandoffTargetIds(deduped);
   }
 
   function isRedundantTrackerText(value, ...comparisons) {
@@ -622,6 +663,7 @@
     trackerCandidateBranchesRowEl: trackerCandidatesRowEl,
     trackerCandidateBranchesListEl: trackerCandidatesListEl,
     getPersistentActionsEl: ensureTrackerPersistentActionsEl,
+    getHandoffActionsEl: ensureTrackerHandoffActionsEl,
     getCurrentSessionSafe,
     getPendingMemoryCandidates,
     reviewMemoryCandidate,
@@ -633,12 +675,16 @@
     isRedundantTrackerText,
     getCurrentTaskSummary: (state) => questStateSelector?.getCurrentTaskSummary?.(state) || "",
     getBranchDisplayName,
+    listTaskHandoffTargets,
+    buildTaskHandoffPreview,
+    handoffSessionTaskData,
   }) || {
     renderStatus() {},
     getPrimaryTitle() { return "当前任务"; },
     getPrimaryDetail() { return ""; },
     getSecondaryDetail() { return ""; },
     renderDetail() {},
+    renderHandoffActions() {},
     renderPersistentActions() {},
   };
   taskCanvasController = window.MelodySyncWorkbenchNodeCanvasUi?.createController?.({
@@ -665,13 +711,9 @@
     collapseTaskMapAfterAction,
     enterBranchFromSession,
     reparentSession: reparentSessionUnderTarget,
-    connectSessions: connectSessionTasks,
     listReparentTargets: ({ sourceSessionId }) => listReparentTargets(sourceSessionId),
-    listConnectTargets: ({ sourceSessionId }) => listConnectTargets(sourceSessionId),
     getSessionRecord,
     attachSession,
-    buildTaskHandoffPreview,
-    handoffSessionTaskData,
     selectTaskCanvasNode,
     getSelectedTaskCanvasNodeId: () => selectedTaskCanvasNodeId,
     getCurrentSessionId: getCurrentSessionIdSafe,
@@ -1088,6 +1130,18 @@
     return trackerPersistentActionsEl;
   }
 
+  function ensureTrackerHandoffActionsEl() {
+    if (trackerHandoffActionsEl) return trackerHandoffActionsEl;
+    if (!trackerActionsEl) return null;
+    trackerHandoffActionsEl = document.createElement("div");
+    trackerHandoffActionsEl.className = "quest-tracker-handoff-actions";
+    const beforeChild = trackerDetailToggleBtn?.parentNode === trackerActionsEl
+      ? trackerDetailToggleBtn
+      : (trackerActionsEl.firstChild || null);
+    trackerActionsEl.insertBefore(trackerHandoffActionsEl, beforeChild);
+    return trackerHandoffActionsEl;
+  }
+
   function renderPersistentTrackerActions(session) {
     const visibleSession = getPersistentUiSession(session);
     trackerRenderer?.renderPersistentActions?.(visibleSession, {
@@ -1143,6 +1197,23 @@
         setLongTermSuggestionSuppressed(session.id, normalizedTargetSessionId, true);
         renderTracker();
       },
+    });
+  }
+
+  function renderTaskHandoffTrackerActions(session) {
+    const normalizedSourceSessionId = normalizeSessionId(session?.id || "");
+    const targets = normalizedSourceSessionId ? listTaskHandoffTargets(normalizedSourceSessionId) : [];
+    trackerRenderer?.renderHandoffActions?.(session, {
+      targets,
+      buildPreview: (targetSessionId, options = {}) => buildTaskHandoffPreview(
+        normalizedSourceSessionId,
+        targetSessionId,
+        options,
+      ),
+      onHandoff: (targetSessionId, options = {}) => handoffSessionTaskData(normalizedSourceSessionId, {
+        targetSessionId,
+        detailLevel: String(options?.detailLevel || "").trim() || "balanced",
+      }),
     });
   }
 
@@ -1646,6 +1717,7 @@
       if (response?.snapshot) {
         snapshot = response.snapshot;
       }
+      rememberRecentHandoffTarget(targetSessionId);
       await refreshTaskMapGraph(getFocusedSessionId() || getCurrentSessionIdSafe(), { force: true });
       renderTracker();
       renderPathPanel();
@@ -2078,6 +2150,76 @@
     });
   }
 
+  function listTaskHandoffTargets(sourceSessionId) {
+    const normalizedSourceSessionId = normalizeSessionId(sourceSessionId);
+    if (!normalizedSourceSessionId) return [];
+    const { entriesById } = collectTaskMapSessionEntries();
+    const sourceEntry = entriesById.get(normalizedSourceSessionId) || null;
+    const sourceSession = sourceEntry?.session || getSessionRecord(normalizedSourceSessionId) || null;
+    const sourceClusterRootSessionId = normalizeSessionId(sourceEntry?.clusterRootSessionId || "");
+    const recentTargetIds = readRecentHandoffTargetIds();
+    const recentTargetIndex = new Map();
+    recentTargetIds.forEach((sessionId, index) => {
+      recentTargetIndex.set(sessionId, index);
+    });
+    const targets = [];
+
+    for (const entry of entriesById.values()) {
+      if (!entry?.sessionId || entry.sessionId === normalizedSourceSessionId) continue;
+      if (entry?.session?.archived === true) continue;
+      const path = buildSessionPathLabel(entry.sessionId, entriesById);
+      const recentIndex = recentTargetIndex.has(entry.sessionId)
+        ? recentTargetIndex.get(entry.sessionId)
+        : Number.POSITIVE_INFINITY;
+      const isRecent = Number.isFinite(recentIndex);
+      const status = getSessionTaskManagementStatus(entry.session);
+      const relatedScore = scoreReparentTargetRelevance(sourceSession, entry.session, {
+        sourceTitle: sourceEntry?.title || getSessionDisplayName(sourceSession),
+        targetTitle: entry.title || getSessionDisplayName(entry.session),
+      });
+      targets.push({
+        mode: "handoff",
+        sessionId: entry.sessionId,
+        title: entry.title || getSessionDisplayName(entry.session),
+        path,
+        displayPath: buildConnectTargetDisplayPath({
+          title: entry.title || getSessionDisplayName(entry.session),
+          path,
+          sameCluster: normalizeSessionId(entry.clusterRootSessionId) === sourceClusterRootSessionId,
+          isRecent,
+          relatedScore,
+          status,
+        }),
+        sameCluster: normalizeSessionId(entry.clusterRootSessionId) === sourceClusterRootSessionId,
+        recentIndex,
+        relatedScore,
+        statusKey: status.key,
+        statusRank: status.rank,
+        depth: Number.isFinite(entry.depth) ? entry.depth : 0,
+        searchText: normalizeComparableText([
+          entry.title || "",
+          path,
+          ...collectReparentRecommendationTexts(entry.session, entry.title || ""),
+        ].join(" ")),
+      });
+    }
+
+    return targets.sort((left, right) => {
+      if ((left.statusRank || 0) !== (right.statusRank || 0)) {
+        return (left.statusRank || 0) - (right.statusRank || 0);
+      }
+      if ((left.relatedScore || 0) !== (right.relatedScore || 0)) {
+        return (right.relatedScore || 0) - (left.relatedScore || 0);
+      }
+      if (left.sameCluster !== right.sameCluster) return left.sameCluster ? -1 : 1;
+      const leftRecentIndex = Number.isFinite(left.recentIndex) ? left.recentIndex : Number.POSITIVE_INFINITY;
+      const rightRecentIndex = Number.isFinite(right.recentIndex) ? right.recentIndex : Number.POSITIVE_INFINITY;
+      if (leftRecentIndex !== rightRecentIndex) return leftRecentIndex - rightRecentIndex;
+      if ((left.depth || 0) !== (right.depth || 0)) return (left.depth || 0) - (right.depth || 0);
+      return String(left.title || "").localeCompare(String(right.title || ""), "zh-Hans-CN");
+    });
+  }
+
   function getTaskCard(session) {
     if (!session || typeof session !== "object") return null;
     return mergeLiveTaskCard(
@@ -2245,6 +2387,51 @@
     };
   }
 
+  function normalizeLongTermBucket(value) {
+    const normalized = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (["long_term", "long_term_iteration", "长期任务", "长期迭代"].includes(normalized)) return "long_term";
+    if (["short_term", "short_term_iteration", "短期任务", "短期迭代"].includes(normalized)) return "short_term";
+    if (["waiting", "waiting_user", "waiting_for", "等待任务", "等待"].includes(normalized)) return "waiting";
+    if (["inbox", "collect", "collection", "capture", "收集箱"].includes(normalized)) return "inbox";
+    return "";
+  }
+
+  function inferLongTermBucketFromSession(session) {
+    const explicitBucket = normalizeLongTermBucket(session?.taskPoolMembership?.longTerm?.bucket || "");
+    if (explicitBucket) return explicitBucket;
+    const persistentKind = normalizePersistentKind(session?.persistent?.kind || "");
+    if (persistentKind === "recurring_task") return "long_term";
+    if (persistentKind === "scheduled_task") return "short_term";
+    if (persistentKind === "waiting_task") return "waiting";
+    const workflowState = normalizeWorkflowState(session?.workflowState || "");
+    if (workflowState === "waiting_user") return "waiting";
+    return "inbox";
+  }
+
+  function getLongTermBucketSummaryEntries(session) {
+    const sessionId = normalizeSessionId(session?.id || "");
+    if (!sessionId) return [];
+    const cluster = (Array.isArray(snapshot?.taskClusters) ? snapshot.taskClusters : []).find((entry) => (
+      normalizeSessionId(entry?.mainSessionId || "") === sessionId
+    )) || null;
+    const counters = new Map();
+    for (const branchSession of Array.isArray(cluster?.branchSessions) ? cluster.branchSessions : []) {
+      const bucket = inferLongTermBucketFromSession(branchSession);
+      counters.set(bucket, (counters.get(bucket) || 0) + 1);
+    }
+    return [
+      { key: "long_term", label: "长期任务" },
+      { key: "short_term", label: "短期任务" },
+      { key: "waiting", label: "等待任务" },
+      { key: "inbox", label: "收集箱" },
+    ]
+      .filter((entry) => (counters.get(entry.key) || 0) > 0)
+      .map((entry) => ({
+        ...entry,
+        count: counters.get(entry.key) || 0,
+      }));
+  }
+
   function renderPersistentSummary(session) {
     if (!trackerPersistentSummaryEl) return;
     const visibleSession = getPersistentUiSession(session);
@@ -2296,6 +2483,60 @@
       if (nextRunAt) meta.appendChild(createPersistentSummaryChip(`下次 ${nextRunAt}`));
       if (lastRunAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastRunAt}`));
       meta.appendChild(createPersistentSummaryChip(`调度 ${runtimeLabel}`));
+      for (const entry of getLongTermBucketSummaryEntries(visibleSession)) {
+        meta.appendChild(createPersistentSummaryChip(`${entry.label} ${entry.count}`));
+      }
+      if (persistent?.knowledgeBasePath) {
+        meta.appendChild(createPersistentSummaryChip(`知识库 ${persistent.knowledgeBasePath}`));
+      }
+    } else if (kind === "scheduled_task") {
+      const isPaused = String(persistent?.state || "").trim().toLowerCase() === "paused";
+      const scheduledAt = formatTrackerTime(
+        persistent?.scheduled?.nextRunAt
+          || persistent?.scheduled?.runAt
+          || "",
+      );
+      const lastRunAt = formatTrackerTime(
+        persistent?.scheduled?.lastRunAt
+          || persistent?.execution?.lastTriggerAt
+          || "",
+      );
+      const runtimeLabel = formatPersistentRuntimeLabel(
+        persistent?.runtimePolicy?.schedule,
+        "会话默认",
+      );
+
+      kicker.textContent = "短期任务 / 定时任务";
+      lead.textContent = isPaused
+        ? "已暂停自动触发，仍可手动运行。"
+        : (scheduledAt ? `会在 ${scheduledAt} 自动执行一次` : "按设定时间自动执行一次");
+
+      meta.appendChild(createPersistentSummaryChip(isPaused ? "已暂停" : "定时中", isPaused ? "paused" : "live"));
+      if (scheduledAt) meta.appendChild(createPersistentSummaryChip(`定时 ${scheduledAt}`));
+      if (lastRunAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastRunAt}`));
+      meta.appendChild(createPersistentSummaryChip(`调度 ${runtimeLabel}`));
+      if (persistent?.knowledgeBasePath) {
+        meta.appendChild(createPersistentSummaryChip(`知识库 ${persistent.knowledgeBasePath}`));
+      }
+    } else if (kind === "waiting_task") {
+      const runtimeLabel = formatPersistentRuntimeLabel(
+        persistent?.runtimePolicy?.manual,
+        "跟随当前所选",
+      );
+      const lastTriggerAt = formatTrackerTime(
+        persistent?.execution?.lastTriggerAt
+          || "",
+      );
+
+      kicker.textContent = "等待任务";
+      lead.textContent = "这条任务主要在等待人类处理，可手动触发梳理当前阻塞和下一步。";
+
+      meta.appendChild(createPersistentSummaryChip("等待人类", "active"));
+      if (lastTriggerAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastTriggerAt}`));
+      meta.appendChild(createPersistentSummaryChip(`执行 ${runtimeLabel}`));
+      if (persistent?.knowledgeBasePath) {
+        meta.appendChild(createPersistentSummaryChip(`知识库 ${persistent.knowledgeBasePath}`));
+      }
     } else if (kind === "skill") {
       const runtimeLabel = formatPersistentRuntimeLabel(
         persistent?.runtimePolicy?.manual,
@@ -2557,6 +2798,7 @@
       showBranch && (branchStatus === "active" || ["resolved", "merged", "parked"].includes(branchStatus))
     ));
     renderPersistentTrackerActions(state.session);
+    renderTaskHandoffTrackerActions(state.session);
     branchActionController?.syncTrackerButtons(state);
     renderTaskMapRail(state);
     renderTrackerDetail(state);
