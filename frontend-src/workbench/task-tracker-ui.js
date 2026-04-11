@@ -375,10 +375,9 @@
 
       const hasAny = showDistinctResumePoint || conclusions.length > 0;
       if (trackerDetailToggleBtn) {
-        trackerDetailToggleBtn.hidden = !hasAny;
-        trackerDetailToggleBtn.textContent = expanded ? "详情 ▾" : "详情 ▸";
+        trackerDetailToggleBtn.hidden = true;
       }
-      trackerDetailEl.hidden = !hasAny || !expanded;
+      trackerDetailEl.hidden = !hasAny;
     }
 
     function createPersistentActionButton(label, onClick, { secondary = false, active = false } = {}) {
@@ -422,9 +421,17 @@
       const row = documentRef.createElement("div");
       row.className = "quest-tracker-handoff-row";
 
+      // Add a blank first option so the select starts in "unselected" state
+      const blankOption = documentRef.createElement("option");
+      blankOption.value = "";
+      blankOption.textContent = "传递到…";
+      blankOption.disabled = true;
+      blankOption.selected = true;
+
       const select = documentRef.createElement("select");
       select.className = "quest-tracker-handoff-select";
       select.setAttribute("aria-label", "选择传递目标");
+      select.appendChild(blankOption);
       for (const target of validTargets) {
         const option = documentRef.createElement("option");
         option.value = trimText(target?.sessionId || "");
@@ -433,54 +440,26 @@
       }
       row.appendChild(select);
 
-      const handoffBtn = documentRef.createElement("button");
-      handoffBtn.type = "button";
-      handoffBtn.className = "quest-tracker-btn";
-      handoffBtn.textContent = "传递信息";
-      row.appendChild(handoffBtn);
-
-      const previewEl = documentRef.createElement("div");
-      previewEl.className = "quest-tracker-handoff-preview";
-
       let handoffBusy = false;
 
-      function syncPreview() {
-        const targetSessionId = trimText(select.value || "");
-        const selectedTarget = validTargets.find((entry) => trimText(entry?.sessionId || "") === targetSessionId) || null;
-        const preview = targetSessionId && typeof buildPreview === "function"
-          ? buildPreview(targetSessionId, { detailLevel: "balanced" })
-          : null;
-        const fallbackText = selectedTarget
-          ? `将把当前阶段信息传给「${trimText(selectedTarget.title || selectedTarget.path || "目标任务")}」`
-          : "";
-        previewEl.textContent = trimText(preview?.summary || "") || fallbackText;
-        previewEl.hidden = !previewEl.textContent;
-        handoffBtn.disabled = handoffBusy || !targetSessionId;
-      }
-
-      select.addEventListener("change", () => {
-        syncPreview();
-      });
-      handoffBtn.addEventListener("click", async (event) => {
-        event.preventDefault();
-        event.stopPropagation();
+      select.addEventListener("change", async () => {
         const targetSessionId = trimText(select.value || "");
         if (!targetSessionId || handoffBusy) return;
         handoffBusy = true;
-        handoffBtn.disabled = true;
-        handoffBtn.textContent = "传递中…";
+        select.disabled = true;
+        const originalText = blankOption.textContent;
+        blankOption.textContent = "传递中…";
+        select.value = "";
         try {
           await onHandoff(targetSessionId, { detailLevel: "balanced" });
         } finally {
           handoffBusy = false;
-          handoffBtn.textContent = "传递信息";
-          syncPreview();
+          select.disabled = false;
+          blankOption.textContent = originalText;
         }
       });
 
       host.appendChild(row);
-      host.appendChild(previewEl);
-      syncPreview();
     }
 
     function renderPersistentActions(session, {

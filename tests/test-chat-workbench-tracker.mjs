@@ -756,8 +756,8 @@ assert.equal(
 );
 assert.equal(
   livePreviewElements.get('questTrackerDetailToggle').hidden,
-  false,
-  'when the live preview task card has knownConclusions, tracker detail toggle should be visible even if checkpoint is already shown inline',
+  true,
+  'detail toggle is always hidden — detail section is always expanded when content is present',
 );
 
 const sparseIdleMainSession = {
@@ -994,19 +994,13 @@ assert.ok(handoffActions, 'task cards should render a dedicated handoff control 
 
 const handoffSelect = findAllByTagName(handoffActions, 'select')[0];
 assert.ok(handoffSelect, 'task-card handoff controls should include a target selector');
+assert.equal(
+  findAllByTagName(handoffActions, 'button').filter((n) => !n.hidden).length,
+  0,
+  'task-card handoff controls should have no extra confirm button — select change auto-triggers handoff',
+);
 handoffSelect.value = 'session-target-handoff';
 handoffSelect.trigger('change');
-
-const handoffPreview = findFirstByClass(handoffActions, 'quest-tracker-handoff-preview');
-assert.equal(
-  Boolean(handoffPreview?.textContent.includes('整理运行数据') && handoffPreview?.textContent.includes('接住上游信息')),
-  true,
-  'task-card handoff controls should preview the source and target tasks before sending',
-);
-
-findAllByTagName(handoffActions, 'button')
-  .find((node) => node?.textContent === '传递信息')
-  ?.click();
 await flushAsync();
 
 assert.equal(
@@ -1017,7 +1011,7 @@ assert.equal(
     && JSON.parse(entry.options?.body || '{}').detailLevel === 'balanced'
   )),
   true,
-  'task-card handoff should submit the selected target through the existing handoff endpoint',
+  'task-card handoff should auto-submit when the user selects a target (no confirm button needed)',
 );
 
 const completedMainSession = {

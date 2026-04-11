@@ -78,7 +78,7 @@
   let questHasSessionTracked = false;
   let focusedSessionId = "";
   let branchActionController = null;
-  let trackerDetailExpanded = false;
+  let trackerDetailExpanded = true;
   let taskMapFlowRenderer = null;
   let taskMapRailRenderKey = "";
   let taskMapRailBoard = null;
