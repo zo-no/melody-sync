@@ -734,6 +734,9 @@
   }
 
   function renderTaskMapRailBoard(board = null) {
+    if (board && taskMapRailBoard === board) {
+      return;
+    }
     destroyTaskMapRailBoard();
     taskMapRailBoard = board;
     if (!trackerTaskListEl) return;
@@ -1163,6 +1166,12 @@
             state: String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "active" : "paused",
           },
         });
+      },
+      onToggleScheduled: () => {
+        operationRecordController?.openPersistentEditor?.({ mode: "configure", focusField: "scheduled" });
+      },
+      onToggleRecurring: () => {
+        operationRecordController?.openPersistentEditor?.({ mode: "configure", focusField: "recurring" });
       },
       onConfigure: () => {
         operationRecordController?.openPersistentEditor?.({ mode: "configure" });

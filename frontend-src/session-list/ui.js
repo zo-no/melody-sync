@@ -247,20 +247,74 @@ function renderSessionList() {
     activeSidebarTab,
   );
   const groups = new Map();
-  for (const session of visibleSessions) {
-    if (!session?.id) continue;
-    const groupInfo = isLongTermTab
-      ? {
-          key: "group:long-term-projects",
-          label: payloadSafeTranslate("sidebar.longTerm.projects", "长期任务"),
-          title: payloadSafeTranslate("sidebar.longTerm.projects", "长期任务"),
-          order: 0,
-        }
-      : getSessionGroupInfoForList(session);
-    if (!groups.has(groupInfo.key)) {
-      groups.set(groupInfo.key, { ...groupInfo, sessions: [], insertOrder: groups.size });
+  if (isLongTermTab) {
+    // Build per-project groups with bucket sub-folders
+    const model = getSessionListModel();
+    const BUCKET_DEFS = [
+      { key: "long_term", label: "长期任务", order: 0 },
+      { key: "short_term", label: "短期任务", order: 1 },
+      { key: "waiting", label: "等待任务", order: 2 },
+      { key: "inbox", label: "收集箱", order: 3 },
+    ];
+    function inferSessionBucket(session) {
+      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
+        ? model.getLongTermTaskPoolMembership(session)
+        : null;
+      const bucketRaw = String(membership?.bucket || "").trim().toLowerCase();
+      if (bucketRaw === "long_term") return "long_term";
+      if (bucketRaw === "short_term") return "short_term";
+      if (bucketRaw === "waiting") return "waiting";
+      if (bucketRaw === "inbox") return "inbox";
+      const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
+      if (kind === "recurring_task") return "long_term";
+      if (kind === "scheduled_task") return "short_term";
+      if (kind === "waiting_task") return "waiting";
+      return "inbox";
     }
-    groups.get(groupInfo.key).sessions.push(session);
+    for (const session of visibleSessions) {
+      if (!session?.id) continue;
+      const isProject = isLongTermProjectSessionForList(session);
+      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
+        ? model.getLongTermTaskPoolMembership(session)
+        : null;
+      const projectId = membership?.projectSessionId || (isProject ? session.id : "");
+      if (!projectId) continue;
+      const groupKey = `group:long-term-project:${projectId}`;
+      if (!groups.has(groupKey)) {
+        // Find project session title
+        const projectSession = isProject
+          ? session
+          : (typeof model?.getSessionListEntry === "function"
+            ? (getVisibleActiveSessions().find((s) => s?.id === projectId) || null)
+            : null);
+        const projectTitle = String(projectSession?.name || projectSession?.description || "长期项目").trim() || "长期项目";
+        groups.set(groupKey, {
+          key: groupKey,
+          label: projectTitle,
+          title: projectTitle,
+          order: groups.size,
+          type: "long-term-project",
+          projectId,
+          sessions: [],
+          buckets: Object.fromEntries(BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
+        });
+      }
+      const groupEntry = groups.get(groupKey);
+      groupEntry.sessions.push(session);
+      if (!isProject) {
+        const bucket = inferSessionBucket(session);
+        groupEntry.buckets[bucket].sessions.push(session);
+      }
+    }
+  } else {
+    for (const session of visibleSessions) {
+      if (!session?.id) continue;
+      const groupInfo = getSessionGroupInfoForList(session);
+      if (!groups.has(groupInfo.key)) {
+        groups.set(groupInfo.key, { ...groupInfo, sessions: [], insertOrder: groups.size });
+      }
+      groups.get(groupInfo.key).sessions.push(session);
+    }
   }
 
   const orderedGroups = [...groups.entries()].sort(([, left], [, right]) => {
@@ -303,7 +357,7 @@ function renderSessionList() {
         ? (isLongTermTab ? "sidebar.longTerm.empty" : "sidebar.noSessions")
         : "sidebar.loadingSessions",
       sessionsLoaded
-        ? (isLongTermTab ? "还没有长期任务" : "还没有任务")
+        ? (isLongTermTab ? "还没有长期项目" : "还没有任务")
         : "加载任务中…",
     )
     : "";
@@ -324,6 +378,17 @@ function renderSessionList() {
         sessions: groupEntry.sessions,
         collapsed: collapsedFolders[groupKey] === true,
         canDelete: showGroupingFolderControls && isUserTemplateFolderGroup(groupKey),
+        ...(groupEntry.type === "long-term-project" ? {
+          type: "long-term-project",
+          projectId: groupEntry.projectId,
+          buckets: Object.values(groupEntry.buckets).map((b) => ({
+            key: b.key,
+            label: b.label,
+            order: b.order,
+            sessions: b.sessions,
+            collapsed: collapsedFolders[`${groupKey}:${b.key}`] === true,
+          })),
+        } : {}),
       })),
       showGroupHeaders,
       grouping: {
@@ -428,16 +493,21 @@ function renderSessionList() {
   for (const [groupKey, groupEntry] of visibleGroups) {
     const groupSessions = groupEntry.sessions;
     const group = document.createElement("div");
-    group.className = "folder-group" + (showGroupHeaders ? "" : " is-ungrouped");
+    const isLongTermProject = groupEntry.type === "long-term-project";
+    group.className = "folder-group" + (showGroupHeaders ? "" : " is-ungrouped") + (isLongTermProject ? " is-long-term-project-group" : "");
 
     if (showGroupHeaders) {
       const header = document.createElement("div");
       header.className =
         "folder-group-header" +
-        (collapsedFolders[groupKey] ? " collapsed" : "");
+        (collapsedFolders[groupKey] ? " collapsed" : "") +
+        (isLongTermProject ? " is-long-term-project-header" : "");
+      const memberCount = isLongTermProject
+        ? Object.values(groupEntry.buckets || {}).reduce((sum, b) => sum + b.sessions.length, 0)
+        : groupSessions.length;
       header.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
         <span class="folder-name" title="${esc(groupEntry.title)}">${esc(groupEntry.label)}</span>
-        <span class="folder-count">${groupSessions.length}</span>`;
+        <span class="folder-count">${memberCount}</span>`;
       if (showGroupingFolderControls && isUserTemplateFolderGroup(groupKey)) {
         const deleteBtn = document.createElement("button");
         deleteBtn.type = "button";
@@ -453,7 +523,7 @@ function renderSessionList() {
         header.appendChild(deleteBtn);
       }
       header.addEventListener("click", () => {
-      header.classList.toggle("collapsed");
+        header.classList.toggle("collapsed");
         persistCollapsedGroupState(groupKey, header.classList.contains("collapsed"));
         items.hidden = collapsedFolders[groupKey] === true;
       });
@@ -463,7 +533,46 @@ function renderSessionList() {
     const items = document.createElement("div");
     items.className = "folder-group-items";
     items.hidden = showGroupHeaders && collapsedFolders[groupKey] === true;
-    appendSessionItems(items, groupSessions);
+
+    if (isLongTermProject) {
+      // Render project root session first (the recurring_task itself)
+      const projectRootSessions = groupSessions.filter((s) => isLongTermProjectSessionForList(s));
+      appendSessionItems(items, projectRootSessions);
+      // Then render bucket sub-folders
+      const BUCKET_DEFS = [
+        { key: "long_term", label: "长期任务", order: 0 },
+        { key: "short_term", label: "短期任务", order: 1 },
+        { key: "waiting", label: "等待任务", order: 2 },
+        { key: "inbox", label: "收集箱", order: 3 },
+      ];
+      for (const bucketDef of BUCKET_DEFS) {
+        const bucketEntry = groupEntry.buckets[bucketDef.key];
+        if (!bucketEntry || bucketEntry.sessions.length === 0) continue;
+        const bucketKey = `${groupKey}:${bucketDef.key}`;
+        const bucketGroup = document.createElement("div");
+        bucketGroup.className = "folder-group folder-group-bucket";
+        const bucketHeader = document.createElement("div");
+        const isBucketCollapsed = collapsedFolders[bucketKey] === true;
+        bucketHeader.className = "folder-group-header folder-group-bucket-header" + (isBucketCollapsed ? " collapsed" : "");
+        bucketHeader.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
+          <span class="folder-name">${esc(bucketDef.label)}</span>
+          <span class="folder-count">${bucketEntry.sessions.length}</span>`;
+        const bucketItems = document.createElement("div");
+        bucketItems.className = "folder-group-items folder-group-bucket-items";
+        bucketItems.hidden = isBucketCollapsed;
+        bucketHeader.addEventListener("click", () => {
+          bucketHeader.classList.toggle("collapsed");
+          persistCollapsedGroupState(bucketKey, bucketHeader.classList.contains("collapsed"));
+          bucketItems.hidden = collapsedFolders[bucketKey] === true;
+        });
+        appendSessionItems(bucketItems, bucketEntry.sessions);
+        bucketGroup.appendChild(bucketHeader);
+        bucketGroup.appendChild(bucketItems);
+        items.appendChild(bucketGroup);
+      }
+    } else {
+      appendSessionItems(items, groupSessions);
+    }
 
     group.appendChild(items);
     sessionList.appendChild(group);

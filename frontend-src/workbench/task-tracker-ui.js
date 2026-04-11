@@ -169,6 +169,8 @@
       onPromote = null,
       onRun = null,
       onToggle = null,
+      onToggleScheduled = null,
+      onToggleRecurring = null,
       onConfigure = null,
       onAttachToLongTerm = null,
       onDismissLongTermSuggestion = null,
@@ -180,7 +182,7 @@
       }
       if (!kind && longTermState?.suggestionRootSessionId) {
         return [
-          createPersistentActionButton("归入长期任务", () => onAttachToLongTerm?.(longTermState.suggestionRootSessionId)),
+          createPersistentActionButton("归入长期项目", () => onAttachToLongTerm?.(longTermState.suggestionRootSessionId)),
           createPersistentActionButton("稍后", () => onDismissLongTermSuggestion?.(longTermState.suggestionRootSessionId), { secondary: true }),
         ];
       }
@@ -197,41 +199,32 @@
           createPersistentActionButton("长期项设置", onConfigure),
         ];
       }
-      if (kind === "recurring_task") {
-        return [
-          createPersistentActionButton("立即执行", onRun),
-          createPersistentActionButton(
-            String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "恢复周期" : "暂停周期",
-            onToggle,
-            { secondary: true },
-          ),
-          createPersistentActionButton("设置", onConfigure, { secondary: true }),
-        ];
-      }
-      if (kind === "scheduled_task") {
-        return [
-          createPersistentActionButton("立即执行", onRun),
-          createPersistentActionButton(
-            String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "恢复定时" : "暂停定时",
-            onToggle,
-            { secondary: true },
-          ),
-          createPersistentActionButton("设置", onConfigure, { secondary: true }),
-        ];
-      }
-      if (kind === "waiting_task") {
-        return [
-          createPersistentActionButton("立即执行", onRun),
-          createPersistentActionButton("设置", onConfigure, { secondary: true }),
-        ];
-      }
       if (kind === "skill") {
         return [
           createPersistentActionButton("触发AI快捷按钮", onRun),
           createPersistentActionButton("设置", onConfigure, { secondary: true }),
         ];
       }
-      return [];
+      // For recurring_task, scheduled_task, waiting_task: unified three-trigger layout
+      const isPaused = String(session?.persistent?.state || "").trim().toLowerCase() === "paused";
+      const hasScheduled = Boolean(session?.persistent?.scheduled?.runAt || session?.persistent?.scheduled?.nextRunAt);
+      const hasRecurring = Boolean(session?.persistent?.recurring?.cadence);
+      const scheduledEnabled = hasScheduled && !isPaused;
+      const recurringEnabled = hasRecurring && !isPaused;
+      return [
+        createPersistentActionButton("一键触发", onRun),
+        createPersistentActionButton(
+          scheduledEnabled ? "暂停定时" : "定时触发",
+          onToggleScheduled || onToggle,
+          { secondary: true, active: scheduledEnabled },
+        ),
+        createPersistentActionButton(
+          recurringEnabled ? "暂停循环" : "循环触发",
+          onToggleRecurring || onToggle,
+          { secondary: true, active: recurringEnabled },
+        ),
+        createPersistentActionButton("设置", onConfigure, { secondary: true }),
+      ];
     }
 
     function listVisibleCandidateBranches(taskCard, session = null) {
@@ -392,10 +385,10 @@
       trackerDetailEl.hidden = !hasAny || !expanded;
     }
 
-    function createPersistentActionButton(label, onClick, { secondary = false } = {}) {
+    function createPersistentActionButton(label, onClick, { secondary = false, active = false } = {}) {
       const button = documentRef.createElement("button");
       button.type = "button";
-      button.className = `quest-tracker-btn${secondary ? " quest-tracker-btn-secondary" : ""}`;
+      button.className = `quest-tracker-btn${secondary ? " quest-tracker-btn-secondary" : ""}${active ? " is-active" : ""}`;
       button.textContent = label;
       button.addEventListener("click", (event) => {
         event.preventDefault();

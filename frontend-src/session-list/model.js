@@ -623,6 +623,7 @@
     getSessionGroupInfo,
     getSessionGroupInfoWithOptions,
     getSidebarPersistentKind,
+    getLongTermTaskPoolMembership,
     isLongTermProjectSession,
     isLongTermLineSession,
     getSessionStalenessInfo,
