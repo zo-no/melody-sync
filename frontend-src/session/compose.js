@@ -896,78 +896,107 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
   const selectedProject = projects.find((entry) => String(entry?.id || "").trim() === selectedProjectId) || null;
   if (!selectedProject) {
     longTermWorkspaceDetail.innerHTML = `
-      <div class="long-term-workspace-empty-panel is-detail">
-        <div class="long-term-workspace-empty-title">选择一个长期任务开始维护</div>
-        <div class="long-term-workspace-empty-copy">这个区域会显示长期任务本身，以及已经自动归入它任务地图的维护项列表。</div>
+      <div class="ltcp-empty">
+        <div class="ltcp-empty-title">选择一个长期项目</div>
+        <div class="ltcp-empty-copy">在左侧点击一个长期项目，查看它的控制面板。</div>
       </div>`;
     return;
   }
 
-  const projectId = String(selectedProject?.id || "").trim();
-  const taskCard = selectedProject?.taskCard && typeof selectedProject.taskCard === "object"
-    ? selectedProject.taskCard
-    : {};
   const { branchSessions } = getLongTermWorkspaceBranchSessions(selectedProject);
-  const branchCounts = getLongTermWorkspaceBranchCounts(branchSessions);
   const title = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectTitle(selectedProject));
-  const summary = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectSummary(selectedProject));
-  const focus = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectFocus(selectedProject));
-  const status = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectStatusLabel(selectedProject));
   const schedule = escapeLongTermWorkspaceHtml(getLongTermWorkspaceScheduleLabel(selectedProject));
-  const branchLabel = escapeLongTermWorkspaceHtml(getLongTermWorkspaceBranchCountLabel(branchCounts));
-  const updatedAt = escapeLongTermWorkspaceHtml(
-    formatLongTermWorkspaceStamp(
-      selectedProject?.lastEventAt
-      || selectedProject?.updatedAt
-      || selectedProject?.created
-      || "",
-    ),
-  );
-  const knownConclusions = Array.isArray(taskCard?.knownConclusions)
-    ? taskCard.knownConclusions.filter((entry) => typeof entry === "string" && entry.trim()).slice(0, 3)
-    : [];
-  const conclusionsHtml = knownConclusions.length > 0
-    ? `
-      <div class="long-term-detail-note-list">
-        ${knownConclusions.map((entry) => `<div class="long-term-detail-note-item">${escapeLongTermWorkspaceHtml(clipLongTermWorkspaceText(entry, 120))}</div>`).join("")}
-      </div>`
+  const status = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectStatusLabel(selectedProject));
+
+  // ── 1. Task counts ──────────────────────────────────────────────
+  const model = window.MelodySyncSessionListModel || null;
+  function getBucket(session) {
+    if (typeof model?.getLongTermTaskPoolMembership === "function") {
+      const mem = model.getLongTermTaskPoolMembership(session);
+      if (mem?.bucket) return String(mem.bucket).trim().toLowerCase();
+    }
+    const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
+    if (kind === "recurring_task") return "long_term";
+    if (kind === "scheduled_task") return "short_term";
+    if (kind === "waiting_task") return "waiting";
+    return "inbox";
+  }
+  const memberSessions = branchSessions.filter((s) => {
+    const mem = s?.taskPoolMembership?.longTerm;
+    return mem?.projectSessionId && mem?.role !== "project";
+  });
+  const longTermCount = memberSessions.filter((s) => getBucket(s) === "long_term").length;
+  const shortTermCount = memberSessions.filter((s) => getBucket(s) === "short_term").length;
+
+  // ── 2. Trigger info ─────────────────────────────────────────────
+  const persistent = selectedProject?.persistent || {};
+  const lastTriggerAt = persistent?.execution?.lastTriggerAt || persistent?.recurring?.lastRunAt || "";
+  const nextRunAt = persistent?.recurring?.nextRunAt || persistent?.scheduled?.nextRunAt || "";
+  const lastTriggerLabel = lastTriggerAt
+    ? escapeLongTermWorkspaceHtml(formatLongTermWorkspaceStamp(lastTriggerAt))
+    : "尚未触发";
+  const nextRunLabel = nextRunAt
+    ? escapeLongTermWorkspaceHtml(formatLongTermWorkspaceStamp(nextRunAt))
     : "";
 
+  // ── 3. Waiting sessions ─────────────────────────────────────────
+  const waitingSessions = memberSessions.filter((s) => getBucket(s) === "waiting");
+  const waitingHtml = waitingSessions.length === 0
+    ? `<div class="ltcp-waiting-empty">暂无等待中的任务</div>`
+    : waitingSessions.map((s) => {
+        const name = escapeLongTermWorkspaceHtml(
+          String(s?.taskCard?.goal || s?.taskCard?.summary || s?.name || "").trim() || "未命名任务"
+        );
+        const branchId = escapeLongTermWorkspaceHtml(String(s?.id || ""));
+        return `<button class="ltcp-waiting-item" type="button" data-open-branch-id="${branchId}">
+          <span class="ltcp-waiting-item-name">${name}</span>
+          <span class="ltcp-waiting-item-arrow">›</span>
+        </button>`;
+      }).join("");
+
   longTermWorkspaceDetail.innerHTML = `
-    <div class="long-term-detail-shell">
-      <section class="long-term-detail-hero">
-        <div class="long-term-detail-hero-main">
-          <div class="long-term-detail-kicker">长期任务</div>
-          <h3 class="long-term-detail-title">${title}</h3>
-          <p class="long-term-detail-summary">${summary}</p>
-          <div class="long-term-detail-meta">
-            <span class="long-term-detail-chip">${schedule}</span>
-            <span class="long-term-detail-chip">${status}</span>
-            <span class="long-term-detail-chip">${branchLabel}</span>
-            ${updatedAt ? `<span class="long-term-detail-chip">最近更新 ${updatedAt}</span>` : ""}
+    <div class="ltcp-shell">
+      <div class="ltcp-header">
+        <div class="ltcp-header-main">
+          <h2 class="ltcp-title">${title}</h2>
+          <div class="ltcp-meta">
+            ${schedule ? `<span class="ltcp-chip">${schedule}</span>` : ""}
+            <span class="ltcp-chip ltcp-chip-status">${status}</span>
           </div>
         </div>
-        <div class="long-term-detail-actions">
-          <button class="long-term-detail-action" type="button" data-project-action="configure" data-project-id="${escapeLongTermWorkspaceHtml(projectId)}">设置长期项</button>
-          <button class="long-term-detail-action secondary" type="button" data-project-action="run" data-project-id="${escapeLongTermWorkspaceHtml(projectId)}">立即执行</button>
+      </div>
+
+      <div class="ltcp-stats-row">
+        <div class="ltcp-stat">
+          <div class="ltcp-stat-value">${longTermCount}</div>
+          <div class="ltcp-stat-label">长期任务</div>
         </div>
-      </section>
+        <div class="ltcp-stat">
+          <div class="ltcp-stat-value">${shortTermCount}</div>
+          <div class="ltcp-stat-label">短期任务</div>
+        </div>
+        <div class="ltcp-stat">
+          <div class="ltcp-stat-value">${waitingSessions.length}</div>
+          <div class="ltcp-stat-label">等待中</div>
+        </div>
+      </div>
 
-      <div class="long-term-detail-grid">
-        <section class="long-term-detail-card">
-          <div class="long-term-detail-card-title">维护规则</div>
-          <div class="long-term-detail-card-copy">新识别到属于这个长期任务的需求后，会自动作为子任务挂到这张任务地图里，并出现在右侧维护列表。</div>
-          ${focus ? `<div class="long-term-detail-focus">当前维护焦点：${focus}</div>` : ""}
-          ${conclusionsHtml}
-        </section>
+      <div class="ltcp-trigger-row">
+        <div class="ltcp-trigger-item">
+          <span class="ltcp-trigger-label">上次触发</span>
+          <span class="ltcp-trigger-value">${lastTriggerLabel}</span>
+        </div>
+        ${nextRunLabel ? `<div class="ltcp-trigger-item">
+          <span class="ltcp-trigger-label">下次触发</span>
+          <span class="ltcp-trigger-value">${nextRunLabel}</span>
+        </div>` : ""}
+      </div>
 
-        <section class="long-term-detail-card">
-          <div class="long-term-detail-card-title">维护任务列表</div>
-          <div class="long-term-detail-card-copy">这里展示已经自动归入这个长期任务的维护项。打开某条任务后，会进入基础任务区继续执行。</div>
-          <div class="long-term-branch-list">
-            ${renderLongTermWorkspaceBranchList(branchSessions, projectId)}
-          </div>
-        </section>
+      <div class="ltcp-section">
+        <div class="ltcp-section-title">等待中的任务</div>
+        <div class="ltcp-waiting-list">
+          ${waitingHtml}
+        </div>
       </div>
     </div>`;
 }
