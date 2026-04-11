@@ -196,6 +196,7 @@ const cancelBtn = document.getElementById("cancelBtn");
 const contextTokens = document.getElementById("contextTokens");
 const tabSessions = document.getElementById("tabSessions");
 const tabLongTerm = document.getElementById("tabLongTerm");
+const tabSkill = document.getElementById("tabSkill");
 const inputArea = document.getElementById("inputArea");
 const composerPendingState = document.getElementById("composerPendingState");
 const inputResizeHandle = document.getElementById("inputResizeHandle");
@@ -276,6 +277,9 @@ function normalizeSidebarTab(tab) {
   const normalized = String(tab || "").trim().toLowerCase().replace(/[\s_]+/g, "-");
   if (["long-term", "longterm", "persistent", "recurring"].includes(normalized)) {
     return "long-term";
+  }
+  if (["skill", "skills"].includes(normalized)) {
+    return "skill";
   }
   return "sessions";
 }

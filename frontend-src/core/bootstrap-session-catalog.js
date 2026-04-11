@@ -263,7 +263,10 @@ function resolveLongTermProjectRootSessionId(session, visited = new Set()) {
 }
 
 function getSidebarTabForSession(session) {
-  return isLongTermProjectRootSession(session) ? "long-term" : "sessions";
+  if (isLongTermProjectRootSession(session)) return "long-term";
+  const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
+  if (kind === "skill") return "skill";
+  return "sessions";
 }
 
 function sessionMatchesSidebarTab(session, tab = activeTab) {

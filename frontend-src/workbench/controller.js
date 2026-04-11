@@ -47,7 +47,6 @@
 
   const SUPPRESSED_PREFIX = "melodysyncSuppressedBranch";
   const LONG_TERM_SUGGESTION_SUPPRESSED_PREFIX = "melodysyncSuppressedLongTermSuggestion";
-  const TASK_MAP_MOCK_STORAGE_KEY = "melodysyncTaskMapMockPreset";
   const TASK_MAP_DESKTOP_WIDTH_STORAGE_KEY = "melodysyncTaskMapDesktopWidth";
   const RECENT_REPARENT_TARGETS_STORAGE_KEY = "melodysyncRecentReparentTargets";
   const RECENT_CONNECT_TARGETS_STORAGE_KEY = "melodysyncRecentConnectTargets";
@@ -1368,18 +1367,8 @@
 
   function getTaskMapMockPreset() {
     try {
-      const href = String(window?.location?.href || "");
-      if (href) {
-        const url = new URL(href);
-        const fromQuery = String(url.searchParams.get("taskMapMock") || "").trim();
-        if (fromQuery) {
-          return fromQuery;
-        }
-      }
-    } catch {
-    }
-    try {
-      return String(localStorage.getItem(TASK_MAP_MOCK_STORAGE_KEY) || "").trim();
+      const url = new URL(String(window?.location?.href || ""));
+      return String(url.searchParams.get("taskMapMock") || "").trim();
     } catch {
       return "";
     }
@@ -3323,14 +3312,6 @@
 
   window.addEventListener("blur", () => {
     endTaskMapResize();
-  });
-
-  tracker?.addEventListener("mouseenter", () => {
-    if (!isMobileQuestTracker()) return;
-  });
-
-  tracker?.addEventListener("mouseleave", () => {
-    if (!isMobileQuestTracker()) return;
   });
 
   // ── Operation Record ─────────────────────────────────────────────

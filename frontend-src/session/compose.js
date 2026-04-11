@@ -984,7 +984,9 @@ function getSidebarTabForComposeSession(session, projects = getLongTermWorkspace
       ? projects.map((entry) => String(entry?.id || "").trim()).filter(Boolean)
       : [],
   );
-  return resolveLongTermWorkspaceRootSessionId(session, validIds) ? "long-term" : "sessions";
+  if (resolveLongTermWorkspaceRootSessionId(session, validIds)) return "long-term";
+  if (String(session?.persistent?.kind || "").trim().toLowerCase() === "skill") return "skill";
+  return "sessions";
 }
 
 function resolveSidebarTabAttachmentTarget(tab = activeTab) {
@@ -997,6 +999,15 @@ function resolveSidebarTabAttachmentTarget(tab = activeTab) {
   if (normalizedTab === "long-term") {
     selectedLongTermProjectId = resolveLongTermWorkspaceProjectSelection(projects);
     return projects.find((entry) => String(entry?.id || "").trim() === selectedLongTermProjectId) || null;
+  }
+
+  if (normalizedTab === "skill") {
+    if (currentSession && String(currentSession?.persistent?.kind || "").trim().toLowerCase() === "skill") {
+      return currentSession;
+    }
+    return Array.isArray(sessions)
+      ? sessions.find((entry) => entry?.archived !== true && String(entry?.persistent?.kind || "").trim().toLowerCase() === "skill") || null
+      : null;
   }
 
   if (currentSession && getSidebarTabForComposeSession(currentSession, projects) === "sessions") {
@@ -1013,26 +1024,32 @@ function getActiveSidebarTab() {
 }
 
 function syncSidebarTabUi() {
-  const isLongTermTab = getActiveSidebarTab() === "long-term";
-  tabSessions?.classList.toggle("active", !isLongTermTab);
+  const activeTabKey = getActiveSidebarTab();
+  const isLongTermTab = activeTabKey === "long-term";
+  const isSkillTab = activeTabKey === "skill";
+  const isSessionsTab = !isLongTermTab && !isSkillTab;
+  tabSessions?.classList.toggle("active", isSessionsTab);
   tabLongTerm?.classList.toggle("active", isLongTermTab);
+  if (typeof tabSkill !== "undefined") tabSkill?.classList.toggle("active", isSkillTab);
   if (sessionList) sessionList.style.display = "";
-  if (sidebarGroupingToolbar) sidebarGroupingToolbar.hidden = isLongTermTab;
+  if (sidebarGroupingToolbar) sidebarGroupingToolbar.hidden = !isSessionsTab;
   if (sessionListFooter) {
     sessionListFooter.hidden = false;
     sessionListFooter.classList.remove("hidden");
   }
   if (sortSessionListBtn) {
-    sortSessionListBtn.hidden = isLongTermTab;
-    sortSessionListBtn.classList.toggle("hidden", isLongTermTab);
+    sortSessionListBtn.hidden = !isSessionsTab;
+    sortSessionListBtn.classList.toggle("hidden", !isSessionsTab);
   }
   if (newSessionBtn) {
-    const label = t(isLongTermTab ? "sidebar.newLongTerm" : "sidebar.newSession");
-    newSessionBtn.hidden = false;
-    newSessionBtn.classList.remove("hidden");
-    newSessionBtn.textContent = label;
-    newSessionBtn.title = label;
-    newSessionBtn.setAttribute("aria-label", label);
+    newSessionBtn.hidden = isLongTermTab;
+    newSessionBtn.classList.toggle("hidden", isLongTermTab);
+    if (!isLongTermTab) {
+      const label = t("sidebar.newSession");
+      newSessionBtn.textContent = label;
+      newSessionBtn.title = label;
+      newSessionBtn.setAttribute("aria-label", label);
+    }
   }
   renderLongTermWorkspace();
   if (typeof requestLayoutPass === "function") {
@@ -1061,6 +1078,7 @@ globalThis.getActiveSidebarTab = getActiveSidebarTab;
 
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
 tabLongTerm?.addEventListener("click", () => switchTab("long-term"));
+if (typeof tabSkill !== "undefined") tabSkill?.addEventListener("click", () => switchTab("skill"));
 
 longTermWorkspaceNewBtn?.addEventListener("click", () => {
   void createNewLongTermProjectShortcut?.({ closeSidebar: false });
