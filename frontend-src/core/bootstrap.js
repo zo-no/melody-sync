@@ -163,6 +163,7 @@ const sidebarResizeHandle = document.getElementById("sidebarResizeHandle");
 const closeSidebar = document.getElementById("closeSidebar");
 const sidebarGroupingToolbar = document.getElementById("sidebarGroupingToolbar");
 const sidebarBranchVisibilityToggleBtn = document.getElementById("sidebarBranchVisibilityToggle");
+const sidebarLongTermVisibilityToggleBtn = document.getElementById("sidebarLongTermVisibilityToggle");
 const sidebarGroupingConfigBtn = document.getElementById("sidebarGroupingConfigBtn");
 const sessionList = document.getElementById("sessionList");
 const sessionListFooter = document.getElementById("sessionListFooter");
@@ -278,9 +279,7 @@ function normalizeSidebarTab(tab) {
   if (["long-term", "longterm", "persistent", "recurring"].includes(normalized)) {
     return "long-term";
   }
-  if (["skill", "skills"].includes(normalized)) {
-    return "skill";
-  }
+  // "skill" tab is removed — redirect to sessions
   return "sessions";
 }
 
