@@ -1148,7 +1148,15 @@
     const visibleSession = getPersistentUiSession(session);
     trackerRenderer?.renderPersistentActions?.(visibleSession, {
       onPromote: () => {
-        operationRecordController?.openPersistentEditor?.({ mode: "promote" });
+        const title = String(session?.taskCard?.summary || session?.taskCard?.goal || session?.name || "").trim() || "未命名长期项";
+        const summary = String(session?.taskCard?.checkpoint || "").trim();
+        dispatchAction?.({
+          action: "persistent_promote",
+          sessionId: session.id,
+          kind: "recurring_task",
+          digest: { title, summary },
+          execution: { mode: "in_place", runPrompt: "" },
+        });
       },
       onRun: () => {
         dispatchAction?.({
@@ -1165,12 +1173,6 @@
             state: String(session?.persistent?.state || "").trim().toLowerCase() === "paused" ? "active" : "paused",
           },
         });
-      },
-      onToggleScheduled: () => {
-        operationRecordController?.openPersistentEditor?.({ mode: "configure", focusField: "scheduled" });
-      },
-      onToggleRecurring: () => {
-        operationRecordController?.openPersistentEditor?.({ mode: "configure", focusField: "recurring" });
       },
       onConfigure: () => {
         operationRecordController?.openPersistentEditor?.({ mode: "configure" });

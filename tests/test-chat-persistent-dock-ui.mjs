@@ -92,6 +92,8 @@ const getPersistentDockGroupKeySource = extractFunctionSource(sessionListSource,
 const getSessionListModelSource = extractFunctionSource(sessionListSource, 'getSessionListModel');
 const getActiveSidebarTabForListSource = extractFunctionSource(sessionListSource, 'getActiveSidebarTabForList');
 const isLongTermProjectSessionForListSource = extractFunctionSource(sessionListSource, 'isLongTermProjectSessionForList');
+const isLongTermLineSessionForListSource = extractFunctionSource(sessionListSource, 'isLongTermLineSessionForList');
+const isSkillSessionForListSource = extractFunctionSource(sessionListSource, 'isSkillSessionForList');
 const shouldIncludeSessionInSidebarTabSource = extractFunctionSource(sessionListSource, 'shouldIncludeSessionInSidebarTab');
 const filterSessionsForSidebarTabSource = extractFunctionSource(sessionListSource, 'filterSessionsForSidebarTab');
 const shouldShowSessionInSidebarForListSource = extractFunctionSource(sessionListSource, 'shouldShowSessionInSidebarForList');
@@ -230,6 +232,8 @@ vm.runInNewContext(`
   ${getSessionListModelSource}
   ${getActiveSidebarTabForListSource}
   ${isLongTermProjectSessionForListSource}
+  ${isLongTermLineSessionForListSource}
+  ${isSkillSessionForListSource}
   ${shouldIncludeSessionInSidebarTabSource}
   ${filterSessionsForSidebarTabSource}
   ${shouldShowSessionInSidebarForListSource}

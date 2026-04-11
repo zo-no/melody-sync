@@ -169,8 +169,6 @@
       onPromote = null,
       onRun = null,
       onToggle = null,
-      onToggleScheduled = null,
-      onToggleRecurring = null,
       onConfigure = null,
       onAttachToLongTerm = null,
       onDismissLongTermSuggestion = null,
@@ -215,12 +213,12 @@
         createPersistentActionButton("一键触发", onRun),
         createPersistentActionButton(
           scheduledEnabled ? "暂停定时" : "定时触发",
-          onToggleScheduled || onToggle,
+          onToggle,
           { secondary: true, active: scheduledEnabled },
         ),
         createPersistentActionButton(
           recurringEnabled ? "暂停循环" : "循环触发",
-          onToggleRecurring || onToggle,
+          onToggle,
           { secondary: true, active: recurringEnabled },
         ),
         createPersistentActionButton("设置", onConfigure, { secondary: true }),
