@@ -3,6 +3,32 @@ function t(key, vars) {
   return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
+const LONG_TERM_BUCKET_DEFS = [
+  { key: "long_term", label: "长期任务", order: 0 },
+  { key: "short_term", label: "短期任务", order: 1 },
+  { key: "waiting", label: "等待任务", order: 2 },
+  { key: "inbox", label: "收集箱", order: 3 },
+];
+
+function inferLongTermSessionBucket(session) {
+  const model = getSessionListModel();
+  const membership = typeof model?.getLongTermTaskPoolMembership === "function"
+    ? model.getLongTermTaskPoolMembership(session)
+    : null;
+  const bucketRaw = String(membership?.bucket || "").trim().toLowerCase();
+  if (bucketRaw === "long_term") return "long_term";
+  if (bucketRaw === "short_term") return "short_term";
+  if (bucketRaw === "waiting") return "waiting";
+  if (bucketRaw === "inbox") return "inbox";
+  const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
+  if (kind === "recurring_task") return "long_term";
+  if (kind === "scheduled_task") return "short_term";
+  if (kind === "waiting_task") return "waiting";
+  const workflowState = String(session?.workflowState || "").trim().toLowerCase();
+  if (workflowState === "waiting_user") return "waiting";
+  return "inbox";
+}
+
 function getSessionListModel() {
   return window.MelodySyncSessionListModel || null;
 }
@@ -259,27 +285,6 @@ function renderSessionList() {
   if (isLongTermTab) {
     // Build per-project groups with bucket sub-folders
     const model = getSessionListModel();
-    const BUCKET_DEFS = [
-      { key: "long_term", label: "长期任务", order: 0 },
-      { key: "short_term", label: "短期任务", order: 1 },
-      { key: "waiting", label: "等待任务", order: 2 },
-      { key: "inbox", label: "收集箱", order: 3 },
-    ];
-    function inferSessionBucket(session) {
-      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
-        ? model.getLongTermTaskPoolMembership(session)
-        : null;
-      const bucketRaw = String(membership?.bucket || "").trim().toLowerCase();
-      if (bucketRaw === "long_term") return "long_term";
-      if (bucketRaw === "short_term") return "short_term";
-      if (bucketRaw === "waiting") return "waiting";
-      if (bucketRaw === "inbox") return "inbox";
-      const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
-      if (kind === "recurring_task") return "long_term";
-      if (kind === "scheduled_task") return "short_term";
-      if (kind === "waiting_task") return "waiting";
-      return "inbox";
-    }
     for (const session of visibleSessions) {
       if (!session?.id) continue;
       const isProject = isLongTermProjectSessionForList(session);
@@ -290,12 +295,9 @@ function renderSessionList() {
       if (!projectId) continue;
       const groupKey = `group:long-term-project:${projectId}`;
       if (!groups.has(groupKey)) {
-        // Find project session title
         const projectSession = isProject
           ? session
-          : (typeof model?.getSessionListEntry === "function"
-            ? (getVisibleActiveSessions().find((s) => s?.id === projectId) || null)
-            : null);
+          : (getVisibleActiveSessions().find((s) => s?.id === projectId) || null);
         const projectTitle = String(projectSession?.name || projectSession?.description || "长期项目").trim() || "长期项目";
         groups.set(groupKey, {
           key: groupKey,
@@ -305,13 +307,13 @@ function renderSessionList() {
           type: "long-term-project",
           projectId,
           sessions: [],
-          buckets: Object.fromEntries(BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
+          buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
         });
       }
       const groupEntry = groups.get(groupKey);
       groupEntry.sessions.push(session);
       if (!isProject) {
-        const bucket = inferSessionBucket(session);
+        const bucket = inferLongTermSessionBucket(session);
         groupEntry.buckets[bucket].sessions.push(session);
       }
     }
@@ -558,13 +560,7 @@ function renderSessionList() {
       const projectRootSessions = groupSessions.filter((s) => isLongTermProjectSessionForList(s));
       appendSessionItems(items, projectRootSessions);
       // Then render bucket sub-folders
-      const BUCKET_DEFS = [
-        { key: "long_term", label: "长期任务", order: 0 },
-        { key: "short_term", label: "短期任务", order: 1 },
-        { key: "waiting", label: "等待任务", order: 2 },
-        { key: "inbox", label: "收集箱", order: 3 },
-      ];
-      for (const bucketDef of BUCKET_DEFS) {
+      for (const bucketDef of LONG_TERM_BUCKET_DEFS) {
         const bucketEntry = groupEntry.buckets[bucketDef.key];
         if (!bucketEntry || bucketEntry.sessions.length === 0) continue;
         const bucketKey = `${groupKey}:${bucketDef.key}`;

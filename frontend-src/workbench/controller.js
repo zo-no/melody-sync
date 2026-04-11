@@ -1147,16 +1147,19 @@
   function renderPersistentTrackerActions(session) {
     const visibleSession = getPersistentUiSession(session);
     trackerRenderer?.renderPersistentActions?.(visibleSession, {
-      onPromote: () => {
-        const title = String(session?.taskCard?.summary || session?.taskCard?.goal || session?.name || "").trim() || "未命名长期项";
-        const summary = String(session?.taskCard?.checkpoint || "").trim();
-        dispatchAction?.({
+      onPromote: async () => {
+        const title = String(session?.taskCard?.goal || session?.taskCard?.mainGoal || session?.name || session?.taskCard?.summary || "").trim() || "未命名长期项";
+        const summary = String(session?.taskCard?.checkpoint || session?.taskCard?.summary || "").trim();
+        const ok = await dispatchAction?.({
           action: "persistent_promote",
           sessionId: session.id,
           kind: "recurring_task",
           digest: { title, summary },
           execution: { mode: "in_place", runPrompt: "" },
         });
+        if (ok === false) {
+          window.alert?.("沉淀失败，请稍后重试");
+        }
       },
       onRun: () => {
         dispatchAction?.({

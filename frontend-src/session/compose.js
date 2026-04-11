@@ -1030,7 +1030,7 @@ function syncSidebarTabUi() {
   const isSessionsTab = !isLongTermTab && !isSkillTab;
   tabSessions?.classList.toggle("active", isSessionsTab);
   tabLongTerm?.classList.toggle("active", isLongTermTab);
-  if (typeof tabSkill !== "undefined") tabSkill?.classList.toggle("active", isSkillTab);
+  tabSkill?.classList.toggle("active", isSkillTab);
   if (sessionList) sessionList.style.display = "";
   if (sidebarGroupingToolbar) sidebarGroupingToolbar.hidden = !isSessionsTab;
   if (sessionListFooter) {
@@ -1078,7 +1078,7 @@ globalThis.getActiveSidebarTab = getActiveSidebarTab;
 
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
 tabLongTerm?.addEventListener("click", () => switchTab("long-term"));
-if (typeof tabSkill !== "undefined") tabSkill?.addEventListener("click", () => switchTab("skill"));
+tabSkill?.addEventListener("click", () => switchTab("skill"));
 
 longTermWorkspaceNewBtn?.addEventListener("click", () => {
   void createNewLongTermProjectShortcut?.({ closeSidebar: false });
