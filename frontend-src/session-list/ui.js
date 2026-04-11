@@ -276,9 +276,34 @@ function isSkillSessionForList(session) {
   return getSidebarPersistentKind(session) === "skill";
 }
 
+function getLifeManagementProjectId() {
+  // Find the "人生管理" system project (taskListOrigin=system, recurring_task)
+  const model = getSessionListModel();
+  const allSessions = typeof getVisibleActiveSessions === "function" ? getVisibleActiveSessions() : [];
+  const lifeProject = allSessions.find((s) => {
+    const origin = String(s?.taskListOrigin || "").trim().toLowerCase();
+    const kind = String(s?.persistent?.kind || "").trim().toLowerCase();
+    return origin === "system" && kind === "recurring_task" && String(s?.name || "").includes("人生管理");
+  });
+  return lifeProject?.id || "";
+}
+
 function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
-  // Tasks tab is merged into long-term — treat "sessions" as "long-term"
-  if (tab === "long-term" || tab === "sessions") {
+  if (tab === "sessions") {
+    // Tasks tab: show only the "人生管理" project and its members
+    const lifeProjectId = getLifeManagementProjectId();
+    if (!lifeProjectId) {
+      // Fallback: show all project roots and members if no life project found
+      return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
+    }
+    const model = getSessionListModel();
+    const membership = typeof model?.getLongTermTaskPoolMembership === "function"
+      ? model.getLongTermTaskPoolMembership(session)
+      : null;
+    const projectId = membership?.projectSessionId || (isLongTermProjectSessionForList(session) ? session?.id : "");
+    return projectId === lifeProjectId;
+  }
+  if (tab === "long-term") {
     return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
   }
   if (tab === "skill") return isSkillSessionForList(session);
@@ -293,6 +318,7 @@ function renderSessionList() {
   const activeSidebarTab = getActiveSidebarTabForList();
   const isLongTermTab = activeSidebarTab === "long-term" || activeSidebarTab === "sessions";
   const isSkillTab = activeSidebarTab === "skill";
+  const isSessionsTab = activeSidebarTab === "sessions";
   const groupingMode = getSessionGroupingModeForList();
   const showGroupingFolderControls = !isLongTermTab && !isSkillTab;
   const pinnedSessions = filterSessionsForSidebarTab(

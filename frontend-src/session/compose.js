@@ -580,7 +580,7 @@ function restoreFailedSendState(sessionId, text, images, requestId = "") {
 let activeTab = normalizeSidebarTab(
   pendingNavigationState.tab ||
     localStorage.getItem(ACTIVE_SIDEBAR_TAB_STORAGE_KEY) ||
-    "long-term",
+    "sessions",
 );
 const longTermWorkspace = document.getElementById("longTermWorkspace");
 const longTermWorkspaceList = document.getElementById("longTermWorkspaceList");
@@ -1076,10 +1076,10 @@ function getActiveSidebarTab() {
 
 function syncSidebarTabUi() {
   const activeTabKey = getActiveSidebarTab();
-  const isLongTermTab = activeTabKey === "long-term" || activeTabKey === "sessions";
+  const isLongTermTab = activeTabKey === "long-term";
   const isSkillTab = activeTabKey === "skill";
-  // Tasks tab is hidden — treat sessions as long-term
-  tabSessions?.classList.toggle("active", false);
+  const isSessionsTab = activeTabKey === "sessions";
+  tabSessions?.classList.toggle("active", isSessionsTab);
   tabLongTerm?.classList.toggle("active", isLongTermTab);
   tabSkill?.classList.toggle("active", isSkillTab);
   if (sessionList) sessionList.style.display = "";
