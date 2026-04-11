@@ -92,8 +92,10 @@ assert.match(freshPrompt, /\[Recent context digest\]/);
 assert.match(freshPrompt, /focus on memory and task continuity/);
 assert.match(freshPrompt, /Current user message:/);
 assert.match(freshPrompt, /do not mirror its headings, bullets, or checklist structure back to the user/);
-assert.match(freshPrompt, /melodysync session-spawn --task "<focused task>" --wait --internal --output-mode final-only --json/);
-assert.match(freshPrompt, /suppresses the visible parent handoff note and returns only the child session's final reply to stdout/);
+// Ordinary sessions get the short capability hint but NOT the full spawn command reference
+assert.match(freshPrompt, /melodysync session-spawn/);
+assert.doesNotMatch(freshPrompt, /Hidden waited subagent variant for noisy exploration/);
+assert.doesNotMatch(freshPrompt, /suppresses the visible parent handoff note and returns only the child session's final reply to stdout/);
 assert.match(freshPrompt, /Do not send user-facing progress reports just because work is underway/);
 assert.match(freshPrompt, /append exactly one final hidden <private><task_card> JSON block/i);
 assert.match(freshPrompt, /\[Task-card reply contract\]/);
@@ -258,5 +260,72 @@ const promptWithTaskMapRoutingHints = await buildPrompt(
 assert.match(promptWithTaskMapRoutingHints, /\[Task map routing hints\]/);
 assert.match(promptWithTaskMapRoutingHints, /Candidate main task maps:/);
 assert.match(promptWithTaskMapRoutingHints, /MelodySync Session Map/);
+
+// Full GTD API docs injected for persistent task sessions
+const persistentTaskPrompt = await buildPrompt(
+  'session-test-gtd',
+  {
+    ...baseSession,
+    name: '每日市场监控',
+    persistent: {
+      kind: 'recurring_task',
+      recurring: { cadence: 'daily', timeOfDay: '09:00' },
+    },
+  },
+  '帮我检查一下这个任务的执行情况。',
+  'codex',
+  'codex',
+  null,
+  { skipSessionContinuation: true },
+);
+
+assert.match(persistentTaskPrompt, /GTD API Reference/);
+assert.match(persistentTaskPrompt, /MELODYSYNC_CHAT_BASE_URL.*api\/sessions/);
+assert.match(persistentTaskPrompt, /promote-persistent/);
+// GTD docs should NOT appear in ordinary sessions
+assert.doesNotMatch(freshPrompt, /GTD API Reference/);
+assert.doesNotMatch(freshPrompt, /promote-persistent/);
+
+// Full spawn docs injected when session is a persistent task (may spawn children to execute)
+const coordinatorPrompt = await buildPrompt(
+  'session-test-spawn',
+  {
+    ...baseSession,
+    name: '多任务协调',
+    persistent: {
+      kind: 'recurring_task',
+      execution: { mode: 'spawn_session', runPrompt: '每日执行' },
+    },
+  },
+  '看一下子任务进度。',
+  'codex',
+  'codex',
+  null,
+  { skipSessionContinuation: true },
+);
+
+assert.match(coordinatorPrompt, /Session Spawn Reference/);
+assert.match(coordinatorPrompt, /Hidden waited subagent/);
+assert.match(coordinatorPrompt, /suppress visible handoff/);
+
+// Self-hosting docs injected for melody-sync sessions
+const selfHostingPrompt = await buildPrompt(
+  'session-test-dev',
+  {
+    ...baseSession,
+    name: '修复 task map bug',
+    folder: '/Users/kual/code/melody-sync',
+  },
+  '看一下这个 bug。',
+  'codex',
+  'codex',
+  null,
+  { skipSessionContinuation: true },
+);
+
+assert.match(selfHostingPrompt, /MelodySync self-hosting development/);
+assert.match(selfHostingPrompt, /Clean restarts are acceptable/);
+// Self-hosting docs should NOT appear in ordinary sessions
+assert.doesNotMatch(freshPrompt, /Clean restarts are acceptable/);
 
 console.log('test-session-manager-build-prompt: ok');

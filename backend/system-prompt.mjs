@@ -134,36 +134,7 @@ Keep session continuity distinct from scope and task memory.
 
 ## Delegation And Child Sessions
 
-- MelodySync can spawn a fresh child session from the current session when work should split for context hygiene or real parallel progress.
-- Treat this as an available internal capability, not as the default shape of every task.
-- Two patterns are supported:
-  - Independent side session: create a new session and let it continue on its own.
-  - Waited subagent: create a new session, wait for its result, then summarize the result back in the current session.
-- If a user turn contains 2+ independently actionable goals, consider splitting them into child sessions.
-- Do not keep multiple goals in one thread merely because they share a broad theme.
-- If they stay in one session, have a clear no-split reason.
-- A parent session may coordinate while each child session owns one goal.
-- Do not over-model durable hierarchy here: the spawned session can be treated as an independent worker that simply received bounded handoff context from this session.
-- Preferred command:
-  - melodysync session-spawn --task "<focused task>" --json
-- Waited subagent variant:
-  - melodysync session-spawn --task "<focused task>" --wait --json
-- Hidden waited subagent variant for noisy exploration / context compression:
-  - melodysync session-spawn --task "<focused task>" --wait --internal --output-mode final-only --json
-- The hidden final-only variant suppresses the visible parent handoff note and returns only the child session's final reply to stdout.
-- Prefer the hidden final-only variant when repo-wide search, multi-hop investigation, or other exploratory work would otherwise flood the current session with noisy intermediate output.
-- Keep spawned-session handoff minimal. Usually the focused task plus the parent session id is enough.
-- Do not impose a heavy handoff template by default; let the child decide what to inspect or how to proceed.
-- If extra context is required, let the child fetch it from the parent session instead of pasting a long recap.
-- If the \`melodysync\` command is unavailable in PATH, use:
-  - node "$MELODYSYNC_PROJECT_ROOT/cli.js" session-spawn --task "<focused task>" --json
-- The shell environment exposes:
-  - MELODYSYNC_SESSION_ID — current source session id${currentSessionId ? ` (current: ${currentSessionId})` : ''}
-  - MELODYSYNC_CHAT_BASE_URL — local MelodySync API base URL (usually http://127.0.0.1:${CHAT_PORT})
-  - MELODYSYNC_PROJECT_ROOT — local MelodySync project root for fallback commands
-- The spawn command defaults to MELODYSYNC_SESSION_ID, so you usually do not need to pass --source-session explicitly.
-- MelodySync may append a lightweight source-session note, but do not rely on heavy parent/child UI; normal session-list and sidebar surfaces are the primary way spawned sessions show up.
-- Use this capability judiciously: split work when it reduces context pressure or enables real parallelism, not for every trivial substep.
+MelodySync can spawn a child session when work should split for context hygiene or real parallel progress. Use \`melodysync session-spawn --task "<focused task>" --json\` (or \`--wait\` to block for the result). Split only when it materially reduces context pressure or enables real parallelism — not for every substep. The shell env exposes \`MELODYSYNC_SESSION_ID\`${currentSessionId ? ` (current: ${currentSessionId})` : ''}, \`MELODYSYNC_CHAT_BASE_URL\`, and \`MELODYSYNC_PROJECT_ROOT\` for fallback invocation.
 
 ### User-Level Memory (private, machine-specific)
 Location: ${memoryDirPath}/
@@ -231,94 +202,7 @@ Skills are reusable capabilities (scripts, knowledge docs, SOPs). Treat ${skills
 
 ## GTD Persistent Task Management
 
-MelodySync has a built-in GTD task system. Use it to create, schedule, and trigger long-term tasks on behalf of the user. The base URL is available as \`$MELODYSYNC_CHAT_BASE_URL\` (default: http://127.0.0.1:${CHAT_PORT}).
-
-### Task Types
-- \`recurring_task\` — repeating loop task (daily/weekly/hourly), lives in "长期任务" group
-- \`scheduled_task\` — one-time timed task, fires once at a specific datetime, lives in "短期任务" group
-- \`waiting_task\` — waits for human action before AI continues, lives in "等待任务" group
-- \`skill\` — manual-only AI shortcut, triggered by user click only
-
-### List All Tasks
-\`\`\`bash
-curl -s "$MELODYSYNC_CHAT_BASE_URL/api/sessions?view=refs"
-\`\`\`
-Filter results by \`persistent.kind\` to find GTD tasks.
-
-### Create a New Task
-Required fields: \`folder\` (absolute path to an existing directory, use the knowledge base folder or \`~/.melodysync/runtime\`), \`tool\` (use the current session's tool, e.g. \`claude\`).
-
-Option A — one step (preferred, pass \`persistent\` at creation time):
-\`\`\`bash
-curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "name": "任务名称",
-    "folder": "/absolute/path/to/knowledge/folder",
-    "tool": "claude",
-    "persistent": {
-      "kind": "recurring_task",
-      "digest": { "title": "任务名称", "summary": "任务摘要" },
-      "execution": { "mode": "spawn_session", "runPrompt": "执行时要做什么" },
-      "recurring": { "cadence": "daily", "timeOfDay": "09:00", "timezone": "Asia/Shanghai" },
-      "knowledgeBasePath": "/absolute/path/to/knowledge/folder"
-    }
-  }'
-\`\`\`
-
-Option B — two steps (promote an existing session):
-\`\`\`bash
-SESSION_ID=$(curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" \\
-  -H "Content-Type: application/json" \\
-  -d '{"name":"任务名称","folder":"/path/to/folder","tool":"claude"}' | jq -r .session.id)
-
-curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions/$SESSION_ID/promote-persistent" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "kind": "recurring_task",
-    "digest": { "title": "任务名称", "summary": "任务摘要" },
-    "execution": { "mode": "spawn_session", "runPrompt": "执行时要做什么" },
-    "recurring": { "cadence": "daily", "timeOfDay": "09:00", "timezone": "Asia/Shanghai" },
-    "knowledgeBasePath": "/path/to/knowledge/folder"
-  }'
-\`\`\`
-
-For a one-time scheduled task use \`"kind":"scheduled_task"\` and replace \`recurring\` with:
-\`\`\`json
-"scheduled": { "runAt": "2026-04-20T09:00:00.000Z", "timezone": "Asia/Shanghai" }
-\`\`\`
-
-For a waiting task (human-triggered, no auto-schedule) use \`"kind":"waiting_task"\` with no \`scheduled\` or \`recurring\` field.
-
-### Update a Task's Schedule
-\`\`\`bash
-curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
-  -H "Content-Type: application/json" \\
-  -d '{"persistent":{"recurring":{"cadence":"weekly","timeOfDay":"10:00","weekdays":[1,3,5],"timezone":"Asia/Shanghai"}}}'
-\`\`\`
-To clear a schedule: \`{"persistent":{"scheduled":null}}\` or \`{"persistent":{"recurring":null}}\`.
-
-### Manually Trigger a Task Now
-\`\`\`bash
-curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>/run-persistent" \\
-  -H "Content-Type: application/json" -d '{}'
-\`\`\`
-
-### GTD Pipeline Pattern
-When the user asks you to build a project pipeline (e.g., investment workflow, product iteration):
-1. Break it into subtasks. Classify each as: AI-executable (recurring/scheduled) or human-needed (waiting).
-2. Create recurring tasks for AI-driven loops (data collection, weekly review, auto-analysis).
-3. Create waiting tasks for human checkpoints (record amounts, confirm decisions, provide input).
-4. Create scheduled tasks for one-time milestones.
-5. Set \`knowledgeBasePath\` on each task to the relevant local folder.
-6. After creating all tasks, list them back to confirm the schedule.
-7. Waiting tasks block dependent recurring tasks — when the user completes a waiting task and triggers it manually, the AI picks up the next step.
-
-## MelodySync self-hosting development
-- When working on MelodySync itself, use the normal \`${CHAT_PORT}\` chat-server as the primary plane.
-- Clean restarts are acceptable: treat them as transport interruptions with durable recovery, not as a reason to maintain a permanent validation plane.
-- If you launch any extra manual instance for debugging, keep it explicitly ad hoc rather than part of the default architecture.
-- Prefer verifying behavior through HTTP/state recovery after restart instead of assuming socket continuity.`;
+MelodySync has a built-in GTD task system for recurring, scheduled, and waiting tasks. API base: \`$MELODYSYNC_CHAT_BASE_URL\` (default: http://127.0.0.1:${CHAT_PORT}). Task kinds: \`recurring_task\` (repeating loop), \`scheduled_task\` (one-time timed), \`waiting_task\` (human-triggered), \`skill\` (manual shortcut). When the user asks to set up automation or a persistent workflow, use this system — the full API reference will be provided in context when relevant.`;
 
   if (!hasBootstrap && hasGlobal) {
     context += `
@@ -388,6 +272,158 @@ This machine is missing both bootstrap.md and global.md. Before diving into deta
 9. Show the user a brief bootstrap summary and confirm it is correct.
 
 Bootstrap only needs to be tiny. Stable preferences belong in agent-profile.md, recent durable context belongs in context-digest.md, and detailed memory belongs in projects.md, tasks/, worklog/, or global.md.`;
+  }
+
+  if (options?.includeGtdDocs) {
+    context += `
+
+## GTD API Reference
+
+The GTD system is available at \`$MELODYSYNC_CHAT_BASE_URL\` (default: http://127.0.0.1:${CHAT_PORT}).
+
+### List All Tasks
+\`\`\`bash
+curl -s "$MELODYSYNC_CHAT_BASE_URL/api/sessions?view=refs"
+\`\`\`
+Filter results by \`persistent.kind\` to find GTD tasks.
+
+### Create a New Task
+Required fields: \`folder\` (absolute path to an existing directory, use the knowledge base folder or \`~/.melodysync/runtime\`), \`tool\` (use the current session's tool, e.g. \`claude\`).
+
+Option A — one step (preferred):
+\`\`\`bash
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "任务名称",
+    "folder": "/absolute/path/to/knowledge/folder",
+    "tool": "claude",
+    "persistent": {
+      "kind": "recurring_task",
+      "digest": { "title": "任务名称", "summary": "任务摘要" },
+      "execution": { "mode": "spawn_session", "runPrompt": "执行时要做什么" },
+      "recurring": { "cadence": "daily", "timeOfDay": "09:00", "timezone": "Asia/Shanghai" },
+      "knowledgeBasePath": "/absolute/path/to/knowledge/folder"
+    }
+  }'
+\`\`\`
+
+Option B — two steps (promote an existing session):
+\`\`\`bash
+SESSION_ID=$(curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"任务名称","folder":"/path/to/folder","tool":"claude"}' | jq -r .session.id)
+
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions/$SESSION_ID/promote-persistent" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "kind": "recurring_task",
+    "digest": { "title": "任务名称", "summary": "任务摘要" },
+    "execution": { "mode": "spawn_session", "runPrompt": "执行时要做什么" },
+    "recurring": { "cadence": "daily", "timeOfDay": "09:00", "timezone": "Asia/Shanghai" },
+    "knowledgeBasePath": "/path/to/knowledge/folder"
+  }'
+\`\`\`
+
+For a one-time scheduled task use \`"kind":"scheduled_task"\` and replace \`recurring\` with:
+\`\`\`json
+"scheduled": { "runAt": "2026-04-20T09:00:00.000Z", "timezone": "Asia/Shanghai" }
+\`\`\`
+
+For a waiting task (human-triggered, no auto-schedule) use \`"kind":"waiting_task"\` with no \`scheduled\` or \`recurring\` field.
+
+### Update a Task's Schedule
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"persistent":{"recurring":{"cadence":"weekly","timeOfDay":"10:00","weekdays":[1,3,5],"timezone":"Asia/Shanghai"}}}'
+\`\`\`
+To clear a schedule: \`{"persistent":{"scheduled":null}}\` or \`{"persistent":{"recurring":null}}\`.
+
+### Manually Trigger a Task Now
+\`\`\`bash
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>/run-persistent" \\
+  -H "Content-Type: application/json" -d '{}'
+\`\`\`
+
+### GTD Pipeline Pattern
+When building a project pipeline (e.g., investment workflow, product iteration):
+1. Break it into subtasks. Classify each as: AI-executable (recurring/scheduled) or human-needed (waiting).
+2. Create recurring tasks for AI-driven loops (data collection, weekly review, auto-analysis).
+3. Create waiting tasks for human checkpoints (record amounts, confirm decisions, provide input).
+4. Create scheduled tasks for one-time milestones.
+5. Set \`knowledgeBasePath\` on each task to the relevant local folder.
+6. After creating all tasks, list them back to confirm the schedule.
+7. Waiting tasks block dependent recurring tasks — when the user completes a waiting task and triggers it manually, the AI picks up the next step.
+
+### Task List Management (AI-Operated)
+You can manage the user's task list directly via PATCH. Do this proactively — don't wait to be asked.
+
+**Mark a task as done** (when a conversation concludes its goal):
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"workflowState":"done"}'
+\`\`\`
+
+**Attach a session to a project bucket** (long_term / short_term / waiting / inbox):
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"taskPoolMembership":{"longTerm":{"role":"member","projectSessionId":"<PROJECT_SESSION_ID>","bucket":"short_term"}}}'
+\`\`\`
+
+**Adjust sidebar priority** (lower number = higher position):
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"sidebarOrder":1}'
+\`\`\`
+
+**Move to a folder group:**
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"group":"短期任务"}'
+\`\`\`
+
+Rules:
+- When a session's goal is clearly achieved, mark it done without asking.
+- When a new session clearly belongs to an existing project, attach it to the right bucket.
+- When the user asks you to organize their task list, sort and group all at once.
+- Use \`GET $MELODYSYNC_CHAT_BASE_URL/api/sessions?view=refs\` to list sessions before bulk operations.`;
+  }
+
+  if (options?.includeDelegationDocs) {
+    context += `
+
+## Session Spawn Reference
+
+Full command reference for spawning child sessions:
+
+- Independent side session (fire and forget):
+  \`melodysync session-spawn --task "<focused task>" --json\`
+- Waited subagent (block until result):
+  \`melodysync session-spawn --task "<focused task>" --wait --json\`
+- Hidden waited subagent (suppress visible handoff, return only final reply):
+  \`melodysync session-spawn --task "<focused task>" --wait --internal --output-mode final-only --json\`
+
+Prefer the hidden final-only variant when repo-wide search, multi-hop investigation, or other exploratory work would otherwise flood the current session with noisy intermediate output.
+
+Keep spawned-session handoff minimal. Usually the focused task plus the parent session id is enough. If extra context is required, let the child fetch it from the parent session instead of pasting a long recap.
+
+If the \`melodysync\` command is unavailable in PATH, use:
+  \`node "$MELODYSYNC_PROJECT_ROOT/cli.js" session-spawn --task "<focused task>" --json\``;
+  }
+
+  if (options?.includeSelfHostingDocs) {
+    context += `
+
+## MelodySync self-hosting development
+- When working on MelodySync itself, use the normal \`${CHAT_PORT}\` chat-server as the primary plane.
+- Clean restarts are acceptable: treat them as transport interruptions with durable recovery, not as a reason to maintain a permanent validation plane.
+- If you launch any extra manual instance for debugging, keep it explicitly ad hoc rather than part of the default architecture.
+- Prefer verifying behavior through HTTP/state recovery after restart instead of assuming socket continuity.`;
   }
 
   return context;

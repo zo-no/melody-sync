@@ -193,9 +193,6 @@ async function main() {
     assert.doesNotMatch(page.text, /id="sessionAppFilterSelect"/);
     assert.doesNotMatch(page.text, /id="userFilterSelect"/);
     assert.match(page.text, /id="sortSessionListBtn"/, 'chat page should keep the dedicated task-list organizing entry');
-    assert.doesNotMatch(page.text, /id="longTermWorkspace"/, 'chat page should keep long-term tasks inside the normal session surface');
-    assert.doesNotMatch(page.text, /id="longTermWorkspaceList"/, 'chat page should not render a dedicated long-term list host');
-    assert.doesNotMatch(page.text, /id="longTermWorkspaceDetail"/, 'chat page should not render a dedicated long-term detail host');
     assert.match(page.text, /https:\/\/github\.com\/zo-no\/melody-sync/, 'chat page footer should point at the real open-source repository');
     assert.doesNotMatch(page.text, /id="settingsAppsList"/);
     assert.doesNotMatch(page.text, /id="tabBoard"/);
