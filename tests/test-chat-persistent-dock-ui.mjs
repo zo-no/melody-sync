@@ -95,7 +95,6 @@ const isLongTermProjectSessionForListSource = extractFunctionSource(sessionListS
 const isLongTermLineSessionForListSource = extractFunctionSource(sessionListSource, 'isLongTermLineSessionForList');
 const isSkillSessionForListSource = extractFunctionSource(sessionListSource, 'isSkillSessionForList');
 const getShowLongTermSessionsInTasksTabSource = extractFunctionSource(sessionListSource, 'getShowLongTermSessionsInTasksTab');
-const getLifeManagementProjectIdSource = extractFunctionSource(sessionListSource, 'getLifeManagementProjectId');
 const shouldIncludeSessionInSidebarTabSource = extractFunctionSource(sessionListSource, 'shouldIncludeSessionInSidebarTab');
 const filterSessionsForSidebarTabSource = extractFunctionSource(sessionListSource, 'filterSessionsForSidebarTab');
 const shouldShowSessionInSidebarForListSource = extractFunctionSource(sessionListSource, 'shouldShowSessionInSidebarForList');
@@ -245,7 +244,6 @@ vm.runInNewContext(`
   ${isSkillSessionForListSource}
   let showLongTermSessionsInTasksTab = false;
   ${getShowLongTermSessionsInTasksTabSource}
-  ${getLifeManagementProjectIdSource}
   ${shouldIncludeSessionInSidebarTabSource}
   ${filterSessionsForSidebarTabSource}
   ${shouldShowSessionInSidebarForListSource}
@@ -294,14 +292,15 @@ assert.equal(
   false,
   'fallback sidebar rendering should no longer prepend long-term ownership context panels',
 );
-// Tasks tab is now merged into long-term tab — only project roots and their members are shown.
-// 'persistent-long-term' is the project root (recurring_task), 'maintenance-branch' is its member.
-// 'recommended-long-term' is a plain session with no project membership, so it is excluded.
+// Tasks tab (sessions) is now an aggregate view of long_term + short_term members across projects.
+// Project roots are NOT shown in the tasks tab — only their members with the right buckets.
+// 'maintenance-branch' has longTerm.role=member but no explicit bucket, infers 'inbox' from no kind.
+// Since inbox is excluded from tasks tab, no sessions are rendered in this test fixture.
 const renderedIds = collectRenderedSessionIds(routingContext.sessionList).sort();
 assert.equal(
   renderedIds.includes('persistent-long-term'),
-  true,
-  'fallback sidebar rendering should show recurring_task project roots in the merged long-term tab',
+  false,
+  'fallback sidebar rendering should NOT show project roots in the tasks tab (only their long/short members)',
 );
 assert.equal(
   Object.keys(routingContext.capturedDockGroups || {}).length,

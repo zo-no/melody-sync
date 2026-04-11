@@ -276,32 +276,18 @@ function isSkillSessionForList(session) {
   return getSidebarPersistentKind(session) === "skill";
 }
 
-function getLifeManagementProjectId() {
-  // Find the "人生管理" system project (taskListOrigin=system, recurring_task)
-  const model = getSessionListModel();
-  const allSessions = typeof getVisibleActiveSessions === "function" ? getVisibleActiveSessions() : [];
-  const lifeProject = allSessions.find((s) => {
-    const origin = String(s?.taskListOrigin || "").trim().toLowerCase();
-    const kind = String(s?.persistent?.kind || "").trim().toLowerCase();
-    return origin === "system" && kind === "recurring_task" && String(s?.name || "").includes("人生管理");
-  });
-  return lifeProject?.id || "";
-}
-
 function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
   if (tab === "sessions") {
-    // Tasks tab: show only the "人生管理" project and its members
-    const lifeProjectId = getLifeManagementProjectId();
-    if (!lifeProjectId) {
-      // Fallback: show all project roots and members if no life project found
-      return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
-    }
+    // Tasks tab: aggregate view — show long_term + short_term members from all projects
+    // (inbox, waiting, skill buckets are excluded — they need separate attention)
+    if (isLongTermProjectSessionForList(session)) return false; // project roots not shown here
     const model = getSessionListModel();
     const membership = typeof model?.getLongTermTaskPoolMembership === "function"
       ? model.getLongTermTaskPoolMembership(session)
       : null;
-    const projectId = membership?.projectSessionId || (isLongTermProjectSessionForList(session) ? session?.id : "");
-    return projectId === lifeProjectId;
+    if (!membership?.projectSessionId) return false;
+    const bucket = inferLongTermSessionBucket(session);
+    return bucket === "long_term" || bucket === "short_term";
   }
   if (tab === "long-term") {
     return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
@@ -315,7 +301,7 @@ function filterSessionsForSidebarTab(entries = [], tab = getActiveSidebarTabForL
 
 function renderSessionList() {
   const activeSidebarTab = getActiveSidebarTabForList();
-  const isLongTermTab = activeSidebarTab === "long-term" || activeSidebarTab === "sessions";
+  const isLongTermTab = activeSidebarTab === "long-term";
   const isSessionsTab = activeSidebarTab === "sessions";
   const groupingMode = getSessionGroupingModeForList();
   const showGroupingFolderControls = !isLongTermTab;
@@ -328,7 +314,36 @@ function renderSessionList() {
     activeSidebarTab,
   );
   const groups = new Map();
-  if (isLongTermTab) {
+  if (isSessionsTab) {
+    // Tasks tab: flat per-project groups (no bucket sub-folders)
+    // Shows long_term + short_term members from all projects
+    const model = getSessionListModel();
+    const allActive = typeof getVisibleActiveSessions === "function" ? getVisibleActiveSessions() : [];
+    for (const session of visibleSessions) {
+      if (!session?.id) continue;
+      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
+        ? model.getLongTermTaskPoolMembership(session)
+        : null;
+      const projectId = membership?.projectSessionId || "";
+      if (!projectId) continue;
+      const groupKey = `group:tasks-project:${projectId}`;
+      if (!groups.has(groupKey)) {
+        const projectSession = allActive.find((s) => s?.id === projectId) || null;
+        const projectTitle = String(projectSession?.name || "项目").trim() || "项目";
+        const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
+        groups.set(groupKey, {
+          key: groupKey,
+          label: projectTitle,
+          title: projectTitle,
+          order: isSystemProject ? -(groups.size + 1) : groups.size,
+          type: "tasks-project",
+          projectId,
+          sessions: [],
+        });
+      }
+      groups.get(groupKey).sessions.push(session);
+    }
+  } else if (isLongTermTab) {
     // Build per-project groups with bucket sub-folders
     const model = getSessionListModel();
     for (const session of visibleSessions) {
@@ -391,7 +406,7 @@ function renderSessionList() {
     if (leftOrder !== rightOrder) return leftOrder - rightOrder;
     return String(left?.label || "").localeCompare(String(right?.label || ""));
   });
-  const visibleGroups = isLongTermTab
+  const visibleGroups = (isLongTermTab || isSessionsTab)
     ? orderedGroups
     : orderedGroups.filter(([groupKey]) => isUserTemplateFolderGroup(groupKey));
   const showGroupHeaders = visibleGroups.length > 0;
@@ -406,10 +421,10 @@ function renderSessionList() {
   const archivedSessionTotal = Number(typeof archivedSessionCount === "undefined" ? 0 : archivedSessionCount) || 0;
   const ARCHIVED_FOLDER_KEY = "folder:archived";
   const archivedCollapsed = collapsedFolders[ARCHIVED_FOLDER_KEY] === true;
-  const shouldRenderArchivedSection = isLongTermTab
+  const shouldRenderArchivedSection = (isLongTermTab || isSessionsTab)
     ? archivedSessions.length > 0
     : (isArchivedSessionsLoading || archivedSessionTotal > 0 || archivedSessions.length > 0);
-  const archivedCount = isLongTermTab
+  const archivedCount = (isLongTermTab || isSessionsTab)
     ? archivedSessions.length
     : (hasArchivedSessionsLoaded
       ? archivedSessions.length
@@ -422,10 +437,10 @@ function renderSessionList() {
   const sessionListEmptyLabel = shouldShowSessionListEmptyState
     ? payloadSafeTranslate(
       sessionsLoaded
-        ? (isLongTermTab ? "sidebar.longTerm.empty" : "sidebar.noSessions")
+        ? (isLongTermTab ? "sidebar.longTerm.empty" : (isSessionsTab ? "sidebar.tasks.empty" : "sidebar.noSessions"))
         : "sidebar.loadingSessions",
       sessionsLoaded
-        ? (isLongTermTab ? "还没有长期项目" : "还没有任务")
+        ? (isLongTermTab ? "还没有长期项目" : (isSessionsTab ? "还没有任务" : "还没有任务"))
         : "加载任务中…",
     )
     : "";
