@@ -103,6 +103,16 @@ const BUILTIN_HOOK_DEFINITIONS = Object.freeze([
     layer: 'lifecycle',
     sourceModule: 'backend/hooks/relevant-memory-hook.mjs',
   }),
+  createHookDefinition({
+    id: 'builtin.memory-consolidation',
+    eventPattern: 'run.completed',
+    label: '自动提炼记忆',
+    description: '执行完成后，从 taskCard 中独立提炼新结论、检查点、用户偏好等，写入记忆库，不依赖 Agent 自觉生成 memoryCandidates。',
+    builtIn: true,
+    owner: 'hooks',
+    layer: 'closeout',
+    sourceModule: 'backend/hooks/memory-consolidation-hook.mjs',
+  }),
 ]);
 
 const BUILTIN_HOOK_DEFINITION_INDEX = new Map(
