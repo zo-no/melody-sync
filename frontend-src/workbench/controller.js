@@ -1409,8 +1409,12 @@
 
   function getTaskMapProjection() {
     const graphClient = getGraphClientApi();
+    // When a long-term project is selected in the sidebar, use it as the map root
+    const projectOverride = typeof window.getSelectedLongTermProjectId === "function"
+      ? window.getSelectedLongTermProjectId()
+      : "";
     const targetSessionId = graphClient?.resolveTaskMapGraphRootSessionId?.({
-      sessionId: getFocusedSessionId() || getCurrentSessionIdSafe(),
+      sessionId: projectOverride || getFocusedSessionId() || getCurrentSessionIdSafe(),
       snapshot,
       getSessionRecord,
       getCurrentSession: getCurrentSessionSafe,
@@ -3432,6 +3436,12 @@
     setLiveTaskCardPreview,
     clearLiveTaskCardPreview,
     refreshOperationRecord: () => operationRecordController.refreshIfOpen(),
+    refreshTaskMapForProject: async (projectSessionId) => {
+      // Switch task map root to the selected long-term project
+      const id = typeof projectSessionId === "string" ? projectSessionId.trim() : "";
+      await refreshTaskMapGraph(id || getFocusedSessionId() || getCurrentSessionIdSafe(), { force: true });
+      renderTracker();
+    },
   };
   window.MelodySyncWorkbenchViewModel = Object.freeze({
     getState: getWorkbenchViewModelState,

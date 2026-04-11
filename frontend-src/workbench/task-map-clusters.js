@@ -149,8 +149,21 @@
     const branchChildren = new Map();
     for (const session of Array.isArray(sessions) ? sessions : []) {
       if (!session?.id || session?.archived) continue;
-      if (getLineRole(session) !== "branch") continue;
       if (consumedIds.has(session.id)) continue;
+
+      // Project members: use taskPoolMembership to establish parent-child
+      const projectSessionId = trimText(session?.taskPoolMembership?.longTerm?.projectSessionId || "");
+      const memberRole = trimText(session?.taskPoolMembership?.longTerm?.role || "");
+      if (projectSessionId && memberRole === "member" && sessionMap.has(projectSessionId)) {
+        if (!branchChildren.has(projectSessionId)) {
+          branchChildren.set(projectSessionId, []);
+        }
+        branchChildren.get(projectSessionId).push(session);
+        continue;
+      }
+
+      // Traditional branch: use sourceContext.parentSessionId lineage
+      if (getLineRole(session) !== "branch") continue;
       const parentSessionId = trimText(session?.sourceContext?.parentSessionId || "");
       if (!parentSessionId || !sessionMap.has(parentSessionId)) continue;
       if (!branchChildren.has(parentSessionId)) {

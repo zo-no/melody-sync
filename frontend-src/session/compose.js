@@ -1143,6 +1143,8 @@ function switchTab(tab, { syncState = true } = {}) {
 globalThis.switchTab = switchTab;
 globalThis.getActiveSidebarTab = getActiveSidebarTab;
 globalThis.renderLongTermWorkspace = renderLongTermWorkspace;
+globalThis.getSelectedLongTermProjectId = () => selectedLongTermProjectId;
+
 globalThis.setSelectedLongTermProjectId = (id) => {
   selectedLongTermProjectId = String(id || "").trim();
 };
@@ -1154,6 +1156,10 @@ globalThis.showLongTermProjectPanel = (projectId) => {
   if (longTermWorkspace) longTermWorkspace.hidden = false;
   const projects = getLongTermWorkspaceProjects();
   renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
+  // Refresh task map to show the selected project as root
+  if (typeof window.MelodySyncWorkbench?.refreshTaskMapForProject === "function") {
+    window.MelodySyncWorkbench.refreshTaskMapForProject(selectedLongTermProjectId);
+  }
 };
 
 globalThis.hideLongTermProjectPanel = () => {
