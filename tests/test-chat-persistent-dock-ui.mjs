@@ -228,6 +228,13 @@ const routingContext = {
 routingContext.globalThis = routingContext;
 
 vm.runInNewContext(`
+  const LONG_TERM_BUCKET_DEFS = [
+    { key: "long_term", label: "长期任务", order: 0 },
+    { key: "short_term", label: "短期任务", order: 1 },
+    { key: "waiting", label: "等待任务", order: 2 },
+    { key: "inbox", label: "收集箱", order: 3 },
+    { key: "skill", label: "快捷按钮", order: 4 },
+  ];
   ${getSidebarPersistentKindSource}
   ${getPersistentDockGroupKeySource}
   ${getSessionListModelSource}
@@ -285,10 +292,14 @@ assert.equal(
   false,
   'fallback sidebar rendering should no longer prepend long-term ownership context panels',
 );
+// Tasks tab is now merged into long-term tab — only project roots and their members are shown.
+// 'persistent-long-term' is the project root (recurring_task), 'maintenance-branch' is its member.
+// 'recommended-long-term' is a plain session with no project membership, so it is excluded.
+const renderedIds = collectRenderedSessionIds(routingContext.sessionList).sort();
 assert.equal(
-  JSON.stringify(collectRenderedSessionIds(routingContext.sessionList).sort()),
-  JSON.stringify(['maintenance-branch', 'recommended-long-term']),
-  'fallback sidebar rendering should keep only pinned sessions and user-folder sessions in the ordinary list',
+  renderedIds.includes('persistent-long-term'),
+  true,
+  'fallback sidebar rendering should show recurring_task project roots in the merged long-term tab',
 );
 assert.equal(
   Object.keys(routingContext.capturedDockGroups || {}).length,

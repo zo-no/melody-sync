@@ -277,15 +277,11 @@ function isSkillSessionForList(session) {
 }
 
 function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
-  if (tab === "long-term") {
-    // Include project roots AND their member sessions (for bucket sub-folders)
+  // Tasks tab is merged into long-term — treat "sessions" as "long-term"
+  if (tab === "long-term" || tab === "sessions") {
     return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
   }
   if (tab === "skill") return isSkillSessionForList(session);
-  // sessions tab: exclude skills always
-  if (isSkillSessionForList(session)) return false;
-  // sessions tab: long-term member sessions hidden by default, shown when toggle is on
-  if (isLongTermLineSessionForList(session)) return getShowLongTermSessionsInTasksTab();
   return true;
 }
 
@@ -295,7 +291,7 @@ function filterSessionsForSidebarTab(entries = [], tab = getActiveSidebarTabForL
 
 function renderSessionList() {
   const activeSidebarTab = getActiveSidebarTabForList();
-  const isLongTermTab = activeSidebarTab === "long-term";
+  const isLongTermTab = activeSidebarTab === "long-term" || activeSidebarTab === "sessions";
   const isSkillTab = activeSidebarTab === "skill";
   const groupingMode = getSessionGroupingModeForList();
   const showGroupingFolderControls = !isLongTermTab && !isSkillTab;
@@ -327,13 +323,16 @@ function renderSessionList() {
               ? getSessionCatalogRecordById(projectId)
               : getVisibleActiveSessions().find((s) => s?.id === projectId) || null);
         const projectTitle = String(projectSession?.name || projectSession?.description || "长期项目").trim() || "长期项目";
+        const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
         groups.set(groupKey, {
           key: groupKey,
           label: projectTitle,
           title: projectTitle,
-          order: groups.size,
+          // System projects sort before user projects (negative order)
+          order: isSystemProject ? -(groups.size + 1) : groups.size,
           type: "long-term-project",
           projectId,
+          isSystem: isSystemProject,
           projectSession: projectSession || null,
           sessions: [],
           buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
@@ -436,6 +435,7 @@ function renderSessionList() {
         ...(groupEntry.type === "long-term-project" ? {
           type: "long-term-project",
           projectId: groupEntry.projectId,
+          isSystem: groupEntry.isSystem === true,
           projectSession: groupEntry.projectSession || null,
           buckets: Object.values(groupEntry.buckets).map((b) => ({
             key: b.key,

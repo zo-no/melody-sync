@@ -91,26 +91,32 @@
         <button class="header-btn overlay-panel-close" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
       </div>
       <div class="sidebar-tabs">
-        <button class="sidebar-tab active" id="tabSessions" data-i18n="sidebar.tab.folders">Tasks</button>
-        <button class="sidebar-tab" id="tabLongTerm" data-i18n="sidebar.tab.longTerm">Projects</button>
-        <button class="sidebar-tab" id="tabSkill" data-i18n="sidebar.tab.skill">Skills</button>
-      </div>
-      <div class="sidebar-grouping-toolbar" id="sidebarGroupingToolbar" aria-label="任务列表工具">
-        <button
-          class="sidebar-grouping-chip sidebar-grouping-chip-icon"
-          id="sidebarBranchVisibilityToggle"
-          type="button"
-          title="隐藏支线"
-          aria-label="隐藏支线"
-          data-i18n-title="sidebar.branchVisibility.hide"
-          data-i18n-aria-label="sidebar.branchVisibility.hide"
-          data-icon="eye"></button>
+        <button class="sidebar-tab active" id="tabLongTerm" data-i18n="sidebar.tab.longTerm">项目</button>
+        <button class="sidebar-tab" id="tabSkill" data-i18n="sidebar.tab.skill">技能</button>
+        <button class="sidebar-tab" id="tabSessions" hidden style="display:none" data-i18n="sidebar.tab.folders">Tasks</button>
       </div>
       <div class="sidebar-list" id="sessionList"></div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
-      <div class="session-list-actions">
+      <div class="session-list-actions" id="sidebarGroupingToolbar">
         <button class="new-session-btn secondary" id="sortSessionListBtn" type="button" data-i18n="sidebar.sortList.runTemplate">整理到文件夹</button>
-        <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">开始任务</button>
+        <div class="session-list-actions-row">
+          <button
+            class="sidebar-grouping-chip sidebar-grouping-chip-icon"
+            id="sidebarBranchVisibilityToggle"
+            type="button"
+            title="隐藏支线"
+            aria-label="隐藏支线"
+            data-i18n-title="sidebar.branchVisibility.hide"
+            data-i18n-aria-label="sidebar.branchVisibility.hide"
+            data-icon="eye"></button>
+          <button
+            class="sidebar-grouping-chip sidebar-grouping-chip-icon"
+            id="sidebarLongTermVisibilityToggle"
+            type="button"
+            title="显示长期项目任务"
+            aria-label="显示长期项目任务"></button>
+          <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">开始任务</button>
+        </div>
       </div>
     </aside>
     <div class="sidebar-resize-handle" id="sidebarResizeHandle" hidden aria-hidden="true"></div>

@@ -580,7 +580,7 @@ function restoreFailedSendState(sessionId, text, images, requestId = "") {
 let activeTab = normalizeSidebarTab(
   pendingNavigationState.tab ||
     localStorage.getItem(ACTIVE_SIDEBAR_TAB_STORAGE_KEY) ||
-    "sessions",
+    "long-term",
 );
 const longTermWorkspace = document.getElementById("longTermWorkspace");
 const longTermWorkspaceList = document.getElementById("longTermWorkspaceList");
@@ -939,7 +939,14 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
     ? escapeLongTermWorkspaceHtml(formatLongTermWorkspaceStamp(nextRunAt))
     : "";
 
-  // ── 3. Waiting sessions ─────────────────────────────────────────
+  // ── 3. Workspace ────────────────────────────────────────────────
+  const workspace = persistent?.workspace || null;
+  const workspacePath = escapeLongTermWorkspaceHtml(String(workspace?.path || "").trim());
+  const workspaceLabel = escapeLongTermWorkspaceHtml(String(workspace?.label || "").trim());
+  const workspaceDisplay = workspaceLabel || workspacePath;
+  const projectId = escapeLongTermWorkspaceHtml(String(selectedProject?.id || "").trim());
+
+  // ── 4. Waiting sessions ─────────────────────────────────────────
   const waitingSessions = memberSessions.filter((s) => getBucket(s) === "waiting");
   const waitingHtml = waitingSessions.length === 0
     ? `<div class="ltcp-waiting-empty">暂无等待中的任务</div>`
@@ -964,6 +971,23 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
             <span class="ltcp-chip ltcp-chip-status">${status}</span>
           </div>
         </div>
+      </div>
+
+      <div class="ltcp-section ltcp-workspace-section">
+        <div class="ltcp-section-header">
+          <span class="ltcp-section-title">工作区</span>
+          <button class="ltcp-workspace-edit-btn" type="button" data-project-id="${projectId}" title="设置工作区路径">
+            ${workspacePath ? "修改" : "绑定目录"}
+          </button>
+        </div>
+        ${workspacePath ? `
+          <div class="ltcp-workspace-path" title="${workspacePath}">
+            ${workspaceDisplay ? `<span class="ltcp-workspace-label">${workspaceDisplay}</span>` : ""}
+            ${workspaceLabel ? `<span class="ltcp-workspace-raw">${workspacePath}</span>` : ""}
+          </div>
+        ` : `
+          <div class="ltcp-workspace-empty">未绑定本地目录。绑定后，AI 执行任务时将以该目录为工作根。</div>
+        `}
       </div>
 
       <div class="ltcp-stats-row">
@@ -1052,45 +1076,48 @@ function getActiveSidebarTab() {
 
 function syncSidebarTabUi() {
   const activeTabKey = getActiveSidebarTab();
-  const isLongTermTab = activeTabKey === "long-term";
+  const isLongTermTab = activeTabKey === "long-term" || activeTabKey === "sessions";
   const isSkillTab = activeTabKey === "skill";
-  const isSessionsTab = !isLongTermTab && !isSkillTab;
-  tabSessions?.classList.toggle("active", isSessionsTab);
+  // Tasks tab is hidden — treat sessions as long-term
+  tabSessions?.classList.toggle("active", false);
   tabLongTerm?.classList.toggle("active", isLongTermTab);
   tabSkill?.classList.toggle("active", isSkillTab);
   if (sessionList) sessionList.style.display = "";
-  if (sidebarGroupingToolbar) sidebarGroupingToolbar.hidden = !isSessionsTab;
+  if (sidebarBranchVisibilityToggleBtn) sidebarBranchVisibilityToggleBtn.hidden = true;
+  if (sidebarLongTermVisibilityToggleBtn) sidebarLongTermVisibilityToggleBtn.hidden = true;
   if (sessionListFooter) {
     sessionListFooter.hidden = false;
     sessionListFooter.classList.remove("hidden");
   }
   if (sortSessionListBtn) {
-    sortSessionListBtn.hidden = !isSessionsTab;
-    sortSessionListBtn.classList.toggle("hidden", !isSessionsTab);
+    sortSessionListBtn.hidden = true;
+    sortSessionListBtn.classList.add("hidden");
   }
   if (newSessionBtn) {
-    newSessionBtn.hidden = isLongTermTab;
-    newSessionBtn.classList.toggle("hidden", isLongTermTab);
-    if (!isLongTermTab) {
-      const label = t("sidebar.newSession");
+    newSessionBtn.hidden = isSkillTab;
+    newSessionBtn.classList.toggle("hidden", isSkillTab);
+    if (!isSkillTab) {
+      const label = isLongTermTab ? t("sidebar.newLongTerm") || "新建项目" : t("sidebar.newSession");
       newSessionBtn.textContent = label;
       newSessionBtn.title = label;
       newSessionBtn.setAttribute("aria-label", label);
     }
   }
   renderLongTermWorkspace();
-  // If leaving Projects tab, close the project control panel
-  if (!isLongTermTab && document.body.classList.contains("long-term-workspace-active")) {
-    document.body.classList.remove("long-term-workspace-active");
-    if (longTermWorkspace) longTermWorkspace.hidden = true;
-  }
   if (typeof requestLayoutPass === "function") {
     requestLayoutPass("sidebar-tab-switch");
   }
 }
 
 function switchTab(tab, { syncState = true } = {}) {
+  const prevTab = activeTab;
   activeTab = normalizeSidebarTab(tab);
+  // Always close the project control panel when switching tabs
+  // (it will be re-opened by attachSession if needed)
+  if (prevTab === "long-term" || document.body.classList.contains("long-term-workspace-active")) {
+    document.body.classList.remove("long-term-workspace-active");
+    if (longTermWorkspace) longTermWorkspace.hidden = true;
+  }
   syncSidebarTabUi();
   const targetSession = resolveSidebarTabAttachmentTarget(activeTab);
   if (targetSession?.id && typeof attachSession === "function" && currentSessionId !== targetSession.id) {
@@ -1155,6 +1182,40 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
     }
     switchTab("sessions");
     attachSession(branchSession.id, branchSession);
+    return;
+  }
+
+  const workspaceEditButton = event.target?.closest?.(".ltcp-workspace-edit-btn");
+  if (workspaceEditButton) {
+    const pid = String(workspaceEditButton.dataset?.projectId || "").trim() || selectedLongTermProjectId;
+    const projectSession = Array.isArray(sessions)
+      ? sessions.find((entry) => entry?.id === pid) || null
+      : null;
+    if (!projectSession?.id) return;
+    const currentPath = String(projectSession?.persistent?.workspace?.path || "").trim();
+    const currentLabel = String(projectSession?.persistent?.workspace?.label || "").trim();
+    const newPath = window.prompt("绑定本地工作区目录（绝对路径）：", currentPath);
+    if (newPath === null) return; // cancelled
+    const trimmedPath = newPath.trim();
+    const newLabel = trimmedPath
+      ? (window.prompt("工作区名称（可选，留空则只显示路径）：", currentLabel) ?? "")
+      : "";
+    void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        persistent: {
+          workspace: trimmedPath ? { path: trimmedPath, label: newLabel.trim() } : null,
+        },
+      }),
+    }).then(() => {
+      if (typeof window.MelodySyncAppState?.refresh === "function") {
+        window.MelodySyncAppState.refresh();
+      }
+    }).catch((err) => {
+      console.error("[workspace] Failed to update workspace:", err);
+      window.alert("工作区设置失败，请重试。");
+    });
     return;
   }
 

@@ -3213,6 +3213,7 @@ function SessionListGroupSection({
               }}
             >
               <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
+              {groupEntry?.isSystem ? <span className="lt-project-card-system-icon" title="内置项目" aria-label="内置项目">⊛</span> : null}
               <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
               <span className="lt-project-card-count">{memberCount}</span>
             </div>
