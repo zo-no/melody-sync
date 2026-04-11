@@ -439,20 +439,24 @@ async function removeSessionGroupingTemplateGroup(groupLabel = "", { runAfterSav
 
 function syncSessionGroupingControls() {
   const branchesHidden = getBranchTaskVisibilityModeForSidebar() === "hide";
+  const longTermShown = typeof window.getShowLongTermSessionsInTasksTab === "function"
+    ? window.getShowLongTermSessionsInTasksTab()
+    : false;
   const summaryEl = ensureSidebarGroupingSummaryEl();
   if (sidebarBranchVisibilityToggleBtn) {
-    const label = t(branchesHidden ? "sidebar.branchVisibility.show" : "sidebar.branchVisibility.hide");
+    // Eye button: hide/show branch tasks (= all project members in new definition)
+    const label = branchesHidden ? "显示支线任务" : "隐藏支线任务";
     const iconName = branchesHidden ? "eye-off" : "eye";
     const iconMarkup = window.MelodySyncIcons?.render?.(iconName);
-    if (iconMarkup) {
-      sidebarBranchVisibilityToggleBtn.innerHTML = iconMarkup;
-    } else {
-      sidebarBranchVisibilityToggleBtn.textContent = label;
-    }
+    sidebarBranchVisibilityToggleBtn.innerHTML = iconMarkup || "";
     sidebarBranchVisibilityToggleBtn.title = label;
     sidebarBranchVisibilityToggleBtn.setAttribute("aria-label", label);
     sidebarBranchVisibilityToggleBtn.setAttribute("aria-pressed", branchesHidden ? "true" : "false");
     sidebarBranchVisibilityToggleBtn.classList.toggle("is-active", branchesHidden);
+  }
+  // Long-term visibility toggle is no longer needed — hide it
+  if (sidebarLongTermVisibilityToggleBtn) {
+    sidebarLongTermVisibilityToggleBtn.hidden = true;
   }
   if (sidebarGroupingConfigBtn) {
     sidebarGroupingConfigBtn.hidden = true;
@@ -536,6 +540,17 @@ newSessionBtn?.addEventListener("click", () => {
 sidebarBranchVisibilityToggleBtn?.addEventListener("click", () => {
   const nextMode = getBranchTaskVisibilityModeForSidebar() === "hide" ? "show" : "hide";
   setBranchTaskVisibilityModeForSidebar(nextMode);
+  syncSessionGroupingControls();
+  renderSessionList();
+});
+
+sidebarLongTermVisibilityToggleBtn?.addEventListener("click", () => {
+  const next = !(typeof window.getShowLongTermSessionsInTasksTab === "function"
+    ? window.getShowLongTermSessionsInTasksTab()
+    : false);
+  if (typeof window.setShowLongTermSessionsInTasksTab === "function") {
+    window.setShowLongTermSessionsInTasksTab(next);
+  }
   syncSessionGroupingControls();
   renderSessionList();
 });

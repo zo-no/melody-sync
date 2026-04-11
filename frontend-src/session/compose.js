@@ -1071,7 +1071,8 @@ function syncSidebarTabUi() {
   tabSessions?.classList.toggle("active", isSessionsTab);
   tabLongTerm?.classList.toggle("active", isLongTermTab);
   if (sessionList) sessionList.style.display = "";
-  if (sidebarBranchVisibilityToggleBtn) sidebarBranchVisibilityToggleBtn.hidden = true;
+  // Eye button: show in sessions tab (hide branch tasks = project members)
+  if (sidebarBranchVisibilityToggleBtn) sidebarBranchVisibilityToggleBtn.hidden = !isSessionsTab;
   if (sidebarLongTermVisibilityToggleBtn) sidebarLongTermVisibilityToggleBtn.hidden = true;
   if (sessionListFooter) {
     sessionListFooter.hidden = false;
@@ -1089,6 +1090,11 @@ function syncSidebarTabUi() {
     newSessionBtn.title = label;
     newSessionBtn.setAttribute("aria-label", label);
   }
+  // Close project control panel when not on long-term tab
+  if (!isLongTermTab && document.body.classList.contains("long-term-workspace-active")) {
+    document.body.classList.remove("long-term-workspace-active");
+    if (longTermWorkspace) longTermWorkspace.hidden = true;
+  }
   renderLongTermWorkspace();
   if (typeof requestLayoutPass === "function") {
     requestLayoutPass("sidebar-tab-switch");
@@ -1098,14 +1104,30 @@ function syncSidebarTabUi() {
 function switchTab(tab, { syncState = true } = {}) {
   const prevTab = activeTab;
   activeTab = normalizeSidebarTab(tab);
-  // Always close the project control panel when switching tabs
-  // (it will be re-opened by attachSession if needed)
-  if (prevTab === "long-term" || document.body.classList.contains("long-term-workspace-active")) {
+  const isNowLongTerm = activeTab === "long-term";
+  // Always close the project control panel when leaving the long-term tab
+  if (!isNowLongTerm && (prevTab === "long-term" || document.body.classList.contains("long-term-workspace-active"))) {
     document.body.classList.remove("long-term-workspace-active");
     if (longTermWorkspace) longTermWorkspace.hidden = true;
   }
   syncSidebarTabUi();
   const targetSession = resolveSidebarTabAttachmentTarget(activeTab);
+  if (isNowLongTerm) {
+    // Always show the panel when switching to long-term tab, regardless of currentSessionId
+    if (targetSession?.id) {
+      if (typeof attachSession === "function" && currentSessionId !== targetSession.id) {
+        attachSession(targetSession.id, targetSession);
+        return;
+      }
+      // Same session already attached — just show the panel directly
+      if (typeof window.showLongTermProjectPanel === "function") {
+        window.showLongTermProjectPanel(targetSession.id);
+      }
+    }
+    if (typeof renderSessionList === "function") renderSessionList();
+    if (syncState) syncBrowserState();
+    return;
+  }
   if (targetSession?.id && typeof attachSession === "function" && currentSessionId !== targetSession.id) {
     attachSession(targetSession.id, targetSession);
     return;

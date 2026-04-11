@@ -574,8 +574,9 @@
 
   function getSessionListEntry(session, options = {}) {
     const archived = options?.archived === true || session?.archived === true;
-    // Project members are not treated as branches even if they have branch lineage
+    // All project members are "branch tasks" in the new sense — they belong to a long-term project
     const hasProjectMembership = Boolean(getLongTermTaskPoolMembership(session)?.projectSessionId);
+    // Traditional branch detection (fork lineage), but not for project members (they have explicit home)
     const branch = !hasProjectMembership && isBranchTaskSession(session);
     const branchStatus = branch ? getBranchTaskStatus(session) : "";
     const hideBranchTasks = options?.hideBranchTasks === true
@@ -591,7 +592,8 @@
       hiddenReason = "missing_id";
     } else if (branch && ["parked", "resolved", "merged", "done", "closed"].includes(branchStatus)) {
       hiddenReason = "closed_branch";
-    } else if (branch && hideBranchTasks) {
+    } else if (hideBranchTasks && (branch || hasProjectMembership)) {
+      // Eye button: hide both traditional branch tasks AND project members (all "branch tasks")
       hiddenReason = "branch_filtered";
     } else if (!archived && taskListVisibility !== "primary" && !branch) {
       hiddenReason = "secondary_task";
