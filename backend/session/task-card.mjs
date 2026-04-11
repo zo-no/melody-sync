@@ -259,6 +259,8 @@ function hasMeaningfulTaskCard(card) {
   return Boolean(
     card.goal
     || card.mainGoal
+    || card.summary
+    || card.checkpoint
     || (card.background || []).length > 0
     || (card.rawMaterials || []).length > 0
     || (card.assumptions || []).length > 0
@@ -275,12 +277,11 @@ export function normalizeSessionTaskCard(value, options = {}) {
 
   const goal = clipText(value.goal || value.objective || '', MAX_TASK_CARD_GOAL_CHARS);
   const mainGoal = clipText(value.mainGoal || value.primaryGoal || value.mainlineGoal || '', MAX_TASK_CARD_GOAL_CHARS);
-  const legacySummary = clipText(value.summary || value.taskSummary || value.brief || '', MAX_TASK_CARD_TEXT_CHARS);
+  const summary = clipText(value.summary || value.taskSummary || value.brief || '', MAX_TASK_CARD_TEXT_CHARS);
   const lineRole = normalizeTaskCardLineRole(value.lineRole || value.branchState || value.threadRole);
   const branchFrom = clipText(value.branchFrom || value.parentGoal || value.mainline || '', MAX_TASK_CARD_ITEM_CHARS);
   const branchReason = clipText(value.branchReason || value.driftReason || '', MAX_TASK_CARD_ITEM_CHARS);
   const checkpoint = clipText(value.checkpoint || value.resumePoint || value.returnPoint || value.reentryPoint || '', MAX_TASK_CARD_TEXT_CHARS);
-  const summary = clipText(checkpoint || goal || mainGoal || legacySummary, MAX_TASK_CARD_TEXT_CHARS);
   const candidateBranches = normalizeTaskCardList(
     value.candidateBranches || value.branchCandidates || value.sideQuests || value.sideLines,
     { maxItems: MAX_TASK_CARD_CANDIDATE_BRANCH_ITEMS, maxChars: MAX_TASK_CARD_CANDIDATE_BRANCH_CHARS },
@@ -299,14 +300,12 @@ export function normalizeSessionTaskCard(value, options = {}) {
     value.needsFromUser || value.userNeeds || value.pendingUserInputs,
     { maxItems: 3 },
   );
-  const explicitMode = normalizeTaskCardMode(
+  const mode = normalizeTaskCardMode(
     value.mode
     || value.executionMode
     || value.projectState
     || value.projectMode,
-  );
-  const inferredProjectMode = rawMaterials.length >= 2 || nextSteps.length >= 2;
-  const mode = explicitMode || (inferredProjectMode ? 'project' : 'task');
+  ) || 'task';
 
   const normalized = {
     version: 1,
@@ -439,7 +438,6 @@ export function projectTaskCardFromSessionState(sessionState, options = {}) {
 
   return normalizeSessionTaskCard({
     mode: 'task',
-    summary: checkpoint || goal || mainGoal,
     goal,
     mainGoal: mainGoal || goal,
     lineRole,

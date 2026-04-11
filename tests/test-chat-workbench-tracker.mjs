@@ -756,8 +756,8 @@ assert.equal(
 );
 assert.equal(
   livePreviewElements.get('questTrackerDetailToggle').hidden,
-  true,
-  'when the live preview checkpoint is already shown inline, tracker detail should stay collapsed instead of repeating it',
+  false,
+  'when the live preview task card has knownConclusions, tracker detail toggle should be visible even if checkpoint is already shown inline',
 );
 
 const sparseIdleMainSession = {

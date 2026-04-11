@@ -352,7 +352,6 @@
       const resumePoint = clipText(
         String(taskCard?.checkpoint || "").trim()
         || (Array.isArray(taskCard?.nextSteps) ? String(taskCard.nextSteps.find((entry) => trimText(entry)) || "").trim() : "")
-        || String(taskCard?.summary || "").trim()
         || String(taskCard?.goal || "").trim(),
         isMobileQuestTracker() ? 84 : 112,
       );
@@ -363,8 +362,11 @@
       if (trackerGoalValEl) trackerGoalValEl.textContent = showDistinctResumePoint ? resumePoint : "";
       if (trackerGoalRowEl) trackerGoalRowEl.hidden = !showDistinctResumePoint;
 
-      renderDetailItems(trackerConclusionsListEl, []);
-      if (trackerConclusionsRowEl) trackerConclusionsRowEl.hidden = true;
+      const conclusions = Array.isArray(taskCard?.knownConclusions)
+        ? taskCard.knownConclusions.filter((entry) => typeof entry === "string" && trimText(entry))
+        : [];
+      renderDetailItems(trackerConclusionsListEl, conclusions);
+      if (trackerConclusionsRowEl) trackerConclusionsRowEl.hidden = conclusions.length === 0;
 
       renderDetailItems(trackerMemoryListEl, []);
       if (trackerMemoryRowEl) trackerMemoryRowEl.hidden = true;
@@ -375,10 +377,10 @@
       renderCandidateBranchActions(trackerCandidateBranchesListEl, [], session);
       if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = true;
 
-      const hasAny = showDistinctResumePoint;
+      const hasAny = showDistinctResumePoint || conclusions.length > 0;
       if (trackerDetailToggleBtn) {
         trackerDetailToggleBtn.hidden = !hasAny;
-        trackerDetailToggleBtn.textContent = expanded ? "恢复点 ▾" : "恢复点 ▸";
+        trackerDetailToggleBtn.textContent = expanded ? "详情 ▾" : "详情 ▸";
       }
       trackerDetailEl.hidden = !hasAny || !expanded;
     }

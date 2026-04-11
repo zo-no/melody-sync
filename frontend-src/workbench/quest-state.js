@@ -267,15 +267,6 @@
         || liveSession.name
         || "当前主线",
       );
-      const mainSummary = toTaskBarSummary(
-        activeContext?.summary
-        || latestContext?.summary
-        || taskCard?.summary
-        || cluster?.mainSession?.taskCard?.summary
-        || clusterMainSession?.taskCard?.summary
-        || "",
-        10,
-      );
       const currentGoal = normalizeTitle(
         activeContext?.goal
         || latestContext?.goal
@@ -331,7 +322,6 @@
         latestContext,
         isBranch,
         branchStatus,
-        mainSummary,
         mainGoal,
         currentGoal,
         nextStep,

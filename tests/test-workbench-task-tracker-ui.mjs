@@ -163,7 +163,7 @@ renderer.renderPersistentActions(
 );
 assert.deepEqual(
   persistentHost.children.map((child) => child.textContent),
-  ['归入长期任务', '稍后'],
+  ['归入长期项目', '稍后'],
   'suggested long-term matches should expose only classify and dismiss actions',
 );
 persistentHost.children[0].click();
@@ -199,24 +199,26 @@ renderer.renderPersistentActions(
     persistent: {
       kind: 'recurring_task',
       state: 'active',
+      recurring: { cadence: 'daily' },
     },
   },
   {
     onRun() { runCount += 1; },
     onToggle() { toggleCount += 1; },
+    onToggleRecurring() { toggleCount += 1; },
     onConfigure() { configureCount += 1; },
   },
 );
 assert.deepEqual(
   persistentHost.children.map((child) => child.textContent),
-  ['立即执行', '暂停周期', '设置'],
-  'recurring tasks should expose run, toggle, and configure actions',
+  ['一键触发', '定时触发', '暂停循环', '设置'],
+  'recurring tasks with active cadence should expose run, scheduled-toggle, recurring-toggle, and configure actions',
 );
 persistentHost.children[0].click();
-persistentHost.children[1].click();
 persistentHost.children[2].click();
+persistentHost.children[3].click();
 assert.equal(runCount, 1, 'run action should stay wired');
-assert.equal(toggleCount, 1, 'toggle action should stay wired');
+assert.equal(toggleCount, 1, 'recurring toggle action should stay wired');
 assert.equal(configureCount, 1, 'configure action should stay wired');
 
 renderer.renderPersistentActions(
@@ -225,14 +227,15 @@ renderer.renderPersistentActions(
     persistent: {
       kind: 'recurring_task',
       state: 'paused',
+      recurring: { cadence: 'daily' },
     },
   },
   {},
 );
 assert.equal(
-  persistentHost.children[1]?.textContent,
-  '恢复周期',
-  'paused recurring tasks should swap the toggle label',
+  persistentHost.children[2]?.textContent,
+  '循环触发',
+  'paused recurring tasks should swap the recurring toggle label to resume',
 );
 
 renderer.renderPersistentActions(

@@ -345,11 +345,11 @@ function getSessionTaskPreview(session) {
     : String(taskCard?.lineRole || "").trim().toLowerCase() === "branch";
   const taskCluster = getTaskClusterForSession(displaySession);
   const checkpoint = clipTaskLabel(String(taskCard?.checkpoint || "").trim(), 84);
-  const summary = clipTaskLabel(String(taskCard?.summary || "").trim(), 84);
+  const firstNextStep = clipTaskLabel(getTaskCardList(taskCard, "nextSteps")[0] || "", 84);
   const firstConclusion = clipTaskLabel(getTaskCardList(taskCard, "knownConclusions")[0] || "", 84);
   let summaryLine = "";
   let summarySegments = [];
-  for (const candidate of [checkpoint, summary, firstConclusion]) {
+  for (const candidate of [checkpoint, firstNextStep, firstConclusion]) {
     if (!candidate || looksLikeVisibleTaskTitle(displaySession, candidate)) continue;
     summaryLine = candidate;
     break;
