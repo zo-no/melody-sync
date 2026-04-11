@@ -1077,11 +1077,9 @@ function getActiveSidebarTab() {
 function syncSidebarTabUi() {
   const activeTabKey = getActiveSidebarTab();
   const isLongTermTab = activeTabKey === "long-term";
-  const isSkillTab = activeTabKey === "skill";
   const isSessionsTab = activeTabKey === "sessions";
   tabSessions?.classList.toggle("active", isSessionsTab);
   tabLongTerm?.classList.toggle("active", isLongTermTab);
-  tabSkill?.classList.toggle("active", isSkillTab);
   if (sessionList) sessionList.style.display = "";
   if (sidebarBranchVisibilityToggleBtn) sidebarBranchVisibilityToggleBtn.hidden = true;
   if (sidebarLongTermVisibilityToggleBtn) sidebarLongTermVisibilityToggleBtn.hidden = true;
@@ -1094,14 +1092,12 @@ function syncSidebarTabUi() {
     sortSessionListBtn.classList.add("hidden");
   }
   if (newSessionBtn) {
-    newSessionBtn.hidden = isSkillTab;
-    newSessionBtn.classList.toggle("hidden", isSkillTab);
-    if (!isSkillTab) {
-      const label = isLongTermTab ? t("sidebar.newLongTerm") || "新建项目" : t("sidebar.newSession");
-      newSessionBtn.textContent = label;
-      newSessionBtn.title = label;
-      newSessionBtn.setAttribute("aria-label", label);
-    }
+    newSessionBtn.hidden = false;
+    newSessionBtn.classList.remove("hidden");
+    const label = isLongTermTab ? t("sidebar.newLongTerm") || "新建项目" : t("sidebar.newSession");
+    newSessionBtn.textContent = label;
+    newSessionBtn.title = label;
+    newSessionBtn.setAttribute("aria-label", label);
   }
   renderLongTermWorkspace();
   if (typeof requestLayoutPass === "function") {
@@ -1155,7 +1151,6 @@ globalThis.hideLongTermProjectPanel = () => {
 
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
 tabLongTerm?.addEventListener("click", () => switchTab("long-term"));
-tabSkill?.addEventListener("click", () => switchTab("skill"));
 
 longTermWorkspaceNewBtn?.addEventListener("click", () => {
   void createNewLongTermProjectShortcut?.({ closeSidebar: false });

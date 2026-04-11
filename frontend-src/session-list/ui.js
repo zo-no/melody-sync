@@ -306,7 +306,6 @@ function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForL
   if (tab === "long-term") {
     return isLongTermProjectSessionForList(session) || isLongTermLineSessionForList(session);
   }
-  if (tab === "skill") return isSkillSessionForList(session);
   return true;
 }
 
@@ -317,10 +316,9 @@ function filterSessionsForSidebarTab(entries = [], tab = getActiveSidebarTabForL
 function renderSessionList() {
   const activeSidebarTab = getActiveSidebarTabForList();
   const isLongTermTab = activeSidebarTab === "long-term" || activeSidebarTab === "sessions";
-  const isSkillTab = activeSidebarTab === "skill";
   const isSessionsTab = activeSidebarTab === "sessions";
   const groupingMode = getSessionGroupingModeForList();
-  const showGroupingFolderControls = !isLongTermTab && !isSkillTab;
+  const showGroupingFolderControls = !isLongTermTab;
   const pinnedSessions = filterSessionsForSidebarTab(
     getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
     activeSidebarTab,
@@ -376,16 +374,6 @@ function renderSessionList() {
         }
       }
     }
-  } else if (isSkillTab) {
-    // Skill tab: flat list, no grouping
-    for (const session of visibleSessions) {
-      if (!session?.id) continue;
-      const groupKey = "group:skills";
-      if (!groups.has(groupKey)) {
-        groups.set(groupKey, { key: groupKey, label: "", title: "", order: 0, sessions: [], insertOrder: 0 });
-      }
-      groups.get(groupKey).sessions.push(session);
-    }
   } else {
     for (const session of visibleSessions) {
       if (!session?.id) continue;
@@ -403,7 +391,7 @@ function renderSessionList() {
     if (leftOrder !== rightOrder) return leftOrder - rightOrder;
     return String(left?.label || "").localeCompare(String(right?.label || ""));
   });
-  const visibleGroups = (isLongTermTab || isSkillTab)
+  const visibleGroups = isLongTermTab
     ? orderedGroups
     : orderedGroups.filter(([groupKey]) => isUserTemplateFolderGroup(groupKey));
   const showGroupHeaders = visibleGroups.length > 0;
@@ -418,10 +406,10 @@ function renderSessionList() {
   const archivedSessionTotal = Number(typeof archivedSessionCount === "undefined" ? 0 : archivedSessionCount) || 0;
   const ARCHIVED_FOLDER_KEY = "folder:archived";
   const archivedCollapsed = collapsedFolders[ARCHIVED_FOLDER_KEY] === true;
-  const shouldRenderArchivedSection = (isLongTermTab || isSkillTab)
+  const shouldRenderArchivedSection = isLongTermTab
     ? archivedSessions.length > 0
     : (isArchivedSessionsLoading || archivedSessionTotal > 0 || archivedSessions.length > 0);
-  const archivedCount = (isLongTermTab || isSkillTab)
+  const archivedCount = isLongTermTab
     ? archivedSessions.length
     : (hasArchivedSessionsLoaded
       ? archivedSessions.length
@@ -434,10 +422,10 @@ function renderSessionList() {
   const sessionListEmptyLabel = shouldShowSessionListEmptyState
     ? payloadSafeTranslate(
       sessionsLoaded
-        ? (isLongTermTab ? "sidebar.longTerm.empty" : (isSkillTab ? "sidebar.skill.empty" : "sidebar.noSessions"))
+        ? (isLongTermTab ? "sidebar.longTerm.empty" : "sidebar.noSessions")
         : "sidebar.loadingSessions",
       sessionsLoaded
-        ? (isLongTermTab ? "还没有长期项目" : (isSkillTab ? "还没有 Skill" : "还没有任务"))
+        ? (isLongTermTab ? "还没有长期项目" : "还没有任务")
         : "加载任务中…",
     )
     : "";
