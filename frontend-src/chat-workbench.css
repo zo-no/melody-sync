@@ -4030,6 +4030,12 @@ button.quest-task-flow-node {
   margin-right: auto;
 }
 
+.quest-tracker-handoff-row .quest-tracker-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .quest-tracker-handoff-select {
   flex: 1 1 auto;
   min-width: 0;
@@ -6472,8 +6478,15 @@ body.long-term-workspace-active .task-manager-main-column {
   min-height: 0;
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
   grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
+  transition: grid-template-columns 0.22s ease;
+}
+
+/* When output detail is visible, split 55/45 */
+.long-term-workspace:has(.long-term-output-detail:not([hidden])) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .long-term-workspace[hidden] {
@@ -6484,6 +6497,115 @@ body.long-term-workspace-active .task-manager-main-column {
 .long-term-workspace-detail {
   overflow-y: auto;
   min-height: 0;
+}
+
+/* ── Output detail panel (inline, right side) ─────────────────── */
+.long-term-output-detail {
+  overflow-y: auto;
+  min-height: 0;
+  border-left: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 30%, var(--bg) 70%);
+}
+
+.long-term-output-detail[hidden] {
+  display: none !important;
+}
+
+/* Output detail content */
+.ltod-shell {
+  padding: 20px 24px 32px;
+  max-width: 560px;
+}
+
+.ltod-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.ltod-back {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.1s;
+}
+.ltod-back:hover { color: var(--text); }
+
+.ltod-open-chat {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.ltod-open-chat:hover { background: var(--bg-tertiary); color: var(--text); }
+
+.ltod-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.ltod-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+
+.ltod-section {
+  margin-bottom: 16px;
+}
+
+.ltod-section-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.ltod-section-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.ltod-list {
+  margin: 0;
+  padding: 0 0 0 16px;
+  list-style: disc;
+}
+
+.ltod-list li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 4px;
+}
+
+.ltod-list-memory li {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.ltod-list-nextsteps li {
+  color: var(--text);
 }
 
 .ltcp-shell {
@@ -6510,6 +6632,27 @@ body.long-term-workspace-active .task-manager-main-column {
 
 .ltcp-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .ltcp-header-main { flex: 1; min-width: 0; }
+.ltcp-header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-top: 2px; }
+.ltcp-action-btn {
+  appearance: none; border-radius: 7px; font: inherit; font-size: 11px; font-weight: 600;
+  padding: 4px 10px; cursor: pointer; transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+.ltcp-action-btn-secondary {
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+.ltcp-action-btn-secondary:hover { background: var(--bg-tertiary); color: var(--text); }
+.ltcp-action-btn-danger {
+  border: 1px solid color-mix(in srgb, #e53e3e 30%, var(--border));
+  background: color-mix(in srgb, #e53e3e 8%, transparent);
+  color: color-mix(in srgb, #e53e3e 80%, var(--text));
+}
+.ltcp-action-btn-danger:hover {
+  background: color-mix(in srgb, #e53e3e 15%, transparent);
+  color: #e53e3e;
+}
 .ltcp-title { font-size: 22px; font-weight: 700; color: var(--text); margin: 0 0 8px; line-height: 1.3; }
 .ltcp-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 .ltcp-chip {
@@ -6604,6 +6747,89 @@ body.long-term-workspace-active .task-manager-main-column {
 .ltcp-waiting-item:hover { background: color-mix(in srgb, var(--bg-secondary) 80%, transparent); }
 .ltcp-waiting-item-name { font-size: 13px; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ltcp-waiting-item-arrow { font-size: 16px; color: var(--text-muted); flex-shrink: 0; margin-left: 8px; }
+
+/* ── Archived section ──────────────────────────────────────────────── */
+.ltcp-archived-details { list-style: none; }
+.ltcp-archived-summary {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; user-select: none;
+  list-style: none; padding: 2px 0;
+}
+.ltcp-archived-summary::-webkit-details-marker { display: none; }
+.ltcp-archived-summary .ltcp-section-title { flex: 1; }
+.ltcp-archived-count {
+  font-size: 10.5px; font-weight: 600;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  padding: 1px 7px; border-radius: 10px;
+}
+.ltcp-archived-list { display: flex; flex-direction: column; gap: 3px; padding-top: 8px; }
+.ltcp-archived-empty { font-size: 12px; color: var(--text-muted); }
+.ltcp-archived-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 5px 8px; border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-secondary) 30%, transparent);
+}
+.ltcp-archived-name { font-size: 12px; color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: line-through; opacity: 0.7; }
+.ltcp-archived-time { font-size: 10px; color: var(--text-muted); flex-shrink: 0; opacity: 0.6; }
+
+/* ── Recent outputs (self-iteration feed) ──────────────────────────── */
+.ltcp-outputs-list { display: flex; flex-direction: column; gap: 8px; }
+.ltcp-output-empty { font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+.ltcp-output-item {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  appearance: none;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--bg-secondary) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.ltcp-output-item:hover { background: color-mix(in srgb, var(--bg-secondary) 70%, transparent); }
+.ltcp-output-item.is-active {
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-secondary) 50%);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.ltcp-output-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.ltcp-output-name { font-size: 12.5px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltcp-output-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.ltcp-output-time { font-size: 10.5px; color: var(--text-muted); }
+.ltcp-output-chevron { font-size: 14px; color: var(--text-muted); transition: transform 0.1s; }
+.ltcp-output-item.is-active .ltcp-output-chevron { transform: rotate(90deg); }
+.ltcp-output-checkpoint { font-size: 11.5px; color: var(--text-secondary); line-height: 1.45; }
+.ltcp-output-conclusions, .ltcp-output-memory {
+  margin: 4px 0 0; padding: 0 0 0 14px;
+  list-style: disc;
+}
+.ltcp-output-conclusions li, .ltcp-output-memory li {
+  font-size: 11px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 2px;
+}
+.ltcp-output-memory li { color: var(--text-muted); font-style: italic; }
+
+/* ── Digest (accumulated knowledge) ───────────────────────────────── */
+.ltcp-section-hint { font-size: 10.5px; color: var(--text-muted); font-weight: 400; }
+.ltcp-digest-content { display: flex; flex-direction: column; gap: 8px; }
+.ltcp-digest-empty { font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+.ltcp-digest-goal { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; }
+.ltcp-digest-group { display: flex; flex-direction: column; gap: 3px; }
+.ltcp-digest-label { font-size: 10.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.ltcp-digest-list { margin: 0; padding: 0 0 0 14px; list-style: disc; }
+.ltcp-digest-list li { font-size: 11.5px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 2px; }
+
+/* ── Loop config ───────────────────────────────────────────────────── */
+.ltcp-loop-content { display: flex; flex-direction: column; gap: 6px; }
+.ltcp-loop-empty { font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+.ltcp-loop-stage { display: flex; gap: 8px; align-items: baseline; }
+.ltcp-loop-stage-label {
+  flex: 0 0 48px; font-size: 10.5px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.ltcp-loop-stage-value { flex: 1; font-size: 11.5px; color: var(--text-secondary); line-height: 1.45; }
+.ltcp-loop-run-prompt { border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent); padding-top: 8px; margin-top: 2px; }
+.ltcp-loop-run-prompt .ltcp-loop-stage-label { flex: 0 0 auto; min-width: 64px; }
 
 .long-term-workspace-shell {
   min-height: 0;
