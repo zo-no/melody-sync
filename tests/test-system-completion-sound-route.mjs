@@ -7,8 +7,8 @@ import { fileURLToPath, pathToFileURL } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(__dirname);
 
-const { handleSystemRoutes } = await import(
-  pathToFileURL(join(repoRoot, 'backend/routes/system.mjs')).href
+const { handleSystemWriteRoutes: handleSystemRoutes } = await import(
+  pathToFileURL(join(repoRoot, 'backend/controllers/system/write-routes.mjs')).href
 );
 
 const baseParameters = {

@@ -24,8 +24,11 @@ mkdirSync(configDir, { recursive: true });
 writeFileSync(join(configDir, 'general-settings.json'), JSON.stringify({ appRoot }, null, 2), 'utf8');
 
 try {
-  const { handleSettingsRoutes } = await import(
-    pathToFileURL(join(repoRoot, 'backend', 'routes', 'settings.mjs')).href
+  const { handleSettingsWriteRoutes } = await import(
+    pathToFileURL(join(repoRoot, 'backend/controllers/settings/write-routes.mjs')).href
+  );
+  const { handleSettingsReadRoutes } = await import(
+    pathToFileURL(join(repoRoot, 'backend/controllers/settings/read-routes.mjs')).href
   );
 
   const patchReq = Readable.from([JSON.stringify({
@@ -48,7 +51,7 @@ try {
   })]);
   patchReq.method = 'PATCH';
   const patchResult = {};
-  const patchHandled = await handleSettingsRoutes({
+  const patchHandled = await handleSettingsWriteRoutes({
     req: patchReq,
     res: {},
     pathname: '/api/settings/email',
@@ -68,12 +71,16 @@ try {
   assert.equal(patchResult.payload.paths.outboundFile, join(runtimeRoot, 'email', 'outbound.json'));
 
   const getResult = {};
-  const getHandled = await handleSettingsRoutes({
+  const getHandled = await handleSettingsReadRoutes({
     req: { method: 'GET' },
     res: {},
     pathname: '/api/settings/email',
     writeJson(_res, status, payload) {
       getResult.status = status;
+      getResult.payload = payload;
+    },
+    writeJsonCached(_req, _res, payload) {
+      getResult.status = 200;
       getResult.payload = payload;
     },
   });
