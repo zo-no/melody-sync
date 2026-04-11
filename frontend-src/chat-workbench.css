@@ -379,11 +379,11 @@
   position: fixed;
   inset: 0;
   border: 0;
-  background: rgba(7, 11, 16, 0.34);
+  background: rgba(7, 11, 16, 0.28);
   opacity: 1;
   z-index: 120;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .task-map-drawer-backdrop[hidden] {
@@ -3557,9 +3557,9 @@ button.quest-task-flow-node {
   }
 
   .task-map-drawer-backdrop {
-    background: rgba(5, 10, 16, 0.42);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: rgba(5, 10, 16, 0.36);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
   }
 
   .quest-tracker-btn,
@@ -3983,12 +3983,7 @@ button.quest-task-flow-node {
 }
 
 .quest-tracker-handoff-actions {
-  display: flex;
-  flex: 1 1 320px;
-  min-width: min(100%, 320px);
-  flex-direction: column;
-  gap: 6px;
-  margin-right: auto;
+  display: contents;
 }
 
 .quest-tracker-handoff-row {
@@ -3996,6 +3991,8 @@ button.quest-task-flow-node {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: 1 1 auto;
+  margin-right: auto;
 }
 
 .quest-tracker-handoff-select {
@@ -4019,10 +4016,7 @@ button.quest-task-flow-node {
 }
 
 .quest-tracker-handoff-preview {
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  padding-left: 12px;
+  display: none;
 }
 
 @media (max-width: 960px) {
@@ -4039,10 +4033,6 @@ button.quest-task-flow-node {
     min-width: 0;
   }
 
-  .quest-tracker-handoff-actions {
-    flex-basis: 100%;
-    min-width: 0;
-  }
 }
 
 @media (max-width: 767px) {
