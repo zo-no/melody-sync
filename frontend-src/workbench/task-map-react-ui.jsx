@@ -3039,6 +3039,51 @@ function SessionListPinnedSection({
   );
 }
 
+function SessionListBucketSection({
+  groupKey = '',
+  bucketEntry = null,
+  isCollapsed = false,
+  onToggleGroup = null,
+  createSessionItem = null,
+  getSessionRenderKey = null,
+  chevronIconHtml = '',
+}) {
+  const bucketKey = `${groupKey}:${bucketEntry?.key || ''}`;
+  const bucketSessions = Array.isArray(bucketEntry?.sessions) ? bucketEntry.sessions : [];
+  if (bucketSessions.length === 0) return null;
+  const toggleBucket = () => onToggleGroup?.(bucketKey, !isCollapsed);
+  return (
+    <div className="folder-group folder-group-bucket">
+      <div
+        className={`folder-group-header folder-group-bucket-header${isCollapsed ? ' collapsed' : ''}`}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isCollapsed ? 'false' : 'true'}
+        onClick={toggleBucket}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          toggleBucket();
+        }}
+      >
+        <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
+        <span className="folder-name">{String(bucketEntry?.label || '')}</span>
+        <span className="folder-count">{bucketSessions.length}</span>
+      </div>
+      <div className="folder-group-items folder-group-bucket-items" hidden={isCollapsed}>
+        {bucketSessions.map((session) => (
+          <SessionListItemMount
+            key={`bucket:${bucketKey}:${session?.id || Math.random()}`}
+            createSessionItem={createSessionItem}
+            session={session}
+            renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SessionListGroupSection({
   groupEntry = null,
   showGroupHeaders = false,
@@ -3050,14 +3095,22 @@ function SessionListGroupSection({
   chevronIconHtml = '',
   deleteIconHtml = '',
   deleteFolderLabel = '删除文件夹',
+  isGroupCollapsed = () => false,
 }) {
   const sessions = Array.isArray(groupEntry?.sessions) ? groupEntry.sessions : [];
+  const isLongTermProject = groupEntry?.type === 'long-term-project';
   const toggleGroup = () => onToggleGroup?.(groupEntry?.key || '', !isCollapsed);
+
+  // For long-term projects: count only member sessions (not the project root itself)
+  const memberCount = isLongTermProject
+    ? Object.values(groupEntry?.buckets || {}).reduce((sum, b) => sum + (Array.isArray(b?.sessions) ? b.sessions.length : 0), 0)
+    : sessions.length;
+
   return (
-    <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}`}>
+    <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}${isLongTermProject ? ' is-long-term-project-group' : ''}`}>
       {showGroupHeaders ? (
         <div
-          className={`folder-group-header${isCollapsed ? ' collapsed' : ''}`}
+          className={`folder-group-header${isCollapsed ? ' collapsed' : ''}${isLongTermProject ? ' is-long-term-project-header' : ''}`}
           role="button"
           tabIndex={0}
           aria-expanded={isCollapsed ? 'false' : 'true'}
@@ -3070,7 +3123,7 @@ function SessionListGroupSection({
         >
           <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
           <span className="folder-name" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
-          <span className="folder-count">{sessions.length}</span>
+          <span className="folder-count">{memberCount}</span>
           {groupEntry?.canDelete ? (
             <button
               type="button"
@@ -3089,14 +3142,47 @@ function SessionListGroupSection({
         </div>
       ) : null}
       <div className="folder-group-items" hidden={showGroupHeaders && isCollapsed}>
-        {sessions.map((session) => (
-          <SessionListItemMount
-            key={`group:${groupEntry?.key || 'ungrouped'}:${session?.id || Math.random()}`}
-            createSessionItem={createSessionItem}
-            session={session}
-            renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
-          />
-        ))}
+        {isLongTermProject ? (
+          <>
+            {/* Project root sessions first */}
+            {sessions.filter((s) => {
+              const mem = s?.taskPoolMembership?.longTerm;
+              return !mem?.projectSessionId || mem?.role === 'project';
+            }).map((session) => (
+              <SessionListItemMount
+                key={`group:${groupEntry?.key || 'ungrouped'}:${session?.id || Math.random()}`}
+                createSessionItem={createSessionItem}
+                session={session}
+                renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
+              />
+            ))}
+            {/* Bucket sub-folders */}
+            {Object.values(groupEntry?.buckets || {})
+              .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
+              .map((bucketEntry) => (
+                <SessionListBucketSection
+                  key={`bucket-section:${groupEntry?.key}:${bucketEntry?.key}`}
+                  groupKey={groupEntry?.key || ''}
+                  bucketEntry={bucketEntry}
+                  isCollapsed={isGroupCollapsed(`${groupEntry?.key}:${bucketEntry?.key}`) === true}
+                  onToggleGroup={onToggleGroup}
+                  createSessionItem={createSessionItem}
+                  getSessionRenderKey={getSessionRenderKey}
+                  chevronIconHtml={chevronIconHtml}
+                />
+              ))
+            }
+          </>
+        ) : (
+          sessions.map((session) => (
+            <SessionListItemMount
+              key={`group:${groupEntry?.key || 'ungrouped'}:${session?.id || Math.random()}`}
+              createSessionItem={createSessionItem}
+              session={session}
+              renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
+            />
+          ))
+        )}
       </div>
     </div>
   );
@@ -3324,6 +3410,7 @@ function SessionListCollections({
           groupEntry={groupEntry}
           showGroupHeaders={showGroupHeaders}
           isCollapsed={isGroupCollapsed(groupEntry?.key || '') === true}
+          isGroupCollapsed={isGroupCollapsed}
           onToggleGroup={onToggleGroup}
           onRemoveGroup={onRemoveGroup}
           createSessionItem={createSessionItem}
