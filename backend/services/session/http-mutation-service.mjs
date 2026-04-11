@@ -9,6 +9,7 @@ import {
   updateSessionLastReviewedAt,
   updateSessionPersistent,
   updateSessionRuntimePreferences,
+  updateSessionTaskPoolMembership,
   updateSessionWorkflowClassification,
 } from '../../session/manager.mjs';
 
@@ -25,6 +26,7 @@ export async function applySessionHttpPatch(sessionId, patch = {}) {
   const hasSidebarOrderPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'sidebarOrder');
   const hasActiveAgreementsPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'activeAgreements');
   const hasPersistentPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'persistent');
+  const hasTaskPoolMembershipPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'taskPoolMembership');
   const hasWorkflowStatePatch = Object.prototype.hasOwnProperty.call(patch || {}, 'workflowState');
   const hasWorkflowPriorityPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'workflowPriority');
   const hasLastReviewedAtPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'lastReviewedAt');
@@ -56,6 +58,9 @@ export async function applySessionHttpPatch(sessionId, patch = {}) {
     session = await updateSessionPersistent(sessionId, patch.persistent, {
       recomputeNextRunAt: true,
     }) || session;
+  }
+  if (hasTaskPoolMembershipPatch) {
+    session = await updateSessionTaskPoolMembership(sessionId, patch.taskPoolMembership ?? null) || session;
   }
   if (hasWorkflowStatePatch || hasWorkflowPriorityPatch) {
     session = await updateSessionWorkflowClassification(sessionId, {
