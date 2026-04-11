@@ -1253,6 +1253,24 @@
 .session-item.is-quick-action-item::before {
   background: color-mix(in srgb, var(--naming) 72%, transparent);
 }
+/* Skill / quick-action items: replace checkbox with ⚡ icon */
+.session-item.is-quick-action-item .session-action-btn.session-item-leading-action.archive-checkbox {
+  pointer-events: none;
+}
+.session-item.is-quick-action-item .session-action-btn.session-item-leading-action.archive-checkbox .session-action-checkbox-ring {
+  display: none;
+}
+.session-item.is-quick-action-item .session-action-btn.session-item-leading-action.archive-checkbox::after {
+  content: "⚡";
+  font-size: 12px;
+  opacity: 0.5;
+  color: color-mix(in srgb, var(--naming) 80%, var(--text-secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
 .session-item.is-quick-action-item .session-item-meta .session-list-badge-persistent-skill {
   color: color-mix(in srgb, var(--naming) 86%, var(--text));
 }
