@@ -317,8 +317,10 @@ function renderSessionList() {
         getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
         activeSidebarTab,
       );
+  // Pass isTasksTab so the eye button only hides project members in the Tasks tab
+  const sessionFilterOptions = isSessionsTab ? { isTasksTab: true } : {};
   const visibleSessions = filterSessionsForSidebarTab(
-    getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
+    getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session, sessionFilterOptions)),
     activeSidebarTab,
   );
   const groups = new Map();

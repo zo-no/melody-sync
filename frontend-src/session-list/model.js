@@ -610,8 +610,8 @@
       hiddenReason = "missing_id";
     } else if (branch && ["parked", "resolved", "merged", "done", "closed"].includes(branchStatus)) {
       hiddenReason = "closed_branch";
-    } else if (hideBranchTasks && (branch || hasProjectMembership)) {
-      // Eye button: hide both traditional branch tasks AND project members (all "branch tasks")
+    } else if (hideBranchTasks && (branch || (hasProjectMembership && options?.isTasksTab === true))) {
+      // Eye button: hide traditional branch tasks always; hide project members only in Tasks tab
       hiddenReason = "branch_filtered";
     } else if (!archived && taskListVisibility !== "primary" && !branch) {
       hiddenReason = "secondary_task";
