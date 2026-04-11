@@ -229,6 +229,91 @@ Skills are reusable capabilities (scripts, knowledge docs, SOPs). Treat ${skills
 - Assistant output wrapped in \`<private>...</private>\` or \`<hide>...</hide>\` is hidden in the MelodySync chat UI but remains in the raw session text and model context.
 - Use these blocks sparingly for model-visible notes that should stay out of the user-facing chat UI.
 
+## GTD Persistent Task Management
+
+MelodySync has a built-in GTD task system. Use it to create, schedule, and trigger long-term tasks on behalf of the user. The base URL is available as \`$MELODYSYNC_CHAT_BASE_URL\` (default: http://127.0.0.1:${CHAT_PORT}).
+
+### Task Types
+- \`recurring_task\` — repeating loop task (daily/weekly/hourly), lives in "长期任务" group
+- \`scheduled_task\` — one-time timed task, fires once at a specific datetime, lives in "短期任务" group
+- \`waiting_task\` — waits for human action before AI continues, lives in "等待任务" group
+- \`skill\` — manual-only AI shortcut, triggered by user click only
+
+### List All Tasks
+\`\`\`bash
+curl -s "$MELODYSYNC_CHAT_BASE_URL/api/sessions?view=refs"
+\`\`\`
+Filter results by \`persistent.kind\` to find GTD tasks.
+
+### Create a New Task
+Required fields: \`folder\` (absolute path to an existing directory, use the knowledge base folder or \`~/.melodysync/runtime\`), \`tool\` (use the current session's tool, e.g. \`claude\`).
+
+Option A — one step (preferred, pass \`persistent\` at creation time):
+\`\`\`bash
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "任务名称",
+    "folder": "/absolute/path/to/knowledge/folder",
+    "tool": "claude",
+    "persistent": {
+      "kind": "recurring_task",
+      "digest": { "title": "任务名称", "summary": "任务摘要" },
+      "execution": { "mode": "spawn_session", "runPrompt": "执行时要做什么" },
+      "recurring": { "cadence": "daily", "timeOfDay": "09:00", "timezone": "Asia/Shanghai" },
+      "knowledgeBasePath": "/absolute/path/to/knowledge/folder"
+    }
+  }'
+\`\`\`
+
+Option B — two steps (promote an existing session):
+\`\`\`bash
+SESSION_ID=$(curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"任务名称","folder":"/path/to/folder","tool":"claude"}' | jq -r .session.id)
+
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions/$SESSION_ID/promote-persistent" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "kind": "recurring_task",
+    "digest": { "title": "任务名称", "summary": "任务摘要" },
+    "execution": { "mode": "spawn_session", "runPrompt": "执行时要做什么" },
+    "recurring": { "cadence": "daily", "timeOfDay": "09:00", "timezone": "Asia/Shanghai" },
+    "knowledgeBasePath": "/path/to/knowledge/folder"
+  }'
+\`\`\`
+
+For a one-time scheduled task use \`"kind":"scheduled_task"\` and replace \`recurring\` with:
+\`\`\`json
+"scheduled": { "runAt": "2026-04-20T09:00:00.000Z", "timezone": "Asia/Shanghai" }
+\`\`\`
+
+For a waiting task (human-triggered, no auto-schedule) use \`"kind":"waiting_task"\` with no \`scheduled\` or \`recurring\` field.
+
+### Update a Task's Schedule
+\`\`\`bash
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"persistent":{"recurring":{"cadence":"weekly","timeOfDay":"10:00","weekdays":[1,3,5],"timezone":"Asia/Shanghai"}}}'
+\`\`\`
+To clear a schedule: \`{"persistent":{"scheduled":null}}\` or \`{"persistent":{"recurring":null}}\`.
+
+### Manually Trigger a Task Now
+\`\`\`bash
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>/run-persistent" \\
+  -H "Content-Type: application/json" -d '{}'
+\`\`\`
+
+### GTD Pipeline Pattern
+When the user asks you to build a project pipeline (e.g., investment workflow, product iteration):
+1. Break it into subtasks. Classify each as: AI-executable (recurring/scheduled) or human-needed (waiting).
+2. Create recurring tasks for AI-driven loops (data collection, weekly review, auto-analysis).
+3. Create waiting tasks for human checkpoints (record amounts, confirm decisions, provide input).
+4. Create scheduled tasks for one-time milestones.
+5. Set \`knowledgeBasePath\` on each task to the relevant local folder.
+6. After creating all tasks, list them back to confirm the schedule.
+7. Waiting tasks block dependent recurring tasks — when the user completes a waiting task and triggers it manually, the AI picks up the next step.
+
 ## MelodySync self-hosting development
 - When working on MelodySync itself, use the normal \`${CHAT_PORT}\` chat-server as the primary plane.
 - Clean restarts are acceptable: treat them as transport interruptions with durable recovery, not as a reason to maintain a permanent validation plane.
