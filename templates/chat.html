@@ -36,7 +36,6 @@
         <button class="header-task-map-btn" id="hooksSettingsBtn" type="button" title="设置" aria-label="设置" data-i18n="action.settings" data-i18n-title="action.settings" data-i18n-aria-label="action.settings">设置</button>
         <button class="header-refresh-btn" id="refreshFrontendBtn" type="button" title="Reload latest frontend" aria-label="Reload latest frontend" data-i18n-title="action.reloadFrontend" data-i18n-aria-label="action.reloadFrontend" data-icon="refresh" hidden></button>
         <button class="header-task-map-btn" id="taskMapDrawerBtn" type="button" aria-label="任务地图" title="任务地图" hidden>地图</button>
-        <button class="header-task-map-btn" id="outputPanelBtn" type="button" aria-label="产出面板" title="产出面板">产出</button>
       </div>
     </div>
   </div>
@@ -91,7 +90,7 @@
         <button class="header-btn overlay-panel-close" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
       </div>
       <div class="sidebar-tabs">
-        <button class="sidebar-tab active" id="tabSessions" data-i18n="sidebar.tab.folders">任务</button>
+        <button class="sidebar-tab active" id="tabSessions" data-i18n="sidebar.tab.folders">日常任务</button>
         <button class="sidebar-tab" id="tabLongTerm" data-i18n="sidebar.tab.longTerm">长期项目</button>
         <button class="sidebar-tab" id="tabSkill" hidden style="display:none" data-i18n="sidebar.tab.skill">技能</button>
       </div>
@@ -196,17 +195,29 @@
     </div>
   </div>
 
-  <div class="hooks-overlay output-panel-overlay" id="outputPanelOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="outputPanelTitle">
-    <div class="hooks-panel output-panel">
-      <div class="hooks-panel-header">
-        <span class="hooks-panel-title" id="outputPanelTitle">产出面板</span>
-        <div class="output-panel-header-actions">
-          <button class="output-panel-refresh" id="outputPanelRefreshBtn" type="button">刷新</button>
-          <button class="hooks-panel-close" id="outputPanelClose" type="button" aria-label="关闭">✕</button>
+  <!-- Output panel is now inline — see #outputPanelInline inside .task-manager-main-column -->
+
+  <!-- Project picker dialog -->
+  <div class="project-picker-overlay" id="projectPickerOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="projectPickerTitle">
+    <div class="project-picker-panel">
+      <div class="project-picker-header">
+        <span class="project-picker-title" id="projectPickerTitle">归入长期项目</span>
+        <button class="project-picker-close" id="projectPickerClose" type="button" aria-label="取消">✕</button>
+      </div>
+      <div class="project-picker-session-info" id="projectPickerSessionInfo"></div>
+      <div class="project-picker-list" id="projectPickerList"></div>
+      <div class="project-picker-bucket-row" id="projectPickerBucketRow">
+        <span class="project-picker-bucket-label">放入分类</span>
+        <div class="project-picker-buckets" id="projectPickerBuckets">
+          <button class="project-picker-bucket is-selected" type="button" data-bucket="inbox">收集箱</button>
+          <button class="project-picker-bucket" type="button" data-bucket="short_term">短期任务</button>
+          <button class="project-picker-bucket" type="button" data-bucket="long_term">长期任务</button>
+          <button class="project-picker-bucket" type="button" data-bucket="waiting">等待任务</button>
         </div>
       </div>
-      <div class="hooks-panel-body output-panel-body" id="outputPanelBody">
-        <div class="hooks-loading">产出面板加载中…</div>
+      <div class="project-picker-footer">
+        <button class="project-picker-cancel" id="projectPickerCancel" type="button">取消</button>
+        <button class="project-picker-confirm" id="projectPickerConfirm" type="button" disabled>归入项目</button>
       </div>
     </div>
   </div>
@@ -246,6 +257,7 @@
             <div class="quest-tracker-next" id="questTrackerNext" hidden></div>
             <div class="quest-tracker-time" id="questTrackerTime" hidden></div>
             <div class="quest-tracker-persistent-summary" id="questTrackerPersistentSummary" hidden></div>
+            <button class="quest-tracker-detail-toggle" id="questTrackerDetailToggle" type="button" hidden>详情 ▸</button>
             <div class="quest-tracker-detail" id="questTrackerDetail" hidden>
               <div class="quest-tracker-detail-row" id="questTrackerGoalRow" hidden>
                 <span class="quest-tracker-detail-label">停在这里</span>
@@ -275,7 +287,6 @@
               <span class="quest-tracker-status-text" id="questTrackerStatusText"></span>
             </div>
             <div class="quest-tracker-actions" id="questTrackerActions">
-              <button class="quest-tracker-detail-toggle" id="questTrackerDetailToggle" type="button" hidden>详情 ▸</button>
               <button class="quest-tracker-toggle" id="questTrackerToggleBtn" type="button" hidden>子任务</button>
               <button class="quest-tracker-btn" id="questTrackerCloseBtn" type="button" hidden>结束子任务</button>
               <button class="quest-tracker-btn quest-tracker-btn-secondary" id="questTrackerAltBtn" type="button" hidden>完成但不回主线</button>
@@ -283,6 +294,15 @@
             </div>
           </div>
         </section>
+
+        <!-- Inline output panel — shown below quest-tracker when a session is active -->
+        <div class="output-panel-inline" id="outputPanelInline" hidden>
+          <div class="output-panel-inline-header">
+            <span class="output-panel-inline-title">产出概览</span>
+            <button class="output-panel-inline-refresh" id="outputPanelRefreshBtn" type="button" title="刷新" aria-label="刷新">↻</button>
+          </div>
+          <div class="output-panel-inline-body" id="outputPanelBody"></div>
+        </div>
 
         <!-- Long-term project workspace panel (shown when Projects tab is active) -->
         <div class="long-term-workspace" id="longTermWorkspace" hidden>

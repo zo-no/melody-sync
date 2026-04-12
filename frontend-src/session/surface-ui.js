@@ -430,15 +430,17 @@ function renderSessionTaskPreviewLineHtml(lineClassName, lineText, segments = []
 
   const classNames = [lineClassName, "has-status-chips"].filter(Boolean).join(" ");
   const body = [];
-  normalizedSegments.forEach((segment, index) => {
-    const isStatus = segment.variant === "status";
-    if (!isStatus && index > 0) {
+  const statusSegments = normalizedSegments.filter((s) => s.variant === "status");
+  const textSegments = normalizedSegments.filter((s) => s.variant !== "status");
+  // Render status chips first (before title text)
+  statusSegments.forEach((segment) => {
+    const statusClassName = ["task-branch-status", segment.className].filter(Boolean).join(" ");
+    body.push(`<span class="${esc(statusClassName)}">${esc(segment.text)}</span>`);
+  });
+  // Then render text segments
+  textSegments.forEach((segment, index) => {
+    if (index > 0) {
       body.push('<span class="session-item-preview-separator" aria-hidden="true">·</span>');
-    }
-    if (isStatus) {
-      const statusClassName = ["task-branch-status", segment.className].filter(Boolean).join(" ");
-      body.push(`<span class="${esc(statusClassName)}">${esc(segment.text)}</span>`);
-      return;
     }
     body.push(`<span class="session-item-preview-copy">${esc(segment.text)}</span>`);
   });
@@ -450,11 +452,21 @@ function renderSessionTaskPreviewHtml(session) {
   const preview = getSessionTaskPreview(session);
   const parts = [];
   if (preview.summaryLine) {
-    parts.push(renderSessionTaskPreviewLineHtml(
-      "session-item-summary",
-      preview.summaryLine,
-      preview.summarySegments,
-    ));
+    // Status chips are shown in the title row; only render text segments here
+    const textOnlySegments = Array.isArray(preview.summarySegments)
+      ? preview.summarySegments.filter((s) => s?.variant !== "status")
+      : [];
+    // Skip the summary line if it only contained status chips (no text segments)
+    const hasTextContent = textOnlySegments.length > 0
+      || !Array.isArray(preview.summarySegments)
+      || preview.summarySegments.length === 0;
+    if (hasTextContent) {
+      parts.push(renderSessionTaskPreviewLineHtml(
+        "session-item-summary",
+        preview.summaryLine,
+        textOnlySegments.length > 0 ? textOnlySegments : preview.summarySegments,
+      ));
+    }
   }
   if (preview.hintLine) {
     parts.push(renderSessionTaskPreviewLineHtml(
@@ -722,9 +734,13 @@ function renderSessionStatusHtml(statusInfo) {
   if (statusInfo.key === "running") {
     return `<span class="session-status-dot session-status-dot-running"${title}></span>`;
   }
-  // Done / finished: static dot, no text
-  if (statusInfo.key === "done" || statusInfo.key === "finished") {
+  // Finished (AI completed, waiting user): green dot to prompt action
+  if (statusInfo.key === "finished") {
     return `<span class="session-status-dot session-status-dot-done"${title}></span>`;
+  }
+  // Done (user marked complete): no dot — checkmark on the circle is enough
+  if (statusInfo.key === "done") {
+    return "";
   }
   // Waiting for user: small label (user needs to act)
   if (statusInfo.key === "waiting_user" || statusInfo.className === "status-waiting-user") {
@@ -766,6 +782,14 @@ function buildSessionActionConfigs(session, options = {}) {
     "运行完成",
   ].includes(rawWorkflowState);
   const isDoneSession = !isBusySession && (normalizedWorkflowState === "done" || fallbackDoneWorkflowState);
+  // AI-driven tasks (recurring or scheduled) — no human completion circle
+  const persistentKind = String(session?.persistent?.kind || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const isAiDrivenTask = persistentKind === "recurring_task" || persistentKind === "scheduled_task";
+  // Skill/quick-action tasks are buttons, not human tasks — no completion circle
+  const rawBucket = String(session?.taskPoolMembership?.longTerm?.bucket || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const isSkillTask = ["skill", "quick_action", "quick-action", "快捷按钮", "快捷动作"].includes(rawBucket)
+    || ["skill", "quick_action", "quick-action", "快捷按钮", "快捷动作"].includes(persistentKind);
+  const hideCompletionCircle = isAiDrivenTask || isSkillTask;
   if (isArchivedSession) {
     return [
       {
@@ -792,7 +816,7 @@ function buildSessionActionConfigs(session, options = {}) {
       icon: session?.pinned === true ? "pinned" : "pin",
       className: session?.pinned === true ? "pin pinned" : "pin",
     },
-    isDoneSession ? {
+    hideCompletionCircle ? null : isDoneSession ? {
       key: "restore_pending",
       action: "restore_pending",
       label: t("action.restorePending"),
@@ -847,10 +871,24 @@ function renderSessionActionButtonHtml(session, entry, options = {}) {
     `;
 }
 
+function renderStatusChipsHtml(segments) {
+  if (!Array.isArray(segments) || segments.length === 0) return "";
+  const chips = segments
+    .filter((s) => s && s.variant === "status" && String(s.text || "").trim())
+    .map((s) => {
+      const className = ["task-branch-status", String(s.className || "").trim()].filter(Boolean).join(" ");
+      return `<span class="${esc(className)}">${esc(String(s.text).trim())}</span>`;
+    });
+  return chips.join("");
+}
+
 function createActiveSessionItem(session, options = {}) {
   const statusInfo = getSessionMetaStatusInfo(session);
   const touchStatusInfo = getSessionListTouchStatusInfo(session);
   const completeRead = isSessionCompleteAndReviewed(session);
+  // Extract status chips from preview segments to place in the title row
+  const taskPreview = getSessionTaskPreview(session);
+  const summaryStatusChipsHtml = renderStatusChipsHtml(taskPreview.summarySegments);
   const taskPreviewHtml = renderSessionTaskPreviewHtml(session);
   const extraClassName = typeof options.extraClassName === "string" && options.extraClassName.trim()
     ? ` ${options.extraClassName.trim()}`
@@ -906,12 +944,18 @@ function createActiveSessionItem(session, options = {}) {
     div.classList.add("has-actions-toggle");
   }
 
+  // Extract status dot from metaHtml to place inline with the title
+  // The dot is a <span class="session-status-dot ..."> — move it to the name row
+  const statusDotMatch = metaHtml.match(/(<span class="session-status-dot[^"]*"[^>]*><\/span>)/);
+  const statusDotHtml = statusDotMatch ? statusDotMatch[1] : "";
+  const metaWithoutDot = statusDotHtml ? metaHtml.replace(statusDotHtml, "").replace(/^\s*·\s*/, "").trim() : metaHtml;
+
   div.innerHTML = `
     ${leadingActionHtml}
     <div class="session-item-info">
-      <div class="session-item-name" title="${esc(displayTitle)}">${titlePrefixHtml}${session.pinned ? `<span class="session-pin-badge" title="${esc(t("sidebar.pinned"))}">${renderSessionIcon("pinned")}</span>` : ""}<span class="session-item-name-text">${esc(displayName)}</span></div>
+      <div class="session-item-name" title="${esc(displayTitle)}">${titlePrefixHtml}${session.pinned ? `<span class="session-pin-badge" title="${esc(t("sidebar.pinned"))}">${renderSessionIcon("pinned")}</span>` : ""}<span class="session-item-name-text">${esc(displayName)}</span>${summaryStatusChipsHtml ? `<span class="session-item-status-chips">${summaryStatusChipsHtml}</span>` : ""}${statusDotHtml ? `<span class="session-item-status-inline">${statusDotHtml}</span>` : ""}</div>
       ${taskPreviewHtml}
-      ${metaHtml ? `<div class="session-item-meta">${metaHtml}</div>` : ""}
+      ${metaWithoutDot ? `<div class="session-item-meta">${metaWithoutDot}</div>` : ""}
     </div>
     ${compactActions ? `<button class="session-item-actions-toggle" type="button" title="${compactActionsLabel}" aria-label="${compactActionsLabel}" aria-expanded="false">${renderSessionIcon("menu")}</button>` : ""}
     ${inlineTrailingConfigs.length === 0 ? "" : `<div class="session-item-actions">${actionsHtml}</div>`}
@@ -976,3 +1020,19 @@ function createActiveSessionItem(session, options = {}) {
 
   return div;
 }
+
+// Close all open session overflow menus when clicking outside
+document.addEventListener("click", (event) => {
+  if (event.target?.closest?.(".session-item-overflow-menu") || event.target?.closest?.(".session-item-actions-toggle")) return;
+  document.querySelectorAll(".session-item.is-actions-open").forEach((item) => {
+    item.classList.remove("is-actions-open");
+    item.querySelector(".session-item-actions-toggle")?.setAttribute("aria-expanded", "false");
+  });
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  document.querySelectorAll(".session-item.is-actions-open").forEach((item) => {
+    item.classList.remove("is-actions-open");
+    item.querySelector(".session-item-actions-toggle")?.setAttribute("aria-expanded", "false");
+  });
+});

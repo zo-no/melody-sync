@@ -129,25 +129,10 @@
         trackerBackBtn.hidden = !state?.isBranch || !state?.parentSessionId;
       }
 
-      if (showBranch && branchStatus === "active") {
-        if (trackerCloseBtn) {
-          trackerCloseBtn.hidden = false;
-          trackerCloseBtn.textContent = mergeInFlight ? "收束中..." : "收束支线";
-          trackerCloseBtn.setAttribute("aria-label", trackerCloseBtn.textContent);
-          trackerCloseBtn.title = trackerCloseBtn.textContent;
-          trackerCloseBtn.disabled = mergeInFlight;
-        }
-        if (trackerAltBtn) {
-          trackerAltBtn.hidden = false;
-          trackerAltBtn.textContent = "挂起";
-          trackerAltBtn.setAttribute("aria-label", trackerAltBtn.textContent);
-          trackerAltBtn.title = trackerAltBtn.textContent;
-          trackerAltBtn.disabled = mergeInFlight;
-        }
-        if (trackerBackBtn) {
-          trackerBackBtn.hidden = true;
-        }
-      } else if (showBranch && ["resolved", "merged", "parked"].includes(branchStatus)) {
+      // "收束支线" and "挂起" buttons are removed — branch completion is now done via the
+      // circle button in the task list (complete_pending), which auto-merges branch context.
+      // Only show "返回主线" for already-resolved/merged/parked branches.
+      if (showBranch && ["resolved", "merged", "parked"].includes(branchStatus)) {
         if (trackerAltBtn) {
           trackerAltBtn.hidden = !state?.parentSessionId;
           trackerAltBtn.textContent = "返回主线";

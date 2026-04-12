@@ -213,6 +213,25 @@ async function dispatchAction(msg) {
       case "complete_pending": {
         const previousSession = applyOptimisticSessionWorkflowState(msg.sessionId, "done");
         try {
+          // If the session being completed is a branch, auto-merge its context back to the parent first
+          const targetSession = Array.isArray(sessions)
+            ? sessions.find((s) => s?.id === msg.sessionId) || null
+            : null;
+          const isBranch = String(targetSession?.taskCard?.lineRole || "").trim().toLowerCase() === "branch";
+          if (isBranch) {
+            try {
+              const mergeData = await fetchJsonOrRedirect(`/api/workbench/sessions/${encodeURIComponent(msg.sessionId)}/merge-return`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mergeType: "conclusion" }),
+              });
+              if (mergeData?.session) {
+                upsertSession(mergeData.session);
+              }
+            } catch (_mergeErr) {
+              // merge-return is best-effort; continue to mark done even if it fails
+            }
+          }
           const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },

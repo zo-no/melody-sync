@@ -1,12 +1,11 @@
 (function outputPanelUiModule(global) {
   const documentRef = global.document;
-  const overlayEl = documentRef?.getElementById?.('outputPanelOverlay');
-  const openButtonEl = documentRef?.getElementById?.('outputPanelBtn');
-  const closeButtonEl = documentRef?.getElementById?.('outputPanelClose');
+  // Inline mode: panel lives inside .task-manager-main-column, no overlay
+  const inlineEl = documentRef?.getElementById?.('outputPanelInline');
   const refreshButtonEl = documentRef?.getElementById?.('outputPanelRefreshBtn');
   const bodyEl = documentRef?.getElementById?.('outputPanelBody');
 
-  if (!overlayEl || !openButtonEl || !closeButtonEl || !refreshButtonEl || !bodyEl) {
+  if (!inlineEl || !refreshButtonEl || !bodyEl) {
     return;
   }
 
@@ -382,15 +381,15 @@
 
   function render() {
     if (loading) {
-      bodyEl.innerHTML = '<div class="hooks-loading">产出面板加载中…</div>';
+      bodyEl.innerHTML = '<div class="output-panel-inline-loading">加载中…</div>';
       return;
     }
     if (errorMessage) {
-      bodyEl.innerHTML = `<div class="hooks-error">${escapeHtml(errorMessage)}</div>`;
+      bodyEl.innerHTML = `<div class="output-panel-inline-error">${escapeHtml(errorMessage)}</div>`;
       return;
     }
     if (!payload) {
-      bodyEl.innerHTML = '<div class="hooks-empty">还没有可展示的产出数据。</div>';
+      bodyEl.innerHTML = '<div class="output-panel-inline-empty">暂无产出数据。</div>';
       return;
     }
     renderLoaded();
@@ -470,7 +469,7 @@
     }
     refreshTimer = global.setTimeout?.(() => {
       refreshTimer = null;
-      if (!overlayEl.hidden) {
+      if (!inlineEl.hidden) {
         void refresh();
       }
     }, delayMs) || null;
@@ -479,11 +478,11 @@
   function startLiveRefresh() {
     stopLiveRefresh();
     liveRefreshTimer = global.setInterval?.(() => {
-      if (overlayEl.hidden) return;
+      if (inlineEl.hidden) return;
       void refresh();
     }, 15000) || null;
     contextPollTimer = global.setInterval?.(() => {
-      if (overlayEl.hidden) return;
+      if (inlineEl.hidden) return;
       const nextContextKey = getCurrentContextKey();
       if (nextContextKey === lastContextKey) return;
       lastContextKey = nextContextKey;
@@ -492,55 +491,41 @@
     }, 700) || null;
   }
 
-  function open() {
-    overlayEl.hidden = false;
-    documentRef.body?.classList?.add?.('output-panel-open');
+  // Inline panel: show when a session is active, hide on empty state
+  function show() {
+    inlineEl.hidden = false;
     startLiveRefresh();
     void refresh();
   }
 
-  function close() {
-    overlayEl.hidden = true;
-    documentRef.body?.classList?.remove?.('output-panel-open');
+  function hide() {
+    inlineEl.hidden = true;
     stopLiveRefresh();
     abortInFlightRequest();
   }
 
-  openButtonEl.addEventListener('click', () => {
-    open();
-  });
-
-  closeButtonEl.addEventListener('click', () => {
-    close();
-  });
+  // Legacy open/close kept for any external callers
+  function open() { show(); }
+  function close() { hide(); }
 
   refreshButtonEl.addEventListener('click', () => {
     void refresh();
   });
 
-  overlayEl.addEventListener('click', (event) => {
-    if (event?.target === overlayEl) {
-      close();
-    }
-  });
-
-  documentRef.addEventListener('keydown', (event) => {
-    if (event?.key === 'Escape' && !overlayEl.hidden) {
-      close();
-    }
-  });
-
   global.addEventListener?.('popstate', () => {
-    if (overlayEl.hidden) return;
+    if (inlineEl.hidden) return;
     abortInFlightRequest();
     scheduleRefresh(120);
   });
 
-  render();
+  // Auto-show: start live refresh immediately (panel is always visible when session is active)
+  show();
 
   global.MelodySyncOutputPanel = Object.freeze({
     open,
     close,
+    show,
+    hide,
     refresh,
   });
 })(window);

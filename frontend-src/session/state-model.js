@@ -86,7 +86,7 @@
       label: t("workflow.status.done"),
       className: "status-done",
       dotClass: "",
-      itemClass: "is-done-session",
+      itemClass: "is-user-done-session",
       title: t("workflow.status.doneTitle"),
     },
     parked: {
