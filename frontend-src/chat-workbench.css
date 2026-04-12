@@ -37,6 +37,18 @@
   gap: 4px;
 }
 
+.quest-tracker-titleline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.quest-tracker-titleline .quest-tracker-title {
+  flex: 1;
+  min-width: 0;
+}
+
 .quest-tracker-topline {
   display: flex;
   align-items: center;
@@ -1485,7 +1497,7 @@
   flex-direction: column;
   gap: 10px;
   border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
-  margin-top: 2px;
+  margin-top: 6px;
   padding-top: 8px;
 }
 
@@ -1543,8 +1555,7 @@
   white-space: nowrap;
   font-weight: 500;
   letter-spacing: 0.02em;
-  align-self: flex-start;
-  margin-top: 2px;
+  flex-shrink: 0;
 }
 
 .quest-tracker-detail-toggle:hover {
@@ -3668,6 +3679,10 @@ button.quest-task-flow-node {
   gap: 10px;
 }
 
+.quest-tracker-titleline {
+  align-items: center;
+}
+
 .quest-tracker-title {
   font-size: 24px;
   line-height: 1.08;
@@ -3786,10 +3801,6 @@ button.quest-task-flow-node {
 
 .quest-tracker-toggle {
   gap: 6px;
-}
-
-.quest-tracker-detail-toggle {
-  margin-top: 0;
 }
 
 .quest-tracker-btn:hover,
@@ -4838,10 +4849,75 @@ button.quest-task-flow-node {
   background: var(--bg-secondary);
 }
 .output-panel-inline-body {
-  padding: 0 16px 12px;
+  padding: 0 16px 10px;
   overflow-y: auto;
-  max-height: 400px;
+  max-height: 280px;
 }
+/* Inline stats row */
+.output-panel-inline-stats {
+  display: flex;
+  gap: 0;
+  padding: 6px 0 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.output-panel-inline-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.output-panel-inline-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+.output-panel-inline-stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+/* Inline sections (attention / recent wins) */
+.output-panel-inline-section {
+  margin-bottom: 8px;
+}
+.output-panel-inline-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+/* Compact list items */
+.output-panel-inline .output-list-item {
+  padding: 4px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+.output-panel-inline .output-list-item:last-child {
+  border-bottom: none;
+}
+.output-panel-inline .output-list-item-title {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.output-panel-inline .output-list-item-detail {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.output-panel-inline .output-list-item-time {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 .output-panel-inline-loading,
 .output-panel-inline-error,
 .output-panel-inline-empty {
@@ -5770,10 +5846,6 @@ button.quest-task-flow-node {
   --quest-task-flow-node-badge-dot: color-mix(in srgb, var(--text-muted) 84%, transparent);
   background: var(--quest-task-flow-node-bg) !important;
   border-color: var(--quest-task-flow-node-border) !important;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    inset 0 0 0 1px var(--quest-task-flow-node-border);
 }
 
 .quest-task-flow-node:hover,
@@ -7547,4 +7619,41 @@ body.long-term-workspace-active .task-manager-main-column {
   .long-term-detail-actions {
     justify-items: start;
   }
+}
+
+/* ─── Task map node shadows ──────────────────────────────────────────────────
+   Force a visible black drop shadow on all task map nodes so they read as
+   cards against any background. Applied last so they win the cascade.
+   is-current gets a stronger shadow; is-current-path (non-current) gets none
+   to indicate it's a background node.
+   ─────────────────────────────────────────────────────────────────────────── */
+.quest-task-flow-node:not(.is-current):not(.is-current-path) {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.14),
+    0 4px 12px rgba(0, 0, 0, 0.10),
+    inset 0 0 0 1px var(--quest-task-flow-node-border) !important;
+}
+
+.quest-task-flow-node.is-current {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.18),
+    0 8px 24px rgba(0, 0, 0, 0.14),
+    inset 0 0 0 1px var(--quest-task-flow-node-border) !important;
+}
+
+/* ─── Long-term project card shadows ─────────────────────────────────────────
+   Strengthen the drop shadow so cards stand out from the page background.
+   ─────────────────────────────────────────────────────────────────────────── */
+.long-term-project-card {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 22%, transparent),
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.10) !important;
+}
+
+.long-term-project-card:hover {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 4px 10px rgba(0, 0, 0, 0.10),
+    0 14px 32px rgba(0, 0, 0, 0.12) !important;
 }

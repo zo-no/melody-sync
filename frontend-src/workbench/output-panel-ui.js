@@ -319,62 +319,43 @@
   }
 
   function renderLoaded() {
-    const scope = String(payload?.scope || '').trim() === 'long-term' ? 'long-term' : 'sessions';
-    const scopeTitle = scope === 'long-term' ? '长期任务' : '普通任务';
     const overview = payload?.overview || {};
-    const today = payload?.today || {};
     const week = payload?.week || {};
-    const trend = Array.isArray(payload?.trend) ? payload.trend : [];
     const recentWins = Array.isArray(payload?.recentWins) ? payload.recentWins : [];
     const attention = Array.isArray(payload?.attention) ? payload.attention : [];
-    const generatedAt = formatStamp(payload?.generatedAt || '');
+
+    const open = Number.isFinite(overview?.openSessions) ? overview.openSessions : 0;
+    const waiting = Number.isFinite(overview?.waitingSessions) ? overview.waitingSessions : 0;
+    const weekDone = Number.isFinite(week?.completedSessions) ? week.completedSessions : 0;
 
     bodyEl.innerHTML = `
       <div class="output-panel-shell">
-        <section class="output-panel-section">
-          <div class="output-panel-kicker">
-            当前口径：${escapeHtml(scopeTitle)}。核心看任务的流入、流出和任务池变化，让图表直接说明你是在堆积还是在收敛。
-            ${generatedAt ? `最近刷新：${escapeHtml(generatedAt)}` : ''}
+        <div class="output-panel-inline-stats">
+          <div class="output-panel-inline-stat">
+            <span class="output-panel-inline-stat-value">${escapeHtml(String(open))}</span>
+            <span class="output-panel-inline-stat-label">在开</span>
           </div>
-        </section>
+          <div class="output-panel-inline-stat">
+            <span class="output-panel-inline-stat-value">${escapeHtml(String(waiting))}</span>
+            <span class="output-panel-inline-stat-label">等待处理</span>
+          </div>
+          <div class="output-panel-inline-stat">
+            <span class="output-panel-inline-stat-value">${escapeHtml(String(weekDone))}</span>
+            <span class="output-panel-inline-stat-label">本周完成</span>
+          </div>
+        </div>
 
-        <section class="output-panel-section output-panel-section-split">
-          <div class="output-panel-card">
-            <div class="output-panel-section-title">${scope === 'long-term' ? '长期维护流动' : '任务流动总览'}</div>
-            <div class="output-panel-section-desc">${scope === 'long-term'
-              ? '按天看长期任务线里的在开池、完成和支线收束，避免和普通任务混在一起。'
-              : '按天看在开任务池、完成和支线收束，先判断这周是在积压还是在消化。'}</div>
-            ${renderFlowChart(trend, week, overview)}
-          </div>
-          <div class="output-panel-card">
-            <div class="output-panel-section-title">${scope === 'long-term' ? '维护池收敛' : '任务池收敛'}</div>
-            <div class="output-panel-section-desc">${scope === 'long-term'
-              ? '直接对比长期维护线本周收口和当前在开，判断这条长期线是在扩张还是在消化。'
-              : '直接对比本周收口和当前在开，避免被新开噪声带偏。'}</div>
-            ${renderBalanceChart(week, today, overview)}
-          </div>
-        </section>
+        ${attention.length > 0 ? `
+        <div class="output-panel-inline-section">
+          <div class="output-panel-inline-section-title">需要处理</div>
+          <div class="output-list">${renderListItems(attention, '')}</div>
+        </div>` : ''}
 
-        <section class="output-panel-section output-panel-section-split">
-          <div class="output-panel-card">
-            <div class="output-panel-section-title">当前任务快照</div>
-            <div class="output-panel-section-desc">${escapeHtml(overview.loadLabel || '可控')}：${escapeHtml(overview.loadHint || '')}</div>
-            ${getCurrentSessionCardHtml()}
-          </div>
-          <div class="output-panel-card">
-            <div class="output-panel-section-title">最近收获</div>
-            <div class="output-panel-section-desc">优先看真正收口的任务和已经收束的支线。</div>
-            <div class="output-list">${renderListItems(recentWins, '最近还没有明显收口的任务。')}</div>
-          </div>
-        </section>
-
-        <section class="output-panel-section">
-          <div class="output-panel-card">
-            <div class="output-panel-section-title">需要你处理</div>
-            <div class="output-panel-section-desc">这里优先显示等待你输入，或已经放置过久的任务。</div>
-            <div class="output-list">${renderListItems(attention, '当前没有明显等待项。')}</div>
-          </div>
-        </section>
+        ${recentWins.length > 0 ? `
+        <div class="output-panel-inline-section">
+          <div class="output-panel-inline-section-title">最近完成</div>
+          <div class="output-list">${renderListItems(recentWins, '')}</div>
+        </div>` : ''}
       </div>
     `;
   }
