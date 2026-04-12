@@ -5024,6 +5024,10 @@ function MelodyNode({ data }) {
     quickConnectPending,
     quickConnectBusy,
   } = data;
+  // Extra node metadata
+  const conclusionCount = Number.isInteger(node?.conclusionCount) ? node.conclusionCount : 0;
+  const nodeBucket = String(node?.bucket || '').trim();
+  const nodeUpdatedAt = String(node?.updatedAt || '').trim();
 
   const manualComposerOpen = rendererApi?.activeComposer?.type === 'manual' && rendererApi?.activeComposer?.nodeId === node?.id;
   const reparentComposerOpen = rendererApi?.activeComposer?.type === 'reparent' && rendererApi?.activeComposer?.nodeId === node?.id;
@@ -5363,6 +5367,21 @@ function MelodyNode({ data }) {
           <div className={`quest-task-flow-node-status-row is-status-${nodeStatusKey}`}>
             <span className="quest-task-flow-node-status-dot" />
             <span className="quest-task-flow-node-status-label">{nodeStatusLabel}</span>
+          </div>
+        ) : null}
+        {/* Node metadata row: conclusions count + bucket */}
+        {(conclusionCount > 0 || nodeBucket) ? (
+          <div className="quest-task-flow-node-meta-row">
+            {nodeBucket ? (
+              <span className={`quest-task-flow-node-bucket-tag is-bucket-${nodeBucket}`}>
+                {nodeBucket === 'long_term' ? '长期' : nodeBucket === 'short_term' ? '短期' : nodeBucket === 'waiting' ? '等待' : nodeBucket === 'skill' ? '⚡' : nodeBucket === 'inbox' ? '收集' : nodeBucket}
+              </span>
+            ) : null}
+            {conclusionCount > 0 ? (
+              <span className="quest-task-flow-node-conclusions-count" title={`${conclusionCount} 条结论`}>
+                {conclusionCount} 结
+              </span>
+            ) : null}
           </div>
         ) : null}
 

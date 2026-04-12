@@ -6012,6 +6012,56 @@ button.quest-task-flow-node {
   line-height: 1;
 }
 
+/* Node metadata row: bucket tag + conclusion count */
+.quest-task-flow-node-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.quest-task-flow-node-bucket-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+  background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.quest-task-flow-node-bucket-tag.is-bucket-long_term {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: color-mix(in srgb, var(--accent) 75%, var(--text-muted));
+}
+
+.quest-task-flow-node-bucket-tag.is-bucket-short_term {
+  background: color-mix(in srgb, var(--notice) 10%, transparent);
+  color: color-mix(in srgb, var(--notice) 70%, var(--text-muted));
+}
+
+.quest-task-flow-node-bucket-tag.is-bucket-waiting {
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: color-mix(in srgb, var(--warning) 70%, var(--text-muted));
+}
+
+.quest-task-flow-node-bucket-tag.is-bucket-skill {
+  background: color-mix(in srgb, var(--naming) 10%, transparent);
+  color: color-mix(in srgb, var(--naming) 70%, var(--text-muted));
+}
+
+.quest-task-flow-node-conclusions-count {
+  font-size: 9px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--success) 65%, var(--text-muted));
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  padding: 1px 5px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
 /* Running: pulse animation to match sidebar dot */
 .quest-task-flow-node-status-row.is-status-running .quest-task-flow-node-status-dot,
 .quest-task-flow-node-status-row.is-status-pending .quest-task-flow-node-status-dot {
@@ -6040,13 +6090,13 @@ button.quest-task-flow-node {
 
 .quest-task-flow-node.is-status-waiting-user {
   --quest-task-flow-node-status-accent: var(--warning);
-  /* Waiting nodes need human attention — subtle pulse */
+  /* Waiting nodes need human attention — subtle outline pulse (outline doesn't conflict with box-shadow transition) */
   animation: quest-node-waiting-pulse 2.4s ease-in-out infinite;
 }
 
 @keyframes quest-node-waiting-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning) 0%, transparent); }
-  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 22%, transparent); }
+  0%, 100% { outline: 2px solid color-mix(in srgb, var(--warning) 0%, transparent); outline-offset: 0px; }
+  50% { outline: 2px solid color-mix(in srgb, var(--warning) 35%, transparent); outline-offset: 2px; }
 }
 
 .quest-task-flow-node.is-status-queued {

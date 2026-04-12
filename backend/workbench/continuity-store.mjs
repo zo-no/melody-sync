@@ -87,7 +87,7 @@ export function buildTaskClusters(state, sessions = []) {
   // Exclude archived sessions from the task map entirely
   const allSessions = (Array.isArray(sessions) ? sessions : []).filter((session) => session?.id && !session?.archived);
   const sessionMap = new Map(allSessions.map((session) => [session.id, session]));
-  const visibleRootSessions = allSessions.filter((session) => !session?.archived);
+  const visibleRootSessions = allSessions; // already filtered for archived at allSessions level
   const mainSessionsByGoal = new Map();
 
   for (const session of visibleRootSessions) {
@@ -150,9 +150,7 @@ export function buildTaskClusters(state, sessions = []) {
       }
       continue;
     }
-    if (!session?.archived) {
-      roots.push(session);
-    }
+    roots.push(session); // archived already excluded at allSessions level
   }
 
   function collectBranchEntries(parentSessionId, depth = 1, visited = new Set()) {

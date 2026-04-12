@@ -503,6 +503,11 @@ function buildDefaultQuestGraph({
     activityState: trimText(rootSession?.activity?.run?.state || ''),
     isCurrent: activeNodeId === rootNodeId,
     isCurrentPath: activeNodeId === rootNodeId,
+    conclusionCount: Array.isArray(rootSession?.taskCard?.knownConclusions)
+      ? rootSession.taskCard.knownConclusions.filter(Boolean).length
+      : 0,
+    bucket: trimText(rootSession?.taskPoolMembership?.longTerm?.bucket || ''),
+    updatedAt: trimText(rootSession?.lastEventAt || rootSession?.updatedAt || ''),
   });
 
   function appendCandidateNodes(parentSession = null, parentNodeId = '', depth = 1, directChildSessions = []) {
@@ -568,6 +573,12 @@ function buildDefaultQuestGraph({
         isCurrent: nodeId === activeNodeId,
         isCurrentPath: currentLineageIds.has(branchSession.id),
         conclusionText,
+        // Extra info for richer node display
+        conclusionCount: Array.isArray(branchSession?.taskCard?.knownConclusions)
+          ? branchSession.taskCard.knownConclusions.filter(Boolean).length
+          : 0,
+        bucket: trimText(branchSession?.taskPoolMembership?.longTerm?.bucket || ''),
+        updatedAt: trimText(branchSession?.lastEventAt || branchSession?.updatedAt || ''),
       });
       appendBranchTree(branchSession.id, nodeId, depth + 1);
       appendCandidateNodes(branchSession, nodeId, depth + 1, childrenByParent.get(branchSession.id) || []);
