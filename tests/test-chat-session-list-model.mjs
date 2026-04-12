@@ -240,13 +240,13 @@ assert.equal(
 );
 assert.equal(
   model.shouldShowSessionInSidebar({ id: 'main-done', taskCard: { lineRole: 'main' }, workflowState: 'done' }),
-  false,
-  'mainline done tasks should disappear from the active sidebar task list',
+  true,
+  'mainline done tasks stay visible (shown with strikethrough) — user must archive to hide',
 );
 assert.equal(
   model.shouldShowSessionInSidebar({ id: 'main-done-reviewed', taskCard: { lineRole: 'main' }, workflowState: 'done', reviewed: true }),
-  false,
-  'completed tasks should stay hidden from the active sidebar even if they still carry review metadata',
+  true,
+  'completed tasks with review metadata also stay visible until archived',
 );
 assert.equal(
   model.shouldShowSessionInSidebar({ id: 'main-parked', taskCard: { lineRole: 'main' }, workflowState: 'parked' }),
@@ -275,8 +275,8 @@ assert.equal(
 );
 assert.equal(
   model.getSessionListEntry({ id: 'entry-done', workflowState: 'done', taskCard: { lineRole: 'main' } }).hiddenReason,
-  'done_mainline',
-  'sidebar entry classification should explain when a mainline task is hidden for being completed',
+  '',
+  'done tasks are now visible (strikethrough style) — hiddenReason is empty until archived',
 );
 assert.equal(
   model.getSessionListEntry({ id: 'entry-parked', workflowState: 'parked', taskCard: { lineRole: 'main' } }).hiddenReason,

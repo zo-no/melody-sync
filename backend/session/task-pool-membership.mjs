@@ -13,6 +13,7 @@ function normalizeLongTermRole(value) {
   return '';
 }
 
+// NOTE: Keep alias lists in sync with frontend-src/core/task-type-constants.js normalizeBucket()
 function normalizeLongTermBucket(value) {
   const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
   if (['inbox', 'collection', 'collect', 'capture', '收集箱'].includes(normalized)) return 'inbox';

@@ -56,22 +56,16 @@
     return Number.isFinite(stamp) ? stamp : 0;
   }
 
-  function normalizeLongTermBucket(value) {
-    const normalized = normalizeKey(value).replace(/[\s-]+/g, "_");
-    if (["long_term", "long_term_iteration", "长期任务", "长期迭代"].includes(normalized)) return "long_term";
-    if (["short_term", "short_term_iteration", "短期任务", "短期迭代"].includes(normalized)) return "short_term";
-    if (["waiting", "waiting_user", "waiting_for", "等待任务", "等待"].includes(normalized)) return "waiting";
-    if (["inbox", "collect", "collection", "capture", "收集箱"].includes(normalized)) return "inbox";
-    return "";
-  }
-
   function inferLongTermBucketFromSession(session) {
-    const explicitBucket = normalizeLongTermBucket(session?.taskPoolMembership?.longTerm?.bucket || "");
-    if (explicitBucket) return explicitBucket;
-    const persistentKind = normalizeKey(session?.persistent?.kind || "").replace(/[\s-]+/g, "_");
-    if (persistentKind === "recurring_task") return "long_term";
-    if (persistentKind === "scheduled_task") return "short_term";
-    if (persistentKind === "waiting_task") return "waiting";
+    // Delegate to single source in core/task-type-constants.js
+    if (root?.MelodySyncTaskTypeConstants?.inferSessionBucket) {
+      return root.MelodySyncTaskTypeConstants.inferSessionBucket(session);
+    }
+    // Fallback (should not be reached if task-type-constants.js is loaded)
+    const kind = normalizeKey(session?.persistent?.kind || "").replace(/[\s-]+/g, "_");
+    if (kind === "recurring_task") return "long_term";
+    if (kind === "scheduled_task") return "short_term";
+    if (kind === "waiting_task") return "waiting";
     const workflowState = normalizeWorkflowState(session?.workflowState || "");
     if (workflowState === "waiting_user") return "waiting";
     return "inbox";

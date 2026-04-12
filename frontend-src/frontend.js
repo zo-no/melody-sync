@@ -5,6 +5,7 @@
   const requiredAssetPaths = [
     "/marked.min.js",
     "/chat/core/i18n.js",
+    "/chat/core/task-type-constants.js",
     "/chat/core/bootstrap-data.js",
     "/chat/session-list/order-contract.js",
     "/chat/session/state-model.js",

@@ -18,31 +18,28 @@ function setShowLongTermSessionsInTasksTab(value) {
 globalThis.getShowLongTermSessionsInTasksTab = getShowLongTermSessionsInTasksTab;
 globalThis.setShowLongTermSessionsInTasksTab = setShowLongTermSessionsInTasksTab;
 
-const LONG_TERM_BUCKET_DEFS = [
-  { key: "long_term", label: "长期任务", order: 0 },
-  { key: "short_term", label: "短期任务", order: 1 },
-  { key: "waiting", label: "等待任务", order: 2 },
-  { key: "inbox", label: "收集箱", order: 3 },
-  { key: "skill", label: "快捷按钮", order: 4 },
-];
+// Bucket definitions and inference — single source in core/task-type-constants.js
+const LONG_TERM_BUCKET_DEFS = (
+  globalThis.MelodySyncTaskTypeConstants?.BUCKET_DEFS ||
+  [
+    { key: "long_term",  label: "长期任务", order: 0 },
+    { key: "short_term", label: "短期任务", order: 1 },
+    { key: "waiting",    label: "等待任务", order: 2 },
+    { key: "inbox",      label: "收集箱",   order: 3 },
+    { key: "skill",      label: "快捷按钮", order: 4 },
+  ]
+);
 
 function inferLongTermSessionBucket(session) {
-  const model = getSessionListModel();
-  const membership = typeof model?.getLongTermTaskPoolMembership === "function"
-    ? model.getLongTermTaskPoolMembership(session)
-    : null;
-  const bucketRaw = String(membership?.bucket || "").trim().toLowerCase();
-  if (bucketRaw === "long_term") return "long_term";
-  if (bucketRaw === "short_term") return "short_term";
-  if (bucketRaw === "waiting") return "waiting";
-  if (bucketRaw === "inbox") return "inbox";
+  if (globalThis.MelodySyncTaskTypeConstants?.inferSessionBucket) {
+    return globalThis.MelodySyncTaskTypeConstants.inferSessionBucket(session);
+  }
+  // Fallback (should not be reached if task-type-constants.js is loaded)
   const kind = String(session?.persistent?.kind || "").trim().toLowerCase();
   if (kind === "recurring_task") return "long_term";
   if (kind === "scheduled_task") return "short_term";
   if (kind === "waiting_task") return "waiting";
   if (kind === "skill") return "skill";
-  const workflowState = String(session?.workflowState || "").trim().toLowerCase();
-  if (workflowState === "waiting_user") return "waiting";
   return "inbox";
 }
 
@@ -181,37 +178,9 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
     onClick(event, currentSession) {
       event?.preventDefault?.();
       if (!currentSession?.id) return;
-      const projects = typeof window.getLongTermProjectList === "function"
-        ? window.getLongTermProjectList()
-        : [];
-      if (projects.length === 0) {
-        // No projects yet — switch to Projects tab so user can create one
-        if (typeof switchTab === "function") switchTab("long-term");
-        return;
+      if (typeof window.openProjectPicker === "function") {
+        window.openProjectPicker(currentSession);
       }
-      // Use the first non-system user project, or the first project if all are system
-      const userProjects = projects.filter((p) => p.taskListOrigin !== "system");
-      const target = userProjects[0] || projects[0];
-      void (typeof fetchJsonOrRedirect === "function"
-        ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              taskPoolMembership: {
-                longTerm: {
-                  role: "member",
-                  projectSessionId: target.id,
-                  bucket: "inbox",
-                },
-              },
-            }),
-          })
-        : Promise.reject(new Error("no fetch"))
-      ).then(() => {
-        if (typeof renderSessionList === "function") renderSessionList();
-      }).catch((err) => {
-        console.error("[lt] assign to project failed:", err);
-      });
     },
   } : null;
 
@@ -655,6 +624,10 @@ function renderSessionList() {
       emptyState: {
         show: shouldShowSessionListEmptyState,
         label: sessionListEmptyLabel,
+        // Extra hint for sessions tab: tell user where project tasks live
+        hint: shouldShowSessionListEmptyState && isSessionsTab && sessionsLoaded
+          ? "归属于长期项目的任务在「长期项目」标签页中。点击下方「开始任务」创建一个独立任务。"
+          : "",
       },
       helpers: {
         t,
