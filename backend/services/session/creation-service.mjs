@@ -29,6 +29,10 @@ import {
   buildLongTermTaskPoolMembership,
   normalizeTaskPoolMembership,
 } from '../../session/task-pool-membership.mjs';
+import {
+  getSystemProjectId,
+  buildSystemProjectInboxMembership,
+} from '../../session/system-project.mjs';
 
 function getPersistentSessionGroup(kind = '') {
   const normalizedKind = typeof kind === 'string' ? kind.trim().toLowerCase() : '';
@@ -310,10 +314,19 @@ export async function createSessionWithDeps({
     if (normalizedPersistent) {
       session.persistent = normalizedPersistent;
     }
+    // Determine taskPoolMembership:
+    // 1. Explicit request wins
+    // 2. recurring_task → self-rooted project
+    // 3. All other sessions → auto-assign to system project inbox (if system project exists)
+    //    Exception: system sessions (taskListOrigin === 'system') skip auto-assignment
+    const isSystemSession = (extra?.taskListOrigin || '').trim().toLowerCase() === 'system';
+    const systemProjectId = !isSystemSession && !requestedTaskPoolMembership && !normalizedPersistent
+      ? getSystemProjectId()
+      : '';
     const normalizedTaskPoolMembership = requestedTaskPoolMembership
       || (normalizedPersistent?.kind === 'recurring_task'
         ? buildLongTermTaskPoolMembership(id, { role: 'project' })
-        : null);
+        : (systemProjectId ? buildSystemProjectInboxMembership(systemProjectId) : null));
     if (normalizedTaskPoolMembership) {
       session.taskPoolMembership = normalizedTaskPoolMembership;
     }

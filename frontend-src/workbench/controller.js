@@ -2509,22 +2509,12 @@
         "会话默认",
       );
 
-      kicker.textContent = "后台任务 / 定时任务";
-      lead.textContent = isPaused
-        ? `已暂停自动执行，仍可手动运行。${cadenceLabel ? `原周期：${cadenceLabel}` : ""}`.trim()
-        : `${cadenceLabel || "按设定周期"}自动执行`;
+      kicker.textContent = "";
+      lead.textContent = "";
 
       meta.appendChild(createPersistentSummaryChip(isPaused ? "已暂停" : "自动执行中", isPaused ? "paused" : "live"));
       if (cadenceLabel) meta.appendChild(createPersistentSummaryChip(cadenceLabel));
       if (nextRunAt) meta.appendChild(createPersistentSummaryChip(`下次 ${nextRunAt}`));
-      if (lastRunAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastRunAt}`));
-      meta.appendChild(createPersistentSummaryChip(`调度 ${runtimeLabel}`));
-      for (const entry of getLongTermBucketSummaryEntries(visibleSession)) {
-        meta.appendChild(createPersistentSummaryChip(`${entry.label} ${entry.count}`));
-      }
-      if (persistent?.knowledgeBasePath) {
-        meta.appendChild(createPersistentSummaryChip(`知识库 ${persistent.knowledgeBasePath}`));
-      }
     } else if (kind === "scheduled_task") {
       const isPaused = String(persistent?.state || "").trim().toLowerCase() === "paused";
       const scheduledAt = formatTrackerTime(
@@ -2542,18 +2532,11 @@
         "会话默认",
       );
 
-      kicker.textContent = "短期任务 / 定时任务";
-      lead.textContent = isPaused
-        ? "已暂停自动触发，仍可手动运行。"
-        : (scheduledAt ? `会在 ${scheduledAt} 自动执行一次` : "按设定时间自动执行一次");
+      kicker.textContent = "";
+      lead.textContent = "";
 
       meta.appendChild(createPersistentSummaryChip(isPaused ? "已暂停" : "定时中", isPaused ? "paused" : "live"));
-      if (scheduledAt) meta.appendChild(createPersistentSummaryChip(`定时 ${scheduledAt}`));
-      if (lastRunAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastRunAt}`));
-      meta.appendChild(createPersistentSummaryChip(`调度 ${runtimeLabel}`));
-      if (persistent?.knowledgeBasePath) {
-        meta.appendChild(createPersistentSummaryChip(`知识库 ${persistent.knowledgeBasePath}`));
-      }
+      if (scheduledAt) meta.appendChild(createPersistentSummaryChip(scheduledAt));
     } else if (kind === "waiting_task") {
       const runtimeLabel = formatPersistentRuntimeLabel(
         persistent?.runtimePolicy?.manual,
@@ -2564,12 +2547,10 @@
           || "",
       );
 
-      kicker.textContent = "等待任务";
-      lead.textContent = "这条任务主要在等待人类处理，可手动触发梳理当前阻塞和下一步。";
+      kicker.textContent = "";
+      lead.textContent = "";
 
-      meta.appendChild(createPersistentSummaryChip("等待人类", "active"));
-      if (lastTriggerAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastTriggerAt}`));
-      meta.appendChild(createPersistentSummaryChip(`执行 ${runtimeLabel}`));
+      meta.appendChild(createPersistentSummaryChip("等待中", "active"));
       if (persistent?.knowledgeBasePath) {
         meta.appendChild(createPersistentSummaryChip(`知识库 ${persistent.knowledgeBasePath}`));
       }
@@ -2584,12 +2565,11 @@
           || "",
       );
 
-      kicker.textContent = "AI 快捷按钮";
-      lead.textContent = "保留提示词和执行服务，之后可以一键手动触发。";
+      kicker.textContent = "";
+      lead.textContent = "";
 
-      meta.appendChild(createPersistentSummaryChip("手动触发", "active"));
+      meta.appendChild(createPersistentSummaryChip("快捷按钮", "active"));
       if (lastUsedAt) meta.appendChild(createPersistentSummaryChip(`上次 ${lastUsedAt}`));
-      meta.appendChild(createPersistentSummaryChip(`执行 ${runtimeLabel}`));
     } else if (longTermState?.suggestion?.rootSessionId) {
       const title = longTermState.suggestion.title || "长期任务";
       const summary = longTermState.suggestion.summary;
@@ -2947,6 +2927,10 @@
           skills: [],
           summaries: [],
         };
+      }
+      // Propagate systemProjectId to the session list so the sessions tab knows which project to show
+      if (snapshot?.systemProjectId && typeof window.setSystemProjectId === "function") {
+        window.setSystemProjectId(snapshot.systemProjectId);
       }
       await refreshTaskMapGraph(getFocusedSessionId() || getCurrentSessionIdSafe(), { force: false });
       await refreshMemoryCandidates(getFocusedSessionId() || getCurrentSessionIdSafe(), { force: false });

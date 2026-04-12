@@ -166,7 +166,10 @@ function normalizeTaskCardList(value, options = {}) {
   const items = [];
   const seen = new Set();
   for (const raw of rawItems) {
-    const normalized = clipText(String(raw || '').replace(/^[-*•]\s*/, ''), maxChars);
+    const rawText = raw && typeof raw === 'object' && !Array.isArray(raw)
+      ? String(raw.title || raw.name || raw.text || raw.label || raw.content || '')
+      : String(raw || '');
+    const normalized = clipText(rawText.replace(/^[-*•]\s*/, ''), maxChars);
     if (!normalized) continue;
     const key = normalized.toLowerCase();
     if (seen.has(key)) continue;
@@ -399,6 +402,7 @@ function buildTaskCardReplyContractBlock(normalized, fixedTaskTitle) {
     'Set checkpoint to one short resume hint that would let the user or the system continue later without rereading the full history.',
     'Set knownConclusions to at most 3-4 short items that record key decisions or confirmed facts that would otherwise be forgotten — things the session has definitively settled that are worth carrying forward. Do not list every step taken or every sub-question answered. Leave knownConclusions empty if nothing has been firmly decided yet.',
     'Default candidateBranches to an empty list.',
+    'candidateBranches must be a flat array of plain strings — each item is a short branch title only. Do NOT use objects like {"title":"...","reason":"..."} — use plain strings only.',
     'Add candidateBranches when the user has already started drifting into a different goal or when there are clear independent side lines that are likely to deserve their own branch next.',
     'Use candidateBranches for branch recommendations only. Do not change the main task title just because a candidate branch appeared.',
     'Do not proactively suggest a branch for normal follow-up questions, refinements, examples, reordering, polishing, style tweaks, or deeper explanation inside the same deliverable.',

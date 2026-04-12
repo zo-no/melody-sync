@@ -826,6 +826,9 @@ svg.react-flow__connectionline {
   height: 100%;
   min-height: 100%;
   transform: none !important;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
   transition:
     background 140ms ease,
     border-color 140ms ease,

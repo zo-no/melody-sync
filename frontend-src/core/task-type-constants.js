@@ -75,8 +75,8 @@ const BUCKET_DEFS = Object.freeze([
  */
 function normalizeBucket(value) {
   const normalized = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (["long_term", "long_term_iteration", "长期任务", "长期迭代"].includes(normalized)) return "long_term";
-  if (["short_term", "short_term_iteration", "短期任务", "短期迭代"].includes(normalized)) return "short_term";
+  if (["long_term", "long_term_iteration", "long", "长期任务", "长期迭代"].includes(normalized)) return "long_term";
+  if (["short_term", "short_term_iteration", "short", "iteration", "短期任务", "短期迭代"].includes(normalized)) return "short_term";
   if (["waiting", "waiting_user", "waiting_for", "等待任务", "等待"].includes(normalized)) return "waiting";
   if (["inbox", "collect", "collection", "capture", "收集箱"].includes(normalized)) return "inbox";
   if (["skill", "quick_action", "quick-action", "快捷按钮", "快捷动作"].includes(normalized)) return "skill";

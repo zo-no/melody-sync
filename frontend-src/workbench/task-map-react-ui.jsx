@@ -217,6 +217,9 @@ const REACT_FLOW_EXTRA_CSS = `
   height: 100%;
   min-height: 100%;
   transform: none !important;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 18%, var(--border));
+  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
   transition:
     background 140ms ease,
     border-color 140ms ease,
@@ -445,7 +448,7 @@ const REACT_FLOW_EXTRA_CSS = `
 .quest-task-flow-react-node-shell .quest-task-flow-node-quick-actions {
   position: absolute;
   top: 50%;
-  right: -82px;
+  right: -44px;
   z-index: 6;
   display: grid;
   justify-items: center;
@@ -3134,6 +3137,8 @@ function SessionListGroupSection({
   const sessions = Array.isArray(groupEntry?.sessions) ? groupEntry.sessions : [];
   const isLongTermProject = groupEntry?.type === 'long-term-project';
   const isTasksInbox = groupEntry?.type === 'tasks-inbox';
+  // sessions-project: the sessions tab bound to a project — show buckets only, no card header
+  const isSessionsProject = groupEntry?.type === 'sessions-project';
 
   const toggleGroup = () => {
     if (isLongTermProject) {
@@ -3184,10 +3189,10 @@ function SessionListGroupSection({
   }
 
   return (
-    <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}${isLongTermProject ? ' is-long-term-project-group' : ''}${isTasksInbox ? ' is-tasks-inbox-group' : ''}`}>
+    <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}${isLongTermProject ? ' is-long-term-project-group' : ''}${isSessionsProject ? ' is-sessions-project-group' : ''}${isTasksInbox ? ' is-tasks-inbox-group' : ''}`}>
       {showGroupHeaders ? (
-        isTasksInbox ? (
-          // Tasks inbox: bucket sections only, no card header, no panel entry
+        (isTasksInbox || isSessionsProject) ? (
+          // Tasks inbox / sessions-project: bucket sections only, no card header
           <div className="tasks-inbox-buckets">
             {Object.values(groupEntry?.buckets || {})
               .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
@@ -3231,28 +3236,28 @@ function SessionListGroupSection({
               {groupEntry?.isSystem ? <span className="lt-project-card-default-badge">默认</span> : null}
               <span className="lt-project-card-count">{memberCount}</span>
             </div>
-            {/* Collapsible content: panel entry + task buckets */}
-            <div className="lt-project-card-content" hidden={isCollapsed}>
-              {/* Panel entry row — same visual weight as a bucket, click to open panel */}
-              <div
-                className="lt-project-card-body"
-                role="button"
-                tabIndex={0}
-                title="打开控制面板"
-                onClick={openProjectPanel}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return;
-                  event.preventDefault();
-                  openProjectPanel(event);
-                }}
-              >
-                <div className="lt-project-card-body-text">
-                  {projectSummary
-                    ? <div className="lt-project-card-desc">{projectSummary}</div>
-                    : <div className="lt-project-card-panel-hint">控制面板</div>}
-                </div>
-                <span className="lt-project-card-panel-icon" aria-hidden="true">›</span>
+            {/* Panel entry row — always visible, not hidden when collapsed */}
+            <div
+              className="lt-project-card-body"
+              role="button"
+              tabIndex={0}
+              title="打开控制面板"
+              onClick={openProjectPanel}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                openProjectPanel(event);
+              }}
+            >
+              <div className="lt-project-card-body-text">
+                {projectSummary
+                  ? <div className="lt-project-card-desc">{projectSummary}</div>
+                  : <div className="lt-project-card-panel-hint">控制面板</div>}
               </div>
+              <span className="lt-project-card-panel-icon" aria-hidden="true">›</span>
+            </div>
+            {/* Collapsible content: task buckets only */}
+            <div className="lt-project-card-content" hidden={isCollapsed}>
               {/* Bucket sub-folders */}
               {Object.values(groupEntry?.buckets || {})
                 .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
@@ -4527,6 +4532,8 @@ function buildBoardSnapshot({
         graphProposal,
         isDone,
         isRichView,
+        nodeStatusKey: trimText(nodeStatusUi?.key || ''),
+        nodeStatusLabel: trimText(nodeStatusUi?.label || ''),
         className: nodeClasses.join(' '),
         badgeClassName: [
           'quest-task-flow-node-badge',
@@ -4937,6 +4944,8 @@ function MelodyNode({ data }) {
     isDone,
     isRichView,
     isDraftBranchComposer,
+    nodeStatusKey,
+    nodeStatusLabel,
     className,
     badgeClassName,
     actionLabel,
@@ -5280,6 +5289,12 @@ function MelodyNode({ data }) {
         {badgeLabel ? <div className={badgeClassName}>{badgeLabel}</div> : null}
         <div className="quest-task-flow-node-title" title={rawTitle}>{title}</div>
         {summary ? <div className="quest-task-flow-node-summary" title={summary}>{summary}</div> : null}
+        {nodeStatusKey ? (
+          <div className={`quest-task-flow-node-status-row is-status-${nodeStatusKey}`}>
+            <span className="quest-task-flow-node-status-dot" />
+            <span className="quest-task-flow-node-status-label">{nodeStatusLabel}</span>
+          </div>
+        ) : null}
 
         {primaryAction === 'create-branch' ? (
           <button

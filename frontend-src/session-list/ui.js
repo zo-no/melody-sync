@@ -3,8 +3,58 @@ function t(key, vars) {
   return window.melodySyncT ? window.melodySyncT(key, vars) : key;
 }
 
-// Whether to show long-term project member sessions in the tasks tab
-// Default: hidden (false). User can toggle via the eye icon.
+// ---- Sessions tab project binding ----
+// The "sessions" tab displays the content of a specific long-term project (the "daily project").
+// By default this is the system project. Users can rebind it to any long-term project.
+const SESSIONS_TAB_PROJECT_STORAGE_KEY = "melodysyncSessionsTabProjectId";
+
+// The system project ID received from the backend workbench snapshot
+let systemProjectId = "";
+
+function getSystemProjectId() {
+  return systemProjectId;
+}
+
+function setSystemProjectId(id) {
+  const normalized = typeof id === "string" ? id.trim() : "";
+  if (normalized && normalized !== systemProjectId) {
+    systemProjectId = normalized;
+    // If no user override, update the effective project ID
+    if (!getSessionsTabProjectOverride()) {
+      // No override — effective ID is now the system project
+    }
+  }
+}
+
+function getSessionsTabProjectOverride() {
+  try {
+    return localStorage.getItem(SESSIONS_TAB_PROJECT_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function setSessionsTabProject(projectId) {
+  const normalized = typeof projectId === "string" ? projectId.trim() : "";
+  try {
+    if (normalized) {
+      localStorage.setItem(SESSIONS_TAB_PROJECT_STORAGE_KEY, normalized);
+    } else {
+      localStorage.removeItem(SESSIONS_TAB_PROJECT_STORAGE_KEY);
+    }
+  } catch {}
+}
+
+function getSessionsTabProjectId() {
+  return getSessionsTabProjectOverride() || systemProjectId;
+}
+
+globalThis.getSessionsTabProjectId = getSessionsTabProjectId;
+globalThis.setSessionsTabProject = setSessionsTabProject;
+globalThis.getSystemProjectId = getSystemProjectId;
+globalThis.setSystemProjectId = setSystemProjectId;
+
+// Legacy compat — these are no longer meaningful but kept to avoid breaking callers
 let showLongTermSessionsInTasksTab = false;
 
 function getShowLongTermSessionsInTasksTab() {
@@ -411,11 +461,23 @@ function isSkillSessionForList(session) {
 
 function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
   if (tab === "sessions") {
-    // Project roots never shown in tasks tab
+    const boundProjectId = getSessionsTabProjectId();
+    if (boundProjectId) {
+      // Sessions tab shows the content of the bound project (project root + members)
+      const model = getSessionListModel();
+      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
+        ? model.getLongTermTaskPoolMembership(session)
+        : null;
+      const sessionProjectId = membership?.projectSessionId || "";
+      // Include: project root itself
+      if (session?.id === boundProjectId) return true;
+      // Include: members of the bound project
+      if (sessionProjectId === boundProjectId && membership?.role === "member") return true;
+      return false;
+    }
+    // Fallback (no system project yet): show non-project, non-skill sessions
     if (isLongTermProjectSessionForList(session)) return false;
-    // Long-term project members belong to the long-term tab, not tasks tab
     if (isLongTermLineSessionForList(session)) return false;
-    // Skills never shown in tasks tab
     if (isSkillSessionForList(session)) return false;
     return true;
   }
@@ -434,7 +496,7 @@ function renderSessionList() {
   const isLongTermTab = activeSidebarTab === "long-term";
   const isSessionsTab = activeSidebarTab === "sessions";
   const groupingMode = getSessionGroupingModeForList();
-  const showGroupingFolderControls = !isLongTermTab;
+  const showGroupingFolderControls = false;
   // Pinned sessions only shown in the sessions tab, not in the long-term projects tab
   const pinnedSessions = isLongTermTab
     ? []
@@ -450,46 +512,47 @@ function renderSessionList() {
   );
   const groups = new Map();
   if (isSessionsTab) {
-    // Tasks tab: GTD-style groups by task type (bucket), not by project
-    // Sessions show a project name badge if they belong to a project
-    // GTD groups derived from BUCKET_DEFS — labels come from single source
-    const bucketDefs = globalThis.MelodySyncTaskTypeConstants?.BUCKET_DEFS || [
-      { key: "long_term",  label: "长期任务", order: 0 },
-      { key: "short_term", label: "短期任务", order: 1 },
-      { key: "waiting",    label: "等待任务", order: 2 },
-      { key: "inbox",      label: "收集箱",   order: 3 },
-    ];
-    const GTD_GROUPS = bucketDefs
-      .filter((b) => b.key !== "skill")
-      .map((b) => ({
-        key: `group:gtd-${b.key.replace(/_/g, "-")}`,
-        label: b.label,
-        buckets: b.key === "inbox" ? ["inbox", ""] : [b.key],
-        order: b.order,
-      }));
-    for (const def of GTD_GROUPS) {
-      groups.set(def.key, { ...def, type: "gtd-group", sessions: [] });
-    }
+    // Sessions tab: show the bound project's bucket view (same as long-term tab for a single project)
+    const boundProjectId = getSessionsTabProjectId();
+    const model = getSessionListModel();
     for (const session of visibleSessions) {
       if (!session?.id) continue;
-      const bucket = inferLongTermSessionBucket(session);
-      const groupDef = GTD_GROUPS.find((g) => g.buckets.includes(bucket)) || GTD_GROUPS[3];
-      groups.get(groupDef.key).sessions.push(session);
-    }
-    // Remove empty groups; sort done sessions to the bottom within each group
-    const stateModel = window.MelodySyncSessionStateModel;
-    for (const def of GTD_GROUPS) {
-      const group = groups.get(def.key);
-      if (group.sessions.length === 0) {
-        groups.delete(def.key);
-      } else {
-        group.sessions.sort((a, b) => {
-          const aWorkflow = stateModel?.normalizeSessionWorkflowState?.(a?.workflowState || "") || "";
-          const bWorkflow = stateModel?.normalizeSessionWorkflowState?.(b?.workflowState || "") || "";
-          const aDone = aWorkflow === "done" ? 1 : 0;
-          const bDone = bWorkflow === "done" ? 1 : 0;
-          return aDone - bDone;
+      const isProject = session.id === boundProjectId;
+      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
+        ? model.getLongTermTaskPoolMembership(session)
+        : null;
+      const projectId = boundProjectId || membership?.projectSessionId || (isProject ? session.id : "");
+      if (!projectId) continue;
+      const groupKey = `group:sessions-project:${projectId}`;
+      if (!groups.has(groupKey)) {
+        const projectSession = isProject
+          ? session
+          : (typeof getSessionCatalogRecordById === "function"
+              ? getSessionCatalogRecordById(projectId)
+              : getVisibleActiveSessions().find((s) => s?.id === projectId) || null);
+        const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
+        groups.set(groupKey, {
+          key: groupKey,
+          label: projectSession?.name || "日常任务",
+          title: projectSession?.name || "日常任务",
+          order: 0,
+          type: "sessions-project",
+          projectId,
+          isSystem: isSystemProject,
+          projectSession: projectSession || null,
+          sessions: [],
+          buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
         });
+      }
+      const groupEntry = groups.get(groupKey);
+      groupEntry.sessions.push(session);
+      if (!isProject) {
+        const bucket = inferLongTermSessionBucket(session);
+        if (groupEntry.buckets[bucket]) {
+          groupEntry.buckets[bucket].sessions.push(session);
+        } else {
+          groupEntry.buckets.inbox.sessions.push(session);
+        }
       }
     }
   } else if (isLongTermTab) {
@@ -610,8 +673,8 @@ function renderSessionList() {
         sessions: groupEntry.sessions,
         collapsed: collapsedFolders[groupKey] === true,
         canDelete: showGroupingFolderControls && isUserTemplateFolderGroup(groupKey),
-        ...(groupEntry.type === "long-term-project" ? {
-          type: "long-term-project",
+        ...((groupEntry.type === "long-term-project" || groupEntry.type === "sessions-project") ? {
+          type: groupEntry.type,
           projectId: groupEntry.projectId,
           isSystem: groupEntry.isSystem === true,
           projectSession: groupEntry.projectSession || null,
@@ -649,9 +712,8 @@ function renderSessionList() {
       emptyState: {
         show: shouldShowSessionListEmptyState,
         label: sessionListEmptyLabel,
-        // Extra hint for sessions tab: tell user where project tasks live
         hint: shouldShowSessionListEmptyState && isSessionsTab && sessionsLoaded
-          ? "归属于长期项目的任务在「长期项目」标签页中。点击下方「开始任务」创建一个独立任务。"
+          ? "点击下方「开始任务」创建一个新任务。"
           : "",
       },
       helpers: {

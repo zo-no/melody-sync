@@ -322,7 +322,9 @@
     if (membership?.projectSessionId) {
       return membership.projectSessionId;
     }
-    if (getSidebarPersistentKind(session) === "recurring_task") {
+    // Only treat as self-root if NOT a member of another project
+    const rawRole = (session?.taskPoolMembership?.longTerm?.role || "").trim().toLowerCase();
+    if (rawRole !== "member" && getSidebarPersistentKind(session) === "recurring_task") {
       return sessionId;
     }
 
@@ -351,10 +353,12 @@
   function isLongTermProjectSession(session) {
     const membership = getLongTermTaskPoolMembership(session);
     if (membership) {
-      // If we have explicit membership, trust it: only project role is a project
+      // Explicit membership: only role=project is a project root
+      // role=member means it belongs to another project, never a root
+      if (membership.role === "member") return false;
       return membership.role === "project" && membership.fixedNode === true;
     }
-    // No membership: recurring_task defaults to being a project root
+    // No membership at all: recurring_task without any project assignment is a root
     return getSidebarPersistentKind(session) === "recurring_task";
   }
 
@@ -615,11 +619,10 @@
       hiddenReason = "branch_filtered";
     } else if (!archived && taskListVisibility !== "primary" && !branch) {
       hiddenReason = "secondary_task";
-    } else if (!archived && workflowState === "done") {
-      hiddenReason = "done_mainline";
     } else if (!archived && workflowState === "parked") {
       hiddenReason = "parked_mainline";
     }
+    // Note: "done" sessions stay visible (shown with strikethrough) — user must explicitly archive to hide
 
     const isSystem = normalizeKey(session?.taskListOrigin || "") === "system";
     const entry = {

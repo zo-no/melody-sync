@@ -9,9 +9,9 @@ import {
 import {
   buildLongTermTaskPoolMembership,
   normalizeTaskPoolMembership,
-  stripLongTermTaskPoolMembership,
+
 } from '../../session/task-pool-membership.mjs';
-import { normalizePersistentKind } from '../../session/persistent-kind.mjs';
+import { normalizePersistentKind, KIND_TO_BUCKET } from '../../session/persistent-kind.mjs';
 
 function mergeObjectShape(current, patch) {
   const currentValue = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
@@ -111,18 +111,14 @@ function buildSessionPersistentPatch(currentPersistent, patch = {}) {
   };
 }
 
-// Promote-time bucket inference: always infers from kind, ignoring existing explicit bucket.
-// This is intentionally different from inferLongTermBucketFromSession in persistent-kind.mjs
-// which respects the existing explicit bucket.
-function inferLongTermBucketFromSession(session = null, persistent = null) {
-  const kind = normalizePersistentKind(persistent?.kind || '');
-  if (kind === 'recurring_task') return 'long_term';
-  if (kind === 'scheduled_task') return 'short_term';
-  if (kind === 'waiting_task') return 'waiting';
+// Infer bucket from kind only — used at promote time to always override existing bucket.
+// Contrast with inferLongTermBucketFromSession() in persistent-kind.mjs which respects explicit bucket.
+function inferBucketFromKind(session = null, persistent = null) {
+  const bucket = KIND_TO_BUCKET[normalizePersistentKind(persistent?.kind || '')];
+  if (bucket) return bucket;
   const workflowState = typeof session?.workflowState === 'string'
     ? session.workflowState.trim().toLowerCase() : '';
-  if (workflowState === 'waiting_user') return 'waiting';
-  return 'inbox';
+  return workflowState === 'waiting_user' ? 'waiting' : 'inbox';
 }
 
 function buildPersistentTriggerLabel(triggerKind = '') {
@@ -186,15 +182,13 @@ function buildPersistentTaskPoolMembership(sessionId, persistent, currentTaskPoo
   if (currentLongTermMembership?.projectSessionId && currentLongTermMembership.role !== 'project') {
     return buildLongTermTaskPoolMembership(currentLongTermMembership.projectSessionId, {
       role: 'member',
-      bucket: inferLongTermBucketFromSession(session, persistent),
+      bucket: inferBucketFromKind(session, persistent),
     });
   }
   if (persistent?.kind === 'recurring_task') {
     return buildLongTermTaskPoolMembership(normalizedSessionId, { role: 'project' });
   }
-  return stripLongTermTaskPoolMembership(currentTaskPoolMembership, {
-    sessionId: normalizedSessionId,
-  });
+  return null; // strip membership for non-project, non-member kinds
 }
 
 export function createSessionPersistentService({
@@ -234,7 +228,7 @@ export function createSessionPersistentService({
       if (!projectSessionId) continue;
       return buildLongTermTaskPoolMembership(projectSessionId, {
         role: projectSessionId === normalizedSessionId ? 'project' : 'member',
-        bucket: inferLongTermBucketFromSession(session, session?.persistent || null),
+        bucket: inferBucketFromKind(session, session?.persistent || null),
       });
     }
     return null;
@@ -258,7 +252,7 @@ export function createSessionPersistentService({
     }
     const taskPoolMembership = buildLongTermTaskPoolMembership(projectSessionId, {
       role: 'member',
-      bucket: inferLongTermBucketFromSession(sourceSession, persistent),
+      bucket: inferBucketFromKind(sourceSession, persistent),
     });
     if (!taskPoolMembership) {
       return getSession(normalizedChildSessionId, { includeQueuedMessages: true }).catch(() => null);
@@ -350,7 +344,7 @@ export function createSessionPersistentService({
         ? {
             taskPoolMembership: buildLongTermTaskPoolMembership(projectSessionId, {
               role: 'member',
-              bucket: inferLongTermBucketFromSession(session, persistent),
+              bucket: inferBucketFromKind(session, persistent),
             }),
           }
         : {}),

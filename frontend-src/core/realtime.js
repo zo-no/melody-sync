@@ -288,9 +288,6 @@ async function dispatchAction(msg) {
         const sessionName = typeof targetSession?.name === "string" && targetSession.name.trim()
           ? targetSession.name.trim()
           : t("session.defaultName");
-        if (typeof confirm === "function" && !confirm(t("action.deleteConfirm", { name: sessionName }))) {
-          return false;
-        }
         const previousSession = applyOptimisticSessionDelete(msg.sessionId);
         try {
           const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {

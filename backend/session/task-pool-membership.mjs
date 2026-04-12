@@ -61,23 +61,20 @@ export function normalizeTaskPoolMembership(value, { sessionId = '' } = {}) {
 export function buildLongTermTaskPoolMembership(projectSessionId, { role = 'member', bucket = '' } = {}) {
   const normalizedProjectSessionId = trimText(projectSessionId);
   if (!normalizedProjectSessionId) return null;
+  const normalizedRole = normalizeLongTermRole(role);
+  const normalizedBucket = normalizeLongTermBucket(bucket);
   return normalizeTaskPoolMembership({
     longTerm: {
-      role,
+      role: normalizedRole || 'member',
       projectSessionId: normalizedProjectSessionId,
-      fixedNode: normalizeLongTermRole(role) === 'project',
-      ...(normalizeLongTermBucket(bucket) ? { bucket: normalizeLongTermBucket(bucket) } : {}),
+      fixedNode: normalizedRole === 'project',
+      ...(normalizedBucket ? { bucket: normalizedBucket } : {}),
     },
   }, {
-    sessionId: normalizeLongTermRole(role) === 'project' ? normalizedProjectSessionId : '',
+    sessionId: normalizedRole === 'project' ? normalizedProjectSessionId : '',
   });
 }
 
-export function stripLongTermTaskPoolMembership(value, { sessionId = '' } = {}) {
-  const normalized = normalizeTaskPoolMembership(value, { sessionId });
-  if (!normalized?.longTerm) return null;
-  return null;
-}
 
 export function getExplicitLongTermTaskPoolMembership(session = null) {
   return normalizeTaskPoolMembership(session?.taskPoolMembership, {

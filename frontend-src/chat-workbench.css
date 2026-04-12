@@ -1448,8 +1448,12 @@
   display: none;
 }
 
-/* lead 也渲染成 chip 样式 */
-.quest-tracker-persistent-lead {
+.quest-tracker-persistent-lead:empty {
+  display: none;
+}
+
+/* lead 有内容时也渲染成 chip 样式 */
+.quest-tracker-persistent-lead:not(:empty) {
   display: inline-flex;
   align-items: center;
   min-height: 20px;

@@ -88,6 +88,28 @@
       }) || { key: "", label: "", summary: "", dotClassName: "" };
       const label = String(taskRunStatus?.label || "").trim();
       if (!label) {
+        // For persistent tasks that have run at least once, show a green "run done" status
+        // instead of hiding the status box entirely. This is distinct from "completed" (workflowState: done).
+        const persistent = state.session?.persistent;
+        const persistentKind = trimText(persistent?.kind || "").toLowerCase();
+        if (persistentKind && persistentKind !== "skill") {
+          const lastRunAt = persistent?.execution?.lastTriggerAt
+            || persistent?.recurring?.lastRunAt
+            || persistent?.scheduled?.lastRunAt
+            || "";
+          const runState = trimText(state.session?.activity?.run?.state || "").toLowerCase();
+          const isRunning = runState === "running";
+          const workflowState = trimText(state.session?.workflowState || "").toLowerCase();
+          const isDone = ["done", "complete", "completed", "finished"].includes(workflowState);
+          if (lastRunAt && !isRunning && !isDone) {
+            return {
+              key: "run-done",
+              label: "本次完成",
+              dotClassName: "status-run-done",
+              summary: "本轮执行已完成，等待下次触发。",
+            };
+          }
+        }
         return { key: "", label: "", dotClassName: "", summary: "" };
       }
       return {
@@ -110,6 +132,7 @@
       trackerStatusEl.hidden = !visualStatus.label;
       trackerStatusTextEl.textContent = visualStatus.label || "";
       trackerStatusDotEl.className = `quest-tracker-status-dot${visualStatus.dotClassName ? ` ${visualStatus.dotClassName}` : ""}`;
+      trackerStatusEl.classList.toggle("has-status-run-done", visualStatus.key === "run-done");
     }
 
     function getPrimaryTitle(state) {
@@ -375,9 +398,12 @@
 
       const hasAny = showDistinctResumePoint || conclusions.length > 0;
       if (trackerDetailToggleBtn) {
-        trackerDetailToggleBtn.hidden = true;
+        trackerDetailToggleBtn.hidden = !hasAny;
+        if (hasAny) {
+          trackerDetailToggleBtn.textContent = expanded ? "详情 ▾" : "详情 ▸";
+        }
       }
-      trackerDetailEl.hidden = !hasAny;
+      trackerDetailEl.hidden = !hasAny || !expanded;
     }
 
     function createPersistentActionButton(label, onClick, { secondary = false, active = false } = {}) {

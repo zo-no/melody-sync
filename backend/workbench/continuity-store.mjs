@@ -2,6 +2,7 @@ import { listWorkbenchSessions } from './session-ports.mjs';
 import { normalizeLongTermBucket, inferLongTermBucketFromSession } from '../session/persistent-kind.mjs';
 import { createSessionListItem } from '../session/api-shapes.mjs';
 import { loadWorkbenchState } from './state-store.mjs';
+import { getSystemProjectId } from '../session/system-project.mjs';
 import {
   normalizeBranchContextStatus,
   normalizeNullableText,
@@ -206,6 +207,7 @@ export function buildWorkbenchSnapshot(state, sessions = []) {
     taskClusters: buildTaskClusters(state, sessions),
     skills: sortByUpdatedDesc(state.skills || []),
     summaries: sortByUpdatedDesc(state.summaries || []),
+    systemProjectId: getSystemProjectId(),
   };
 }
 

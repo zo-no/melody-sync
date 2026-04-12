@@ -454,10 +454,6 @@ function syncSessionGroupingControls() {
     sidebarBranchVisibilityToggleBtn.setAttribute("aria-pressed", branchesHidden ? "true" : "false");
     sidebarBranchVisibilityToggleBtn.classList.toggle("is-active", branchesHidden);
   }
-  // Long-term visibility toggle is no longer needed — hide it
-  if (sidebarLongTermVisibilityToggleBtn) {
-    sidebarLongTermVisibilityToggleBtn.hidden = true;
-  }
   if (sidebarGroupingConfigBtn) {
     sidebarGroupingConfigBtn.hidden = true;
   }
@@ -540,17 +536,6 @@ newSessionBtn?.addEventListener("click", () => {
 sidebarBranchVisibilityToggleBtn?.addEventListener("click", () => {
   const nextMode = getBranchTaskVisibilityModeForSidebar() === "hide" ? "show" : "hide";
   setBranchTaskVisibilityModeForSidebar(nextMode);
-  syncSessionGroupingControls();
-  renderSessionList();
-});
-
-sidebarLongTermVisibilityToggleBtn?.addEventListener("click", () => {
-  const next = !(typeof window.getShowLongTermSessionsInTasksTab === "function"
-    ? window.getShowLongTermSessionsInTasksTab()
-    : false);
-  if (typeof window.setShowLongTermSessionsInTasksTab === "function") {
-    window.setShowLongTermSessionsInTasksTab(next);
-  }
   syncSessionGroupingControls();
   renderSessionList();
 });
