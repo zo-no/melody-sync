@@ -1175,6 +1175,9 @@
   function renderPersistentTrackerActions(session) {
     const visibleSession = getPersistentUiSession(session);
     trackerRenderer?.renderPersistentActions?.(visibleSession, {
+      onComplete: () => {
+        dispatchAction?.({ action: "complete_pending", sessionId: session.id });
+      },
       onPromote: async () => {
         const title = String(session?.taskCard?.goal || session?.taskCard?.mainGoal || session?.name || session?.taskCard?.summary || "").trim() || "未命名长期项";
         const summary = String(session?.taskCard?.checkpoint || session?.taskCard?.summary || "").trim();
@@ -2449,15 +2452,18 @@
       const bucket = inferLongTermBucketFromSession(branchSession);
       counters.set(bucket, (counters.get(bucket) || 0) + 1);
     }
-    return [
-      { key: "long_term", label: "长期任务" },
-      { key: "short_term", label: "短期任务" },
-      { key: "waiting", label: "等待任务" },
-      { key: "inbox", label: "收集箱" },
-    ]
-      .filter((entry) => (counters.get(entry.key) || 0) > 0)
+    const bucketDefs = (typeof window !== "undefined" && window.MelodySyncTaskTypeConstants?.BUCKET_DEFS) ||
+      [
+        { key: "long_term",  label: "长期任务" },
+        { key: "short_term", label: "短期任务" },
+        { key: "waiting",    label: "等待任务" },
+        { key: "inbox",      label: "收集箱" },
+      ];
+    return bucketDefs
+      .filter((entry) => entry.key !== "skill" && (counters.get(entry.key) || 0) > 0)
       .map((entry) => ({
-        ...entry,
+        key: entry.key,
+        label: entry.label,
         count: counters.get(entry.key) || 0,
       }));
   }

@@ -194,12 +194,13 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
   const currentBucket = isLtMember
     ? String(ltMembership?.bucket || "inbox").trim().toLowerCase() : "";
 
-  const BUCKET_LABELS = {
-    long_term: "长期任务",
-    short_term: "短期任务",
-    waiting: "等待任务",
-    inbox: "收集箱",
-  };
+  // Bucket labels from single source in core/task-type-constants.js
+  const BUCKET_LABELS = (globalThis.MelodySyncTaskTypeConstants?.BUCKET_DEFS || [
+    { key: "long_term",  label: "长期任务" },
+    { key: "short_term", label: "短期任务" },
+    { key: "waiting",    label: "等待任务" },
+    { key: "inbox",      label: "收集箱" },
+  ]).reduce((acc, b) => { acc[b.key] = b.label; return acc; }, {});
 
   const moveToBucketActions = isLtMember
     ? Object.entries(BUCKET_LABELS)
@@ -386,9 +387,12 @@ function isLongTermProjectSessionForList(session) {
   if (typeof model?.isLongTermProjectSession === "function") {
     return model.isLongTermProjectSession(session);
   }
-  if (getSidebarPersistentKind(session) === "recurring_task") return true;
   const ltRole = String(session?.taskPoolMembership?.longTerm?.role || "").trim().toLowerCase();
-  return ltRole === "project";
+  // Explicit project role
+  if (ltRole === "project") return true;
+  // Fallback: recurring_task that is NOT a member of another project
+  if (ltRole !== "member" && getSidebarPersistentKind(session) === "recurring_task") return true;
+  return false;
 }
 
 function isLongTermLineSessionForList(session) {
@@ -448,12 +452,21 @@ function renderSessionList() {
   if (isSessionsTab) {
     // Tasks tab: GTD-style groups by task type (bucket), not by project
     // Sessions show a project name badge if they belong to a project
-    const GTD_GROUPS = [
-      { key: "group:gtd-long-term",  label: "长期任务", buckets: ["long_term"],  order: 0 },
-      { key: "group:gtd-short-term", label: "短期任务", buckets: ["short_term"], order: 1 },
-      { key: "group:gtd-waiting",    label: "等待任务", buckets: ["waiting"],    order: 2 },
-      { key: "group:gtd-inbox",      label: "收集箱",   buckets: ["inbox", ""],  order: 3 },
+    // GTD groups derived from BUCKET_DEFS — labels come from single source
+    const bucketDefs = globalThis.MelodySyncTaskTypeConstants?.BUCKET_DEFS || [
+      { key: "long_term",  label: "长期任务", order: 0 },
+      { key: "short_term", label: "短期任务", order: 1 },
+      { key: "waiting",    label: "等待任务", order: 2 },
+      { key: "inbox",      label: "收集箱",   order: 3 },
     ];
+    const GTD_GROUPS = bucketDefs
+      .filter((b) => b.key !== "skill")
+      .map((b) => ({
+        key: `group:gtd-${b.key.replace(/_/g, "-")}`,
+        label: b.label,
+        buckets: b.key === "inbox" ? ["inbox", ""] : [b.key],
+        order: b.order,
+      }));
     for (const def of GTD_GROUPS) {
       groups.set(def.key, { ...def, type: "gtd-group", sessions: [] });
     }
@@ -463,9 +476,21 @@ function renderSessionList() {
       const groupDef = GTD_GROUPS.find((g) => g.buckets.includes(bucket)) || GTD_GROUPS[3];
       groups.get(groupDef.key).sessions.push(session);
     }
-    // Remove empty groups
+    // Remove empty groups; sort done sessions to the bottom within each group
+    const stateModel = window.MelodySyncSessionStateModel;
     for (const def of GTD_GROUPS) {
-      if (groups.get(def.key).sessions.length === 0) groups.delete(def.key);
+      const group = groups.get(def.key);
+      if (group.sessions.length === 0) {
+        groups.delete(def.key);
+      } else {
+        group.sessions.sort((a, b) => {
+          const aWorkflow = stateModel?.normalizeSessionWorkflowState?.(a?.workflowState || "") || "";
+          const bWorkflow = stateModel?.normalizeSessionWorkflowState?.(b?.workflowState || "") || "";
+          const aDone = aWorkflow === "done" ? 1 : 0;
+          const bDone = bWorkflow === "done" ? 1 : 0;
+          return aDone - bDone;
+        });
+      }
     }
   } else if (isLongTermTab) {
     // Build per-project groups with bucket sub-folders

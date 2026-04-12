@@ -61,11 +61,11 @@ const KIND_PICKER_DEFS = Object.freeze([
  * Used for rendering bucket sub-folders in the Projects tab.
  */
 const BUCKET_DEFS = Object.freeze([
-  { key: "long_term",  label: "长期任务", order: 0 },
-  { key: "short_term", label: "短期任务", order: 1 },
-  { key: "waiting",    label: "等待任务", order: 2 },
-  { key: "inbox",      label: "收集箱",   order: 3 },
-  { key: "skill",      label: "快捷按钮", order: 4 },
+  { key: "long_term",  label: "长期任务", labelKey: "sidebar.group.longTerm",    order: 0 },
+  { key: "short_term", label: "短期任务", labelKey: "sidebar.group.shortTerm",   order: 1 },
+  { key: "waiting",    label: "等待任务", labelKey: "sidebar.group.waiting",     order: 2 },
+  { key: "inbox",      label: "收集箱",   labelKey: "sidebar.group.inbox",       order: 3 },
+  { key: "skill",      label: "快捷按钮", labelKey: "sidebar.group.quickActions", order: 4 },
 ]);
 
 /**
