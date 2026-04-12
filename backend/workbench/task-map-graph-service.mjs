@@ -447,7 +447,7 @@ function buildDefaultQuestGraph({
   const rootNodeId = `session:${rootSession.id}`;
   const questId = `quest:${rootSession.id}`;
   const branchSessions = Array.isArray(cluster?.branchSessions)
-    ? cluster.branchSessions.filter((entry) => entry?.id)
+    ? cluster.branchSessions.filter((entry) => entry?.id && entry?.archived !== true)
     : [];
   const branchSessionIds = new Set(branchSessions.map((entry) => trimText(entry.id)).filter(Boolean));
   const preferredSessionIds = [trimText(currentSessionId)].filter(Boolean);

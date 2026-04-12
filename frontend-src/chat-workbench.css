@@ -6040,6 +6040,13 @@ button.quest-task-flow-node {
 
 .quest-task-flow-node.is-status-waiting-user {
   --quest-task-flow-node-status-accent: var(--warning);
+  /* Waiting nodes need human attention — subtle pulse */
+  animation: quest-node-waiting-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes quest-node-waiting-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning) 0%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 22%, transparent); }
 }
 
 .quest-task-flow-node.is-status-queued {
@@ -6131,6 +6138,9 @@ button.quest-task-flow-node {
     inset 0 1px 0 color-mix(in srgb, #ffffff 16%, transparent),
     inset 0 0 0 1px color-mix(in srgb, var(--quest-task-flow-node-status-accent) 18%, transparent),
     0 12px 28px color-mix(in srgb, var(--quest-task-flow-node-status-accent) 14%, transparent);
+  /* Done nodes are dimmed — visually de-emphasised */
+  opacity: 0.55;
+  filter: grayscale(0.3);
 }
 
 .quest-task-flow-node.is-status-parked {

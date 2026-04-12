@@ -84,7 +84,8 @@ function getSessionClusterLineRole(session, context = null) {
 }
 
 export function buildTaskClusters(state, sessions = []) {
-  const allSessions = (Array.isArray(sessions) ? sessions : []).filter((session) => session?.id);
+  // Exclude archived sessions from the task map entirely
+  const allSessions = (Array.isArray(sessions) ? sessions : []).filter((session) => session?.id && !session?.archived);
   const sessionMap = new Map(allSessions.map((session) => [session.id, session]));
   const visibleRootSessions = allSessions.filter((session) => !session?.archived);
   const mainSessionsByGoal = new Map();

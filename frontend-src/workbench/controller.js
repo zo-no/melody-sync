@@ -1443,7 +1443,8 @@
       }
       projection = window.MelodySyncTaskMapModel.buildTaskMapProjection({
         snapshot,
-        sessions: getSessionRecords(),
+        // Filter out archived sessions — they should not appear on the canvas
+        sessions: getSessionRecords().filter((s) => s?.archived !== true),
         currentSessionId: getCurrentSessionIdSafe(),
         focusedSessionId: getFocusedSessionId(),
       });
