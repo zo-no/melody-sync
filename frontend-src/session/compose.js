@@ -713,11 +713,15 @@ document.getElementById("projectPickerConfirm")?.addEventListener("click", () =>
         longTerm: { role: "member", projectSessionId: selectedProjectId, bucket: selectedBucket },
       },
     }),
-  }).then(() => {
+  }).then((data) => {
+    // Update local session record immediately so renderSessionList shows correct grouping
+    if (data?.session && typeof upsertSession === "function") {
+      upsertSession(data.session);
+    }
     if (typeof renderSessionList === "function") renderSessionList();
   }).catch((err) => {
     console.error("[project-picker] assign failed:", err);
-    
+    window.alert("归入失败，请重试。");
   });
 });
 
