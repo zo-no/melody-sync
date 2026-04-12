@@ -192,7 +192,7 @@ async function main() {
     assert.doesNotMatch(page.text, /id="sourceFilterSelect"/);
     assert.doesNotMatch(page.text, /id="sessionAppFilterSelect"/);
     assert.doesNotMatch(page.text, /id="userFilterSelect"/);
-    assert.match(page.text, /id="sortSessionListBtn"/, 'chat page should keep the dedicated task-list organizing entry');
+    assert.doesNotMatch(page.text, /id="sortSessionListBtn"/, 'sortSessionListBtn has been removed — task organizing is now handled by the projects tab');
     assert.match(page.text, /https:\/\/github\.com\/zo-no\/melody-sync/, 'chat page footer should point at the real open-source repository');
     assert.doesNotMatch(page.text, /id="settingsAppsList"/);
     assert.doesNotMatch(page.text, /id="tabBoard"/);

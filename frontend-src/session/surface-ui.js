@@ -231,41 +231,30 @@ function getTaskClusterBranchCountEntries(cluster, currentSessionId = "") {
   const model = window.MelodySyncSessionListModel || null;
   const mainPersistentKind = String(cluster?.mainSession?.persistent?.kind || "").trim().toLowerCase();
   if (mainPersistentKind === "recurring_task") {
-    function normalizeBucket(value) {
-      const normalized = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-      if (["long_term", "long_term_iteration", "长期任务", "长期迭代"].includes(normalized)) return "long_term";
-      if (["short_term", "short_term_iteration", "短期任务", "短期迭代"].includes(normalized)) return "short_term";
-      if (["waiting", "waiting_user", "waiting_for", "等待任务", "等待"].includes(normalized)) return "waiting";
-      if (["inbox", "collect", "collection", "capture", "收集箱"].includes(normalized)) return "inbox";
-      return "";
-    }
-
-    function inferBucket(session) {
-      const explicitBucket = normalizeBucket(session?.taskPoolMembership?.longTerm?.bucket || "");
-      if (explicitBucket) return explicitBucket;
-      const persistentKind = String(session?.persistent?.kind || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-      if (persistentKind === "recurring_task") return "long_term";
-      if (persistentKind === "scheduled_task") return "short_term";
-      if (persistentKind === "waiting_task") return "waiting";
-      if (String(session?.workflowState || "").trim().toLowerCase().replace(/[\s-]+/g, "_") === "waiting_user") return "waiting";
+    const tc = window.MelodySyncTaskTypeConstants || null;
+    const inferBucket = tc?.inferSessionBucket || function inferBucket(session) {
+      const kind = String(session?.persistent?.kind || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+      if (kind === "recurring_task") return "long_term";
+      if (kind === "scheduled_task") return "short_term";
+      if (kind === "waiting_task") return "waiting";
+      if (kind === "skill") return "skill";
+      if (String(session?.workflowState || "").trim().toLowerCase() === "waiting_user") return "waiting";
       return "inbox";
-    }
-
-    const counters = {
-      long_term: 0,
-      short_term: 0,
-      waiting: 0,
-      inbox: 0,
     };
+    const bucketDefs = tc?.BUCKET_DEFS || [
+      { key: "long_term", label: "长期任务" },
+      { key: "short_term", label: "短期任务" },
+      { key: "waiting", label: "等待任务" },
+      { key: "inbox", label: "收集箱" },
+    ];
+    const counters = new Map();
     for (const entry of branchSessions) {
-      counters[inferBucket(entry)] += 1;
+      const b = inferBucket(entry);
+      counters.set(b, (counters.get(b) || 0) + 1);
     }
-    return [
-      { key: "long_term", label: "长期任务", count: counters.long_term, className: "" },
-      { key: "short_term", label: "短期任务", count: counters.short_term, className: "" },
-      { key: "waiting", label: "等待任务", count: counters.waiting, className: "" },
-      { key: "inbox", label: "收集箱", count: counters.inbox, className: "" },
-    ].filter((entry) => entry.count > 0);
+    return bucketDefs
+      .filter((def) => def.key !== "skill" && (counters.get(def.key) || 0) > 0)
+      .map((def) => ({ key: def.key, label: def.label, count: counters.get(def.key), className: "" }));
   }
   const counters = {
     active: 0,

@@ -7045,6 +7045,18 @@ body.long-term-workspace-active .task-manager-main-column {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ltcp-workspace-empty { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.ltcp-workspace-form { display: flex; flex-direction: column; gap: 6px; }
+.ltcp-workspace-form-path,
+.ltcp-workspace-form-label {
+  width: 100%; box-sizing: border-box;
+  padding: 7px 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-input, var(--bg-secondary));
+  color: var(--text); font: inherit; font-size: 13px;
+  outline: none; transition: border-color 0.15s;
+}
+.ltcp-workspace-form-path:focus,
+.ltcp-workspace-form-label:focus { border-color: var(--accent, var(--text-secondary)); }
+.ltcp-workspace-form-actions { display: flex; gap: 6px; }
 
 .ltcp-waiting-list { display: flex; flex-direction: column; gap: 4px; }
 .ltcp-waiting-empty { font-size: 13px; color: var(--text-muted); padding: 12px 0; }

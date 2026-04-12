@@ -1047,6 +1047,27 @@ function renderLongTermWorkspaceBranchList(branchSessions = [], projectId = "") 
   }).join("");
 }
 
+function showWorkspaceInlineForm(triggerEl, projectSession) {
+  const section = triggerEl?.closest?.(".ltcp-workspace-section");
+  if (!section) return;
+  const currentPath = String(projectSession?.persistent?.workspace?.path || "").trim();
+  const currentLabel = String(projectSession?.persistent?.workspace?.label || "").trim();
+  const pid = escapeLongTermWorkspaceHtml(String(projectSession.id || ""));
+  section.innerHTML = `
+    <div class="ltcp-section-header">
+      <span class="ltcp-section-title">工作区</span>
+    </div>
+    <div class="ltcp-workspace-form">
+      <input class="ltcp-workspace-form-path" type="text" placeholder="本地目录绝对路径" value="${escapeLongTermWorkspaceHtml(currentPath)}" spellcheck="false" autocomplete="off" />
+      <input class="ltcp-workspace-form-label" type="text" placeholder="工作区名称（可选）" value="${escapeLongTermWorkspaceHtml(currentLabel)}" autocomplete="off" />
+      <div class="ltcp-workspace-form-actions">
+        <button class="ltcp-workspace-form-confirm ltcp-action-btn" type="button" data-project-id="${pid}">确认</button>
+        <button class="ltcp-workspace-form-cancel ltcp-action-btn ltcp-action-btn-secondary" type="button">取消</button>
+      </div>
+    </div>`;
+  section.querySelector(".ltcp-workspace-form-path")?.focus();
+}
+
 function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
   if (!longTermWorkspaceDetail) return;
   const selectedProject = projects.find((entry) => String(entry?.id || "").trim() === selectedProjectId) || null;
@@ -1666,20 +1687,32 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
       ? sessions.find((entry) => entry?.id === pid) || null
       : null;
     if (!projectSession?.id) return;
-    const currentPath = String(projectSession?.persistent?.workspace?.path || "").trim();
-    const currentLabel = String(projectSession?.persistent?.workspace?.label || "").trim();
-    const newPath = window.prompt("绑定本地工作区目录（绝对路径）：", currentPath);
-    if (newPath === null) return; // cancelled
-    const trimmedPath = newPath.trim();
-    const newLabel = trimmedPath
-      ? (window.prompt("工作区名称（可选，留空则只显示路径）：", currentLabel) ?? "")
-      : "";
-    void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
+    showWorkspaceInlineForm(workspaceEditButton, projectSession);
+    return;
+  }
+
+  const workspaceFormCancel = event.target?.closest?.(".ltcp-workspace-form-cancel");
+  if (workspaceFormCancel) {
+    const section = workspaceFormCancel.closest(".ltcp-workspace-section");
+    if (section) renderLongTermWorkspaceDetail(sessions, selectedLongTermProjectId);
+    return;
+  }
+
+  const workspaceFormConfirm = event.target?.closest?.(".ltcp-workspace-form-confirm");
+  if (workspaceFormConfirm) {
+    const section = workspaceFormConfirm.closest(".ltcp-workspace-section");
+    const pid = String(workspaceFormConfirm.dataset?.projectId || "").trim();
+    const pathInput = section?.querySelector?.(".ltcp-workspace-form-path");
+    const labelInput = section?.querySelector?.(".ltcp-workspace-form-label");
+    if (!pid || !pathInput) return;
+    const trimmedPath = String(pathInput.value || "").trim();
+    const trimmedLabel = String(labelInput?.value || "").trim();
+    void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(pid)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         persistent: {
-          workspace: trimmedPath ? { path: trimmedPath, label: newLabel.trim() } : null,
+          workspace: trimmedPath ? { path: trimmedPath, label: trimmedLabel } : null,
         },
       }),
     }).then(() => {
@@ -1688,7 +1721,6 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
       }
     }).catch((err) => {
       console.error("[workspace] Failed to update workspace:", err);
-      
     });
     return;
   }
@@ -1803,6 +1835,17 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
       if (typeof renderSessionList === "function") renderSessionList();
     });
     return;
+  }
+});
+
+longTermWorkspaceDetail?.addEventListener("keydown", (event) => {
+  const form = event.target?.closest?.(".ltcp-workspace-form");
+  if (!form) return;
+  if (event.key === "Enter") {
+    event.preventDefault();
+    form.querySelector(".ltcp-workspace-form-confirm")?.click();
+  } else if (event.key === "Escape") {
+    form.querySelector(".ltcp-workspace-form-cancel")?.click();
   }
 });
 

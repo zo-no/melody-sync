@@ -29,18 +29,18 @@ import {
   buildLongTermTaskPoolMembership,
   normalizeTaskPoolMembership,
 } from '../../session/task-pool-membership.mjs';
-import {
-  getSystemProjectId,
-  buildSystemProjectInboxMembership,
-} from '../../session/system-project.mjs';
+import { normalizePersistentKind, KIND_TO_BUCKET } from '../../session/persistent-kind.mjs';
+import { ensureSystemProject } from '../../session/system-project.mjs';
+
+const KIND_GROUP_LABELS = Object.freeze({
+  recurring_task: '长期任务',
+  scheduled_task: '短期任务',
+  waiting_task:   '等待任务',
+  skill:          '快捷按钮',
+});
 
 function getPersistentSessionGroup(kind = '') {
-  const normalizedKind = typeof kind === 'string' ? kind.trim().toLowerCase() : '';
-  if (normalizedKind === 'skill') return '快捷按钮';
-  if (normalizedKind === 'recurring_task') return '长期任务';
-  if (normalizedKind === 'scheduled_task') return '短期任务';
-  if (normalizedKind === 'waiting_task') return '等待任务';
-  return '';
+  return KIND_GROUP_LABELS[normalizePersistentKind(kind)] || '';
 }
 
 export async function createSessionWithDeps({
@@ -96,6 +96,20 @@ export async function createSessionWithDeps({
     sourceName: requestedSourceName,
     externalTriggerId,
   });
+
+  // Pre-resolve system project ID BEFORE entering withSessionsMetaMutation.
+  // ensureSystemProject() itself calls withSessionsMetaMutation internally,
+  // so calling it inside the mutation would deadlock the serial queue.
+  const isSystemSessionForAutoAssign = (extra?.taskListOrigin || '').trim().toLowerCase() === 'system';
+  const persistentKindForAutoAssign = normalizePersistentKind(
+    (requestedPersistent && typeof requestedPersistent === 'object' ? requestedPersistent?.kind : '') || ''
+  );
+  const needsSystemProjectPreResolve = !isSystemSessionForAutoAssign
+    && !(extra?.taskPoolMembership)
+    && persistentKindForAutoAssign !== 'recurring_task';
+  const preResolvedSystemProjectId = needsSystemProjectPreResolve
+    ? await ensureSystemProject()
+    : '';
 
   const created = await withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
     if (externalTriggerId) {
@@ -316,17 +330,23 @@ export async function createSessionWithDeps({
     }
     // Determine taskPoolMembership:
     // 1. Explicit request wins
-    // 2. recurring_task → self-rooted project
-    // 3. All other sessions → auto-assign to system project inbox (if system project exists)
-    //    Exception: system sessions (taskListOrigin === 'system') skip auto-assignment
-    const isSystemSession = (extra?.taskListOrigin || '').trim().toLowerCase() === 'system';
-    const systemProjectId = !isSystemSession && !requestedTaskPoolMembership && !normalizedPersistent
-      ? getSystemProjectId()
-      : '';
+    // 2. recurring_task → self-rooted project (no system project needed)
+    // 3. Other persistent kinds (scheduled/waiting/skill) → member of system project,
+    //    bucket inferred from kind
+    // 4. Plain sessions (no persistent) → system project inbox
+    // System sessions and sessions with explicit membership skip auto-assign.
+    // Note: preResolvedSystemProjectId was resolved BEFORE this mutation to avoid
+    // deadlocking the serial meta queue (ensureSystemProject also uses the queue).
+    const persistentKind = normalizePersistentKind(normalizedPersistent?.kind || '');
     const normalizedTaskPoolMembership = requestedTaskPoolMembership
-      || (normalizedPersistent?.kind === 'recurring_task'
+      || (persistentKind === 'recurring_task'
         ? buildLongTermTaskPoolMembership(id, { role: 'project' })
-        : (systemProjectId ? buildSystemProjectInboxMembership(systemProjectId) : null));
+        : (preResolvedSystemProjectId
+          ? buildLongTermTaskPoolMembership(preResolvedSystemProjectId, {
+              role: 'member',
+              bucket: KIND_TO_BUCKET[persistentKind] || 'inbox',
+            })
+          : null));
     if (normalizedTaskPoolMembership) {
       session.taskPoolMembership = normalizedTaskPoolMembership;
     }
