@@ -444,8 +444,8 @@ function syncSessionGroupingControls() {
     : false;
   const summaryEl = ensureSidebarGroupingSummaryEl();
   if (sidebarBranchVisibilityToggleBtn) {
-    // Eye button: show all tasks (including assigned) vs only unassigned tasks
-    const label = branchesHidden ? "显示全部任务" : "仅看未归类任务";
+    // Eye button: show all tasks (including other projects) vs only daily + unassigned
+    const label = branchesHidden ? "显示其他项目任务" : "隐藏其他项目任务";
     const iconName = branchesHidden ? "eye-off" : "eye";
     const iconMarkup = window.MelodySyncIcons?.render?.(iconName);
     sidebarBranchVisibilityToggleBtn.innerHTML = iconMarkup || "";

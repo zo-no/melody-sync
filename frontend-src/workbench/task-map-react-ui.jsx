@@ -3224,6 +3224,11 @@ function SkillButtonCard({ session = null, createSessionItem = null, renderKey =
     && session?.sidebarOrder != null && session.sidebarOrder < 10;
 
   const handleClick = () => {
+    // First: open the conversation so user can see/continue the interaction
+    if (typeof attachSession === 'function') {
+      attachSession(session.id, session);
+    }
+    // Then: trigger the skill execution
     if (typeof window.dispatchAction === 'function') {
       window.dispatchAction({
         action: 'persistent_run',

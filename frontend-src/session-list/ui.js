@@ -555,7 +555,9 @@ function renderSessionList() {
     // 眼睛关闭：只显示未归属任何长期项目的任务
     const branchVisibilityMode = window.MelodySyncSessionListModel?.getBranchTaskVisibilityMode?.()
       || (typeof getBranchTaskVisibilityModeForSidebar === "function" ? getBranchTaskVisibilityModeForSidebar() : "show");
-    const showOnlyUnassigned = branchVisibilityMode === "hide";
+    // 眼睛关闭 = 隐藏已归属"其他长期项目"的任务（日常任务项目的任务始终显示）
+    const hideOtherProjectTasks = branchVisibilityMode === "hide";
+    const systemProjectId = getSessionsTabProjectId(); // 日常任务项目 ID
     const model = getSessionListModel();
 
     // Single group with buckets — all tasks aggregated by type
@@ -572,16 +574,23 @@ function renderSessionList() {
     });
     const groupEntry = groups.get(groupKey);
 
+    // Pinned sessions are shown in a separate pinned section at top — exclude from buckets
+    const pinnedIdSet = new Set(pinnedSessions.map((s) => s?.id).filter(Boolean));
+
     for (const session of visibleSessions) {
       if (!session?.id) continue;
+      // Skip pinned — already shown in pinned section above buckets
+      if (pinnedIdSet.has(session.id)) continue;
       const membership = typeof model?.getLongTermTaskPoolMembership === "function"
         ? model.getLongTermTaskPoolMembership(session)
         : null;
       const sessionProjectId = membership?.projectSessionId || "";
-      const isAssigned = Boolean(sessionProjectId);
+      // 日常任务项目成员 or 无归属 = 始终显示
+      const isDailyMember = !sessionProjectId || sessionProjectId === systemProjectId;
+      // 其他项目成员 = 眼睛控制
+      const isOtherProjectMember = !isDailyMember && Boolean(sessionProjectId);
 
-      // 眼睛关闭时：只显示未归属项目的任务
-      if (showOnlyUnassigned && isAssigned) continue;
+      if (hideOtherProjectTasks && isOtherProjectMember) continue;
 
       groupEntry.sessions.push(session);
       const bucket = inferLongTermSessionBucket(session);
