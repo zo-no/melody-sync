@@ -751,6 +751,42 @@
   opacity: 0.7;
 }
 
+/* Sessions tab top stats panel */
+.sessions-tab-stats-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 6px 2px 4px;
+}
+
+.sessions-stat {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.sessions-stat.is-long-term {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: color-mix(in srgb, var(--accent) 75%, var(--text-muted));
+}
+
+.sessions-stat.is-short-term {
+  background: color-mix(in srgb, var(--notice) 10%, transparent);
+  color: color-mix(in srgb, var(--notice) 70%, var(--text-muted));
+}
+
+.sessions-stat.is-waiting {
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: color-mix(in srgb, var(--warning) 70%, var(--text-muted));
+}
+
+.sessions-stat.is-inbox {
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  color: var(--text-muted);
+}
+
 /* Skill button cards grid */
 .skill-buttons-grid {
   display: grid;

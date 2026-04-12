@@ -67,6 +67,9 @@ function setShowLongTermSessionsInTasksTab(value) {
 
 globalThis.getShowLongTermSessionsInTasksTab = getShowLongTermSessionsInTasksTab;
 globalThis.setShowLongTermSessionsInTasksTab = setShowLongTermSessionsInTasksTab;
+// Expose attachSession for use in React bundles (IIFE scope can't access non-global functions)
+// This runs after attachSession is defined below, so the reference is valid at call time
+globalThis._melodySyncAttachSession = (id, session) => attachSession(id, session);
 
 // Bucket definitions and inference — single source in core/task-type-constants.js
 const LONG_TERM_BUCKET_DEFS = (

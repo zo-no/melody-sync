@@ -3160,6 +3160,25 @@ function SessionListPinnedSection({
   );
 }
 
+function SessionsTabStatsPanel({ buckets = {} }) {
+  const counts = {
+    long_term: (buckets.long_term?.sessions || []).length,
+    short_term: (buckets.short_term?.sessions || []).length,
+    waiting: (buckets.waiting?.sessions || []).length,
+    inbox: (buckets.inbox?.sessions || []).length,
+  };
+  const total = Object.values(counts).reduce((s, n) => s + n, 0);
+  if (total === 0) return null;
+  return (
+    <div className="sessions-tab-stats-panel">
+      {counts.long_term > 0 ? <span className="sessions-stat is-long-term">{counts.long_term} 长期</span> : null}
+      {counts.short_term > 0 ? <span className="sessions-stat is-short-term">{counts.short_term} 短期</span> : null}
+      {counts.waiting > 0 ? <span className="sessions-stat is-waiting">{counts.waiting} 等待</span> : null}
+      {counts.inbox > 0 ? <span className="sessions-stat is-inbox">{counts.inbox} 收集</span> : null}
+    </div>
+  );
+}
+
 function SessionListBucketSection({
   groupKey = '',
   bucketEntry = null,
@@ -3225,8 +3244,9 @@ function SkillButtonCard({ session = null, createSessionItem = null, renderKey =
 
   const handleClick = () => {
     // First: open the conversation so user can see/continue the interaction
-    if (typeof attachSession === 'function') {
-      attachSession(session.id, session);
+    // Use the proxy exposed on globalThis by session-list/ui.js
+    if (typeof window._melodySyncAttachSession === 'function') {
+      window._melodySyncAttachSession(session.id, session);
     }
     // Then: trigger the skill execution
     if (typeof window.dispatchAction === 'function') {
@@ -3367,6 +3387,10 @@ function SessionListGroupSection({
         (isTasksInbox || isSessionsProject || isDailyInbox) ? (
           // Flat bucket sections — no card header
           <div className="tasks-inbox-buckets">
+            {/* Top stats panel for the all-by-type group */}
+            {isDailyInbox && groupEntry?.key === 'group:all-by-type' ? (
+              <SessionsTabStatsPanel buckets={groupEntry?.buckets || {}} />
+            ) : null}
             {Object.values(groupEntry?.buckets || {})
               .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
               .map((bucketEntry) => (
