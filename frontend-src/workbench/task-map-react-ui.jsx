@@ -3197,9 +3197,18 @@ function SessionListBucketSection({
   chevronIconHtml = '',
 }) {
   const bucketKey = `${groupKey}:${bucketEntry?.key || ''}`;
-  const bucketSessions = Array.isArray(bucketEntry?.sessions) ? bucketEntry.sessions : [];
-  if (bucketSessions.length === 0) return null;
+  const allBucketSessions = Array.isArray(bucketEntry?.sessions) ? bucketEntry.sessions : [];
   const isSkillBucket = bucketEntry?.key === 'skill';
+  // For skill bucket: when eye is closed (branches hidden), show only pinned skills
+  const branchesHidden = isSkillBucket && (
+    window.MelodySyncSessionListModel?.getBranchTaskVisibilityMode?.() === 'hide'
+  );
+  const bucketSessions = isSkillBucket && branchesHidden
+    ? allBucketSessions.filter((s) => s?.pinned === true || (s?.sidebarOrder != null && s.sidebarOrder < 10))
+    : allBucketSessions;
+  if (bucketSessions.length === 0 && allBucketSessions.length === 0) return null;
+  // Show "常用" label when filtering
+  const skillLabel = isSkillBucket && branchesHidden ? '常用快捷按钮' : (bucketEntry?.label || '');
   const toggleBucket = () => onToggleGroup?.(bucketKey, !isCollapsed);
   return (
     <div className={`folder-group folder-group-bucket${isSkillBucket ? ' folder-group-bucket-skill' : ''}`}>
@@ -3219,7 +3228,7 @@ function SessionListBucketSection({
           ? <span className="folder-bucket-skill-icon">⚡</span>
           : <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
         }
-        <span className="folder-name">{String(bucketEntry?.label || '')}</span>
+        <span className="folder-name">{String(skillLabel || '')}</span>
         <span className="folder-count">{bucketSessions.length}</span>
       </div>
       <div className={`folder-group-items folder-group-bucket-items${isSkillBucket ? ' skill-buttons-grid' : ''}`} hidden={isCollapsed}>

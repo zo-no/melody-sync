@@ -187,6 +187,10 @@ function resolveWorkflowCompletedAt(session = {}) {
 
 function isEligibleForDailyArchive(session = {}, cutoffDate = new Date()) {
   if (!session?.id || session?.archived === true || isPersistentSession(session)) return false;
+  // PROTECTION: Never auto-archive tasks that belong to a long-term project
+  // These are managed by the project owner, not the daily sweep
+  const ltMembership = session?.taskPoolMembership?.longTerm;
+  if (ltMembership?.projectSessionId && ltMembership?.role === 'member') return false;
   if (!isDoneWorkflowState(session?.workflowState || '')) return false;
   const completedAt = resolveWorkflowCompletedAt(session);
   if (!completedAt) return false;
