@@ -319,106 +319,97 @@
     }).join('');
   }
 
-  function renderTrendChart(trend) {
-    const days = Array.isArray(trend) ? trend : [];
-    if (days.length === 0) return '';
+  // Format: "M/D" from ISO date string
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  }
 
-    const W = 240, H = 56, padL = 0, padR = 0, padT = 4, padB = 18;
-    const plotW = W - padL - padR;
-    const plotH = H - padT - padB;
-    const n = days.length;
-    const step = plotW / Math.max(n, 1);
+  // Format duration: created → completed
+  function fmtDuration(createdIso, completedIso) {
+    if (!createdIso || !completedIso) return '';
+    const ms = new Date(completedIso) - new Date(createdIso);
+    if (isNaN(ms) || ms < 0) return '';
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.round(ms / 3600000);
+    if (hrs < 24) return `${hrs}h`;
+    const days = Math.round(ms / 86400000);
+    return `${days}d`;
+  }
 
-    // max value for scaling
-    const maxPool = Math.max(1, ...days.map(d => Number(d.endOpenSessions) || 0));
-    const maxDone = Math.max(1, ...days.map(d => (Number(d.completedSessions) || 0) + (Number(d.resolvedBranches) || 0)));
-    const maxVal = Math.max(maxPool, maxDone, 1);
-
-    const toY = v => padT + plotH - (Math.max(0, v) / maxVal) * plotH;
-    const toX = i => padL + i * step + step / 2;
-
-    // Pool line points
-    const poolPts = days.map((d, i) => `${toX(i)},${toY(Number(d.endOpenSessions) || 0)}`).join(' ');
-
-    // Done bars (completed + resolved)
-    const barW = Math.max(3, Math.min(8, step * 0.5));
-    const bars = days.map((d, i) => {
-      const done = (Number(d.completedSessions) || 0) + (Number(d.resolvedBranches) || 0);
-      const bh = (done / maxVal) * plotH;
-      const bx = toX(i) - barW / 2;
-      const by = padT + plotH - bh;
-      return `<rect class="op-bar" x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW}" height="${Math.max(0, bh).toFixed(1)}"/>`;
-    }).join('');
-
-    // Day labels (every other, or last)
-    const labels = days.map((d, i) => {
-      if (i % 2 !== 0 && i !== n - 1) return '';
-      const lbl = String(d.label || '').slice(-5);
-      return `<text class="op-day" x="${toX(i).toFixed(1)}" y="${H - 2}" text-anchor="middle">${escapeHtml(lbl)}</text>`;
-    }).join('');
-
+  // Completion rate donut (SVG)
+  function renderDonut(opened, closed) {
+    const total = Math.max(opened, closed, 1);
+    const pct = Math.min(closed / total, 1);
+    const r = 20, cx = 24, cy = 24;
+    const circ = 2 * Math.PI * r;
+    const dash = pct * circ;
+    const pctLabel = Math.round(pct * 100);
     return `
-      <svg class="op-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-        <polyline class="op-line" points="${poolPts}" fill="none"/>
-        ${bars}
-        ${labels}
-      </svg>
-      <div class="op-chart-legend">
-        <span class="op-legend-pool">任务池</span>
-        <span class="op-legend-done">完成</span>
-      </div>`;
+      <svg class="op-donut" viewBox="0 0 48 48">
+        <circle class="op-donut-track" cx="${cx}" cy="${cy}" r="${r}"/>
+        <circle class="op-donut-fill" cx="${cx}" cy="${cy}" r="${r}"
+          transform="rotate(-90 ${cx} ${cy})"
+          stroke-dasharray="${dash.toFixed(2)} ${(circ - dash).toFixed(2)}"/>
+        <text class="op-donut-pct" x="${cx}" y="${cy + 4}" text-anchor="middle">${pctLabel}%</text>
+      </svg>`;
+  }
+
+  // Task timeline: list of completed tasks with date range
+  function renderTimeline(doneSessions) {
+    if (!Array.isArray(doneSessions) || doneSessions.length === 0) return '';
+    const rows = doneSessions.slice(0, 8).map(function(s) {
+      const name = escapeHtml(String(s.name || '').replace(/^#\d+\s*/, ''));
+      const start = fmtDate(s.created);
+      const end = fmtDate(s.workflowCompletedAt || s.updatedAt);
+      const dur = fmtDuration(s.created, s.workflowCompletedAt || s.updatedAt);
+      return `
+        <div class="op-tl-row">
+          <span class="op-tl-dot"></span>
+          <span class="op-tl-name">${name}</span>
+          <span class="op-tl-range">${start}${end && end !== start ? '→' + end : ''}</span>
+          ${dur ? `<span class="op-tl-dur">${escapeHtml(dur)}</span>` : ''}
+        </div>`;
+    }).join('');
+    return `<div class="op-timeline">${rows}</div>`;
   }
 
   function renderLoaded() {
-    const overview = payload?.overview || {};
     const week = payload?.week || {};
-    const trend = Array.isArray(payload?.trend) ? payload.trend : [];
-    const recentWins = Array.isArray(payload?.recentWins) ? payload.recentWins : [];
-    const attention = Array.isArray(payload?.attention) ? payload.attention : [];
+    const opened = Number.isFinite(week?.openedSessions) ? week.openedSessions : 0;
+    const closed = (Number.isFinite(week?.completedSessions) ? week.completedSessions : 0)
+                 + (Number.isFinite(week?.resolvedBranches) ? week.resolvedBranches : 0);
+    const open = Number.isFinite(payload?.overview?.openSessions) ? payload.overview.openSessions : 0;
+    const doneSessions = Array.isArray(payload?._doneSessions) ? payload._doneSessions : [];
 
-    const open = Number.isFinite(overview?.openSessions) ? overview.openSessions : 0;
-    const waiting = Number.isFinite(overview?.waitingSessions) ? overview.waitingSessions : 0;
-    const weekDone = Number.isFinite(week?.completedSessions) ? week.completedSessions : 0;
-    const netDelta = Number.isFinite(week?.netOpenDelta) ? week.netOpenDelta : 0;
-    const deltaSign = netDelta > 0 ? '+' : '';
-    const deltaClass = netDelta < 0 ? 'is-converging' : netDelta > 0 ? 'is-expanding' : 'is-flat';
-
-    const chartHtml = renderTrendChart(trend);
+    const donutHtml = renderDonut(opened, closed);
+    const timelineHtml = renderTimeline(doneSessions);
 
     bodyEl.innerHTML = `
       <div class="output-panel-shell">
-        <div class="output-panel-inline-stats">
-          <div class="output-panel-inline-stat">
-            <span class="output-panel-inline-stat-value">${escapeHtml(String(open))}</span>
-            <span class="output-panel-inline-stat-label">在开</span>
-          </div>
-          <div class="output-panel-inline-stat">
-            <span class="output-panel-inline-stat-value">${escapeHtml(String(waiting))}</span>
-            <span class="output-panel-inline-stat-label">等待处理</span>
-          </div>
-          <div class="output-panel-inline-stat">
-            <span class="output-panel-inline-stat-value">${escapeHtml(String(weekDone))}</span>
-            <span class="output-panel-inline-stat-label">本周完成</span>
-          </div>
-          <div class="output-panel-inline-stat">
-            <span class="output-panel-inline-stat-value op-delta ${deltaClass}">${escapeHtml(deltaSign + String(netDelta))}</span>
-            <span class="output-panel-inline-stat-label">本周净变</span>
+
+        <div class="op-hero">
+          ${donutHtml}
+          <div class="op-hero-text">
+            <div class="op-hero-nums">
+              <span class="op-hero-done">${escapeHtml(String(closed))}</span>
+              <span class="op-hero-sep">/</span>
+              <span class="op-hero-opened">${escapeHtml(String(opened))}</span>
+            </div>
+            <div class="op-hero-label">本周完成 / 开启</div>
+            ${open > 0 ? `<div class="op-hero-open">进行中 ${escapeHtml(String(open))} 条</div>` : '<div class="op-hero-open op-hero-clear">任务池已清空</div>'}
           </div>
         </div>
 
-        ${chartHtml ? `<div class="op-chart-wrap">${chartHtml}</div>` : ''}
-
-        ${attention.length > 0 ? `
-        <div class="output-panel-inline-section">
-          <div class="output-panel-inline-section-title">需要处理</div>
-          <div class="output-list">${renderListItems(attention, '')}</div>
-        </div>` : ''}
-
-        ${recentWins.length > 0 ? `
+        ${timelineHtml ? `
         <div class="output-panel-inline-section">
           <div class="output-panel-inline-section-title">最近完成</div>
-          <div class="output-list">${renderListItems(recentWins, '')}</div>
+          ${timelineHtml}
         </div>` : ''}
+
       </div>
     `;
   }
@@ -465,17 +456,41 @@
         : null;
       activeRequestController = requestController;
       try {
-        const response = await global.fetch(buildOutputPanelUrl(sessionId, scope), {
-          credentials: 'same-origin',
-          signal: requestController?.signal,
-        });
-        if (!response?.ok) {
-          throw new Error('产出面板加载失败');
+        // Fetch metrics and session list in parallel
+        const [metricsRes, sessionsRes] = await Promise.all([
+          global.fetch(buildOutputPanelUrl(sessionId, scope), {
+            credentials: 'same-origin',
+            signal: requestController?.signal,
+          }),
+          global.fetch('/api/sessions', {
+            credentials: 'same-origin',
+            signal: requestController?.signal,
+          }),
+        ]);
+        if (!metricsRes?.ok) throw new Error('产出面板加载失败');
+        const metrics = await metricsRes.json().catch(() => null);
+        if (!metrics || typeof metrics !== 'object') throw new Error('产出数据格式无效');
+
+        // Extract recently completed sessions for timeline (last 30 days)
+        let doneSessions = [];
+        if (sessionsRes?.ok) {
+          const sessData = await sessionsRes.json().catch(() => null);
+          if (sessData && Array.isArray(sessData.sessions)) {
+            const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+            doneSessions = sessData.sessions
+              .filter(function(s) {
+                return s.workflowState === 'done'
+                  && new Date(s.workflowCompletedAt || s.updatedAt).getTime() > cutoff;
+              })
+              .sort(function(a, b) {
+                return new Date(b.workflowCompletedAt || b.updatedAt)
+                  - new Date(a.workflowCompletedAt || a.updatedAt);
+              })
+              .slice(0, 8);
+          }
         }
-        payload = await response.json().catch(() => null);
-        if (!payload || typeof payload !== 'object') {
-          throw new Error('产出数据格式无效');
-        }
+
+        payload = { ...metrics, _doneSessions: doneSessions };
       } catch (error) {
         if (error?.name === 'AbortError') {
           return;
