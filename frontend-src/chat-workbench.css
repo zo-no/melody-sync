@@ -6933,6 +6933,32 @@ body.long-term-workspace-active .task-manager-main-column {
   gap: 28px;
 }
 
+/* Daily summary section */
+.ltcp-daily-summary { gap: 8px; }
+.ltcp-daily-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--success) 8%, var(--bg-secondary) 40%);
+  border: 1px solid color-mix(in srgb, var(--success) 18%, transparent);
+}
+.ltcp-daily-count {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+.ltcp-daily-count strong {
+  color: color-mix(in srgb, var(--success) 80%, var(--text));
+  font-size: 15px;
+}
+.ltcp-daily-item {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 .ltcp-empty {
   display: flex;
   flex-direction: column;

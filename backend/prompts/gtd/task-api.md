@@ -205,6 +205,24 @@ curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \
 
 ---
 
+## 工作区绑定
+
+每个长期项目可以绑定一个本地目录，AI 执行任务时以该目录为工作根：
+
+```bash
+# 绑定工作区
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<PROJECT_SESSION_ID>" \
+  -H "Content-Type: application/json" \
+  -d '{"persistent":{"workspace":{"path":"/Users/kual/projects/investing","label":"理财工作区"}}}'
+
+# 清除工作区绑定
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<PROJECT_SESSION_ID>" \
+  -H "Content-Type: application/json" \
+  -d '{"persistent":{"workspace":null}}'
+```
+
+---
+
 ## 操作规则
 
 - 会话目标明确完成时，立即标记 done，不需要询问用户
@@ -212,3 +230,4 @@ curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<SESSION_ID>" \
 - 用户要求整理任务列表时，一次性完成所有操作
 - 批量操作前先用 `GET /api/sessions?view=refs` 获取列表
 - bucket 改变时，同时更新 `taskPoolMembership.longTerm.bucket`
+- 执行长期项目任务时，如项目有 workspace 绑定，以该目录为工作根读写文件

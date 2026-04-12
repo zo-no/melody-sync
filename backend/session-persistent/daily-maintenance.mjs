@@ -339,17 +339,56 @@ export async function scanDailySessionMaintenance(nowValue = new Date()) {
     }
     await archiveSessions(digests.map((digest) => digest.sessionId));
 
+    // ── Pattern analysis: detect recurring themes for long-term project recommendations ──
+    const allSessions = Array.isArray(sessions) ? sessions : [];
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const recentSessions = allSessions.filter((s) => {
+      if (s.archived) return false;
+      const t = parseDate(s.lastEventAt || s.updatedAt || s.created);
+      return t && t.getTime() > thirtyDaysAgo.getTime();
+    });
+
+    // Extract keywords from session names and goals
+    const keywordCounts = new Map();
+    for (const s of recentSessions) {
+      const text = [s.name || '', s.taskCard?.goal || '', s.taskCard?.summary || ''].join(' ');
+      const words = text.replace(/[^\u4e00-\u9fa5a-zA-Z]/g, ' ').split(/\s+/).filter((w) => w.length > 1);
+      for (const word of words) {
+        const lower = word.toLowerCase();
+        if (['session', 'new', 'task', '任务', '会话', '今天', '明天', '一个', '这个'].includes(lower)) continue;
+        keywordCounts.set(lower, (keywordCounts.get(lower) || 0) + 1);
+      }
+    }
+
+    // Find keywords appearing 3+ times (potential long-term patterns)
+    const patterns = [...keywordCounts.entries()]
+      .filter(([, count]) => count >= 3)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([word, count]) => `${word}(${count}次)`);
+
+    if (patterns.length > 0) {
+      await appendMarkdownLine(
+        CONTEXT_DIGEST_MD,
+        'Behavior Patterns',
+        `- ${dayKey}：近30天高频主题：${patterns.join('、')}。如用户未创建相关长期项目，可主动推荐。`,
+        { updateDigestTimestamp: true },
+      );
+    }
+
     const nextState = {
       lastDailySweepDate: dayKey,
       lastSweepAt: now.toISOString(),
       archivedCount: digests.length,
       archivedSessionIds: digests.map((digest) => digest.sessionId),
+      patterns,
     };
     await writeJsonAtomic(DAILY_MAINTENANCE_STATE_FILE, nextState);
     return {
       ran: true,
       archivedCount: digests.length,
       archivedSessionIds: nextState.archivedSessionIds,
+      patterns,
     };
   } finally {
     maintenanceInFlight = false;

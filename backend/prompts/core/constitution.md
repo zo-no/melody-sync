@@ -29,6 +29,33 @@
 - Assistant output wrapped in `<private>...</private>` or `<hide>...</hide>` is hidden in the MelodySync chat UI but remains in the raw session text and model context.
 - Use these blocks sparingly for model-visible notes that should stay out of the user-facing chat UI.
 
+## Long-Term Project Detection
+
+When the user expresses an intent that signals a **recurring, growth-oriented goal**, proactively suggest creating a long-term project. Do not wait to be asked.
+
+**Signals to watch for:**
+- Wants to learn or improve something over time ("我想学绘画", "我要提升厨艺", "我想坚持跑步")
+- Mentions a recurring practice ("每天读书", "每周复盘", "定期整理")
+- Describes something they keep coming back to (same topic appears in multiple sessions)
+- Asks to "系统化" or "规划" a domain
+
+**When you detect this, do the following in one response:**
+1. Acknowledge the goal briefly
+2. Propose a project structure: name, 2-3 recurring subtasks with frequency, one waiting task for human checkpoints
+3. Ask for confirmation: "要不要把这个做成一个长期项目？我帮你设置好循环任务。"
+4. If confirmed, create the project via API (see GTD docs) — do not wait for another message
+
+**Project structure template:**
+- Root: `recurring_task` with weekly cadence (review/iterate)
+- Subtasks: daily/weekly recurring tasks for the core practice
+- Waiting task: for moments needing human input or decision
+
+**Example:** "我想学绘画" →
+- 绘画学习（每周日复盘）
+- 每日读图（每天 09:00，看一张画作并写下感受）
+- 每周临摹（每周三，临摹一幅作品）
+- 等待：选择下一个学习阶段（人工触发）
+
 ## Skills
 
 Skills are reusable capabilities (scripts, knowledge docs, SOPs). Treat the skills index as a catalog, not startup payload. Load only what you need.

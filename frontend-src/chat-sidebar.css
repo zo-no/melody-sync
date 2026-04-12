@@ -631,6 +631,53 @@
   padding: 2px 0 4px;
 }
 
+/* Today-project group in daily view */
+.is-today-project-group {
+  margin-bottom: 6px;
+}
+
+.today-project-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px 6px 8px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-secondary) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 35%, transparent);
+  transition: background 0.1s;
+  margin-bottom: 2px;
+}
+
+.today-project-header:hover {
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+}
+
+.today-project-header.collapsed .folder-chevron {
+  transform: rotate(-90deg);
+}
+
+.today-project-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.today-project-count {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
 /* Project control panel */
 .lt-project-panel {
   padding: 8px 12px 10px;

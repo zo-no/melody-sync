@@ -461,24 +461,13 @@ function isSkillSessionForList(session) {
 
 function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
   if (tab === "sessions") {
-    const boundProjectId = getSessionsTabProjectId();
-    if (boundProjectId) {
-      // Sessions tab shows the content of the bound project (project root + members)
-      const model = getSessionListModel();
-      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
-        ? model.getLongTermTaskPoolMembership(session)
-        : null;
-      const sessionProjectId = membership?.projectSessionId || "";
-      // Include: project root itself
-      if (session?.id === boundProjectId) return true;
-      // Include: members of the bound project
-      if (sessionProjectId === boundProjectId && membership?.role === "member") return true;
-      return false;
-    }
-    // Fallback (no system project yet): show non-project, non-skill sessions
+    // Sessions tab = 今日聚合视图：所有活跃任务，按项目分组
+    // 排除：project roots、skills、自动化任务（recurring/scheduled/waiting persistent tasks）
     if (isLongTermProjectSessionForList(session)) return false;
-    if (isLongTermLineSessionForList(session)) return false;
     if (isSkillSessionForList(session)) return false;
+    // 自动化任务（recurring/scheduled/waiting）是后台执行的，不在日常任务列表显示
+    const kind = getSidebarPersistentKind(session);
+    if (kind === "recurring_task" || kind === "scheduled_task" || kind === "waiting_task") return false;
     return true;
   }
   if (tab === "long-term") {
@@ -504,55 +493,79 @@ function renderSessionList() {
         getVisiblePinnedSessions().filter((session) => shouldShowSessionInSidebarForList(session)),
         activeSidebarTab,
       );
-  // Pass isTasksTab so the eye button only hides project members in the Tasks tab
-  const sessionFilterOptions = isSessionsTab ? { isTasksTab: true } : {};
+  // Sessions tab is a project bucket view — no isTasksTab flag (eye button doesn't apply here)
+  const sessionFilterOptions = {};
   const visibleSessions = filterSessionsForSidebarTab(
     getVisibleActiveSessions().filter((session) => shouldShowSessionInSidebarForList(session, sessionFilterOptions)),
     activeSidebarTab,
   );
   const groups = new Map();
   if (isSessionsTab) {
-    // Sessions tab: show the bound project's bucket view (same as long-term tab for a single project)
-    const boundProjectId = getSessionsTabProjectId();
+    // Sessions tab = 今日聚合视图
+    // 日常任务项目（system project）的任务：按 bucket 平铺（group key = "group:daily"）
+    // 其他长期项目的任务：每个项目一个折叠组
+    const systemProjectId = getSessionsTabProjectId();
     const model = getSessionListModel();
+
     for (const session of visibleSessions) {
       if (!session?.id) continue;
-      const isProject = session.id === boundProjectId;
       const membership = typeof model?.getLongTermTaskPoolMembership === "function"
         ? model.getLongTermTaskPoolMembership(session)
         : null;
-      const projectId = boundProjectId || membership?.projectSessionId || (isProject ? session.id : "");
-      if (!projectId) continue;
-      const groupKey = `group:sessions-project:${projectId}`;
-      if (!groups.has(groupKey)) {
-        const projectSession = isProject
-          ? session
-          : (typeof getSessionCatalogRecordById === "function"
-              ? getSessionCatalogRecordById(projectId)
-              : getVisibleActiveSessions().find((s) => s?.id === projectId) || null);
-        const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
-        groups.set(groupKey, {
-          key: groupKey,
-          label: projectSession?.name || "日常任务",
-          title: projectSession?.name || "日常任务",
-          order: 0,
-          type: "sessions-project",
-          projectId,
-          isSystem: isSystemProject,
-          projectSession: projectSession || null,
-          sessions: [],
-          buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
-        });
-      }
-      const groupEntry = groups.get(groupKey);
-      groupEntry.sessions.push(session);
-      if (!isProject) {
-        const bucket = inferLongTermSessionBucket(session);
-        if (groupEntry.buckets[bucket]) {
-          groupEntry.buckets[bucket].sessions.push(session);
-        } else {
-          groupEntry.buckets.inbox.sessions.push(session);
+      const sessionProjectId = membership?.projectSessionId || "";
+      const isSystemMember = sessionProjectId && sessionProjectId === systemProjectId;
+      const isUnassigned = !sessionProjectId;
+
+      if (isSystemMember || isUnassigned) {
+        // 日常任务或无归属 → 放入"今日"bucket 组
+        const groupKey = "group:daily";
+        if (!groups.has(groupKey)) {
+          const sysSession = typeof getSessionCatalogRecordById === "function"
+            ? getSessionCatalogRecordById(systemProjectId)
+            : null;
+          groups.set(groupKey, {
+            key: groupKey,
+            label: "今日任务",
+            title: "今日任务",
+            order: -1, // 始终排第一
+            type: "daily-inbox",
+            projectId: systemProjectId || "",
+            sessions: [],
+            buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
+          });
         }
+        const groupEntry = groups.get(groupKey);
+        groupEntry.sessions.push(session);
+        const bucket = inferLongTermSessionBucket(session);
+        const bucketKey = groupEntry.buckets[bucket] ? bucket : "inbox";
+        groupEntry.buckets[bucketKey].sessions.push(session);
+      } else if (sessionProjectId) {
+        // 其他长期项目的任务 → 按项目分组（眼睛按钮控制是否显示）
+        const branchesHidden = (typeof getBranchTaskVisibilityModeForSidebar === "function"
+          ? getBranchTaskVisibilityModeForSidebar()
+          : (window.MelodySyncSessionListModel?.getBranchTaskVisibilityMode?.() || "show")) === "hide";
+        if (branchesHidden) continue; // 眼睛关闭时隐藏其他项目的任务
+        const groupKey = `group:today-project:${sessionProjectId}`;
+        if (!groups.has(groupKey)) {
+          const projectSession = typeof getSessionCatalogRecordById === "function"
+            ? getSessionCatalogRecordById(sessionProjectId)
+            : getVisibleActiveSessions().find((s) => s?.id === sessionProjectId) || null;
+          const projectTitle = String(projectSession?.name || "长期项目").trim();
+          const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
+          groups.set(groupKey, {
+            key: groupKey,
+            label: projectTitle,
+            title: projectTitle,
+            // System projects sort first (negative), then alphabetically
+            order: isSystemProject ? -1 : 100 + groups.size,
+            type: "today-project",
+            projectId: sessionProjectId,
+            isSystem: isSystemProject,
+            projectSession: projectSession || null,
+            sessions: [],
+          });
+        }
+        groups.get(groupKey).sessions.push(session);
       }
     }
   } else if (isLongTermTab) {
@@ -652,7 +665,7 @@ function renderSessionList() {
         ? (isLongTermTab ? "sidebar.longTerm.empty" : (isSessionsTab ? "sidebar.tasks.empty" : "sidebar.noSessions"))
         : "sidebar.loadingSessions",
       sessionsLoaded
-        ? (isLongTermTab ? "还没有长期项目" : (isSessionsTab ? "还没有任务" : "还没有任务"))
+        ? (isLongTermTab ? "还没有长期项目" : (isSessionsTab ? "今日清空" : "还没有任务"))
         : "加载任务中…",
     )
     : "";
@@ -673,7 +686,7 @@ function renderSessionList() {
         sessions: groupEntry.sessions,
         collapsed: collapsedFolders[groupKey] === true,
         canDelete: showGroupingFolderControls && isUserTemplateFolderGroup(groupKey),
-        ...((groupEntry.type === "long-term-project" || groupEntry.type === "sessions-project") ? {
+        ...((groupEntry.type === "long-term-project" || groupEntry.type === "sessions-project" || groupEntry.type === "daily-inbox") ? {
           type: groupEntry.type,
           projectId: groupEntry.projectId,
           isSystem: groupEntry.isSystem === true,
@@ -685,6 +698,12 @@ function renderSessionList() {
             sessions: b.sessions,
             collapsed: collapsedFolders[`${groupKey}:${b.key}`] === true,
           })),
+        } : {}),
+        ...(groupEntry.type === "today-project" ? {
+          type: "today-project",
+          projectId: groupEntry.projectId,
+          isSystem: groupEntry.isSystem === true,
+          projectSession: groupEntry.projectSession || null,
         } : {}),
       })),
       showGroupHeaders,
@@ -713,7 +732,7 @@ function renderSessionList() {
         show: shouldShowSessionListEmptyState,
         label: sessionListEmptyLabel,
         hint: shouldShowSessionListEmptyState && isSessionsTab && sessionsLoaded
-          ? "点击下方「开始任务」创建一个新任务。"
+          ? "点击「开始任务」记录第一件事。做完了就划掉，每天零点自动清空。"
           : "",
       },
       helpers: {

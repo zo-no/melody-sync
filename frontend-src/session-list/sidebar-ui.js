@@ -444,8 +444,8 @@ function syncSessionGroupingControls() {
     : false;
   const summaryEl = ensureSidebarGroupingSummaryEl();
   if (sidebarBranchVisibilityToggleBtn) {
-    // Eye button: hide/show branch tasks (= all project members in new definition)
-    const label = branchesHidden ? "显示支线任务" : "隐藏支线任务";
+    // Eye button: hide/show other long-term project tasks in the daily view
+    const label = branchesHidden ? "显示其他项目任务" : "隐藏其他项目任务";
     const iconName = branchesHidden ? "eye-off" : "eye";
     const iconMarkup = window.MelodySyncIcons?.render?.(iconName);
     sidebarBranchVisibilityToggleBtn.innerHTML = iconMarkup || "";

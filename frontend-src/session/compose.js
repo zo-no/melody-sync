@@ -1605,12 +1605,46 @@ globalThis.setSelectedLongTermProjectId = (id) => {
 
 globalThis.showLongTermProjectPanel = (projectId) => {
   selectedLongTermProjectId = String(projectId || "").trim();
-  // Toggle body class — existing CSS hides messages, input, taskMap rail
   document.body.classList.add("long-term-workspace-active");
   if (longTermWorkspace) longTermWorkspace.hidden = false;
   const projects = getLongTermWorkspaceProjects();
   renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
-  // Refresh task map to show the selected project as root
+  // For system project (日常任务): load yesterday's summary and inject it
+  const selectedProject = projects.find((p) => String(p?.id || "").trim() === selectedLongTermProjectId);
+  const isSystemProject = String(selectedProject?.taskListOrigin || "").toLowerCase() === "system"
+    || String(selectedProject?.persistent?.digest?.title || "") === "日常任务";
+  if (isSystemProject && typeof fetchJsonOrRedirect === "function") {
+    void fetchJsonOrRedirect("/api/daily-summary").then((data) => {
+      if (!data?.worklog || !longTermWorkspaceDetail) return;
+      // Find or create the daily-summary section
+      let summaryEl = longTermWorkspaceDetail.querySelector(".ltcp-daily-summary");
+      if (!summaryEl) {
+        summaryEl = document.createElement("div");
+        summaryEl.className = "ltcp-section ltcp-daily-summary";
+        const shell = longTermWorkspaceDetail.querySelector(".ltcp-shell");
+        if (shell) shell.insertBefore(summaryEl, shell.firstChild);
+      }
+      // Parse worklog for key lines
+      const lines = data.worklog.split("\n").filter((l) => l.startsWith("- ") || l.startsWith("## "));
+      const completedLines = [];
+      let inCompleted = false;
+      for (const line of lines) {
+        if (line.startsWith("## 午夜归档") || line.startsWith("## 今日完成")) { inCompleted = true; continue; }
+        if (line.startsWith("## ") && inCompleted) { inCompleted = false; continue; }
+        if (inCompleted && line.startsWith("- ")) completedLines.push(line.slice(2));
+      }
+      const count = data.archivedCount || completedLines.length;
+      const dateLabel = data.date || "昨日";
+      summaryEl.innerHTML = `
+        <div class="ltcp-section-title">昨日回顾 · ${dateLabel}</div>
+        <div class="ltcp-daily-feedback">
+          ${count > 0
+            ? `<div class="ltcp-daily-count">完成 <strong>${count}</strong> 项 🎉</div>`
+            : `<div class="ltcp-daily-count">昨日暂无记录</div>`}
+          ${completedLines.slice(0, 3).map((l) => `<div class="ltcp-daily-item">· ${escapeLongTermWorkspaceHtml(l)}</div>`).join("")}
+        </div>`;
+    }).catch(() => {});
+  }
   if (typeof window.MelodySyncWorkbench?.refreshTaskMapForProject === "function") {
     window.MelodySyncWorkbench.refreshTaskMapForProject(selectedLongTermProjectId);
   }

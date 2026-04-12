@@ -3137,8 +3137,11 @@ function SessionListGroupSection({
   const sessions = Array.isArray(groupEntry?.sessions) ? groupEntry.sessions : [];
   const isLongTermProject = groupEntry?.type === 'long-term-project';
   const isTasksInbox = groupEntry?.type === 'tasks-inbox';
-  // sessions-project: the sessions tab bound to a project — show buckets only, no card header
   const isSessionsProject = groupEntry?.type === 'sessions-project';
+  // daily-inbox: today's aggregated view — show buckets flat (like tasks-inbox)
+  const isDailyInbox = groupEntry?.type === 'daily-inbox';
+  // today-project: a long-term project's tasks shown in the daily view — collapsible group
+  const isTodayProject = groupEntry?.type === 'today-project';
 
   const toggleGroup = () => {
     if (isLongTermProject) {
@@ -3189,10 +3192,10 @@ function SessionListGroupSection({
   }
 
   return (
-    <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}${isLongTermProject ? ' is-long-term-project-group' : ''}${isSessionsProject ? ' is-sessions-project-group' : ''}${isTasksInbox ? ' is-tasks-inbox-group' : ''}`}>
+    <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}${isLongTermProject ? ' is-long-term-project-group' : ''}${isSessionsProject ? ' is-sessions-project-group' : ''}${isTasksInbox || isDailyInbox ? ' is-tasks-inbox-group' : ''}${isTodayProject ? ' is-today-project-group' : ''}`}>
       {showGroupHeaders ? (
-        (isTasksInbox || isSessionsProject) ? (
-          // Tasks inbox / sessions-project: bucket sections only, no card header
+        (isTasksInbox || isSessionsProject || isDailyInbox) ? (
+          // Flat bucket sections — no card header
           <div className="tasks-inbox-buckets">
             {Object.values(groupEntry?.buckets || {})
               .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
@@ -3210,6 +3213,37 @@ function SessionListGroupSection({
               ))
             }
           </div>
+        ) : isTodayProject ? (
+          // Today-project: collapsible group for a long-term project's tasks in daily view
+          // Don't render empty groups
+          sessions.length === 0 ? null : <>
+            <div
+              className={`today-project-header${isCollapsed ? ' collapsed' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-expanded={isCollapsed ? 'false' : 'true'}
+              onClick={toggleGroup}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                toggleGroup();
+              }}
+            >
+              <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
+              <span className="today-project-name" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
+              <span className="today-project-count">{sessions.length}</span>
+            </div>
+            <div className="folder-group-items" hidden={isCollapsed}>
+              {sessions.map((session) => (
+                <SessionListItemMount
+                  key={`today:${groupEntry?.key || ''}:${session?.id || Math.random()}`}
+                  createSessionItem={createSessionItem}
+                  session={session}
+                  renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
+                />
+              ))}
+            </div>
+          </>
         ) : isLongTermProject ? (
           // Long-term project: single card wrapping title + content
           <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}${groupEntry?.isSystem ? ' is-system' : ''}`}>
