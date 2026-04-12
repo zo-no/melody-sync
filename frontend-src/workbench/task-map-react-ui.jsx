@@ -3195,17 +3195,55 @@ function SessionListBucketSection({
         <span className="folder-name">{String(bucketEntry?.label || '')}</span>
         <span className="folder-count">{bucketSessions.length}</span>
       </div>
-      <div className="folder-group-items folder-group-bucket-items" hidden={isCollapsed}>
+      <div className={`folder-group-items folder-group-bucket-items${isSkillBucket ? ' skill-buttons-grid' : ''}`} hidden={isCollapsed}>
         {bucketSessions.map((session) => (
-          <SessionListItemMount
-            key={`bucket:${bucketKey}:${session?.id || Math.random()}`}
-            createSessionItem={createSessionItem}
-            session={session}
-            renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
-          />
+          isSkillBucket
+            ? <SkillButtonCard
+                key={`skill:${bucketKey}:${session?.id || Math.random()}`}
+                session={session}
+                createSessionItem={createSessionItem}
+                renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
+              />
+            : <SessionListItemMount
+                key={`bucket:${bucketKey}:${session?.id || Math.random()}`}
+                createSessionItem={createSessionItem}
+                session={session}
+                renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
+              />
         ))}
       </div>
     </div>
+  );
+}
+
+function SkillButtonCard({ session = null, createSessionItem = null, renderKey = '' }) {
+  if (!session?.id) return null;
+  const name = String(session?.name || '').trim() || '快捷按钮';
+  const summary = String(session?.taskCard?.goal || session?.taskCard?.summary || session?.description || '').trim();
+  const isFavorite = session?.taskPoolMembership?.longTerm?.bucket === 'skill'
+    && session?.sidebarOrder != null && session.sidebarOrder < 10;
+
+  const handleClick = () => {
+    if (typeof window.dispatchAction === 'function') {
+      window.dispatchAction({
+        action: 'persistent_run',
+        sessionId: session.id,
+        runtime: window.MelodySyncSessionTooling?.getCurrentRuntimeSelectionSnapshot?.() || undefined,
+      });
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className={`skill-button-card${isFavorite ? ' is-favorite' : ''}`}
+      onClick={handleClick}
+      title={summary || name}
+    >
+      <span className="skill-button-icon">⚡</span>
+      <span className="skill-button-name">{name}</span>
+      {summary ? <span className="skill-button-desc">{summary}</span> : null}
+    </button>
   );
 }
 

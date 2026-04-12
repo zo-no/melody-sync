@@ -550,11 +550,27 @@ function renderSessionList() {
   );
   const groups = new Map();
   if (isSessionsTab) {
-    // Sessions tab = 今日聚合视图
-    // 日常任务项目（system project）的任务：按 bucket 平铺（group key = "group:daily"）
-    // 其他长期项目的任务：每个项目一个折叠组
-    const systemProjectId = getSessionsTabProjectId();
+    // Sessions tab = 按任务类型跨项目聚合视图
+    // 眼睛打开：显示所有任务（含已归属长期项目的）
+    // 眼睛关闭：只显示未归属任何长期项目的任务
+    const branchVisibilityMode = window.MelodySyncSessionListModel?.getBranchTaskVisibilityMode?.()
+      || (typeof getBranchTaskVisibilityModeForSidebar === "function" ? getBranchTaskVisibilityModeForSidebar() : "show");
+    const showOnlyUnassigned = branchVisibilityMode === "hide";
     const model = getSessionListModel();
+
+    // Single group with buckets — all tasks aggregated by type
+    const groupKey = "group:all-by-type";
+    groups.set(groupKey, {
+      key: groupKey,
+      label: "全部任务",
+      title: "全部任务",
+      order: 0,
+      type: "daily-inbox",
+      projectId: "",
+      sessions: [],
+      buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
+    });
+    const groupEntry = groups.get(groupKey);
 
     for (const session of visibleSessions) {
       if (!session?.id) continue;
@@ -562,61 +578,15 @@ function renderSessionList() {
         ? model.getLongTermTaskPoolMembership(session)
         : null;
       const sessionProjectId = membership?.projectSessionId || "";
-      const isSystemMember = sessionProjectId && sessionProjectId === systemProjectId;
-      const isUnassigned = !sessionProjectId;
+      const isAssigned = Boolean(sessionProjectId);
 
-      if (isSystemMember || isUnassigned) {
-        // 日常任务或无归属 → 放入"今日"bucket 组
-        const groupKey = "group:daily";
-        if (!groups.has(groupKey)) {
-          const sysSession = typeof getSessionCatalogRecordById === "function"
-            ? getSessionCatalogRecordById(systemProjectId)
-            : null;
-          groups.set(groupKey, {
-            key: groupKey,
-            label: "今日任务",
-            title: "今日任务",
-            order: -1, // 始终排第一
-            type: "daily-inbox",
-            projectId: systemProjectId || "",
-            sessions: [],
-            buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
-          });
-        }
-        const groupEntry = groups.get(groupKey);
-        groupEntry.sessions.push(session);
-        const bucket = inferLongTermSessionBucket(session);
-        const bucketKey = groupEntry.buckets[bucket] ? bucket : "inbox";
-        groupEntry.buckets[bucketKey].sessions.push(session);
-      } else if (sessionProjectId) {
-        // 其他长期项目的任务 → 按项目分组（眼睛按钮控制是否显示）
-        // Use model (always available) or sidebar helper (loaded after ui.js)
-        const branchVisibilityMode = window.MelodySyncSessionListModel?.getBranchTaskVisibilityMode?.()
-          || (typeof getBranchTaskVisibilityModeForSidebar === "function" ? getBranchTaskVisibilityModeForSidebar() : "show");
-        const branchesHidden = branchVisibilityMode === "hide";
-        if (branchesHidden) continue; // 眼睛关闭时隐藏其他项目的任务
-        const groupKey = `group:today-project:${sessionProjectId}`;
-        if (!groups.has(groupKey)) {
-          const projectSession = typeof getSessionCatalogRecordById === "function"
-            ? getSessionCatalogRecordById(sessionProjectId)
-            : getVisibleActiveSessions().find((s) => s?.id === sessionProjectId) || null;
-          const projectTitle = String(projectSession?.name || "长期项目").trim();
-          const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
-          groups.set(groupKey, {
-            key: groupKey,
-            label: projectTitle,
-            title: projectTitle,
-            // System projects sort first (negative), then alphabetically
-            order: isSystemProject ? -1 : 100 + groups.size,
-            type: "today-project",
-            projectId: sessionProjectId,
-            isSystem: isSystemProject,
-            projectSession: projectSession || null,
-            sessions: [],
-          });
-        }
-        groups.get(groupKey).sessions.push(session);
-      }
+      // 眼睛关闭时：只显示未归属项目的任务
+      if (showOnlyUnassigned && isAssigned) continue;
+
+      groupEntry.sessions.push(session);
+      const bucket = inferLongTermSessionBucket(session);
+      const bucketKey = groupEntry.buckets[bucket] ? bucket : "inbox";
+      groupEntry.buckets[bucketKey].sessions.push(session);
     }
   } else if (isLongTermTab) {
     // Build per-project groups with bucket sub-folders
@@ -715,7 +685,7 @@ function renderSessionList() {
         ? (isLongTermTab ? "sidebar.longTerm.empty" : (isSessionsTab ? "sidebar.tasks.empty" : "sidebar.noSessions"))
         : "sidebar.loadingSessions",
       sessionsLoaded
-        ? (isLongTermTab ? "还没有长期项目" : (isSessionsTab ? "今日清空" : "还没有任务"))
+        ? (isLongTermTab ? "还没有长期项目" : (isSessionsTab ? "没有任务" : "还没有任务"))
         : "加载任务中…",
     )
     : "";
@@ -782,7 +752,7 @@ function renderSessionList() {
         show: shouldShowSessionListEmptyState,
         label: sessionListEmptyLabel,
         hint: shouldShowSessionListEmptyState && isSessionsTab && sessionsLoaded
-          ? "点击「开始任务」记录第一件事。做完了就划掉，每天零点自动清空。"
+          ? "点击「开始任务」记录第一件事。"
           : "",
       },
       helpers: {
