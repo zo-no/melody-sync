@@ -511,9 +511,9 @@ function isSkillSessionForList(session) {
 function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
   if (tab === "sessions") {
     // Sessions tab = 今日聚合视图：所有活跃任务，按项目分组
-    // 排除：project roots、skills、自动化任务（recurring/scheduled/waiting persistent tasks）
+    // 排除：project roots、自动化任务（recurring/scheduled/waiting persistent tasks）
+    // Skill 快捷按钮：保留，放入 daily-inbox 的 skill bucket
     if (isLongTermProjectSessionForList(session)) return false;
-    if (isSkillSessionForList(session)) return false;
     // 自动化任务（recurring/scheduled/waiting）是后台执行的，不在日常任务列表显示
     const kind = getSidebarPersistentKind(session);
     if (kind === "recurring_task" || kind === "scheduled_task" || kind === "waiting_task") return false;
