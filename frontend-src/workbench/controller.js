@@ -3426,6 +3426,8 @@
       await refreshTaskMapGraph(id || getFocusedSessionId() || getCurrentSessionIdSafe(), { force: true });
       renderTracker();
     },
+    // Lightweight re-render without fetching new data — used by node collapse toggle
+    renderTracker: () => { renderTracker(); },
   };
   window.MelodySyncWorkbenchViewModel = Object.freeze({
     getState: getWorkbenchViewModelState,

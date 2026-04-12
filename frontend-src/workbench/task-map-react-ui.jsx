@@ -26,6 +26,66 @@ import { getTaskMapInteractionConfig } from './task-map-interaction-config.js';
 const STYLE_ELEMENT_ID = 'melodysync-task-map-react-ui-style';
 const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
 const TASK_MAP_VIEWPORT_MEMORY_MAX_ENTRIES = 120;
+
+// ── Node collapse state ──────────────────────────────────────────────
+const COLLAPSED_NODES_KEY = 'melodysyncCollapsedTaskMapNodes';
+
+function getCollapsedNodeIds() {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_NODES_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+}
+
+function setCollapsedNodeIds(ids) {
+  try {
+    localStorage.setItem(COLLAPSED_NODES_KEY, JSON.stringify([...ids]));
+  } catch {}
+}
+
+function toggleNodeCollapsed(nodeId) {
+  const ids = getCollapsedNodeIds();
+  if (ids.has(nodeId)) { ids.delete(nodeId); } else { ids.add(nodeId); }
+  setCollapsedNodeIds(ids);
+}
+
+function isNodeCollapsed(nodeId) {
+  return getCollapsedNodeIds().has(nodeId);
+}
+
+// Collect all descendant node IDs of a given node in the graph
+function collectDescendantNodeIds(nodeId, graph) {
+  const result = new Set();
+  const queue = [nodeId];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    for (const node of graph?.nodes || []) {
+      if (trimText(node?.parentNodeId) === current && !result.has(node.id)) {
+        result.add(node.id);
+        queue.push(node.id);
+      }
+    }
+  }
+  return result;
+}
+
+// Filter graph: remove nodes whose ancestor is collapsed
+function applyNodeCollapseFilter(graph) {
+  const collapsedIds = getCollapsedNodeIds();
+  if (collapsedIds.size === 0) return graph;
+  const hiddenIds = new Set();
+  for (const collapsedId of collapsedIds) {
+    for (const id of collectDescendantNodeIds(collapsedId, graph)) {
+      hiddenIds.add(id);
+    }
+  }
+  if (hiddenIds.size === 0) return graph;
+  const filteredNodes = (graph?.nodes || []).filter((n) => !hiddenIds.has(n.id));
+  const filteredEdges = (graph?.edges || []).filter(
+    (e) => !hiddenIds.has(e.fromNodeId) && !hiddenIds.has(e.toNodeId)
+  );
+  return { ...graph, nodes: filteredNodes, edges: filteredEdges };
+}
 const taskMapViewportMemory = new Map();
 const REACT_FLOW_EXTRA_CSS = `
 .quest-task-flow-react-shell {
@@ -4525,7 +4585,9 @@ function buildBoardSnapshot({
   }
 
   const metrics = getProjectedTaskFlowConfig(rendererApi?.isMobileQuestTracker);
-  const graph = buildProjectedTaskFlowGraph(rootNode.id, nodeMap, activeQuest);
+  const rawGraph = buildProjectedTaskFlowGraph(rootNode.id, nodeMap, activeQuest);
+  // Apply collapse filter — hide subtrees of collapsed nodes
+  const graph = applyNodeCollapseFilter(rawGraph);
   const levels = getProjectedTaskFlowGraphLevels(graph, rootNode.id);
   const bands = getProjectedTaskFlowBands(windowRef, graph, levels, rootNode.id, activeQuest);
   const entries = buildProjectedTaskFlowEntries(windowRef, graph, levels, bands, metrics);
@@ -5029,6 +5091,20 @@ function MelodyNode({ data }) {
   const nodeBucket = String(node?.bucket || '').trim();
   const nodeUpdatedAt = String(node?.updatedAt || '').trim();
 
+  // Collapse state
+  const hasChildren = Array.isArray(node?.childNodeIds) && node.childNodeIds.length > 0;
+  const [collapsed, setCollapsed] = useState(() => isNodeCollapsed(node?.id || ''));
+  const handleToggleCollapse = (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    toggleNodeCollapsed(node?.id || '');
+    setCollapsed(!collapsed);
+    // Trigger board re-render via workbench
+    if (typeof window.MelodySyncWorkbench?.renderTracker === 'function') {
+      window.MelodySyncWorkbench.renderTracker();
+    }
+  };
+
   const manualComposerOpen = rendererApi?.activeComposer?.type === 'manual' && rendererApi?.activeComposer?.nodeId === node?.id;
   const reparentComposerOpen = rendererApi?.activeComposer?.type === 'reparent' && rendererApi?.activeComposer?.nodeId === node?.id;
   const actionStripActive = rendererApi?.activeActionNodeId === node?.id;
@@ -5359,9 +5435,23 @@ function MelodyNode({ data }) {
           ) : null}
         </div>
       ) : null}
-      <div className={`${className} nopan`} onClick={handleBodyClick}>
+      <div className={`${className} nopan${collapsed ? ' is-subtree-collapsed' : ''}`} onClick={handleBodyClick}>
         {badgeLabel ? <div className={badgeClassName}>{badgeLabel}</div> : null}
-        <div className="quest-task-flow-node-title" title={rawTitle}>{title}</div>
+        <div className="quest-task-flow-node-title-row">
+          <div className="quest-task-flow-node-title" title={rawTitle}>{title}</div>
+          {hasChildren ? (
+            <button
+              type="button"
+              className={`quest-task-flow-node-collapse-btn nodrag nopan${collapsed ? ' is-collapsed' : ''}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={handleToggleCollapse}
+              title={collapsed ? `展开 (${node.childNodeIds.length} 个子节点)` : '折叠子节点'}
+              aria-label={collapsed ? '展开' : '折叠'}
+            >
+              {collapsed ? `+${node.childNodeIds.length}` : '−'}
+            </button>
+          ) : null}
+        </div>
         {summary ? <div className="quest-task-flow-node-summary" title={summary}>{summary}</div> : null}
         {nodeStatusKey ? (
           <div className={`quest-task-flow-node-status-row is-status-${nodeStatusKey}`}>

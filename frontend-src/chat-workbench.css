@@ -2277,7 +2277,16 @@ button.quest-task-flow-node {
   justify-self: center;
 }
 
+/* Title row wraps title + collapse button */
+.quest-task-flow-node-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 .quest-task-flow-node-title {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   line-height: 1.35;
   font-weight: 700;
@@ -2286,6 +2295,45 @@ button.quest-task-flow-node {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Collapse toggle button */
+.quest-task-flow-node-collapse-btn {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  margin-top: 1px;
+  white-space: nowrap;
+  min-width: 16px;
+  text-align: center;
+}
+
+.quest-task-flow-node-collapse-btn:hover {
+  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.quest-task-flow-node-collapse-btn.is-collapsed {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: color-mix(in srgb, var(--accent) 80%, var(--text));
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Collapsed node: show subtle indicator */
+.quest-task-flow-node.is-subtree-collapsed {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
 }
 
 .quest-task-flow-node-summary {
