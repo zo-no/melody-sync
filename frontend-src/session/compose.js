@@ -1611,9 +1611,11 @@ globalThis.showLongTermProjectPanel = (projectId) => {
   renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
   // For system project (日常任务): load yesterday's summary and inject it
   const selectedProject = projects.find((p) => String(p?.id || "").trim() === selectedLongTermProjectId);
-  const isSystemProject = String(selectedProject?.taskListOrigin || "").toLowerCase() === "system"
-    || String(selectedProject?.persistent?.digest?.title || "") === "日常任务";
-  if (isSystemProject && typeof fetchJsonOrRedirect === "function") {
+  // Only show daily summary for 日常任务 (the system project that manages daily tasks)
+  // Not for other system projects like MelodySync 系统管理
+  const isDailyProject = String(selectedProject?.persistent?.digest?.title || selectedProject?.name || "") === "日常任务"
+    || selectedLongTermProjectId === (typeof getSystemProjectId === "function" ? getSystemProjectId() : "");
+  if (isDailyProject && typeof fetchJsonOrRedirect === "function") {
     void fetchJsonOrRedirect("/api/daily-summary").then((data) => {
       if (!data?.worklog || !longTermWorkspaceDetail) return;
       // Find or create the daily-summary section
