@@ -105,7 +105,7 @@ export async function createSessionWithDeps({
     (requestedPersistent && typeof requestedPersistent === 'object' ? requestedPersistent?.kind : '') || ''
   );
   const needsSystemProjectPreResolve = !isSystemSessionForAutoAssign
-    && !(extra?.taskPoolMembership)
+    && !requestedTaskPoolMembership
     && persistentKindForAutoAssign !== 'recurring_task';
   const preResolvedSystemProjectId = needsSystemProjectPreResolve
     ? await ensureSystemProject()

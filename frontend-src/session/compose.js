@@ -701,10 +701,12 @@ projectPickerBuckets?.addEventListener("click", (event) => {
 });
 
 // Confirm
+const projectPickerError = document.getElementById("projectPickerError");
 document.getElementById("projectPickerConfirm")?.addEventListener("click", () => {
   const { sessionId, selectedProjectId, selectedBucket } = projectPickerState;
   if (!sessionId || !selectedProjectId) return;
-  closeProjectPicker();
+  if (projectPickerError) projectPickerError.hidden = true;
+  if (projectPickerConfirm) projectPickerConfirm.disabled = true;
   void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(sessionId)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -714,14 +716,18 @@ document.getElementById("projectPickerConfirm")?.addEventListener("click", () =>
       },
     }),
   }).then((data) => {
-    // Update local session record immediately so renderSessionList shows correct grouping
+    closeProjectPicker();
     if (data?.session && typeof upsertSession === "function") {
       upsertSession(data.session);
     }
     if (typeof renderSessionList === "function") renderSessionList();
   }).catch((err) => {
     console.error("[project-picker] assign failed:", err);
-    window.alert("归入失败，请重试。");
+    if (projectPickerError) {
+      projectPickerError.textContent = "归入失败，请重试。";
+      projectPickerError.hidden = false;
+    }
+    if (projectPickerConfirm) projectPickerConfirm.disabled = false;
   });
 });
 
@@ -1076,10 +1082,33 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
   if (!longTermWorkspaceDetail) return;
   const selectedProject = projects.find((entry) => String(entry?.id || "").trim() === selectedProjectId) || null;
   if (!selectedProject) {
+    // 全局项目概览面板
+    const totalActive = Array.isArray(sessions) ? sessions.filter((s) => !s?.archived).length : 0;
+    const projectRows = projects.map((p) => {
+      const title = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectTitle(p));
+      const schedule = escapeLongTermWorkspaceHtml(getLongTermWorkspaceScheduleLabel(p));
+      const isSystem = String(p?.taskListOrigin || "").toLowerCase() === "system";
+      const pid = escapeLongTermWorkspaceHtml(String(p?.id || ""));
+      return `<button class="ltcp-overview-project-row" type="button" data-project-action="open" data-project-id="${pid}">
+        <span class="ltcp-overview-project-name">${title}</span>
+        ${isSystem ? `<span class="ltcp-overview-project-badge">默认</span>` : ""}
+        ${schedule ? `<span class="ltcp-overview-project-schedule">${schedule}</span>` : ""}
+        <span class="ltcp-overview-project-arrow">›</span>
+      </button>`;
+    }).join("");
     longTermWorkspaceDetail.innerHTML = `
-      <div class="ltcp-empty">
-        <div class="ltcp-empty-title">选择一个长期项目</div>
-        <div class="ltcp-empty-copy">在左侧点击一个长期项目，查看它的控制面板。</div>
+      <div class="ltcp-shell">
+        <div class="ltcp-overview-header">
+          <h2 class="ltcp-overview-title">项目总览</h2>
+          <div class="ltcp-overview-stats">
+            <span class="ltcp-overview-stat">${projects.length} 个项目</span>
+            <span class="ltcp-overview-stat">${totalActive} 条活跃任务</span>
+          </div>
+        </div>
+        <div class="ltcp-section">
+          <div class="ltcp-section-title">长期项目</div>
+          <div class="ltcp-overview-projects">${projectRows}</div>
+        </div>
       </div>`;
     return;
   }
@@ -1600,6 +1629,7 @@ globalThis.renderLongTermWorkspace = renderLongTermWorkspace;
 globalThis.getLongTermProjectList = () => getLongTermWorkspaceProjects().map((s) => ({
   id: String(s?.id || "").trim(),
   name: String(s?.name || s?.taskCard?.goal || "").trim() || "未命名项目",
+  taskListOrigin: String(s?.taskListOrigin || "").trim(),
 }));
 globalThis.getSelectedLongTermProjectId = () => selectedLongTermProjectId;
 
@@ -1649,7 +1679,38 @@ globalThis.showLongTermProjectPanel = (projectId) => {
             : `<div class="ltcp-daily-count">昨日暂无记录</div>`}
           ${completedLines.slice(0, 3).map((l) => `<div class="ltcp-daily-item">· ${escapeLongTermWorkspaceHtml(l)}</div>`).join("")}
         </div>`;
-    }).catch(() => {});
+    }).catch((err) => console.warn("[ltcp] worklog fetch failed:", err?.message));
+  }
+  // Load output panel stats and inject into control panel
+  if (selectedLongTermProjectId && typeof fetchJsonOrRedirect === "function") {
+    void fetchJsonOrRedirect(`/api/output-panel?sessionId=${encodeURIComponent(selectedLongTermProjectId)}&scope=project`)
+      .then((data) => {
+        if (!data || !longTermWorkspaceDetail) return;
+        let statsEl = longTermWorkspaceDetail.querySelector(".ltcp-output-stats");
+        if (!statsEl) {
+          statsEl = document.createElement("div");
+          statsEl.className = "ltcp-section ltcp-output-stats";
+          const shell = longTermWorkspaceDetail.querySelector(".ltcp-shell");
+          if (shell) {
+            const header = shell.querySelector(".ltcp-header");
+            if (header) header.after(statsEl);
+            else shell.insertBefore(statsEl, shell.firstChild);
+          }
+        }
+        const week = data?.week || {};
+        const overview = data?.overview || {};
+        const completed = week.completedSessions || 0;
+        const open = overview.openSessions || 0;
+        const active = overview.activeBranchSessions || 0;
+        if (completed > 0 || open > 0) {
+          statsEl.innerHTML = `
+            <div class="ltcp-output-stats-row">
+              ${completed > 0 ? `<span class="ltcp-output-stat is-completed">本周完成 ${completed}</span>` : ""}
+              ${open > 0 ? `<span class="ltcp-output-stat is-open">进行中 ${open}</span>` : ""}
+              ${active > 0 ? `<span class="ltcp-output-stat is-active">活跃支线 ${active}</span>` : ""}
+            </div>`;
+        }
+      }).catch(() => {});
   }
   if (typeof window.MelodySyncWorkbench?.refreshTaskMapForProject === "function") {
     window.MelodySyncWorkbench.refreshTaskMapForProject(selectedLongTermProjectId);
@@ -1774,6 +1835,14 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
     : null;
   if (!projectSession?.id) return;
   selectedLongTermProjectId = projectId;
+
+  if (action === "open") {
+    // Open this project's control panel
+    if (typeof window.showLongTermProjectPanel === "function") {
+      window.showLongTermProjectPanel(projectId);
+    }
+    return;
+  }
 
   if (action === "cleanup") {
     // Recompute member sessions at click time (not from closed-over renderLongTermWorkspaceDetail scope)

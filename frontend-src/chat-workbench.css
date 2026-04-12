@@ -4727,74 +4727,55 @@ button.quest-task-flow-node {
 }
 .hooks-overlay[hidden] { display: none !important; }
 
+/* ── Settings panel: two-column layout ── */
 .hooks-panel {
   background: color-mix(in srgb, var(--bg) 96%, var(--bg-secondary) 4%);
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
   border-radius: 18px;
   width: 100%;
-  max-width: 760px;
-  max-height: 82vh;
-  display: flex;
-  flex-direction: column;
+  max-width: 900px;
+  height: min(82vh, 680px);
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-rows: 1fr;
   overflow: hidden;
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* Header — no divider line, matches sidebar-header style */
-.hooks-panel-header {
+/* Left sidebar nav */
+.hooks-panel-nav {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--workbench-settings-divider);
+  overflow-y: auto;
+  padding: 16px 10px;
+  gap: 2px;
+  background: color-mix(in srgb, var(--bg-secondary) 40%, transparent);
+}
+
+.hooks-panel-nav-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px 10px;
-  flex-shrink: 0;
+  padding: 2px 8px 14px;
 }
-.hooks-panel-tabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 20px 12px;
-  border-bottom: 1px solid var(--workbench-settings-divider);
-  flex-shrink: 0;
-}
-.hooks-panel-tab {
-  position: relative;
-  padding: 7px 10px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.3;
-  font-weight: 650;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-.hooks-panel-tab:hover {
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--workbench-settings-surface-muted) 72%, transparent);
-}
-.hooks-panel-tab.is-active {
-  color: var(--text);
-  border-color: var(--workbench-settings-divider);
-  background: var(--workbench-settings-surface-muted);
-  box-shadow: inset 0 1px 0 var(--workbench-settings-inset-highlight);
-}
+
 .hooks-panel-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text);
+  letter-spacing: -0.01em;
 }
+
 .hooks-panel-close {
   background: none;
   border: none;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   cursor: pointer;
-  font-size: 15px;
-  padding: 4px 6px;
+  font-size: 14px;
+  padding: 3px 5px;
   border-radius: 6px;
   line-height: 1;
   font-family: inherit;
@@ -4804,14 +4785,77 @@ button.quest-task-flow-node {
   color: var(--text);
 }
 
+.hooks-panel-nav-group {
+  margin-top: 8px;
+}
+
+.hooks-panel-nav-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 8px 4px;
+  display: block;
+}
+
+.hooks-panel-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.3;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.hooks-panel-tab:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--workbench-settings-surface-muted) 80%, transparent);
+}
+.hooks-panel-tab.is-active {
+  color: var(--text);
+  background: var(--workbench-settings-surface-muted);
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 var(--workbench-settings-inset-highlight);
+}
+
+.hooks-panel-tab-icon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.hooks-panel-tab.is-active .hooks-panel-tab-icon {
+  opacity: 1;
+}
+
+/* Right content area */
 .hooks-panel-body {
   overflow-y: auto;
-  padding: 10px 0 18px;
+  padding: 20px 24px 24px;
   flex: 1;
+  min-width: 0;
 }
 
 .settings-tab-panel[hidden] {
   display: none !important;
+}
+
+/* Legacy: top-level tabs (hidden — replaced by left nav) */
+.hooks-panel-tabs {
+  display: none;
+}
+.hooks-panel-header {
+  display: none;
 }
 
 .hooks-panel .settings-inline-input,
@@ -5958,7 +6002,43 @@ button.quest-task-flow-node {
 @media (max-width: 720px) {
   .hooks-panel {
     max-width: 100%;
-    max-height: calc(100vh - 24px);
+    height: calc(100vh - 24px);
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .hooks-panel-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--workbench-settings-divider);
+    padding: 10px 10px 6px;
+    overflow-x: auto;
+    overflow-y: visible;
+    gap: 4px;
+  }
+  .hooks-panel-nav-header {
+    width: 100%;
+    padding: 0 4px 8px;
+  }
+  .hooks-panel-nav-group {
+    display: contents;
+    margin: 0;
+  }
+  .hooks-panel-nav-group-label {
+    display: none;
+  }
+  .hooks-panel-tab {
+    flex-shrink: 0;
+    width: auto;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+  .hooks-panel-tab-icon {
+    display: none;
+  }
+  .hooks-panel-body {
+    padding: 14px 16px 20px;
   }
 
   .output-panel-shell {
@@ -7040,6 +7120,25 @@ body.long-term-workspace-active .task-manager-main-column {
   gap: 28px;
 }
 
+/* Project overview panel */
+.ltcp-overview-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ltcp-overview-title { font-size: 22px; font-weight: 800; color: var(--text); }
+.ltcp-overview-stats { display: flex; gap: 12px; }
+.ltcp-overview-stat { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.ltcp-overview-projects { display: flex; flex-direction: column; gap: 4px; }
+.ltcp-overview-project-row {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  border-radius: 10px; border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 45%, transparent);
+  cursor: pointer; text-align: left; font: inherit; transition: background 0.1s; width: 100%;
+}
+.ltcp-overview-project-row:hover { background: color-mix(in srgb, var(--bg-secondary) 70%, transparent); }
+.ltcp-overview-project-name { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltcp-overview-project-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 5px; background: color-mix(in srgb, var(--border) 25%, transparent); color: var(--text-muted); flex-shrink: 0; }
+.ltcp-overview-project-schedule { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.ltcp-overview-project-arrow { font-size: 14px; color: var(--text-muted); flex-shrink: 0; transition: transform 0.1s; }
+.ltcp-overview-project-row:hover .ltcp-overview-project-arrow { transform: translateX(2px); color: var(--text); }
+
 /* Daily summary section */
 .ltcp-daily-summary { gap: 8px; }
 .ltcp-daily-feedback {
@@ -7056,6 +7155,15 @@ body.long-term-workspace-active .task-manager-main-column {
   color: var(--text);
   font-weight: 500;
 }
+
+/* Output stats in control panel */
+.ltcp-output-stats-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ltcp-output-stat {
+  font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 8px; line-height: 1.4;
+}
+.ltcp-output-stat.is-completed { background: color-mix(in srgb, var(--success) 10%, transparent); color: color-mix(in srgb, var(--success) 70%, var(--text-muted)); }
+.ltcp-output-stat.is-open { background: color-mix(in srgb, var(--accent) 10%, transparent); color: color-mix(in srgb, var(--accent) 70%, var(--text-muted)); }
+.ltcp-output-stat.is-active { background: color-mix(in srgb, var(--notice) 10%, transparent); color: color-mix(in srgb, var(--notice) 70%, var(--text-muted)); }
 .ltcp-daily-count strong {
   color: color-mix(in srgb, var(--success) 80%, var(--text));
   font-size: 15px;
@@ -7427,6 +7535,14 @@ body.long-term-workspace-active .task-manager-main-column {
 }
 .project-picker-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
 .project-picker-confirm:not(:disabled):hover { opacity: 0.88; }
+.project-picker-error {
+  margin: 0 18px 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--red, #e53e3e) 12%, transparent);
+  color: var(--red, #c53030);
+  font-size: 13px;
+}
 
 /* ── Archived section ──────────────────────────────────────────────── */
 .ltcp-archived-details { list-style: none; }

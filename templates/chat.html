@@ -90,8 +90,8 @@
         <button class="header-btn overlay-panel-close" id="closeSidebar" title="Close sidebar" aria-label="Close sidebar" data-i18n-title="action.close" data-i18n-aria-label="action.close" data-icon="close">&#x2715;</button>
       </div>
       <div class="sidebar-tabs">
-        <button class="sidebar-tab active" id="tabSessions" data-i18n="sidebar.tab.folders">日常任务</button>
-        <button class="sidebar-tab" id="tabLongTerm" data-i18n="sidebar.tab.longTerm">长期项目</button>
+        <button class="sidebar-tab active" id="tabSessions" data-i18n="sidebar.tab.folders">任务</button>
+        <button class="sidebar-tab" id="tabLongTerm" data-i18n="sidebar.tab.longTerm">项目</button>
         <button class="sidebar-tab" id="tabSkill" hidden style="display:none" data-i18n="sidebar.tab.skill">技能</button>
       </div>
       <div class="sidebar-list" id="sessionList"></div>
@@ -117,64 +117,68 @@
   <!-- Settings overlay -->
   <div class="hooks-overlay" id="hooksOverlay" hidden role="dialog" aria-modal="true" aria-label="设置">
     <div class="hooks-panel">
-      <div class="hooks-panel-header">
-        <span class="hooks-panel-title">设置</span>
-        <button class="hooks-panel-close" id="hooksOverlayClose" type="button" aria-label="关闭">✕</button>
-      </div>
-      <div class="hooks-panel-tabs" role="tablist" aria-label="设置分类">
-        <button class="hooks-panel-tab is-active" id="settingsTabGeneral" type="button" role="tab" aria-selected="true" aria-controls="settingsPanelGeneral" data-settings-tab="general">通用</button>
-        <button class="hooks-panel-tab" id="settingsTabEmail" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelEmail" data-settings-tab="email">Email</button>
-        <button class="hooks-panel-tab" id="settingsTabVoice" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelVoice" data-settings-tab="voice">Voice</button>
-        <button class="hooks-panel-tab" id="settingsTabHooks" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelHooks" data-settings-tab="hooks">Hooks</button>
-        <button class="hooks-panel-tab" id="settingsTabNodes" type="button" role="tab" aria-selected="false" aria-controls="settingsPanelNodes" data-settings-tab="nodes">节点</button>
-      </div>
+
+      <!-- Left nav -->
+      <nav class="hooks-panel-nav" aria-label="设置分类">
+        <div class="hooks-panel-nav-header">
+          <span class="hooks-panel-title">设置</span>
+          <button class="hooks-panel-close" id="hooksOverlayClose" type="button" aria-label="关闭">✕</button>
+        </div>
+
+        <div class="hooks-panel-nav-group">
+          <span class="hooks-panel-nav-group-label">任务</span>
+          <button class="hooks-panel-tab is-active" id="settingsTabTasks" type="button" aria-selected="true" aria-controls="settingsPanelTasks" data-settings-tab="tasks">
+            <span class="hooks-panel-tab-icon">◈</span>日常任务
+          </button>
+        </div>
+
+        <div class="hooks-panel-nav-group">
+          <span class="hooks-panel-nav-group-label">系统</span>
+          <button class="hooks-panel-tab" id="settingsTabGeneral" type="button" aria-selected="false" aria-controls="settingsPanelGeneral" data-settings-tab="general">
+            <span class="hooks-panel-tab-icon">⚙</span>通用
+          </button>
+          <button class="hooks-panel-tab" id="settingsTabHooks" type="button" aria-selected="false" aria-controls="settingsPanelHooks" data-settings-tab="hooks">
+            <span class="hooks-panel-tab-icon">⚡</span>自动化
+          </button>
+          <button class="hooks-panel-tab" id="settingsTabNodes" type="button" aria-selected="false" aria-controls="settingsPanelNodes" data-settings-tab="nodes">
+            <span class="hooks-panel-tab-icon">⬡</span>节点
+          </button>
+        </div>
+
+        <div class="hooks-panel-nav-group">
+          <span class="hooks-panel-nav-group-label">连接</span>
+          <button class="hooks-panel-tab" id="settingsTabEmail" type="button" aria-selected="false" aria-controls="settingsPanelEmail" data-settings-tab="email">
+            <span class="hooks-panel-tab-icon">✉</span>Email
+          </button>
+          <button class="hooks-panel-tab" id="settingsTabVoice" type="button" aria-selected="false" aria-controls="settingsPanelVoice" data-settings-tab="voice">
+            <span class="hooks-panel-tab-icon">◎</span>Voice
+          </button>
+        </div>
+      </nav>
+
+      <!-- Right content -->
       <div class="hooks-panel-body">
-        <section class="settings-tab-panel" id="settingsPanelGeneral" data-settings-panel="general" role="tabpanel">
+        <section class="settings-tab-panel" id="settingsPanelTasks" data-settings-panel="tasks" role="tabpanel">
+          <div id="tasksSettingsPanelBody">
+            <div class="hooks-loading">加载中…</div>
+          </div>
+        </section>
+        <section class="settings-tab-panel" id="settingsPanelGeneral" data-settings-panel="general" role="tabpanel" hidden>
           <div id="generalSettingsPanelBody">
-            <div class="hooks-phase-section">
-              <div class="hooks-phase-header">
-                <div class="hooks-phase-heading">
-                  <div class="hooks-phase-title">通用设置</div>
-                  <div class="hooks-phase-desc">应用路径决定当前服务从哪里读取和写入本地数据。</div>
-                </div>
-              </div>
-              <div class="hooks-event-card">
-                <div class="hooks-loading">加载中…</div>
-              </div>
-            </div>
+            <div class="hooks-loading">加载中…</div>
           </div>
         </section>
         <section class="settings-tab-panel" id="settingsPanelEmail" data-settings-panel="email" role="tabpanel" hidden>
           <div id="emailSettingsPanelBody">
-            <div class="hooks-phase-section">
-              <div class="hooks-phase-header">
-                <div class="hooks-phase-heading">
-                  <div class="hooks-phase-title">Email 设置</div>
-                  <div class="hooks-phase-desc">管理邮箱身份、发送方式和自动化处理规则。</div>
-                </div>
-              </div>
-              <div class="hooks-event-card">
-                <div class="hooks-loading">加载中…</div>
-              </div>
-            </div>
+            <div class="hooks-loading">加载中…</div>
           </div>
         </section>
         <section class="settings-tab-panel" id="settingsPanelVoice" data-settings-panel="voice" role="tabpanel" hidden>
           <div id="voiceSettingsPanelBody">
-            <div class="hooks-phase-section">
-              <div class="hooks-phase-header">
-                <div class="hooks-phase-heading">
-                  <div class="hooks-phase-title">Voice 设置</div>
-                  <div class="hooks-phase-desc">管理本地语音入口，让语音输入接入普通会话。</div>
-                </div>
-              </div>
-              <div class="hooks-event-card">
-                <div class="hooks-loading">加载中…</div>
-              </div>
-            </div>
+            <div class="hooks-loading">加载中…</div>
           </div>
         </section>
-        <section class="settings-tab-panel" id="settingsPanelHooks" data-settings-panel="hooks" role="tabpanel">
+        <section class="settings-tab-panel" id="settingsPanelHooks" data-settings-panel="hooks" role="tabpanel" hidden>
           <div id="hooksPanelBody">
             <div class="hooks-loading">加载中…</div>
           </div>
@@ -185,6 +189,7 @@
           </div>
         </section>
       </div>
+
     </div>
   </div>
 
@@ -208,6 +213,7 @@
           <button class="project-picker-bucket" type="button" data-bucket="waiting">等待任务</button>
         </div>
       </div>
+      <div class="project-picker-error" id="projectPickerError" hidden></div>
       <div class="project-picker-footer">
         <button class="project-picker-cancel" id="projectPickerCancel" type="button">取消</button>
         <button class="project-picker-confirm" id="projectPickerConfirm" type="button" disabled>归入项目</button>

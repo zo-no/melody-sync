@@ -166,6 +166,7 @@ const expectedBuild123Assets = [
   '/chat/settings/general/model.js?v=build-123',
   '/chat/settings/email/model.js?v=build-123',
   '/chat/settings/voice/model.js?v=build-123',
+  '/chat/settings/tasks/ui.js?v=build-123',
   '/chat/settings/general/ui.js?v=build-123',
   '/chat/settings/email/ui.js?v=build-123',
   '/chat/settings/voice/ui.js?v=build-123',
