@@ -6,6 +6,7 @@ import {
   SESSION_WORKFLOW_STATE_WAITING_USER,
 } from '../session/workflow-state.mjs';
 import { getLongTermTaskPoolMembership } from '../session/task-pool-membership.mjs';
+import { normalizePersistentKind } from '../session/persistent-kind.mjs';
 import { getLatestSessionContext } from './continuity-store.mjs';
 import { listWorkbenchSessions } from './session-ports.mjs';
 import { loadWorkbenchState } from './state-store.mjs';
@@ -100,12 +101,7 @@ function clipText(value, max = 120) {
   return `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-function normalizePersistentKind(value) {
-  const normalized = normalizeNullableText(value).toLowerCase().replace(/[\s-]+/g, '_');
-  if (normalized === 'recurring_task') return 'recurring_task';
-  if (normalized === 'skill') return 'skill';
-  return '';
-}
+// normalizePersistentKind imported from session/persistent-kind.mjs
 
 export function normalizeOutputMetricsScope(value) {
   const normalized = normalizeNullableText(value).toLowerCase().replace(/[\s_]+/g, '-');

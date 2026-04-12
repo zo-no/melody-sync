@@ -11,6 +11,7 @@ import {
   normalizeTaskPoolMembership,
   stripLongTermTaskPoolMembership,
 } from '../../session/task-pool-membership.mjs';
+import { normalizePersistentKind } from '../../session/persistent-kind.mjs';
 
 function mergeObjectShape(current, patch) {
   const currentValue = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
@@ -160,9 +161,7 @@ function normalizeSessionId(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function normalizePersistentKind(value) {
-  return typeof value === 'string' ? value.trim().toLowerCase().replace(/[\s-]+/g, '_') : '';
-}
+// normalizePersistentKind imported from session/persistent-kind.mjs
 
 function collectLongTermLineageCandidateIds(session = null) {
   const sessionId = normalizeSessionId(session?.id || '');

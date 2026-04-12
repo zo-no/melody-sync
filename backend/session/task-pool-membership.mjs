@@ -1,10 +1,5 @@
 import { trimText } from './text.mjs';
-
-function normalizePersistentKind(value) {
-  const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
-  if (normalized === 'recurring_task') return 'recurring_task';
-  return '';
-}
+import { normalizePersistentKind } from './persistent-kind.mjs';
 
 function normalizeLongTermRole(value) {
   const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');

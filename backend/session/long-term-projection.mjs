@@ -8,6 +8,7 @@ import {
   getLongTermTaskPoolMembership,
   isLongTermProjectSession,
 } from './task-pool-membership.mjs';
+import { normalizePersistentKind } from './persistent-kind.mjs';
 
 const GENERIC_GROUP_KEYS = new Set(['inbox', '收集箱']);
 const GENERIC_TITLE_KEYS = new Set([
@@ -96,14 +97,7 @@ function collectComparableTokens(value) {
   return tokens;
 }
 
-function normalizePersistentKind(value) {
-  const normalized = normalizeComparableText(value).replace(/\s+/g, '_');
-  if (normalized === 'recurring_task') return 'recurring_task';
-  if (normalized === 'scheduled_task') return 'scheduled_task';
-  if (normalized === 'waiting_task') return 'waiting_task';
-  if (normalized === 'skill') return 'skill';
-  return '';
-}
+// normalizePersistentKind imported from ./persistent-kind.mjs
 
 function getSessionParentSessionId(session = null) {
   return trimText(session?.sourceContext?.parentSessionId || '');

@@ -1,6 +1,7 @@
 import { normalizeSessionTaskCard } from '../session/task-card.mjs';
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 import { trimText } from '../shared/text.mjs';
+import { normalizePersistentKind as normalizePersistentKindFromShared } from '../session/persistent-kind.mjs';
 
 const MAX_DIGEST_TEXT_CHARS = 280;
 const MAX_DIGEST_ITEM_CHARS = 140;
@@ -44,20 +45,8 @@ function normalizeList(value, { maxItems = MAX_DIGEST_ITEMS, maxChars = MAX_DIGE
   return items;
 }
 
-function normalizePersistentKind(value) {
-  const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
-  if (['skill', 'long_skill', 'persistent_skill'].includes(normalized)) return 'skill';
-  if (['recurring_task', 'recurring', 'periodic_task'].includes(normalized)) {
-    return 'recurring_task';
-  }
-  if (['scheduled_task', 'short_term_task', 'short_task', 'short_term', 'scheduled_once', 'timed_task', 'scheduled_job'].includes(normalized)) {
-    return 'scheduled_task';
-  }
-  if (['waiting_task', 'waiting', 'human_task', 'needs_user_task'].includes(normalized)) {
-    return 'waiting_task';
-  }
-  return '';
-}
+// Use shared normalizePersistentKind from session/persistent-kind.mjs
+const normalizePersistentKind = normalizePersistentKindFromShared;
 
 function normalizePersistentState(value) {
   const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
