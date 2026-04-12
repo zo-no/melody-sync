@@ -62,6 +62,7 @@
     "/chat/settings/general/model.js",
     "/chat/settings/email/model.js",
     "/chat/settings/voice/model.js",
+    "/chat/settings/tasks/ui.js",
     "/chat/settings/general/ui.js",
     "/chat/settings/email/ui.js",
     "/chat/settings/voice/ui.js",

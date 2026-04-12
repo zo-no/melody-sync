@@ -14,6 +14,9 @@
   let catalogLoaded = false;
   let activeTabId = '';
 
+  // These tabs are always available (frontend-only, no backend catalog entry needed)
+  const ALWAYS_AVAILABLE_TABS = new Set(['tasks']);
+
   async function ensureCatalogLoaded() {
     if (catalogLoaded !== false) return;
     catalogLoaded = true;
@@ -23,12 +26,14 @@
       });
       if (!response?.ok) return;
       const payload = await response.json().catch(() => null);
-      const supportedIds = new Set(
+      const backendIds = new Set(
         (Array.isArray(payload?.sections) ? payload.sections : [])
           .map((entry) => String(entry?.id || '').trim())
           .filter(Boolean),
       );
-      if (supportedIds.size === 0) return;
+      if (backendIds.size === 0) return;
+      // Merge backend IDs with always-available frontend tabs
+      const supportedIds = new Set([...backendIds, ...ALWAYS_AVAILABLE_TABS]);
       tabButtonEls.forEach((buttonEl) => {
         const tabId = String(buttonEl.dataset.settingsTab || '').trim();
         buttonEl.hidden = !supportedIds.has(tabId);
@@ -138,7 +143,7 @@
     }
   });
 
-  activeTabId = resolveActiveTabId('general');
+  activeTabId = resolveActiveTabId('tasks');
   syncTabs(activeTabId);
   close();
 
