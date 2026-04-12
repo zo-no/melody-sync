@@ -1224,8 +1224,27 @@ function getTrackerPersistentActionButtons(session, {
       { label: '稍后', onClick: () => onDismissLongTermSuggestion?.(longTermState.suggestionRootSessionId), secondary: true },
     ];
   }
+  // Helper: promote to a specific persistent kind
+  const promoteToKind = (targetKind, label) => ({
+    label,
+    secondary: true,
+    onClick: () => {
+      if (typeof window.fetchJsonOrRedirect !== 'function' || !session?.id) return;
+      void window.fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(session.id)}/promote-persistent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: targetKind }),
+      }).catch((err) => console.error('[promote]', err));
+    },
+  });
+
   if (!kind && longTermState?.lane === 'long-term' && longTermState?.role === 'member') {
-    return [];
+    // Already in a project — show upgrade options
+    return [
+      promoteToKind('recurring_task', isMobile ? '定时循环' : '升级为长期任务'),
+      promoteToKind('scheduled_task', isMobile ? '定时一次' : '升级为短期任务'),
+      promoteToKind('skill', isMobile ? '快捷按钮' : '设为快捷按钮'),
+    ];
   }
   if (!kind) {
     return [
@@ -1239,6 +1258,7 @@ function getTrackerPersistentActionButtons(session, {
           }
         },
       },
+      promoteToKind('skill', isMobile ? '快捷按钮' : '设为快捷按钮'),
     ];
   }
   if (isMobile) {

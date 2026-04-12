@@ -329,11 +329,46 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
     },
   } : null;
 
+  // ── Promote to persistent kind ───────────────────────────────────
+  const isRegularSession = !isArchivedSession && !persistentKind;
+  function makePromoteAction(targetKind, label) {
+    return {
+      key: `promote-${targetKind}`,
+      label,
+      className: `promote-${targetKind}`,
+      inlineHidden: true,
+      onClick(event, currentSession) {
+        event?.preventDefault?.();
+        if (!currentSession?.id) return;
+        void (typeof fetchJsonOrRedirect === "function"
+          ? fetchJsonOrRedirect(
+              `/api/sessions/${encodeURIComponent(currentSession.id)}/promote-persistent`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kind: targetKind }),
+              }
+            )
+          : Promise.reject(new Error("no fetch"))
+        ).then(() => {
+          if (typeof renderSessionList === "function") renderSessionList();
+        }).catch((err) => console.error(`[lt] promote to ${targetKind} failed:`, err));
+      },
+    };
+  }
+  const promoteActions = isRegularSession ? [
+    makePromoteAction("recurring_task", "升级为长期任务（循环执行）"),
+    makePromoteAction("scheduled_task", "升级为短期任务（定时执行）"),
+    makePromoteAction("waiting_task",   "升级为等待任务"),
+    makePromoteAction("skill",          "设为快捷按钮"),
+  ] : [];
+
   const actionList = [
     renameAction,
     assignToProjectAction,
     ...moveToBucketActions,
     removeFromProjectAction,
+    ...promoteActions,
     demoteAction,
     ...visibleBaseActions,
   ].filter(Boolean);
