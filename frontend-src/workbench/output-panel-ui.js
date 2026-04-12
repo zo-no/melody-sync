@@ -319,15 +319,71 @@
     }).join('');
   }
 
+  function renderTrendChart(trend) {
+    const days = Array.isArray(trend) ? trend : [];
+    if (days.length === 0) return '';
+
+    const W = 240, H = 56, padL = 0, padR = 0, padT = 4, padB = 18;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const n = days.length;
+    const step = plotW / Math.max(n, 1);
+
+    // max value for scaling
+    const maxPool = Math.max(1, ...days.map(d => Number(d.endOpenSessions) || 0));
+    const maxDone = Math.max(1, ...days.map(d => (Number(d.completedSessions) || 0) + (Number(d.resolvedBranches) || 0)));
+    const maxVal = Math.max(maxPool, maxDone, 1);
+
+    const toY = v => padT + plotH - (Math.max(0, v) / maxVal) * plotH;
+    const toX = i => padL + i * step + step / 2;
+
+    // Pool line points
+    const poolPts = days.map((d, i) => `${toX(i)},${toY(Number(d.endOpenSessions) || 0)}`).join(' ');
+
+    // Done bars (completed + resolved)
+    const barW = Math.max(3, Math.min(8, step * 0.5));
+    const bars = days.map((d, i) => {
+      const done = (Number(d.completedSessions) || 0) + (Number(d.resolvedBranches) || 0);
+      const bh = (done / maxVal) * plotH;
+      const bx = toX(i) - barW / 2;
+      const by = padT + plotH - bh;
+      return `<rect class="op-bar" x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW}" height="${Math.max(0, bh).toFixed(1)}"/>`;
+    }).join('');
+
+    // Day labels (every other, or last)
+    const labels = days.map((d, i) => {
+      if (i % 2 !== 0 && i !== n - 1) return '';
+      const lbl = String(d.label || '').slice(-5);
+      return `<text class="op-day" x="${toX(i).toFixed(1)}" y="${H - 2}" text-anchor="middle">${escapeHtml(lbl)}</text>`;
+    }).join('');
+
+    return `
+      <svg class="op-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <polyline class="op-line" points="${poolPts}" fill="none"/>
+        ${bars}
+        ${labels}
+      </svg>
+      <div class="op-chart-legend">
+        <span class="op-legend-pool">任务池</span>
+        <span class="op-legend-done">完成</span>
+      </div>`;
+  }
+
   function renderLoaded() {
     const overview = payload?.overview || {};
     const week = payload?.week || {};
+    const trend = Array.isArray(payload?.trend) ? payload.trend : [];
     const recentWins = Array.isArray(payload?.recentWins) ? payload.recentWins : [];
     const attention = Array.isArray(payload?.attention) ? payload.attention : [];
 
     const open = Number.isFinite(overview?.openSessions) ? overview.openSessions : 0;
     const waiting = Number.isFinite(overview?.waitingSessions) ? overview.waitingSessions : 0;
     const weekDone = Number.isFinite(week?.completedSessions) ? week.completedSessions : 0;
+    const netDelta = Number.isFinite(week?.netOpenDelta) ? week.netOpenDelta : 0;
+    const deltaSign = netDelta > 0 ? '+' : '';
+    const deltaClass = netDelta < 0 ? 'is-converging' : netDelta > 0 ? 'is-expanding' : 'is-flat';
+
+    const chartHtml = renderTrendChart(trend);
 
     bodyEl.innerHTML = `
       <div class="output-panel-shell">
@@ -344,7 +400,13 @@
             <span class="output-panel-inline-stat-value">${escapeHtml(String(weekDone))}</span>
             <span class="output-panel-inline-stat-label">本周完成</span>
           </div>
+          <div class="output-panel-inline-stat">
+            <span class="output-panel-inline-stat-value op-delta ${deltaClass}">${escapeHtml(deltaSign + String(netDelta))}</span>
+            <span class="output-panel-inline-stat-label">本周净变</span>
+          </div>
         </div>
+
+        ${chartHtml ? `<div class="op-chart-wrap">${chartHtml}</div>` : ''}
 
         ${attention.length > 0 ? `
         <div class="output-panel-inline-section">
