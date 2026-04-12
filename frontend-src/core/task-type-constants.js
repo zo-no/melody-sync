@@ -26,6 +26,37 @@ const BUCKET_KEYS = Object.freeze({
 });
 
 /**
+ * Kind → display label mapping.
+ * Used in task type picker, action buttons, and status display.
+ */
+const KIND_LABELS = Object.freeze({
+  recurring_task: "长期任务",
+  scheduled_task: "短期任务",
+  waiting_task:   "等待任务",
+  skill:          "AI快捷按钮",
+});
+
+/**
+ * Kind → bucket mapping (default assignment when no explicit bucket set).
+ */
+const KIND_TO_BUCKET = Object.freeze({
+  recurring_task: "long_term",
+  scheduled_task: "short_term",
+  waiting_task:   "waiting",
+  skill:          "skill",
+});
+
+/**
+ * Kind picker definitions — used in the task type chooser UI.
+ */
+const KIND_PICKER_DEFS = Object.freeze([
+  { kind: "recurring_task", label: "长期任务", description: "按循环节奏持续执行，适合巡检、整理和长期维护。" },
+  { kind: "scheduled_task", label: "短期任务", description: "在指定时间执行一次，适合到点处理的任务。" },
+  { kind: "waiting_task",   label: "等待任务", description: "主要等待人类处理，但仍可一键触发梳理上下文。" },
+  { kind: "skill",          label: "AI快捷按钮", description: "手动点击后触发，由 AI 执行一段可复用动作。" },
+]);
+
+/**
  * Bucket definitions in display order.
  * Used for rendering bucket sub-folders in the Projects tab.
  */
@@ -65,12 +96,9 @@ function inferSessionBucket(session) {
   const explicitBucket = normalizeBucket(rawBucket);
   if (explicitBucket) return explicitBucket;
 
-  // 2. Infer from persistent kind
+  // 2. Infer from persistent kind using KIND_TO_BUCKET map
   const kind = String(session?.persistent?.kind || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-  if (kind === "recurring_task") return "long_term";
-  if (kind === "scheduled_task") return "short_term";
-  if (kind === "waiting_task") return "waiting";
-  if (kind === "skill") return "skill";
+  if (KIND_TO_BUCKET[kind]) return KIND_TO_BUCKET[kind];
 
   // 3. Infer from workflow state
   const workflowState = String(session?.workflowState || "").trim().toLowerCase();
@@ -93,6 +121,9 @@ if (typeof globalThis !== "undefined") {
   globalThis.MelodySyncTaskTypeConstants = Object.freeze({
     PERSISTENT_KINDS,
     BUCKET_KEYS,
+    KIND_LABELS,
+    KIND_TO_BUCKET,
+    KIND_PICKER_DEFS,
     BUCKET_DEFS,
     normalizeBucket,
     inferSessionBucket,

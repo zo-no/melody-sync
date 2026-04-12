@@ -53,20 +53,6 @@ const REACT_FLOW_EXTRA_CSS = `
   min-height: 100%;
 }
 
-.quest-task-flow-react-canvas::before {
-  content: "";
-  position: absolute;
-  inset: 10px;
-  z-index: 0;
-  border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 10%, var(--border));
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--border) 14%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--border) 12%, transparent) 1px, transparent 1px);
-  background-size: 28px 28px;
-  opacity: 0.48;
-  pointer-events: none;
-}
 
 .quest-task-flow-react-global-actions {
   position: absolute;
@@ -1245,27 +1231,8 @@ function getTrackerPersistentActionButtons(session, {
         label: isMobile ? '归入项目' : '归入已有项目',
         secondary: true,
         onClick: () => {
-          const projects = typeof window.getLongTermProjectList === 'function'
-            ? window.getLongTermProjectList()
-            : [];
-          if (projects.length === 0) {
-            if (typeof window.switchTab === 'function') window.switchTab('long-term');
-            return;
-          }
-          const userProjects = projects.filter((p) => p.taskListOrigin !== 'system');
-          const target = userProjects[0] || projects[0];
-          if (typeof window.fetchJsonOrRedirect === 'function') {
-            void window.fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(session.id)}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                taskPoolMembership: {
-                  longTerm: { role: 'member', projectSessionId: target.id, bucket: 'inbox' },
-                },
-              }),
-            }).catch((err) => {
-              console.error('[lt] assign failed:', err);
-            });
+          if (typeof window.openProjectPicker === 'function') {
+            window.openProjectPicker(session);
           }
         },
       },
@@ -2176,27 +2143,13 @@ function PersistentEditorModal({
         ? '沉淀后会出现在任务列表顶部的长期区。'
         : '先选择要沉淀成哪种长期能力。'))
     : '正在整理当前会话内容…';
-  const kindOptions = [
-    {
-      kind: 'recurring_task',
-      label: '长期任务',
-      description: '按循环节奏持续执行，适合巡检、整理和长期维护。',
-    },
-    {
-      kind: 'scheduled_task',
-      label: '短期任务',
-      description: '在指定时间执行一次，适合到点处理的任务。',
-    },
-    {
-      kind: 'waiting_task',
-      label: '等待任务',
-      description: '主要等待人类处理，但仍可一键触发梳理上下文。',
-    },
-    {
-      kind: 'skill',
-      label: 'AI快捷按钮',
-      description: '手动点击后触发，由 AI 执行一段可复用动作。',
-    },
+  const kindOptions = (
+    typeof window !== 'undefined' && window.MelodySyncTaskTypeConstants?.KIND_PICKER_DEFS
+  ) || [
+    { kind: 'recurring_task', label: '长期任务',   description: '按循环节奏持续执行，适合巡检、整理和长期维护。' },
+    { kind: 'scheduled_task', label: '短期任务',   description: '在指定时间执行一次，适合到点处理的任务。' },
+    { kind: 'waiting_task',   label: '等待任务',   description: '主要等待人类处理，但仍可一键触发梳理上下文。' },
+    { kind: 'skill',          label: 'AI快捷按钮', description: '手动点击后触发，由 AI 执行一段可复用动作。' },
   ];
 
   return (
@@ -2629,9 +2582,12 @@ function OperationRecordHeaderChildren({
   onRun = null,
   onToggle = null,
   onConfigure = null,
+  onComplete = null,
 }) {
   const kind = String(data?.persistent?.kind || '').trim().toLowerCase();
   const state = String(data?.persistent?.state || '').trim().toLowerCase();
+  const workflowState = String(data?.workflowState || '').trim().toLowerCase();
+  const isDone = ['done', 'complete', 'completed', 'finished', '完成', '已完成'].includes(workflowState);
   const buttons = [];
 
   if (kind === 'recurring_task') {
@@ -2649,7 +2605,11 @@ function OperationRecordHeaderChildren({
     buttons.push({ label: '触发AI快捷按钮', secondary: false, onClick: onRun });
     buttons.push({ label: '设置', secondary: true, onClick: onConfigure });
   } else {
-    buttons.push({ label: '沉淀为长期项', secondary: false, onClick: onPromote });
+    // Regular session: show complete button if not already done
+    if (!isDone && onComplete) {
+      buttons.push({ label: '✓ 完成', secondary: false, onClick: onComplete });
+    }
+    buttons.push({ label: isDone ? '沉淀为长期项' : '长期项', secondary: isDone ? false : true, onClick: onPromote });
   }
 
   return (
@@ -2739,6 +2699,7 @@ function createOperationRecordSummaryRenderer({
         onRun={handlers?.onRun || null}
         onToggle={handlers?.onToggle || null}
         onConfigure={handlers?.onConfigure || null}
+        onComplete={handlers?.onComplete || null}
       />,
     );
   }
@@ -3261,7 +3222,12 @@ function SessionListGroupSection({
               }}
             >
               <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
-              <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
+              <div className="lt-project-card-title-group">
+                <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
+                {groupEntry?.isSystem && projectSummary ? (
+                  <span className="lt-project-card-subtitle">{projectSummary}</span>
+                ) : null}
+              </div>
               {groupEntry?.isSystem ? <span className="lt-project-card-default-badge">默认</span> : null}
               <span className="lt-project-card-count">{memberCount}</span>
             </div>
@@ -3468,9 +3434,15 @@ function SessionListCreateFolderSection({
 function SessionListEmptyState({
   show = false,
   label = '',
+  hint = '',
 }) {
   if (!show || !label) return null;
-  return <div className="session-list-empty">{label}</div>;
+  return (
+    <div className="session-list-empty">
+      <div className="session-list-empty-label">{label}</div>
+      {hint ? <div className="session-list-empty-hint">{hint}</div> : null}
+    </div>
+  );
 }
 
 function ArchivedSessionSection({
@@ -3601,6 +3573,7 @@ function SessionListCollections({
       <SessionListEmptyState
         show={emptyState?.show === true}
         label={String(emptyState?.label || '')}
+        hint={String(emptyState?.hint || '')}
       />
       <SessionListCreateFolderSection
         showCreateFolder={grouping?.showCreateFolder === true}
@@ -4120,7 +4093,14 @@ function getProjectedTaskFlowBands(windowRef, graph, levels, rootNodeId, activeQ
       const anchorBand = bandById.get(anchorId) || 0;
       const slotIndex = anchorSlotCounts.get(anchorId) || 0;
       anchorSlotCounts.set(anchorId, slotIndex + 1);
-      const preferredBand = getProjectedTaskFlowPreferredBand(windowRef, node, anchorBand, slotIndex);
+      let preferredBand;
+      if (node?.kind === 'done') {
+        // Done nodes always go below all other nodes at this level.
+        const maxUsedBand = usedBands.size > 0 ? Math.max(...usedBands) : anchorBand;
+        preferredBand = maxUsedBand + 1;
+      } else {
+        preferredBand = getProjectedTaskFlowPreferredBand(windowRef, node, anchorBand, slotIndex);
+      }
       const band = resolveProjectedTaskFlowBand(preferredBand, usedBands);
       usedBands.add(band);
       bandById.set(node.id, band);

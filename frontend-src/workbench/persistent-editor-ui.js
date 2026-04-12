@@ -200,28 +200,12 @@
       if (draft.mode !== "configure" && editorStep !== "details") {
         const chooser = documentRef.createElement("div");
         chooser.className = "persistent-editor-kind-grid";
-        [
-          {
-            kind: "recurring_task",
-            label: "长期任务",
-            description: "按循环节奏持续执行，适合巡检、整理和长期维护。",
-          },
-          {
-            kind: "scheduled_task",
-            label: "短期任务",
-            description: "在指定时间执行一次，适合到点处理的任务。",
-          },
-          {
-            kind: "waiting_task",
-            label: "等待任务",
-            description: "主要等待人类处理，但仍可一键触发梳理上下文。",
-          },
-          {
-            kind: "skill",
-            label: "AI快捷按钮",
-            description: "手动点击后触发，由 AI 执行一段可复用动作。",
-          },
-        ].forEach((entry) => {
+        (globalThis.MelodySyncTaskTypeConstants?.KIND_PICKER_DEFS || [
+          { kind: "recurring_task", label: "长期任务", description: "按循环节奏持续执行，适合巡检、整理和长期维护。" },
+          { kind: "scheduled_task", label: "短期任务", description: "在指定时间执行一次，适合到点处理的任务。" },
+          { kind: "waiting_task",   label: "等待任务", description: "主要等待人类处理，但仍可一键触发梳理上下文。" },
+          { kind: "skill",          label: "AI快捷按钮", description: "手动点击后触发，由 AI 执行一段可复用动作。" },
+        ]).forEach((entry) => {
           const button = documentRef.createElement("button");
           button.type = "button";
           button.className = "persistent-editor-kind-card";
@@ -271,12 +255,12 @@
 
         const kindRow = documentRef.createElement("div");
         kindRow.className = "operation-record-persistent-kind-row persistent-editor-modal-kind-row";
-        [
+        (globalThis.MelodySyncTaskTypeConstants?.KIND_PICKER_DEFS || [
           { kind: "recurring_task", label: "长期任务" },
           { kind: "scheduled_task", label: "短期任务" },
-          { kind: "waiting_task", label: "等待任务" },
-          { kind: "skill", label: "AI快捷按钮" },
-        ].forEach((entry) => {
+          { kind: "waiting_task",   label: "等待任务" },
+          { kind: "skill",          label: "AI快捷按钮" },
+        ]).forEach((entry) => {
           const button = documentRef.createElement("button");
           button.type = "button";
           button.className = "operation-record-kind-btn";
