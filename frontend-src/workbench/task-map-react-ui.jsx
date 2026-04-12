@@ -3161,11 +3161,19 @@ function SessionListPinnedSection({
 }
 
 function SessionsTabStatsPanel({ buckets = {} }) {
+  // buckets comes as Array [{key, label, order, sessions}] from payload
+  const bucketsArr = Array.isArray(buckets)
+    ? buckets
+    : Object.values(buckets);
+  const getCount = (key) => {
+    const b = bucketsArr.find((b) => b?.key === key);
+    return Array.isArray(b?.sessions) ? b.sessions.length : 0;
+  };
   const counts = {
-    long_term: (buckets.long_term?.sessions || []).length,
-    short_term: (buckets.short_term?.sessions || []).length,
-    waiting: (buckets.waiting?.sessions || []).length,
-    inbox: (buckets.inbox?.sessions || []).length,
+    long_term: getCount('long_term'),
+    short_term: getCount('short_term'),
+    waiting: getCount('waiting'),
+    inbox: getCount('inbox'),
   };
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
   if (total === 0) return null;
@@ -3239,22 +3247,15 @@ function SkillButtonCard({ session = null, createSessionItem = null, renderKey =
   if (!session?.id) return null;
   const name = String(session?.name || '').trim() || '快捷按钮';
   const summary = String(session?.taskCard?.goal || session?.taskCard?.summary || session?.description || '').trim();
-  const isFavorite = session?.taskPoolMembership?.longTerm?.bucket === 'skill'
-    && session?.sidebarOrder != null && session.sidebarOrder < 10;
+  // Mark as favorite if explicitly pinned (pinned=true) or has low sidebarOrder
+  const isFavorite = session?.pinned === true
+    || (session?.sidebarOrder != null && session.sidebarOrder < 10);
 
   const handleClick = () => {
-    // First: open the conversation so user can see/continue the interaction
-    // Use the proxy exposed on globalThis by session-list/ui.js
+    // Open the conversation — user sees the chat and can click "触发" to run
+    // The actual execution is triggered from the workbench "立即执行" button
     if (typeof window._melodySyncAttachSession === 'function') {
       window._melodySyncAttachSession(session.id, session);
-    }
-    // Then: trigger the skill execution
-    if (typeof window.dispatchAction === 'function') {
-      window.dispatchAction({
-        action: 'persistent_run',
-        sessionId: session.id,
-        runtime: window.MelodySyncSessionTooling?.getCurrentRuntimeSelectionSnapshot?.() || undefined,
-      });
     }
   };
 
