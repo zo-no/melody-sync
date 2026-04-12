@@ -1,12 +1,7 @@
 import { normalizeLongTermSessionProjection } from '../session/long-term-projection.mjs';
+import { normalizeText } from '../shared/text.mjs';
 
 const SESSION_STATE_LINE_ROLES = new Set(['main', 'branch']);
-
-function normalizeText(value) {
-  return typeof value === 'string'
-    ? value.replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim()
-    : '';
-}
 
 function firstMeaningfulText(value) {
   const items = Array.isArray(value) ? value : [];
