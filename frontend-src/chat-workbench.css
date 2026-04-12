@@ -2277,16 +2277,7 @@ button.quest-task-flow-node {
   justify-self: center;
 }
 
-/* Title row wraps title + collapse button */
-.quest-task-flow-node-title-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-}
-
 .quest-task-flow-node-title {
-  flex: 1;
-  min-width: 0;
   font-size: 13px;
   line-height: 1.35;
   font-weight: 700;
@@ -2297,43 +2288,51 @@ button.quest-task-flow-node {
   overflow: hidden;
 }
 
-/* Collapse toggle button */
+/* Collapse toggle button — fixed to top-right of the node shell */
 .quest-task-flow-node-collapse-btn {
-  flex: 0 0 auto;
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 10;
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 6px;
+  background: var(--bg);
   color: var(--text-muted);
   font: inherit;
   font-size: 9px;
   font-weight: 700;
   line-height: 1;
-  padding: 2px 4px;
+  padding: 2px 5px;
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-  margin-top: 1px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
   white-space: nowrap;
-  min-width: 16px;
+  min-width: 18px;
   text-align: center;
 }
 
 .quest-task-flow-node-collapse-btn:hover {
-  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+  background: var(--bg-secondary);
   color: var(--text);
-  border-color: var(--border);
+  border-color: var(--border-strong);
 }
 
 .quest-task-flow-node-collapse-btn.is-collapsed {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: color-mix(in srgb, var(--accent) 80%, var(--text));
-  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  color: color-mix(in srgb, var(--accent) 85%, var(--text));
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
-/* Collapsed node: show subtle indicator */
+/* Node shell needs position:relative for the absolute button */
+.quest-task-flow-react-node-shell {
+  position: relative;
+}
+
+/* Collapsed node: dashed border indicator */
 .quest-task-flow-node.is-subtree-collapsed {
   border-style: dashed;
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
 .quest-task-flow-node-summary {

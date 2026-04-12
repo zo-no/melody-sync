@@ -53,16 +53,35 @@ function isNodeCollapsed(nodeId) {
   return getCollapsedNodeIds().has(nodeId);
 }
 
-// Collect all descendant node IDs of a given node in the graph
+// Collect all descendant node IDs using outgoing edges (more reliable than parentNodeId)
 function collectDescendantNodeIds(nodeId, graph) {
   const result = new Set();
   const queue = [nodeId];
+  // Build a parent→children map from edges
+  const childrenByParent = new Map();
+  for (const edge of graph?.edges || []) {
+    const from = trimText(edge?.fromNodeId || '');
+    const to = trimText(edge?.toNodeId || '');
+    if (!from || !to) continue;
+    if (!childrenByParent.has(from)) childrenByParent.set(from, []);
+    childrenByParent.get(from).push(to);
+  }
+  // Also use parentNodeId from nodes as fallback
+  for (const node of graph?.nodes || []) {
+    const parent = trimText(node?.parentNodeId || '');
+    const id = trimText(node?.id || '');
+    if (!parent || !id) continue;
+    if (!childrenByParent.has(parent)) childrenByParent.set(parent, []);
+    if (!childrenByParent.get(parent).includes(id)) {
+      childrenByParent.get(parent).push(id);
+    }
+  }
   while (queue.length > 0) {
     const current = queue.shift();
-    for (const node of graph?.nodes || []) {
-      if (trimText(node?.parentNodeId) === current && !result.has(node.id)) {
-        result.add(node.id);
-        queue.push(node.id);
+    for (const childId of childrenByParent.get(current) || []) {
+      if (!result.has(childId)) {
+        result.add(childId);
+        queue.push(childId);
       }
     }
   }
@@ -75,6 +94,9 @@ function applyNodeCollapseFilter(graph) {
   if (collapsedIds.size === 0) return graph;
   const hiddenIds = new Set();
   for (const collapsedId of collapsedIds) {
+    // Only filter if the collapsed node actually exists in this graph
+    const exists = (graph?.nodes || []).some((n) => n.id === collapsedId);
+    if (!exists) continue;
     for (const id of collectDescendantNodeIds(collapsedId, graph)) {
       hiddenIds.add(id);
     }
@@ -84,7 +106,16 @@ function applyNodeCollapseFilter(graph) {
   const filteredEdges = (graph?.edges || []).filter(
     (e) => !hiddenIds.has(e.fromNodeId) && !hiddenIds.has(e.toNodeId)
   );
-  return { ...graph, nodes: filteredNodes, edges: filteredEdges };
+  // Also filter outgoing/incoming maps
+  const filteredOutgoing = new Map();
+  const filteredIncoming = new Map();
+  for (const [k, v] of graph?.outgoing || []) {
+    if (!hiddenIds.has(k)) filteredOutgoing.set(k, v.filter((e) => !hiddenIds.has(e.toNodeId)));
+  }
+  for (const [k, v] of graph?.incoming || []) {
+    if (!hiddenIds.has(k)) filteredIncoming.set(k, v.filter((e) => !hiddenIds.has(e.fromNodeId)));
+  }
+  return { ...graph, nodes: filteredNodes, edges: filteredEdges, outgoing: filteredOutgoing, incoming: filteredIncoming };
 }
 const taskMapViewportMemory = new Map();
 const REACT_FLOW_EXTRA_CSS = `
@@ -5435,23 +5466,22 @@ function MelodyNode({ data }) {
           ) : null}
         </div>
       ) : null}
+      {/* Collapse toggle — fixed to top-right corner of the node shell */}
+      {hasChildren ? (
+        <button
+          type="button"
+          className={`quest-task-flow-node-collapse-btn nodrag nopan${collapsed ? ' is-collapsed' : ''}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={handleToggleCollapse}
+          title={collapsed ? `展开 (${(node.childNodeIds || []).length} 个子节点)` : '折叠子节点'}
+          aria-label={collapsed ? '展开' : '折叠'}
+        >
+          {collapsed ? `+${(node.childNodeIds || []).length}` : '−'}
+        </button>
+      ) : null}
       <div className={`${className} nopan${collapsed ? ' is-subtree-collapsed' : ''}`} onClick={handleBodyClick}>
         {badgeLabel ? <div className={badgeClassName}>{badgeLabel}</div> : null}
-        <div className="quest-task-flow-node-title-row">
-          <div className="quest-task-flow-node-title" title={rawTitle}>{title}</div>
-          {hasChildren ? (
-            <button
-              type="button"
-              className={`quest-task-flow-node-collapse-btn nodrag nopan${collapsed ? ' is-collapsed' : ''}`}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={handleToggleCollapse}
-              title={collapsed ? `展开 (${node.childNodeIds.length} 个子节点)` : '折叠子节点'}
-              aria-label={collapsed ? '展开' : '折叠'}
-            >
-              {collapsed ? `+${node.childNodeIds.length}` : '−'}
-            </button>
-          ) : null}
-        </div>
+        <div className="quest-task-flow-node-title" title={rawTitle}>{title}</div>
         {summary ? <div className="quest-task-flow-node-summary" title={summary}>{summary}</div> : null}
         {nodeStatusKey ? (
           <div className={`quest-task-flow-node-status-row is-status-${nodeStatusKey}`}>
