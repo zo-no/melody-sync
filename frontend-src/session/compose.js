@@ -582,6 +582,157 @@ let activeTab = normalizeSidebarTab(
     localStorage.getItem(ACTIVE_SIDEBAR_TAB_STORAGE_KEY) ||
     "sessions",
 );
+// ── Project Picker ────────────────────────────────────────────────
+const projectPickerOverlay = document.getElementById("projectPickerOverlay");
+const projectPickerList = document.getElementById("projectPickerList");
+const projectPickerSessionInfo = document.getElementById("projectPickerSessionInfo");
+const projectPickerConfirm = document.getElementById("projectPickerConfirm");
+const projectPickerBuckets = document.getElementById("projectPickerBuckets");
+
+let projectPickerState = { sessionId: null, selectedProjectId: null, selectedBucket: "inbox" };
+
+function scoreProjectMatch(project, session) {
+  // Simple relevance score: keyword overlap between session name/goal and project name/description
+  const sessionText = [
+    session?.name || "",
+    session?.taskCard?.goal || "",
+    session?.taskCard?.summary || "",
+    session?.description || "",
+  ].join(" ").toLowerCase();
+  const projectText = [
+    project.name || "",
+    project.description || "",
+  ].join(" ").toLowerCase();
+  const sessionWords = sessionText.split(/\s+/).filter((w) => w.length > 1);
+  let score = 0;
+  for (const word of sessionWords) {
+    if (projectText.includes(word)) score += 1;
+  }
+  return score;
+}
+
+function openProjectPicker(session) {
+  if (!projectPickerOverlay || !session?.id) return;
+  const projects = typeof getLongTermWorkspaceProjects === "function"
+    ? getLongTermWorkspaceProjects().filter((p) => {
+        const mem = p?.taskPoolMembership?.longTerm;
+        return String(mem?.role || "").toLowerCase() === "project" || p?.persistent?.kind === "recurring_task";
+      })
+    : [];
+
+  // Reset state
+  projectPickerState = { sessionId: session.id, selectedProjectId: null, selectedBucket: "inbox" };
+  if (projectPickerConfirm) projectPickerConfirm.disabled = true;
+
+  // Session info
+  if (projectPickerSessionInfo) {
+    const sessionName = String(session?.taskCard?.goal || session?.name || "").trim() || "此任务";
+    projectPickerSessionInfo.textContent = `将「${sessionName}」归入：`;
+  }
+
+  // Score and sort projects
+  const scored = projects.map((p) => ({
+    project: p,
+    score: scoreProjectMatch(p, session),
+    isUser: String(p?.taskListOrigin || "").toLowerCase() !== "system",
+  })).sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.isUser !== b.isUser) return a.isUser ? -1 : 1;
+    return 0;
+  });
+
+  // Render project list
+  if (projectPickerList) {
+    if (scored.length === 0) {
+      projectPickerList.innerHTML = `<div class="project-picker-empty">还没有长期项目。请先在"长期项目"标签页创建一个。</div>`;
+    } else {
+      projectPickerList.innerHTML = scored.map(({ project, score, isUser }, i) => {
+        const isRecommended = score > 0 && i === 0;
+        const desc = String(project.description || project.persistent?.digest?.summary || "").trim();
+        return `<button class="project-picker-item${isRecommended ? " is-recommended" : ""}" type="button" data-project-id="${project.id}">
+          <span class="project-picker-item-name">${project.name || "未命名项目"}</span>
+          ${isRecommended ? `<span class="project-picker-item-badge">推荐</span>` : ""}
+          ${!isUser ? `<span class="project-picker-item-system">默认</span>` : ""}
+          ${desc ? `<span class="project-picker-item-desc">${desc}</span>` : ""}
+        </button>`;
+      }).join("");
+
+      // Wire up project selection
+      projectPickerList.querySelectorAll(".project-picker-item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          projectPickerList.querySelectorAll(".project-picker-item").forEach((b) => b.classList.remove("is-selected"));
+          btn.classList.add("is-selected");
+          projectPickerState.selectedProjectId = btn.dataset.projectId;
+          if (projectPickerConfirm) projectPickerConfirm.disabled = false;
+        });
+      });
+
+      // Auto-select top recommended
+      if (scored[0]?.score > 0) {
+        const firstBtn = projectPickerList.querySelector(".project-picker-item");
+        firstBtn?.click();
+      }
+    }
+  }
+
+  // Reset bucket selection
+  projectPickerBuckets?.querySelectorAll(".project-picker-bucket").forEach((btn) => {
+    btn.classList.toggle("is-selected", btn.dataset.bucket === "inbox");
+  });
+  projectPickerState.selectedBucket = "inbox";
+
+  projectPickerOverlay.hidden = false;
+  document.body.classList.add("project-picker-open");
+}
+
+function closeProjectPicker() {
+  if (projectPickerOverlay) projectPickerOverlay.hidden = true;
+  document.body.classList.remove("project-picker-open");
+  projectPickerState = { sessionId: null, selectedProjectId: null, selectedBucket: "inbox" };
+}
+
+// Bucket selection
+projectPickerBuckets?.addEventListener("click", (event) => {
+  const btn = event.target?.closest?.(".project-picker-bucket");
+  if (!btn) return;
+  projectPickerBuckets.querySelectorAll(".project-picker-bucket").forEach((b) => b.classList.remove("is-selected"));
+  btn.classList.add("is-selected");
+  projectPickerState.selectedBucket = btn.dataset.bucket || "inbox";
+});
+
+// Confirm
+document.getElementById("projectPickerConfirm")?.addEventListener("click", () => {
+  const { sessionId, selectedProjectId, selectedBucket } = projectPickerState;
+  if (!sessionId || !selectedProjectId) return;
+  closeProjectPicker();
+  void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      taskPoolMembership: {
+        longTerm: { role: "member", projectSessionId: selectedProjectId, bucket: selectedBucket },
+      },
+    }),
+  }).then(() => {
+    if (typeof renderSessionList === "function") renderSessionList();
+  }).catch((err) => {
+    console.error("[project-picker] assign failed:", err);
+    
+  });
+});
+
+// Cancel / close
+document.getElementById("projectPickerCancel")?.addEventListener("click", closeProjectPicker);
+document.getElementById("projectPickerClose")?.addEventListener("click", closeProjectPicker);
+projectPickerOverlay?.addEventListener("click", (e) => {
+  if (e.target === projectPickerOverlay) closeProjectPicker();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !projectPickerOverlay?.hidden) closeProjectPicker();
+});
+
+globalThis.openProjectPicker = openProjectPicker;
+
 const longTermWorkspace = document.getElementById("longTermWorkspace");
 const longTermWorkspaceList = document.getElementById("longTermWorkspaceList");
 const longTermWorkspaceDetail = document.getElementById("longTermWorkspaceDetail");
@@ -626,11 +777,15 @@ function isLongTermWorkspaceProject(session) {
   const sessionId = String(session?.id || "").trim();
   const projectSessionId = String(membership?.projectSessionId || "").trim();
   const requestedRole = String(membership?.role || "").trim().toLowerCase();
+  // Explicit project: has membership where role=project and projectSessionId points to itself
   const explicitIsProject = projectSessionId
     && (requestedRole === "project" || projectSessionId === sessionId)
     && (membership?.fixedNode === true || projectSessionId === sessionId);
-  return session?.archived !== true
-    && (explicitIsProject || getSidebarPersistentKind(session) === "recurring_task");
+  // Fallback: recurring_task with no membership role, or self-referencing project
+  // Exclude: role=member (even if kind=recurring_task — those are tasks inside a project)
+  const isMember = requestedRole === "member";
+  const isRecurringRoot = !isMember && getSidebarPersistentKind(session) === "recurring_task";
+  return session?.archived !== true && (explicitIsProject || isRecurringRoot);
 }
 
 function getLongTermWorkspaceProjects() {
@@ -1348,7 +1503,6 @@ function syncSidebarTabUi() {
   if (sessionList) sessionList.style.display = "";
   // Eye button: show in sessions tab (hide branch tasks = project members)
   if (sidebarBranchVisibilityToggleBtn) sidebarBranchVisibilityToggleBtn.hidden = !isSessionsTab;
-  if (sidebarLongTermVisibilityToggleBtn) sidebarLongTermVisibilityToggleBtn.hidden = true;
   if (sessionListFooter) {
     sessionListFooter.hidden = false;
     sessionListFooter.classList.remove("hidden");
@@ -1534,7 +1688,7 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
       }
     }).catch((err) => {
       console.error("[workspace] Failed to update workspace:", err);
-      window.alert("工作区设置失败，请重试。");
+      
     });
     return;
   }
@@ -1550,17 +1704,21 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
   selectedLongTermProjectId = projectId;
 
   if (action === "cleanup") {
-    // Archive all done/completed member sessions in this project
+    // Recompute member sessions at click time (not from closed-over renderLongTermWorkspaceDetail scope)
+    const currentMembers = Array.isArray(sessions)
+      ? sessions.filter((s) => {
+          const mem = s?.taskPoolMembership?.longTerm;
+          return !s?.archived
+            && String(mem?.projectSessionId || "").trim() === projectId
+            && String(mem?.role || "").trim().toLowerCase() === "member";
+        })
+      : [];
     const doneStates = ["done", "complete", "completed", "finished", "完成", "已完成", "运行完毕", "运行完成"];
-    const toCleanup = memberSessions.filter((s) => {
+    const toCleanup = currentMembers.filter((s) => {
       const state = String(s?.workflowState || "").trim().toLowerCase();
       return doneStates.includes(state);
     });
-    if (toCleanup.length === 0) {
-      window.alert("没有已完成的任务需要清理。");
-      return;
-    }
-    if (!window.confirm(`将 ${toCleanup.length} 个已完成任务移入归档？`)) return;
+    if (toCleanup.length === 0) return;
     void Promise.all(
       toCleanup.map((s) =>
         fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, {
@@ -1596,7 +1754,6 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
   }
 
   if (action === "demote") {
-    if (!window.confirm(`将「${projectSession.name || "此项目"}」降级为普通任务？定时/循环配置将被清除，但对话记录保留。`)) return;
     void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1607,21 +1764,28 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
       if (typeof renderSessionList === "function") renderSessionList();
     }).catch((err) => {
       console.error("[lt] demote project failed:", err);
-      window.alert("降级失败，请重试。");
+      
     });
     return;
   }
 
   if (action === "delete") {
-    const memberCount = memberSessions?.length || 0;
+    const currentMembers = Array.isArray(sessions)
+      ? sessions.filter((s) => {
+          const mem = s?.taskPoolMembership?.longTerm;
+          return !s?.archived
+            && String(mem?.projectSessionId || "").trim() === projectId
+            && String(mem?.role || "").trim().toLowerCase() === "member";
+        })
+      : [];
+    const memberCount = currentMembers.length;
     const confirmMsg = memberCount > 0
       ? `解散「${projectSession.name || "此项目"}」？\n\n${memberCount} 个归属任务将回到任务列表，项目本身将被归档。`
       : `解散「${projectSession.name || "此项目"}」？项目将被归档。`;
-    if (!window.confirm(confirmMsg)) return;
     // Demote all member sessions (clear project membership → they go back to tasks tab)
     // then archive the project root itself
     void Promise.all([
-      ...memberSessions.map((s) =>
+      ...currentMembers.map((s) =>
         fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

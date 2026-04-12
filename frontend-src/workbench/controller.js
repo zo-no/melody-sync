@@ -1189,7 +1189,7 @@
           execution: { mode: "in_place", runPrompt: "" },
         });
         if (ok === false) {
-          window.alert?.("沉淀失败，请稍后重试");
+          console.error("[workbench] promote to persistent failed");
         }
       },
       onRun: () => {
