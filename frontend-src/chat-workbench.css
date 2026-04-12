@@ -6654,6 +6654,7 @@ button.quest-task-flow-node {
 }
 
 body.long-term-workspace-active .task-manager-main-column > .quest-tracker,
+body.long-term-workspace-active .task-manager-main-column > .output-panel-inline,
 body.long-term-workspace-active .task-manager-main-column > .messages,
 body.long-term-workspace-active .task-manager-main-column > .queued-panel,
 body.long-term-workspace-active .task-manager-main-column > .input-area {

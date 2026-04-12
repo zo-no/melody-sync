@@ -86,7 +86,8 @@
   }
 
   function getCurrentContextKey() {
-    return `${getCurrentScope()}::${getCurrentSessionId()}`;
+    // scope is always 'sessions' for this panel; only track sessionId changes
+    return `sessions::${getCurrentSessionId()}`;
   }
 
   function buildOutputPanelUrl(sessionId = '', scope = 'sessions') {
@@ -389,7 +390,9 @@
       return refreshPromise;
     }
     const sessionId = getCurrentSessionId();
-    const scope = getCurrentScope();
+    // Always use 'sessions' scope — this panel shows overall task status,
+    // not scoped to the current tab (Projects tab uses long-term workspace instead)
+    const scope = 'sessions';
     lastContextKey = `${scope}::${sessionId}`;
     loading = true;
     errorMessage = '';
