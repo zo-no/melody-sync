@@ -29,19 +29,9 @@ import {
   buildLongTermTaskPoolMembership,
   normalizeTaskPoolMembership,
 } from '../../session/task-pool-membership.mjs';
-import { normalizePersistentKind, KIND_TO_BUCKET } from '../../session/persistent-kind.mjs';
+import { normalizePersistentKind, KIND_TO_BUCKET, getPersistentSessionGroup } from '../../session/persistent-kind.mjs';
 import { ensureSystemProject } from '../../session/system-project.mjs';
 
-const KIND_GROUP_LABELS = Object.freeze({
-  recurring_task: '长期任务',
-  scheduled_task: '短期任务',
-  waiting_task:   '等待任务',
-  skill:          '快捷按钮',
-});
-
-function getPersistentSessionGroup(kind = '') {
-  return KIND_GROUP_LABELS[normalizePersistentKind(kind)] || '';
-}
 
 export async function createSessionWithDeps({
   ensureSessionManagerBuiltinHooksRegistered,

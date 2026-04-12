@@ -56,6 +56,9 @@ try {
     memory: ['done 需要保留到日切后再清理'],
   });
   await mutateSessionMeta(olderDone.id, (draft) => {
+    // Clear auto-assigned system project membership so the daily sweep can archive it.
+    // In production, standalone completed tasks without a project are eligible for archiving.
+    draft.taskPoolMembership = null;
     draft.workflowState = 'done';
     draft.workflowCompletedAt = '2026-04-10T15:30:00.000Z';
     draft.updatedAt = '2026-04-10T15:30:00.000Z';
@@ -68,6 +71,7 @@ try {
     summary: '零点后的完成项要留到下一次 sweep',
   });
   await mutateSessionMeta(freshDone.id, (draft) => {
+    draft.taskPoolMembership = null;
     draft.workflowState = 'done';
     draft.workflowCompletedAt = '2026-04-11T00:01:00.000Z';
     draft.updatedAt = '2026-04-11T00:01:00.000Z';

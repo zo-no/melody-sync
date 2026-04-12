@@ -43,6 +43,26 @@ export function normalizeLongTermBucket(value) {
 }
 
 /**
+ * Kind → sidebar group name mapping.
+ * Matches frontend KIND_LABELS in task-type-constants.js.
+ * Single source of truth — import from here instead of redefining locally.
+ */
+export const KIND_GROUP_LABELS = Object.freeze({
+  recurring_task: '长期任务',
+  scheduled_task: '短期任务',
+  waiting_task:   '等待任务',
+  skill:          '快捷按钮',
+});
+
+/** Set of all valid persistent group names (for group membership checks). */
+export const PERSISTENT_GROUPS = new Set(Object.values(KIND_GROUP_LABELS));
+
+/** Map a kind string to its sidebar group name. Returns '' for unknown kinds. */
+export function getPersistentSessionGroup(kind = '') {
+  return KIND_GROUP_LABELS[normalizePersistentKind(kind)] || '';
+}
+
+/**
  * Infer the long-term bucket for a session.
  * Priority: explicit membership bucket > kind > workflowState > inbox
  */

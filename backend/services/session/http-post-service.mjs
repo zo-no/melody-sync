@@ -12,16 +12,8 @@ import {
   runSessionPersistent,
 } from '../../session/manager.mjs';
 import { normalizeSessionPersistent } from '../../session-persistent/core.mjs';
+import { getPersistentSessionGroup } from '../../session/persistent-kind.mjs';
 import { statOrNull } from '../../fs-utils.mjs';
-
-function getPersistentSessionGroup(kind = '') {
-  const normalizedKind = typeof kind === 'string' ? kind.trim().toLowerCase() : '';
-  if (normalizedKind === 'skill') return '快捷按钮';
-  if (normalizedKind === 'recurring_task') return '长期任务';
-  if (normalizedKind === 'scheduled_task') return '短期任务';
-  if (normalizedKind === 'waiting_task') return '等待任务';
-  return '';
-}
 
 async function isDirectoryPath(path) {
   return (await statOrNull(path))?.isDirectory() === true;

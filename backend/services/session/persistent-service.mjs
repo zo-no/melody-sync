@@ -11,7 +11,13 @@ import {
   normalizeTaskPoolMembership,
 
 } from '../../session/task-pool-membership.mjs';
-import { normalizePersistentKind, KIND_TO_BUCKET } from '../../session/persistent-kind.mjs';
+import {
+  normalizePersistentKind,
+  KIND_TO_BUCKET,
+  KIND_GROUP_LABELS,
+  PERSISTENT_GROUPS,
+  getPersistentSessionGroup,
+} from '../../session/persistent-kind.mjs';
 
 function mergeObjectShape(current, patch) {
   const currentValue = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
@@ -40,20 +46,6 @@ function mergePersistentLoopShape(current, patch) {
     use: mergeObjectShape(currentLoop.use, patchLoop.use),
     prune: mergeObjectShape(currentLoop.prune, patchLoop.prune),
   };
-}
-
-// Kind → group name mapping (matches frontend KIND_LABELS in task-type-constants.js)
-const KIND_GROUP_LABELS = Object.freeze({
-  recurring_task: '长期任务',
-  scheduled_task: '短期任务',
-  waiting_task:   '等待任务',
-  skill:          '快捷按钮',
-});
-const PERSISTENT_GROUPS = new Set(Object.values(KIND_GROUP_LABELS));
-
-function getPersistentSessionGroup(kind = '') {
-  const normalizedKind = normalizePersistentKind(kind);
-  return KIND_GROUP_LABELS[normalizedKind] || '';
 }
 
 function resolveLocalTimezone() {
