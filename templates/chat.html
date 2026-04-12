@@ -108,14 +108,16 @@
             data-i18n-title="sidebar.branchVisibility.hide"
             data-i18n-aria-label="sidebar.branchVisibility.hide"
             data-icon="eye"></button>
-          <button
-            class="sidebar-grouping-chip sidebar-grouping-chip-icon"
-            id="sidebarLongTermVisibilityToggle"
-            type="button"
-            title="显示长期项目任务"
-            aria-label="显示长期项目任务"></button>
           <button class="new-session-btn" id="newSessionBtn" data-i18n="sidebar.newSession">开始任务</button>
         </div>
+      </div>
+      <!-- Output panel — lives at the bottom of the sidebar, always visible -->
+      <div class="output-panel-inline" id="outputPanelInline" hidden>
+        <div class="output-panel-inline-header">
+          <span class="output-panel-inline-title">产出概览</span>
+          <button class="output-panel-inline-refresh" id="outputPanelRefreshBtn" type="button" title="刷新" aria-label="刷新">↻</button>
+        </div>
+        <div class="output-panel-inline-body" id="outputPanelBody"></div>
       </div>
     </aside>
     <div class="sidebar-resize-handle" id="sidebarResizeHandle" hidden aria-hidden="true"></div>
@@ -296,15 +298,6 @@
             </div>
           </div>
         </section>
-
-        <!-- Inline output panel — shown below quest-tracker when a session is active -->
-        <div class="output-panel-inline" id="outputPanelInline" hidden>
-          <div class="output-panel-inline-header">
-            <span class="output-panel-inline-title">产出概览</span>
-            <button class="output-panel-inline-refresh" id="outputPanelRefreshBtn" type="button" title="刷新" aria-label="刷新">↻</button>
-          </div>
-          <div class="output-panel-inline-body" id="outputPanelBody"></div>
-        </div>
 
         <!-- Long-term project workspace panel (shown when Projects tab is active) -->
         <div class="long-term-workspace" id="longTermWorkspace" hidden>

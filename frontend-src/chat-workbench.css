@@ -1433,48 +1433,50 @@
 }
 
 .quest-tracker-persistent-summary {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 48%),
-    color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 0;
+  border-radius: 0;
+  border: 0;
+  background: none;
 }
 
 .quest-tracker-persistent-kicker {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  opacity: 0.72;
+  display: none;
 }
 
+/* lead 也渲染成 chip 样式 */
 .quest-tracker-persistent-lead {
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .quest-tracker-persistent-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: contents;
 }
 
 .quest-tracker-persistent-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 9px;
+  min-height: 20px;
+  padding: 0 7px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-  background: color-mix(in srgb, var(--surface) 92%, var(--bg-secondary));
-  color: var(--text-secondary);
-  font-size: 11px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10.5px;
   line-height: 1;
   white-space: nowrap;
 }
@@ -4807,10 +4809,10 @@ button.quest-task-flow-node {
   background: color-mix(in srgb, #ffffff 92%, var(--text) 8%);
 }
 
-/* ── Inline output panel (embedded in main column) ─────────────────────── */
+/* ── Inline output panel (embedded in sidebar, below session list) ─────── */
 .output-panel-inline {
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   background: var(--bg);
   overflow: hidden;
 }
@@ -6773,7 +6775,6 @@ button.quest-task-flow-node {
 }
 
 body.long-term-workspace-active .task-manager-main-column > .quest-tracker,
-body.long-term-workspace-active .task-manager-main-column > .output-panel-inline,
 body.long-term-workspace-active .task-manager-main-column > .messages,
 body.long-term-workspace-active .task-manager-main-column > .queued-panel,
 body.long-term-workspace-active .task-manager-main-column > .input-area {

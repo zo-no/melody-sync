@@ -530,20 +530,16 @@
     }
     refreshTimer = global.setTimeout?.(() => {
       refreshTimer = null;
-      if (!inlineEl.hidden) {
-        void refresh();
-      }
+      void refresh();
     }, delayMs) || null;
   }
 
   function startLiveRefresh() {
     stopLiveRefresh();
     liveRefreshTimer = global.setInterval?.(() => {
-      if (inlineEl.hidden) return;
       void refresh();
     }, 15000) || null;
     contextPollTimer = global.setInterval?.(() => {
-      if (inlineEl.hidden) return;
       const nextContextKey = getCurrentContextKey();
       if (nextContextKey === lastContextKey) return;
       lastContextKey = nextContextKey;
@@ -552,7 +548,7 @@
     }, 700) || null;
   }
 
-  // Inline panel: show when a session is active, hide on empty state
+  // Panel lives in sidebar — always visible, no show/hide needed
   function show() {
     inlineEl.hidden = false;
     startLiveRefresh();
@@ -565,7 +561,6 @@
     abortInFlightRequest();
   }
 
-  // Legacy open/close kept for any external callers
   function open() { show(); }
   function close() { hide(); }
 
@@ -574,12 +569,11 @@
   });
 
   global.addEventListener?.('popstate', () => {
-    if (inlineEl.hidden) return;
     abortInFlightRequest();
     scheduleRefresh(120);
   });
 
-  // Auto-show: start live refresh immediately (panel is always visible when session is active)
+  // Panel is always shown in sidebar
   show();
 
   global.MelodySyncOutputPanel = Object.freeze({

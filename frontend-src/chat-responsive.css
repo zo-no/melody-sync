@@ -339,7 +339,6 @@ body::before {
   }
 
   .task-manager-main-column .quest-tracker,
-  .task-manager-main-column .output-panel-inline,
   .task-manager-main-column .messages,
   .task-manager-main-column .queued-panel,
   .task-manager-main-column .input-area,
@@ -644,7 +643,6 @@ body::before {
   }
 
   .task-manager-main-column .quest-tracker,
-  .task-manager-main-column .output-panel-inline,
   .task-manager-main-column .messages,
   .task-manager-main-column .queued-panel,
   .task-manager-main-column .input-area,
