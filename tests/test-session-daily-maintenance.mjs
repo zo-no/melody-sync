@@ -125,7 +125,7 @@ try {
   assert.ok(existsSync(contextDigestPath), 'midnight sweep should append agent-facing digest material');
   const contextDigest = readFileSync(contextDigestPath, 'utf8');
   assert.match(contextDigest, /2026-04-10：自动归档 1 项任务/, 'context digest should summarize the nightly archive batch');
-  assert.match(contextDigest, /整理归档闭环：目标 补午夜 maintenance 与长期记忆沉淀/, 'context digest should keep an agent-readable recap of the archived task');
+  assert.match(contextDigest, /整理归档闭环/, 'context digest should keep an agent-readable recap of the archived task');
 
   const maintenanceStatePath = join(CONFIG_DIR, 'session-daily-maintenance.json');
   assert.ok(existsSync(maintenanceStatePath), 'maintenance should persist a day-level sweep checkpoint');

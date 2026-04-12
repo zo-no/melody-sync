@@ -136,7 +136,7 @@ renderer.renderPersistentActions(
 );
 assert.deepEqual(
   persistentHost.children.map((child) => child.textContent),
-  ['沉淀为长期项'],
+  ['沉淀为长期项目'],
   'plain sessions should expose the promote action',
 );
 

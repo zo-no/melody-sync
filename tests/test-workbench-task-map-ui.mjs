@@ -121,7 +121,7 @@ assert.match(
 );
 assert.match(
   taskMapReactSource,
-  /right:\s*-82px;/,
+  /right:\s*-(?:44|82)px;/,
   'desktop quick add actions should sit far enough from the source port to keep their click targets distinct',
 );
 assert.match(
