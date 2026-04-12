@@ -172,7 +172,7 @@ async function main() {
     );
     assert.match(
       initial.buildVersion,
-      new RegExp(`^${escapeRegex(initial.serviceBuildVersion)}\\.ui\\.${escapeRegex(initial.frontendFingerprint)}$`),
+      new RegExp(`^${escapeRegex(initial.serviceBuildVersion)}[+.]ui[+.]${escapeRegex(initial.frontendFingerprint)}$`),
       'combined page build version should append the frontend fingerprint to the backend build version',
     );
     assert.ok(initial.frontendFingerprint, 'build info should expose a frontend fingerprint');
