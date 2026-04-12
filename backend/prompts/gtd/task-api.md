@@ -231,3 +231,9 @@ curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/<PROJECT_SESSION_ID>" \
 - 批量操作前先用 `GET /api/sessions?view=refs` 获取列表
 - bucket 改变时，同时更新 `taskPoolMembership.longTerm.bucket`
 - 执行长期项目任务时，如项目有 workspace 绑定，以该目录为工作根读写文件
+
+## ⚠️ 禁止操作
+
+- **严禁归档长期项目中的任务**：凡是 `taskPoolMembership.longTerm.projectSessionId` 不为空的 session，不得执行 `archived: true` 操作，除非用户明确指示。
+- **整理任务时只允许**：修改 bucket、修改 group、修改 sidebarOrder。不得归档、不得删除。
+- **需要删除时必须走审批流程**：创建一个 `waiting_task` 类型的审批任务，列出待删除项，等待用户确认后再执行。
