@@ -334,7 +334,7 @@ assert.match(
 
 for (const [selector, accentVar] of [
   ['.quest-task-flow-node:is(.is-status-running, .is-running-session, .status-running, .status-pending)', '--quest-task-flow-running-accent'],
-  ['.quest-task-flow-node:is(.is-status-completed, .is-status-done, .is-done-session, .is-resolved)', '--quest-task-flow-completed-accent'],
+  ['.quest-task-flow-node:is(.is-status-completed, .is-status-done, .is-done-session, .is-user-done-session, .is-resolved)', '--quest-task-flow-completed-accent'],
 ]) {
   const blocks = getSelectorBlocks(workbenchStylesheet, selector);
   assert.ok(blocks.length > 0, `${selector} should exist in the stylesheet`);

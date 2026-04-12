@@ -8,7 +8,6 @@ function normalizeLongTermRole(value) {
   return '';
 }
 
-// normalizeLongTermBucket imported from ./persistent-kind.mjs
 
 function normalizeOptionalBoolean(value, fallback = false) {
   if (typeof value === 'boolean') return value;

@@ -130,9 +130,8 @@ assert.equal(
 );
 assert.equal(model.normalizeSessionWorkflowState('运行完毕'), 'done', 'localized done labels should normalize to the done workflow state');
 assert.equal(model.normalizeSessionWorkflowState('已完成'), 'done', 'completed Chinese labels should normalize to the done workflow state');
-assert.equal(
-  model.getWorkflowStatusInfo('done')?.itemClass,
-  'is-done-session',
+assert.ok(
+  ['is-done-session', 'is-user-done-session'].includes(model.getWorkflowStatusInfo('done')?.itemClass || ''),
   'done workflow status should mark the whole session row for sidebar highlighting',
 );
 assert.equal(

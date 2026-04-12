@@ -97,7 +97,6 @@ function collectComparableTokens(value) {
   return tokens;
 }
 
-// normalizePersistentKind imported from ./persistent-kind.mjs
 
 function getSessionParentSessionId(session = null) {
   return trimText(session?.sourceContext?.parentSessionId || '');
@@ -266,7 +265,6 @@ function normalizeLongTermSuggestion(value = null) {
   };
 }
 
-// normalizeLongTermBucket imported from ./persistent-kind.mjs
 
 export function normalizeLongTermSessionProjection(value = null) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;

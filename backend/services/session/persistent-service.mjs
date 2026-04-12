@@ -42,15 +42,18 @@ function mergePersistentLoopShape(current, patch) {
   };
 }
 
-const PERSISTENT_GROUPS = new Set(['长期任务', '短期任务', '等待任务', '快捷按钮']);
+// Kind → group name mapping (matches frontend KIND_LABELS in task-type-constants.js)
+const KIND_GROUP_LABELS = Object.freeze({
+  recurring_task: '长期任务',
+  scheduled_task: '短期任务',
+  waiting_task:   '等待任务',
+  skill:          '快捷按钮',
+});
+const PERSISTENT_GROUPS = new Set(Object.values(KIND_GROUP_LABELS));
 
 function getPersistentSessionGroup(kind = '') {
-  const normalizedKind = typeof kind === 'string' ? kind.trim().toLowerCase() : '';
-  if (normalizedKind === 'skill') return '快捷按钮';
-  if (normalizedKind === 'recurring_task') return '长期任务';
-  if (normalizedKind === 'scheduled_task') return '短期任务';
-  if (normalizedKind === 'waiting_task') return '等待任务';
-  return '';
+  const normalizedKind = normalizePersistentKind(kind);
+  return KIND_GROUP_LABELS[normalizedKind] || '';
 }
 
 function resolveLocalTimezone() {
@@ -149,11 +152,7 @@ function buildPersistentSpawnCheckpoint(session = null, persistent = null) {
 
 function buildPersistentSpawnReason(persistent = null, triggerKind = '') {
   const kind = normalizePersistentKind(persistent?.kind || '');
-  const taskType = kind === 'recurring_task'
-    ? '长期任务'
-    : (kind === 'scheduled_task'
-      ? '短期任务'
-      : (kind === 'waiting_task' ? '等待任务' : '快捷按钮'));
+  const taskType = KIND_GROUP_LABELS[kind] || '任务';
   return `${taskType}${buildPersistentTriggerLabel(triggerKind)}创建的执行支线`;
 }
 
@@ -161,7 +160,6 @@ function normalizeSessionId(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-// normalizePersistentKind imported from session/persistent-kind.mjs
 
 function collectLongTermLineageCandidateIds(session = null) {
   const sessionId = normalizeSessionId(session?.id || '');

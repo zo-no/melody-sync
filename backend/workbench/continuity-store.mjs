@@ -22,7 +22,6 @@ function getStableBranchEntryTimestamp(entry) {
   ) || 0;
 }
 
-// normalizeLongTermBucket and inferLongTermBucketFromSession imported from session/persistent-kind.mjs
 
 function getLongTermBucketOrder(session = null) {
   switch (inferLongTermBucketFromSession(session)) {

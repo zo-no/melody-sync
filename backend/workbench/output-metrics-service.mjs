@@ -101,7 +101,6 @@ function clipText(value, max = 120) {
   return `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-// normalizePersistentKind imported from session/persistent-kind.mjs
 
 export function normalizeOutputMetricsScope(value) {
   const normalized = normalizeNullableText(value).toLowerCase().replace(/[\s_]+/g, '-');
