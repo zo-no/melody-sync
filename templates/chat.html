@@ -291,6 +291,15 @@
           </div>
         </section>
 
+        <!-- Output panel — shown below quest-tracker in normal task mode -->
+        <div class="output-panel-inline" id="outputPanelInline" hidden>
+          <div class="output-panel-inline-header">
+            <span class="output-panel-inline-title">产出概览</span>
+            <button class="output-panel-inline-refresh" id="outputPanelRefreshBtn" type="button" title="刷新" aria-label="刷新">↻</button>
+          </div>
+          <div class="output-panel-inline-body" id="outputPanelBody"></div>
+        </div>
+
         <!-- Long-term project workspace panel (shown when Projects tab is active) -->
         <div class="long-term-workspace" id="longTermWorkspace" hidden>
           <div class="long-term-workspace-detail" id="longTermWorkspaceDetail"></div>
