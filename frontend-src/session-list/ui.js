@@ -340,18 +340,32 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
       onClick(event, currentSession) {
         event?.preventDefault?.();
         if (!currentSession?.id) return;
+        const body = { kind: targetKind };
+        // recurring_task and scheduled_task require time fields
+        if (targetKind === "recurring_task") {
+          body.recurring = { cadence: "daily", timeOfDay: "09:00" };
+        } else if (targetKind === "scheduled_task") {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(9, 0, 0, 0);
+          body.scheduled = { runAt: tomorrow.toISOString() };
+        }
         void (typeof fetchJsonOrRedirect === "function"
           ? fetchJsonOrRedirect(
               `/api/sessions/${encodeURIComponent(currentSession.id)}/promote-persistent`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ kind: targetKind }),
+                body: JSON.stringify(body),
               }
             )
           : Promise.reject(new Error("no fetch"))
         ).then(() => {
           if (typeof renderSessionList === "function") renderSessionList();
+          // Open settings for time-based tasks so user can configure schedule
+          if (targetKind !== "skill" && targetKind !== "waiting_task") {
+            window.MelodySyncWorkbench?.openPersistentEditor?.({ mode: "configure", kind: targetKind });
+          }
         }).catch((err) => console.error(`[lt] promote to ${targetKind} failed:`, err));
       },
     };
@@ -576,9 +590,10 @@ function renderSessionList() {
         groupEntry.buckets[bucketKey].sessions.push(session);
       } else if (sessionProjectId) {
         // 其他长期项目的任务 → 按项目分组（眼睛按钮控制是否显示）
-        const branchesHidden = (typeof getBranchTaskVisibilityModeForSidebar === "function"
-          ? getBranchTaskVisibilityModeForSidebar()
-          : (window.MelodySyncSessionListModel?.getBranchTaskVisibilityMode?.() || "show")) === "hide";
+        // Use model (always available) or sidebar helper (loaded after ui.js)
+        const branchVisibilityMode = window.MelodySyncSessionListModel?.getBranchTaskVisibilityMode?.()
+          || (typeof getBranchTaskVisibilityModeForSidebar === "function" ? getBranchTaskVisibilityModeForSidebar() : "show");
+        const branchesHidden = branchVisibilityMode === "hide";
         if (branchesHidden) continue; // 眼睛关闭时隐藏其他项目的任务
         const groupKey = `group:today-project:${sessionProjectId}`;
         if (!groups.has(groupKey)) {

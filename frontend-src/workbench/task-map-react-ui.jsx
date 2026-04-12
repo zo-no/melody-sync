@@ -1225,15 +1225,31 @@ function getTrackerPersistentActionButtons(session, {
     ];
   }
   // Helper: promote to a specific persistent kind
+  // recurring_task and scheduled_task need time fields to be valid
   const promoteToKind = (targetKind, label) => ({
     label,
     secondary: true,
     onClick: () => {
       if (typeof window.fetchJsonOrRedirect !== 'function' || !session?.id) return;
+      const body = { kind: targetKind };
+      if (targetKind === 'recurring_task') {
+        body.recurring = { cadence: 'daily', timeOfDay: '09:00' };
+      } else if (targetKind === 'scheduled_task') {
+        // Schedule for tomorrow 09:00
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        body.scheduled = { runAt: tomorrow.toISOString() };
+      }
       void window.fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(session.id)}/promote-persistent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: targetKind }),
+        body: JSON.stringify(body),
+      }).then(() => {
+        // Open settings dialog so user can configure the schedule
+        if (targetKind !== 'skill' && typeof window.MelodySyncWorkbench?.openPersistentEditor === 'function') {
+          window.MelodySyncWorkbench.openPersistentEditor({ mode: 'configure', kind: targetKind });
+        }
       }).catch((err) => console.error('[promote]', err));
     },
   });
@@ -3236,7 +3252,7 @@ function SessionListGroupSection({
         ) : isTodayProject ? (
           // Today-project: collapsible group for a long-term project's tasks in daily view
           // Don't render empty groups
-          sessions.length === 0 ? null : <>
+          sessions.length === 0 ? null : (<>
             <div
               className={`today-project-header${isCollapsed ? ' collapsed' : ''}`}
               role="button"
@@ -3263,7 +3279,7 @@ function SessionListGroupSection({
                 />
               ))}
             </div>
-          </>
+          </>)
         ) : isLongTermProject ? (
           // Long-term project: single card wrapping title + content
           <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}${groupEntry?.isSystem ? ' is-system' : ''}`}>

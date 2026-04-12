@@ -2,7 +2,7 @@ import { getOutputPanelPayload } from '../../services/output-panel/read-service.
 import { getQueryValue } from '../../shared/http/query.mjs';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { MEMORY_DIR } from '../../../lib/config.mjs';
+import { MEMORY_DIR, CONFIG_DIR } from '../../../lib/config.mjs';
 
 async function getDailySummary() {
   // Read yesterday's worklog
@@ -21,11 +21,11 @@ async function getDailySummary() {
     // No worklog for yesterday
   }
 
-  // Also read today's maintenance state (lives alongside sessions/, not in memory/)
+  // Also read today's maintenance state (lives in CONFIG_DIR)
   let maintenanceState = {};
   try {
     const raw = await readFile(
-      join(MEMORY_DIR, '..', 'sessions', 'session-daily-maintenance.json'),
+      join(CONFIG_DIR, 'session-daily-maintenance.json'),
       'utf8'
     );
     maintenanceState = JSON.parse(raw);
