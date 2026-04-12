@@ -1,5 +1,5 @@
 import { trimText } from './text.mjs';
-import { normalizePersistentKind } from './persistent-kind.mjs';
+import { normalizePersistentKind, normalizeLongTermBucket } from './persistent-kind.mjs';
 
 function normalizeLongTermRole(value) {
   const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
@@ -8,24 +8,7 @@ function normalizeLongTermRole(value) {
   return '';
 }
 
-// NOTE: Keep alias lists in sync with frontend-src/core/task-type-constants.js normalizeBucket()
-function normalizeLongTermBucket(value) {
-  const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
-  if (['inbox', 'collection', 'collect', 'capture', '收集箱'].includes(normalized)) return 'inbox';
-  if (['short_term_iteration', 'short_term', 'short', 'iteration', '短期迭代', '短期任务'].includes(normalized)) {
-    return 'short_term';
-  }
-  if (['long_term_iteration', 'long_term', 'long', '长期迭代', '长期任务'].includes(normalized)) {
-    return 'long_term';
-  }
-  if (['waiting', 'waiting_for', 'waiting_user', '等待任务', '等待'].includes(normalized)) {
-    return 'waiting';
-  }
-  if (['skill', 'quick_action', 'quick-action', '快捷按钮', '快捷动作'].includes(normalized)) {
-    return 'skill';
-  }
-  return '';
-}
+// normalizeLongTermBucket imported from ./persistent-kind.mjs
 
 function normalizeOptionalBoolean(value, fallback = false) {
   if (typeof value === 'boolean') return value;

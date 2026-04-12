@@ -1,4 +1,5 @@
 import { trimText } from './text.mjs';
+// NOTE: Keep alias lists in sync with frontend-src/core/task-type-constants.js normalizeBucket()
 
 /**
  * Normalize a raw persistent kind value to a canonical kind string.
@@ -26,3 +27,31 @@ export const KIND_TO_BUCKET = Object.freeze({
   waiting_task:   'waiting',
   skill:          'skill',
 });
+
+/**
+ * Normalize a raw bucket string to a canonical bucket key.
+ * Handles aliases, Chinese labels, and legacy values.
+ */
+export function normalizeLongTermBucket(value) {
+  const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
+  if (['inbox', 'collection', 'collect', 'capture', '收集箱'].includes(normalized)) return 'inbox';
+  if (['short_term_iteration', 'short_term', 'short', 'iteration', '短期迭代', '短期任务'].includes(normalized)) return 'short_term';
+  if (['long_term_iteration', 'long_term', 'long', '长期迭代', '长期任务'].includes(normalized)) return 'long_term';
+  if (['waiting', 'waiting_for', 'waiting_user', '等待任务', '等待'].includes(normalized)) return 'waiting';
+  if (['skill', 'quick_action', 'quick-action', '快捷按钮', '快捷动作'].includes(normalized)) return 'skill';
+  return '';
+}
+
+/**
+ * Infer the long-term bucket for a session.
+ * Priority: explicit membership bucket > kind > workflowState > inbox
+ */
+export function inferLongTermBucketFromSession(session = null, persistent = null) {
+  const explicitBucket = normalizeLongTermBucket(session?.taskPoolMembership?.longTerm?.bucket || '');
+  if (explicitBucket) return explicitBucket;
+  const kind = normalizePersistentKind(persistent?.kind || session?.persistent?.kind || '');
+  if (KIND_TO_BUCKET[kind]) return KIND_TO_BUCKET[kind];
+  const workflowState = trimText(session?.workflowState || '').toLowerCase();
+  if (workflowState === 'waiting_user') return 'waiting';
+  return 'inbox';
+}

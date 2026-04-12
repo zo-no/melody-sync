@@ -8,7 +8,7 @@ import {
   getLongTermTaskPoolMembership,
   isLongTermProjectSession,
 } from './task-pool-membership.mjs';
-import { normalizePersistentKind } from './persistent-kind.mjs';
+import { normalizePersistentKind, normalizeLongTermBucket } from './persistent-kind.mjs';
 
 const GENERIC_GROUP_KEYS = new Set(['inbox', '收集箱']);
 const GENERIC_TITLE_KEYS = new Set([
@@ -266,14 +266,7 @@ function normalizeLongTermSuggestion(value = null) {
   };
 }
 
-function normalizeLongTermBucket(value = '') {
-  const normalized = trimText(value || '').toLowerCase().replace(/[\s-]+/g, '_');
-  if (normalized === 'inbox') return 'inbox';
-  if (['short_term_iteration', 'short_term', '短期任务'].includes(normalized)) return 'short_term';
-  if (['long_term_iteration', 'long_term', '长期任务'].includes(normalized)) return 'long_term';
-  if (['waiting', 'waiting_for', 'waiting_user', '等待任务', '等待'].includes(normalized)) return 'waiting';
-  return '';
-}
+// normalizeLongTermBucket imported from ./persistent-kind.mjs
 
 export function normalizeLongTermSessionProjection(value = null) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;

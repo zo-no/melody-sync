@@ -1,4 +1,5 @@
 import { listWorkbenchSessions } from './session-ports.mjs';
+import { normalizeLongTermBucket, inferLongTermBucketFromSession } from '../session/persistent-kind.mjs';
 import { createSessionListItem } from '../session/api-shapes.mjs';
 import { loadWorkbenchState } from './state-store.mjs';
 import {
@@ -21,26 +22,7 @@ function getStableBranchEntryTimestamp(entry) {
   ) || 0;
 }
 
-function normalizeLongTermBucket(value) {
-  const normalized = normalizeNullableText(value).toLowerCase().replace(/[\s-]+/g, '_');
-  if (['long_term', 'long_term_iteration', '长期任务', '长期迭代'].includes(normalized)) return 'long_term';
-  if (['short_term', 'short_term_iteration', '短期任务', '短期迭代'].includes(normalized)) return 'short_term';
-  if (['waiting', 'waiting_user', 'waiting_for', '等待任务', '等待'].includes(normalized)) return 'waiting';
-  if (['inbox', 'collect', 'collection', 'capture', '收集箱'].includes(normalized)) return 'inbox';
-  return '';
-}
-
-function inferLongTermBucketFromSession(session = null) {
-  const explicitBucket = normalizeLongTermBucket(session?.taskPoolMembership?.longTerm?.bucket || '');
-  if (explicitBucket) return explicitBucket;
-  const persistentKind = normalizeNullableText(session?.persistent?.kind).toLowerCase().replace(/[\s-]+/g, '_');
-  if (persistentKind === 'recurring_task') return 'long_term';
-  if (persistentKind === 'scheduled_task') return 'short_term';
-  if (persistentKind === 'waiting_task') return 'waiting';
-  const workflowState = normalizeNullableText(session?.workflowState).toLowerCase().replace(/[\s-]+/g, '_');
-  if (workflowState === 'waiting_user') return 'waiting';
-  return 'inbox';
-}
+// normalizeLongTermBucket and inferLongTermBucketFromSession imported from session/persistent-kind.mjs
 
 function getLongTermBucketOrder(session = null) {
   switch (inferLongTermBucketFromSession(session)) {

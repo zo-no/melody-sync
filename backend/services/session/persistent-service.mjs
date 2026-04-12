@@ -108,16 +108,16 @@ function buildSessionPersistentPatch(currentPersistent, patch = {}) {
   };
 }
 
+// Promote-time bucket inference: always infers from kind, ignoring existing explicit bucket.
+// This is intentionally different from inferLongTermBucketFromSession in persistent-kind.mjs
+// which respects the existing explicit bucket.
 function inferLongTermBucketFromSession(session = null, persistent = null) {
-  const normalizedKind = typeof persistent?.kind === 'string'
-    ? persistent.kind.trim().toLowerCase()
-    : '';
-  if (normalizedKind === 'recurring_task') return 'long_term';
-  if (normalizedKind === 'scheduled_task') return 'short_term';
-  if (normalizedKind === 'waiting_task') return 'waiting';
+  const kind = normalizePersistentKind(persistent?.kind || '');
+  if (kind === 'recurring_task') return 'long_term';
+  if (kind === 'scheduled_task') return 'short_term';
+  if (kind === 'waiting_task') return 'waiting';
   const workflowState = typeof session?.workflowState === 'string'
-    ? session.workflowState.trim().toLowerCase()
-    : '';
+    ? session.workflowState.trim().toLowerCase() : '';
   if (workflowState === 'waiting_user') return 'waiting';
   return 'inbox';
 }
