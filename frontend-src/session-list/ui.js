@@ -429,7 +429,36 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
     },
   ] : [];
 
+  // ── Recurring task toggle (pause / resume) ──────────────────────
+  // Shown inline as a switch button directly on the task row.
+  const isPaused = session?.persistent?.state === 'paused';
+  const recurringToggleAction = (persistentKind === 'recurring_task' && !isArchivedSession) ? {
+    key: 'toggle-recurring',
+    label: isPaused ? (t('action.resumeExecution') || '恢复') : (t('action.pauseExecution') || '暂停'),
+    className: `toggle-recurring${isPaused ? ' is-paused' : ' is-active'}`,
+    inlineHidden: false,
+    onClick(event, currentSession) {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      if (!currentSession?.id) return;
+      const nextState = currentSession?.persistent?.state === 'paused' ? 'active' : 'paused';
+      void (typeof fetchJsonOrRedirect === 'function'
+        ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ persistent: { state: nextState } }),
+          })
+        : Promise.reject(new Error('no fetch'))
+      ).then(() => {
+        if (typeof renderSessionList === 'function') renderSessionList();
+      }).catch((err) => {
+        console.error('[lt] toggle recurring failed:', err);
+      });
+    },
+  } : null;
+
   const actionList = [
+    recurringToggleAction,
     renameAction,
     ...visibleBaseActions,
   ].filter(Boolean);

@@ -208,10 +208,103 @@ async function ensureDefaultWelcomeSession(dailyTasksId) {
   }
 }
 
+/**
+ * Default recurring tasks created under MelodySync 迭代 on first boot.
+ * Each task is idempotent — skipped if a session with the same builtinName exists.
+ */
+const BUILTIN_TASKS = [
+  {
+    builtinName: 'melodysync-daily-review',
+    name: '每日任务回顾',
+    description: '每天回顾当前任务状态，整理优先级，推进下一步行动。',
+    runPrompt: '回顾当前所有任务，整理优先级，标记已完成的任务，推进下一步行动。输出今日任务摘要。',
+    cadence: 'daily',
+    timeOfDay: '09:00',
+    bucket: 'long_term',
+  },
+  {
+    builtinName: 'melodysync-product-iteration',
+    name: '产品自迭代',
+    description: '定期收集使用数据，分析产品状态，提出下一轮迭代需求。',
+    runPrompt: '分析 MelodySync 近期使用情况，收集问题和改进点，整理成下一轮迭代需求列表。',
+    cadence: 'weekly',
+    timeOfDay: '10:00',
+    weekdays: [1],
+    bucket: 'long_term',
+  },
+  {
+    builtinName: 'melodysync-daily-cleanup',
+    name: '每日清理',
+    description: '归档已完成的任务，清理收集箱，保持任务列表整洁。',
+    runPrompt: '归档所有已完成的任务，清理收集箱中超过7天未处理的条目，生成清理报告。',
+    cadence: 'daily',
+    timeOfDay: '22:00',
+    bucket: 'long_term',
+  },
+  {
+    builtinName: 'melodysync-weekly-summary',
+    name: '每周总结',
+    description: '每周总结完成情况，记录关键决策和学习，规划下周目标。',
+    runPrompt: '总结本周完成的任务和关键决策，记录重要学习，规划下周3个核心目标。输出周报。',
+    cadence: 'weekly',
+    timeOfDay: '20:00',
+    weekdays: [0],
+    bucket: 'long_term',
+  },
+];
+
+async function ensureBuiltinTasks(melodySyncProjectId) {
+  if (!melodySyncProjectId) return;
+  try {
+    const metas = await loadSessionsMeta();
+    const existingBuiltinNames = new Set(
+      metas.filter((m) => m?.builtinName).map((m) => m.builtinName),
+    );
+
+    const { createSession } = await import('./manager.mjs');
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
+
+    for (const task of BUILTIN_TASKS) {
+      if (existingBuiltinNames.has(task.builtinName)) continue;
+      await createSession('~', 'claude', task.name, {
+        builtinName: task.builtinName,
+        description: task.description,
+        taskListOrigin: 'user',
+        taskListVisibility: 'primary',
+        taskPoolMembership: buildLongTermTaskPoolMembership(melodySyncProjectId, {
+          role: 'member',
+          bucket: task.bucket,
+        }),
+        persistent: {
+          kind: 'recurring_task',
+          state: 'active',
+          digest: {
+            title: task.name,
+            summary: task.description,
+          },
+          execution: {
+            mode: 'spawn_session',
+            runPrompt: task.runPrompt,
+          },
+          recurring: {
+            cadence: task.cadence,
+            timeOfDay: task.timeOfDay,
+            weekdays: task.weekdays || [],
+            timezone: tz,
+          },
+        },
+      });
+    }
+  } catch (err) {
+    console.warn('[system-project] Failed to create builtin tasks:', err?.message || err);
+  }
+}
+
 // Alias for callers that use ensureBuiltinProjects
 export async function ensureBuiltinProjects() {
   const dailyTasksId = await ensureSystemProject();
-  await ensureMelodySyncProject(dailyTasksId);
+  const melodySyncId = await ensureMelodySyncProject(dailyTasksId);
+  await ensureBuiltinTasks(melodySyncId);
   await ensureDefaultWelcomeSession(dailyTasksId);
   return { dailyTasksId };
 }

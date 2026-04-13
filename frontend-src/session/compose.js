@@ -1568,6 +1568,7 @@ function syncSidebarTabUi() {
   const isSessionsTab = activeTabKey === "sessions";
   tabSessions?.classList.toggle("active", isSessionsTab);
   tabLongTerm?.classList.toggle("active", isLongTermTab);
+  document.body.classList.toggle("sidebar-tab-long-term", isLongTermTab);
   if (sessionList) sessionList.style.display = "";
   // Eye button: show in sessions tab (hide branch tasks = project members)
   if (sidebarBranchVisibilityToggleBtn) sidebarBranchVisibilityToggleBtn.hidden = !isSessionsTab;
