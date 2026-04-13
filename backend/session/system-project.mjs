@@ -7,6 +7,10 @@
  *
  * All new sessions created without an explicit taskPoolMembership are automatically
  * assigned to this project's inbox bucket.
+ *
+ * Built-in projects at startup:
+ *   1. 日常任务  (builtinName: 'daily-tasks')  — default catch-all for all tasks
+ *   2. MelodySync 系统管理 — product iteration project (managed separately)
  */
 import { randomBytes } from 'crypto';
 import { join } from 'path';
@@ -19,8 +23,6 @@ const SYSTEM_PROJECT_STATE_FILE = join(CONFIG_DIR, 'system-project.json');
 
 // In-memory cache so we only hit disk once per process lifetime
 let cachedSystemProjectId = '';
-// Pending init promise to prevent concurrent creation races
-let initPromise = null;
 
 function generateId() {
   return `sys_${Date.now().toString(36)}_${randomBytes(6).toString('hex')}`;
@@ -47,16 +49,17 @@ async function saveSystemProjectId(projectId) {
 }
 
 /**
- * Find an existing system project session in the metas list.
- * A system project is identified by taskListOrigin === 'system' and
- * taskPoolMembership.longTerm.role === 'project' and fixedNode === true.
+ * Find the 日常任务 system project in metas.
+ * Matches by builtinName (new) or display name (legacy).
  */
-function findSystemProjectInMetas(metas) {
+function findDailyTasksProjectInMetas(metas) {
   return metas.find((meta) => {
     if (meta?.archived === true) return false;
     if (meta?.taskListOrigin !== 'system') return false;
     const lt = meta?.taskPoolMembership?.longTerm;
-    return lt?.role === 'project' && lt?.fixedNode === true;
+    if (!(lt?.role === 'project' && lt?.fixedNode === true)) return false;
+    if (meta?.builtinName) return meta.builtinName === 'daily-tasks';
+    return meta?.name === '日常任务';
   }) || null;
 }
 
@@ -69,45 +72,48 @@ export async function ensureSystemProject() {
   // Fast path: already cached
   if (cachedSystemProjectId) return cachedSystemProjectId;
 
-  // Check disk first
-  const persistedId = await readSystemProjectId();
-  if (persistedId) {
-    cachedSystemProjectId = persistedId;
-    return persistedId;
-  }
-
-  // Need to create or find the system project
   let resolvedId = '';
 
+  // Read disk hint (validate against metas — legacy file may point to wrong project)
+  const persistedHint = await readSystemProjectId();
+
   await withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
-    // Check if a system project already exists in session list
-    const existing = findSystemProjectInMetas(metas);
+    // Authoritative: search metas by builtinName / display name
+    const existing = findDailyTasksProjectInMetas(metas);
     if (existing) {
       resolvedId = existing.id;
       return { changed: false };
+    }
+
+    // Validate persisted hint
+    if (persistedHint) {
+      const persisted = metas.find((m) => m.id === persistedHint && !m.archived);
+      if (persisted && (persisted.builtinName === 'daily-tasks' || persisted.name === '日常任务')) {
+        resolvedId = persistedHint;
+        return { changed: false };
+      }
     }
 
     // Create a new system project session
     const id = generateId();
     const now = nowIso();
     const membership = buildLongTermTaskPoolMembership(id, { role: 'project' });
-    const session = {
+    metas.push({
       id,
       name: '日常任务',
+      builtinName: 'daily-tasks',
       folder: '~',
       tool: 'claude',
       taskListOrigin: 'system',
       taskListVisibility: 'primary',
       persistent: {
         kind: 'recurring_task',
-        digest: { title: '日常任务', summary: '默认日常任务项目' },
+        digest: { title: '日常任务', summary: '默认项目，所有任务的集合' },
       },
       taskPoolMembership: membership,
       createdAt: now,
       updatedAt: now,
-    };
-
-    metas.push(session);
+    });
     await saveSessionsMeta(metas);
     resolvedId = id;
     return { changed: true };
@@ -121,6 +127,12 @@ export async function ensureSystemProject() {
   return resolvedId;
 }
 
+// Alias for callers that use ensureBuiltinProjects
+export async function ensureBuiltinProjects() {
+  const dailyTasksId = await ensureSystemProject();
+  return { dailyTasksId };
+}
+
 /**
  * Get the system project ID synchronously. Returns '' if not yet initialized.
  * For guaranteed access, use ensureSystemProject() which is async.
@@ -129,28 +141,4 @@ export function getSystemProjectId() {
   return cachedSystemProjectId;
 }
 
-/**
- * Ensure system project is initialized, reusing an in-flight promise if one exists.
- * Safe to call concurrently.
- */
-export function ensureSystemProjectOnce() {
-  if (cachedSystemProjectId) return Promise.resolve(cachedSystemProjectId);
-  if (!initPromise) {
-    initPromise = ensureSystemProject().finally(() => {
-      initPromise = null;
-    });
-  }
-  return initPromise;
-}
 
-/**
- * Build the taskPoolMembership for a new session that should go into
- * the system project's inbox bucket.
- */
-export function buildSystemProjectInboxMembership(systemProjectId) {
-  if (!systemProjectId) return null;
-  return buildLongTermTaskPoolMembership(systemProjectId, {
-    role: 'member',
-    bucket: 'inbox',
-  });
-}
