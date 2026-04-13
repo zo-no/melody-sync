@@ -679,8 +679,8 @@ body::before {
   }
 
   body.workbench-has-session .task-manager-main-column .messages-inner {
-    min-height: 100%;
-    justify-content: flex-end;
+    min-height: unset;
+    justify-content: flex-start;
   }
 
   .task-manager-main-column .queued-panel {

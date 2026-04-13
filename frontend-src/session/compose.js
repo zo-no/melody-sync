@@ -1626,9 +1626,8 @@ globalThis.showLongTermProjectPanel = (projectId) => {
   renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
   // For system project (日常任务): load yesterday's summary and inject it
   const selectedProject = projects.find((p) => String(p?.id || "").trim() === selectedLongTermProjectId);
-  // Only show daily summary for 日常任务 (the system project that manages daily tasks)
-  // Not for other system projects like MelodySync 系统管理
-  const isDailyProject = String(selectedProject?.persistent?.digest?.title || selectedProject?.name || "") === "日常任务"
+  // Only show daily summary for the global tasks (system) project
+  const isDailyProject = String(selectedProject?.taskListOrigin || "").toLowerCase() === "system"
     || selectedLongTermProjectId === (globalThis.getSystemProjectId?.() || "");
   if (isDailyProject && typeof fetchJsonOrRedirect === "function") {
     void fetchJsonOrRedirect("/api/daily-summary").then((data) => {
@@ -1933,7 +1932,7 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
               cancelLabel: t("action.cancel"),
             }
           )
-        : (window.confirm(`「${projectName}」有 ${currentMembers.length} 条成员任务。\n\n确定 → 连同成员任务一起永久删除\n取消 → 成员任务回收到日常任务收集箱`) ? "delete" : "reclaim");
+        : (window.confirm(`「${projectName}」有 ${currentMembers.length} 条成员任务。\n\n确定 → 连同成员任务一起永久删除\n取消 → 成员任务回收到全局任务收集箱`) ? "delete" : "reclaim");
       if (choice === null) return; // cancelled
       deleteMembersChoice = choice === "delete";
     } else {

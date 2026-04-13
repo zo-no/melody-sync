@@ -288,20 +288,24 @@ function sessionMatchesSidebarTab(session, tab = activeTab) {
   return getSidebarTabForSession(session) === normalizeSidebarTab(tab);
 }
 
+function isSystemProjectSession(session) {
+  return String(session?.taskListOrigin || "").trim().toLowerCase() === "system";
+}
+
 function getLatestSession() {
-  return sessions[0] || null;
+  return sessions.find((session) => !isSystemProjectSession(session)) || null;
 }
 
 function getLatestActiveSession() {
-  return sessions.find((session) => !session.archived) || null;
+  return sessions.find((session) => !session.archived && !isSystemProjectSession(session)) || null;
 }
 
 function getLatestSessionForSidebarTab(tab = activeTab) {
-  return sessions.find((session) => sessionMatchesSidebarTab(session, tab)) || null;
+  return sessions.find((session) => !isSystemProjectSession(session) && sessionMatchesSidebarTab(session, tab)) || null;
 }
 
 function getLatestActiveSessionForSidebarTab(tab = activeTab) {
-  return sessions.find((session) => !session.archived && sessionMatchesSidebarTab(session, tab)) || null;
+  return sessions.find((session) => !session.archived && !isSystemProjectSession(session) && sessionMatchesSidebarTab(session, tab)) || null;
 }
 
 function getLatestSessionForCurrentFilters() {

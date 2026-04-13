@@ -198,7 +198,7 @@
       }
       if (!kind && longTermState?.suggestionRootSessionId) {
         return [
-          createPersistentActionButton("归入长期项目", () => onAttachToLongTerm?.(longTermState.suggestionRootSessionId)),
+          createPersistentActionButton("归入项目", () => onAttachToLongTerm?.(longTermState.suggestionRootSessionId)),
           createPersistentActionButton("稍后", () => onDismissLongTermSuggestion?.(longTermState.suggestionRootSessionId), { secondary: true }),
         ];
       }
@@ -227,7 +227,7 @@
       }
       if (isMobileQuestTracker()) {
         return [
-          createPersistentActionButton("长期项目设置", onConfigure),
+          createPersistentActionButton("设置执行方式", onConfigure),
         ];
       }
       if (kind === "skill") {

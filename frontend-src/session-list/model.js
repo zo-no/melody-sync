@@ -601,9 +601,13 @@
     const groupInfo = getSessionGroupInfoWithOptions(session, options);
     const needsReview = isSidebarCompletionReviewSession(session, options);
 
+    const isSystemOrigin = normalizeKey(session?.taskListOrigin || "") === "system";
     let hiddenReason = "";
     if (!session?.id) {
       hiddenReason = "missing_id";
+    } else if (isSystemOrigin) {
+      // System project sessions (全局任务 container) are not shown as regular tasks
+      hiddenReason = "system_project";
     } else if (branch && ["parked", "resolved", "merged", "done", "closed"].includes(branchStatus)) {
       hiddenReason = "closed_branch";
     } else if (hideBranchTasks && (branch || (hasProjectMembership && options?.isTasksTab === true))) {
@@ -616,7 +620,7 @@
     }
     // Note: "done" sessions stay visible (shown with strikethrough) — user must explicitly archive to hide
 
-    const isSystem = normalizeKey(session?.taskListOrigin || "") === "system";
+    const isSystem = isSystemOrigin;
     const entry = {
       visible: hiddenReason === "",
       hiddenReason,

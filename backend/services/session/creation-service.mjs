@@ -324,23 +324,20 @@ export async function createSessionWithDeps({
     }
     // Determine taskPoolMembership:
     // 1. Explicit request wins
-    // 2. recurring_task → self-rooted project (no system project needed)
-    // 3. Other persistent kinds (scheduled/waiting/skill) → member of system project,
-    //    bucket inferred from kind
-    // 4. Plain sessions (no persistent) → system project inbox
+    // 2. All persistent kinds (recurring/scheduled/waiting/skill) → member of system project,
+    //    bucket inferred from kind. recurring_task no longer self-roots as a project.
+    // 3. Plain sessions (no persistent) → system project inbox
     // System sessions and sessions with explicit membership skip auto-assign.
     // Note: preResolvedSystemProjectId was resolved BEFORE this mutation to avoid
     // deadlocking the serial meta queue (ensureSystemProject also uses the queue).
     const persistentKind = normalizePersistentKind(normalizedPersistent?.kind || '');
     const normalizedTaskPoolMembership = requestedTaskPoolMembership
-      || (persistentKind === 'recurring_task'
-        ? buildLongTermTaskPoolMembership(id, { role: 'project' })
-        : (preResolvedSystemProjectId
-          ? buildLongTermTaskPoolMembership(preResolvedSystemProjectId, {
-              role: 'member',
-              bucket: KIND_TO_BUCKET[persistentKind] || 'inbox',
-            })
-          : null));
+      || (preResolvedSystemProjectId
+        ? buildLongTermTaskPoolMembership(preResolvedSystemProjectId, {
+            role: 'member',
+            bucket: KIND_TO_BUCKET[persistentKind] || 'inbox',
+          })
+        : null);
     if (normalizedTaskPoolMembership) {
       session.taskPoolMembership = normalizedTaskPoolMembership;
     }

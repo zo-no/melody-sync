@@ -12,6 +12,7 @@ import {
   normalizeTaskPoolMembership,
 
 } from '../../session/task-pool-membership.mjs';
+import { ensureSystemProject } from '../../session/system-project.mjs';
 import {
   normalizePersistentKind,
   KIND_TO_BUCKET,
@@ -170,18 +171,19 @@ function collectLongTermLineageCandidateIds(session = null) {
 }
 
 function buildPersistentTaskPoolMembership(sessionId, persistent, currentTaskPoolMembership = null, session = null) {
-  const normalizedSessionId = typeof sessionId === 'string' ? sessionId.trim() : '';
   const currentLongTermMembership = currentTaskPoolMembership?.longTerm || null;
+  // If already a member of a project, keep that membership and update bucket
   if (currentLongTermMembership?.projectSessionId && currentLongTermMembership.role !== 'project') {
     return buildLongTermTaskPoolMembership(currentLongTermMembership.projectSessionId, {
       role: 'member',
       bucket: inferBucketFromKind(session, persistent),
     });
   }
-  if (persistent?.kind === 'recurring_task') {
-    return buildLongTermTaskPoolMembership(normalizedSessionId, { role: 'project' });
-  }
-  return null; // strip membership for non-project, non-member kinds
+  // All persistent kinds (including recurring_task) stay as members of their current project.
+  // If no project membership exists, return null — the caller (promoteSessionToPersistent)
+  // will auto-assign to the system project via the creation-service pattern.
+  // recurring_task no longer self-roots as a project: projects are created explicitly.
+  return null;
 }
 
 export function createSessionPersistentService({
@@ -483,15 +485,24 @@ export function createSessionPersistentService({
     const nextName = String(nextPersistent?.digest?.title || session?.name || '').trim() || '未命名长期项';
     const nextGroup = getPersistentSessionGroup(nextPersistent.kind);
     const detachedSourceContext = stripPersistentBranchLineage(session.sourceContext || null);
+    // System project sessions (日常任务, etc.) are project roots — never reassign their membership
+    const isSystemSession = String(session?.taskListOrigin || '').trim().toLowerCase() === 'system';
     const resolvedCurrentTaskPoolMembership = await resolveCurrentTaskPoolMembership(session, {
       sessionId: id,
     });
-    const nextTaskPoolMembership = buildPersistentTaskPoolMembership(
-      id,
-      nextPersistent,
-      resolvedCurrentTaskPoolMembership,
-      session,
-    );
+    let nextTaskPoolMembership = isSystemSession
+      ? (session?.taskPoolMembership || null)
+      : buildPersistentTaskPoolMembership(id, nextPersistent, resolvedCurrentTaskPoolMembership, session);
+    // If no project membership (and not a system session), auto-assign to system project (全局任务)
+    if (!nextTaskPoolMembership && !isSystemSession) {
+      const systemProjectId = await ensureSystemProject().catch(() => '');
+      if (systemProjectId) {
+        nextTaskPoolMembership = buildLongTermTaskPoolMembership(systemProjectId, {
+          role: 'member',
+          bucket: KIND_TO_BUCKET[nextPersistent.kind] || 'inbox',
+        });
+      }
+    }
     const result = await mutateSessionMeta(id, (draft) => {
       draft.persistent = nextPersistent;
       if (nextTaskPoolMembership) {

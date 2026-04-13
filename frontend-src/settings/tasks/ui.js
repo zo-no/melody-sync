@@ -61,20 +61,20 @@
     body.innerHTML = `
       <div class="settings-page">
         <div class="settings-page-header">
-          <div class="settings-page-title">日常任务</div>
-          <div class="settings-page-desc">「日常任务」标签页显示某个长期项目的内容，包含长期、短期、等待、收集箱等分类。默认绑定系统自动创建的「日常任务」项目。</div>
+          <div class="settings-page-title">全局任务</div>
+          <div class="settings-page-desc">「全局任务」标签页显示某个长期项目的内容，包含长期、短期、等待、收集箱等分类。默认绑定系统自动创建的全局任务项目。</div>
         </div>
 
         <div class="settings-section">
           <div class="settings-section-title">绑定项目</div>
-          <div class="settings-section-desc">选择「日常任务」标签页显示哪个长期项目的内容。切换后立即生效。</div>
+          <div class="settings-section-desc">选择「全局任务」标签页显示哪个长期项目的内容。切换后立即生效。</div>
           <div class="settings-field-row">
             <label class="settings-field-label" for="sessionsTabProjectSelect">当前绑定</label>
             <div class="settings-field-control">
               ${projects.length > 0 ? `
                 <select class="settings-inline-select" id="sessionsTabProjectSelect" data-action="change-sessions-project">
                   ${systemProjectId && !projects.find((p) => String(p?.id || p?.sessionId || '').trim() === systemProjectId)
-                    ? `<option value="${esc(systemProjectId)}" ${currentProjectId === systemProjectId ? 'selected' : ''}>日常任务 (默认)</option>`
+                    ? `<option value="${esc(systemProjectId)}" ${currentProjectId === systemProjectId ? 'selected' : ''}>全局任务 (默认)</option>`
                     : ''}
                   ${projectOptions}
                 </select>
@@ -92,7 +92,7 @@
           </div>
           ${currentProjectId !== systemProjectId && systemProjectId ? `
             <div class="settings-action-row">
-              <button class="settings-text-btn" type="button" data-action="reset-sessions-project">恢复默认（日常任务项目）</button>
+              <button class="settings-text-btn" type="button" data-action="reset-sessions-project">恢复默认（全局任务项目）</button>
             </div>
           ` : ''}
         </div>

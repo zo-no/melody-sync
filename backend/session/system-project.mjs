@@ -127,9 +127,63 @@ export async function ensureSystemProject() {
   return resolvedId;
 }
 
+/**
+ * Find the MelodySync product iteration project in metas.
+ */
+function findMelodySyncProjectInMetas(metas) {
+  return metas.find((meta) => {
+    if (meta?.archived === true) return false;
+    if (meta?.taskListOrigin !== 'user') return false;
+    if (meta?.builtinName) return meta.builtinName === 'melodysync-iteration';
+    return false;
+  }) || null;
+}
+
+/**
+ * Ensure the MelodySync product iteration project exists.
+ * This is a user-visible long-term project for iterating on MelodySync itself.
+ */
+export async function ensureMelodySyncProject(systemProjectId = '') {
+  let resolvedId = '';
+
+  await withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
+    const existing = findMelodySyncProjectInMetas(metas);
+    if (existing) {
+      resolvedId = existing.id;
+      return { changed: false };
+    }
+
+    const id = generateId();
+    const now = nowIso();
+    const membership = buildLongTermTaskPoolMembership(id, { role: 'project' });
+    metas.push({
+      id,
+      name: 'MelodySync 迭代',
+      builtinName: 'melodysync-iteration',
+      folder: '~',
+      tool: 'claude',
+      taskListOrigin: 'user',
+      taskListVisibility: 'primary',
+      persistent: {
+        kind: 'recurring_task',
+        digest: { title: 'MelodySync 迭代', summary: 'MelodySync 产品迭代与功能开发' },
+      },
+      taskPoolMembership: membership,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await saveSessionsMeta(metas);
+    resolvedId = id;
+    return { changed: true };
+  });
+
+  return resolvedId;
+}
+
 // Alias for callers that use ensureBuiltinProjects
 export async function ensureBuiltinProjects() {
   const dailyTasksId = await ensureSystemProject();
+  await ensureMelodySyncProject(dailyTasksId);
   return { dailyTasksId };
 }
 

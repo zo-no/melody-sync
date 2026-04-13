@@ -1345,8 +1345,8 @@ function getTrackerPersistentActionButtons(session, {
     },
   });
 
-  if (!kind && longTermState?.lane === 'long-term' && longTermState?.role === 'member') {
-    // Already in a project — single entry to configure execution type
+  if (!kind) {
+    // All regular sessions: single "设置执行方式" button — project membership is separate
     return [
       {
         label: isMobile ? '设执行方式' : '设置执行方式',
@@ -1359,24 +1359,9 @@ function getTrackerPersistentActionButtons(session, {
       },
     ];
   }
-  if (!kind) {
-    return [
-      { label: isMobile ? '长期项' : '沉淀为长期项', onClick: onPromote, secondary: false },
-      {
-        label: isMobile ? '归入项目' : '归入已有项目',
-        secondary: true,
-        onClick: () => {
-          if (typeof window.openProjectPicker === 'function') {
-            window.openProjectPicker(session);
-          }
-        },
-      },
-      promoteToKind('skill', isMobile ? '快捷按钮' : '设为快捷按钮'),
-    ];
-  }
   if (isMobile) {
     return [
-      { label: '长期项目设置', onClick: onConfigure, secondary: false },
+      { label: '设置执行方式', onClick: onConfigure, secondary: false },
     ];
   }
   if (kind === 'recurring_task') {
@@ -2263,7 +2248,7 @@ function PersistentEditorModal({
 
   const cadence = normalizeRecurringCadence(draft?.recurring?.cadence);
   const editorStep = draft?.editorStep === 'details' ? 'details' : 'pick_kind';
-  const dialogTitle = draft?.mode === 'configure' ? '长期项目设置' : '沉淀为长期项';
+  const dialogTitle = draft?.mode === 'configure' ? '设置执行方式' : '设置执行方式';
   if (draft?.kind !== 'skill' && (!draft.loop || typeof draft.loop !== 'object')) {
     draft.loop = {
       collect: { sources: [], instruction: '' },
@@ -2274,10 +2259,10 @@ function PersistentEditorModal({
   }
   const leadText = draft
     ? (draft.mode === 'configure'
-      ? '只保留类型、名称、摘要和提示词。'
+      ? '调整执行方式的配置。'
       : (editorStep === 'details'
-        ? '沉淀后会出现在任务列表顶部的长期区。'
-        : '先选择要沉淀成哪种长期能力。'))
+        ? '配置执行参数。'
+        : '选择这个任务的执行方式。'))
     : '正在整理当前会话内容…';
   const kindOptions = (
     typeof window !== 'undefined' && window.MelodySyncTaskTypeConstants?.KIND_PICKER_DEFS
@@ -2745,7 +2730,16 @@ function OperationRecordHeaderChildren({
     if (!isDone && onComplete) {
       buttons.push({ label: '✓ 完成', secondary: false, onClick: onComplete });
     }
-    buttons.push({ label: isDone ? '沉淀为长期项' : '长期项', secondary: isDone ? false : true, onClick: onPromote });
+    // "设置执行方式" replaces the old "沉淀为长期项" — project membership is a separate concern
+    buttons.push({
+      label: '设置执行方式',
+      secondary: true,
+      onClick: () => {
+        if (typeof window.MelodySyncWorkbench?.openPersistentEditor === 'function') {
+          window.MelodySyncWorkbench.openPersistentEditor({ mode: 'promote' });
+        }
+      },
+    });
   }
 
   return (
@@ -3166,6 +3160,34 @@ function SessionListPinnedSection({
   );
 }
 
+function SessionsTabDailyHeader({ groupEntry = null }) {
+  const buckets = groupEntry?.buckets || {};
+  const bucketsArr = Array.isArray(buckets) ? buckets : Object.values(buckets);
+  const total = bucketsArr.reduce((sum, b) => sum + (Array.isArray(b?.sessions) ? b.sessions.length : 0), 0);
+
+  const openPanel = () => {
+    const projectId = groupEntry?.projectId
+      || (typeof window.getSessionsTabProjectId === 'function' ? window.getSessionsTabProjectId() : '');
+    if (projectId && typeof window.showLongTermProjectPanel === 'function') {
+      window.showLongTermProjectPanel(projectId);
+    }
+  };
+
+  return (
+    <div className="sessions-tab-daily-header">
+      <button
+        type="button"
+        className="sessions-tab-daily-panel-btn"
+        onClick={openPanel}
+        title="打开控制面板"
+      >
+        控制面板
+        <span className="sessions-tab-daily-panel-arrow" aria-hidden="true">›</span>
+      </button>
+    </div>
+  );
+}
+
 function SessionsTabStatsPanel({ buckets = {} }) {
   // buckets comes as Array [{key, label, order, sessions}] from payload
   const bucketsArr = Array.isArray(buckets)
@@ -3329,6 +3351,8 @@ function SessionListGroupSection({
   deleteIconHtml = '',
   deleteFolderLabel = '删除文件夹',
   isGroupCollapsed = () => false,
+  pinnedSessions = [],
+  pinnedLabel = '',
 }) {
   const sessions = Array.isArray(groupEntry?.sessions) ? groupEntry.sessions : [];
   const isLongTermProject = groupEntry?.type === 'long-term-project';
@@ -3391,11 +3415,20 @@ function SessionListGroupSection({
     <div className={`folder-group${showGroupHeaders ? '' : ' is-ungrouped'}${isLongTermProject ? ' is-long-term-project-group' : ''}${isSessionsProject ? ' is-sessions-project-group' : ''}${isTasksInbox || isDailyInbox ? ' is-tasks-inbox-group' : ''}${isTodayProject ? ' is-today-project-group' : ''}`}>
       {showGroupHeaders ? (
         (isTasksInbox || isSessionsProject || isDailyInbox) ? (
-          // Flat bucket sections — no card header
-          <div className="tasks-inbox-buckets">
-            {/* Top stats panel for the all-by-type group */}
+          // Flat layout — no wrapping card, buckets render directly
+          <>
+            {/* Daily project control panel entry row */}
             {isDailyInbox && groupEntry?.key === 'group:all-by-type' ? (
-              <SessionsTabStatsPanel buckets={groupEntry?.buckets || {}} />
+              <SessionsTabDailyHeader groupEntry={groupEntry} />
+            ) : null}
+            {/* Pinned sessions shown right after the control panel button */}
+            {isDailyInbox && Array.isArray(pinnedSessions) && pinnedSessions.length > 0 ? (
+              <SessionListPinnedSection
+                pinnedSessions={pinnedSessions}
+                pinnedLabel={pinnedLabel}
+                createSessionItem={createSessionItem}
+                getSessionRenderKey={getSessionRenderKey}
+              />
             ) : null}
             {Object.values(groupEntry?.buckets || {})
               .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
@@ -3412,7 +3445,7 @@ function SessionListGroupSection({
                 />
               ))
             }
-          </div>
+          </>
         ) : isTodayProject ? (
           // Today-project: collapsible group for a long-term project's tasks in daily view
           // Don't render empty groups
@@ -3446,7 +3479,9 @@ function SessionListGroupSection({
           </>)
         ) : isLongTermProject ? (
           // Long-term project: single card wrapping title + content
-          <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}${groupEntry?.isSystem ? ' is-system' : ''}`}>
+          // System project (全局任务) is shown in the tasks tab — skip it in the projects tab
+          groupEntry?.isSystem ? null :
+          <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}`}>
             {/* Title row: chevron + name + count — click to collapse/expand */}
             <div
               className="lt-project-card-top"
@@ -3463,9 +3498,10 @@ function SessionListGroupSection({
               <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
               <div className="lt-project-card-title-group">
                 <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
-
               </div>
-              {groupEntry?.isSystem ? <span className="lt-project-card-default-badge">默认</span> : null}
+              {groupEntry?.projectSession?.builtinName === 'melodysync-iteration' ? (
+                <span className="lt-project-card-default-badge">默认</span>
+              ) : null}
               <span className="lt-project-card-count">{memberCount}</span>
             </div>
             {/* Panel entry row — always visible, not hidden when collapsed */}
@@ -3781,14 +3817,21 @@ function SessionListCollections({
   translate = (key) => key,
   archived = null,
 }) {
+  // Check if any group is a dailyInbox — if so, pinned moves inside it
+  const hasDailyInbox = (Array.isArray(orderedGroups) ? orderedGroups : []).some(
+    (g) => g?.type === 'daily-inbox'
+  );
   return (
     <>
-      <SessionListPinnedSection
-        pinnedSessions={Array.isArray(pinnedSessions) ? pinnedSessions : []}
-        pinnedLabel={pinnedLabel}
-        createSessionItem={createSessionItem}
-        getSessionRenderKey={getSessionRenderKey}
-      />
+      {/* Pinned at top only when there's no daily inbox group (which handles pinned itself) */}
+      {!hasDailyInbox ? (
+        <SessionListPinnedSection
+          pinnedSessions={Array.isArray(pinnedSessions) ? pinnedSessions : []}
+          pinnedLabel={pinnedLabel}
+          createSessionItem={createSessionItem}
+          getSessionRenderKey={getSessionRenderKey}
+        />
+      ) : null}
       {(Array.isArray(orderedGroups) ? orderedGroups : []).map((groupEntry) => (
         <SessionListGroupSection
           key={`session-group:${groupEntry?.key || Math.random()}`}
@@ -3803,6 +3846,8 @@ function SessionListCollections({
           chevronIconHtml={chevronIconHtml}
           deleteIconHtml={deleteIconHtml}
           deleteFolderLabel={String(grouping?.deleteFolderLabel || '')}
+          pinnedSessions={groupEntry?.type === 'daily-inbox' ? (Array.isArray(pinnedSessions) ? pinnedSessions : []) : []}
+          pinnedLabel={pinnedLabel}
         />
       ))}
       <SessionListEmptyState

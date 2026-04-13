@@ -229,7 +229,7 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
   // ── Assign to long-term project ─────────────────────────────────
   const assignToProjectAction = !isArchivedSession ? {
     key: "assign-to-project",
-    label: t("action.assignToProject") || "归入长期项目",
+    label: t("action.assignToProject") || "归入项目",
     className: "assign-to-project",
     // Show inline in Tasks tab for tasks not yet in a project
     inlineHidden: !(currentTab === "sessions" && !isLtMember),
@@ -665,6 +665,8 @@ function renderSessionList() {
         const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
         // Skip orphaned groups where the project session can't be found
         if (!projectSession) continue;
+        // System project (全局任务) is shown in the tasks tab — skip it in the projects tab
+        if (isSystemProject) continue;
         const projectTitle = String(projectSession?.name || projectSession?.description || "").trim() || "未命名项目";
         groups.set(groupKey, {
           key: groupKey,
@@ -814,7 +816,7 @@ function renderSessionList() {
           ? (isSessionsTab
               ? t("sidebar.tasks.emptyHint") || "点击「开始任务」记录第一件事。"
               : isLongTermTab
-                ? t("sidebar.longTerm.emptyHint") || "在「长期项目」标签页创建项目，或把任务升级为长期任务。"
+                ? t("sidebar.longTerm.emptyHint") || "点击右上角「+」新建项目。"
                 : "")
           : "",
       },

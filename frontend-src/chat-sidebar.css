@@ -334,9 +334,9 @@
 .pinned-section { margin-bottom: 6px; }
 .pinned-section-header {
   display: flex; align-items: center; gap: 5px;
-  padding: 4px 8px;
-  color: var(--text-muted); font-size: 10.5px; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 5px 7px 5px 10px;
+  color: var(--text-muted); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.02em; text-transform: none;
 }
 .pinned-label { flex: 1; }
 
@@ -604,31 +604,35 @@
 
 /* Tasks inbox group (sessions tab) — same bucket card style */
 .is-tasks-inbox-group {
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .tasks-inbox-buckets {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
 }
 
+/* Flat layout: no card nesting, buckets are same level as 已完成 */
 .is-tasks-inbox-group .folder-group-bucket {
   margin: 0;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-secondary) 55%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
-  overflow: hidden;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  overflow: visible;
 }
 
 .is-tasks-inbox-group .folder-group-bucket-header {
-  padding: 7px 10px 7px 12px;
-  font-size: 10.5px;
-  background: color-mix(in srgb, var(--bg-secondary) 40%, transparent);
+  padding: 5px 7px 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: transparent;
+  letter-spacing: 0.02em;
 }
 
 .is-tasks-inbox-group .folder-group-bucket-items {
-  padding: 2px 0 4px;
+  padding: 0 0 6px;
 }
 
 /* Today-project group in daily view */
@@ -752,6 +756,39 @@
 }
 
 /* Sessions tab top stats panel */
+/* ── 任务 tab 顶部全局任务控制面板入口 ── */
+/* 融入任务列表，像 section header 而不是独立卡片 */
+.sessions-tab-daily-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 2px 6px;
+  margin-bottom: 0;
+}
+.sessions-tab-daily-panel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s;
+}
+.sessions-tab-daily-panel-btn:hover {
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+  color: var(--text-secondary);
+}
+.sessions-tab-daily-panel-arrow {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
 .sessions-tab-stats-panel {
   display: flex;
   flex-wrap: wrap;
@@ -1655,9 +1692,9 @@
 .archived-section { margin-top: 6px; }
 .archived-section-header {
   display: flex; align-items: center; gap: 5px;
-  padding: 4px 8px; border-radius: 6px; cursor: pointer;
-  color: var(--text-muted); font-size: 10.5px; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 5px 7px 5px 10px; border-radius: 6px; cursor: pointer;
+  color: var(--text-muted); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.02em; text-transform: none;
   user-select: none; width: 100%; border: 0; background: transparent;
   text-align: left; font: inherit; appearance: none;
   transition: background 0.1s ease;
@@ -1944,22 +1981,23 @@
 .folder-group,
 .archived-section,
 .pinned-section {
-  margin-bottom: 10px;
-  padding: 6px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  background: color-mix(in srgb, var(--bg-secondary) 44%, var(--bg));
+  margin-bottom: 6px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
 
 .folder-group-header,
 .archived-section-header,
 .pinned-section-header {
-  padding: 2px 4px 8px;
+  padding: 5px 7px 5px 10px;
   min-height: auto;
-  color: var(--text-secondary);
-  font-size: 10px;
+  color: var(--text-muted);
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .folder-group-header:hover,
@@ -2471,7 +2509,7 @@
 
 /* ---- MelodySync directory tree refinement ---- */
 .sidebar-list {
-  padding: 0 10px 10px;
+  padding: 10px 10px 10px;
 }
 
 .pinned-section,
@@ -2483,12 +2521,13 @@
 .pinned-section-header,
 .folder-group-header,
 .archived-section-header {
-  padding: 6px 4px 5px;
+  padding: 5px 7px 5px 10px;
   min-height: auto;
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .folder-group-header .folder-name,
@@ -2928,8 +2967,8 @@
   .pinned-section,
   .folder-group,
   .archived-section {
-    background: rgba(255, 255, 255, 0.02);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    background: transparent;
+    box-shadow: none;
   }
 
   .session-item.active,
