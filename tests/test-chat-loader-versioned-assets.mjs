@@ -109,6 +109,7 @@ async function waitForLoaderWork() {
 const expectedBuild123Assets = [
   '/marked.min.js?v=build-123',
   '/chat/core/i18n.js?v=build-123',
+  '/chat/core/dialog.js?v=build-123',
   '/chat/core/task-type-constants.js?v=build-123',
   '/chat/core/bootstrap-data.js?v=build-123',
   '/chat/session-list/order-contract.js?v=build-123',
