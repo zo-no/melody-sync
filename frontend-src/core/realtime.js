@@ -50,6 +50,9 @@ function scheduleReconnect() {
   }, 3000);
 }
 
+// Expose dispatchAction globally so React bundles can create sessions
+globalThis._melodySyncDispatchAction = (msg) => dispatchAction(msg);
+
 async function dispatchAction(msg) {
   try {
     switch (msg.action) {
@@ -110,10 +113,26 @@ async function dispatchAction(msg) {
             ...(msg.persistent && typeof msg.persistent === "object" ? { persistent: msg.persistent } : {}),
           }),
         });
+        // After creation, if taskPoolMembership is specified, PATCH it onto the new session.
+        // This is used to make a session a project root (role:'project') since the create
+        // endpoint does not accept taskPoolMembership directly.
+        if (data.session?.id && msg.taskPoolMembership && typeof msg.taskPoolMembership === "object") {
+          const patchData = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(data.session.id)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskPoolMembership: msg.taskPoolMembership }),
+          }).catch(() => null);
+          if (patchData?.session) {
+            Object.assign(data, { session: patchData.session });
+          }
+        }
         if (data.session) {
           const session = upsertSession(data.session) || data.session;
           renderSessionList();
-          attachSession(session.id, session);
+          // noAttach: skip auto-opening the session in the chat view (e.g. project roots, background tasks)
+          if (!msg.noAttach) {
+            attachSession(session.id, session);
+          }
           return session;
         }
         await fetchSessionsList();
@@ -432,6 +451,25 @@ async function dispatchAction(msg) {
           await window.MelodySyncWorkbench?.refreshOperationRecord?.();
         } else if (currentSessionId === msg.sessionId) {
           await refreshCurrentSession();
+        } else {
+          await refreshSidebarSession(msg.sessionId);
+        }
+        return true;
+      }
+      case "session_patch": {
+        // General-purpose PATCH for arbitrary session fields (e.g. taskPoolMembership, name)
+        const patchBody = msg.patch && typeof msg.patch === "object" ? msg.patch : {};
+        const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patchBody),
+        });
+        if (data.session) {
+          const session = upsertSession(data.session) || data.session;
+          renderSessionList();
+          if (currentSessionId === msg.sessionId) {
+            applyAttachedSessionState(msg.sessionId, session);
+          }
         } else {
           await refreshSidebarSession(msg.sessionId);
         }

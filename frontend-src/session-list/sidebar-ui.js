@@ -249,40 +249,51 @@ async function createNewLongTermProjectShortcut({ closeSidebar = true } = {}) {
   const tool = preferredTool || selectedTool || toolsList[0]?.id;
   if (!tool) return false;
   const defaultTitle = t("sidebar.longTerm.untitled");
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
   if (closeSidebar && !isDesktop) closeSidebarFn();
   if (typeof switchTab === "function") {
     switchTab("long-term");
   }
-  const created = await dispatchAction({
+
+  // Step 1: Create the project root session (pure container, no persistent/recurring).
+  // noAttach: don't open it in chat — it's a container, not a conversation.
+  const projectSession = await dispatchAction({
     action: "create",
     folder: "~",
     tool,
     name: defaultTitle,
     group: t("sidebar.group.longTerm"),
     sourceId: DEFAULT_APP_ID,
-    persistent: {
-      kind: "recurring_task",
-      digest: {
-        title: defaultTitle,
-      },
-      recurring: {
-        cadence: "daily",
-        timeOfDay: "09:00",
-        timezone,
-      },
-      runtimePolicy: {
-        manual: {
-          mode: "follow_current",
-        },
+    noAttach: true,
+  });
+  const projectId = typeof projectSession === "object" ? projectSession?.id : null;
+  if (!projectId) return false;
+
+  // Step 2: Make it a self-referential project root via PATCH taskPoolMembership.
+  await dispatchAction({
+    action: "session_patch",
+    sessionId: projectId,
+    patch: {
+      taskPoolMembership: {
+        longTerm: { role: "project", projectSessionId: projectId, fixedNode: true },
       },
     },
-  });
-  if (!created) return false;
-  window.MelodySyncWorkbench?.openPersistentEditor?.({
-    mode: "configure",
-    kind: "recurring_task",
-  });
+  }).catch(() => {});
+
+  // Step 3: Create a default self-iteration inbox task under this project.
+  // noAttach: don't open it in chat — user hasn't asked to work on it yet.
+  await dispatchAction({
+    action: "create",
+    folder: "~",
+    tool,
+    name: `${defaultTitle} · 自迭代`,
+    sourceId: DEFAULT_APP_ID,
+    noAttach: true,
+    taskPoolMembership: {
+      longTerm: { role: "member", projectSessionId: projectId, bucket: "inbox" },
+    },
+  }).catch(() => {});
+
+  if (typeof renderSessionList === "function") renderSessionList();
   return true;
 }
 

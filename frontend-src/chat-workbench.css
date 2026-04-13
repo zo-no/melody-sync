@@ -7602,6 +7602,27 @@ body.long-term-workspace-active .task-manager-main-column {
   color: var(--red, #c53030);
   font-size: 13px;
 }
+.project-picker-clear-row {
+  padding: 6px 18px 0;
+}
+.project-picker-clear-btn {
+  appearance: none;
+  border: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+.project-picker-clear-btn:hover {
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+  color: var(--text-secondary);
+}
 
 /* ── Archived section ──────────────────────────────────────────────── */
 .ltcp-archived-details { list-style: none; }

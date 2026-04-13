@@ -2264,13 +2264,24 @@ function PersistentEditorModal({
         ? '配置执行参数。'
         : '选择这个任务的执行方式。'))
     : '正在整理当前会话内容…';
+  // Unified kind options: 长期/短期 merged into 定时任务 (repeat toggle inside config).
+  // 等待任务 is AI-created, not user-selected — removed from picker.
   const kindOptions = (
     typeof window !== 'undefined' && window.MelodySyncTaskTypeConstants?.KIND_PICKER_DEFS
   ) || [
-    { kind: 'recurring_task', label: '长期任务',   description: '按循环节奏持续执行，适合巡检、整理和长期维护。' },
-    { kind: 'scheduled_task', label: '短期任务',   description: '在指定时间执行一次，适合到点处理的任务。' },
-    { kind: 'waiting_task',   label: '等待任务',   description: '主要等待人类处理，但仍可一键触发梳理上下文。' },
+    { kind: 'recurring_task', label: '定时任务',   description: '在指定时间自动执行，可设置是否重复。' },
     { kind: 'skill',          label: 'AI快捷按钮', description: '手动点击后触发，由 AI 执行一段可复用动作。' },
+  ];
+  // For the kind row in configure mode, show recurring/scheduled as one "定时任务" entry
+  const kindRowOptions = [
+    { kind: 'recurring_task', label: '定时任务' },
+    { kind: 'scheduled_task', label: '定时任务' }, // maps to same label
+    { kind: 'skill',          label: 'AI快捷按钮' },
+  ];
+  // Deduplicate for display: recurring_task and scheduled_task both show as "定时任务"
+  const kindRowDeduped = [
+    { kind: 'recurring_task', label: '定时任务', matchKinds: ['recurring_task', 'scheduled_task'] },
+    { kind: 'skill',          label: 'AI快捷按钮', matchKinds: ['skill'] },
   ];
 
   return (
@@ -2309,11 +2320,11 @@ function PersistentEditorModal({
             <div className="persistent-editor-modal-form">
               <PersistentEditorField label="类型">
                 <div className="operation-record-persistent-kind-row persistent-editor-modal-kind-row">
-                  {kindOptions.map((entry) => (
+                  {kindRowDeduped.map((entry) => (
                     <button
                       key={entry.kind}
                       type="button"
-                      className={`operation-record-kind-btn${draft.kind === entry.kind ? ' is-active' : ''}`}
+                      className={`operation-record-kind-btn${entry.matchKinds.includes(draft.kind) ? ' is-active' : ''}`}
                       onClick={() => updateKind(entry.kind)}
                     >
                       {entry.label}
@@ -2377,46 +2388,50 @@ function PersistentEditorModal({
 
               {draft.kind !== 'skill' ? (
                 <>
-                  <PersistentEditorField
-                    label="知识库路径"
-                    note="默认指向这条任务所属的本地文件路径。"
-                  >
-                    <input
-                      type="text"
-                      className="operation-record-persistent-input"
-                      defaultValue={String(draft.knowledgeBasePath || '')}
-                      placeholder="知识库对应的底层文件路径"
-                      onInput={(event) => {
-                        draft.knowledgeBasePath = event.currentTarget.value;
-                      }}
-                    />
-                  </PersistentEditorField>
-
-                  <PersistentEditorField
-                    label="定时触发"
-                    note="在指定时间自动执行一次。"
-                  >
+                  {/* Repeat toggle: recurring_task = repeats, scheduled_task = once */}
+                  <PersistentEditorField label="重复执行">
                     <div className="operation-record-persistent-kind-row persistent-editor-modal-kind-row">
                       <button
                         type="button"
-                        className={`operation-record-kind-btn${draft.scheduledEnabled === true ? ' is-active' : ''}`}
+                        className={`operation-record-kind-btn${draft.kind === 'recurring_task' ? ' is-active' : ''}`}
                         onClick={() => {
-                          draft.scheduledEnabled = draft.scheduledEnabled !== true;
+                          draft.kind = 'recurring_task';
+                          draft.recurringEnabled = true;
+                          draft.scheduledEnabled = false;
                           rerender();
                         }}
                       >
-                        {draft.scheduledEnabled === true ? '已开启' : '未开启'}
+                        重复
+                      </button>
+                      <button
+                        type="button"
+                        className={`operation-record-kind-btn${draft.kind === 'scheduled_task' ? ' is-active' : ''}`}
+                        onClick={() => {
+                          draft.kind = 'scheduled_task';
+                          draft.scheduledEnabled = true;
+                          draft.recurringEnabled = false;
+                          if (!draft.scheduled?.runAtLocal) {
+                            draft.scheduled = { runAtLocal: getDefaultScheduledRunAtLocal(), timezone: '' };
+                          }
+                          rerender();
+                        }}
+                      >
+                        单次
                       </button>
                     </div>
                   </PersistentEditorField>
 
-                  {draft.scheduledEnabled === true ? (
-                    <PersistentEditorField label="定时时间">
+                  {/* Single-run: pick date+time */}
+                  {draft.kind === 'scheduled_task' ? (
+                    <PersistentEditorField label="执行时间">
                       <input
                         type="datetime-local"
                         className="operation-record-persistent-input"
                         value={normalizeDateTimeLocal(draft.scheduled?.runAtLocal || '')}
                         onChange={(event) => {
+                          if (!draft.scheduled || typeof draft.scheduled !== 'object') {
+                            draft.scheduled = { runAtLocal: '', timezone: '' };
+                          }
                           draft.scheduled.runAtLocal = normalizeDateTimeLocal(event.currentTarget.value);
                           rerender();
                         }}
@@ -2424,27 +2439,10 @@ function PersistentEditorModal({
                     </PersistentEditorField>
                   ) : null}
 
-                  <PersistentEditorField
-                    label="循环触发"
-                    note="按固定周期反复执行。"
-                  >
-                    <div className="operation-record-persistent-kind-row persistent-editor-modal-kind-row">
-                      <button
-                        type="button"
-                        className={`operation-record-kind-btn${draft.recurringEnabled === true ? ' is-active' : ''}`}
-                        onClick={() => {
-                          draft.recurringEnabled = draft.recurringEnabled !== true;
-                          rerender();
-                        }}
-                      >
-                        {draft.recurringEnabled === true ? '已开启' : '未开启'}
-                      </button>
-                    </div>
-                  </PersistentEditorField>
-
-                  {draft.recurringEnabled === true ? (
+                  {/* Recurring: pick cadence + time */}
+                  {draft.kind === 'recurring_task' ? (
                     <>
-                      <PersistentEditorField label="触发周期">
+                      <PersistentEditorField label="重复周期">
                         <select
                           className="operation-record-persistent-select"
                           value={cadence}
@@ -2491,6 +2489,21 @@ function PersistentEditorModal({
                       ) : null}
                     </>
                   ) : null}
+
+                  <PersistentEditorField
+                    label="知识库路径"
+                    note="默认指向这条任务所属的本地文件路径。"
+                  >
+                    <input
+                      type="text"
+                      className="operation-record-persistent-input"
+                      defaultValue={String(draft.knowledgeBasePath || '')}
+                      placeholder="知识库对应的底层文件路径"
+                      onInput={(event) => {
+                        draft.knowledgeBasePath = event.currentTarget.value;
+                      }}
+                    />
+                  </PersistentEditorField>
 
                   <div className="operation-record-persistent-section">
                     <div className="operation-record-persistent-section-title">长期闭环</div>
@@ -3493,8 +3506,13 @@ function SessionListGroupSection({
               <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
               <div className="lt-project-card-title-group">
                 <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
+                {projectSummary ? (
+                  <span className="lt-project-card-subtitle" title={projectSummary}>{projectSummary}</span>
+                ) : null}
               </div>
-              {groupEntry?.isSystem ? <span className="lt-project-card-default-badge">默认</span> : null}
+              {(groupEntry?.isSystem || groupEntry?.projectSession?.builtinName === 'melodysync-iteration') ? (
+                <span className="lt-project-card-default-badge">默认</span>
+              ) : null}
               <span className="lt-project-card-count">{memberCount}</span>
               {/* Panel icon — click opens control panel without collapsing */}
               <button
@@ -3505,21 +3523,50 @@ function SessionListGroupSection({
               >›</button>
             </div>
             <div className="lt-project-card-content" hidden={isCollapsed}>
-              {Object.values(groupEntry?.buckets || {})
-                .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
-                .map((bucketEntry) => (
-                  <SessionListBucketSection
-                    key={`bucket-section:${groupEntry?.key}:${bucketEntry?.key}`}
-                    groupKey={groupEntry?.key || ''}
-                    bucketEntry={bucketEntry}
-                    isCollapsed={isGroupCollapsed(`${groupEntry?.key}:${bucketEntry?.key}`) === true}
-                    onToggleGroup={onToggleGroup}
-                    createSessionItem={createSessionItem}
-                    getSessionRenderKey={getSessionRenderKey}
-                    chevronIconHtml={chevronIconHtml}
-                  />
-                ))
-              }
+              {memberCount === 0 ? (
+                <div className="lt-project-card-empty">
+                  <span className="lt-project-card-empty-text">还没有任务</span>
+                  <button
+                    type="button"
+                    className="lt-project-card-empty-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const projectId = groupEntry?.projectId || '';
+                      if (!projectId) return;
+                      const tool = window.MelodySyncSessionTooling?.getSelectedTool?.()
+                        || window.MelodySyncSessionTooling?.getPreferredTool?.()
+                        || 'claude';
+                      window._melodySyncDispatchAction?.({
+                        action: 'create',
+                        folder: '~',
+                        tool,
+                        name: '新任务',
+                        noAttach: false,
+                        taskPoolMembership: {
+                          longTerm: { role: 'member', projectSessionId: projectId, bucket: 'inbox' },
+                        },
+                      });
+                    }}
+                  >
+                    + 创建任务
+                  </button>
+                </div>
+              ) : (
+                Object.values(groupEntry?.buckets || {})
+                  .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
+                  .map((bucketEntry) => (
+                    <SessionListBucketSection
+                      key={`bucket-section:${groupEntry?.key}:${bucketEntry?.key}`}
+                      groupKey={groupEntry?.key || ''}
+                      bucketEntry={bucketEntry}
+                      isCollapsed={isGroupCollapsed(`${groupEntry?.key}:${bucketEntry?.key}`) === true}
+                      onToggleGroup={onToggleGroup}
+                      createSessionItem={createSessionItem}
+                      getSessionRenderKey={getSessionRenderKey}
+                      chevronIconHtml={chevronIconHtml}
+                    />
+                  ))
+              )}
             </div>
           </div>
         ) : (

@@ -633,6 +633,38 @@
   transform: translateX(1px);
 }
 
+/* Empty project state */
+.lt-project-card-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  gap: 8px;
+}
+.lt-project-card-empty-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+.lt-project-card-empty-btn {
+  appearance: none;
+  border: 1px dashed color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: color-mix(in srgb, var(--accent) 70%, var(--text-muted));
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s;
+}
+.lt-project-card-empty-btn:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: color-mix(in srgb, var(--accent) 90%, var(--text));
+}
+
 .lt-project-card-panel-hint {
   font-size: 11.5px;
   color: var(--text-muted);
@@ -1027,6 +1059,11 @@
 .session-item.active {
   background: var(--bg-secondary);
   border-color: var(--border);
+}
+/* When control panel is open, suppress session highlight — panel is the focus */
+.long-term-workspace-active .session-item.active {
+  background: transparent;
+  border-color: transparent;
 }
 .session-item-info { flex: 1; min-width: 0; }
 .session-item-name {

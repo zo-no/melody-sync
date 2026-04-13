@@ -622,6 +622,15 @@ function openProjectPicker(session) {
 
   // Reset state
   projectPickerState = { sessionId: session.id, selectedProjectId: null, selectedBucket: "inbox" };
+
+  // Show "移出项目" button only when session already belongs to a non-system project
+  const clearRow = document.getElementById("projectPickerClearRow");
+  if (clearRow) {
+    const currentMembership = session?.taskPoolMembership?.longTerm;
+    const isInUserProject = currentMembership?.projectSessionId
+      && currentMembership.role === "member";
+    clearRow.hidden = !isInUserProject;
+  }
   if (projectPickerConfirm) projectPickerConfirm.disabled = true;
 
   // Session info
@@ -734,6 +743,23 @@ document.getElementById("projectPickerConfirm")?.addEventListener("click", () =>
 // Cancel / close
 document.getElementById("projectPickerCancel")?.addEventListener("click", closeProjectPicker);
 document.getElementById("projectPickerClose")?.addEventListener("click", closeProjectPicker);
+
+// Clear project — move session back to global inbox (日常任务)
+document.getElementById("projectPickerClear")?.addEventListener("click", () => {
+  const { sessionId } = projectPickerState;
+  if (!sessionId) return;
+  void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskPoolMembership: { longTerm: null } }),
+  }).then((data) => {
+    closeProjectPicker();
+    if (data?.session && typeof upsertSession === "function") upsertSession(data.session);
+    if (typeof renderSessionList === "function") renderSessionList();
+  }).catch((err) => {
+    console.error("[project-picker] clear project failed:", err);
+  });
+});
 projectPickerOverlay?.addEventListener("click", (e) => {
   if (e.target === projectPickerOverlay) closeProjectPicker();
 });
