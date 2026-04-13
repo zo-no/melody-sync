@@ -194,9 +194,8 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
   const baseActions = typeof buildSessionActionConfigs === "function"
     ? buildSessionActionConfigs(session, { archived: isArchivedSession })
     : [];
-  const visibleBaseActions = isArchivedSession
-    ? baseActions
-    : baseActions.filter((actionEntry) => actionEntry?.action !== "delete");
+  // All actions including delete are now shown for both archived and active sessions
+  const visibleBaseActions = baseActions;
   const renameAction = isArchivedSession ? null : {
     key: "rename",
     label: t("action.rename"),
@@ -1029,8 +1028,11 @@ function renderArchivedSection() {
   header.className = "archived-section-header" + (isCollapsed ? " collapsed" : "");
   header.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
     <span class="archived-label">${esc(t("sidebar.archive"))}</span>
-    <span class="folder-count">${count}</span>`;
-  header.addEventListener("click", () => {
+    <span class="folder-count">${count}</span>
+    <button class="archived-clear-btn" type="button" title="${esc(t("sidebar.clearArchived"))}" data-action="clear-archived">${esc(t("sidebar.clearArchived"))}</button>`;
+  header.addEventListener("click", (e) => {
+    // Don't toggle if clicking the clear button
+    if (e.target.closest("[data-action='clear-archived']")) return;
     const nextCollapsed = !header.classList.contains("collapsed");
     header.classList.toggle("collapsed", nextCollapsed);
     persistCollapsedGroupState(ARCHIVED_FOLDER_KEY, nextCollapsed);
@@ -1040,6 +1042,33 @@ function renderArchivedSection() {
         console.warn("[sessions] Failed to load archived tasks:", error?.message || error);
       });
     }
+  });
+  header.querySelector("[data-action='clear-archived']")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (archivedSessions.length === 0) return;
+    const btn = e.currentTarget;
+    // Two-click confirm: first click arms the button, second click fires
+    if (btn.dataset.confirmArmed !== "1") {
+      btn.dataset.confirmArmed = "1";
+      btn.textContent = t("sidebar.clearArchivedConfirm") || `确认清空 ${archivedSessions.length} 条？`;
+      setTimeout(() => {
+        if (btn.dataset.confirmArmed === "1") {
+          delete btn.dataset.confirmArmed;
+          btn.textContent = t("sidebar.clearArchived") || "清空";
+        }
+      }, 3000);
+      return;
+    }
+    delete btn.dataset.confirmArmed;
+    void fetchJsonOrRedirect("/api/sessions/archived/bulk", { method: "DELETE" })
+      .then((data) => {
+        const ids = data?.deletedSessionIds || [];
+        if (typeof removeSessionsFromClientState === "function") removeSessionsFromClientState(ids);
+        renderSessionList();
+      })
+      .catch((err) => {
+        console.error("[sessions] Failed to clear archived:", err?.message || err);
+      });
   });
   section.appendChild(header);
 
