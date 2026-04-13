@@ -90,7 +90,7 @@ export async function createSessionWithDeps({
   // Pre-resolve system project ID BEFORE entering withSessionsMetaMutation.
   // ensureSystemProject() itself calls withSessionsMetaMutation internally,
   // so calling it inside the mutation would deadlock the serial queue.
-  const isSystemSessionForAutoAssign = (extra?.taskListOrigin || '').trim().toLowerCase() === 'system';
+  const isSystemSessionForAutoAssign = normalizeSessionTaskListOrigin(extra?.taskListOrigin) === 'system';
   const persistentKindForAutoAssign = normalizePersistentKind(
     (requestedPersistent && typeof requestedPersistent === 'object' ? requestedPersistent?.kind : '') || ''
   );
