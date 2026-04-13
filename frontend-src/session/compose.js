@@ -1918,10 +1918,6 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
             && String(mem?.role || "").trim().toLowerCase() === "member";
         })
       : [];
-    const memberCount = currentMembers.length;
-    const confirmMsg = memberCount > 0
-      ? `解散「${projectSession.name || "此项目"}」？\n\n${memberCount} 个归属任务将回到任务列表，项目本身将被归档。`
-      : `解散「${projectSession.name || "此项目"}」？项目将被归档。`;
     // Demote all member sessions (clear project membership → they go back to tasks tab)
     // then archive the project root itself
     void Promise.all([
