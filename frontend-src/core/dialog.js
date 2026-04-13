@@ -50,9 +50,11 @@
       });
       backdrop.appendChild(modal);
       document.body.appendChild(backdrop);
-      function close() { backdrop.remove(); resolve(); }
+      function close() { document.removeEventListener("keydown", onKey); backdrop.remove(); resolve(); }
       modal.querySelector("[data-role='ok']").addEventListener("click", close);
       backdrop.addEventListener("click", function (e) { if (e.target === backdrop) close(); });
+      function onKey(e) { if (e.key === "Escape" || e.key === "Enter") close(); }
+      document.addEventListener("keydown", onKey);
       modal.querySelector("[data-role='ok']").focus();
     });
   }
@@ -74,14 +76,14 @@
       });
       backdrop.appendChild(modal);
       document.body.appendChild(backdrop);
-      function confirm() { backdrop.remove(); resolve(true); }
-      function cancel() { backdrop.remove(); resolve(false); }
+      function confirm() { document.removeEventListener("keydown", onKey); backdrop.remove(); resolve(true); }
+      function cancel() { document.removeEventListener("keydown", onKey); backdrop.remove(); resolve(false); }
       modal.querySelector("[data-role='confirm']").addEventListener("click", confirm);
       modal.querySelector("[data-role='cancel']").addEventListener("click", cancel);
       backdrop.addEventListener("click", function (e) { if (e.target === backdrop) cancel(); });
       function onKey(e) {
-        if (e.key === "Escape") { document.removeEventListener("keydown", onKey); cancel(); }
-        if (e.key === "Enter") { document.removeEventListener("keydown", onKey); confirm(); }
+        if (e.key === "Escape") cancel();
+        else if (e.key === "Enter") confirm();
       }
       document.addEventListener("keydown", onKey);
       modal.querySelector("[data-role='confirm']").focus();
@@ -107,22 +109,16 @@
       });
       backdrop.appendChild(modal);
       document.body.appendChild(backdrop);
+      function dismiss(value) { document.removeEventListener("keydown", onKey); backdrop.remove(); resolve(value); }
       modal.querySelectorAll("[data-role='choice']").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var idx = Number(btn.dataset.index);
-          backdrop.remove();
-          resolve(choices[idx] ? choices[idx].value : null);
+          dismiss(choices[idx] ? choices[idx].value : null);
         });
       });
-      modal.querySelector("[data-role='cancel']").addEventListener("click", function () {
-        backdrop.remove(); resolve(null);
-      });
-      backdrop.addEventListener("click", function (e) {
-        if (e.target === backdrop) { backdrop.remove(); resolve(null); }
-      });
-      function onKey(e) {
-        if (e.key === "Escape") { document.removeEventListener("keydown", onKey); backdrop.remove(); resolve(null); }
-      }
+      modal.querySelector("[data-role='cancel']").addEventListener("click", function () { dismiss(null); });
+      backdrop.addEventListener("click", function (e) { if (e.target === backdrop) dismiss(null); });
+      function onKey(e) { if (e.key === "Escape") dismiss(null); }
       document.addEventListener("keydown", onKey);
       var firstChoice = modal.querySelector("[data-role='choice']");
       if (firstChoice) firstChoice.focus();
