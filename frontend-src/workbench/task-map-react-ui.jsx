@@ -3476,35 +3476,10 @@ function SessionListGroupSection({
             </div>
           </>)
         ) : isLongTermProject ? (
-          // Long-term project: single card wrapping title + content
-          // System project (全局任务) is shown in the tasks tab — skip it in the projects tab
-          groupEntry?.isSystem ? null :
-          <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}`}>
-            {/* Title row: chevron + name + count — click to collapse/expand */}
+          // Long-term project: click anywhere on card to open control panel
+          <div className={`lt-project-card${groupEntry?.isSystem ? ' is-system' : ''}`}>
             <div
               className="lt-project-card-top"
-              role="button"
-              tabIndex={0}
-              aria-expanded={isCollapsed ? 'false' : 'true'}
-              onClick={toggleGroup}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                event.preventDefault();
-                toggleGroup();
-              }}
-            >
-              <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
-              <div className="lt-project-card-title-group">
-                <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
-              </div>
-              {groupEntry?.projectSession?.builtinName === 'melodysync-iteration' ? (
-                <span className="lt-project-card-default-badge">默认</span>
-              ) : null}
-              <span className="lt-project-card-count">{memberCount}</span>
-            </div>
-            {/* Panel entry row — always visible, not hidden when collapsed */}
-            <div
-              className="lt-project-card-body"
               role="button"
               tabIndex={0}
               title="打开控制面板"
@@ -3515,14 +3490,15 @@ function SessionListGroupSection({
                 openProjectPanel(event);
               }}
             >
-              <div className="lt-project-card-body-text">
-                <div className="lt-project-card-panel-hint">控制面板</div>
+              <div className="lt-project-card-title-group">
+                <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
               </div>
+              {groupEntry?.isSystem ? <span className="lt-project-card-default-badge">默认</span> : null}
+              <span className="lt-project-card-count">{memberCount}</span>
               <span className="lt-project-card-panel-icon" aria-hidden="true">›</span>
             </div>
-            {/* Collapsible content: task buckets only */}
-            <div className="lt-project-card-content" hidden={isCollapsed}>
-              {/* Bucket sub-folders */}
+            {/* Task buckets: not shown in the projects tab — tasks are in the tasks tab */}
+            <div className="lt-project-card-content" hidden={true}>
               {Object.values(groupEntry?.buckets || {})
                 .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
                 .map((bucketEntry) => (
