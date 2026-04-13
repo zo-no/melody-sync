@@ -1,7 +1,7 @@
 import { normalizeSessionTaskCard } from '../session/task-card.mjs';
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 import { trimText } from '../shared/text.mjs';
-import { normalizePersistentKind as normalizePersistentKindFromShared } from '../session/persistent-kind.mjs';
+import { normalizePersistentKind } from '../session/persistent-kind.mjs';
 
 const MAX_DIGEST_TEXT_CHARS = 280;
 const MAX_DIGEST_ITEM_CHARS = 140;
@@ -44,9 +44,6 @@ function normalizeList(value, { maxItems = MAX_DIGEST_ITEMS, maxChars = MAX_DIGE
   }
   return items;
 }
-
-// Use shared normalizePersistentKind from session/persistent-kind.mjs
-const normalizePersistentKind = normalizePersistentKindFromShared;
 
 function normalizePersistentState(value) {
   const normalized = trimText(value).toLowerCase().replace(/[\s-]+/g, '_');
