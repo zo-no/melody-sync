@@ -555,13 +555,11 @@ export function buildPersistentDigest(session = {}, history = []) {
   );
   const keyPoints = normalizeList([
     ...(Array.isArray(taskCard?.knownConclusions) ? taskCard.knownConclusions : []),
-    ...(Array.isArray(taskCard?.memory) ? taskCard.memory : []),
-    ...(userMessagePreviews.length > 0 && !(taskCard?.knownConclusions || []).length && !(taskCard?.memory || []).length
+    ...(userMessagePreviews.length > 0 && !(taskCard?.knownConclusions || []).length
       ? userMessagePreviews.slice(-3)
       : []),
   ]);
   const recipe = normalizeList([
-    ...(Array.isArray(taskCard?.nextSteps) ? taskCard.nextSteps : []),
     ...((taskCard?.checkpoint || explicitStateCheckpoint) ? [taskCard.checkpoint || explicitStateCheckpoint] : []),
   ]);
   return {
@@ -604,7 +602,18 @@ export function resolvePersistentDueTriggerKind(persistent, nowValue = new Date(
 }
 
 export function buildPersistentRunMessage(session = {}, persistent = {}, options = {}) {
-  const digest = normalizePersistentDigest(persistent?.digest, buildPersistentDigest(session));
+  const liveDigest = buildPersistentDigest(session);
+  // Use stored digest for stable fields (title, summary, goal set at promote time),
+  // but always use live keyPoints so task_card.knownConclusions from the latest run
+  // flow into the next trigger's context without requiring a digest rebuild.
+  const digest = normalizePersistentDigest(
+    {
+      ...(persistent?.digest || {}),
+      keyPoints: liveDigest.keyPoints.length > 0 ? liveDigest.keyPoints : persistent?.digest?.keyPoints,
+      recipe: liveDigest.recipe.length > 0 ? liveDigest.recipe : persistent?.digest?.recipe,
+    },
+    liveDigest,
+  );
   const loop = normalizePersistentLoop(persistent?.loop);
   const runPrompt = clipText(
     options.runPrompt

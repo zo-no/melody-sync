@@ -174,8 +174,8 @@ const digest = buildPersistentDigest({
 
 assert.equal(digest.title, '周报整理技能');
 assert.equal(digest.goal, '把周报整理流程长期化。');
-assert.deepEqual(digest.keyPoints, ['先看材料比先看说明更有效。', '用户偏好先看样例。']);
-assert.deepEqual(digest.recipe, ['检查 Excel 结构', '整理输出模板']);
+assert.deepEqual(digest.keyPoints, ['先看材料比先看说明更有效。']);
+assert.deepEqual(digest.recipe, []);
 
 const stateDrivenDigest = buildPersistentDigest({
   sessionState: {
