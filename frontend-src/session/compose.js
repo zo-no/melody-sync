@@ -1737,7 +1737,7 @@ longTermWorkspaceList?.addEventListener("click", (event) => {
   renderLongTermWorkspace();
 });
 
-longTermWorkspaceDetail?.addEventListener("click", (event) => {
+longTermWorkspaceDetail?.addEventListener("click", async (event) => {
   // Output item: open detail panel inline
   const outputItem = event.target?.closest?.("[data-output-branch-id]");
   if (outputItem) {
@@ -1914,11 +1914,26 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
     // Ask user how to handle member tasks: delete with project or reclaim to inbox
     let deleteMembersChoice = false;
     if (currentMembers.length > 0) {
-      deleteMembersChoice = window.confirm(
-        `「${projectName}」有 ${currentMembers.length} 条成员任务。\n\n确定 → 连同成员任务一起永久删除\n取消 → 成员任务回收到日常任务收集箱`
-      );
+      const choice = typeof showChoice === "function"
+        ? await showChoice(
+            `「${projectName}」有 ${currentMembers.length} 条成员任务，请选择处理方式：`,
+            {
+              title: "解散项目",
+              choices: [
+                { label: "回收到收集箱", value: "reclaim" },
+                { label: "连同任务一起删除", value: "delete", danger: true },
+              ],
+              cancelLabel: "取消",
+            }
+          )
+        : (window.confirm(`「${projectName}」有 ${currentMembers.length} 条成员任务。\n\n确定 → 连同成员任务一起永久删除\n取消 → 成员任务回收到日常任务收集箱`) ? "delete" : "reclaim");
+      if (choice === null) return; // cancelled
+      deleteMembersChoice = choice === "delete";
     } else {
-      if (!window.confirm(`解散项目「${projectName}」？项目本身将被归档。`)) return;
+      const confirmed = typeof showConfirm === "function"
+        ? await showConfirm(`解散项目「${projectName}」？项目本身将被归档。`, { title: "解散项目", danger: true, confirmLabel: "解散" })
+        : window.confirm(`解散项目「${projectName}」？项目本身将被归档。`);
+      if (!confirmed) return;
     }
     void Promise.all([
       ...currentMembers.map((s) => {

@@ -288,6 +288,15 @@ async function dispatchAction(msg) {
         const sessionName = typeof targetSession?.name === "string" && targetSession.name.trim()
           ? targetSession.name.trim()
           : t("session.defaultName");
+        const isArchived = targetSession?.archived === true;
+        // Custom confirm dialog (replaces window.confirm)
+        const confirmMsg = isArchived
+          ? (t("action.deleteArchivedConfirm") || `永久删除「${sessionName}」？此操作不可恢复。`).replace("{name}", sessionName)
+          : (t("action.deleteConfirm") || `会先把「${sessionName}」写入今日日记摘要，再永久删除该任务及全部相关会话数据。确定继续吗？`).replace("{name}", sessionName);
+        const confirmed = typeof showConfirm === "function"
+          ? await showConfirm(confirmMsg, { title: t("action.delete") || "删除任务", danger: true })
+          : window.confirm(confirmMsg);
+        if (!confirmed) return true;
         const previousSession = applyOptimisticSessionDelete(msg.sessionId);
         try {
           const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
@@ -524,7 +533,8 @@ async function dispatchAction(msg) {
   } catch (error) {
     console.error("HTTP action failed:", error.message);
     if (msg?.action === "delete" && typeof alert === "function") {
-      alert(error?.message || t("action.deleteFailed"));
+      if (typeof showAlert === "function") showAlert(error?.message || t("action.deleteFailed"), { title: t("action.deleteFailed") || "删除失败" });
+      else alert(error?.message || t("action.deleteFailed"));
     }
     return false;
   }

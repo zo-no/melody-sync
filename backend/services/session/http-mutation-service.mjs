@@ -12,6 +12,7 @@ import {
   updateSessionTaskPoolMembership,
   updateSessionWorkflowClassification,
 } from '../../session/manager.mjs';
+import { loadSessionsMeta } from '../../session/meta-store.mjs';
 
 export async function applySessionHttpPatch(sessionId, patch = {}) {
   const hasArchivedPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'archived');
@@ -84,4 +85,35 @@ export async function applySessionHttpPatch(sessionId, patch = {}) {
 
 export async function deleteSessionForHttp(sessionId) {
   return deleteSessionPermanently(sessionId);
+}
+
+/**
+ * Permanently delete all archived sessions.
+ * System project roots (taskListOrigin === 'system') are never deleted.
+ * Returns the list of deleted session IDs.
+ */
+export async function deleteAllArchivedSessionsForHttp() {
+  const metas = await loadSessionsMeta();
+  const archivedIds = metas
+    .filter((s) => {
+      if (!s?.archived) return false;
+      // Never delete system project roots
+      if (s?.taskListOrigin === 'system') return false;
+      return true;
+    })
+    .map((s) => s.id)
+    .filter(Boolean);
+
+  const deletedIds = [];
+  for (const id of archivedIds) {
+    try {
+      const result = await deleteSessionPermanently(id);
+      if (result?.deletedSessionIds?.length) {
+        deletedIds.push(...result.deletedSessionIds);
+      }
+    } catch {
+      // Skip sessions that can't be deleted (e.g. already gone)
+    }
+  }
+  return { deletedSessionIds: deletedIds };
 }

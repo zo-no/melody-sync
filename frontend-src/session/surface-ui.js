@@ -838,6 +838,14 @@ function buildSessionActionConfigs(session, options = {}) {
         return markSessionReviewed(currentSession, { sync: true, render: true });
       },
     } : null,
+    {
+      key: "delete",
+      action: "delete",
+      label: t("action.delete"),
+      icon: "trash",
+      className: "delete",
+      inlineHidden: true,  // Hidden from inline bar; shown in overflow "more" menu only
+    },
   ].filter(Boolean);
 }
 

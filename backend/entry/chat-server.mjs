@@ -76,7 +76,7 @@ if (!delegatedToRelease) {
   ]);
 
   registerBuiltinHooks();
-  const { ensureSystemProject } = await import('../session/system-project.mjs');
+  const { ensureBuiltinProjects } = await import('../session/system-project.mjs');
   await Promise.all([
     ensureDir(MEMORY_DIR),
     ensureDir(join(MEMORY_DIR, 'tasks')),
@@ -84,7 +84,7 @@ if (!delegatedToRelease) {
     ensureVoiceSettingsRuntimeFiles(),
     apiRequestLog.initApiRequestLog(),
     registerCustomHooks(),
-    ensureSystemProject(),
+    ensureBuiltinProjects(),
   ]);
   await loadPersistedHookSettings();
 

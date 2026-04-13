@@ -430,9 +430,8 @@ async function removeSessionGroupingTemplateGroup(groupLabel = "", { runAfterSav
     return true;
   } catch (error) {
     console.warn("[sessions] Failed to remove task list template group:", error?.message || error);
-    if (typeof alert === "function") {
-      alert(t("sidebar.grouping.saveFailed"));
-    }
+    if (typeof showAlert === "function") showAlert(t("sidebar.grouping.saveFailed"));
+    else if (typeof alert === "function") alert(t("sidebar.grouping.saveFailed"));
   }
   return false;
 }

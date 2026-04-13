@@ -7195,6 +7195,14 @@ body.long-term-workspace-active .task-manager-main-column {
   padding: 4px 10px; cursor: pointer; transition: background 0.1s, color 0.1s;
   white-space: nowrap;
 }
+.ltcp-badge-builtin {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: color-mix(in srgb, var(--accent) 70%, var(--text-muted));
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+  align-self: center;
+}
 .ltcp-action-btn-secondary {
   border: 1px solid var(--border);
   background: var(--bg-secondary);

@@ -540,6 +540,22 @@
   background: var(--text);
   color: var(--bg);
 }
+.modal-btn.danger {
+  background: color-mix(in srgb, #e53e3e 10%, transparent);
+  border-color: color-mix(in srgb, #e53e3e 30%, var(--border));
+  color: color-mix(in srgb, #e53e3e 80%, var(--text));
+}
+.modal-btn.danger:hover {
+  background: color-mix(in srgb, #e53e3e 18%, transparent);
+  border-color: color-mix(in srgb, #e53e3e 50%, var(--border));
+  color: #e53e3e;
+}
+.dialog-modal-body { padding: 16px 18px; }
+.dialog-message {
+  font-size: 14px; line-height: 1.6;
+  color: var(--text-secondary); margin: 0;
+  white-space: pre-line;
+}
 .modal-body {
   padding: 16px;
   display: flex;

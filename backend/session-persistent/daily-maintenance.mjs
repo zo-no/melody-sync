@@ -343,6 +343,56 @@ export async function scanDailySessionMaintenance(nowValue = new Date()) {
     }
     await archiveSessions(digests.map((digest) => digest.sessionId));
 
+    // ── B4: Auto-archive completed skill tasks ──────────────────────────────────────────
+    // Skill tasks with workflowState=done stay in the skill bucket indefinitely.
+    // Archive them daily to keep the quick-action list clean.
+    const allSessionsRaw = Array.isArray(sessions) ? sessions : [];
+    const doneSkillIds = [];
+    for (const meta of allSessionsRaw) {
+      if (meta?.archived) continue;
+      const bucket = trimText(meta?.taskPoolMembership?.longTerm?.bucket || '').toLowerCase();
+      const kind = trimText(meta?.persistent?.kind || '').toLowerCase();
+      const isSkill = bucket === 'skill' || kind === 'skill';
+      if (!isSkill) continue;
+      const state = trimText(meta?.workflowState || '').toLowerCase();
+      if (isDoneWorkflowState(state)) {
+        doneSkillIds.push(meta.id);
+      }
+    }
+    if (doneSkillIds.length > 0) {
+      await archiveSessions(doneSkillIds);
+    }
+
+    // ── B5: Auto-archive stale inbox tasks (30+ days without update) ───────────────────
+    const INBOX_STALE_DAYS = 30;
+    const staleInboxIds = [];
+    const staleCutoff = new Date(now.getTime() - INBOX_STALE_DAYS * 24 * 60 * 60 * 1000);
+    for (const meta of allSessionsRaw) {
+      if (meta?.archived) continue;
+      // Only inbox bucket
+      const bucket = trimText(meta?.taskPoolMembership?.longTerm?.bucket || '').toLowerCase();
+      if (bucket !== 'inbox') continue;
+      // Skip if it has an active workflow state
+      const state = trimText(meta?.workflowState || '').toLowerCase();
+      if (state && !['', 'pending', 'idle'].includes(state)) continue;
+      // Skip project roots
+      const role = trimText(meta?.taskPoolMembership?.longTerm?.role || '').toLowerCase();
+      if (role === 'project') continue;
+      // Check last updated time
+      const lastUpdated = parseDate(meta?.updatedAt || meta?.lastEventAt || meta?.created);
+      if (!lastUpdated || lastUpdated.getTime() > staleCutoff.getTime()) continue;
+      staleInboxIds.push(meta.id);
+    }
+    if (staleInboxIds.length > 0) {
+      await archiveSessions(staleInboxIds);
+      await appendMarkdownLine(
+        CONTEXT_DIGEST_MD,
+        'Auto Maintenance',
+        `- ${dayKey}：自动归档 ${staleInboxIds.length} 条超过 ${INBOX_STALE_DAYS} 天未更新的收集箱任务。`,
+        { updateDigestTimestamp: true },
+      );
+    }
+
     // ── Pattern analysis: detect recurring themes for long-term project recommendations ──
     const allSessions = Array.isArray(sessions) ? sessions : [];
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -380,18 +430,27 @@ export async function scanDailySessionMaintenance(nowValue = new Date()) {
       );
     }
 
+    const allArchivedIds = [
+      ...digests.map((digest) => digest.sessionId),
+      ...doneSkillIds,
+      ...staleInboxIds,
+    ];
     const nextState = {
       lastDailySweepDate: dayKey,
       lastSweepAt: now.toISOString(),
-      archivedCount: digests.length,
-      archivedSessionIds: digests.map((digest) => digest.sessionId),
+      archivedCount: allArchivedIds.length,
+      archivedSessionIds: allArchivedIds,
+      doneSkillArchivedCount: doneSkillIds.length,
+      staleInboxArchivedCount: staleInboxIds.length,
       patterns,
     };
     await writeJsonAtomic(DAILY_MAINTENANCE_STATE_FILE, nextState);
     return {
       ran: true,
-      archivedCount: digests.length,
-      archivedSessionIds: nextState.archivedSessionIds,
+      archivedCount: allArchivedIds.length,
+      archivedSessionIds: allArchivedIds,
+      doneSkillArchivedCount: doneSkillIds.length,
+      staleInboxArchivedCount: staleInboxIds.length,
       patterns,
     };
   } finally {

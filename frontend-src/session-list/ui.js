@@ -261,11 +261,14 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
         }))
     : [];
 
+  const currentTab = typeof getActiveSidebarTabForList === "function" ? getActiveSidebarTabForList() : "";
   const removeFromProjectAction = isLtMember ? {
     key: "remove-from-project",
-    label: "移出长期项目",
+    label: "移出项目",
+    icon: "unarchive",
     className: "remove-from-project",
-    inlineHidden: true,
+    // Show inline in Tasks tab (where users manage tasks); hidden in overflow elsewhere
+    inlineHidden: currentTab !== "sessions",
     onClick(event, currentSession) {
       event?.preventDefault?.();
       if (!currentSession?.id) return;
@@ -1043,23 +1046,15 @@ function renderArchivedSection() {
       });
     }
   });
-  header.querySelector("[data-action='clear-archived']")?.addEventListener("click", (e) => {
+  header.querySelector("[data-action='clear-archived']")?.addEventListener("click", async (e) => {
     e.stopPropagation();
     if (archivedSessions.length === 0) return;
-    const btn = e.currentTarget;
-    // Two-click confirm: first click arms the button, second click fires
-    if (btn.dataset.confirmArmed !== "1") {
-      btn.dataset.confirmArmed = "1";
-      btn.textContent = t("sidebar.clearArchivedConfirm") || `确认清空 ${archivedSessions.length} 条？`;
-      setTimeout(() => {
-        if (btn.dataset.confirmArmed === "1") {
-          delete btn.dataset.confirmArmed;
-          btn.textContent = t("sidebar.clearArchived") || "清空";
-        }
-      }, 3000);
-      return;
-    }
-    delete btn.dataset.confirmArmed;
+    const msg = (t("sidebar.clearArchivedConfirm") || `永久删除全部归档任务？此操作不可恢复。`)
+      .replace("{count}", archivedSessions.length);
+    const confirmed = typeof showConfirm === "function"
+      ? await showConfirm(msg, { title: "清空归档", danger: true, confirmLabel: "全部删除", cancelLabel: "取消" })
+      : window.confirm(msg);
+    if (!confirmed) return;
     void fetchJsonOrRedirect("/api/sessions/archived/bulk", { method: "DELETE" })
       .then((data) => {
         const ids = data?.deletedSessionIds || [];
@@ -1068,6 +1063,7 @@ function renderArchivedSection() {
       })
       .catch((err) => {
         console.error("[sessions] Failed to clear archived:", err?.message || err);
+        if (typeof showAlert === "function") showAlert(t("action.deleteFailed") || "清空归档失败");
       });
   });
   section.appendChild(header);
