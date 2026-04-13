@@ -39,9 +39,33 @@ MelodySync has a built-in GTD task system for recurring, scheduled, and waiting 
 API base: `$MELODYSYNC_CHAT_BASE_URL` (default: `http://127.0.0.1:{{CHAT_PORT}}`).
 
 Task kinds:
-- `recurring_task` — AI 循环执行的长期任务
-- `scheduled_task` — AI 在固定时间点执行一次的短期任务
-- `waiting_task` — 人类触发的等待任务
+- `recurring_task` — AI 循环执行的长期任务（必须有 `recurring` 配置）
+- `scheduled_task` — AI 在固定时间点执行一次（必须有 `scheduled.runAt`）
+- `waiting_task` — 人类触发的等待任务（无时间点）
 - `skill` — 手动快捷按钮
 
-When the user asks to set up automation or a persistent workflow, use this system — the full API reference and task lifecycle rules will be provided in context when relevant.
+**Quick API reference** (base: `$MELODYSYNC_CHAT_BASE_URL`, default `http://127.0.0.1:{{CHAT_PORT}}`):
+
+```bash
+# Create recurring task
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" -H "Content-Type: application/json" -d '{
+  "name": "任务名", "folder": "~/.melodysync/runtime", "tool": "claude",
+  "persistent": {"kind":"recurring_task","digest":{"title":"任务名","summary":"摘要"},
+    "execution":{"mode":"in_place","runPrompt":"每次执行做什么"},
+    "recurring":{"cadence":"daily","timeOfDay":"09:00","timezone":"Asia/Shanghai"}}}'
+
+# Create waiting task
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" -H "Content-Type: application/json" -d '{
+  "name": "等待：描述", "folder": "~/.melodysync/runtime", "tool": "claude",
+  "persistent": {"kind":"waiting_task","digest":{"title":"等待：描述","summary":"等待原因"},
+    "execution":{"mode":"in_place","runPrompt":"人类触发后做什么"}}}'
+
+# Mark current session done
+curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/$MELODYSYNC_SESSION_ID" \
+  -H "Content-Type: application/json" -d '{"workflowState":"done"}'
+
+# List tasks
+curl -s "$MELODYSYNC_CHAT_BASE_URL/api/sessions?view=refs"
+```
+
+Full API details (scheduled tasks, skills, project membership, triggers) are injected when working in a persistent task context. When in doubt, create a `waiting_task` to capture the intent and refine later.

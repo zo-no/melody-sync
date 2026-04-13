@@ -375,9 +375,9 @@ export async function scanDailySessionMaintenance(nowValue = new Date()) {
       // Skip if it has an active workflow state
       const state = trimText(meta?.workflowState || '').toLowerCase();
       if (state && !['', 'pending', 'idle'].includes(state)) continue;
-      // Skip project roots
-      const role = trimText(meta?.taskPoolMembership?.longTerm?.role || '').toLowerCase();
-      if (role === 'project') continue;
+      // Skip sessions that belong to a long-term project (project roots AND members)
+      const projectSessionId = trimText(meta?.taskPoolMembership?.longTerm?.projectSessionId || '');
+      if (projectSessionId) continue;
       // Check last updated time
       const lastUpdated = parseDate(meta?.updatedAt || meta?.lastEventAt || meta?.created);
       if (!lastUpdated || lastUpdated.getTime() > staleCutoff.getTime()) continue;

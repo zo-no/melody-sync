@@ -9,6 +9,7 @@ import {
   projectTaskCardFromSessionState,
 } from '../../session/task-card.mjs';
 import { getOrPrepareForkContext } from './fork-context-service.mjs';
+import { PERSISTENT_GROUPS } from '../../session/persistent-kind.mjs';
 
 export function resolveResumeState(toolId, session, options = {}) {
   if (options.freshThread === true) {
@@ -62,8 +63,11 @@ function resolveIncludeGtdDocs(session) {
   // Already a persistent task — full API needed to manage it
   if (session.persistent && typeof session.persistent === 'object') return true;
   // Group name signals the user is working in a GTD context
-  const group = String(session.group || '').trim().toLowerCase();
-  if (['长期任务', '短期任务', '等待任务', 'gtd', 'persistent'].includes(group)) return true;
+  // Use PERSISTENT_GROUPS (canonical set) + legacy/alias values
+  const group = String(session.group || '').trim();
+  if (PERSISTENT_GROUPS.has(group)) return true;
+  const groupLower = group.toLowerCase();
+  if (['gtd', 'persistent'].includes(groupLower)) return true;
   return false;
 }
 

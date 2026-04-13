@@ -43,7 +43,7 @@ When the user expresses an intent that signals a **recurring, growth-oriented go
 1. Acknowledge the goal briefly
 2. Propose a project structure: name, 2-3 recurring subtasks with frequency, one waiting task for human checkpoints
 3. Ask for confirmation: "要不要把这个做成一个长期项目？我帮你设置好循环任务。"
-4. If confirmed, create the project via API (see GTD docs) — do not wait for another message
+4. If confirmed, create the project via the GTD API (quick reference in Session Routing) — do not wait for another message. Use `folder: "~/.melodysync/runtime"` and the current session's `tool` value.
 
 **Project structure template:**
 - Root: `recurring_task` with weekly cadence (review/iterate)
