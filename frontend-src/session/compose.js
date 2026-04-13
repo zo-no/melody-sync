@@ -1602,9 +1602,7 @@ function switchTab(tab, { syncState = true } = {}) {
         return;
       }
       // Same session already attached — just show the panel directly
-      if (typeof window.showLongTermProjectPanel === "function") {
-        window.showLongTermProjectPanel(targetSession.id);
-      }
+      window.showLongTermProjectPanel?.(targetSession.id);
     }
     if (typeof renderSessionList === "function") renderSessionList();
     if (syncState) syncBrowserState();
@@ -1647,7 +1645,7 @@ globalThis.showLongTermProjectPanel = (projectId) => {
   // Only show daily summary for 日常任务 (the system project that manages daily tasks)
   // Not for other system projects like MelodySync 系统管理
   const isDailyProject = String(selectedProject?.persistent?.digest?.title || selectedProject?.name || "") === "日常任务"
-    || selectedLongTermProjectId === (typeof getSystemProjectId === "function" ? getSystemProjectId() : "");
+    || selectedLongTermProjectId === (globalThis.getSystemProjectId?.() || "");
   if (isDailyProject && typeof fetchJsonOrRedirect === "function") {
     void fetchJsonOrRedirect("/api/daily-summary").then((data) => {
       if (!data?.worklog || !longTermWorkspaceDetail) return;
@@ -1711,9 +1709,7 @@ globalThis.showLongTermProjectPanel = (projectId) => {
         }
       }).catch(() => {});
   }
-  if (typeof window.MelodySyncWorkbench?.refreshTaskMapForProject === "function") {
-    window.MelodySyncWorkbench.refreshTaskMapForProject(selectedLongTermProjectId);
-  }
+  window.MelodySyncWorkbench?.refreshTaskMapForProject?.(selectedLongTermProjectId);
 };
 
 globalThis.hideLongTermProjectPanel = () => {
@@ -1816,9 +1812,7 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
         },
       }),
     }).then(() => {
-      if (typeof window.MelodySyncAppState?.refresh === "function") {
-        window.MelodySyncAppState.refresh();
-      }
+      window.MelodySyncAppState?.refresh?.();
     }).catch((err) => {
       console.error("[workspace] Failed to update workspace:", err);
     });
@@ -1837,9 +1831,7 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
 
   if (action === "open") {
     // Open this project's control panel
-    if (typeof window.showLongTermProjectPanel === "function") {
-      window.showLongTermProjectPanel(projectId);
-    }
+    window.showLongTermProjectPanel?.(projectId);
     return;
   }
 
@@ -1899,7 +1891,7 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ persistent: null }),
     }).then(() => {
-      if (typeof window.hideLongTermProjectPanel === "function") window.hideLongTermProjectPanel();
+      window.hideLongTermProjectPanel?.();
       if (typeof switchTab === "function") switchTab("sessions");
       if (typeof renderSessionList === "function") renderSessionList();
     }).catch((err) => {
@@ -1918,23 +1910,42 @@ longTermWorkspaceDetail?.addEventListener("click", (event) => {
             && String(mem?.role || "").trim().toLowerCase() === "member";
         })
       : [];
-    // Demote all member sessions (clear project membership → they go back to tasks tab)
-    // then archive the project root itself
+    const projectName = getLongTermWorkspaceProjectTitle(projectSession);
+    // Ask user how to handle member tasks: delete with project or reclaim to inbox
+    let deleteMembersChoice = false;
+    if (currentMembers.length > 0) {
+      deleteMembersChoice = window.confirm(
+        `「${projectName}」有 ${currentMembers.length} 条成员任务。\n\n确定 → 连同成员任务一起永久删除\n取消 → 成员任务回收到日常任务收集箱`
+      );
+    } else {
+      if (!window.confirm(`解散项目「${projectName}」？项目本身将被归档。`)) return;
+    }
     void Promise.all([
-      ...currentMembers.map((s) =>
-        fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, {
+      ...currentMembers.map((s) => {
+        if (deleteMembersChoice) {
+          // Backend requires archived=true before DELETE
+          return fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ archived: true }),
+          }).then(() =>
+            fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, { method: "DELETE" })
+          ).catch((err) => console.error(`[lt] delete member ${s.id} failed:`, err));
+        }
+        // Reclaim: clear project membership → goes back to inbox
+        return fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ taskPoolMembership: { longTerm: null } }),
-        }).catch((err) => console.error(`[lt] demote member ${s.id} failed:`, err))
-      ),
+        }).catch((err) => console.error(`[lt] demote member ${s.id} failed:`, err));
+      }),
       fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ archived: true }),
       }).catch((err) => console.error(`[lt] archive root failed:`, err)),
     ]).then(() => {
-      if (typeof window.hideLongTermProjectPanel === "function") window.hideLongTermProjectPanel();
+      window.hideLongTermProjectPanel?.();
       if (typeof switchTab === "function") switchTab("sessions");
       if (typeof renderSessionList === "function") renderSessionList();
     });
