@@ -47,14 +47,21 @@ Task kinds:
 **Quick API reference** (base: `$MELODYSYNC_CHAT_BASE_URL`, default `http://127.0.0.1:{{CHAT_PORT}}`):
 
 ```bash
-# Create recurring task
+# Create recurring task (cadence: hourly / daily / weekly)
 curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" -H "Content-Type: application/json" -d '{
   "name": "任务名", "folder": "~/.melodysync/runtime", "tool": "claude",
   "persistent": {"kind":"recurring_task","digest":{"title":"任务名","summary":"摘要"},
     "execution":{"mode":"in_place","runPrompt":"每次执行做什么"},
     "recurring":{"cadence":"daily","timeOfDay":"09:00","timezone":"Asia/Shanghai"}}}'
 
-# Create waiting task
+# Create scheduled task (must have runAt)
+curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" -H "Content-Type: application/json" -d '{
+  "name": "任务名", "folder": "~/.melodysync/runtime", "tool": "claude",
+  "persistent": {"kind":"scheduled_task","digest":{"title":"任务名","summary":"摘要"},
+    "execution":{"mode":"in_place","runPrompt":"执行时做什么"},
+    "scheduled":{"runAt":"2026-04-20T09:00:00.000Z","timezone":"Asia/Shanghai"}}}'
+
+# Create waiting task (no time point — human triggers)
 curl -s -X POST "$MELODYSYNC_CHAT_BASE_URL/api/sessions" -H "Content-Type: application/json" -d '{
   "name": "等待：描述", "folder": "~/.melodysync/runtime", "tool": "claude",
   "persistent": {"kind":"waiting_task","digest":{"title":"等待：描述","summary":"等待原因"},
@@ -68,4 +75,4 @@ curl -s -X PATCH "$MELODYSYNC_CHAT_BASE_URL/api/sessions/$MELODYSYNC_SESSION_ID"
 curl -s "$MELODYSYNC_CHAT_BASE_URL/api/sessions?view=refs"
 ```
 
-Full API details (scheduled tasks, skills, project membership, triggers) are injected when working in a persistent task context. When in doubt, create a `waiting_task` to capture the intent and refine later.
+Full API details (skills, project membership, promote-to-persistent, triggers) are injected when working in a persistent task context. When in doubt, create a `waiting_task` to capture the intent and refine later.
