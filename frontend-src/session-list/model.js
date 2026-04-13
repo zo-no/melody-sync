@@ -252,15 +252,7 @@
       options?.templateGroups || getSessionGroupingTemplateGroups(),
     );
     const explicitGroupValue = trimText(session?.group);
-    const fallbackGroupValue = persistentKind === "skill"
-      ? "快捷按钮"
-      : (persistentKind === "recurring_task"
-        ? "长期任务"
-        : (persistentKind === "scheduled_task"
-          ? "短期任务"
-          : (persistentKind === "waiting_task"
-            ? "等待任务"
-            : "")));
+    const fallbackGroupValue = (globalThis.MelodySyncTaskTypeConstants?.KIND_GROUP_LABELS?.[persistentKind]) || "";
     const effectiveGroupValue = explicitGroupValue || fallbackGroupValue;
     const group = resolveTemplateTaskListGroup(effectiveGroupValue, templateGroups);
     const label = trimText(group?.label)
