@@ -1346,11 +1346,17 @@ function getTrackerPersistentActionButtons(session, {
   });
 
   if (!kind && longTermState?.lane === 'long-term' && longTermState?.role === 'member') {
-    // Already in a project — show upgrade options
+    // Already in a project — single entry to configure execution type
     return [
-      promoteToKind('recurring_task', isMobile ? '定时循环' : '升级为长期任务'),
-      promoteToKind('scheduled_task', isMobile ? '定时一次' : '升级为短期任务'),
-      promoteToKind('skill', isMobile ? '快捷按钮' : '设为快捷按钮'),
+      {
+        label: isMobile ? '设执行方式' : '设置执行方式',
+        secondary: true,
+        onClick: () => {
+          if (typeof window.MelodySyncWorkbench?.openPersistentEditor === 'function') {
+            window.MelodySyncWorkbench.openPersistentEditor({ mode: 'promote' });
+          }
+        },
+      },
     ];
   }
   if (!kind) {
@@ -3224,28 +3230,18 @@ function SessionListBucketSection({
           toggleBucket();
         }}
       >
-        {isSkillBucket
-          ? <span className="folder-bucket-skill-icon">⚡</span>
-          : <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
-        }
+        <SessionListChevron className="folder-chevron" iconHtml={chevronIconHtml} />
         <span className="folder-name">{String(skillLabel || '')}</span>
         <span className="folder-count">{bucketSessions.length}</span>
       </div>
-      <div className={`folder-group-items folder-group-bucket-items${isSkillBucket ? ' skill-buttons-grid' : ''}`} hidden={isCollapsed}>
+      <div className="folder-group-items folder-group-bucket-items" hidden={isCollapsed}>
         {bucketSessions.map((session) => (
-          isSkillBucket
-            ? <SkillButtonCard
-                key={`skill:${bucketKey}:${session?.id || Math.random()}`}
-                session={session}
-                createSessionItem={createSessionItem}
-                renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
-              />
-            : <SessionListItemMount
-                key={`bucket:${bucketKey}:${session?.id || Math.random()}`}
-                createSessionItem={createSessionItem}
-                session={session}
-                renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
-              />
+          <SessionListItemMount
+            key={`bucket:${bucketKey}:${session?.id || Math.random()}`}
+            createSessionItem={createSessionItem}
+            session={session}
+            renderKey={typeof getSessionRenderKey === 'function' ? getSessionRenderKey(session) : ''}
+          />
         ))}
       </div>
     </div>
@@ -3467,9 +3463,7 @@ function SessionListGroupSection({
               <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
               <div className="lt-project-card-title-group">
                 <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
-                {groupEntry?.isSystem && projectSummary ? (
-                  <span className="lt-project-card-subtitle">{projectSummary}</span>
-                ) : null}
+
               </div>
               {groupEntry?.isSystem ? <span className="lt-project-card-default-badge">默认</span> : null}
               <span className="lt-project-card-count">{memberCount}</span>
@@ -3488,9 +3482,7 @@ function SessionListGroupSection({
               }}
             >
               <div className="lt-project-card-body-text">
-                {projectSummary
-                  ? <div className="lt-project-card-desc">{projectSummary}</div>
-                  : <div className="lt-project-card-panel-hint">控制面板</div>}
+                <div className="lt-project-card-panel-hint">控制面板</div>
               </div>
               <span className="lt-project-card-panel-icon" aria-hidden="true">›</span>
             </div>

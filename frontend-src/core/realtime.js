@@ -183,13 +183,16 @@ async function dispatchAction(msg) {
       }
       case "archive":
       case "unarchive": {
-        const shouldArchive = msg.action === "archive";
-        const previousSession = applyOptimisticSessionArchiveState(msg.sessionId, shouldArchive);
+        // "archive" = mark as done (workflowState: "done")
+        // "unarchive" = undo done (clear workflowState)
+        const shouldMarkDone = msg.action === "archive";
+        const nextWorkflowState = shouldMarkDone ? "done" : "";
+        const previousSession = applyOptimisticSessionWorkflowState(msg.sessionId, nextWorkflowState);
         try {
           const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ archived: shouldArchive }),
+            body: JSON.stringify({ workflowState: nextWorkflowState }),
           });
           if (data.session) {
             const session = upsertSession(data.session) || data.session;
@@ -288,15 +291,17 @@ async function dispatchAction(msg) {
         const sessionName = typeof targetSession?.name === "string" && targetSession.name.trim()
           ? targetSession.name.trim()
           : t("session.defaultName");
-        const isArchived = targetSession?.archived === true;
-        // Custom confirm dialog (replaces window.confirm)
-        const confirmMsg = isArchived
-          ? (t("action.deleteArchivedConfirm") || `永久删除「${sessionName}」？此操作不可恢复。`).replace("{name}", sessionName)
-          : (t("action.deleteConfirm") || `会先把「${sessionName}」写入今日日记摘要，再永久删除该任务及全部相关会话数据。确定继续吗？`).replace("{name}", sessionName);
+        const _targetWf = String(targetSession?.workflowState || '').trim().toLowerCase();
+        const isArchived = _targetWf === 'done' || _targetWf === 'complete' || _targetWf === 'completed';
+        const confirmMsg = (isArchived
+          ? t("action.deleteArchivedConfirm")
+          : t("action.deleteConfirm")
+        ).replace("{name}", sessionName);
         const confirmed = typeof showConfirm === "function"
-          ? await showConfirm(confirmMsg, { title: t("action.delete") || "删除任务", danger: true })
+          ? await showConfirm(confirmMsg, { title: t("action.delete"), danger: true, confirmLabel: t("action.delete"), cancelLabel: t("action.cancel") })
           : window.confirm(confirmMsg);
         if (!confirmed) return true;
+        // Direct delete — no prerequisite needed
         const previousSession = applyOptimisticSessionDelete(msg.sessionId);
         try {
           const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
@@ -533,7 +538,7 @@ async function dispatchAction(msg) {
   } catch (error) {
     console.error("HTTP action failed:", error.message);
     if (msg?.action === "delete" && typeof alert === "function") {
-      if (typeof showAlert === "function") showAlert(error?.message || t("action.deleteFailed"), { title: t("action.deleteFailed") || "删除失败" });
+      if (typeof showAlert === "function") showAlert(error?.message || t("action.deleteFailed"), { title: t("action.deleteFailed") || t("action.deleteFailed") });
       else alert(error?.message || t("action.deleteFailed"));
     }
     return false;
@@ -544,13 +549,13 @@ function buildOptimisticArchivedSession(session, archived) {
   if (!session?.id) return null;
   const next = { ...session };
   if (archived) {
-    next.archived = true;
-    next.archivedAt = next.archivedAt || new Date().toISOString();
+    // Mark as done via workflowState (archived field is no longer used)
+    next.workflowState = "done";
     delete next.pinned;
     return next;
   }
-  delete next.archived;
-  delete next.archivedAt;
+  // Undo done
+  next.workflowState = "";
   return next;
 }
 
@@ -560,9 +565,11 @@ function applyOptimisticSessionArchiveState(sessionId, archived) {
   const previous = sessions[index];
   const next = buildOptimisticArchivedSession(previous, archived);
   if (!next) return null;
-  if (previous?.archived !== true && archived) {
+  const _prevWf = String(previous?.workflowState || '').trim().toLowerCase();
+  const _wasDone = _prevWf === 'done' || _prevWf === 'complete' || _prevWf === 'completed';
+  if (!_wasDone && archived) {
     archivedSessionCount += 1;
-  } else if (previous?.archived === true && !archived) {
+  } else if (_wasDone && !archived) {
     archivedSessionCount = Math.max(0, archivedSessionCount - 1);
   }
   sessions[index] = next;
@@ -644,7 +651,10 @@ function removeSessionsFromClientState(sessionIds = []) {
   const shouldClearCurrent = Boolean(currentSessionId && targetIds.has(currentSessionId));
   if (!removedSessions.length && !shouldClearCurrent) return [];
   sessions = nextSessions;
-  const removedArchivedCount = removedSessions.filter((session) => session?.archived === true).length;
+  const removedArchivedCount = removedSessions.filter((session) => {
+    const wf = String(session?.workflowState || '').trim().toLowerCase();
+    return wf === 'done' || wf === 'complete' || wf === 'completed';
+  }).length;
   if (removedArchivedCount > 0) {
     archivedSessionCount = Math.max(0, archivedSessionCount - removedArchivedCount);
   }
@@ -673,9 +683,13 @@ function restoreOptimisticSessionSnapshot(session) {
   if (!session?.id) return;
   const index = sessions.findIndex((entry) => entry.id === session.id);
   const current = index === -1 ? null : sessions[index];
-  if (current?.archived !== true && session.archived === true) {
+  const _curWf = String(current?.workflowState || '').trim().toLowerCase();
+  const _newWf = String(session?.workflowState || '').trim().toLowerCase();
+  const _curDone = _curWf === 'done' || _curWf === 'complete' || _curWf === 'completed';
+  const _newDone = _newWf === 'done' || _newWf === 'complete' || _newWf === 'completed';
+  if (!_curDone && _newDone) {
     archivedSessionCount += 1;
-  } else if (current?.archived === true && session.archived !== true) {
+  } else if (_curDone && !_newDone) {
     archivedSessionCount = Math.max(0, archivedSessionCount - 1);
   }
   if (index === -1) {
@@ -731,7 +745,8 @@ function handleWsMessage(msg) {
 
 // ---- Status ----
 function updateStatus(connState, session = getCurrentSession()) {
-  const archived = session?.archived === true;
+  const _wfState = String(session?.workflowState || '').trim().toLowerCase();
+  const archived = _wfState === 'done' || _wfState === 'complete' || _wfState === 'completed';
   if (connState === "disconnected") {
     statusDot.className = "status-dot";
     statusText.textContent = t("status.reconnecting");

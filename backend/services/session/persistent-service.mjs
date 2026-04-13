@@ -547,6 +547,15 @@ export function createSessionPersistentService({
     if (session.archived === true) {
       throw new Error('Archived sessions cannot be executed');
     }
+    // Clear workflowState=done before re-running — persistent sessions are always active
+    const currentWf = String(session?.workflowState || '').trim().toLowerCase();
+    if (currentWf === 'done' || currentWf === 'complete' || currentWf === 'completed') {
+      await mutateSessionMeta(id, (draft) => {
+        delete draft.workflowState;
+        delete draft.workflowCompletedAt;
+        return true;
+      });
+    }
     if (persistent.state !== 'active' && options.triggerKind && options.triggerKind !== 'manual') {
       throw new Error('Persistent task is paused');
     }

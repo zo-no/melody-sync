@@ -206,10 +206,10 @@ function getTaskBranchStatusLabel(session) {
   const status = typeof model?.getBranchTaskStatus === "function"
     ? model.getBranchTaskStatus(session)
     : "";
-  if (status === "parked") return "已挂起";
-  if (status === "merged") return "已带回主线";
-  if (["resolved", "done", "closed"].includes(status)) return "已关闭";
-  if (status === "active") return "进行中";
+  if (status === "parked") return t("status.parked");
+  if (status === "merged") return t("status.merged");
+  if (["resolved", "done", "closed"].includes(status)) return t("status.closed");
+  if (status === "active") return t("status.active");
   return "";
 }
 
@@ -242,10 +242,10 @@ function getTaskClusterBranchCountEntries(cluster, currentSessionId = "") {
       return "inbox";
     };
     const bucketDefs = tc?.BUCKET_DEFS || [
-      { key: "long_term", label: "长期任务" },
-      { key: "short_term", label: "短期任务" },
-      { key: "waiting", label: "等待任务" },
-      { key: "inbox", label: "收集箱" },
+      { key: "long_term", label: t("bucket.longTerm") },
+      { key: "short_term", label: t("bucket.shortTerm") },
+      { key: "waiting", label: t("bucket.waiting") },
+      { key: "inbox", label: t("bucket.inbox") },
     ];
     const counters = new Map();
     for (const entry of branchSessions) {
@@ -282,16 +282,16 @@ function getTaskClusterBranchCountEntries(cluster, currentSessionId = "") {
   }
   const entries = [];
   if (counters.active > 0) {
-    entries.push({ key: "active", label: "进行中", count: counters.active, className: "status-running" });
+    entries.push({ key: "active", label: t("status.active"), count: counters.active, className: "status-running" });
   }
   if (counters.parked > 0) {
-    entries.push({ key: "parked", label: "挂起", count: counters.parked, className: "status-parked" });
+    entries.push({ key: "parked", label: t("status.parked"), count: counters.parked, className: "status-parked" });
   }
   if (counters.merged > 0) {
-    entries.push({ key: "merged", label: "带回主线", count: counters.merged, className: "status-done" });
+    entries.push({ key: "merged", label: t("status.merged"), count: counters.merged, className: "status-done" });
   }
   if (counters.closed > 0) {
-    entries.push({ key: "closed", label: "已关闭", count: counters.closed, className: "status-done" });
+    entries.push({ key: "closed", label: t("status.closed"), count: counters.closed, className: "status-done" });
   }
   return entries;
 }
@@ -301,12 +301,12 @@ function summarizeTaskClusterBranchCounts(cluster, currentSessionId = "") {
   if (branchSessions.length === 0) return "";
   const currentBranch = getTaskClusterCurrentBranchSession(cluster, currentSessionId);
   if (currentBranch?.id && currentBranch.id !== String(cluster?.mainSessionId || "").trim()) {
-    return `当前子任务：${toSingleGoalLabel(getPreferredSessionDisplayName(currentBranch), 28)}`;
+    return `${t("branch.currentTask") || "当前子任务："}${toSingleGoalLabel(getPreferredSessionDisplayName(currentBranch), 28)}`;
   }
   const parts = getTaskClusterBranchCountEntries(cluster, currentSessionId)
     .map((entry) => `${entry.label} ${entry.count}`);
   if (parts.length > 0) return parts.join(" · ");
-  return `包含 ${branchSessions.length} 条子任务`;
+  return (t("branch.subTaskCount") || "包含 {n} 条子任务").replace("{n}", branchSessions.length);
 }
 
 function looksLikeVisibleTaskTitle(session, text) {
@@ -360,7 +360,7 @@ function getSessionTaskPreview(session) {
       || String(taskCard?.mainGoal || "").trim(),
       30,
     );
-    hintLine = [branchStatusLabel, branchFrom ? `来自主线：${branchFrom}` : ""].filter(Boolean).join(" · ");
+    hintLine = [branchStatusLabel, branchFrom ? `${t("branch.fromMain") || "来自主线："}${branchFrom}` : ""].filter(Boolean).join(" · ");
     if (branchStatusLabel) {
       hintSegments.push({
         variant: "status",
@@ -371,7 +371,7 @@ function getSessionTaskPreview(session) {
     if (branchFrom) {
       hintSegments.push({
         variant: "text",
-        text: `来自主线：${branchFrom}`,
+        text: `${t("branch.fromMain") || "来自主线："}${branchFrom}`,
       });
     }
   } else if (taskCluster) {
@@ -437,34 +437,10 @@ function renderSessionTaskPreviewLineHtml(lineClassName, lineText, segments = []
   return `<div class="${classNames}" title="${esc(lineText)}">${body.join("")}</div>`;
 }
 
-function renderSessionTaskPreviewHtml(session) {
-  const preview = getSessionTaskPreview(session);
-  const parts = [];
-  if (preview.summaryLine) {
-    // Status chips are shown in the title row; only render text segments here
-    const textOnlySegments = Array.isArray(preview.summarySegments)
-      ? preview.summarySegments.filter((s) => s?.variant !== "status")
-      : [];
-    // Skip the summary line if it only contained status chips (no text segments)
-    const hasTextContent = textOnlySegments.length > 0
-      || !Array.isArray(preview.summarySegments)
-      || preview.summarySegments.length === 0;
-    if (hasTextContent) {
-      parts.push(renderSessionTaskPreviewLineHtml(
-        "session-item-summary",
-        preview.summaryLine,
-        textOnlySegments.length > 0 ? textOnlySegments : preview.summarySegments,
-      ));
-    }
-  }
-  if (preview.hintLine) {
-    parts.push(renderSessionTaskPreviewLineHtml(
-      "session-item-hint",
-      preview.hintLine,
-      preview.hintSegments,
-    ));
-  }
-  return parts.join("");
+function renderSessionTaskPreviewHtml(_session) {
+  // Task preview lines (checkpoint, sub-task hints) are not shown in the sidebar.
+  // Users read this information in the workbench task card.
+  return "";
 }
 
 function getSessionDisplayRenderKey(session) {
@@ -472,6 +448,8 @@ function getSessionDisplayRenderKey(session) {
     ? (getDisplaySession(session) || session)
     : session;
   const preview = getSessionTaskPreview(displaySession);
+  // Include currentSessionId so that when the active session changes,
+  // all items re-render and the active highlight updates correctly
   return [
     String(displaySession?.id || "").trim(),
     getSessionDisplayName(displaySession),
@@ -480,6 +458,7 @@ function getSessionDisplayRenderKey(session) {
     String(preview?.hintLine || "").trim(),
     String(displaySession?.activity?.run?.state || "").trim().toLowerCase(),
     String(displaySession?.workflowState || "").trim().toLowerCase(),
+    String(currentSessionId || "").trim(),
   ].join("|");
 }
 
@@ -779,24 +758,9 @@ function buildSessionActionConfigs(session, options = {}) {
   const isSkillTask = ["skill", "quick_action", "quick-action", "快捷按钮", "快捷动作"].includes(rawBucket)
     || ["skill", "quick_action", "quick-action", "快捷按钮", "快捷动作"].includes(persistentKind);
   const hideCompletionCircle = isAiDrivenTask || isSkillTask;
-  if (isArchivedSession) {
-    return [
-      {
-        key: "restore",
-        action: "unarchive",
-        label: t("action.restore"),
-        icon: "unarchive",
-        className: "restore",
-      },
-      {
-        key: "delete",
-        action: "delete",
-        label: t("action.delete"),
-        icon: "trash",
-        className: "delete",
-      },
-    ];
-  }
+  // Archived sessions (internal state, not shown to user as "archive") — restore only
+  // All sessions use the same action list — TodoList style
+  // isDoneSession controls whether the circle shows ✓ (undo) or ○ (complete)
   return [
     {
       key: session?.pinned === true ? "unpin" : "pin",
@@ -818,13 +782,6 @@ function buildSessionActionConfigs(session, options = {}) {
       icon: "check",
       className: "complete",
     },
-    {
-      key: "archive",
-      action: "archive",
-      label: t("action.archive"),
-      icon: "archive",
-      className: "archive",
-    },
     hasUnreadUpdate ? {
       key: "acknowledge",
       action: "acknowledge",
@@ -838,13 +795,13 @@ function buildSessionActionConfigs(session, options = {}) {
         return markSessionReviewed(currentSession, { sync: true, render: true });
       },
     } : null,
+    // Every task has delete — one step, confirm dialog, permanent
     {
       key: "delete",
       action: "delete",
       label: t("action.delete"),
       icon: "trash",
       className: "delete",
-      inlineHidden: true,  // Hidden from inline bar; shown in overflow "more" menu only
     },
   ].filter(Boolean);
 }
@@ -924,12 +881,19 @@ function createActiveSessionItem(session, options = {}) {
   const leadingActionHtml = leadingAction
     ? renderSessionActionButtonHtml(session, leadingAction, { leading: true })
     : "";
-  // inlineHidden actions are hidden from the inline bar but shown in the overflow menu
-  const inlineTrailingConfigs = trailingActionConfigs.filter((entry) => !entry?.inlineHidden);
+  // inlineHidden actions are hidden from the inline bar but shown in the overflow menu.
+  // Exception: if the overflow would contain only 1 action (and nothing inline), show it inline directly.
+  const overflowOnlyConfigs = trailingActionConfigs.filter((entry) => entry?.inlineHidden);
+  const visibleInlineConfigs = trailingActionConfigs.filter((entry) => !entry?.inlineHidden);
+  // Promote single-overflow-item to inline when there are no other inline actions
+  const promoteOverflowInline = overflowOnlyConfigs.length === 1 && visibleInlineConfigs.length === 0;
+  const inlineTrailingConfigs = promoteOverflowInline
+    ? overflowOnlyConfigs
+    : visibleInlineConfigs;
   const actionsHtml = inlineTrailingConfigs
     .map((entry) => renderSessionActionButtonHtml(session, entry))
     .join("");
-  const hasOverflowActions = trailingActionConfigs.some((entry) => entry?.inlineHidden);
+  const hasOverflowActions = !promoteOverflowInline && overflowOnlyConfigs.length > 0;
   const compactActions = (options.compactActions === true || hasOverflowActions) && trailingActionConfigs.length > 0;
   const compactActionsLabel = esc(
     typeof options.compactActionsLabel === "string" && options.compactActionsLabel.trim()

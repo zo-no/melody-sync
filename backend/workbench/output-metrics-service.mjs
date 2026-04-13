@@ -530,7 +530,11 @@ export function buildWorkbenchOutputMetrics(state, sessions, options = {}) {
   const sessionMetrics = (Array.isArray(sessions) ? sessions : [])
     .filter((session) => session?.id)
     .map((session) => buildSessionMetricRecord(session, state, sessionScopeIndex))
-    .filter((entry) => entry.archived !== true);
+    .filter((entry) => {
+      if (entry.archived === true) return false;
+      const wf = String(entry?.workflowState || '').trim().toLowerCase();
+      return wf !== 'done' && wf !== 'complete' && wf !== 'completed';
+    });
   const taskSessionMetrics = sessionMetrics.filter((entry) => (
     !entry.persistentKind
     && entry.scope === scope

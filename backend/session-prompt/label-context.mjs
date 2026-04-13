@@ -224,7 +224,11 @@ function buildActiveSessionCatalogPrompt(sessions, currentSessionId) {
   if (!Array.isArray(sessions)) return '';
 
   const relevant = sessions
-    .filter((session) => session && session.id !== currentSessionId && session.archived !== true)
+    .filter((session) => {
+      if (!session || session.id === currentSessionId || session.archived === true) return false;
+      const wf = String(session?.workflowState || '').trim().toLowerCase();
+      return wf !== 'done' && wf !== 'complete' && wf !== 'completed';
+    })
     .map((session) => ({
       id: session.id,
       group: normalizeSessionGroup(session.group || ''),

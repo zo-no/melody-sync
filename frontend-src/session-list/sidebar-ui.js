@@ -360,7 +360,7 @@ async function saveSessionGroupingTemplatePopover(label = "") {
   if (typeof window.saveTaskListTemplateGroups !== "function") {
     return {
       ok: false,
-      reason: t("sidebar.grouping.saveFailed") || "文件夹保存失败。",
+      reason: t("sidebar.grouping.saveFailed") || t("sidebar.grouping.saveFailed"),
     };
   }
   const nextLabel = normalizeSessionGroupingTemplateGroupsForSidebar([label])[0] || "";
@@ -368,13 +368,13 @@ async function saveSessionGroupingTemplatePopover(label = "") {
   if (!nextLabel) {
     return {
       ok: false,
-      reason: "请输入文件夹名称。",
+      reason: t("sidebar.grouping.folderNameRequired"),
     };
   }
   if (currentGroups.some((entry) => String(entry || "").trim().toLowerCase() === nextLabel.trim().toLowerCase())) {
     return {
       ok: false,
-      reason: "这个文件夹已经存在。",
+      reason: t("sidebar.grouping.folderExists"),
     };
   }
   const nextGroups = normalizeSessionGroupingTemplateGroupsForSidebar([
@@ -399,7 +399,7 @@ async function saveSessionGroupingTemplatePopover(label = "") {
     console.warn("[sessions] Failed to save task list template groups:", error?.message || error);
     return {
       ok: false,
-      reason: t("sidebar.grouping.saveFailed") || "文件夹保存失败。",
+      reason: t("sidebar.grouping.saveFailed") || t("sidebar.grouping.saveFailed"),
     };
   }
 }
@@ -441,7 +441,7 @@ function syncSessionGroupingControls() {
   const summaryEl = ensureSidebarGroupingSummaryEl();
   if (sidebarBranchVisibilityToggleBtn) {
     // Eye button: show all tasks (including other projects) vs only daily + unassigned
-    const label = branchesHidden ? "显示其他项目任务" : "隐藏其他项目任务";
+    const label = branchesHidden ? t("sidebar.branchVisibility.show") : t("sidebar.branchVisibility.hide");
     const iconName = branchesHidden ? "eye-off" : "eye";
     const iconMarkup = window.MelodySyncIcons?.render?.(iconName);
     sidebarBranchVisibilityToggleBtn.innerHTML = iconMarkup || "";

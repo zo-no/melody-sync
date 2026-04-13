@@ -207,7 +207,15 @@ export function createSessionQueryHelpers({
           ? shouldIncludeSessionInPrimaryTaskList(meta)
           : true
       ))
-      .filter((meta) => includeArchived || !meta.archived)
+      .filter((meta) => {
+        if (includeArchived) return true;
+        if (meta.archived) return false;
+        // Persistent sessions (skills, recurring tasks) are always active regardless of workflowState
+        const persistentKind = String(meta?.persistent?.kind || '').trim().toLowerCase();
+        if (persistentKind === 'skill' || persistentKind === 'recurring_task' || persistentKind === 'scheduled_task' || persistentKind === 'waiting_task') return true;
+        const wf = String(meta?.workflowState || '').trim().toLowerCase();
+        return wf !== 'done' && wf !== 'complete' && wf !== 'completed';
+      })
       .filter((meta) => !normalizedSourceId || resolveSessionSourceId(meta) === normalizedSourceId)
       .sort((a, b) => (
         getSessionPinSortRank(b) - getSessionPinSortRank(a)

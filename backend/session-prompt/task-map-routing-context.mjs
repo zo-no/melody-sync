@@ -147,6 +147,8 @@ function isGenericGroup(group) {
 
 function isMeaningfulRootSession(session = null) {
   if (!isRootSession(session) || session?.archived === true) return false;
+  const wf = String(session?.workflowState || '').trim().toLowerCase();
+  if (wf === 'done' || wf === 'complete' || wf === 'completed') return false;
   const title = getSessionTitle(session);
   const normalizedTitle = normalizeComparableText(title);
   if (!normalizedTitle || GENERIC_TITLE_KEYS.has(normalizedTitle)) {
@@ -256,6 +258,8 @@ function countSessionsInMap(sessions = [], rootSessionId = '') {
   if (!normalizedRootSessionId) return 0;
   return (Array.isArray(sessions) ? sessions : []).filter((session) => {
     if (!session?.id || session.archived === true) return false;
+    const wf = String(session?.workflowState || '').trim().toLowerCase();
+    if (wf === 'done' || wf === 'complete' || wf === 'completed') return false;
     return getSessionRootSessionId(session) === normalizedRootSessionId;
   }).length;
 }

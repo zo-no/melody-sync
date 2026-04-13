@@ -96,10 +96,12 @@ export async function deleteAllArchivedSessionsForHttp() {
   const metas = await loadSessionsMeta();
   const archivedIds = metas
     .filter((s) => {
-      if (!s?.archived) return false;
+      if (!s?.id) return false;
       // Never delete system project roots
       if (s?.taskListOrigin === 'system') return false;
-      return true;
+      if (s?.archived === true) return true;
+      const wf = String(s?.workflowState || '').trim().toLowerCase();
+      return wf === 'done' || wf === 'complete' || wf === 'completed';
     })
     .map((s) => s.id)
     .filter(Boolean);

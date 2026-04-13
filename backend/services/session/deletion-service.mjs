@@ -166,10 +166,12 @@ async function deleteSessionRuns(sessionIds = [], { onDeleteRun } = {}) {
 }
 
 export function assertSessionCanBeDeletedPermanently(session) {
-  if (session?.archived === true) return;
-  const error = new Error('请先归档任务，再删除。');
-  error.statusCode = 409;
-  throw error;
+  // Any session can be deleted directly — no archive prerequisite
+  if (!session?.id) {
+    const error = new Error('Session not found.');
+    error.statusCode = 404;
+    throw error;
+  }
 }
 
 export async function buildPermanentSessionDeletionPlan(rootSessionId, current) {

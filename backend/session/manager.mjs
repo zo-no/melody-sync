@@ -461,6 +461,7 @@ const {
   getSession: (sessionId, options = {}) => getSession(sessionId, options),
   listSessions: (options = {}) => listSessions(options),
   setSessionArchived: setSessionArchivedViaMetadataService,
+  updateSessionWorkflowState: (id, workflowState) => updateSessionWorkflowClassification(id, { workflowState }),
   statusEvent,
 });
 

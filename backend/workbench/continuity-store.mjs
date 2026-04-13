@@ -84,8 +84,12 @@ function getSessionClusterLineRole(session, context = null) {
 }
 
 export function buildTaskClusters(state, sessions = []) {
-  // Exclude archived sessions from the task map entirely
-  const allSessions = (Array.isArray(sessions) ? sessions : []).filter((session) => session?.id && !session?.archived);
+  // Exclude archived/done sessions from the task map entirely
+  const allSessions = (Array.isArray(sessions) ? sessions : []).filter((session) => {
+    if (!session?.id || session?.archived) return false;
+    const wf = String(session?.workflowState || '').trim().toLowerCase();
+    return wf !== 'done' && wf !== 'complete' && wf !== 'completed';
+  });
   const sessionMap = new Map(allSessions.map((session) => [session.id, session]));
   const visibleRootSessions = allSessions; // already filtered for archived at allSessions level
   const mainSessionsByGoal = new Map();

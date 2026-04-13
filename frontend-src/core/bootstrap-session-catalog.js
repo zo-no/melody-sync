@@ -174,13 +174,30 @@ function getArchivedSessionSortTime(session) {
   return Number.isFinite(time) ? time : 0;
 }
 
+function isSessionPersistent(session) {
+  const kind = String(session?.persistent?.kind || '').trim().toLowerCase();
+  return kind === 'skill' || kind === 'recurring_task' || kind === 'scheduled_task' || kind === 'waiting_task';
+}
+
 function getActiveSessions() {
-  return sessions.filter((session) => !session.archived);
+  return sessions.filter((session) => {
+    // Persistent sessions (skills, recurring tasks) always stay active regardless of workflowState
+    if (isSessionPersistent(session)) return true;
+    const wf = String(session?.workflowState || '').trim().toLowerCase();
+    const isDone = wf === 'done' || wf === 'complete' || wf === 'completed';
+    return !isDone;
+  });
 }
 
 function getArchivedSessions() {
+  // "Completed" sessions: workflowState === "done" (archived field is no longer used)
+  // Persistent sessions never appear in the completed list — they are always active
   return sessions
-    .filter((session) => session.archived)
+    .filter((session) => {
+      if (isSessionPersistent(session)) return false;
+      const wf = String(session?.workflowState || '').trim().toLowerCase();
+      return wf === 'done' || wf === 'complete' || wf === 'completed';
+    })
     .slice()
     .sort((a, b) => getArchivedSessionSortTime(b) - getArchivedSessionSortTime(a));
 }

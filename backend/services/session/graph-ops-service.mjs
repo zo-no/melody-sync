@@ -59,7 +59,11 @@ function resolveAssistantGraphSessionRef(ref, {
   ).trim();
   const lookupKey = normalizeAssistantGraphLookupKey(rawRef || sessionId);
   const allSessions = Array.isArray(sessions) ? sessions : [];
-  const activeSessions = allSessions.filter((session) => session?.archived !== true);
+  const activeSessions = allSessions.filter((session) => {
+    if (session?.archived === true) return false;
+    const wf = String(session?.workflowState || '').trim().toLowerCase();
+    return wf !== 'done' && wf !== 'complete' && wf !== 'completed';
+  });
   const searchPools = [activeSessions, allSessions];
 
   for (const pool of searchPools) {
@@ -102,6 +106,8 @@ function resolveAssistantGraphSessionRef(ref, {
 
 function isLongTermProjectRootSession(session) {
   if (!session || session.archived === true) return false;
+  const wf = String(session?.workflowState || '').trim().toLowerCase();
+  if (wf === 'done' || wf === 'complete' || wf === 'completed') return false;
   const sessionId = String(session.id || '').trim();
   const rootSessionId = String(session.rootSessionId || sessionId).trim();
   const parentSessionId = String(session?.sourceContext?.parentSessionId || '').trim();
@@ -140,6 +146,7 @@ export function createSessionGraphOpsService({
   getSession,
   listSessions,
   setSessionArchived,
+  updateSessionWorkflowState,
   statusEvent,
 }) {
   async function applySessionGraphOps(sessionId, graphOps = null, options = {}) {
@@ -270,7 +277,8 @@ export function createSessionGraphOpsService({
           console.warn('[assistant-graph-ops] refusing to archive the current session during its own finalization');
           continue;
         }
-        if (sourceSession.archived === true) {
+        const sourceWf = String(sourceSession?.workflowState || '').trim().toLowerCase();
+        if (sourceSession.archived === true || sourceWf === 'done' || sourceWf === 'complete' || sourceWf === 'completed') {
           continue;
         }
         const targetSession = operation?.target
@@ -281,12 +289,12 @@ export function createSessionGraphOpsService({
           })
           : null;
         const archiveLabel = targetSession
-          ? `已归档重复任务：并入「${getAssistantGraphSessionDisplayTitle(targetSession)}」`
-          : (operation.reason ? `已归档任务：${operation.reason}` : '已归档重复任务');
+          ? `已完成重复任务：并入「${getAssistantGraphSessionDisplayTitle(targetSession)}」`
+          : (operation.reason ? `已完成任务：${operation.reason}` : '已完成重复任务');
         await appendEvent(sourceSession.id, statusEvent(archiveLabel, {
           statusKind: 'assistant_graph_archived',
         }));
-        await setSessionArchived(sourceSession.id, true);
+        await updateSessionWorkflowState(sourceSession.id, 'done');
         historyChanged = true;
         sessionChanged = true;
         appliedCount += 1;

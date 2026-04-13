@@ -114,10 +114,16 @@ function isBranchCandidateHookPlan(plan, rootSessionId) {
     && trimText(plan?.source?.hookId) === BRANCH_CANDIDATE_HOOK_ID;
 }
 
+function isSessionDoneOrArchived(session) {
+  if (session?.archived === true) return true;
+  const wf = String(session?.workflowState || '').trim().toLowerCase();
+  return wf === 'done' || wf === 'complete' || wf === 'completed';
+}
+
 function listQuestSessions(sessions = [], rootSessionId = '') {
   const normalizedRootSessionId = trimText(rootSessionId);
   return (Array.isArray(sessions) ? sessions : []).filter((session) => {
-    if (!session?.id || session.archived) return false;
+    if (!session?.id || isSessionDoneOrArchived(session)) return false;
     return getSessionRootSessionId(session) === normalizedRootSessionId;
   });
 }
@@ -126,7 +132,7 @@ function listDirectChildSessions(sessions = [], parentSessionId = '') {
   const normalizedParentSessionId = trimText(parentSessionId);
   if (!normalizedParentSessionId) return [];
   return (Array.isArray(sessions) ? sessions : []).filter((session) => {
-    if (!session?.id || session.archived) return false;
+    if (!session?.id || isSessionDoneOrArchived(session)) return false;
     return trimText(session?.sourceContext?.parentSessionId) === normalizedParentSessionId;
   });
 }

@@ -4,7 +4,7 @@ import { join } from 'path';
 import { CONFIG_DIR, MEMORY_DIR } from '../../lib/config.mjs';
 import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from '../fs-utils.mjs';
 import { loadSessionsMeta } from '../session/meta-store.mjs';
-import { getSession, setSessionArchived } from '../session/manager.mjs';
+import { getSession, setSessionArchived, updateSessionWorkflowState } from '../session/manager.mjs';
 import { resolveSessionStateFromSession } from '../session-runtime/session-state.mjs';
 import { trimText } from '../shared/text.mjs';
 
@@ -293,13 +293,9 @@ async function writeAgentDigest(digests = [], sweepDate = new Date()) {
 }
 
 async function archiveSessions(sessionIds = []) {
-  for (const sessionId of sessionIds) {
-    try {
-      await setSessionArchived(sessionId, true);
-    } catch (error) {
-      console.error(`[daily-maintenance] Failed to archive ${sessionId}: ${error.message}`);
-    }
-  }
+  // Sessions are now marked done via workflowState; no separate archived flag needed.
+  // This function is kept for call-site compatibility but is intentionally a no-op.
+  void sessionIds;
 }
 
 export async function scanDailySessionMaintenance(nowValue = new Date()) {
@@ -343,38 +339,20 @@ export async function scanDailySessionMaintenance(nowValue = new Date()) {
     }
     await archiveSessions(digests.map((digest) => digest.sessionId));
 
-    // ── B4: Auto-archive completed skill tasks ──────────────────────────────────────────
-    // Skill tasks with workflowState=done stay in the skill bucket indefinitely.
-    // Archive them daily to keep the quick-action list clean.
-    const allSessionsRaw = Array.isArray(sessions) ? sessions : [];
-    const doneSkillIds = [];
-    for (const meta of allSessionsRaw) {
-      if (meta?.archived) continue;
-      const bucket = trimText(meta?.taskPoolMembership?.longTerm?.bucket || '').toLowerCase();
-      const kind = trimText(meta?.persistent?.kind || '').toLowerCase();
-      const isSkill = bucket === 'skill' || kind === 'skill';
-      if (!isSkill) continue;
-      const state = trimText(meta?.workflowState || '').toLowerCase();
-      if (isDoneWorkflowState(state)) {
-        doneSkillIds.push(meta.id);
-      }
-    }
-    if (doneSkillIds.length > 0) {
-      await archiveSessions(doneSkillIds);
-    }
-
-    // ── B5: Auto-archive stale inbox tasks (30+ days without update) ───────────────────
+    // ── B5: Auto-complete stale inbox tasks (30+ days without update) ─────────────────────
     const INBOX_STALE_DAYS = 30;
+    const allSessionsRaw = Array.isArray(sessions) ? sessions : [];
     const staleInboxIds = [];
     const staleCutoff = new Date(now.getTime() - INBOX_STALE_DAYS * 24 * 60 * 60 * 1000);
     for (const meta of allSessionsRaw) {
       if (meta?.archived) continue;
+      const metaWf = trimText(meta?.workflowState || '').toLowerCase();
+      if (metaWf === 'done' || metaWf === 'complete' || metaWf === 'completed') continue;
       // Only inbox bucket
       const bucket = trimText(meta?.taskPoolMembership?.longTerm?.bucket || '').toLowerCase();
       if (bucket !== 'inbox') continue;
       // Skip if it has an active workflow state
-      const state = trimText(meta?.workflowState || '').toLowerCase();
-      if (state && !['', 'pending', 'idle'].includes(state)) continue;
+      if (metaWf && !['', 'pending', 'idle'].includes(metaWf)) continue;
       // Skip sessions that belong to a long-term project (project roots AND members)
       const projectSessionId = trimText(meta?.taskPoolMembership?.longTerm?.projectSessionId || '');
       if (projectSessionId) continue;
@@ -384,11 +362,17 @@ export async function scanDailySessionMaintenance(nowValue = new Date()) {
       staleInboxIds.push(meta.id);
     }
     if (staleInboxIds.length > 0) {
-      await archiveSessions(staleInboxIds);
+      for (const sessionId of staleInboxIds) {
+        try {
+          await updateSessionWorkflowState(sessionId, 'done');
+        } catch (error) {
+          console.error(`[daily-maintenance] Failed to mark done ${sessionId}: ${error.message}`);
+        }
+      }
       await appendMarkdownLine(
         CONTEXT_DIGEST_MD,
         'Auto Maintenance',
-        `- ${dayKey}：自动归档 ${staleInboxIds.length} 条超过 ${INBOX_STALE_DAYS} 天未更新的收集箱任务。`,
+        `- ${dayKey}：自动完成 ${staleInboxIds.length} 条超过 ${INBOX_STALE_DAYS} 天未更新的收集箱任务。`,
         { updateDigestTimestamp: true },
       );
     }

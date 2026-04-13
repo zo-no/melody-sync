@@ -23,6 +23,8 @@ async function getNextSidebarOrderForGroup(group = '', {
   const metas = await loadSessionsMeta();
   const maxOrder = metas.reduce((currentMax, meta) => {
     if (!meta || meta.archived === true) return currentMax;
+    const metaWf = String(meta?.workflowState || '').trim().toLowerCase();
+    if (metaWf === 'done' || metaWf === 'complete' || metaWf === 'completed') return currentMax;
     if (excludeSessionId && meta.id === excludeSessionId) return currentMax;
     if (normalizeSessionGroup(meta.group || '') !== normalizedGroup) return currentMax;
     return Math.max(currentMax, normalizeSessionSidebarOrder(meta.sidebarOrder));
@@ -144,7 +146,9 @@ export function createSessionMetadataMutationService({
   async function setSessionPinned(id, pinned = true) {
     const shouldPin = pinned === true;
     const result = await mutateSessionMeta(id, (session) => {
-      if (session.archived && shouldPin) return false;
+      const sessionWf = String(session?.workflowState || '').trim().toLowerCase();
+      const sessionIsDone = sessionWf === 'done' || sessionWf === 'complete' || sessionWf === 'completed';
+      if ((session.archived || sessionIsDone) && shouldPin) return false;
       const isPinned = session.pinned === true;
       if (isPinned === shouldPin) return false;
       if (shouldPin) {

@@ -46,6 +46,8 @@ export function createSessionFollowUpQueueService({
 
       const rawSession = await findSessionMeta(sessionId);
       if (!rawSession || rawSession.archived) return false;
+      const rawWf = String(rawSession?.workflowState || '').trim().toLowerCase();
+      if (rawWf === 'done' || rawWf === 'complete' || rawWf === 'completed') return false;
       if (live.pendingCompact === true) {
         scheduleQueuedFollowUpDispatch(sessionId, followUpFlushDelayMs * 2);
         return false;

@@ -106,7 +106,7 @@
   let questHasSessionTracked = false;
   let focusedSessionId = "";
   let branchActionController = null;
-  let trackerDetailExpanded = true;
+  let trackerDetailExpanded = false; // Detail is collapsed by default; user opens explicitly
   let taskMapFlowRenderer = null;
   let taskMapRailRenderKey = "";
   let taskMapRailBoard = null;
@@ -839,6 +839,15 @@
         edge?.type || edge?.variant || "",
       ].join(":"))
       : [];
+    // Include collapsed node state in renderKey so toggling collapse triggers re-render
+    const collapsedKey = (() => {
+      try {
+        const raw = localStorage.getItem('melodysyncCollapsedTaskMapNodes');
+        if (!raw) return '';
+        const ids = JSON.parse(raw);
+        return Array.isArray(ids) ? [...ids].sort().join(',') : '';
+      } catch { return ''; }
+    })();
     const renderKey = [
       state?.session?.id || "",
       activeQuest?.id || "",
@@ -846,6 +855,7 @@
       nodeEntries.join("|"),
       edgeEntries.join("|"),
       String(taskMapFlowRenderer?.getRenderStateKey?.() || "").trim(),
+      collapsedKey,
     ].join("||");
     if (
       !trackerTaskListEl.hidden
@@ -1209,7 +1219,10 @@
         });
       },
       onConfigure: () => {
-        operationRecordController?.openPersistentEditor?.({ mode: "configure" });
+        const sessionKind = String(session?.persistent?.kind || "").trim().toLowerCase();
+        operationRecordController?.openPersistentEditor?.({
+          mode: sessionKind ? "configure" : "promote",
+        });
       },
       onAttachToLongTerm: async (targetSessionId = "") => {
         const normalizedTargetSessionId = normalizeSessionId(
@@ -1240,6 +1253,32 @@
         if (!session?.id || !normalizedTargetSessionId) return;
         setLongTermSuggestionSuppressed(session.id, normalizedTargetSessionId, true);
         renderTracker();
+      },
+      onOpenProjectPicker: () => {
+        if (!session?.id) return;
+        if (typeof window.openProjectPicker === "function") {
+          window.openProjectPicker(session);
+        }
+      },
+      onMoveBucket: async (targetBucket) => {
+        if (!session?.id || !targetBucket) return;
+        const ltMembership = session?.taskPoolMembership?.longTerm || null;
+        if (!ltMembership?.projectSessionId) return;
+        await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(session.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskPoolMembership: { longTerm: { ...ltMembership, bucket: targetBucket } },
+          }),
+        }).catch((err) => console.error("[tracker] move bucket failed:", err));
+      },
+      onRemoveFromProject: async () => {
+        if (!session?.id) return;
+        await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(session.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskPoolMembership: { longTerm: null } }),
+        }).catch((err) => console.error("[tracker] remove from project failed:", err));
       },
     });
   }
@@ -2574,24 +2613,19 @@
     } else if (longTermState?.suggestion?.rootSessionId) {
       const title = longTermState.suggestion.title || "长期任务";
       const summary = longTermState.suggestion.summary;
-      kicker.textContent = "建议归入长期任务";
-      lead.textContent = summary
-        ? `当前这条会话更像属于「${title}」。${summary}`
-        : `当前这条会话更像属于「${title}」长期任务，后续迭代和维护建议在那里继续。`;
+      kicker.textContent = "";
+      lead.textContent = "";
 
-      meta.appendChild(createPersistentSummaryChip(`建议 ${title}`, "active"));
+      meta.appendChild(createPersistentSummaryChip(`建议归入 ${title}`, "active"));
       if (summary) {
         meta.appendChild(createPersistentSummaryChip(summary));
       }
     } else if (longTermState?.lane === "long-term" && longTermState?.role === "member") {
       const title = longTermState.rootTitle || "长期任务";
-      kicker.textContent = "长期任务维护分支";
-      lead.textContent = `当前会话已经归入「${title}」长期任务，左侧列表继续保留当前任务，右侧任务地图跟随这个长期任务。`;
+      kicker.textContent = "";
+      lead.textContent = "";
 
-      meta.appendChild(createPersistentSummaryChip(`归属 ${title}`, "live"));
-      if (longTermState.rootSummary) {
-        meta.appendChild(createPersistentSummaryChip(longTermState.rootSummary));
-      }
+      meta.appendChild(createPersistentSummaryChip(title, "live"));
     } else {
       clearPersistentSummary();
       return;

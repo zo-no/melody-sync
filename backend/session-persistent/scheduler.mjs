@@ -22,14 +22,18 @@ export async function scanDuePersistentSessions(nowValue = new Date()) {
     const sessions = await loadSessionsMeta();
     for (const meta of Array.isArray(sessions) ? sessions : []) {
       const sessionId = typeof meta?.id === 'string' ? meta.id.trim() : '';
-      if (!sessionId || meta?.archived === true || dispatchingSessionIds.has(sessionId)) continue;
+      const metaWf = String(meta?.workflowState || '').trim().toLowerCase();
+      const metaIsDone = metaWf === 'done' || metaWf === 'complete' || metaWf === 'completed';
+      if (!sessionId || meta?.archived === true || metaIsDone || dispatchingSessionIds.has(sessionId)) continue;
       const triggerKind = resolvePersistentDueTriggerKind(meta?.persistent, nowValue);
       if (!triggerKind) continue;
 
       dispatchingSessionIds.add(sessionId);
       try {
         const session = await getSession(sessionId, { includeQueuedMessages: true });
-        if (!session || session.archived === true || isSessionBusy(session)) continue;
+        const sessionWf = String(session?.workflowState || '').trim().toLowerCase();
+        const sessionIsDone = sessionWf === 'done' || sessionWf === 'complete' || sessionWf === 'completed';
+        if (!session || session.archived === true || sessionIsDone || isSessionBusy(session)) continue;
         await runSessionPersistent(sessionId, { triggerKind });
       } catch (error) {
         console.error(`[persistent-scheduler] Failed to run ${sessionId}: ${error.message}`);

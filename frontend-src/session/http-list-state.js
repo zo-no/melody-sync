@@ -17,7 +17,7 @@ function applySessionListState(nextSessions, {
     .map((session) => normalizeSessionRecord(session, previousMap.get(session?.id) || null))
     .filter(Boolean);
   const preservedArchived = sessions
-    .filter((session) => session?.archived === true)
+    .filter((session) => { const wf = String(session?.workflowState || '').trim().toLowerCase(); return wf === 'done' || wf === 'complete' || wf === 'completed'; })
     .map((session) => normalizeSessionRecord(session, previousMap.get(session?.id) || null))
     .filter(Boolean);
   const preservedCurrent = currentSessionId
@@ -60,7 +60,7 @@ function applyArchivedSessionListState(nextSessions, {
 } = {}) {
   const previousMap = new Map(sessions.map((session) => [session.id, session]));
   const preservedActive = sessions
-    .filter((session) => session?.archived !== true)
+    .filter((session) => { const wf = String(session?.workflowState || '').trim().toLowerCase(); return wf !== 'done' && wf !== 'complete' && wf !== 'completed'; })
     .map((session) => normalizeSessionRecord(session, previousMap.get(session?.id) || null))
     .filter(Boolean);
   const archivedSessions = (Array.isArray(nextSessions) ? nextSessions : [])

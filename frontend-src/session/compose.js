@@ -626,8 +626,8 @@ function openProjectPicker(session) {
 
   // Session info
   if (projectPickerSessionInfo) {
-    const sessionName = String(session?.taskCard?.goal || session?.name || "").trim() || "此任务";
-    projectPickerSessionInfo.textContent = `将「${sessionName}」归入：`;
+    const sessionName = String(session?.taskCard?.goal || session?.name || "").trim() || t("picker.untitledTask");
+    projectPickerSessionInfo.textContent = t("picker.assignTo").replace("{name}", sessionName);
   }
 
   // Score and sort projects
@@ -644,15 +644,15 @@ function openProjectPicker(session) {
   // Render project list
   if (projectPickerList) {
     if (scored.length === 0) {
-      projectPickerList.innerHTML = `<div class="project-picker-empty">还没有长期项目。请先在"长期项目"标签页创建一个。</div>`;
+      projectPickerList.innerHTML = `<div class="project-picker-empty">${t("picker.empty")}</div>`;
     } else {
       projectPickerList.innerHTML = scored.map(({ project, score, isUser }, i) => {
         const isRecommended = score > 0 && i === 0;
         const desc = String(project.description || project.persistent?.digest?.summary || "").trim();
         return `<button class="project-picker-item${isRecommended ? " is-recommended" : ""}" type="button" data-project-id="${project.id}">
-          <span class="project-picker-item-name">${project.name || "未命名项目"}</span>
-          ${isRecommended ? `<span class="project-picker-item-badge">推荐</span>` : ""}
-          ${!isUser ? `<span class="project-picker-item-system">默认</span>` : ""}
+          <span class="project-picker-item-name">${project.name || t("picker.untitledProject")}</span>
+          ${isRecommended ? `<span class="project-picker-item-badge">${t("picker.recommended")}</span>` : ""}
+          ${!isUser ? `<span class="project-picker-item-system">${t("picker.system")}</span>` : ""}
           ${desc ? `<span class="project-picker-item-desc">${desc}</span>` : ""}
         </button>`;
       }).join("");
@@ -724,7 +724,7 @@ document.getElementById("projectPickerConfirm")?.addEventListener("click", () =>
   }).catch((err) => {
     console.error("[project-picker] assign failed:", err);
     if (projectPickerError) {
-      projectPickerError.textContent = "归入失败，请重试。";
+      projectPickerError.textContent = t("picker.assignFailed");
       projectPickerError.hidden = false;
     }
     if (projectPickerConfirm) projectPickerConfirm.disabled = false;
@@ -887,7 +887,7 @@ function getLongTermWorkspaceBranchCountLabel(counts) {
   if (counts.closed > 0) parts.push(`已关闭 ${counts.closed}`);
   if (parts.length > 0) return parts.join(" · ");
   if (counts.total > 0) return `共 ${counts.total} 条维护任务`;
-  return "还没有挂入的维护任务";
+  return t("longTerm.branchEmpty") || "还没有挂入的维护任务";
 }
 
 function getLongTermWorkspaceWeekdayLabel(day) {
@@ -899,14 +899,14 @@ function getLongTermWorkspaceScheduleLabel(session) {
     ? session.persistent.recurring
     : {};
   const cadence = String(recurring?.cadence || "").trim().toLowerCase();
-  let cadenceLabel = "每天";
+  let cadenceLabel = t("schedule.daily");
   if (cadence === "hourly") {
-    cadenceLabel = "每小时";
+    cadenceLabel = t("schedule.hourly");
   } else if (cadence === "weekly") {
     const weekdays = Array.isArray(recurring?.weekdays)
       ? recurring.weekdays.map((entry) => getLongTermWorkspaceWeekdayLabel(Number(entry))).filter(Boolean)
       : [];
-    cadenceLabel = weekdays.length > 0 ? `每周 ${weekdays.join(" / ")}` : "每周";
+    cadenceLabel = weekdays.length > 0 ? t("schedule.weekly").replace("{days}", weekdays.join(" / ")) : t("schedule.weekly").replace(" {days}", "");
   }
   const timeOfDay = String(recurring?.timeOfDay || "").trim();
   return [cadenceLabel, timeOfDay].filter(Boolean).join(" · ");
@@ -927,7 +927,7 @@ function getLongTermWorkspaceProjectTitle(session) {
       || (typeof getSessionDisplayName === "function" ? getSessionDisplayName(session) : "")
       || String(session?.persistent?.digest?.title || "").trim()
       || String(session?.name || "").trim()
-      || "未命名长期任务",
+      || t("sidebar.longTerm.untitled") || "未命名长期任务",
     48,
   );
 }
@@ -938,7 +938,7 @@ function getLongTermWorkspaceProjectSummary(session) {
   const preview = getLongTermWorkspacePreview(session);
   return preview.summaryLine
     || preview.hintLine
-    || "这里维护长期任务本身，自动识别归属的新需求会被挂到它的任务地图里。";
+    || t("longTerm.mainHint") || "这里维护长期任务本身，自动识别归属的新需求会被挂到它的任务地图里。";
 }
 
 function getLongTermWorkspaceProjectFocus(session) {
@@ -961,8 +961,8 @@ function getLongTermWorkspaceProjectStatusLabel(session) {
     return String(visualStatus.label).trim();
   }
   const workflowState = String(session?.workflowState || "").trim().toLowerCase();
-  if (workflowState === "waiting_user") return "等待你";
-  return "持续维护中";
+  if (workflowState === "waiting_user") return t("status.waitingUser");
+  return t("status.maintaining");
 }
 
 function formatLongTermWorkspaceStamp(value) {
@@ -977,8 +977,8 @@ function renderLongTermWorkspaceProjectList(projects = [], selectedProjectId = "
   if (projects.length === 0) {
     longTermWorkspaceList.innerHTML = `
       <div class="long-term-workspace-empty-panel">
-        <div class="long-term-workspace-empty-title">还没有长期任务</div>
-        <div class="long-term-workspace-empty-copy">先创建一个长期任务，后续自动识别到属于它的新需求时，会直接挂到它的任务地图里。</div>
+        <div class="long-term-workspace-empty-title">${t("longTerm.emptyTitle") || "还没有长期任务"}</div>
+        <div class="long-term-workspace-empty-copy">${t("longTerm.emptyCopy") || "先创建一个长期任务，后续自动识别到属于它的新需求时，会直接挂到它的任务地图里。"}</div>
       </div>`;
     return;
   }
@@ -1017,7 +1017,7 @@ function renderLongTermWorkspaceBranchList(branchSessions = [], projectId = "") 
   if (!Array.isArray(branchSessions) || branchSessions.length === 0) {
     return `
       <div class="long-term-branch-empty">
-        <div class="long-term-branch-empty-title">还没有挂入的维护任务</div>
+        <div class="long-term-branch-empty-title">${t("longTerm.branchEmpty") || "还没有挂入的维护任务"}</div>
         <div class="long-term-branch-empty-copy">当系统识别到新的需求属于这个长期任务时，会自动把它加入这里，而不是继续混进基础任务列表。</div>
       </div>`;
   }
@@ -1030,7 +1030,7 @@ function renderLongTermWorkspaceBranchList(branchSessions = [], projectId = "") 
       clipLongTermWorkspaceText(
         preview.summaryLine || preview.hintLine || branch?.taskCard?.checkpoint || "",
         140,
-      ) || "进入这个任务查看具体上下文",
+      ) || t("longTerm.branchHint") || "进入这个任务查看具体上下文",
     );
     const status = escapeLongTermWorkspaceHtml(getTaskBranchStatusLabel(branch) || "进行中");
     const updatedAt = escapeLongTermWorkspaceHtml(
@@ -1062,14 +1062,14 @@ function showWorkspaceInlineForm(triggerEl, projectSession) {
   const pid = escapeLongTermWorkspaceHtml(String(projectSession.id || ""));
   section.innerHTML = `
     <div class="ltcp-section-header">
-      <span class="ltcp-section-title">工作区</span>
+      <span class="ltcp-section-title">${t("longTerm.sectionWorkspace")}</span>
     </div>
     <div class="ltcp-workspace-form">
       <input class="ltcp-workspace-form-path" type="text" placeholder="本地目录绝对路径" value="${escapeLongTermWorkspaceHtml(currentPath)}" spellcheck="false" autocomplete="off" />
-      <input class="ltcp-workspace-form-label" type="text" placeholder="工作区名称（可选）" value="${escapeLongTermWorkspaceHtml(currentLabel)}" autocomplete="off" />
+      <input class="ltcp-workspace-form-label" type="text" placeholder="${t('longTerm.workspacePlaceholder')}" value="${escapeLongTermWorkspaceHtml(currentLabel)}" autocomplete="off" />
       <div class="ltcp-workspace-form-actions">
-        <button class="ltcp-workspace-form-confirm ltcp-action-btn" type="button" data-project-id="${pid}">确认</button>
-        <button class="ltcp-workspace-form-cancel ltcp-action-btn ltcp-action-btn-secondary" type="button">取消</button>
+        <button class="ltcp-workspace-form-confirm ltcp-action-btn" type="button" data-project-id="${pid}">${t("action.confirm")}</button>
+        <button class="ltcp-workspace-form-cancel ltcp-action-btn ltcp-action-btn-secondary" type="button">${t("action.cancel")}</button>
       </div>
     </div>`;
   section.querySelector(".ltcp-workspace-form-path")?.focus();
@@ -1088,7 +1088,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
       const pid = escapeLongTermWorkspaceHtml(String(p?.id || ""));
       return `<button class="ltcp-overview-project-row" type="button" data-project-action="open" data-project-id="${pid}">
         <span class="ltcp-overview-project-name">${title}</span>
-        ${isSystem ? `<span class="ltcp-overview-project-badge">默认</span>` : ""}
+        ${isSystem ? `<span class="ltcp-overview-project-badge">${t("sidebar.defaultBadge")}</span>` : ""}
         ${schedule ? `<span class="ltcp-overview-project-schedule">${schedule}</span>` : ""}
         <span class="ltcp-overview-project-arrow">›</span>
       </button>`;
@@ -1096,14 +1096,14 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
     longTermWorkspaceDetail.innerHTML = `
       <div class="ltcp-shell">
         <div class="ltcp-overview-header">
-          <h2 class="ltcp-overview-title">项目总览</h2>
+          <h2 class="ltcp-overview-title">${t("longTerm.overviewTitle")}</h2>
           <div class="ltcp-overview-stats">
-            <span class="ltcp-overview-stat">${projects.length} 个项目</span>
-            <span class="ltcp-overview-stat">${totalActive} 条活跃任务</span>
+            <span class="ltcp-overview-stat">${t("longTerm.projectCount").replace("{n}", projects.length)}</span>
+            <span class="ltcp-overview-stat">${t("longTerm.activeTasks").replace("{n}", totalActive)}</span>
           </div>
         </div>
         <div class="ltcp-section">
-          <div class="ltcp-section-title">长期项目</div>
+          <div class="ltcp-section-title">${t("longTerm.projectsSection")}</div>
           <div class="ltcp-overview-projects">${projectRows}</div>
         </div>
       </div>`;
@@ -1157,7 +1157,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
   const nextRunAt = persistent?.recurring?.nextRunAt || persistent?.scheduled?.nextRunAt || "";
   const lastTriggerLabel = lastTriggerAt
     ? escapeLongTermWorkspaceHtml(formatLongTermWorkspaceStamp(lastTriggerAt))
-    : "尚未触发";
+    : t("longTerm.neverTriggered");
   const nextRunLabel = nextRunAt
     ? escapeLongTermWorkspaceHtml(formatLongTermWorkspaceStamp(nextRunAt))
     : "";
@@ -1172,7 +1172,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
   // ── 4. Waiting sessions ─────────────────────────────────────────
   const waitingSessions = memberSessions.filter((s) => getBucket(s) === "waiting");
   const waitingHtml = waitingSessions.length === 0
-    ? `<div class="ltcp-waiting-empty">暂无等待中的任务</div>`
+    ? `<div class="ltcp-waiting-empty">${t("longTerm.waitingEmpty")}</div>`
     : waitingSessions.map((s) => {
         const name = escapeLongTermWorkspaceHtml(
           String(s?.taskCard?.goal || s?.taskCard?.summary || s?.name || "").trim() || "未命名任务"
@@ -1199,7 +1199,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
     .slice(0, 5);
 
   const outputsHtml = completedBranches.length === 0
-    ? `<div class="ltcp-output-empty">尚无产出记录。项目执行后，每次的结论和检查点会在这里积累。</div>`
+    ? `<div class="ltcp-output-empty">${t("longTerm.outputEmpty")}</div>`
     : completedBranches.map((s) => {
         const name = escapeLongTermWorkspaceHtml(
           String(s?.taskCard?.goal || s?.name || "").trim() || "未命名执行"
@@ -1256,7 +1256,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
         <div class="ltcp-digest-label">执行提示</div>
         <ul class="ltcp-digest-list">${recipe.map((r) => `<li>${escapeLongTermWorkspaceHtml(r)}</li>`).join("")}</ul>
       </div>` : ""}
-  ` : `<div class="ltcp-digest-empty">暂无沉淀摘要。项目执行后 AI 会自动更新。</div>`;
+  ` : `<div class="ltcp-digest-empty">${t("longTerm.digestEmpty")}</div>`;
 
   const loopHtml = hasLoopContent ? `
     ${loopCollectSources.length > 0 ? `
@@ -1284,13 +1284,13 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
         <span class="ltcp-loop-stage-label">减枝</span>
         <span class="ltcp-loop-stage-value">${loopPrune}</span>
       </div>` : ""}
-  ` : `<div class="ltcp-loop-empty">未配置循环指令。在对话中告诉 AI 如何收集、整理和产出，它会自动写入。</div>`;
+  ` : `<div class="ltcp-loop-empty">${t("longTerm.loopEmpty")}</div>`;
 
   const runPrompt = escapeLongTermWorkspaceHtml(String(persistent?.execution?.runPrompt || "").trim());
 
   // ── 7. Archived members ──────────────────────────────────────────
   const archivedHtml = archivedMemberSessions.length === 0
-    ? `<div class="ltcp-archived-empty">暂无已归档任务</div>`
+    ? `<div class="ltcp-archived-empty">${t("longTerm.archivedEmpty")}</div>`
     : archivedMemberSessions.slice(0, 20).map((s) => {
         const name = escapeLongTermWorkspaceHtml(
           String(s?.taskCard?.goal || s?.name || "").trim() || "未命名任务"
@@ -1316,21 +1316,28 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
           </div>
         </div>
         <div class="ltcp-header-actions">
-          ${isSystemProject ? `<span class="ltcp-badge-builtin">内置</span>` : ""}
+          ${isSystemProject ? `<span class="ltcp-badge-builtin">${t("longTerm.builtinBadge")}</span>` : ""}
+          ${persistent?.kind === "recurring_task" || persistent?.kind === "scheduled_task" ? `
+            <button class="ltcp-action-btn ltcp-action-btn-secondary" type="button"
+              data-project-action="${persistent?.state === 'paused' ? 'resume-execution' : 'pause-execution'}"
+              data-project-id="${projectId}"
+              title="${persistent?.state === 'paused' ? t('action.resumeExecution') : t('action.pauseExecution')}">
+              ${persistent?.state === 'paused' ? t("action.resumeExecution") : t("action.pauseExecution")}
+            </button>` : ""}
           <button class="ltcp-action-btn ltcp-action-btn-secondary" type="button"
             data-project-action="cleanup" data-project-id="${projectId}"
-            title="归档所有已完成任务">清理</button>
+            title="${t('action.cleanup')}">${t("action.cleanup")}</button>
           ${!isSystemProject ? `<button class="ltcp-action-btn ltcp-action-btn-danger" type="button"
             data-project-action="delete" data-project-id="${projectId}"
-            title="解散项目：成员任务回到任务列表，项目本身归档">解散</button>` : ""}
+            title="${t('action.dissolveProject')}">${t("action.dissolve")}</button>` : ""}
         </div>
       </div>
 
       <div class="ltcp-section ltcp-workspace-section">
         <div class="ltcp-section-header">
-          <span class="ltcp-section-title">工作区</span>
-          <button class="ltcp-workspace-edit-btn" type="button" data-project-id="${projectId}" title="设置工作区路径">
-            ${workspacePath ? "修改" : "绑定目录"}
+          <span class="ltcp-section-title">${t("longTerm.sectionWorkspace")}</span>
+          <button class="ltcp-workspace-edit-btn" type="button" data-project-id="${projectId}" title="${t('longTerm.workspaceSetPath')}">
+            ${workspacePath ? t("action.editWorkspace") : t("action.bindWorkspace")}
           </button>
         </div>
         ${workspacePath ? `
@@ -1339,7 +1346,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
             ${workspaceLabel ? `<span class="ltcp-workspace-raw">${workspacePath}</span>` : ""}
           </div>
         ` : `
-          <div class="ltcp-workspace-empty">未绑定本地目录。绑定后，AI 执行任务时将以该目录为工作根。</div>
+          <div class="ltcp-workspace-empty">${t("longTerm.workspaceUnbound")}</div>
         `}
       </div>
 
@@ -1370,7 +1377,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
       </div>
 
       <div class="ltcp-section">
-        <div class="ltcp-section-title">等待中的任务</div>
+        <div class="ltcp-section-title">${t("longTerm.sectionWaiting")}</div>
         <div class="ltcp-waiting-list">
           ${waitingHtml}
         </div>
@@ -1379,7 +1386,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
       <div class="ltcp-section ltcp-archived-section">
         <details class="ltcp-archived-details">
           <summary class="ltcp-archived-summary">
-            <span class="ltcp-section-title">已归档</span>
+            <span class="ltcp-section-title">${t("longTerm.sectionArchived")}</span>
             <span class="ltcp-archived-count">${archivedMemberSessions.length}</span>
           </summary>
           <div class="ltcp-archived-list">
@@ -1389,7 +1396,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
       </div>
 
       <div class="ltcp-section ltcp-outputs-section">
-        <div class="ltcp-section-title">近期产出</div>
+        <div class="ltcp-section-title">${t("longTerm.sectionOutputs")}</div>
         <div class="ltcp-outputs-list">
           ${outputsHtml}
         </div>
@@ -1397,8 +1404,8 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
 
       <div class="ltcp-section ltcp-digest-section">
         <div class="ltcp-section-header">
-          <span class="ltcp-section-title">沉淀摘要</span>
-          <span class="ltcp-section-hint">AI 自动更新</span>
+          <span class="ltcp-section-title">${t("longTerm.sectionDigest")}</span>
+          <span class="ltcp-section-hint">${t("longTerm.sectionDigestHint")}</span>
         </div>
         <div class="ltcp-digest-content">
           ${digestHtml}
@@ -1408,8 +1415,8 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
       ${hasLoopContent || runPrompt ? `
       <div class="ltcp-section ltcp-loop-section">
         <div class="ltcp-section-header">
-          <span class="ltcp-section-title">循环配置</span>
-          <span class="ltcp-section-hint">每次执行的指令</span>
+          <span class="ltcp-section-title">${t("longTerm.sectionLoop")}</span>
+          <span class="ltcp-section-hint">${t("longTerm.sectionLoopHint")}</span>
         </div>
         <div class="ltcp-loop-content">
           ${loopHtml}
@@ -1625,7 +1632,7 @@ globalThis.getActiveSidebarTab = getActiveSidebarTab;
 globalThis.renderLongTermWorkspace = renderLongTermWorkspace;
 globalThis.getLongTermProjectList = () => getLongTermWorkspaceProjects().map((s) => ({
   id: String(s?.id || "").trim(),
-  name: String(s?.name || s?.taskCard?.goal || "").trim() || "未命名项目",
+  name: String(s?.name || s?.taskCard?.goal || "").trim() || t("picker.untitledProject"),
   taskListOrigin: String(s?.taskListOrigin || "").trim(),
 }));
 globalThis.getSelectedLongTermProjectId = () => selectedLongTermProjectId;
@@ -1669,7 +1676,7 @@ globalThis.showLongTermProjectPanel = (projectId) => {
       const count = data.archivedCount || completedLines.length;
       const dateLabel = data.date || "昨日";
       summaryEl.innerHTML = `
-        <div class="ltcp-section-title">昨日回顾 · ${dateLabel}</div>
+        <div class="ltcp-section-title">${t("longTerm.sectionYesterdayReview")} · ${dateLabel}</div>
         <div class="ltcp-daily-feedback">
           ${count > 0
             ? `<div class="ltcp-daily-count">完成 <strong>${count}</strong> 项 🎉</div>`
@@ -1803,6 +1810,7 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
     if (!pid || !pathInput) return;
     const trimmedPath = String(pathInput.value || "").trim();
     const trimmedLabel = String(labelInput?.value || "").trim();
+    workspaceFormConfirm.disabled = true;
     void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(pid)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1812,9 +1820,16 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
         },
       }),
     }).then(() => {
+      workspaceFormConfirm.disabled = false;
       window.MelodySyncAppState?.refresh?.();
+      // Re-render the panel to show updated workspace
+      if (selectedLongTermProjectId && typeof window.showLongTermProjectPanel === "function") {
+        window.showLongTermProjectPanel(selectedLongTermProjectId);
+      }
     }).catch((err) => {
+      workspaceFormConfirm.disabled = false;
       console.error("[workspace] Failed to update workspace:", err);
+      if (typeof showAlert === "function") showAlert(t("action.saveFailed") || "保存失败，请重试。");
     });
     return;
   }
@@ -1832,6 +1847,21 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
   if (action === "open") {
     // Open this project's control panel
     window.showLongTermProjectPanel?.(projectId);
+    return;
+  }
+
+  if (action === "pause-execution" || action === "resume-execution") {
+    const nextState = action === "pause-execution" ? "paused" : "active";
+    void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ persistent: { state: nextState } }),
+    }).then(() => {
+      window.showLongTermProjectPanel?.(projectId);
+    }).catch((err) => {
+      console.error("[lt] pause/resume failed:", err);
+      if (typeof showAlert === "function") showAlert(t("action.saveFailed") || "操作失败，请重试。");
+    });
     return;
   }
 
@@ -1916,14 +1946,14 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
     if (currentMembers.length > 0) {
       const choice = typeof showChoice === "function"
         ? await showChoice(
-            `「${projectName}」有 ${currentMembers.length} 条成员任务，请选择处理方式：`,
+            t("longTerm.dissolveWithMembersConfirm").replace("{name}", projectName).replace("{count}", currentMembers.length),
             {
-              title: "解散项目",
+              title: t("action.dissolveProject"),
               choices: [
-                { label: "回收到收集箱", value: "reclaim" },
-                { label: "连同任务一起删除", value: "delete", danger: true },
+                { label: t("longTerm.dissolveReclaimChoice"), value: "reclaim" },
+                { label: t("longTerm.dissolveDeleteChoice"), value: "delete", danger: true },
               ],
-              cancelLabel: "取消",
+              cancelLabel: t("action.cancel"),
             }
           )
         : (window.confirm(`「${projectName}」有 ${currentMembers.length} 条成员任务。\n\n确定 → 连同成员任务一起永久删除\n取消 → 成员任务回收到日常任务收集箱`) ? "delete" : "reclaim");
@@ -1931,38 +1961,40 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
       deleteMembersChoice = choice === "delete";
     } else {
       const confirmed = typeof showConfirm === "function"
-        ? await showConfirm(`解散项目「${projectName}」？项目本身将被归档。`, { title: "解散项目", danger: true, confirmLabel: "解散" })
-        : window.confirm(`解散项目「${projectName}」？项目本身将被归档。`);
+        ? await showConfirm(t("longTerm.dissolveConfirm").replace("{name}", projectName), { title: t("action.dissolveProject"), danger: true, confirmLabel: t("action.dissolve"), cancelLabel: t("action.cancel") })
+        : window.confirm(t("longTerm.dissolveConfirm").replace("{name}", projectName));
       if (!confirmed) return;
     }
+    const errors = [];
     void Promise.all([
       ...currentMembers.map((s) => {
         if (deleteMembersChoice) {
-          // Backend requires archived=true before DELETE
           return fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ archived: true }),
           }).then(() =>
             fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, { method: "DELETE" })
-          ).catch((err) => console.error(`[lt] delete member ${s.id} failed:`, err));
+          ).catch((err) => { errors.push(err?.message || err); console.error(`[lt] delete member ${s.id} failed:`, err); });
         }
-        // Reclaim: clear project membership → goes back to inbox
         return fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(s.id)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ taskPoolMembership: { longTerm: null } }),
-        }).catch((err) => console.error(`[lt] demote member ${s.id} failed:`, err));
+        }).catch((err) => { errors.push(err?.message || err); console.error(`[lt] demote member ${s.id} failed:`, err); });
       }),
       fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ archived: true }),
-      }).catch((err) => console.error(`[lt] archive root failed:`, err)),
+      }).catch((err) => { errors.push(err?.message || err); console.error(`[lt] archive root failed:`, err); }),
     ]).then(() => {
       window.hideLongTermProjectPanel?.();
       if (typeof switchTab === "function") switchTab("sessions");
       if (typeof renderSessionList === "function") renderSessionList();
+      if (errors.length > 0 && typeof showAlert === "function") {
+        showAlert(`${t("action.dissolveProject")} — ${errors.length} 项操作失败，请检查任务列表。`);
+      }
     });
     return;
   }

@@ -144,15 +144,7 @@
     }
 
     function getPrimaryDetail(state) {
-      if (!state?.hasSession) return "";
-      const summary = trimText(getCurrentTaskSummary(state) || "");
-      if (summary && !isRedundantTrackerText(summary, state.currentGoal, state.mainGoal)) {
-        return summary;
-      }
-      const visualSummary = trimText(String(getTrackerVisualStatus(state)?.summary || ""));
-      if (visualSummary && !isRedundantTrackerText(visualSummary, summary, state.currentGoal, state.mainGoal)) {
-        return visualSummary;
-      }
+      // Summary text is visible in the task map and conversation — no need to repeat here
       return "";
     }
 
@@ -192,9 +184,15 @@
       onConfigure = null,
       onAttachToLongTerm = null,
       onDismissLongTermSuggestion = null,
+      onOpenProjectPicker = null,
+      onMoveBucket = null,
+      onRemoveFromProject = null,
     } = {}) {
       const kind = trimText(session?.persistent?.kind || "").toLowerCase();
       const longTermState = getLongTermTrackerState(session);
+      const ltMembership = session?.taskPoolMembership?.longTerm || null;
+      const currentBucket = trimText(ltMembership?.bucket || "inbox").toLowerCase();
+      const BUCKET_LABELS = { long_term: "长期任务", short_term: "短期任务", waiting: "等待任务", inbox: "收集箱", skill: "快捷按钮" };
       if (!session?.id || session?.archived === true) {
         return [];
       }
@@ -205,11 +203,26 @@
         ];
       }
       if (!kind && longTermState?.lane === "long-term" && longTermState?.role === "member") {
-        return [];
+        // In project but no execution type — show project management actions
+        const moveBucketBtn = createPersistentActionButton("转移分类", async () => {
+          const choices = Object.entries(BUCKET_LABELS)
+            .filter(([key]) => key !== currentBucket)
+            .map(([key, label]) => ({ label, value: key }));
+          const target = typeof showChoice === "function"
+            ? await showChoice("选择目标分类", { title: "转移分类", cancelLabel: "取消", choices })
+            : null;
+          if (target) onMoveBucket?.(target);
+        }, { secondary: true });
+        return [
+          createPersistentActionButton("设置执行方式", onConfigure),
+          moveBucketBtn,
+          createPersistentActionButton("移出项目", onRemoveFromProject, { secondary: true }),
+        ];
       }
       if (!kind) {
         return [
-          createPersistentActionButton("沉淀为长期项目", onPromote),
+          createPersistentActionButton("归入项目", onOpenProjectPicker),
+          createPersistentActionButton("设置执行方式", onConfigure, { secondary: true }),
         ];
       }
       if (isMobileQuestTracker()) {
@@ -396,14 +409,10 @@
       renderCandidateBranchActions(trackerCandidateBranchesListEl, [], session);
       if (trackerCandidateBranchesRowEl) trackerCandidateBranchesRowEl.hidden = true;
 
-      const hasAny = showDistinctResumePoint || conclusions.length > 0;
-      if (trackerDetailToggleBtn) {
-        trackerDetailToggleBtn.hidden = !hasAny;
-        if (hasAny) {
-          trackerDetailToggleBtn.textContent = expanded ? "详情 ▾" : "详情 ▸";
-        }
-      }
-      trackerDetailEl.hidden = !hasAny || !expanded;
+      // Detail section (conclusions, checkpoint) is not shown in the tracker bar.
+      // Users read this information in the conversation itself.
+      if (trackerDetailToggleBtn) trackerDetailToggleBtn.hidden = true;
+      if (trackerDetailEl) trackerDetailEl.hidden = true;
     }
 
     function createPersistentActionButton(label, onClick, { secondary = false, active = false } = {}) {
@@ -495,6 +504,9 @@
       onConfigure = null,
       onAttachToLongTerm = null,
       onDismissLongTermSuggestion = null,
+      onOpenProjectPicker = null,
+      onMoveBucket = null,
+      onRemoveFromProject = null,
     } = {}) {
       const host = getPersistentActionsEl();
       if (!host) return;
@@ -506,6 +518,9 @@
         onConfigure,
         onAttachToLongTerm,
         onDismissLongTermSuggestion,
+        onOpenProjectPicker,
+        onMoveBucket,
+        onRemoveFromProject,
       });
       for (const button of buttons) {
         host.appendChild(button);

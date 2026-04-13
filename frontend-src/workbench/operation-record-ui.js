@@ -208,6 +208,7 @@
             || (Array.isArray(digest?.recipe) ? digest.recipe.join("\n") : "")
             || "",
         ).trim(),
+        shellCommand: String(persistent?.execution?.shellCommand || "").trim(),
         executionMode: String(persistent?.execution?.mode || "").trim().toLowerCase() === "spawn_session"
           ? "spawn_session"
           : "in_place",
@@ -344,6 +345,9 @@
         execution: {
           mode: draft.executionMode === "spawn_session" ? "spawn_session" : "in_place",
           runPrompt: String(draft.runPrompt || "").trim(),
+          ...(draft.kind === "skill" && String(draft.shellCommand || "").trim()
+            ? { shellCommand: String(draft.shellCommand).trim() }
+            : {}),
         },
         runtimePolicy: buildRuntimePolicyPayload(draft),
       };

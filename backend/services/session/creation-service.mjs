@@ -103,7 +103,11 @@ export async function createSessionWithDeps({
 
   const created = await withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
     if (externalTriggerId) {
-      const existingIndex = metas.findIndex((meta) => meta.externalTriggerId === externalTriggerId && !meta.archived);
+      const existingIndex = metas.findIndex((meta) => {
+        if (meta.externalTriggerId !== externalTriggerId || meta.archived) return false;
+        const wf = String(meta?.workflowState || '').trim().toLowerCase();
+        return wf !== 'done' && wf !== 'complete' && wf !== 'completed';
+      });
       if (existingIndex !== -1) {
         const existing = metas[existingIndex];
         const updated = { ...existing };

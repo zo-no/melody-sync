@@ -18,8 +18,22 @@ export async function getSessionCatalogListForClient({
   const filtered = folder
     ? sessionList.filter((session) => session.folder === folder)
     : sessionList;
-  const archivedSessions = filtered.filter((session) => session?.archived === true);
-  const activeSessions = filtered.filter((session) => session?.archived !== true);
+  const archivedSessions = filtered.filter((session) => {
+    // Persistent sessions are never "completed" — always active
+    const persistentKind = String(session?.persistent?.kind || '').trim().toLowerCase();
+    if (persistentKind === 'skill' || persistentKind === 'recurring_task' || persistentKind === 'scheduled_task' || persistentKind === 'waiting_task') return false;
+    if (session?.archived === true) return true;
+    const wf = String(session?.workflowState || '').trim().toLowerCase();
+    return wf === 'done' || wf === 'complete' || wf === 'completed';
+  });
+  const activeSessions = filtered.filter((session) => {
+    // Persistent sessions are always active
+    const persistentKind = String(session?.persistent?.kind || '').trim().toLowerCase();
+    if (persistentKind === 'skill' || persistentKind === 'recurring_task' || persistentKind === 'scheduled_task' || persistentKind === 'waiting_task') return true;
+    if (session?.archived === true) return false;
+    const wf = String(session?.workflowState || '').trim().toLowerCase();
+    return wf !== 'done' && wf !== 'complete' && wf !== 'completed';
+  });
   const targetSessions = archivedOnly ? archivedSessions : activeSessions;
   if (refsOnly) {
     return {

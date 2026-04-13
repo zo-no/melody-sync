@@ -2231,16 +2231,8 @@ button.quest-task-flow-node {
 /* Done node: all branches resolved, task fully closed */
 .quest-task-flow-node.is-done {
   border-style: solid;
-  border-color: var(--border-strong);
-  background: var(--bg-secondary);
+  border-color: var(--success, #22c55e);
   cursor: default;
-  opacity: 0.82;
-}
-.quest-task-flow-node.is-done .quest-task-flow-node-badge {
-  color: var(--text-muted);
-}
-.quest-task-flow-node.is-done .quest-task-flow-node-title {
-  color: var(--text-secondary);
 }
 
 .quest-task-flow-node.is-parked {
@@ -6315,9 +6307,7 @@ button.quest-task-flow-node {
     inset 0 1px 0 color-mix(in srgb, #ffffff 16%, transparent),
     inset 0 0 0 1px color-mix(in srgb, var(--quest-task-flow-node-status-accent) 18%, transparent),
     0 12px 28px color-mix(in srgb, var(--quest-task-flow-node-status-accent) 14%, transparent);
-  /* Done nodes are dimmed — visually de-emphasised */
-  opacity: 0.55;
-  filter: grayscale(0.3);
+  /* Done nodes are green and fully visible — completion is a positive state */
 }
 
 .quest-task-flow-node.is-status-parked {

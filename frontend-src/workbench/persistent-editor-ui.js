@@ -314,6 +314,21 @@
         });
         form.appendChild(buildField(draft.kind === "skill" ? "触发动作" : "执行动作", promptInput));
 
+        // Shell command input — only for skills
+        if (draft.kind === "skill") {
+          const shellInput = documentRef.createElement("textarea");
+          shellInput.className = "operation-record-persistent-textarea";
+          shellInput.rows = 3;
+          shellInput.value = draft.shellCommand || "";
+          shellInput.placeholder = "可选：触发时先执行的 Shell 命令（执行结果会附加给 AI）\n例：git pull && echo done";
+          shellInput.style.fontFamily = "monospace";
+          shellInput.style.fontSize = "12px";
+          shellInput.addEventListener("input", () => {
+            draft.shellCommand = shellInput.value;
+          });
+          form.appendChild(buildField("Shell 命令（可选）", shellInput, "触发时先在后台执行此命令，输出结果会作为上下文附加给 AI。留空则跳过。"));
+        }
+
         const executionModeSelect = documentRef.createElement("select");
         executionModeSelect.className = "operation-record-persistent-select";
         [

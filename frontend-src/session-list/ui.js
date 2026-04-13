@@ -58,11 +58,11 @@ globalThis._melodySyncAttachSession = (id, session) => attachSession(id, session
 const LONG_TERM_BUCKET_DEFS = (
   globalThis.MelodySyncTaskTypeConstants?.BUCKET_DEFS ||
   [
-    { key: "long_term",  label: "长期任务", order: 0 },
-    { key: "short_term", label: "短期任务", order: 1 },
-    { key: "waiting",    label: "等待任务", order: 2 },
-    { key: "inbox",      label: "收集箱",   order: 3 },
-    { key: "skill",      label: "快捷按钮", order: 4 },
+    { key: "long_term",  label: t("bucket.longTerm"),  order: 0 },
+    { key: "short_term", label: t("bucket.shortTerm"), order: 1 },
+    { key: "waiting",    label: t("bucket.waiting"),   order: 2 },
+    { key: "inbox",      label: t("bucket.inbox"),    order: 3 },
+    { key: "skill",      label: t("bucket.skill"),    order: 4 },
   ]
 );
 
@@ -175,7 +175,9 @@ function getPersistentDockGroupKey(session) {
 }
 
 function canRunSidebarQuickAction(session, { archived = false } = {}) {
-  if (archived || session?.archived === true) return false;
+  const _wf = String(session?.workflowState || '').trim().toLowerCase();
+  const _isDone = _wf === 'done' || _wf === 'complete' || _wf === 'completed';
+  if (archived || _isDone) return false;
   if (getSidebarPersistentKind(session) !== "skill") return false;
   const activity = typeof getSessionActivity === "function"
     ? getSessionActivity(session)
@@ -190,7 +192,22 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
   const model = getSessionListModel();
   const entry = model?.getSessionListEntry?.(session, { archived }) || null;
   if (entry?.isSystem === true) return [];
-  const isArchivedSession = archived || session?.archived === true;
+  // "Completed" = workflowState done/complete (archived field no longer used for this)
+  const doneWorkflowState = String(session?.workflowState || '').trim().toLowerCase();
+  const isArchivedSession = archived
+    || doneWorkflowState === 'done'
+    || doneWorkflowState === 'complete'
+    || doneWorkflowState === 'completed';
+  // Resolve current tab early — used by multiple actions below
+  const currentTab = typeof getActiveSidebarTabForList === "function" ? getActiveSidebarTabForList() : "";
+  const ltMembership = !isArchivedSession ? session?.taskPoolMembership?.longTerm : null;
+  const ltProjectId = ltMembership?.projectSessionId
+    ? String(ltMembership.projectSessionId).trim() : "";
+  const ltRole = ltMembership?.role
+    ? String(ltMembership.role).trim().toLowerCase() : "";
+  const isLtMember = Boolean(ltProjectId && ltRole === "member");
+  const currentBucket = isLtMember
+    ? String(ltMembership?.bucket || "inbox").trim().toLowerCase() : "";
   const baseActions = typeof buildSessionActionConfigs === "function"
     ? buildSessionActionConfigs(session, { archived: isArchivedSession })
     : [];
@@ -212,9 +229,10 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
   // ── Assign to long-term project ─────────────────────────────────
   const assignToProjectAction = !isArchivedSession ? {
     key: "assign-to-project",
-    label: "归入长期项目",
+    label: t("action.assignToProject") || "归入长期项目",
     className: "assign-to-project",
-    inlineHidden: true,
+    // Show inline in Tasks tab for tasks not yet in a project
+    inlineHidden: !(currentTab === "sessions" && !isLtMember),
     onClick(event, currentSession) {
       event?.preventDefault?.();
       if (!currentSession?.id) return;
@@ -225,46 +243,54 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
   } : null;
 
   // ── Long-term project member actions ────────────────────────────
-  const ltMembership = !isArchivedSession ? session?.taskPoolMembership?.longTerm : null;
-  const ltProjectId = ltMembership?.projectSessionId
-    ? String(ltMembership.projectSessionId).trim() : "";
-  const ltRole = ltMembership?.role
-    ? String(ltMembership.role).trim().toLowerCase() : "";
-  const isLtMember = Boolean(ltProjectId && ltRole === "member");
-  const currentBucket = isLtMember
-    ? String(ltMembership?.bucket || "inbox").trim().toLowerCase() : "";
 
+
+  // Merge all bucket-move options into a single entry that opens a choice dialog
   const moveToBucketActions = isLtMember
-    ? Object.entries(BUCKET_KEY_TO_LABEL)
-        .filter(([key]) => key !== currentBucket)
-        .map(([key, label]) => ({
-          key: `move-to-${key}`,
-          label: `移到「${label}」`,
-          className: "move-bucket",
-          inlineHidden: true,
-          onClick(event, currentSession) {
-            event?.preventDefault?.();
-            if (!currentSession?.id) return;
-            void (typeof fetchJsonOrRedirect === "function"
-              ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    taskPoolMembership: { longTerm: { ...ltMembership, bucket: key } },
-                  }),
-                })
-              : Promise.reject(new Error("no fetch"))
-            ).then(() => {
-              if (typeof renderSessionList === "function") renderSessionList();
-            }).catch((err) => console.error("[lt] move bucket failed:", err));
-          },
-        }))
+    ? [{
+        key: "move-to-bucket",
+        label: t("action.moveToBucket") || "转移分类",
+        className: "move-bucket",
+        inlineHidden: true,
+        async onClick(event, currentSession) {
+          event?.preventDefault?.();
+          if (!currentSession?.id) return;
+          const choices = Object.entries(BUCKET_KEY_TO_LABEL)
+            .filter(([key]) => key !== currentBucket)
+            .map(([key, label]) => ({ label, value: key }));
+          const targetBucket = typeof showChoice === "function"
+            ? await showChoice(
+                t("action.moveToBucketDesc") || "选择目标分类",
+                {
+                  title: t("action.moveToBucket") || "转移分类",
+                  cancelLabel: t("action.cancel") || "取消",
+                  choices,
+                }
+              )
+            : null;
+          if (!targetBucket) return;
+          void (typeof fetchJsonOrRedirect === "function"
+            ? fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(currentSession.id)}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  taskPoolMembership: { longTerm: { ...ltMembership, bucket: targetBucket } },
+                }),
+              })
+            : Promise.reject(new Error("no fetch"))
+          ).then(() => {
+            if (typeof renderSessionList === "function") renderSessionList();
+          }).catch((err) => {
+            console.error("[lt] move bucket failed:", err);
+            if (typeof showAlert === "function") showAlert(t("action.saveFailed") || "操作失败，请重试。");
+          });
+        },
+      }]
     : [];
 
-  const currentTab = typeof getActiveSidebarTabForList === "function" ? getActiveSidebarTabForList() : "";
   const removeFromProjectAction = isLtMember ? {
     key: "remove-from-project",
-    label: "移出项目",
+    label: t("action.removeFromProject") || "移出项目",
     icon: "unarchive",
     className: "remove-from-project",
     // Show inline in Tasks tab (where users manage tasks); hidden in overflow elsewhere
@@ -282,7 +308,10 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
         : Promise.reject(new Error("no fetch"))
       ).then(() => {
         if (typeof renderSessionList === "function") renderSessionList();
-      }).catch((err) => console.error("[lt] remove from project failed:", err));
+      }).catch((err) => {
+        console.error("[lt] remove from project failed:", err);
+        if (typeof showAlert === "function") showAlert(t("action.saveFailed") || "操作失败，请重试。");
+      });
     },
   } : null;
 
@@ -294,7 +323,7 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
       || persistentKind === "waiting_task");
   const demoteAction = isPersistentTask ? {
     key: "demote-persistent",
-    label: "降级为普通任务",
+    label: t("action.demote") || "降级为普通任务",
     className: "demote-persistent",
     inlineHidden: true,
     onClick(event, currentSession) {
@@ -310,7 +339,10 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
         : Promise.reject(new Error("no fetch"))
       ).then(() => {
         if (typeof renderSessionList === "function") renderSessionList();
-      }).catch((err) => console.error("[lt] demote failed:", err));
+      }).catch((err) => {
+        console.error("[lt] demote failed:", err);
+        if (typeof showAlert === "function") showAlert(t("action.saveFailed") || "操作失败，请重试。");
+      });
     },
   } : null;
 
@@ -322,9 +354,16 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
       label,
       className: `promote-${targetKind}`,
       inlineHidden: true,
-      onClick(event, currentSession) {
+      async onClick(event, currentSession) {
         event?.preventDefault?.();
         if (!currentSession?.id) return;
+        // Confirm before promoting to auto-running types (recurring/scheduled)
+        if (targetKind === "recurring_task" || targetKind === "scheduled_task") {
+          const confirmed = typeof showConfirm === "function"
+            ? await showConfirm(label, { title: t("action.confirm") || "确定", confirmLabel: t("action.confirm") || "确定", cancelLabel: t("action.cancel") || "取消" })
+            : true;
+          if (!confirmed) return;
+        }
         const body = { kind: targetKind };
         // recurring_task and scheduled_task require time fields
         if (targetKind === "recurring_task") {
@@ -351,24 +390,47 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
           if (targetKind !== "skill" && targetKind !== "waiting_task") {
             window.MelodySyncWorkbench?.openPersistentEditor?.({ mode: "configure", kind: targetKind });
           }
-        }).catch((err) => console.error(`[lt] promote to ${targetKind} failed:`, err));
+        }).catch((err) => {
+          console.error(`[lt] promote to ${targetKind} failed:`, err);
+          if (typeof showAlert === "function") showAlert(t("action.saveFailed") || "操作失败，请重试。");
+        });
       },
     };
   }
+  // Merge all promote options into a single "升级任务类型" entry that opens a choice dialog
   const promoteActions = isRegularSession ? [
-    makePromoteAction("recurring_task", "升级为长期任务（循环执行）"),
-    makePromoteAction("scheduled_task", "升级为短期任务（定时执行）"),
-    makePromoteAction("waiting_task",   "升级为等待任务"),
-    makePromoteAction("skill",          "设为快捷按钮"),
+    {
+      key: "promote",
+      label: t("action.promote") || "升级任务类型",
+      className: "promote",
+      inlineHidden: true,
+      async onClick(event, currentSession) {
+        event?.preventDefault?.();
+        if (!currentSession?.id) return;
+        const chosen = typeof showChoice === "function"
+          ? await showChoice(
+              t("action.promoteChoiceDesc") || "选择升级后的任务类型",
+              {
+                title: t("action.promote") || "升级任务类型",
+                cancelLabel: t("action.cancel") || "取消",
+                choices: [
+                  { label: t("action.promoteRecurringShort") || "长期任务", value: "recurring_task" },
+                  { label: t("action.promoteScheduledShort") || "短期任务", value: "scheduled_task" },
+                  { label: t("action.promoteWaitingShort") || "等待任务",  value: "waiting_task" },
+                  { label: t("action.promoteSkill") || "快捷按钮",         value: "skill" },
+                ],
+              }
+            )
+          : null;
+        if (!chosen) return;
+        // Delegate to the individual action handler
+        await makePromoteAction(chosen, "").onClick(event, currentSession);
+      },
+    },
   ] : [];
 
   const actionList = [
     renameAction,
-    assignToProjectAction,
-    ...moveToBucketActions,
-    removeFromProjectAction,
-    ...promoteActions,
-    demoteAction,
     ...visibleBaseActions,
   ].filter(Boolean);
 
@@ -378,7 +440,7 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
   return [
     {
       key: "quick-run",
-      label: "触发快捷按钮",
+      label: t("action.triggerSkill") || "触发快捷按钮",
       icon: "send",
       className: "quick-run",
       onClick(event) {
@@ -549,8 +611,8 @@ function renderSessionList() {
     const groupKey = "group:all-by-type";
     groups.set(groupKey, {
       key: groupKey,
-      label: "全部任务",
-      title: "全部任务",
+      label: t("sidebar.tasks.allTasks") || "全部任务",
+      title: t("sidebar.tasks.allTasks") || "全部任务",
       order: 0,
       type: "daily-inbox",
       projectId: "",
@@ -600,7 +662,7 @@ function renderSessionList() {
           : (typeof getSessionCatalogRecordById === "function"
               ? getSessionCatalogRecordById(projectId)
               : getVisibleActiveSessions().find((s) => s?.id === projectId) || null);
-        const projectTitle = String(projectSession?.name || projectSession?.description || "长期项目").trim() || "长期项目";
+        const projectTitle = String(projectSession?.name || projectSession?.description || t("longTerm.projectsSection") || "长期项目").trim() || t("longTerm.projectsSection") || "长期项目";
         const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
         groups.set(groupKey, {
           key: groupKey,
@@ -680,8 +742,8 @@ function renderSessionList() {
         ? (isLongTermTab ? "sidebar.longTerm.empty" : (isSessionsTab ? "sidebar.tasks.empty" : "sidebar.noSessions"))
         : "sidebar.loadingSessions",
       sessionsLoaded
-        ? (isLongTermTab ? "还没有长期项目" : (isSessionsTab ? "没有任务" : "还没有任务"))
-        : "加载任务中…",
+        ? (isLongTermTab ? t("sidebar.longTerm.empty") || "还没有长期项目" : (isSessionsTab ? t("sidebar.tasks.empty") || "没有任务" : t("sidebar.noSessions") || "还没有任务"))
+        : t("sidebar.loadingSessions") || "加载任务中…",
     )
     : "";
   const isGroupingCreateOpen = typeof window.isSessionGroupingTemplateCreateOpen === "function"
@@ -746,8 +808,12 @@ function renderSessionList() {
       emptyState: {
         show: shouldShowSessionListEmptyState,
         label: sessionListEmptyLabel,
-        hint: shouldShowSessionListEmptyState && isSessionsTab && sessionsLoaded
-          ? "点击「开始任务」记录第一件事。"
+        hint: shouldShowSessionListEmptyState && sessionsLoaded
+          ? (isSessionsTab
+              ? t("sidebar.tasks.emptyHint") || "点击「开始任务」记录第一件事。"
+              : isLongTermTab
+                ? t("sidebar.longTerm.emptyHint") || "在「长期项目」标签页创建项目，或把任务升级为长期任务。"
+                : "")
           : "",
       },
       helpers: {
@@ -1046,15 +1112,22 @@ function renderArchivedSection() {
       });
     }
   });
-  header.querySelector("[data-action='clear-archived']")?.addEventListener("click", async (e) => {
+  const clearBtn = header.querySelector("[data-action='clear-archived']");
+  // Disable only when we know for certain there's nothing archived
+  // archivedSessionCount comes from backend; archivedSessions may be empty before lazy-load
+  const hasArchivedItems = archivedSessions.length > 0 || archivedSessionCount > 0 || isArchivedSessionsLoading;
+  if (clearBtn && !hasArchivedItems) clearBtn.disabled = true;
+  clearBtn?.addEventListener("click", async (e) => {
     e.stopPropagation();
-    if (archivedSessions.length === 0) return;
-    const msg = (t("sidebar.clearArchivedConfirm") || `永久删除全部归档任务？此操作不可恢复。`)
-      .replace("{count}", archivedSessions.length);
+    if (!hasArchivedItems) return;
+    const totalCount = archivedSessions.length || archivedSessionCount || 0;
+    const msg = t("sidebar.clearArchivedConfirm").replace("{count}", totalCount);
     const confirmed = typeof showConfirm === "function"
-      ? await showConfirm(msg, { title: "清空归档", danger: true, confirmLabel: "全部删除", cancelLabel: "取消" })
+      ? await showConfirm(msg, { title: t("sidebar.archive") || "清空归档", danger: true, confirmLabel: t("action.delete") || "全部删除", cancelLabel: t("action.cancel") || "取消" })
       : window.confirm(msg);
     if (!confirmed) return;
+    clearBtn.disabled = true;
+    clearBtn.textContent = "…";
     void fetchJsonOrRedirect("/api/sessions/archived/bulk", { method: "DELETE" })
       .then((data) => {
         const ids = data?.deletedSessionIds || [];
@@ -1063,6 +1136,8 @@ function renderArchivedSection() {
       })
       .catch((err) => {
         console.error("[sessions] Failed to clear archived:", err?.message || err);
+        clearBtn.disabled = false;
+        clearBtn.textContent = t("sidebar.clearArchived") || "清空";
         if (typeof showAlert === "function") showAlert(t("action.deleteFailed") || "清空归档失败");
       });
   });
@@ -1195,5 +1270,9 @@ function attachSession(id, session) {
     focusComposer({ preventScroll: true });
   } else {
     msgInput.focus();
+  }
+  // Re-render session list so the active highlight follows the selected session
+  if (typeof renderSessionList === "function") {
+    renderSessionList();
   }
 }
