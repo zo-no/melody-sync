@@ -1,3 +1,4 @@
+import { spawn } from 'child_process';
 import { loadHistory } from '../../history.mjs';
 import {
   buildPersistentDigest,
@@ -570,19 +571,62 @@ export function createSessionPersistentService({
         ? 'persistent_recurring'
         : (triggerKind === 'schedule' ? 'persistent_schedule' : 'persistent_run'),
     );
+    // Resolve maxTurns: explicit config wins; auto-triggered runs fall back to 40
+    // to prevent runaway loops. Manual runs default to unlimited (0).
+    const explicitMaxTurns = persistent?.execution?.maxTurns;
+    const isAutoTrigger = triggerKind === 'schedule' || triggerKind === 'recurring';
+    const resolvedMaxTurns = (Number.isFinite(explicitMaxTurns) && explicitMaxTurns > 0)
+      ? explicitMaxTurns
+      : (isAutoTrigger ? 40 : 0);
+
     const submitOptions = {
       requestId,
       queueIfBusy: false,
-      scheduledTriggerId: triggerKind === 'schedule' || triggerKind === 'recurring' ? `persistent:${id}` : '',
+      scheduledTriggerId: isAutoTrigger ? `persistent:${id}` : '',
       ...(runtime?.tool ? { tool: runtime.tool } : {}),
       ...(runtime?.model ? { model: runtime.model } : {}),
       ...(runtime?.effort ? { effort: runtime.effort } : {}),
       thinking: runtime?.thinking === true,
+      ...(resolvedMaxTurns > 0 ? { maxTurns: resolvedMaxTurns } : {}),
     };
+    // ── Shell command execution (skill only) ────────────────────────────────
+    const shellCommand = String(persistent?.execution?.shellCommand || '').trim();
+    let shellOutput = '';
+    if (shellCommand && persistent?.kind === 'skill') {
+      try {
+        shellOutput = await new Promise((resolve) => {
+          let out = '';
+          let err = '';
+          const child = spawn('/bin/sh', ['-lc', shellCommand], {
+            cwd: String(persistent?.knowledgeBasePath || process.cwd()).trim() || process.cwd(),
+            env: { ...process.env, MELODYSYNC_SESSION_ID: String(id || '') },
+            stdio: ['ignore', 'pipe', 'pipe'],
+          });
+          child.stdout?.setEncoding?.('utf8');
+          child.stderr?.setEncoding?.('utf8');
+          child.stdout?.on?.('data', (chunk) => { out += chunk; });
+          child.stderr?.on?.('data', (chunk) => { err += chunk; });
+          child.on('close', (code) => {
+            const combined = [out, err].filter(Boolean).join('\n').trim();
+            resolve(code === 0 ? combined : `[exit ${code}] ${combined}`);
+          });
+          child.on('error', (e) => resolve(`[error] ${e.message}`));
+          // Timeout after 30s
+          setTimeout(() => { child.kill(); resolve('[timeout] shell command exceeded 30s'); }, 30000);
+        });
+      } catch (shellErr) {
+        shellOutput = `[error] ${shellErr?.message || shellErr}`;
+      }
+    }
+    // Append shell output to AI message if present
+    const effectiveText = shellOutput
+      ? `${text}\n\n[Shell 执行结果]\n\`\`\`\n${shellOutput.slice(0, 2000)}\n\`\`\``
+      : text;
+
     const spawnedSession = persistent?.execution?.mode === 'spawn_session'
       ? await createPersistentSpawnedSession(session, persistent, triggerKind)
       : null;
-    const outcome = await submitHttpMessage(spawnedSession?.id || id, text, [], {
+    const outcome = await submitHttpMessage(spawnedSession?.id || id, effectiveText, [], {
       ...submitOptions,
       ...(spawnedSession?.id ? {
         requestId: createInternalRequestId(

@@ -284,6 +284,9 @@ export function createSessionMessageSubmissionService({
           effort: options.effort || undefined,
           claudeSessionId: persistedClaudeSessionId || undefined,
           codexThreadId: persistedCodexThreadId || undefined,
+          ...(Number.isFinite(options.maxTurns) && options.maxTurns > 0
+            ? { maxTurns: options.maxTurns }
+            : {}),
         },
       },
     });

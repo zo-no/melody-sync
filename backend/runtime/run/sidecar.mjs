@@ -230,6 +230,7 @@ async function main() {
     thinking: manifest.options?.thinking,
     model: manifest.options?.model,
     effort: manifest.options?.effort,
+    maxTurns: manifest.options?.maxTurns,
   });
 
   const proc = spawn(await resolveCommand(command), args, {

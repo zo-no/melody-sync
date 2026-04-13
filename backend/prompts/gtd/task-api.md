@@ -21,6 +21,21 @@ curl -s "$MELODYSYNC_CHAT_BASE_URL/api/sessions?limit=100" | \
 
 必填字段：`folder`（绝对路径），`tool`（使用当前会话的 tool，如 `claude`）
 
+**`execution` 字段说明：**
+
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| `mode` | `"in_place"`（在原 session 执行）或 `"spawn_session"`（派生子 session） | `"in_place"` |
+| `runPrompt` | 触发时发送给 AI 的指令 | 自动生成 |
+| `shellCommand` | 在 AI 执行前先运行的 Shell 脚本（仅 skill 类型） | 无 |
+| `maxTurns` | 单次运行最大轮次上限（安全阀）。自动触发任务默认 40，手动触发默认不限 | 见默认值 |
+
+`maxTurns` 建议值：
+- 简单任务（查询、整理）：10–20
+- 中等任务（分析、生成报告）：30–50
+- 复杂任务（代码修改、多步骤调研）：80–120
+- 不设限（仅手动触发的探索性任务）：省略此字段
+
 ### 创建长期任务（循环执行）
 
 ```bash

@@ -376,7 +376,13 @@ function normalizePersistentExecution(value, { kind, digest } = {}) {
   const mode = trimText(execution.mode).toLowerCase() === 'spawn_session'
     ? 'spawn_session'
     : 'in_place';
-  return {
+  // shellCommand: optional shell script to run before (or instead of) the AI prompt
+  const shellCommand = trimText(execution.shellCommand || execution.shell_command || '');
+  // maxTurns: safety cap on agent turns per run. 0 = unlimited (default for manual).
+  // Auto-triggered runs (recurring/schedule) default to 40 if not set.
+  const rawMaxTurns = parseInt(String(execution.maxTurns ?? execution.max_turns ?? ''), 10);
+  const maxTurns = Number.isFinite(rawMaxTurns) && rawMaxTurns > 0 ? rawMaxTurns : 0;
+  const result = {
     mode,
     runPrompt: clipText(execution.runPrompt || defaultRunPrompt(kind, digest), 240),
     lastTriggerAt: normalizeIsoTimestamp(execution.lastTriggerAt),
@@ -388,6 +394,9 @@ function normalizePersistentExecution(value, { kind, digest } = {}) {
       return '';
     })(),
   };
+  if (shellCommand) result.shellCommand = shellCommand;
+  if (maxTurns > 0) result.maxTurns = maxTurns;
+  return result;
 }
 
 function normalizePersistentScheduled(value, options = {}) {
