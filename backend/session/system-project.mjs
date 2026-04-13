@@ -107,10 +107,8 @@ export async function ensureSystemProject() {
       tool: 'claude',
       taskListOrigin: 'system',
       taskListVisibility: 'primary',
-      persistent: {
-        kind: 'recurring_task',
-        digest: { title: '日常任务', summary: '默认项目，所有任务的集合' },
-      },
+      // Project root is a pure container — no persistent/recurring fields.
+      // Execution belongs to member task sessions, not the project itself.
       taskPoolMembership: membership,
       createdAt: now,
       updatedAt: now,
@@ -165,10 +163,7 @@ export async function ensureMelodySyncProject(systemProjectId = '') {
       tool: 'claude',
       taskListOrigin: 'user',
       taskListVisibility: 'primary',
-      persistent: {
-        kind: 'recurring_task',
-        digest: { title: 'MelodySync 迭代', summary: 'MelodySync 产品迭代与功能开发' },
-      },
+      // Project root is a pure container — no persistent/recurring fields.
       taskPoolMembership: membership,
       createdAt: now,
       updatedAt: now,

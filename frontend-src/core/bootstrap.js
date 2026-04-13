@@ -198,6 +198,7 @@ const contextTokens = document.getElementById("contextTokens");
 const tabSessions = document.getElementById("tabSessions");
 const tabLongTerm = document.getElementById("tabLongTerm");
 const tabSkill = document.getElementById("tabSkill");
+const globalControlPanelBtn = document.getElementById("globalControlPanelBtn");
 const inputArea = document.getElementById("inputArea");
 const composerPendingState = document.getElementById("composerPendingState");
 const inputResizeHandle = document.getElementById("inputResizeHandle");

@@ -3143,6 +3143,7 @@ function SessionListPinnedSection({
   return (
     <div className="pinned-section">
       <div className="pinned-section-header">
+        <span className="folder-chevron pinned-chevron-placeholder" aria-hidden="true" />
         <span className="pinned-label">{pinnedLabel}</span>
         <span className="folder-count">{pinnedSessions.length}</span>
       </div>
@@ -3417,10 +3418,7 @@ function SessionListGroupSection({
         (isTasksInbox || isSessionsProject || isDailyInbox) ? (
           // Flat layout — no wrapping card, buckets render directly
           <>
-            {/* Daily project control panel entry row */}
-            {isDailyInbox && groupEntry?.key === 'group:all-by-type' ? (
-              <SessionsTabDailyHeader groupEntry={groupEntry} />
-            ) : null}
+            {/* Global control panel is now a persistent HTML button above the tab content — not rendered here */}
             {/* Pinned sessions shown right after the control panel button */}
             {isDailyInbox && Array.isArray(pinnedSessions) && pinnedSessions.length > 0 ? (
               <SessionListPinnedSection

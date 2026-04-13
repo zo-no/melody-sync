@@ -1301,13 +1301,6 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
         </div>
         <div class="ltcp-header-actions">
           ${isSystemProject ? `<span class="ltcp-badge-builtin">${t("longTerm.builtinBadge")}</span>` : ""}
-          ${persistent?.kind === "recurring_task" || persistent?.kind === "scheduled_task" ? `
-            <button class="ltcp-action-btn ltcp-action-btn-secondary" type="button"
-              data-project-action="${persistent?.state === 'paused' ? 'resume-execution' : 'pause-execution'}"
-              data-project-id="${projectId}"
-              title="${persistent?.state === 'paused' ? t('action.resumeExecution') : t('action.pauseExecution')}">
-              ${persistent?.state === 'paused' ? t("action.resumeExecution") : t("action.pauseExecution")}
-            </button>` : ""}
           <button class="ltcp-action-btn ltcp-action-btn-secondary" type="button"
             data-project-action="cleanup" data-project-id="${projectId}"
             title="${t('action.cleanup')}">${t("action.cleanup")}</button>
@@ -1715,6 +1708,16 @@ globalThis.hideLongTermProjectPanel = () => {
 
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
 tabLongTerm?.addEventListener("click", () => switchTab("long-term"));
+
+// Global control panel button — always visible, opens system project panel
+globalControlPanelBtn?.addEventListener("click", () => {
+  const systemProjectId = typeof globalThis.getSystemProjectId === "function"
+    ? globalThis.getSystemProjectId()
+    : (typeof getSessionsTabProjectId === "function" ? getSessionsTabProjectId() : "");
+  if (systemProjectId && typeof window.showLongTermProjectPanel === "function") {
+    window.showLongTermProjectPanel(systemProjectId);
+  }
+});
 
 longTermWorkspaceNewBtn?.addEventListener("click", () => {
   void createNewLongTermProjectShortcut?.({ closeSidebar: false });

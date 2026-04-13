@@ -206,9 +206,9 @@ export function createSessionPersistentService({
     });
     if (explicitMembership) return explicitMembership;
     if (!normalizedSessionId || visited.has(normalizedSessionId)) return null;
-    if (normalizePersistentKind(session?.persistent?.kind || '') === 'recurring_task') {
-      return buildLongTermTaskPoolMembership(normalizedSessionId, { role: 'project' });
-    }
+    // Projects are always created explicitly with role:'project' membership.
+    // Tasks always get assigned to the system project on promotion.
+    // No fallback self-rooting: a recurring_task without membership is not a project.
 
     const nextVisited = new Set(visited);
     nextVisited.add(normalizedSessionId);
