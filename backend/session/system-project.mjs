@@ -16,8 +16,9 @@ import { randomBytes } from 'crypto';
 import { join } from 'path';
 import { CONFIG_DIR } from '../../lib/config.mjs';
 import { readJson, writeJsonAtomic } from '../fs-utils.mjs';
-import { withSessionsMetaMutation } from './meta-store.mjs';
+import { withSessionsMetaMutation, loadSessionsMeta } from './meta-store.mjs';
 import { buildLongTermTaskPoolMembership } from './task-pool-membership.mjs';
+import { shouldExposeSession } from './visibility.mjs';
 
 const SYSTEM_PROJECT_STATE_FILE = join(CONFIG_DIR, 'system-project.json');
 
@@ -180,10 +181,42 @@ export async function ensureMelodySyncProject(systemProjectId = '') {
   return resolvedId;
 }
 
+/**
+ * On first boot (no user-visible sessions), create a default welcome session so
+ * new users see something in the sidebar instead of a blank screen.
+ *
+ * Idempotent: only creates if no user-facing sessions exist.
+ * Lazy import of createSession to avoid circular deps at module load time.
+ */
+async function ensureDefaultWelcomeSession(dailyTasksId) {
+  try {
+    const metas = await loadSessionsMeta();
+    const hasUserSession = Array.isArray(metas) && metas.some((m) => shouldExposeSession(m));
+    if (hasUserSession) return;
+
+    const { createSession } = await import('./manager.mjs');
+    await createSession(
+      '~',
+      'claude',
+      '开始使用 MelodySync',
+      {
+        taskListOrigin: 'user',
+        ...(dailyTasksId ? {
+          taskPoolMembership: buildLongTermTaskPoolMembership(dailyTasksId, { role: 'member', bucket: 'inbox' }),
+        } : {}),
+      },
+    );
+  } catch (err) {
+    // Non-fatal: a missing welcome session is better than a crashed server
+    console.warn('[system-project] Failed to create default welcome session:', err?.message || err);
+  }
+}
+
 // Alias for callers that use ensureBuiltinProjects
 export async function ensureBuiltinProjects() {
   const dailyTasksId = await ensureSystemProject();
   await ensureMelodySyncProject(dailyTasksId);
+  await ensureDefaultWelcomeSession(dailyTasksId);
   return { dailyTasksId };
 }
 
