@@ -416,16 +416,13 @@ export async function scanDailySessionMaintenance(nowValue = new Date()) {
 
     const allArchivedIds = [
       ...digests.map((digest) => digest.sessionId),
-      ...doneSkillIds,
-      ...staleInboxIds,
     ];
     const nextState = {
       lastDailySweepDate: dayKey,
       lastSweepAt: now.toISOString(),
       archivedCount: allArchivedIds.length,
       archivedSessionIds: allArchivedIds,
-      doneSkillArchivedCount: doneSkillIds.length,
-      staleInboxArchivedCount: staleInboxIds.length,
+      staleInboxMarkedDoneCount: staleInboxIds.length,
       patterns,
     };
     await writeJsonAtomic(DAILY_MAINTENANCE_STATE_FILE, nextState);
@@ -433,8 +430,7 @@ export async function scanDailySessionMaintenance(nowValue = new Date()) {
       ran: true,
       archivedCount: allArchivedIds.length,
       archivedSessionIds: allArchivedIds,
-      doneSkillArchivedCount: doneSkillIds.length,
-      staleInboxArchivedCount: staleInboxIds.length,
+      staleInboxMarkedDoneCount: staleInboxIds.length,
       patterns,
     };
   } finally {

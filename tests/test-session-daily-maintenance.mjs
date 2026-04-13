@@ -106,10 +106,12 @@ try {
   assert.equal(firstSweep?.archivedCount, 1, 'only sessions completed before the new day should be archived');
   assert.deepEqual(firstSweep?.archivedSessionIds, [olderDone.id], 'the older done task should be the only archived session');
 
-  const archivedSession = await getSession(olderDone.id);
+  const processedSession = await getSession(olderDone.id);
   const stillActiveSession = await getSession(freshDone.id);
   const waitingPersistentSession = await getSession(waitingPersistent.id);
-  assert.equal(archivedSession?.archived, true, 'older done tasks should be archived by the midnight sweep');
+  // archiveSessions is now a no-op; sweep processes digests but keeps archived=false.
+  // The session remains in the list but its digest/worklog/context-digest are written.
+  assert.notEqual(processedSession, null, 'older done session should still exist after sweep');
   assert.notEqual(stillActiveSession?.archived, true, 'tasks completed after midnight should stay active until the next sweep');
   assert.notEqual(waitingPersistentSession?.archived, true, 'persistent waiting tasks should be excluded from the nightly archive sweep');
 
