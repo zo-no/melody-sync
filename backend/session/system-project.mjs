@@ -191,7 +191,8 @@ export async function ensureMelodySyncProject(systemProjectId = '') {
 async function ensureDefaultWelcomeSession(dailyTasksId) {
   try {
     const metas = await loadSessionsMeta();
-    const hasUserSession = Array.isArray(metas) && metas.some((m) => shouldExposeSession(m));
+    const isProjectRoot = (m) => m?.taskPoolMembership?.longTerm?.role === 'project';
+    const hasUserSession = Array.isArray(metas) && metas.some((m) => shouldExposeSession(m) && !isProjectRoot(m));
     if (hasUserSession) return;
 
     const { createSession } = await import('./manager.mjs');
