@@ -83,6 +83,11 @@ const LONG_TERM_BUCKET_DEFS = (
   ]
 );
 
+// Derived map: bucket key → label. Excludes skill (not a valid move-to target for tasks).
+const BUCKET_KEY_TO_LABEL = LONG_TERM_BUCKET_DEFS
+  .filter((b) => b.key !== "skill")
+  .reduce((acc, b) => { acc[b.key] = b.label; return acc; }, {});
+
 function inferLongTermSessionBucket(session) {
   if (globalThis.MelodySyncTaskTypeConstants?.inferSessionBucket) {
     return globalThis.MelodySyncTaskTypeConstants.inferSessionBucket(session);
@@ -247,16 +252,8 @@ function buildSidebarSessionActions(session, { archived = false } = {}) {
   const currentBucket = isLtMember
     ? String(ltMembership?.bucket || "inbox").trim().toLowerCase() : "";
 
-  // Bucket labels from single source in core/task-type-constants.js
-  const BUCKET_LABELS = (globalThis.MelodySyncTaskTypeConstants?.BUCKET_DEFS || [
-    { key: "long_term",  label: "长期任务" },
-    { key: "short_term", label: "短期任务" },
-    { key: "waiting",    label: "等待任务" },
-    { key: "inbox",      label: "收集箱" },
-  ]).reduce((acc, b) => { acc[b.key] = b.label; return acc; }, {});
-
   const moveToBucketActions = isLtMember
-    ? Object.entries(BUCKET_LABELS)
+    ? Object.entries(BUCKET_KEY_TO_LABEL)
         .filter(([key]) => key !== currentBucket)
         .map(([key, label]) => ({
           key: `move-to-${key}`,

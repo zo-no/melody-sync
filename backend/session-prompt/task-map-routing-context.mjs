@@ -140,10 +140,6 @@ function getSessionGroup(session = null) {
   return normalizeSessionGroup(session?.group || '');
 }
 
-function getSessionPersistentKind(session = null) {
-  const normalized = normalizeComparableText(session?.persistent?.kind || '').replace(/\s+/g, '_');
-  return normalized === 'recurring_task' ? 'recurring_task' : '';
-}
 
 function isGenericGroup(group) {
   return GENERIC_GROUP_KEYS.has(normalizeComparableText(group));
