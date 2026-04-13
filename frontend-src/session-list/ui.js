@@ -1217,22 +1217,19 @@ function resolveAttachedSessionRecord(id, session) {
 }
 
 function isLongTermProjectRootForPanel(session) {
-  // Returns true only for the project root session (recurring_task with role=project)
-  // — not for member sessions that belong to a project
-  const kind = getSidebarPersistentKind(session);
-  if (kind !== "recurring_task") return false;
-  const model = getSessionListModel();
-  if (typeof model?.getLongTermTaskPoolMembership === "function") {
-    const membership = model.getLongTermTaskPoolMembership(session);
-    if (membership) {
-      // Must be explicitly role=project to show the panel
-      return membership.role === "project";
-    }
-    // model exists but no membership found → not a project root
-    return false;
-  }
-  // model unavailable → conservative fallback: don't show panel
-  return false;
+  // Returns true for project root sessions — they open the control panel, not chat.
+  // Project roots are identified by taskPoolMembership.longTerm.role === 'project'
+  // and fixedNode === true (self-referential: projectSessionId === session.id).
+  // NOTE: We no longer rely on persistent.kind because project roots are pure
+  // containers with no persistent field (decoupled from task execution).
+  const membership = session?.taskPoolMembership?.longTerm;
+  if (!membership) return false;
+  const role = String(membership.role || "").trim().toLowerCase();
+  if (role !== "project") return false;
+  // Self-referential: the project root's projectSessionId points to itself
+  const sessionId = String(session?.id || "").trim();
+  const projectSessionId = String(membership.projectSessionId || "").trim();
+  return sessionId === projectSessionId && membership.fixedNode === true;
 }
 
 function attachSession(id, session) {

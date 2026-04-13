@@ -797,6 +797,11 @@ function clipLongTermWorkspaceText(value, max = 120) {
 }
 
 function compareLongTermWorkspaceSessions(left, right) {
+  // Default/builtin projects always sort to the top
+  const leftIsDefault = !!(left?.builtinName);
+  const rightIsDefault = !!(right?.builtinName);
+  if (leftIsDefault !== rightIsDefault) return leftIsDefault ? -1 : 1;
+  // Then by recency
   if (typeof compareSessionListSessions === "function") {
     return compareSessionListSessions(left, right);
   }
@@ -1605,13 +1610,10 @@ function switchTab(tab, { syncState = true } = {}) {
   syncSidebarTabUi();
   const targetSession = resolveSidebarTabAttachmentTarget(activeTab);
   if (isNowLongTerm) {
-    // Always show the panel when switching to long-term tab, regardless of currentSessionId
+    // Long-term tab: always open the control panel, never attach to chat.
+    // Project root sessions are containers, not conversations — attachSession
+    // would show a blank chat which confuses users.
     if (targetSession?.id) {
-      if (typeof attachSession === "function" && currentSessionId !== targetSession.id) {
-        attachSession(targetSession.id, targetSession);
-        return;
-      }
-      // Same session already attached — just show the panel directly
       window.showLongTermProjectPanel?.(targetSession.id);
     }
     if (typeof renderSessionList === "function") renderSessionList();
