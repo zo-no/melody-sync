@@ -759,9 +759,6 @@ const longTermWorkspaceTimeFormatter = new Intl.DateTimeFormat(undefined, {
 let selectedLongTermProjectId = "";
 
 function escapeLongTermWorkspaceHtml(value) {
-  if (typeof esc === "function") {
-    return esc(String(value || ""));
-  }
   const span = document.createElement("span");
   span.textContent = String(value || "");
   return span.innerHTML;
@@ -1117,6 +1114,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
   const title = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectTitle(selectedProject));
   const schedule = escapeLongTermWorkspaceHtml(getLongTermWorkspaceScheduleLabel(selectedProject));
   const status = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectStatusLabel(selectedProject));
+  const isSystemProject = String(selectedProject?.taskListOrigin || "").toLowerCase() === "system";
 
   // ── 1. Task counts ──────────────────────────────────────────────
   const model = window.MelodySyncSessionListModel || null;
@@ -1318,12 +1316,13 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
           </div>
         </div>
         <div class="ltcp-header-actions">
+          ${isSystemProject ? `<span class="ltcp-badge-builtin">内置</span>` : ""}
           <button class="ltcp-action-btn ltcp-action-btn-secondary" type="button"
             data-project-action="cleanup" data-project-id="${projectId}"
             title="归档所有已完成任务">清理</button>
-          <button class="ltcp-action-btn ltcp-action-btn-danger" type="button"
+          ${!isSystemProject ? `<button class="ltcp-action-btn ltcp-action-btn-danger" type="button"
             data-project-action="delete" data-project-id="${projectId}"
-            title="解散项目：成员任务回到任务列表，项目本身归档">解散</button>
+            title="解散项目：成员任务回到任务列表，项目本身归档">解散</button>` : ""}
         </div>
       </div>
 
