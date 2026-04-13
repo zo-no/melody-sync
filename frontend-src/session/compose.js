@@ -796,7 +796,14 @@ function isLongTermWorkspaceProject(session) {
 }
 
 function getLongTermWorkspaceProjects() {
-  const entries = Array.isArray(sessions) ? sessions.filter(isLongTermWorkspaceProject).slice() : [];
+  const entries = Array.isArray(sessions)
+    ? sessions.filter((s) => {
+        if (!isLongTermWorkspaceProject(s)) return false;
+        // Exclude system projects (全局任务) — they appear in the tasks tab, not the projects tab
+        if (String(s?.taskListOrigin || "").trim().toLowerCase() === "system") return false;
+        return true;
+      }).slice()
+    : [];
   entries.sort(compareLongTermWorkspaceSessions);
   return entries;
 }
