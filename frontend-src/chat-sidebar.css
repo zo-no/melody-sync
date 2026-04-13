@@ -427,29 +427,38 @@
 }
 
 /* Complete card shell */
+/* All long-term project cards match the global control panel style:
+   flat rows, no card borders, consistent visual language */
 .lt-project-card {
-  border-radius: 12px;
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  background: color-mix(in srgb, var(--accent) 3%, var(--bg) 97%);
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  background: transparent;
+  margin-bottom: 0;
+}
+.lt-project-card:last-child {
+  border-bottom: none;
 }
 
-/* System/default projects: square corners, distinct style */
-.lt-project-card.is-system {
-  border-radius: 6px;
-  border-color: color-mix(in srgb, var(--border-strong) 40%, var(--border));
-  background: color-mix(in srgb, var(--bg-secondary) 50%, var(--bg) 50%);
+/* Default/builtin projects get a subtle accent tint to stand out */
+.lt-project-card.is-system,
+.lt-project-card.is-default {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
 }
 
-.lt-project-card.is-system .lt-project-card-top {
-  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+.lt-project-card.is-system .lt-project-card-top,
+.lt-project-card.is-default .lt-project-card-top {
+  background: transparent;
 }
 
-.lt-project-card.is-system .lt-project-card-top:hover {
-  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+.lt-project-card.is-system .lt-project-card-top:hover,
+.lt-project-card.is-default .lt-project-card-top:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-.lt-project-card.is-system .lt-project-card-count {
+.lt-project-card.is-system .lt-project-card-count,
+.lt-project-card.is-default .lt-project-card-count {
   background: color-mix(in srgb, var(--border) 30%, transparent);
   color: var(--text-muted);
 }
@@ -467,20 +476,22 @@
   margin-right: 2px;
 }
 
-/* Title row: chevron + name + count */
+/* Title row: matches .global-control-panel-btn style */
 .lt-project-card-top {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 10px 12px 9px;
+  padding: 10px 14px;
   cursor: pointer;
   user-select: none;
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  background: transparent;
   transition: background 0.12s;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .lt-project-card-top:hover {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
 }
 
 .lt-project-card-chevron {
@@ -510,10 +521,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  font-weight: 700;
-  color: color-mix(in srgb, var(--accent) 85%, var(--text));
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
   line-height: 1.3;
+  letter-spacing: 0.01em;
 }
 
 .lt-project-card-subtitle {
