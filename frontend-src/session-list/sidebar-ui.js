@@ -439,9 +439,6 @@ async function removeSessionGroupingTemplateGroup(groupLabel = "", { runAfterSav
 
 function syncSessionGroupingControls() {
   const branchesHidden = getBranchTaskVisibilityModeForSidebar() === "hide";
-  const longTermShown = typeof window.getShowLongTermSessionsInTasksTab === "function"
-    ? window.getShowLongTermSessionsInTasksTab()
-    : false;
   const summaryEl = ensureSidebarGroupingSummaryEl();
   if (sidebarBranchVisibilityToggleBtn) {
     // Eye button: show all tasks (including other projects) vs only daily + unassigned

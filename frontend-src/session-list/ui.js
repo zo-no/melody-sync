@@ -19,10 +19,6 @@ function setSystemProjectId(id) {
   const normalized = typeof id === "string" ? id.trim() : "";
   if (normalized && normalized !== systemProjectId) {
     systemProjectId = normalized;
-    // If no user override, update the effective project ID
-    if (!getSessionsTabProjectOverride()) {
-      // No override — effective ID is now the system project
-    }
   }
 }
 
@@ -54,19 +50,6 @@ globalThis.setSessionsTabProject = setSessionsTabProject;
 globalThis.getSystemProjectId = getSystemProjectId;
 globalThis.setSystemProjectId = setSystemProjectId;
 
-// Legacy compat — these are no longer meaningful but kept to avoid breaking callers
-let showLongTermSessionsInTasksTab = false;
-
-function getShowLongTermSessionsInTasksTab() {
-  return showLongTermSessionsInTasksTab === true;
-}
-
-function setShowLongTermSessionsInTasksTab(value) {
-  showLongTermSessionsInTasksTab = value === true;
-}
-
-globalThis.getShowLongTermSessionsInTasksTab = getShowLongTermSessionsInTasksTab;
-globalThis.setShowLongTermSessionsInTasksTab = setShowLongTermSessionsInTasksTab;
 // Expose attachSession for use in React bundles (IIFE scope can't access non-global functions)
 // This runs after attachSession is defined below, so the reference is valid at call time
 globalThis._melodySyncAttachSession = (id, session) => attachSession(id, session);
@@ -675,8 +658,9 @@ function renderSessionList() {
   const archivedSessionTotal = Number(typeof archivedSessionCount === "undefined" ? 0 : archivedSessionCount) || 0;
   const ARCHIVED_FOLDER_KEY = "folder:archived";
   const archivedCollapsed = collapsedFolders[ARCHIVED_FOLDER_KEY] === true;
+  // Archived folder always visible on Tasks/Projects tabs (even when empty)
   const shouldRenderArchivedSection = (isLongTermTab || isSessionsTab)
-    ? archivedSessions.length > 0
+    ? true
     : (isArchivedSessionsLoading || archivedSessionTotal > 0 || archivedSessions.length > 0);
   const archivedCount = (isLongTermTab || isSessionsTab)
     ? archivedSessions.length
@@ -1025,8 +1009,9 @@ function renderArchivedSection() {
     getVisibleArchivedSessions().filter((session) => shouldShowSessionInSidebarForList(session, { archived: true })),
     activeSidebarTab,
   );
+  // Archived folder always visible on Tasks/Projects tabs (even when empty)
   const shouldRenderSection = (isLongTermTab || isSessionsTab)
-    ? archivedSessions.length > 0
+    ? true
     : (archivedSessionsLoading || archivedSessionCount > 0 || archivedSessions.length > 0);
   if (!shouldRenderSection) return;
 
