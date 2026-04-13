@@ -351,7 +351,7 @@ function buildTaskCardReplyContractBlock(normalized, fixedTaskTitle) {
     'Keep the normal answer natural and user-facing. Put the hidden task-card block after that answer so the client can update the session task bar and branch recommendations without leaking raw JSON into the visible reply.',
     'Never append raw task-card JSON directly to the visible prose body.',
     'Use literal closing tags exactly as </task_card> and </private>. Do not escape the slash as <\\/task_card> or <\\/private>.',
-    'The <task_card> JSON must use these keys: mode, summary, goal, mainGoal, lineRole, branchFrom, branchReason, checkpoint, candidateBranches, knownConclusions, memory.',
+    'The <task_card> JSON must use these keys: mode, summary, goal, mainGoal, lineRole, branchFrom, branchReason, checkpoint, candidateBranches, knownConclusions.',
     fixedTaskTitle
       ? 'For main-line turns, keep goal and mainGoal anchored to the fixed session task title unless the user explicitly redefines the whole task.'
       : '',
