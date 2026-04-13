@@ -197,7 +197,6 @@ function buildSessionMetricRecord(session, state, sessionScopeIndex = null) {
   const workflowState = normalizeSessionWorkflowState(session?.workflowState || '');
   const checkpoint = normalizeNullableText(taskCard?.checkpoint || sessionState?.checkpoint);
   const knownConclusions = normalizeList(taskCard?.knownConclusions);
-  const nextSteps = normalizeList(taskCard?.nextSteps);
   const summary = normalizeNullableText(taskCard?.summary);
   const touchedAt = normalizeNullableText(
     session?.updatedAt
@@ -216,7 +215,7 @@ function buildSessionMetricRecord(session, state, sessionScopeIndex = null) {
     || sessionState?.mainGoal
     || goal,
   );
-  const structured = Boolean(checkpoint || knownConclusions.length > 0 || nextSteps.length > 0 || summary);
+  const structured = Boolean(checkpoint || knownConclusions.length > 0 || summary);
   const lineRole = sessionState?.lineRole === 'branch' ? 'branch' : 'main';
   const persistentKind = normalizePersistentKind(session?.persistent?.kind || '');
   const sessionId = normalizeNullableText(session?.id);
@@ -229,7 +228,6 @@ function buildSessionMetricRecord(session, state, sessionScopeIndex = null) {
     summary,
     checkpoint,
     knownConclusionsCount: knownConclusions.length,
-    nextStep: nextSteps[0] || '',
     lineRole,
     workflowState,
     archived: session?.archived === true,

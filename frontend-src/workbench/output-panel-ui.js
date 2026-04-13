@@ -573,7 +573,7 @@
     scheduleRefresh(120);
   });
 
-  // Panel is always shown in sidebar
+  // Panel lives at the bottom of the sidebar, always visible.
   show();
 
   global.MelodySyncOutputPanel = Object.freeze({

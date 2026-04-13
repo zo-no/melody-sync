@@ -19,13 +19,10 @@ function extractLatestAssistantMessage(normalizedEvents = []) {
 
 function buildStatePatchFromTaskCard(taskCard = null) {
   if (!taskCard || typeof taskCard !== 'object') return {};
-  const needsFromUser = Array.isArray(taskCard.needsFromUser)
-    ? taskCard.needsFromUser.some((entry) => normalizeText(entry))
-    : Boolean(normalizeText(taskCard.needsFromUser));
   return {
     goal: normalizeText(taskCard.goal),
     checkpoint: normalizeText(taskCard.checkpoint || taskCard.summary),
-    needsUser: needsFromUser,
+    needsUser: false,
     lineRole: normalizeText(taskCard.lineRole) || 'main',
     branchFrom: normalizeText(taskCard.branchFrom),
   };

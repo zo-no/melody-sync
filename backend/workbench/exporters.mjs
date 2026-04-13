@@ -225,8 +225,6 @@ export function buildBranchSeedPrompt({ project, node, goal, carryover = null })
     normalizeNullableText(carryover?.carryoverSummary) ? `Mainline carryover: ${carryover.carryoverSummary}` : '',
     trimText(node.summary) ? `Node summary: ${node.summary}` : '',
     trimText(node.nextAction) ? `Suggested next action: ${node.nextAction}` : '',
-    formatSeedList('Carryover background', carryover?.background || []),
-    formatSeedList('Carryover materials', carryover?.rawMaterials || []),
     formatSeedList('Carryover conclusions', carryover?.knownConclusions || []),
     '',
     'Start by restating the branch objective, then propose the next concrete step.',

@@ -1077,36 +1077,13 @@ function showWorkspaceInlineForm(triggerEl, projectSession) {
 
 function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
   if (!longTermWorkspaceDetail) return;
-  const selectedProject = projects.find((entry) => String(entry?.id || "").trim() === selectedProjectId) || null;
+  // No overview — auto-select first project if none selected
+  const selectedProject = projects.find((entry) => String(entry?.id || "").trim() === selectedProjectId)
+    || projects[0]
+    || null;
   if (!selectedProject) {
-    // 全局项目概览面板
-    const totalActive = Array.isArray(sessions) ? sessions.filter((s) => !s?.archived).length : 0;
-    const projectRows = projects.map((p) => {
-      const title = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectTitle(p));
-      const schedule = escapeLongTermWorkspaceHtml(getLongTermWorkspaceScheduleLabel(p));
-      const isSystem = String(p?.taskListOrigin || "").toLowerCase() === "system";
-      const pid = escapeLongTermWorkspaceHtml(String(p?.id || ""));
-      return `<button class="ltcp-overview-project-row" type="button" data-project-action="open" data-project-id="${pid}">
-        <span class="ltcp-overview-project-name">${title}</span>
-        ${isSystem ? `<span class="ltcp-overview-project-badge">${t("sidebar.defaultBadge")}</span>` : ""}
-        ${schedule ? `<span class="ltcp-overview-project-schedule">${schedule}</span>` : ""}
-        <span class="ltcp-overview-project-arrow">›</span>
-      </button>`;
-    }).join("");
-    longTermWorkspaceDetail.innerHTML = `
-      <div class="ltcp-shell">
-        <div class="ltcp-overview-header">
-          <h2 class="ltcp-overview-title">${t("longTerm.overviewTitle")}</h2>
-          <div class="ltcp-overview-stats">
-            <span class="ltcp-overview-stat">${t("longTerm.projectCount").replace("{n}", projects.length)}</span>
-            <span class="ltcp-overview-stat">${t("longTerm.activeTasks").replace("{n}", totalActive)}</span>
-          </div>
-        </div>
-        <div class="ltcp-section">
-          <div class="ltcp-section-title">${t("longTerm.projectsSection")}</div>
-          <div class="ltcp-overview-projects">${projectRows}</div>
-        </div>
-      </div>`;
+    longTermWorkspaceDetail.innerHTML = "";
+    longTermWorkspaceDetail.hidden = true;
     return;
   }
 

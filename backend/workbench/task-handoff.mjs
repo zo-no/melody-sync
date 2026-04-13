@@ -14,26 +14,17 @@ import {
 const HANDOFF_DETAIL_LIMITS = Object.freeze({
   focused: Object.freeze({
     focus: 2,
-    background: 2,
-    constraints: 2,
     conclusions: 2,
-    nextSteps: 2,
     integration: 2,
   }),
   balanced: Object.freeze({
     focus: 2,
-    background: 3,
-    constraints: 3,
     conclusions: 3,
-    nextSteps: 3,
     integration: 2,
   }),
   full: Object.freeze({
     focus: 3,
-    background: 4,
-    constraints: 4,
     conclusions: 4,
-    nextSteps: 4,
     integration: 3,
   }),
 });
@@ -125,7 +116,6 @@ function buildSessionContextSummary(session = null, fallback = '当前任务') {
     mainGoal: normalizeNullableText(taskCard.mainGoal),
     checkpoint: normalizeNullableText(taskCard.checkpoint),
     summary: normalizeNullableText(taskCard.summary),
-    nextSteps: takeContextSeedList(taskCard, 'nextSteps', 2),
     knownConclusions: takeContextSeedList(taskCard, 'knownConclusions', 2),
   };
 }
@@ -210,10 +200,7 @@ function buildSessionIntentProfile(session = null) {
     summary.mainGoal,
     summary.checkpoint,
     summary.summary,
-    ...summary.nextSteps,
     ...summary.knownConclusions,
-    ...takeContextSeedList(taskCard, 'background', 1),
-    ...takeContextSeedList(taskCard, 'rawMaterials', 1),
   ]);
 }
 
@@ -238,26 +225,17 @@ function buildIntegrationSection({
   const targetTitle = targetContext.title || '目标任务';
   const targetAnchor = normalizeNullableText(
     targetContext.checkpoint
-    || targetContext.nextSteps[0]
     || targetContext.goal
     || targetContext.mainGoal
   );
   const leadConclusion = normalizeNullableText((sections?.conclusions || [])[0]);
-  const leadBackground = normalizeNullableText((sections?.background || [])[0]);
-  const leadNextStep = normalizeNullableText((sections?.nextSteps || [])[0]);
   const sourceTitle = buildSessionContextSummary(sourceSession, '源任务').title || '源任务';
 
   return dedupeTexts([
     leadConclusion && targetAnchor
       ? `围绕「${targetAnchor}」优先吸收：${leadConclusion}`
       : '',
-    !leadConclusion && leadBackground && targetAnchor
-      ? `围绕「${targetAnchor}」优先参考：${leadBackground}`
-      : '',
-    leadNextStep
-      ? `可并入「${targetTitle}」的下一步：${leadNextStep}`
-      : '',
-    !leadNextStep && targetAnchor && sourceTitle
+    !leadConclusion && targetAnchor && sourceTitle
       ? `将来自「${sourceTitle}」的上下文接入「${targetAnchor}」后继续推进`
       : '',
   ]).slice(0, max);
@@ -272,17 +250,6 @@ function buildPacketSections(sourceSession = null, targetSession = null, options
   const fallbackProfile = buildSessionIntentProfile(sourceSession);
   const activeProfile = targetProfile.size > 0 ? targetProfile : fallbackProfile;
 
-  const background = prioritizeTexts([
-    ...takeTaskCardList(sourceTaskCard, 'background', 2),
-    ...takeTaskCardList(sourceTaskCard, 'rawMaterials', 2),
-  ], activeProfile, limits.background);
-
-  const constraints = prioritizeTexts(
-    takeTaskCardList(sourceTaskCard, 'assumptions', 4),
-    activeProfile,
-    limits.constraints,
-  );
-
   const conclusions = prioritizeTexts([
     ...takeTaskCardList(sourceTaskCard, 'knownConclusions', 3),
     buildFallbackConclusion(sourceTaskCard, sourceTitle)
@@ -290,19 +257,10 @@ function buildPacketSections(sourceSession = null, targetSession = null, options
       : '',
   ], activeProfile, limits.conclusions);
 
-  const nextSteps = prioritizeTexts(
-    takeTaskCardList(sourceTaskCard, 'nextSteps', 4),
-    activeProfile,
-    limits.nextSteps,
-  );
-
   const focus = buildFocusSection(sourceSession, targetSession, limits.focus);
   const sections = {
     focus,
-    background,
-    constraints,
     conclusions,
-    nextSteps,
     integration: [],
   };
   sections.integration = buildIntegrationSection({
@@ -312,19 +270,10 @@ function buildPacketSections(sourceSession = null, targetSession = null, options
     max: limits.integration,
   });
 
-  if (
-    focus.length === 0
-    && background.length === 0
-    && constraints.length === 0
-    && conclusions.length === 0
-    && nextSteps.length === 0
-  ) {
+  if (focus.length === 0 && conclusions.length === 0) {
     return {
       focus: buildFocusSection(sourceSession, targetSession, limits.focus),
-      background: [],
-      constraints: [],
       conclusions: [`来自任务「${sourceTitle}」的阶段数据交接`],
-      nextSteps: [],
       integration: [],
     };
   }
@@ -373,39 +322,14 @@ function applyTaskDataHandoffToTaskCard(targetTaskCard = null, packet = null) {
     checkpoint: normalizeNullableText(
       current.checkpoint
       || integration[0]
-      || (Array.isArray(sections.nextSteps) ? sections.nextSteps[0] : '')
       || (Array.isArray(sections.conclusions) ? sections.conclusions[0] : '')
       || focus[0]
       || handoffLine,
     ),
-    background: dedupeTexts([
-      handoffLine,
-      ...focus,
-      ...(Array.isArray(sections.background) ? sections.background : []),
-      ...(current.background || []),
-    ]),
-    rawMaterials: dedupeTexts([
-      `来源任务：${sourceTitle}`,
-      ...(current.rawMaterials || []),
-    ]),
-    assumptions: dedupeTexts([
-      ...(Array.isArray(sections.constraints) ? sections.constraints : []),
-      ...(current.assumptions || []),
-    ]),
     knownConclusions: dedupeTexts([
       ...(Array.isArray(sections.conclusions) ? sections.conclusions : []),
       ...integration,
       ...(current.knownConclusions || []),
-    ]),
-    nextSteps: dedupeTexts([
-      ...integration,
-      ...(Array.isArray(sections.nextSteps) ? sections.nextSteps : []),
-      ...(current.nextSteps || []),
-    ]),
-    memory: dedupeTexts([
-      `已接收来自「${sourceTitle}」的数据交接`,
-      packet?.detailLevel ? `交接细节：${packet.detailLevel}` : '',
-      ...(current.memory || []),
     ]),
   });
 }

@@ -384,7 +384,6 @@
       const primaryDetail = trimText(context?.primaryDetail || "");
       const resumePoint = trimText(
         String(taskCard?.checkpoint || "").trim()
-        || (Array.isArray(taskCard?.nextSteps) ? String(taskCard.nextSteps.find((entry) => trimText(entry)) || "").trim() : "")
         || String(taskCard?.goal || "").trim(),
       );
       const showResumePoint = Boolean(resumePoint)

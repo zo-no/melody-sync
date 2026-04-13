@@ -338,11 +338,10 @@ function getSessionTaskPreview(session) {
     : String(taskCard?.lineRole || "").trim().toLowerCase() === "branch";
   const taskCluster = getTaskClusterForSession(displaySession);
   const checkpoint = clipTaskLabel(String(taskCard?.checkpoint || "").trim(), 84);
-  const firstNextStep = clipTaskLabel(getTaskCardList(taskCard, "nextSteps")[0] || "", 84);
   const firstConclusion = clipTaskLabel(getTaskCardList(taskCard, "knownConclusions")[0] || "", 84);
   let summaryLine = "";
   let summarySegments = [];
-  for (const candidate of [checkpoint, firstNextStep, firstConclusion]) {
+  for (const candidate of [checkpoint, firstConclusion]) {
     if (!candidate || looksLikeVisibleTaskTitle(displaySession, candidate)) continue;
     summaryLine = candidate;
     break;
@@ -450,6 +449,7 @@ function getSessionDisplayRenderKey(session) {
   const preview = getSessionTaskPreview(displaySession);
   // Include currentSessionId so that when the active session changes,
   // all items re-render and the active highlight updates correctly
+  const ltMembershipKey = String(displaySession?.taskPoolMembership?.longTerm?.projectSessionId || "").trim();
   return [
     String(displaySession?.id || "").trim(),
     getSessionDisplayName(displaySession),
@@ -459,6 +459,7 @@ function getSessionDisplayRenderKey(session) {
     String(displaySession?.activity?.run?.state || "").trim().toLowerCase(),
     String(displaySession?.workflowState || "").trim().toLowerCase(),
     String(currentSessionId || "").trim(),
+    ltMembershipKey,
   ].join("|");
 }
 
@@ -863,6 +864,7 @@ function createActiveSessionItem(session, options = {}) {
   const titlePrefixHtml = typeof options.titlePrefixHtml === "string"
     ? options.titlePrefixHtml
     : "";
+
   const metaHtml = typeof options.metaOverrideHtml === "string"
     ? options.metaOverrideHtml
     : buildSessionMetaParts(session, { touchStatusInfo }).join(" · ");

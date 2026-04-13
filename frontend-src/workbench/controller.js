@@ -34,6 +34,9 @@
   const headerTitleEl = document.getElementById("headerTitle");
   const headerTaskDetailBtn = document.getElementById("headerTaskDetailBtn");
   const trackerTitleEl = document.getElementById("questTrackerTitle");
+  const trackerProjectRowEl = document.getElementById("questTrackerProjectRow");
+  const trackerProjectBtnEl = document.getElementById("questTrackerProjectBtn");
+  const trackerProjectNameEl = document.getElementById("questTrackerProjectName");
   const trackerBranchEl = document.getElementById("questTrackerBranch");
   const trackerBranchLabelEl = document.getElementById("questTrackerBranchLabel");
   const trackerBranchTitleEl = document.getElementById("questTrackerBranchTitle");
@@ -138,8 +141,6 @@
   const LIVE_TASK_CARD_ARRAY_KEYS = Object.freeze([
     "candidateBranches",
     "knownConclusions",
-    "memory",
-    "nextSteps",
   ]);
 
   function getWorkbenchViewModelState() {
@@ -1559,26 +1560,17 @@
   const HANDOFF_PREVIEW_LIMITS = Object.freeze({
     focused: Object.freeze({
       focus: 2,
-      background: 2,
-      constraints: 2,
       conclusions: 2,
-      nextSteps: 2,
       integration: 2,
     }),
     balanced: Object.freeze({
       focus: 2,
-      background: 3,
-      constraints: 3,
       conclusions: 3,
-      nextSteps: 3,
       integration: 2,
     }),
     full: Object.freeze({
       focus: 3,
-      background: 4,
-      constraints: 4,
       conclusions: 4,
-      nextSteps: 4,
       integration: 3,
     }),
   });
@@ -1713,28 +1705,12 @@
       targetTaskCard?.mainGoal,
       targetTaskCard?.checkpoint,
       targetTaskCard?.summary,
-      ...(Array.isArray(targetTaskCard?.nextSteps) ? targetTaskCard.nextSteps.slice(0, 2) : []),
       ...(Array.isArray(targetTaskCard?.knownConclusions) ? targetTaskCard.knownConclusions.slice(0, 2) : []),
     ]);
-    const background = prioritizeHandoffPreviewItems(
-      [...pickList("background", 2), ...pickList("rawMaterials", 2)],
-      targetProfile,
-      limits.background,
-    );
-    const constraints = prioritizeHandoffPreviewItems(
-      pickList("assumptions", 4),
-      targetProfile,
-      limits.constraints,
-    );
     const conclusions = prioritizeHandoffPreviewItems([
       ...pickList("knownConclusions", 3),
       clipText(sourceTaskCard?.checkpoint || sourceTaskCard?.summary || sourceTaskCard?.goal || sourceSession?.name || "", 140),
     ], targetProfile, limits.conclusions);
-    const nextSteps = prioritizeHandoffPreviewItems(
-      pickList("nextSteps", 4),
-      targetProfile,
-      limits.nextSteps,
-    );
     const focus = dedupePreviewItems([
       sourceTaskCard?.goal ? `源任务目标：${clipText(sourceTaskCard.goal, 140)}` : "",
       targetTaskCard?.goal ? `目标任务目标：${clipText(targetTaskCard.goal, 140)}` : "",
@@ -1743,7 +1719,6 @@
     ]).slice(0, limits.focus);
     const targetAnchor = clipText(
       targetTaskCard?.checkpoint
-      || (Array.isArray(targetTaskCard?.nextSteps) ? targetTaskCard.nextSteps[0] : "")
       || targetTaskCard?.goal
       || targetTaskCard?.mainGoal
       || "",
@@ -1751,15 +1726,11 @@
     );
     const integration = dedupePreviewItems([
       conclusions[0] && targetAnchor ? `围绕「${targetAnchor}」优先吸收：${conclusions[0]}` : "",
-      nextSteps[0] ? `可并入「${targetTitle}」的下一步：${nextSteps[0]}` : "",
     ]).slice(0, limits.integration);
     const sections = [
       { key: "focus", label: "焦点", items: focus },
-      { key: "background", label: "背景", items: background },
-      { key: "constraints", label: "约束", items: constraints },
       { key: "conclusions", label: "结论", items: conclusions },
       { key: "integration", label: "接入建议", items: integration },
-      { key: "nextSteps", label: "下一步", items: nextSteps },
     ].filter((section) => section.items.length > 0);
 
     return {
@@ -2620,12 +2591,6 @@
       if (summary) {
         meta.appendChild(createPersistentSummaryChip(summary));
       }
-    } else if (longTermState?.lane === "long-term" && longTermState?.role === "member") {
-      const title = longTermState.rootTitle || "长期任务";
-      kicker.textContent = "";
-      lead.textContent = "";
-
-      meta.appendChild(createPersistentSummaryChip(title, "live"));
     } else {
       clearPersistentSummary();
       return;
@@ -2824,6 +2789,26 @@
     }
     if (headerTitleEl) headerTitleEl.hidden = true;
     tracker.hidden = !expanded;
+
+    // ── Project badge row ──────────────────────────────────────────────────
+    if (trackerProjectRowEl && trackerProjectNameEl) {
+      const session = state?.session || null;
+      const ltMembership = session?.taskPoolMembership?.longTerm;
+      const ltProjectId = ltMembership?.projectSessionId
+        ? String(ltMembership.projectSessionId).trim() : "";
+      const ltRole = ltMembership?.role
+        ? String(ltMembership.role).trim().toLowerCase() : "";
+      const isLtMember = Boolean(ltProjectId && ltRole === "member");
+      let projectName = "";
+      if (isLtMember && typeof globalThis.getLongTermProjectList === "function") {
+        const projects = globalThis.getLongTermProjectList() || [];
+        const found = projects.find((p) => p?.id === ltProjectId);
+        projectName = found ? String(found.name || "").trim() : "";
+      }
+      trackerProjectNameEl.textContent = projectName;
+      trackerProjectRowEl.hidden = !projectName;
+    }
+
     trackerTitleEl.textContent = trackerTitle;
     trackerTitleEl.hidden = false;
     const sessionTime = state.session?.lastEventAt || state.session?.updatedAt || state.session?.created || "";
@@ -3239,6 +3224,14 @@
   trackerDetailToggleBtn?.addEventListener("click", () => {
     trackerDetailExpanded = !trackerDetailExpanded;
     renderTracker();
+  });
+
+  trackerProjectBtnEl?.addEventListener("click", () => {
+    const session = getCurrentSessionSafe() || null;
+    if (!session?.id) return;
+    if (typeof window.openProjectPicker === "function") {
+      window.openProjectPicker(session);
+    }
   });
 
   headerTaskDetailBtn?.addEventListener("click", () => {

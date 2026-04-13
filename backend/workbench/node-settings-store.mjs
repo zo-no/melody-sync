@@ -28,7 +28,6 @@ const NODE_TASK_CARD_BINDING_KEYS = Object.freeze([
   'candidateBranches',
   'summary',
   'checkpoint',
-  'nextSteps',
 ]);
 const RESERVED_NODE_KIND_IDS = new Set(['main', 'branch', 'candidate', 'note', 'done']);
 

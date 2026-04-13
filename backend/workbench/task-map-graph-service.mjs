@@ -181,9 +181,8 @@ function getBranchTitle(session = null) {
 function getNodeSummary(session = null) {
   const taskCard = getTaskCard(session);
   const checkpoint = trimText(taskCard?.checkpoint);
-  const nextStep = getTaskCardList(taskCard, 'nextSteps')[0] || '';
   const summary = trimText(taskCard?.summary);
-  return clipText(checkpoint || nextStep || summary || '', 88);
+  return clipText(checkpoint || summary || '', 88);
 }
 
 function getCandidateKeysForSession(session = null) {

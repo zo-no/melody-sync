@@ -3,7 +3,7 @@ import { buildTaskCardPatchForSourceSession } from './node-task-card.mjs';
 import { normalizeSessionTaskCard } from '../session/task-card.mjs';
 import { trimText } from './shared.mjs';
 
-const ARRAY_BINDING_KEYS = new Set(['candidateBranches', 'nextSteps']);
+const ARRAY_BINDING_KEYS = new Set(['candidateBranches']);
 
 function normalizeBindingKeys(values = []) {
   const allowlistMap = new Map(NODE_TASK_CARD_BINDING_KEYS.map((value) => [trimText(value).toLowerCase(), value]));

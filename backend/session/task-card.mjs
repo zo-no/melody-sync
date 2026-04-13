@@ -9,13 +9,7 @@ const TASK_CARD_KEYS = new Set([
   'branchReason',
   'checkpoint',
   'candidateBranches',
-  'background',
-  'rawMaterials',
-  'assumptions',
   'knownConclusions',
-  'nextSteps',
-  'memory',
-  'needsFromUser',
 ]);
 
 function resolveTaskCardLimit(value, fallback) {
@@ -264,14 +258,8 @@ function hasMeaningfulTaskCard(card) {
     || card.mainGoal
     || card.summary
     || card.checkpoint
-    || (card.background || []).length > 0
-    || (card.rawMaterials || []).length > 0
-    || (card.assumptions || []).length > 0
     || (card.knownConclusions || []).length > 0
-    || (card.nextSteps || []).length > 0
     || (card.candidateBranches || []).length > 0
-    || (card.memory || []).length > 0
-    || (card.needsFromUser || []).length > 0
   );
 }
 
@@ -289,20 +277,9 @@ export function normalizeSessionTaskCard(value, options = {}) {
     value.candidateBranches || value.branchCandidates || value.sideQuests || value.sideLines,
     { maxItems: MAX_TASK_CARD_CANDIDATE_BRANCH_ITEMS, maxChars: MAX_TASK_CARD_CANDIDATE_BRANCH_CHARS },
   );
-  const background = normalizeTaskCardList(value.background || value.contextBackground || value.backgroundContext);
-  const rawMaterials = normalizeTaskCardList(value.rawMaterials || value.materials || value.inputs);
-  const assumptions = normalizeTaskCardList(value.assumptions || value.openAssumptions || value.hypotheses);
   const knownConclusions = normalizeTaskCardList(
     value.knownConclusions || value.conclusions || value.knownFindings || value.findings,
     { maxItems: 4 },
-  );
-  const nextSteps = normalizeTaskCardList(value.nextSteps || value.nextActions || value.actions, {
-    maxItems: MAX_TASK_CARD_NEXT_STEP_ITEMS,
-  });
-  const memory = normalizeTaskCardList(value.memory || value.userMemory || value.reusableContext || value.durableMemory);
-  const needsFromUser = normalizeTaskCardList(
-    value.needsFromUser || value.userNeeds || value.pendingUserInputs,
-    { maxItems: 3 },
   );
   const mode = normalizeTaskCardMode(
     value.mode
@@ -322,13 +299,7 @@ export function normalizeSessionTaskCard(value, options = {}) {
     branchReason,
     checkpoint,
     candidateBranches,
-    background,
-    rawMaterials,
-    assumptions,
     knownConclusions,
-    nextSteps,
-    memory,
-    needsFromUser,
   };
 
   if (options?.preserveCandidateBranches !== true) {
@@ -369,13 +340,7 @@ function buildTaskCardStateBlock(normalized, fixedTaskTitle) {
     normalized.branchReason ? `Branch reason: ${normalized.branchReason}` : '',
     normalized.checkpoint ? `Checkpoint: ${normalized.checkpoint}` : '',
     formatTaskCardList('Candidate branches', normalized.candidateBranches),
-    formatTaskCardList('Background', normalized.background),
-    formatTaskCardList('Raw materials', normalized.rawMaterials),
-    formatTaskCardList('Assumptions', normalized.assumptions),
     formatTaskCardList('Known conclusions', normalized.knownConclusions),
-    formatTaskCardList('Next steps', normalized.nextSteps),
-    formatTaskCardList('Durable user memory', normalized.memory),
-    formatTaskCardList('Needs from user', normalized.needsFromUser),
   ].filter(Boolean).join('\n\n');
 }
 

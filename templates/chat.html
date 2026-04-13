@@ -248,6 +248,12 @@
       <section class="task-manager-main-column">
       <section class="quest-tracker" id="questTracker" hidden>
         <div class="quest-tracker-main">
+          <div class="quest-tracker-project-row" id="questTrackerProjectRow" hidden>
+            <button class="quest-tracker-project-btn" id="questTrackerProjectBtn" type="button">
+              <span class="quest-tracker-project-name" id="questTrackerProjectName"></span>
+              <span class="quest-tracker-project-arrow" aria-hidden="true">⌄</span>
+            </button>
+          </div>
           <div class="quest-tracker-titleline">
             <div class="quest-tracker-title" id="questTrackerTitle" hidden></div>
             <button class="quest-tracker-detail-toggle" id="questTrackerDetailToggle" type="button" hidden>详情 ▸</button>
@@ -296,19 +302,18 @@
           </div>
         </section>
 
-        <!-- Output panel — shown below quest-tracker in normal task mode -->
-        <div class="output-panel-inline" id="outputPanelInline" hidden>
-          <div class="output-panel-inline-header">
-            <span class="output-panel-inline-title">产出概览</span>
-            <button class="output-panel-inline-refresh" id="outputPanelRefreshBtn" type="button" title="刷新" aria-label="刷新">↻</button>
-          </div>
-          <div class="output-panel-inline-body" id="outputPanelBody"></div>
-        </div>
-
         <!-- Long-term project workspace panel (shown when Projects tab is active) -->
         <div class="long-term-workspace" id="longTermWorkspace" hidden>
           <div class="long-term-workspace-detail" id="longTermWorkspaceDetail"></div>
           <div class="long-term-output-detail" id="longTermOutputDetail" hidden></div>
+          <!-- Output panel — lives inside control panel, shown alongside project detail -->
+          <div class="output-panel-inline" id="outputPanelInline" hidden>
+            <div class="output-panel-inline-header">
+              <span class="output-panel-inline-title">产出概览</span>
+              <button class="output-panel-inline-refresh" id="outputPanelRefreshBtn" type="button" title="刷新" aria-label="刷新">↻</button>
+            </div>
+            <div class="output-panel-inline-body" id="outputPanelBody"></div>
+          </div>
         </div>
 
         <div class="messages" id="messages">

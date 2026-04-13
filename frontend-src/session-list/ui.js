@@ -662,8 +662,10 @@ function renderSessionList() {
           : (typeof getSessionCatalogRecordById === "function"
               ? getSessionCatalogRecordById(projectId)
               : getVisibleActiveSessions().find((s) => s?.id === projectId) || null);
-        const projectTitle = String(projectSession?.name || projectSession?.description || t("longTerm.projectsSection") || "长期项目").trim() || t("longTerm.projectsSection") || "长期项目";
         const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
+        // Skip orphaned groups where the project session can't be found
+        if (!projectSession) continue;
+        const projectTitle = String(projectSession?.name || projectSession?.description || "").trim() || "未命名项目";
         groups.set(groupKey, {
           key: groupKey,
           label: projectTitle,
