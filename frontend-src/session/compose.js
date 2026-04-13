@@ -1622,7 +1622,15 @@ globalThis.showLongTermProjectPanel = (projectId) => {
   selectedLongTermProjectId = String(projectId || "").trim();
   document.body.classList.add("long-term-workspace-active");
   if (longTermWorkspace) longTermWorkspace.hidden = false;
-  const projects = getLongTermWorkspaceProjects();
+  // getLongTermWorkspaceProjects() excludes system projects (they live in the tasks tab).
+  // When the requested project IS a system project, include it directly so
+  // renderLongTermWorkspaceDetail can find it instead of falling back to projects[0].
+  const userProjects = getLongTermWorkspaceProjects();
+  const isRequestedProjectInList = userProjects.some((p) => String(p?.id || "").trim() === selectedLongTermProjectId);
+  const systemProject = !isRequestedProjectInList && selectedLongTermProjectId
+    ? (Array.isArray(sessions) ? sessions.find((s) => String(s?.id || "").trim() === selectedLongTermProjectId) : null) || null
+    : null;
+  const projects = systemProject ? [systemProject, ...userProjects] : userProjects;
   renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
   // For system project (日常任务): load yesterday's summary and inject it
   const selectedProject = projects.find((p) => String(p?.id || "").trim() === selectedLongTermProjectId);

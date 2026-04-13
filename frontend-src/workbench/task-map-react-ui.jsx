@@ -3476,29 +3476,35 @@ function SessionListGroupSection({
             </div>
           </>)
         ) : isLongTermProject ? (
-          // Long-term project: click anywhere on card to open control panel
-          <div className={`lt-project-card${groupEntry?.isSystem ? ' is-system' : ''}`}>
+          // Long-term project: title row collapses/expands tasks; panel icon opens control panel
+          <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}${groupEntry?.isSystem ? ' is-system' : ''}`}>
             <div
               className="lt-project-card-top"
               role="button"
               tabIndex={0}
-              title="打开控制面板"
-              onClick={openProjectPanel}
+              aria-expanded={isCollapsed ? 'false' : 'true'}
+              onClick={toggleGroup}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
-                openProjectPanel(event);
+                toggleGroup();
               }}
             >
+              <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
               <div className="lt-project-card-title-group">
                 <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
               </div>
               {groupEntry?.isSystem ? <span className="lt-project-card-default-badge">默认</span> : null}
               <span className="lt-project-card-count">{memberCount}</span>
-              <span className="lt-project-card-panel-icon" aria-hidden="true">›</span>
+              {/* Panel icon — click opens control panel without collapsing */}
+              <button
+                type="button"
+                className="lt-project-card-panel-btn"
+                title="打开控制面板"
+                onClick={(e) => { e.stopPropagation(); openProjectPanel(e); }}
+              >›</button>
             </div>
-            {/* Task buckets: not shown in the projects tab — tasks are in the tasks tab */}
-            <div className="lt-project-card-content" hidden={true}>
+            <div className="lt-project-card-content" hidden={isCollapsed}>
               {Object.values(groupEntry?.buckets || {})
                 .sort((a, b) => (a?.order ?? 99) - (b?.order ?? 99))
                 .map((bucketEntry) => (
