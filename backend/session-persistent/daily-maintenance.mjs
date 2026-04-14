@@ -198,10 +198,50 @@ function isEligibleForDailyArchive(session = {}, cutoffDate = new Date()) {
   return Number.isFinite(completedTime) && completedTime < cutoffDate.getTime();
 }
 
+const ACTIVITY_EMOJI_RULES = [
+  { pattern: /排查|报错|错误|bug|debug|修复|fix|crash|异常|失败/, emoji: '🔍' },
+  { pattern: /设计|ui|ux|界面|样式|布局|视觉|原型/, emoji: '🎨' },
+  { pattern: /讨论|分享|会议|头脑风暴|brainstorm|review|评审/, emoji: '💬' },
+  { pattern: /重构|优化|清理|整理|迁移|refactor/, emoji: '🔧' },
+  { pattern: /部署|发布|上线|deploy|release|ci|cd/, emoji: '🚀' },
+  { pattern: /测试|test|spec|单测|集成/, emoji: '🧪' },
+  { pattern: /文档|doc|readme|注释/, emoji: '📄' },
+  { pattern: /新增|添加|实现|开发|feature|功能/, emoji: '✨' },
+];
+
+function inferActivityEmoji(texts = []) {
+  const combined = texts.filter(Boolean).join(' ').toLowerCase();
+  for (const rule of ACTIVITY_EMOJI_RULES) {
+    if (rule.pattern.test(combined)) return rule.emoji;
+  }
+  return '💻';
+}
+
+function formatTimeLabel(isoString) {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (!Number.isFinite(d.getTime())) return '';
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function formatDuration(startIso, endIso) {
+  const start = startIso ? Date.parse(startIso) : 0;
+  const end = endIso ? Date.parse(endIso) : 0;
+  if (!start || !end || end <= start) return '';
+  const totalMinutes = Math.round((end - start) / 60000);
+  if (totalMinutes <= 0) return '';
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return mins > 0 ? `${hours}h${mins}m` : `${hours}h`;
+}
+
 function buildArchiveDigest(session = {}) {
   const sessionState = resolveSessionStateFromSession(session, session?.sourceContext || null);
   const taskCard = session?.taskCard && typeof session.taskCard === 'object' ? session.taskCard : {};
-  const conclusions = normalizeList(taskCard?.knownConclusions, 3, 140);
+  const conclusions = normalizeList(taskCard?.knownConclusions, 4, 160);
   const memory = normalizeList(taskCard?.memory, 3, 140);
   const title = clipText(
     session?.name
@@ -218,8 +258,37 @@ function buildArchiveDigest(session = {}) {
     goal = clipText(summary || checkpoint || title, 180);
   }
   const completedAt = resolveWorkflowCompletedAt(session);
-  const conclusionsText = conclusions.join('；');
-  const memoryText = memory.join('；');
+  const createdAt = normalizeIsoTimestamp(session?.created || '');
+  const projectName = trimText(session?.sessionState?.longTerm?.rootTitle || session?.group || '');
+  const emoji = inferActivityEmoji([title, conclusions[0]]);
+  const tag = projectName ? `${emoji} ${projectName}` : emoji;
+
+  // Human line: compact single-line for Obsidian diary
+  const startLabel = formatTimeLabel(createdAt);
+  const endLabel = formatTimeLabel(completedAt);
+  const durationLabel = formatDuration(createdAt, completedAt);
+  const timeRange = startLabel && endLabel ? `${startLabel}-${endLabel}` : (endLabel || startLabel || '');
+  const timePart = durationLabel ? `${timeRange} (${durationLabel})` : timeRange;
+  const bodyText = conclusions.length > 0
+    ? `${title}，${conclusions.join('，')}`
+    : (summary || goal || title);
+  const humanLine = bulletize(
+    timePart ? `${timePart} [${tag}] ${clipText(bodyText, 200)}` : `[${tag}] ${clipText(bodyText, 200)}`,
+  );
+
+  // Agent lines: multi-layer structured block for worklog (AI-readable)
+  const agentLines = [
+    `#### ${endLabel || formatLocalDayKey(completedAt ? new Date(completedAt) : new Date())} ${title}`,
+    goal && goal !== title ? `- 任务目标：${goal}` : '',
+    summary && summary !== goal && summary !== title ? `- 工作摘要：${summary}` : '',
+    conclusions.length > 0 ? '- 关键结论：' : '',
+    ...conclusions.map((c) => `  - ${c}`),
+    memory.length > 0 ? '- 持久记忆：' : '',
+    ...memory.map((m) => `  - ${m}`),
+    completedAt ? `- 完成时间：${completedAt}` : '',
+    projectName ? `- 所属项目：${projectName}` : '',
+  ].filter(Boolean);
+
   return {
     sessionId: session.id,
     title,
@@ -229,12 +298,8 @@ function buildArchiveDigest(session = {}) {
     conclusions,
     memory,
     completedAt,
-    humanLine: bulletize(
-      `《${title}》已完成${summary ? `：${summary}` : ''}${!summary && checkpoint ? `：${checkpoint}` : ''}`,
-    ),
-    agentLine: bulletize(
-      `${title}：目标 ${goal || title}${checkpoint ? `；收束 ${checkpoint}` : ''}${conclusionsText ? `；结论 ${conclusionsText}` : ''}${memoryText ? `；记忆 ${memoryText}` : ''}`,
-    ),
+    humanLine,
+    agentLines,
   };
 }
 
@@ -264,12 +329,14 @@ async function writeTaskArchiveDigest(digest) {
 }
 
 async function writeHumanWorklog(digests = [], sweepDate = new Date()) {
+  // Human worklog: compact single-line format, written to WORKLOG_DIR (not Obsidian)
+  // Same compact format as Obsidian diary entries — time range + emoji tag + body
   if (!digests.length) return;
   const targetPath = buildWorklogPath(sweepDate);
   const current = await readText(targetPath);
   const dateLabel = formatLocalDayKey(sweepDate);
   let next = current.trim() ? current : `# ${dateLabel}\n`;
-  next = appendSection(next, '午夜归档', bulletize(`已自动归档 ${digests.length} 项已完成任务，今天的推进已经收束进长期记录。`));
+  next = appendSection(next, '午夜归档', bulletize(`已自动归档 ${digests.length} 项已完成任务。`));
   for (const digest of digests) {
     next = appendSection(next, '午夜归档', digest.humanLine);
   }
@@ -279,16 +346,40 @@ async function writeHumanWorklog(digests = [], sweepDate = new Date()) {
 }
 
 async function writeAgentDigest(digests = [], sweepDate = new Date()) {
+  // Agent digest: multi-layer structured format written to context-digest.md (AI-readable)
+  // Preserves full task card fields: goal, summary, conclusions, memory, timestamps
   if (!digests.length) return;
   const dayKey = formatLocalDayKey(sweepDate);
-  await appendMarkdownLine(
-    CONTEXT_DIGEST_MD,
-    'Midnight Archive',
+  const current = await readText(CONTEXT_DIGEST_MD);
+  const heading = 'Midnight Archive';
+  const headingLine = `## ${heading}`;
+  // Build the block to append: summary line + one structured block per digest
+  const allNewLines = [
     bulletize(`${dayKey}：自动归档 ${digests.length} 项任务，后续迭代优先复用这些收束结论。`),
-    { updateDigestTimestamp: true },
-  );
-  for (const digest of digests) {
-    await appendMarkdownLine(CONTEXT_DIGEST_MD, 'Midnight Archive', digest.agentLine, { updateDigestTimestamp: true });
+    ...digests.flatMap((digest) => ['', ...digest.agentLines]),
+  ].filter((line) => line !== undefined);
+
+  const text = String(current || '').replace(/\r\n/g, '\n');
+  const lines = text.split('\n');
+  const sectionIndex = lines.findIndex((l) => normalizeText(l) === normalizeText(headingLine));
+  let nextLines;
+  if (sectionIndex === -1) {
+    const trimmed = text.trimEnd();
+    const prefix = trimmed ? `${trimmed}\n\n` : '';
+    nextLines = `${prefix}${headingLine}\n${allNewLines.join('\n')}\n`;
+  } else {
+    // Find end of this section
+    let insertAt = lines.length;
+    for (let i = sectionIndex + 1; i < lines.length; i += 1) {
+      if (/^##\s+/.test(lines[i])) { insertAt = i; break; }
+    }
+    const next = [...lines];
+    next.splice(insertAt, 0, ...allNewLines);
+    nextLines = `${next.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;
+  }
+  const withTs = updateFrontmatterTimestamp(nextLines, new Date().toISOString());
+  if (withTs !== text) {
+    await writeTextAtomic(CONTEXT_DIGEST_MD, withTs);
   }
 }
 
