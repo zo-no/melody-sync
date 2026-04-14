@@ -70,6 +70,14 @@
       </div>
 
       <div class="sidebar-list" id="sessionList"></div>
+      <!-- Run log panel — shown in long-term tab below project list -->
+      <div class="output-panel-inline" id="outputPanelInline" hidden>
+        <div class="output-panel-inline-header">
+          <span class="output-panel-inline-title">产出概览</span>
+          <button class="output-panel-inline-refresh" id="outputPanelRefreshBtn" type="button" title="刷新" aria-label="刷新">↻</button>
+        </div>
+        <div class="output-panel-inline-body" id="outputPanelBody"></div>
+      </div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
       <div class="session-list-actions" id="sidebarGroupingToolbar">
         <div class="session-list-actions-row">
@@ -287,14 +295,6 @@
         <div class="long-term-workspace" id="longTermWorkspace" hidden>
           <div class="long-term-workspace-detail" id="longTermWorkspaceDetail"></div>
           <div class="long-term-output-detail" id="longTermOutputDetail" hidden></div>
-          <!-- Output panel — lives inside control panel, shown alongside project detail -->
-          <div class="output-panel-inline" id="outputPanelInline" hidden>
-            <div class="output-panel-inline-header">
-              <span class="output-panel-inline-title">产出概览</span>
-              <button class="output-panel-inline-refresh" id="outputPanelRefreshBtn" type="button" title="刷新" aria-label="刷新">↻</button>
-            </div>
-            <div class="output-panel-inline-body" id="outputPanelBody"></div>
-          </div>
         </div>
 
         <div class="messages" id="messages">

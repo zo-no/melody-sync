@@ -185,7 +185,7 @@
       const digest = getDigestPreview(data) || {};
       const sessionRuntime = getSessionRuntimeSnapshot();
       const currentRuntime = getCurrentRuntimeSelectionSnapshot() || sessionRuntime;
-      const kind = normalizePersistentKind(options.kind || persistent?.kind || "skill");
+      const kind = normalizePersistentKind(options.kind || persistent?.kind || "recurring_task");
       const manualMode = normalizeRuntimeMode(
         persistent?.runtimePolicy?.manual?.mode || "",
         ["follow_current", "session_default", "pinned"],

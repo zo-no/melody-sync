@@ -2405,7 +2405,6 @@ function PersistentEditorModal({
   },
 }) {
   const [, setVersion] = useState(0);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   function rerender() {
     setVersion((value) => value + 1);
@@ -2516,62 +2515,6 @@ function PersistentEditorModal({
                   }}
                 />
               </PersistentEditorField>
-
-              {/* Advanced settings */}
-              <div className="persistent-editor-advanced">
-                <button
-                  type="button"
-                  className="persistent-editor-advanced-toggle"
-                  onClick={() => setAdvancedOpen((v) => !v)}
-                >
-                  <span className={`persistent-editor-advanced-arrow${advancedOpen ? ' is-open' : ''}`}>▸</span>
-                  高级设置
-                </button>
-                {advancedOpen ? (
-                  <div className="persistent-editor-advanced-body">
-                    <PersistentEditorField label="执行服务">
-                      <select
-                        className="operation-record-persistent-select"
-                        value={draft.manualMode || 'follow_current'}
-                        onChange={(event) => {
-                          draft.manualMode = event.currentTarget.value;
-                          rerender();
-                        }}
-                      >
-                        <option value="follow_current">跟随当前服务</option>
-                        <option value="session_default">使用会话默认服务</option>
-                        <option value="pinned">固定服务</option>
-                      </select>
-                    </PersistentEditorField>
-                    <PersistentEditorField label="会话上下文">
-                      <label className="persistent-editor-checkbox-row">
-                        <input
-                          type="checkbox"
-                          defaultChecked={draft.freshThread !== true}
-                          onChange={(event) => {
-                            draft.freshThread = !event.currentTarget.checked;
-                          }}
-                        />
-                        续接上次会话记录
-                      </label>
-                    </PersistentEditorField>
-                    <PersistentEditorField
-                      label="执行脚本"
-                      note="触发时先执行此脚本，输出结果会附加到消息中"
-                    >
-                      <textarea
-                        className="operation-record-persistent-textarea"
-                        rows={3}
-                        defaultValue={draft.shellCommand || ''}
-                        placeholder="#!/bin/sh&#10;echo hello"
-                        onInput={(event) => {
-                          draft.shellCommand = event.currentTarget.value;
-                        }}
-                      />
-                    </PersistentEditorField>
-                  </div>
-                ) : null}
-              </div>
 
               {draft.kind !== 'skill' ? (
                 <>

@@ -1630,17 +1630,6 @@ function switchTab(tab, { syncState = true } = {}) {
     // would show a blank chat which confuses users.
     if (targetSession?.id) {
       window.showLongTermProjectPanel?.(targetSession.id);
-    } else {
-      // No project selected yet — show the right column with only the output panel (run log)
-      document.body.classList.add("long-term-workspace-active");
-      if (longTermWorkspace) longTermWorkspace.hidden = false;
-      if (longTermWorkspaceDetail) {
-        longTermWorkspaceDetail.hidden = true;
-        longTermWorkspaceDetail.innerHTML = "";
-      }
-      if (typeof window.MelodySyncOutputPanel?.show === "function") {
-        window.MelodySyncOutputPanel.show();
-      }
     }
     if (typeof renderSessionList === "function") renderSessionList();
     if (syncState) syncBrowserState();
@@ -1676,6 +1665,7 @@ globalThis.showLongTermProjectPanel = (projectId) => {
   selectedLongTermProjectId = String(projectId || "").trim();
   document.body.classList.add("long-term-workspace-active");
   if (longTermWorkspace) longTermWorkspace.hidden = false;
+  if (longTermWorkspaceDetail) longTermWorkspaceDetail.hidden = false;
   // getLongTermWorkspaceProjects() excludes system projects (they live in the tasks tab).
   // When the requested project IS a system project, include it directly so
   // renderLongTermWorkspaceDetail can find it instead of falling back to projects[0].

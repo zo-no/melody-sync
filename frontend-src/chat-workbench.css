@@ -4493,59 +4493,6 @@ button.quest-task-flow-node {
   justify-content: flex-end;
 }
 
-.persistent-editor-advanced {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.persistent-editor-advanced-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  padding: 6px 0;
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  text-align: left;
-  user-select: none;
-}
-
-.persistent-editor-advanced-toggle:hover {
-  color: var(--text-primary);
-}
-
-.persistent-editor-advanced-arrow {
-  font-size: 10px;
-  transition: transform 0.15s ease;
-  display: inline-block;
-}
-
-.persistent-editor-advanced-arrow.is-open {
-  transform: rotate(90deg);
-}
-
-.persistent-editor-advanced-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 8px 0 4px 0;
-  border-top: 1px solid var(--border);
-}
-
-.persistent-editor-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-primary);
-  cursor: pointer;
-  padding: 4px 0;
-}
-
 .operation-record-persistent-editor {
   margin: 0;
   width: 100%;
