@@ -163,6 +163,8 @@ let completionAudioContext = null;
 let completionAudioPrimed = false;
 let completionSoundEnabled = true;
 const notifiedCompletionStamps = new Map();
+// Set of session IDs where the user manually clicked done — suppress completion sound for these
+const userInitiatedDoneIds = new Set();
 const completionAttentionBanner = typeof document !== "undefined"
   ? document.getElementById("completionAttentionBanner")
   : null;
@@ -515,10 +517,12 @@ function shouldNotifyCompletion(session, previousSession = null) {
   const nextState = normalizeCompletionWorkflowState(session?.workflowState);
   const previousState = normalizeCompletionWorkflowState(previousSession?.workflowState);
   if (nextState !== "done" || previousState === "done") return false;
-  // Only notify for AI-driven completions (run-based), not user-initiated checkmarks.
-  // A run-based completion has activeRunId or a completionNoticeKey from a run.
-  const hasRun = Boolean(session?.activeRunId || previousSession?.activeRunId);
-  return hasRun;
+  // Suppress sound when user manually clicked the checkmark
+  if (userInitiatedDoneIds.has(session.id)) {
+    userInitiatedDoneIds.delete(session.id);
+    return false;
+  }
+  return true;
 }
 
 function buildCompletionNoticeKey(session = null, previousSession = null) {
