@@ -1,14 +1,18 @@
 /**
- * Session metadata persistence — reads and writes chat-sessions.json.
+ * Session metadata persistence — SQLite-backed with JSON data column.
  *
  * STORAGE CONTRACT:
- *   - chat-sessions.json is the single source of truth for all session metadata.
- *   - All writes go through withSessionsMetaMutation() which serializes mutations.
+ *   - sessions.db (SQLite, WAL mode) is the single source of truth.
+ *   - Stable query fields are indexed columns; the full object lives in `data` (JSON).
+ *   - All writes go through withSessionsMetaMutation() which uses SQLite transactions.
  *   - On every load, normalizeStoredSessionMeta() cleans up stale/invalid fields.
- *   - SESSIONS.md is a human-readable index derived from the JSON — always regenerated alongside.
+ *   - SESSIONS.md is a human-readable index derived from the DB — regenerated on writes.
+ *
+ * MIGRATION:
+ *   - On first boot, if chat-sessions.json exists and sessions.db does not,
+ *     data is automatically migrated from JSON → SQLite.
  *
  * CRITICAL: All mutations MUST use withSessionsMetaMutation() or mutateSessionMeta().
- *   Direct writes bypass the serial queue and will corrupt the file under concurrent load.
  *
  * NORMALIZATION (happens on every load):
  *   - Invalid workflowState/workflowPriority values are deleted
@@ -16,14 +20,12 @@
  *   - Missing folder gets defaulted to '~'
  *   - Missing ordinals are assigned sequentially
  */
-import { dirname } from 'path';
+import { existsSync } from 'fs';
 import { CHAT_SESSIONS_FILE, CHAT_SESSIONS_INDEX_FILE } from '../../lib/config.mjs';
 import {
   createSerialTaskQueue,
   ensureDir,
   readJson,
-  statOrNull,
-  writeJsonAtomic,
   writeTextAtomic,
 } from '../fs-utils.mjs';
 import {
@@ -40,10 +42,19 @@ import {
   normalizeSessionTaskListOrigin,
   normalizeSessionTaskListVisibility,
 } from './visibility.mjs';
+import {
+  openSessionDb,
+  dbLoadAllSessions,
+  dbGetSession,
+  dbFindByExternalTriggerId,
+  dbUpsertSession,
+  dbUpsertSessions,
+  dbDeleteSession,
+} from './session-db.mjs';
 
-let sessionsMetaCache = null;
-let sessionsMetaCacheMtimeMs = null;
-const runSessionsMetaMutation = createSerialTaskQueue();
+// ---------------------------------------------------------------------------
+// Normalization helpers (unchanged from JSON era)
+// ---------------------------------------------------------------------------
 
 function normalizeStoredTimestamp(value) {
   const trimmed = typeof value === 'string' ? value.trim() : '';
@@ -316,63 +327,113 @@ function normalizeStoredSessionsMeta(list) {
   return { list: normalized, changed };
 }
 
-async function saveSessionsMetaUnlocked(list) {
-  const dir = dirname(CHAT_SESSIONS_FILE);
-  await ensureDir(dir);
-  await writeJsonAtomic(CHAT_SESSIONS_FILE, list);
-  await writeTextAtomic(CHAT_SESSIONS_INDEX_FILE, buildSessionsIndexMarkdown(list));
-  sessionsMetaCache = list;
-  sessionsMetaCacheMtimeMs = (await statOrNull(CHAT_SESSIONS_FILE))?.mtimeMs ?? null;
+// ---------------------------------------------------------------------------
+// Migration: JSON → SQLite (runs once on first boot)
+// ---------------------------------------------------------------------------
+
+async function migrateFromJsonIfNeeded(db) {
+  if (!existsSync(CHAT_SESSIONS_FILE)) return;
+  // Already migrated if DB has rows
+  const { n } = db.prepare('SELECT COUNT(*) as n FROM sessions').get();
+  if (n > 0) return;
+
+  console.log('[meta-store] Migrating chat-sessions.json → sessions.db ...');
+  const raw = await readJson(CHAT_SESSIONS_FILE, []);
+  const { list, changed } = normalizeStoredSessionsMeta(raw);
+  dbUpsertSessions(db, list);
+  if (changed) {
+    // Write normalized SESSIONS.md alongside
+    await writeTextAtomic(CHAT_SESSIONS_INDEX_FILE, buildSessionsIndexMarkdown(list));
+  }
+  console.log(`[meta-store] Migrated ${list.length} sessions.`);
 }
 
+// ---------------------------------------------------------------------------
+// DB initialization (called once at startup)
+// ---------------------------------------------------------------------------
+
+let _dbReady = null;
+// Serial queue: better-sqlite3 transactions are sync-only, so we use an
+// async serial queue to ensure mutations don't interleave at the JS level.
+const runSessionsMetaMutation = createSerialTaskQueue();
+
+async function getDb() {
+  if (_dbReady) return _dbReady;
+  const db = await openSessionDb();
+  await migrateFromJsonIfNeeded(db);
+  _dbReady = db;
+  return db;
+}
+
+// ---------------------------------------------------------------------------
+// Internal save helper — writes to DB + regenerates SESSIONS.md
+// ---------------------------------------------------------------------------
+
+async function saveSessionsMetaUnlocked(db, list) {
+  dbUpsertSessions(db, list);
+  await ensureDir(CHAT_SESSIONS_INDEX_FILE.replace(/[^/\\]+$/, ''));
+  await writeTextAtomic(CHAT_SESSIONS_INDEX_FILE, buildSessionsIndexMarkdown(list));
+}
+
+// ---------------------------------------------------------------------------
+// Public API (same interface as before)
+// ---------------------------------------------------------------------------
+
 export async function loadSessionsMeta() {
-  const stats = await statOrNull(CHAT_SESSIONS_FILE);
-  if (!stats) {
-    sessionsMetaCache = [];
-    sessionsMetaCacheMtimeMs = null;
-    return sessionsMetaCache;
+  const db = await getDb();
+  const raw = dbLoadAllSessions(db);
+  const { list, changed } = normalizeStoredSessionsMeta(raw);
+  if (changed) {
+    // Persist normalized data back
+    dbUpsertSessions(db, list);
+    await writeTextAtomic(CHAT_SESSIONS_INDEX_FILE, buildSessionsIndexMarkdown(list));
   }
-
-  const mtimeMs = stats.mtimeMs;
-  if (sessionsMetaCache && sessionsMetaCacheMtimeMs === mtimeMs) {
-    return sessionsMetaCache;
-  }
-
-  const parsed = await readJson(CHAT_SESSIONS_FILE, []);
-  const normalized = normalizeStoredSessionsMeta(parsed);
-  sessionsMetaCache = normalized.list;
-  if (normalized.changed) {
-    await saveSessionsMetaUnlocked(sessionsMetaCache);
-  } else {
-    sessionsMetaCacheMtimeMs = mtimeMs;
-    if (!(await statOrNull(CHAT_SESSIONS_INDEX_FILE))) {
-      await writeTextAtomic(CHAT_SESSIONS_INDEX_FILE, buildSessionsIndexMarkdown(sessionsMetaCache));
-    }
-  }
-  return sessionsMetaCache;
+  return list;
 }
 
 export function findSessionMetaCached(sessionId) {
-  if (!Array.isArray(sessionsMetaCache)) return null;
-  return sessionsMetaCache.find((meta) => meta.id === sessionId) || null;
+  // With SQLite we can do a fast point lookup; no in-memory cache needed.
+  const db = _dbReady;
+  if (!db) return null;
+  return dbGetSession(db, sessionId);
 }
 
 export async function findSessionMeta(sessionId) {
-  const metas = await loadSessionsMeta();
-  return metas.find((meta) => meta.id === sessionId) || null;
+  const db = await getDb();
+  return dbGetSession(db, sessionId);
 }
 
 export async function findSessionByExternalTriggerId(externalTriggerId) {
   const normalized = typeof externalTriggerId === 'string' ? externalTriggerId.trim() : '';
   if (!normalized) return null;
-  const metas = await loadSessionsMeta();
-  return metas.find((meta) => meta.externalTriggerId === normalized && !meta.archived) || null;
+  const db = await getDb();
+  return dbFindByExternalTriggerId(db, normalized);
 }
 
 export async function withSessionsMetaMutation(mutator) {
+  const db = await getDb();
+  // better-sqlite3 transactions must be synchronous, so we use a serial async
+  // queue for mutual exclusion at the JS level, then wrap the DB writes in a
+  // sync BEGIN/COMMIT for atomicity.
   return runSessionsMetaMutation(async () => {
-    const metas = await loadSessionsMeta();
-    return mutator(metas, saveSessionsMetaUnlocked);
+    const metas = dbLoadAllSessions(db);
+    let result;
+    let saveError;
+    const save = async (updatedMetas) => {
+      // Synchronous SQLite writes inside an explicit transaction.
+      try {
+        db.prepare('BEGIN').run();
+        await saveSessionsMetaUnlocked(db, updatedMetas);
+        db.prepare('COMMIT').run();
+      } catch (err) {
+        try { db.prepare('ROLLBACK').run(); } catch {}
+        saveError = err;
+        throw err;
+      }
+    };
+    result = await mutator(metas, save);
+    if (saveError) throw saveError;
+    return result;
   });
 }
 
@@ -392,4 +453,14 @@ export async function mutateSessionMeta(sessionId, mutator) {
     await saveSessionsMeta(metas);
     return { meta: draft, changed: true };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Low-level helpers used by system-project.mjs and other callers that
+// need to delete a session directly without going through the full mutation.
+// ---------------------------------------------------------------------------
+
+export async function deleteSessionMeta(sessionId) {
+  const db = await getDb();
+  dbDeleteSession(db, sessionId);
 }
