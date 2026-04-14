@@ -5,6 +5,7 @@ import {
   submitWorkbenchSessionMessage,
   updateWorkbenchSessionLineage,
   updateWorkbenchSessionTaskCard,
+  updateWorkbenchSessionTaskPoolMembership,
 } from './session-ports.mjs';
 import { appendEvent, getHistorySnapshot } from '../history.mjs';
 import { messageEvent, statusEvent } from '../normalizer.mjs';
@@ -720,6 +721,24 @@ export async function createBranchFromNode(nodeId, payload = {}) {
       throw new Error('Unable to create branch session');
     }
 
+    // Inherit parent session's long-term project membership so the branch stays
+    // inside the same project and doesn't appear as an unaffiliated task.
+    const sourceMembership = sourceSession?.taskPoolMembership?.longTerm;
+    if (sourceMembership?.projectSessionId && sourceMembership?.role === 'member') {
+      try {
+        await updateWorkbenchSessionTaskPoolMembership(branchSession.id, {
+          longTerm: {
+            role: 'member',
+            projectSessionId: sourceMembership.projectSessionId,
+            fixedNode: false,
+            ...(sourceMembership.bucket ? { bucket: sourceMembership.bucket } : {}),
+          },
+        });
+      } catch (_err) {
+        // Non-fatal: branch is still usable without membership
+      }
+    }
+
     const now = nowIso();
     const branchContext = {
       id: createWorkbenchId('branch'),
@@ -853,6 +872,24 @@ export async function createBranchFromSession(sessionId, payload = {}) {
     );
     if (!branchSession) {
       throw new Error('Unable to create branch session');
+    }
+
+    // Inherit parent session's long-term project membership so the branch stays
+    // inside the same project and doesn't appear as an unaffiliated task.
+    const sourceMembership = sourceSession?.taskPoolMembership?.longTerm;
+    if (sourceMembership?.projectSessionId && sourceMembership?.role === 'member') {
+      try {
+        await updateWorkbenchSessionTaskPoolMembership(branchSession.id, {
+          longTerm: {
+            role: 'member',
+            projectSessionId: sourceMembership.projectSessionId,
+            fixedNode: false,
+            ...(sourceMembership.bucket ? { bucket: sourceMembership.bucket } : {}),
+          },
+        });
+      } catch (_err) {
+        // Non-fatal: branch is still usable without membership
+      }
     }
 
     const sourceSnap = await getHistorySnapshot(sourceSession.id);
