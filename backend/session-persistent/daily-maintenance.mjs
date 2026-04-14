@@ -2,7 +2,7 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 
 import { CONFIG_DIR, MEMORY_DIR } from '../../lib/config.mjs';
-import { appendTaskWorklogEvent } from '../session/task-worklog.mjs';
+import { appendTaskWorklogEvent, inferActivityEmoji } from '../session/task-worklog.mjs';
 import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from '../fs-utils.mjs';
 import { loadSessionsMeta } from '../session/meta-store.mjs';
 import { getSession, setSessionArchived, updateSessionWorkflowState } from '../session/manager.mjs';
@@ -199,24 +199,6 @@ function isEligibleForDailyArchive(session = {}, cutoffDate = new Date()) {
   return Number.isFinite(completedTime) && completedTime < cutoffDate.getTime();
 }
 
-const ACTIVITY_EMOJI_RULES = [
-  { pattern: /排查|报错|错误|bug|debug|修复|fix|crash|异常|失败/, emoji: '🔍' },
-  { pattern: /设计|ui|ux|界面|样式|布局|视觉|原型/, emoji: '🎨' },
-  { pattern: /讨论|分享|会议|头脑风暴|brainstorm|review|评审/, emoji: '💬' },
-  { pattern: /重构|优化|清理|整理|迁移|refactor/, emoji: '🔧' },
-  { pattern: /部署|发布|上线|deploy|release|ci|cd/, emoji: '🚀' },
-  { pattern: /测试|test|spec|单测|集成/, emoji: '🧪' },
-  { pattern: /文档|doc|readme|注释/, emoji: '📄' },
-  { pattern: /新增|添加|实现|开发|feature|功能/, emoji: '✨' },
-];
-
-function inferActivityEmoji(texts = []) {
-  const combined = texts.filter(Boolean).join(' ').toLowerCase();
-  for (const rule of ACTIVITY_EMOJI_RULES) {
-    if (rule.pattern.test(combined)) return rule.emoji;
-  }
-  return '💻';
-}
 
 function formatTimeLabel(isoString) {
   if (!isoString) return '';
@@ -349,19 +331,25 @@ async function writeTaskArchiveDigest(digest) {
 }
 
 async function writeHumanWorklog(digests = [], sweepDate = new Date()) {
-  // Worklog: JSONL format, one record per task, written to WORKLOG_DIR
+  // Worklog: JSONL format, one record per task, written to WORKLOG_DIR via appendTaskWorklogEvent
   // Machine-readable source of truth — read by the daily diary recurring_task
-  // to generate Obsidian diary entries in compact single-line format
   if (!digests.length) return;
-  const targetPath = buildWorklogPath(sweepDate);
-  const { appendFile } = await import('fs/promises');
-  const { mkdirSync } = await import('fs');
-  const { dirname } = await import('path');
-  try { mkdirSync(dirname(targetPath), { recursive: true }); } catch { /* already exists */ }
-  const lines = digests
-    .map((digest) => JSON.stringify(digest.worklogRecord))
-    .join('\n');
-  await appendFile(targetPath, `${lines}\n`, 'utf8');
+  for (const digest of digests) {
+    const r = digest.worklogRecord;
+    await appendTaskWorklogEvent(r.result || 'done', {
+      sessionId: r.sessionId,
+      name: r.name,
+      kind: r.kind,
+      bucket: r.bucket,
+      projectName: r.projectName || undefined,
+      createdAt: r.createdAt || undefined,
+      completedAt: r.completedAt || undefined,
+      goal: r.goal || undefined,
+      summary: r.summary || undefined,
+      conclusions: r.conclusions || undefined,
+      memory: r.memory || undefined,
+    });
+  }
 }
 
 async function writeAgentDigest(digests = [], sweepDate = new Date()) {

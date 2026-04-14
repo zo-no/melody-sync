@@ -1,12 +1,11 @@
 import { spawn } from 'child_process';
-import { appendFile, mkdir, readFile } from 'fs/promises';
-import { dirname, join } from 'path';
-import { MELODYSYNC_APP_ROOT, MEMORY_DIR } from '../../lib/config.mjs';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+import { MELODYSYNC_APP_ROOT } from '../../lib/config.mjs';
 import { pathExists, writeTextAtomic } from '../fs-utils.mjs';
 import { stripGraphOpsFromAssistantContent } from './graph-ops.mjs';
 import { normalizeSessionTaskCard, stripTaskCardFromAssistantContent } from './task-card.mjs';
-
-const WORKLOG_DIR = join(MEMORY_DIR, 'worklog');
+import { appendTaskWorklogEvent, inferActivityEmoji } from './task-worklog.mjs';
 
 const JOURNAL_DIR_SEGMENTS = ['02-📓journal', '04-📂日记'];
 const AGENT_NOTES_HEADING = '## Agent Notes';
@@ -203,24 +202,6 @@ function extractAssistantSummaryLines(historiesBySessionId = {}, sessionIds = []
 }
 
 
-const ACTIVITY_EMOJI_RULES = [
-  { pattern: /排查|报错|错误|bug|debug|修复|fix|crash|异常|失败/, emoji: '🔍' },
-  { pattern: /设计|ui|ux|界面|样式|布局|视觉|原型/, emoji: '🎨' },
-  { pattern: /讨论|分享|会议|头脑风暴|brainstorm|review|评审/, emoji: '💬' },
-  { pattern: /重构|优化|清理|整理|迁移|refactor/, emoji: '🔧' },
-  { pattern: /部署|发布|上线|deploy|release|ci|cd/, emoji: '🚀' },
-  { pattern: /测试|test|spec|单测|集成/, emoji: '🧪' },
-  { pattern: /文档|doc|readme|注释/, emoji: '📄' },
-  { pattern: /新增|添加|实现|开发|feature|功能/, emoji: '✨' },
-];
-
-function inferActivityEmoji(texts = []) {
-  const combined = texts.filter(Boolean).join(' ').toLowerCase();
-  for (const rule of ACTIVITY_EMOJI_RULES) {
-    if (rule.pattern.test(combined)) return rule.emoji;
-  }
-  return '💻';
-}
 
 function resolveProjectName(rootSession) {
   return trimText(rootSession?.sessionState?.longTerm?.rootTitle || '');
@@ -414,12 +395,6 @@ export async function writeSessionDeletionJournalEntry(payload = {}, options = {
   const conclusions = Array.isArray(taskCard?.knownConclusions)
     ? taskCard.knownConclusions.filter((c) => trimText(c)).slice(0, 4)
     : [];
-  const title = clipText(trimText(rootSession?.name) || '未命名任务', 120);
-  const projectName = trimText(
-    rootSession?.sessionState?.longTerm?.rootTitle
-    || rootSession?.group
-    || '',
-  );
 
   // Find earliest history timestamp as createdAt
   let createdAtMs = 0;
@@ -433,31 +408,15 @@ export async function writeSessionDeletionJournalEntry(payload = {}, options = {
     }
   }
 
-  const record = {
+  await appendTaskWorklogEvent('deleted', {
     sessionId,
-    date: formatLocalDateParts(now).fileName.replace('.md', '').replace(/_/g, '-'),
-    ts: now.toISOString(),
-    name: title,
+    name: clipText(trimText(rootSession?.name) || '未命名任务', 120),
     kind: trimText(rootSession?.persistent?.kind || 'inbox'),
     bucket: trimText(rootSession?.taskPoolMembership?.longTerm?.bucket || 'inbox'),
-    result: 'deleted',
-    createdAt: createdAtMs > 0 ? new Date(createdAtMs).toISOString() : null,
-    completedAt: now.toISOString(),
-    projectName: projectName || null,
-    conclusions: conclusions.length > 0 ? conclusions : null,
-  };
-
-  try {
-    const year = String(now.getFullYear());
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const worklogPath = join(WORKLOG_DIR, year, month, `${year}-${month}-${day}.jsonl`);
-    await mkdir(dirname(worklogPath), { recursive: true });
-    await appendFile(worklogPath, `${JSON.stringify(record)}\n`, 'utf8');
-  } catch (err) {
-    // Non-fatal — deletion proceeds regardless of worklog write failure
-    console.warn('[deletion-journal] Failed to write worklog entry:', err?.message || err);
-  }
+    projectName: trimText(rootSession?.sessionState?.longTerm?.rootTitle || rootSession?.group || '') || undefined,
+    createdAt: createdAtMs > 0 ? new Date(createdAtMs).toISOString() : undefined,
+    conclusions: conclusions.length > 0 ? conclusions : undefined,
+  });
 }
 
 // Obsidian diary write — used by the AI daily cleanup task, not on user delete.

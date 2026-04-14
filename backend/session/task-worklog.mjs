@@ -25,6 +25,25 @@ import { trimText } from './text.mjs';
 
 const WORKLOG_DIR = join(MEMORY_DIR, 'worklog');
 
+export const ACTIVITY_EMOJI_RULES = [
+  { pattern: /排查|报错|错误|bug|debug|修复|fix|crash|异常|失败/, emoji: '🔍' },
+  { pattern: /设计|ui|ux|界面|样式|布局|视觉|原型/, emoji: '🎨' },
+  { pattern: /讨论|分享|会议|头脑风暴|brainstorm|review|评审/, emoji: '💬' },
+  { pattern: /重构|优化|清理|整理|迁移|refactor/, emoji: '🔧' },
+  { pattern: /部署|发布|上线|deploy|release|ci|cd/, emoji: '🚀' },
+  { pattern: /测试|test|spec|单测|集成/, emoji: '🧪' },
+  { pattern: /文档|doc|readme|注释/, emoji: '📄' },
+  { pattern: /新增|添加|实现|开发|feature|功能/, emoji: '✨' },
+];
+
+export function inferActivityEmoji(texts = []) {
+  const combined = texts.filter(Boolean).join(' ').toLowerCase();
+  for (const rule of ACTIVITY_EMOJI_RULES) {
+    if (rule.pattern.test(combined)) return rule.emoji;
+  }
+  return '💻';
+}
+
 function buildWorklogPath(date = new Date()) {
   const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, '0');
