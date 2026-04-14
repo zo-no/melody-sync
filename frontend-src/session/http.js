@@ -514,7 +514,11 @@ function shouldNotifyCompletion(session, previousSession = null) {
   if (!session?.id || !previousSession?.id) return false;
   const nextState = normalizeCompletionWorkflowState(session?.workflowState);
   const previousState = normalizeCompletionWorkflowState(previousSession?.workflowState);
-  return nextState === "done" && previousState !== "done";
+  if (nextState !== "done" || previousState === "done") return false;
+  // Only notify for AI-driven completions (run-based), not user-initiated checkmarks.
+  // A run-based completion has activeRunId or a completionNoticeKey from a run.
+  const hasRun = Boolean(session?.activeRunId || previousSession?.activeRunId);
+  return hasRun;
 }
 
 function buildCompletionNoticeKey(session = null, previousSession = null) {

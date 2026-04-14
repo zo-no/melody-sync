@@ -191,10 +191,12 @@ function getActiveSessions() {
 
 function getArchivedSessions() {
   // "Completed" sessions: workflowState === "done" (archived field is no longer used)
-  // Persistent sessions never appear in the completed list — they are always active
+  // recurring_task and skill never complete — exclude them from the done list.
+  // scheduled_task and waiting_task are one-shot and CAN be marked done — include them.
   return sessions
     .filter((session) => {
-      if (isSessionPersistent(session)) return false;
+      const rawKind = String(session?.persistent?.kind || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+      if (rawKind === 'recurring_task' || rawKind === 'skill') return false;
       const wf = String(session?.workflowState || '').trim().toLowerCase();
       return wf === 'done' || wf === 'complete' || wf === 'completed';
     })
