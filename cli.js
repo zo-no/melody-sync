@@ -31,8 +31,6 @@ Usage:
   melodysync start                    Start all services
   melodysync stop                     Stop all services
   melodysync restart [service]        Restart services (chat|all)
-  melodysync release                  Create, gate, and activate a release snapshot
-  melodysync guest-instance           Create isolated instances on this machine
   melodysync chat                     Run chat server in foreground
   melodysync api                      Call the local MelodySync HTTP API with owner auth
   melodysync usage-summary            Summarize local Codex token usage
@@ -70,29 +68,6 @@ switch (command) {
   case 'chat':
     await import(scriptPath('chat-server.mjs'));
     break;
-
-  case 'release': {
-    const { runReleaseCommand } = await import(scriptPath('lib/release-command.mjs'));
-    try {
-      process.exitCode = await runReleaseCommand(args);
-    } catch (error) {
-      console.error(error.message || String(error));
-      process.exit(1);
-    }
-    break;
-  }
-
-  case 'guest-instance':
-  case 'guest-instances': {
-    const { runGuestInstanceCommand } = await import(scriptPath('lib/guest-instance-command.mjs'));
-    try {
-      process.exitCode = await runGuestInstanceCommand(args);
-    } catch (error) {
-      console.error(error.message || String(error));
-      process.exit(1);
-    }
-    break;
-  }
 
   case 'api': {
     const { runMelodySyncApiCommand } = await import(scriptPath('lib/melodysync-api-command.mjs'));

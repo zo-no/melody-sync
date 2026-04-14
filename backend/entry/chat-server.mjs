@@ -1,41 +1,10 @@
 #!/usr/bin/env node
-import { join, resolve } from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
-
-import { readActiveReleaseManifest, shouldUseActiveRelease } from '../../lib/release-runtime.mjs';
+import { join } from 'path';
+import { fileURLToPath } from 'url';
 
 const sourceProjectRoot = fileURLToPath(new URL('../../', import.meta.url));
-let delegatedToRelease = false;
 
-if (shouldUseActiveRelease()) {
-  try {
-    const activeRelease = await readActiveReleaseManifest();
-    const sourceRoot = resolve(sourceProjectRoot);
-    const releaseSourceRoot = activeRelease?.sourceRoot ? resolve(activeRelease.sourceRoot) : '';
-    if (releaseSourceRoot && releaseSourceRoot !== sourceRoot) {
-      throw new Error(
-        `[release] Source root mismatch; expected ${sourceRoot}, got ${releaseSourceRoot}. ` +
-        'Falling back to source runtime.',
-      );
-    }
-    if (activeRelease?.snapshotRoot) {
-      delegatedToRelease = true;
-      process.env.MELODYSYNC_PROJECT_ROOT = process.env.MELODYSYNC_PROJECT_ROOT || sourceProjectRoot;
-      process.env.MELODYSYNC_SOURCE_PROJECT_ROOT = process.env.MELODYSYNC_SOURCE_PROJECT_ROOT || sourceProjectRoot;
-      delete process.env.MELODYSYNC_ACTIVE_RELEASE_ROOT;
-      delete process.env.MELODYSYNC_ACTIVE_RELEASE_FILE;
-      delete process.env.MELODYSYNC_ACTIVE_RELEASE_ID;
-      process.env.MELODYSYNC_DISABLE_ACTIVE_RELEASE = '1';
-      await import(pathToFileURL(join(activeRelease.snapshotRoot, 'chat-server.mjs')).href);
-    }
-  } catch (error) {
-    console.error(`[release] Failed to boot the active release: ${error.message}`);
-    console.error('[release] Falling back to the source runtime');
-    delegatedToRelease = false;
-  }
-}
-
-if (!delegatedToRelease) {
+{
   const http = await import('http');
   const [
     { CHAT_PORT, CHAT_BIND_HOST, SECURE_COOKIES, MEMORY_DIR },
