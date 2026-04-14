@@ -265,8 +265,32 @@ const BUILTIN_TASKS = [
   {
     builtinName: 'melodysync-daily-cleanup',
     name: '每日清理',
-    description: '归档已完成的任务，清理收集箱，保持任务列表整洁。',
-    runPrompt: '归档所有已完成的任务，清理收集箱中超过7天未处理的条目，生成清理报告。',
+    description: '读取今日 worklog，将已完成任务以紧凑格式写入 Obsidian 日记。',
+    runPrompt: `你是 MelodySync 的每日清理任务。执行以下步骤：
+
+**第一步：读取今日 worklog**
+读取文件：$MELODYSYNC_MEMORY_DIR/worklog/$(date +%Y)/$(date +%m)/$(date +%Y-%m-%d).jsonl
+（如果文件不存在，说明今天没有已完成的任务，输出"今日无已完成任务"并结束。）
+
+**第二步：为每条记录生成紧凑单行**
+格式：- HH:MM-HH:MM (时长) [emoji 项目名] 任务名，结论1，结论2
+规则：
+- 时间段 = createdAt → completedAt，加总时长（分钟取整）
+- emoji 从 name/conclusions 推断（排查→🔍，设计→🎨，讨论→💬，重构→🔧，部署→🚀，测试→🧪，文档→📄，新增→✨，其他→💻）
+- 项目名取 projectName 字段，无项目只显示 emoji
+- 正文 = name + conclusions 拼接（逗号分隔）；无 conclusions 降级到 summary；再降级到 goal；再降级到 name
+
+**第三步：写入 Obsidian 日记**
+找到今日日记文件（格式：YYYY_MM_DD.md，位于日记目录下的年份子目录）。
+在 \`## Agent Notes\` → \`### MelodySync 工作记录\` 区块内追加这些行。
+如果区块不存在则创建。
+每条记录用 HTML 注释包裹以支持幂等更新：
+\`<!-- melodysync:session:{sessionId}:start -->\`
+\`- HH:MM-HH:MM (时长) [emoji 项目名] 正文\`
+\`<!-- melodysync:session:{sessionId}:end -->\`
+
+**第四步：输出清理报告**
+列出写入了多少条记录，以及任何错误。`,
     cadence: 'daily',
     timeOfDay: '22:00',
     bucket: 'long_term',

@@ -172,7 +172,7 @@ function buildWorklogPath(date = new Date()) {
   const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  return join(WORKLOG_DIR, year, month, `${year}-${month}-${day}.md`);
+  return join(WORKLOG_DIR, year, month, `${year}-${month}-${day}.jsonl`);
 }
 
 function resolveWorkflowCompletedAt(session = {}) {
@@ -289,6 +289,24 @@ function buildArchiveDigest(session = {}) {
     projectName ? `- 所属项目：${projectName}` : '',
   ].filter(Boolean);
 
+  // JSONL record for worklog file — machine-readable, used by daily diary task
+  const worklogRecord = {
+    sessionId: session.id,
+    date: formatLocalDayKey(completedAt ? new Date(completedAt) : new Date()),
+    ts: new Date().toISOString(),
+    name: title,
+    kind: trimText(session?.persistent?.kind || 'inbox'),
+    bucket: trimText(session?.taskPoolMembership?.longTerm?.bucket || 'inbox'),
+    result: 'done',
+    createdAt: createdAt || null,
+    completedAt: completedAt || null,
+    projectName: projectName || null,
+    goal: goal !== title ? goal : null,
+    summary: summary || null,
+    conclusions: conclusions.length > 0 ? conclusions : null,
+    memory: memory.length > 0 ? memory : null,
+  };
+
   return {
     sessionId: session.id,
     title,
@@ -300,6 +318,7 @@ function buildArchiveDigest(session = {}) {
     completedAt,
     humanLine,
     agentLines,
+    worklogRecord,
   };
 }
 
@@ -329,20 +348,19 @@ async function writeTaskArchiveDigest(digest) {
 }
 
 async function writeHumanWorklog(digests = [], sweepDate = new Date()) {
-  // Human worklog: compact single-line format, written to WORKLOG_DIR (not Obsidian)
-  // Same compact format as Obsidian diary entries — time range + emoji tag + body
+  // Worklog: JSONL format, one record per task, written to WORKLOG_DIR
+  // Machine-readable source of truth — read by the daily diary recurring_task
+  // to generate Obsidian diary entries in compact single-line format
   if (!digests.length) return;
   const targetPath = buildWorklogPath(sweepDate);
-  const current = await readText(targetPath);
-  const dateLabel = formatLocalDayKey(sweepDate);
-  let next = current.trim() ? current : `# ${dateLabel}\n`;
-  next = appendSection(next, '午夜归档', bulletize(`已自动归档 ${digests.length} 项已完成任务。`));
-  for (const digest of digests) {
-    next = appendSection(next, '午夜归档', digest.humanLine);
-  }
-  if (next !== current) {
-    await writeTextAtomic(targetPath, next);
-  }
+  const { appendFile } = await import('fs/promises');
+  const { mkdirSync } = await import('fs');
+  const { dirname } = await import('path');
+  try { mkdirSync(dirname(targetPath), { recursive: true }); } catch { /* already exists */ }
+  const lines = digests
+    .map((digest) => JSON.stringify(digest.worklogRecord))
+    .join('\n');
+  await appendFile(targetPath, `${lines}\n`, 'utf8');
 }
 
 async function writeAgentDigest(digests = [], sweepDate = new Date()) {

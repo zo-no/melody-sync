@@ -162,32 +162,69 @@ skill       → 不支持转换
 
 ---
 
-## 五、每日清理任务（daily-task-cleanup）
+## 五、数据流：从任务完成到 Obsidian 日记
 
-内置 `recurring_task`，每天 03:00 运行，`builtinName: "daily-task-cleanup"`。
+三条独立的数据流，职责分离：
 
-### 清理对象
+### 5.1 午夜扫描（后端纯代码，`daily-maintenance.mjs`）
 
-1. **已完成（done）的任务** — 所有 `workflowState: done` 的任务
-2. **超时未完成的任务** — `inbox` 创建超过 7 天未 done；`scheduled_task` 的 `runAt` 超期 7 天未触发
+每天凌晨自动运行，不需要 AI 参与：
 
-### 不清理的任务
-
-- `recurring_task` — 只能用户手动删除
-- `skill` — 只能用户手动删除
-- `waiting_user` 状态的 `waiting_task` — 还在等待中（等待无超时，由人类控制）
-- `paused` 状态的任务 — 暂停中
-
-### 工作日志格式
-
-写入 JSONL（`~/.melodysync/runtime/work-log/YYYY-MM-DD.jsonl`），每条任务一行：
-
-```jsonl
-{"date":"2026-04-14","ts":"2026-04-14T03:00:00+08:00","name":"准备周会材料","kind":"inbox","bucket":"inbox","result":"done","completedAt":"2026-04-14T14:32:00+08:00","createdAt":"2026-04-14T09:00:00+08:00","projectId":""}
-{"date":"2026-04-14","ts":"2026-04-14T03:00:00+08:00","name":"整理相册","kind":"inbox","bucket":"inbox","result":"timeout","completedAt":null,"createdAt":"2026-04-07T10:00:00+08:00","projectId":""}
+```
+扫描所有 workflowState: done 的任务
+    ↓
+buildArchiveDigest(session) — 提取结构化字段
+    ├─ 写入 WORKLOG_DIR/YYYY/MM/YYYY-MM-DD.jsonl  ← 原始数据，给 AI 读
+    ├─ 写入 memory/context-digest.md              ← 多层结构，给 AI 读
+    └─ 写入 memory/tasks/{sessionId}.md           ← 单任务记忆文件
 ```
 
-**result 字段：** `done`（用户点对勾）/ `timeout`（超时未完成）/ `deleted`（用户主动删除）
+**JSONL worklog 格式**（每条任务一行）：
+```jsonl
+{"sessionId":"...","date":"2026-04-14","name":"排查发送报错","kind":"inbox","bucket":"inbox","result":"done","createdAt":"2026-04-14T09:30:00Z","completedAt":"2026-04-14T11:44:00Z","projectName":"melody-sync","goal":"...","summary":"...","conclusions":["根因是 folder 路径问题","应改用 projectId + relPath"],"memory":null}
+```
+
+**不处理的任务：**
+- `recurring_task` / `skill` — 永不清理，只能用户手动删除
+- `waiting_user` 状态的 `waiting_task` — 还在等待中
+- `paused` 状态的任务 — 暂停中
+
+### 5.2 用户手动删除（`deletion-journal.mjs`）
+
+用户点击删除按钮时，**即时**写入 Obsidian 日记：
+
+```
+用户删除任务
+    ↓
+buildSessionDeletionJournalEntry() — 生成紧凑单行
+    ↓
+写入 Obsidian 日记 YYYY_MM_DD.md
+在 ## Agent Notes → ### MelodySync 工作记录 区块内追加
+```
+
+**写入格式（紧凑单行）：**
+```
+- 09:30-11:44 (2h14m) [🔍 melody-sync] 排查发送报错，根因是 folder 路径问题，应改用 projectId + relPath
+```
+
+规则：
+- 时间段 = 任务第一条 history 时间 → 删除时间，加总时长
+- `[emoji 项目名]` — emoji 从标题/结论推断，项目名取长期项目名，无项目只显示 emoji
+- 正文 = 任务名 + 结论拼接；无结论降级到 assistant 摘要；再降级到 objective
+
+### 5.3 每日清理任务（AI 执行，`builtinName: melodysync-daily-cleanup`）
+
+内置 `recurring_task`，每天 22:00 运行。读取 JSONL worklog，写入 Obsidian 日记：
+
+```
+读取 WORKLOG_DIR/YYYY/MM/YYYY-MM-DD.jsonl
+    ↓
+为每条记录生成紧凑单行（同 5.2 格式）
+    ↓
+写入 Obsidian 日记（同 5.2 写入位置，幂等：用 sessionId 注释去重）
+```
+
+这样午夜扫描归档的任务（用户没有手动删除的），也会在当天 22:00 写入日记。
 
 ---
 
