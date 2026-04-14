@@ -1,6 +1,6 @@
 {
   "name": "melody-sync",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "AI workbench for melody-native automation across phone and desktop",
   "type": "module",
   "license": "MIT",
