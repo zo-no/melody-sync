@@ -3259,6 +3259,9 @@
 
   headerTaskDetailBtn?.addEventListener("click", () => {
     mobileTaskDetailExpanded = !mobileTaskDetailExpanded;
+    if (mobileTaskDetailExpanded) {
+      trackerDetailExpanded = true;
+    }
     clearTaskCanvasNode({ render: false });
     renderTracker();
   });

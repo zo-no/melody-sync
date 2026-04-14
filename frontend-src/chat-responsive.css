@@ -659,8 +659,8 @@ body::before {
   }
 
   .task-manager-main-column .quest-tracker {
-    position: sticky;
-    top: 0;
+    position: relative;
+    top: auto;
     z-index: 24;
     margin: 0 0 0;
     padding: 12px 12px 11px;
@@ -919,8 +919,24 @@ body.workbench-has-session #emptyState {
     border-bottom: 0 !important;
   }
 
+  /* 移动端 flex 布局修正：消除 align-content/align-self 对 flex 子项高度的干扰 */
+  .task-manager-main-column {
+    align-content: stretch;
+  }
+
+  .task-manager-main-column > .quest-tracker {
+    align-self: auto;
+    flex-shrink: 0;
+  }
+
+  .task-manager-main-column > .messages {
+    min-height: 0;
+  }
+
   .task-manager-main-column .quest-tracker {
-    top: 0;
+    /* sticky 在无滚动容器时退化为 relative，用 relative 避免 z-index 遮挡消息列表 */
+    position: relative;
+    top: auto;
     margin-top: 0;
     margin-bottom: 8px;
     border: 0;
