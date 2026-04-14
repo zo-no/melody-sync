@@ -377,6 +377,47 @@
     return `<div class="op-timeline">${rows}</div>`;
   }
 
+  // Run state label and CSS class
+  function runStateInfo(state) {
+    if (state === 'completed') return { label: '完成', cls: 'is-completed' };
+    if (state === 'failed') return { label: '失败', cls: 'is-failed' };
+    if (state === 'cancelled') return { label: '取消', cls: 'is-cancelled' };
+    if (state === 'running') return { label: '运行中', cls: 'is-running' };
+    return { label: state || '未知', cls: '' };
+  }
+
+  function renderRunLog(groups) {
+    if (!Array.isArray(groups) || groups.length === 0) return '';
+    const groupsHtml = groups.map(function(group) {
+      const title = escapeHtml(String(group.title || '其他'));
+      const runs = Array.isArray(group.runs) ? group.runs : [];
+      if (runs.length === 0) return '';
+      const runsHtml = runs.map(function(run) {
+        const stateInfo = runStateInfo(run.state);
+        const sessionName = escapeHtml(String(run.sessionName || run.sessionId || '').slice(0, 30));
+        const tool = escapeHtml(String(run.tool || '').toLowerCase());
+        const stamp = formatStamp(run.createdAt || '');
+        const dur = fmtDuration(run.createdAt, run.completedAt);
+        const failureReason = run.state === 'failed' && run.failureReason
+          ? `<div class="op-run-error">${escapeHtml(String(run.failureReason).slice(0, 80))}</div>`
+          : '';
+        return `
+          <div class="op-run-row">
+            <span class="op-run-state ${stateInfo.cls}">${stateInfo.label}</span>
+            <span class="op-run-session">${sessionName}</span>
+            <span class="op-run-meta">${tool}${stamp ? ' · ' + escapeHtml(stamp) : ''}${dur ? ' · ' + escapeHtml(dur) : ''}</span>
+            ${failureReason}
+          </div>`;
+      }).join('');
+      return `
+        <div class="op-run-group">
+          <div class="op-run-group-title">${title}</div>
+          ${runsHtml}
+        </div>`;
+    }).join('');
+    return `<div class="op-run-log">${groupsHtml}</div>`;
+  }
+
   function renderLoaded() {
     const week = payload?.week || {};
     const opened = Number.isFinite(week?.openedSessions) ? week.openedSessions : 0;
@@ -384,9 +425,11 @@
                  + (Number.isFinite(week?.resolvedBranches) ? week.resolvedBranches : 0);
     const open = Number.isFinite(payload?.overview?.openSessions) ? payload.overview.openSessions : 0;
     const doneSessions = Array.isArray(payload?._doneSessions) ? payload._doneSessions : [];
+    const recentRunsByProject = Array.isArray(payload?.recentRunsByProject) ? payload.recentRunsByProject : [];
 
     const donutHtml = renderDonut(opened, closed);
     const timelineHtml = renderTimeline(doneSessions);
+    const runLogHtml = renderRunLog(recentRunsByProject);
 
     bodyEl.innerHTML = `
       <div class="output-panel-shell">
@@ -408,6 +451,12 @@
         <div class="output-panel-inline-section">
           <div class="output-panel-inline-section-title">最近完成</div>
           ${timelineHtml}
+        </div>` : ''}
+
+        ${runLogHtml ? `
+        <div class="output-panel-inline-section">
+          <div class="output-panel-inline-section-title">运行日志</div>
+          ${runLogHtml}
         </div>` : ''}
 
       </div>

@@ -8,6 +8,7 @@ import {
 import { listWorkbenchSessions } from '../../workbench/session-ports.mjs';
 import { normalizeNullableText } from '../../workbench/shared.mjs';
 import { loadWorkbenchState } from '../../workbench/state-store.mjs';
+import { getRun, listRunIds } from '../../run/store.mjs';
 
 function normalizeList(values = []) {
   const items = Array.isArray(values) ? values : [];
@@ -52,6 +53,92 @@ function buildOutputPanelCurrentSession(state, sessions, sessionId = '') {
   };
 }
 
+const RECENT_RUNS_LIMIT = 30;
+const RUNS_PER_PROJECT_LIMIT = 5;
+
+async function buildRecentRunsByProject(state, sessions) {
+  const allRunIds = await listRunIds();
+  // Read recent runs in reverse order (newest first), limit scan
+  const scanLimit = Math.min(allRunIds.length, 200);
+  const recentRunIds = allRunIds.slice(-scanLimit).reverse();
+
+  const runs = [];
+  for (const runId of recentRunIds) {
+    if (runs.length >= RECENT_RUNS_LIMIT) break;
+    const run = await getRun(runId);
+    if (!run) continue;
+    runs.push(run);
+  }
+
+  // Build sessionId -> session name map
+  const sessionMap = new Map();
+  for (const s of (Array.isArray(sessions) ? sessions : [])) {
+    if (s?.id) sessionMap.set(s.id, s.name || s.id.slice(0, 8));
+  }
+
+  // Build sessionId -> projectId map from branchContexts
+  const sessionToProject = new Map();
+  const projects = Array.isArray(state?.projects) ? state.projects : [];
+  const branchContexts = Array.isArray(state?.branchContexts) ? state.branchContexts : [];
+  for (const ctx of branchContexts) {
+    if (ctx?.sessionId && ctx?.projectId) {
+      sessionToProject.set(ctx.sessionId, ctx.projectId);
+    }
+  }
+
+  // Build projectId -> project title map
+  const projectMap = new Map();
+  for (const p of projects) {
+    if (p?.id) projectMap.set(p.id, p.title || p.id);
+  }
+
+  // Group runs by project
+  const projectGroups = new Map(); // projectId -> { title, runs[] }
+  const ungroupedRuns = [];
+
+  for (const run of runs) {
+    const projectId = sessionToProject.get(run.sessionId);
+    const sessionName = sessionMap.get(run.sessionId) || '';
+    const entry = {
+      id: run.id,
+      sessionId: run.sessionId,
+      sessionName,
+      state: run.state,
+      tool: run.tool || '',
+      model: run.model || '',
+      createdAt: run.createdAt || '',
+      completedAt: run.completedAt || '',
+      failureReason: run.failureReason || '',
+    };
+    if (projectId) {
+      if (!projectGroups.has(projectId)) {
+        projectGroups.set(projectId, {
+          projectId,
+          title: projectMap.get(projectId) || projectId,
+          runs: [],
+        });
+      }
+      const group = projectGroups.get(projectId);
+      if (group.runs.length < RUNS_PER_PROJECT_LIMIT) {
+        group.runs.push(entry);
+      }
+    } else {
+      ungroupedRuns.push(entry);
+    }
+  }
+
+  const groups = [...projectGroups.values()];
+  if (ungroupedRuns.length > 0) {
+    groups.push({
+      projectId: null,
+      title: '其他',
+      runs: ungroupedRuns.slice(0, RUNS_PER_PROJECT_LIMIT),
+    });
+  }
+
+  return groups;
+}
+
 export function buildOutputPanelPayload(state, sessions, options = {}) {
   const sessionId = normalizeNullableText(options?.sessionId);
   const scope = resolveOutputMetricsScopeForSession(sessions, sessionId, options?.scope);
@@ -69,5 +156,9 @@ export async function getOutputPanelPayload(options = {}) {
     loadWorkbenchState(),
     listWorkbenchSessions({ includeArchived: true }),
   ]);
-  return buildOutputPanelPayload(state, sessions, options);
+  const [payload, recentRunsByProject] = await Promise.all([
+    Promise.resolve(buildOutputPanelPayload(state, sessions, options)),
+    buildRecentRunsByProject(state, sessions),
+  ]);
+  return { ...payload, recentRunsByProject };
 }

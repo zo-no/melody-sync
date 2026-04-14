@@ -91,20 +91,22 @@ function normalizeBucket(value) {
  * 4. Default: inbox
  */
 function inferSessionBucket(session) {
-  // 1. Infer from persistent kind — this is the source of truth.
-  //    A task's bucket is determined by HOW it executes, not by a stored label.
+  // 1. Explicit membership bucket wins when the task is already assigned to a project.
+  const explicitBucket = normalizeBucket(session?.taskPoolMembership?.longTerm?.bucket || "");
+  if (explicitBucket) return explicitBucket;
+
+  // 2. Infer from persistent kind.
   const kind = String(session?.persistent?.kind || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (KIND_TO_BUCKET[kind]) return KIND_TO_BUCKET[kind];
 
-  // 2. No execution type set → always inbox, regardless of any stored bucket field.
-  //    Stored bucket values may be stale (set before execution type was configured).
+  // 3. No execution type set → inbox.
   if (!kind) return "inbox";
 
-  // 3. Infer from workflow state (fallback for edge cases)
+  // 4. Infer from workflow state (fallback for edge cases)
   const workflowState = String(session?.workflowState || "").trim().toLowerCase();
   if (workflowState === "waiting_user") return "waiting";
 
-  // 4. Default
+  // 5. Default
   return "inbox";
 }
 

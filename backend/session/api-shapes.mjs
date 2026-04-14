@@ -11,7 +11,14 @@ function stripSessionShape(session, {
   includeQueuedMessages = false,
 } = {}) {
   if (!session || typeof session !== 'object') return null;
-  const sessionState = resolveSessionStateFromSession(session, session?.sourceContext || null);
+  const normalizedTaskPoolMembership = normalizeTaskPoolMembership(session.taskPoolMembership, {
+    sessionId: session?.id || '',
+  });
+  const isProjectRoot = normalizedTaskPoolMembership?.longTerm?.role === 'project';
+  const sessionState = resolveSessionStateFromSession(
+    isProjectRoot ? { ...session, taskCard: null } : session,
+    session?.sourceContext || null,
+  );
   const cloned = cloneJson(session);
   delete cloned.board;
   delete cloned.task;
@@ -21,16 +28,16 @@ function stripSessionShape(session, {
   if (!includeQueuedMessages) {
     delete cloned.queuedMessages;
   }
-  const normalizedTaskPoolMembership = normalizeTaskPoolMembership(cloned.taskPoolMembership, {
-    sessionId: cloned?.id || '',
-  });
   if (normalizedTaskPoolMembership) {
     cloned.taskPoolMembership = normalizedTaskPoolMembership;
   } else if (cloned.taskPoolMembership) {
     delete cloned.taskPoolMembership;
   }
   cloned.sessionState = sessionState;
-  if (!cloned.taskCard || typeof cloned.taskCard !== 'object') {
+  if (isProjectRoot) {
+    delete cloned.taskCard;
+    delete cloned.taskCardManagedBindings;
+  } else if (!cloned.taskCard || typeof cloned.taskCard !== 'object') {
     const projectedTaskCard = projectTaskCardFromSessionState(sessionState, {
       sessionTitle: cloned.name || '',
     });

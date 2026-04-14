@@ -21,6 +21,7 @@ import { buildLongTermTaskPoolMembership } from './task-pool-membership.mjs';
 import { shouldExposeSession } from './visibility.mjs';
 
 const SYSTEM_PROJECT_STATE_FILE = join(CONFIG_DIR, 'system-project.json');
+const MELODYSYNC_PROJECT_DESCRIPTION = 'MelodySync 产品迭代项目';
 
 // In-memory cache so we only hit disk once per process lifetime
 let cachedSystemProjectId = '';
@@ -149,6 +150,12 @@ export async function ensureMelodySyncProject(systemProjectId = '') {
     const existing = findMelodySyncProjectInMetas(metas);
     if (existing) {
       resolvedId = existing.id;
+      if (!String(existing.description || '').trim()) {
+        existing.description = MELODYSYNC_PROJECT_DESCRIPTION;
+        existing.updatedAt = nowIso();
+        await saveSessionsMeta(metas);
+        return { changed: true };
+      }
       return { changed: false };
     }
 
@@ -158,6 +165,7 @@ export async function ensureMelodySyncProject(systemProjectId = '') {
     metas.push({
       id,
       name: 'MelodySync 迭代',
+      description: MELODYSYNC_PROJECT_DESCRIPTION,
       builtinName: 'melodysync-iteration',
       folder: '~',
       tool: 'claude',
@@ -398,5 +406,4 @@ export async function ensureBuiltinProjects() {
 export function getSystemProjectId() {
   return cachedSystemProjectId;
 }
-
 

@@ -2357,7 +2357,7 @@ button.quest-task-flow-node {
 }
 
 /* Collapsed node: dashed border indicator */
-.quest-task-flow-node.is-subtree-collapsed {
+.quest-task-flow-react-node-shell.is-subtree-collapsed .quest-task-flow-node {
   border-style: dashed;
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
@@ -4386,7 +4386,7 @@ button.quest-task-flow-node {
 .persistent-editor-popover {
   margin: 0;
   width: 480px;
-  max-width: calc(100% - 36px);
+  max-width: min(480px, calc(100% - 36px));
   max-height: min(88dvh, 820px);
   overflow: auto;
   overscroll-behavior: contain;
@@ -5186,6 +5186,92 @@ button.quest-task-flow-node {
   border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+/* Run log */
+.op-run-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.op-run-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.op-run-group-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 0 3px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.op-run-row {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+}
+.op-run-row:last-child {
+  border-bottom: none;
+}
+.op-run-state {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  align-self: start;
+  text-align: center;
+}
+.op-run-state.is-completed {
+  color: var(--success, #22c55e);
+  background: color-mix(in srgb, var(--success, #22c55e) 12%, transparent);
+}
+.op-run-state.is-failed {
+  color: var(--danger, #ef4444);
+  background: color-mix(in srgb, var(--danger, #ef4444) 12%, transparent);
+}
+.op-run-state.is-cancelled {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+.op-run-state.is-running {
+  color: var(--accent, #4f7ef8);
+  background: color-mix(in srgb, var(--accent, #4f7ef8) 12%, transparent);
+}
+.op-run-session {
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  align-self: center;
+}
+.op-run-meta {
+  grid-column: 2;
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.op-run-error {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  color: var(--danger, #ef4444);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-top: 2px;
 }
 
 .output-panel-inline-loading,

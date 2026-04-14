@@ -62,6 +62,8 @@
       return root.MelodySyncTaskTypeConstants.inferSessionBucket(session);
     }
     // Fallback (should not be reached if task-type-constants.js is loaded)
+    const explicitBucket = normalizeKey(session?.taskPoolMembership?.longTerm?.bucket || "").replace(/[\s-]+/g, "_");
+    if (["long_term", "short_term", "waiting", "inbox", "skill"].includes(explicitBucket)) return explicitBucket;
     const kind = normalizeKey(session?.persistent?.kind || "").replace(/[\s-]+/g, "_");
     if (kind === "recurring_task") return "long_term";
     if (kind === "scheduled_task") return "short_term";

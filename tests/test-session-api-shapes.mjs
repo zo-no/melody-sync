@@ -81,4 +81,26 @@ assert.deepEqual(
   'session api shapes should project a compatibility taskCard from sessionState when legacy taskCard is absent',
 );
 
+const projectRootItem = createSessionListItem({
+  id: 'project-1',
+  name: 'melody-sync',
+  description: 'MelodySync 产品迭代项目',
+  taskPoolMembership: {
+    longTerm: {
+      role: 'project',
+      projectSessionId: 'project-1',
+      fixedNode: true,
+    },
+  },
+  taskCard: {
+    goal: 'legacy project goal should not leak',
+    summary: 'legacy project summary should not leak',
+  },
+});
+
+assert.equal(projectRootItem.description, 'MelodySync 产品迭代项目');
+assert.equal(projectRootItem.taskCard, undefined, 'project roots should not expose compatibility taskCard');
+assert.equal(projectRootItem.taskPoolMembership?.longTerm?.role, 'project');
+assert.equal(projectRootItem.taskPoolMembership?.longTerm?.projectSessionId, 'project-1');
+
 console.log('test-session-api-shapes: ok');

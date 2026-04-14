@@ -1582,7 +1582,10 @@ function syncSidebarTabUi() {
   document.body.classList.toggle("sidebar-tab-long-term", isLongTermTab);
   if (sessionList) sessionList.style.display = "";
   // Eye button: show in sessions tab (hide branch tasks = project members)
-  if (sidebarBranchVisibilityToggleBtn) sidebarBranchVisibilityToggleBtn.hidden = !isSessionsTab;
+  const branchVisibilityToggleBtn = typeof sidebarBranchVisibilityToggleBtn !== "undefined"
+    ? sidebarBranchVisibilityToggleBtn
+    : null;
+  if (branchVisibilityToggleBtn) branchVisibilityToggleBtn.hidden = !isSessionsTab;
   if (sessionListFooter) {
     sessionListFooter.hidden = false;
     sessionListFooter.classList.remove("hidden");
@@ -1757,8 +1760,11 @@ globalThis.hideLongTermProjectPanel = () => {
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
 tabLongTerm?.addEventListener("click", () => switchTab("long-term"));
 
-// Global control panel button — always visible, opens system project panel
-globalControlPanelBtn?.addEventListener("click", () => {
+// Static fallback button may be absent in tests or replaced by the React-rendered entry.
+const staticGlobalControlPanelBtn = typeof globalControlPanelBtn !== "undefined"
+  ? globalControlPanelBtn
+  : document.getElementById("globalControlPanelBtn");
+staticGlobalControlPanelBtn?.addEventListener("click", () => {
   // Find the system project (日常任务) directly from the sessions array
   const systemProject = Array.isArray(sessions)
     ? sessions.find((s) => String(s?.taskListOrigin || "").trim().toLowerCase() === "system")
