@@ -2228,9 +2228,6 @@ function PersistentEditorModal({
       draft.scheduled.runAtLocal = getDefaultScheduledRunAtLocal();
     }
     draft.recurringEnabled = nextKind === 'recurring_task' ? true : Boolean(draft.recurringEnabled);
-    if (draft.mode !== 'configure') {
-      draft.editorStep = 'details';
-    }
     rerender();
   }
 
@@ -2247,37 +2244,7 @@ function PersistentEditorModal({
   }
 
   const cadence = normalizeRecurringCadence(draft?.recurring?.cadence);
-  const editorStep = draft?.editorStep === 'details' ? 'details' : 'pick_kind';
-  const dialogTitle = draft?.mode === 'configure' ? '设置执行方式' : '设置执行方式';
-  if (draft?.kind !== 'skill' && (!draft.loop || typeof draft.loop !== 'object')) {
-    draft.loop = {
-      collect: { sources: [], instruction: '' },
-      organize: { instruction: '' },
-      use: { instruction: '' },
-      prune: { instruction: '' },
-    };
-  }
-  const leadText = draft
-    ? (draft.mode === 'configure'
-      ? '调整执行方式的配置。'
-      : (editorStep === 'details'
-        ? '配置执行参数。'
-        : '选择这个任务的执行方式。'))
-    : '正在整理当前会话内容…';
-  // Unified kind options: 长期/短期 merged into 定时任务 (repeat toggle inside config).
-  // 等待任务 is AI-created, not user-selected — removed from picker.
-  const kindOptions = (
-    typeof window !== 'undefined' && window.MelodySyncTaskTypeConstants?.KIND_PICKER_DEFS
-  ) || [
-    { kind: 'recurring_task', label: '定时任务',   description: '在指定时间自动执行，可设置是否重复。' },
-    { kind: 'skill',          label: 'AI快捷按钮', description: '手动点击后触发，由 AI 执行一段可复用动作。' },
-  ];
-  // For the kind row in configure mode, show recurring/scheduled as one "定时任务" entry
-  const kindRowOptions = [
-    { kind: 'recurring_task', label: '定时任务' },
-    { kind: 'scheduled_task', label: '定时任务' }, // maps to same label
-    { kind: 'skill',          label: 'AI快捷按钮' },
-  ];
+  const dialogTitle = '设置执行方式';
   // Deduplicate for display: recurring_task and scheduled_task both show as "定时任务"
   const kindRowDeduped = [
     { kind: 'recurring_task', label: '定时任务', matchKinds: ['recurring_task', 'scheduled_task'] },
@@ -2297,26 +2264,10 @@ function PersistentEditorModal({
           ×
         </button>
       </div>
-      <div className="operation-record-persistent-editor-lead persistent-editor-modal-lead">{leadText}</div>
       <div className="persistent-editor-modal-body">
         {isLoading || !draft ? (
           <div className="persistent-editor-modal-loading">正在加载…</div>
         ) : (
-          draft.mode !== 'configure' && editorStep !== 'details' ? (
-            <div className="persistent-editor-kind-grid">
-              {kindOptions.map((entry) => (
-                <button
-                  key={entry.kind}
-                  type="button"
-                  className="persistent-editor-kind-card"
-                  onClick={() => updateKind(entry.kind)}
-                >
-                  <span className="persistent-editor-kind-card-title">{entry.label}</span>
-                  <span className="persistent-editor-kind-card-description">{entry.description}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
             <div className="persistent-editor-modal-form">
               <PersistentEditorField label="类型">
                 <div className="operation-record-persistent-kind-row persistent-editor-modal-kind-row">
@@ -2338,21 +2289,9 @@ function PersistentEditorModal({
                   type="text"
                   className="operation-record-persistent-input"
                   defaultValue={draft.digestTitle}
-                  placeholder="给这个长期项起个名字"
+                  placeholder="给这个任务起个名字"
                   onInput={(event) => {
                     draft.digestTitle = event.currentTarget.value;
-                  }}
-                />
-              </PersistentEditorField>
-
-              <PersistentEditorField label="摘要">
-                <textarea
-                  className="operation-record-persistent-textarea"
-                  rows={3}
-                  defaultValue={draft.digestSummary}
-                  placeholder="保留这次会话沉淀下来的核心摘要"
-                  onInput={(event) => {
-                    draft.digestSummary = event.currentTarget.value;
                   }}
                 />
               </PersistentEditorField>
@@ -2362,28 +2301,11 @@ function PersistentEditorModal({
                   className="operation-record-persistent-textarea"
                   rows={4}
                   defaultValue={draft.runPrompt}
-                  placeholder={draft.kind === 'skill' ? '点击后默认交给 AI 执行什么' : '执行时默认要做什么'}
+                  placeholder={draft.kind === 'skill' ? '点击后交给 AI 执行什么' : '执行时要做什么'}
                   onInput={(event) => {
                     draft.runPrompt = event.currentTarget.value;
                   }}
                 />
-              </PersistentEditorField>
-
-              <PersistentEditorField
-                label="执行方式"
-                note="创建支线时，本轮执行会进入新的任务分支，原任务只保留调度状态。"
-              >
-                <select
-                  className="operation-record-persistent-select"
-                  value={draft.executionMode === 'spawn_session' ? 'spawn_session' : 'in_place'}
-                  onChange={(event) => {
-                    draft.executionMode = event.currentTarget.value === 'spawn_session' ? 'spawn_session' : 'in_place';
-                    rerender();
-                  }}
-                >
-                  <option value="in_place">当前会话执行</option>
-                  <option value="spawn_session">创建支线执行</option>
-                </select>
               </PersistentEditorField>
 
               {draft.kind !== 'skill' ? (
@@ -2489,131 +2411,10 @@ function PersistentEditorModal({
                       ) : null}
                     </>
                   ) : null}
-
-                  <PersistentEditorField
-                    label="知识库路径"
-                    note="默认指向这条任务所属的本地文件路径。"
-                  >
-                    <input
-                      type="text"
-                      className="operation-record-persistent-input"
-                      defaultValue={String(draft.knowledgeBasePath || '')}
-                      placeholder="知识库对应的底层文件路径"
-                      onInput={(event) => {
-                        draft.knowledgeBasePath = event.currentTarget.value;
-                      }}
-                    />
-                  </PersistentEditorField>
-
-                  <div className="operation-record-persistent-section">
-                    <div className="operation-record-persistent-section-title">长期闭环</div>
-                    <div className="operation-record-persistent-field-note">
-                      每个 GTD 任务都可以维护一圈：收集、整理、使用，以及复盘后的冗余减枝。
-                    </div>
-                    <PersistentEditorField
-                      label="数据收集"
-                      note="先定义长期任务持续看哪些输入信号。"
-                    >
-                      <textarea
-                        className="operation-record-persistent-textarea"
-                        rows={3}
-                        defaultValue={Array.isArray(draft.loop?.collect?.sources) ? draft.loop.collect.sources.join('\n') : ''}
-                        placeholder="每行一个数据来源，例如：运行日志、用户反馈、任务完成记录"
-                        onInput={(event) => {
-                          draft.loop.collect.sources = String(event.currentTarget.value || '')
-                            .split(/\n+/)
-                            .map((entry) => String(entry || '').trim())
-                            .filter(Boolean);
-                        }}
-                      />
-                    </PersistentEditorField>
-
-                    <PersistentEditorField label="收集要求">
-                      <textarea
-                        className="operation-record-persistent-textarea"
-                        rows={2}
-                        defaultValue={draft.loop?.collect?.instruction || ''}
-                        placeholder="采集时要特别关注什么"
-                        onInput={(event) => {
-                          draft.loop.collect.instruction = event.currentTarget.value;
-                        }}
-                      />
-                    </PersistentEditorField>
-
-                    <PersistentEditorField label="数据整理">
-                      <textarea
-                        className="operation-record-persistent-textarea"
-                        rows={2}
-                        defaultValue={draft.loop?.organize?.instruction || ''}
-                        placeholder="如何把原始数据整理成可用信息"
-                        onInput={(event) => {
-                          draft.loop.organize.instruction = event.currentTarget.value;
-                        }}
-                      />
-                    </PersistentEditorField>
-
-                    <PersistentEditorField label="数据使用">
-                      <textarea
-                        className="operation-record-persistent-textarea"
-                        rows={2}
-                        defaultValue={draft.loop?.use?.instruction || ''}
-                        placeholder="整理后的数据要拿来驱动什么动作或判断"
-                        onInput={(event) => {
-                          draft.loop.use.instruction = event.currentTarget.value;
-                        }}
-                      />
-                    </PersistentEditorField>
-
-                    <PersistentEditorField label="冗余减枝">
-                      <textarea
-                        className="operation-record-persistent-textarea"
-                        rows={2}
-                        defaultValue={draft.loop?.prune?.instruction || ''}
-                        placeholder="复盘后哪些重复、低信号、过期内容要被剪掉"
-                        onInput={(event) => {
-                          draft.loop.prune.instruction = event.currentTarget.value;
-                        }}
-                      />
-                    </PersistentEditorField>
-                  </div>
                 </>
               ) : null}
 
-              <PersistentRuntimeSection
-                title="手动触发"
-                mode={draft.manualMode}
-                allowedModes={['follow_current', 'session_default', 'pinned']}
-                runtime={draft.manualRuntime}
-                onModeChange={(value) => {
-                  draft.manualMode = value;
-                  if (value === 'pinned' && !draft.manualRuntime?.tool && currentRuntime?.tool) {
-                    draft.manualRuntime = cloneJson(currentRuntime);
-                  }
-                  rerender();
-                }}
-                onPinCurrent={() => pinRuntime('manualRuntime')}
-                formatRuntimeSummary={formatRuntimeSummary}
-              />
-
-              {draft.kind !== 'skill' ? (
-                <PersistentRuntimeSection
-                  title="自动触发"
-                  mode={draft.scheduleMode}
-                  allowedModes={['session_default', 'pinned']}
-                  runtime={draft.scheduleRuntime}
-                  onModeChange={(value) => {
-                    draft.scheduleMode = value;
-                    if (value === 'pinned' && !draft.scheduleRuntime?.tool && currentRuntime?.tool) {
-                      draft.scheduleRuntime = cloneJson(currentRuntime);
-                    }
-                    rerender();
-                  }}
-                  onPinCurrent={() => pinRuntime('scheduleRuntime')}
-                  formatRuntimeSummary={formatRuntimeSummary}
-                />
-              ) : null}
             </div>
-          )
         )}
       </div>
       <div className="operation-record-persistent-editor-footer persistent-editor-modal-footer">
@@ -2622,23 +2423,9 @@ function PersistentEditorModal({
             <button type="button" className="modal-btn" onClick={() => onClose?.()}>
               取消
             </button>
-            {draft.mode !== 'configure' && editorStep === 'details' ? (
-              <button
-                type="button"
-                className="modal-btn"
-                onClick={() => {
-                  draft.editorStep = 'pick_kind';
-                  rerender();
-                }}
-              >
-                返回
-              </button>
-            ) : null}
-            {draft.mode === 'configure' || editorStep === 'details' ? (
-              <button type="button" className="modal-btn primary" onClick={() => onSave?.()}>
-                {draft.mode === 'configure' ? '保存' : '保存为长期项'}
-              </button>
-            ) : null}
+            <button type="button" className="modal-btn primary" onClick={() => onSave?.()}>
+              保存
+            </button>
           </>
         ) : null}
       </div>
