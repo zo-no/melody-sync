@@ -171,38 +171,9 @@ $MELODYSYNC_MEMORY_DIR/worklog/YYYY/MM/YYYY-MM-DD.jsonl
 
 ---
 
-## 四、完成音效抑制（realtime.js 对接）
+## ~~四、完成音效抑制（已删除）~~
 
-### 现状
-
-`frontend-src/session/http.js` 里已有 `userInitiatedDoneIds` Set，`shouldNotifyCompletion` 会检查它。但 `realtime.js` 的 `complete_pending` 处理器还没有向这个 Set 注册 sessionId。
-
-### 需要做的
-
-在 `frontend-src/core/realtime.js` 的 `complete_pending` case 里，在调用 `upsertSession` 之前，把 `msg.sessionId` 注册到 `userInitiatedDoneIds`：
-
-```javascript
-// 在 realtime.js 的 complete_pending 处理器里
-case "complete_pending": {
-  // 注册为用户主动完成，suppresses completion sound
-  if (typeof window.melodySyncMarkUserInitiatedDone === "function") {
-    window.melodySyncMarkUserInitiatedDone(msg.sessionId);
-  }
-  const previousSession = applyOptimisticSessionWorkflowState(msg.sessionId, "done");
-  // ...
-}
-```
-
-在 `http.js` 里需要暴露这个函数：
-
-```javascript
-// 在 http.js 末尾
-globalThis.melodySyncMarkUserInitiatedDone = (sessionId) => {
-  if (typeof sessionId === "string" && sessionId.trim()) {
-    userInitiatedDoneIds.add(sessionId.trim());
-  }
-};
-```
+> **已删除**：整个完成音效系统（音频、attention banner、title 闪烁、震动、browser notification、`userInitiatedDoneIds`）已在 2026-04 全部移除。此需求不再适用。
 
 ---
 

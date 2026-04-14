@@ -114,17 +114,14 @@
 
 ### D. 与下一轮功能无关的外围能力
 
-如果下一轮功能不碰部署、访客实例、外部连接器，可以先降噪：
+~~以下已全部删除（2026-04）：~~
 
-- `lib/guest-instance-command.mjs`
-- `lib/guest-instance.mjs`
-- `lib/release-command.mjs`
-- `lib/release-runtime.mjs`
-- `lib/cloudflared-config.mjs`
-- `lib/tunnel-diagnostics.mjs`
-- 对应的专项文档和脚本入口
-
-处理方式建议是“移出主阅读路径”优先，而不是上来就大删。
+- ~~`lib/guest-instance-command.mjs`~~
+- ~~`lib/guest-instance.mjs`~~
+- ~~`lib/release-command.mjs`~~
+- ~~`lib/release-runtime.mjs`~~
+- ~~`lib/cloudflared-config.mjs`~~（文件已不存在）
+- ~~`lib/tunnel-diagnostics.mjs`~~（文件已不存在）
 
 ---
 
@@ -162,4 +159,27 @@
 - 操作记录打开时不再给页面加半透明遮罩，面板本身也改成不透明侧栏
 - 当前分支路径会默认展开，即使支线还没有用户消息，也会显示当前摘要
 
-下一轮如果要“删旧上新”，建议先按这份地图把外围噪音削掉，再考虑大规模目录重排。
+下一轮如果要”删旧上新”，建议先按这份地图把外围噪音削掉，再考虑大规模目录重排。
+
+---
+
+## 6. 已完成的裁剪记录（2026-04）
+
+### 前端死挂点（第 2 步）
+- 删除完成音效系统全部代码：音频、attention banner、title 闪烁、震动、browser notification（`http.js` ~600 行）
+- 删除 `completionAttentionBanner` / `completionAttentionModal` DOM（`chat.html`）
+- 删除 `globalControlPanelBtn` 静态 HTML（由 React 渲染替代）
+- 删除 `.completion-attention-*` CSS（`chat-base.css` ~95 行、`chat-responsive.css` ~55 行）
+- 删除 `.global-control-panel-btn` CSS（`chat-sidebar.css` ~57 行）
+- 删除 SESSION_LIST_ORGANIZER AI 自动整理（`http.js` ~35 函数）
+- 删除 `modal.*` / `session.scope.*` i18n 死 key（60 个）
+- 删除 `renderSessionScopeContext` 死函数（`surface-ui.js`）
+
+### 外围能力（第 D 节）
+- 删除 `lib/guest-instance*.mjs`、`lib/release-*.mjs`（~1600 行）
+- 清理 `chat-server.mjs` release 启动委托逻辑
+- 清理 `cli.js` release / guest-instance 命令入口
+
+### 数据结构修复
+- `getPersistentStatusInfo`：scheduled_task / waiting_task 完成后不再覆盖 workflowState，`is-user-done-session` 类正确生效
+- `getActiveSessions`：只有 recurring_task + skill 永久活跃，scheduled / waiting 完成后正确移入已完成

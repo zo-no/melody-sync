@@ -1,6 +1,8 @@
 # 左边栏项目卡片重设计
 
-> 状态：已实现
+> Phase 1（UI 重构）：已完成
+> Phase 2（数据结构）：待实现
+> Phase 3（联通 description 字段）：待实现
 > 关联文件：`frontend-src/workbench/task-map-react-ui.jsx`、`frontend-src/chat-sidebar.css`、`backend/session/meta-store.mjs`
 
 ---

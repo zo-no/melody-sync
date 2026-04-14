@@ -88,65 +88,6 @@
 }
 .sidebar-tab-action:hover { color: var(--text); }
 
-/* ── 全局任务控制面板 — 固定在 tab bar 下方，始终可见 ── */
-/* Matches long-term project cards without the retired collapse affordance. */
-.global-control-panel-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  padding: 10px 14px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-  flex-shrink: 0;
-  transition: background 0.12s;
-  letter-spacing: 0.01em;
-  box-sizing: border-box;
-}
-.global-control-panel-btn:hover {
-  background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
-}
-.global-control-panel-label {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.global-control-panel-default-badge {
-  flex: 0 0 auto;
-  font-size: 9.5px;
-  font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--border-strong) 25%, transparent);
-  color: var(--text-muted);
-  letter-spacing: 0.02em;
-  margin-right: 2px;
-  white-space: nowrap;
-}
-.global-control-panel-panel-icon {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  color: color-mix(in srgb, var(--accent) 40%, var(--text-muted));
-  font-size: 14px;
-  line-height: 1;
-  transition: color 0.1s, transform 0.1s;
-}
-.global-control-panel-btn:hover .global-control-panel-panel-icon {
-  color: color-mix(in srgb, var(--accent) 75%, var(--text));
-  transform: translateX(1px);
-}
 .sidebar-grouping-toolbar {
   position: relative;
   display: flex;
