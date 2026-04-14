@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import { loadHistory } from '../../history.mjs';
+import { appendTaskWorklogEvent, extractWorklogSessionFields } from '../../session/task-worklog.mjs';
 import {
   buildPersistentDigest,
   buildPersistentRunMessage,
@@ -404,6 +405,15 @@ export function createSessionPersistentService({
         return false;
       }
       if (nextPersistent) {
+        const fromKind = String(currentNormalized?.kind || '').trim();
+        const toKind = String(nextPersistent?.kind || '').trim();
+        if (fromKind && toKind && fromKind !== toKind) {
+          appendTaskWorklogEvent('kind_changed', {
+            ...extractWorklogSessionFields(session),
+            fromKind,
+            toKind,
+          });
+        }
         session.persistent = nextPersistent;
         if (nextGroup && session.group !== nextGroup) {
           session.group = nextGroup;

@@ -1,4 +1,5 @@
 import { sanitizeEmailCompletionTargets } from '../../../lib/agent-mail-completion-targets.mjs';
+import { appendTaskWorklogEvent, extractWorklogSessionFields } from '../../session/task-worklog.mjs';
 import { appendEvent, appendEvents, loadHistory } from '../../history.mjs';
 import { statusEvent } from '../../normalizer.mjs';
 import { emit as emitHook } from '../../hooks/runtime/registry.mjs';
@@ -328,6 +329,11 @@ export async function createSessionWithDeps({
     if (normalizePersistentKind(normalizedPersistent?.kind || '') === 'waiting_task'
       && session.workflowState !== SESSION_WORKFLOW_STATE_DONE) {
       session.workflowState = SESSION_WORKFLOW_STATE_WAITING_USER;
+      appendTaskWorklogEvent('waiting_created', {
+        ...extractWorklogSessionFields(session),
+        parentSessionId: extra?.sourceContext?.parentSessionId || undefined,
+        parentName: undefined,
+      });
     }
     // Determine taskPoolMembership:
     // 1. Explicit request wins

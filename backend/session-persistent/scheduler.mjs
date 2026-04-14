@@ -2,6 +2,7 @@ import { loadSessionsMeta } from '../session/meta-store.mjs';
 import { resolvePersistentDueTriggerKind } from './core.mjs';
 import { getSession, runSessionPersistent } from '../session/manager.mjs';
 import { scanDailySessionMaintenance } from './daily-maintenance.mjs';
+import { appendTaskWorklogEvent, extractWorklogSessionFields } from '../session/task-worklog.mjs';
 
 const DEFAULT_SCAN_INTERVAL_MS = 30 * 1000;
 
@@ -34,6 +35,10 @@ export async function scanDuePersistentSessions(nowValue = new Date()) {
         const sessionWf = String(session?.workflowState || '').trim().toLowerCase();
         const sessionIsDone = sessionWf === 'done' || sessionWf === 'complete' || sessionWf === 'completed';
         if (!session || session.archived === true || sessionIsDone || isSessionBusy(session)) continue;
+        appendTaskWorklogEvent('triggered', {
+          ...extractWorklogSessionFields(session),
+          triggerKind,
+        });
         await runSessionPersistent(sessionId, { triggerKind });
       } catch (error) {
         console.error(`[persistent-scheduler] Failed to run ${sessionId}: ${error.message}`);

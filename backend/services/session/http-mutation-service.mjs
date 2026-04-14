@@ -13,6 +13,8 @@ import {
   updateSessionWorkflowClassification,
 } from '../../session/manager.mjs';
 import { loadSessionsMeta } from '../../session/meta-store.mjs';
+import { appendTaskWorklogEvent, extractWorklogSessionFields } from '../../session/task-worklog.mjs';
+import { normalizeSessionWorkflowState } from '../../session/workflow-state.mjs';
 
 export async function applySessionHttpPatch(sessionId, patch = {}) {
   const hasArchivedPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'archived');
@@ -64,10 +66,17 @@ export async function applySessionHttpPatch(sessionId, patch = {}) {
     session = await updateSessionTaskPoolMembership(sessionId, patch.taskPoolMembership ?? null) || session;
   }
   if (hasWorkflowStatePatch || hasWorkflowPriorityPatch) {
+    const prevWorkflowState = normalizeSessionWorkflowState(session?.workflowState || '');
     session = await updateSessionWorkflowClassification(sessionId, {
       ...(hasWorkflowStatePatch ? { workflowState: patch.workflowState || '' } : {}),
       ...(hasWorkflowPriorityPatch ? { workflowPriority: patch.workflowPriority || '' } : {}),
     }) || session;
+    if (hasWorkflowStatePatch) {
+      const nextWorkflowState = normalizeSessionWorkflowState(patch.workflowState || '');
+      if (nextWorkflowState === 'done' && prevWorkflowState !== 'done') {
+        appendTaskWorklogEvent('done', extractWorklogSessionFields(session));
+      }
+    }
   }
   if (hasToolPatch || hasModelPatch || hasEffortPatch || hasThinkingPatch) {
     session = await updateSessionRuntimePreferences(sessionId, {

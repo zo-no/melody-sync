@@ -1,5 +1,6 @@
 import { normalizeAgentResultEnvelope } from '../../session-runtime/agent-result-envelope.mjs';
 import { resolveSessionStateFromSession } from '../../session-runtime/session-state.mjs';
+import { appendTaskWorklogEvent, extractWorklogSessionFields } from '../../session/task-worklog.mjs';
 
 function buildRunTerminalStatusEvent(statusEvent, run) {
   if (run?.state === 'cancelled') {
@@ -473,6 +474,16 @@ export async function finalizeDetachedRunWithDeps(deps, {
   }
 
   const runEvent = finalizedRun.state === 'completed' ? 'run.completed' : 'run.failed';
+  const worklogEvent = finalizedRun.state === 'completed' ? 'completed' : 'failed';
+  if (latestSession?.persistent?.kind) {
+    appendTaskWorklogEvent(worklogEvent, {
+      ...extractWorklogSessionFields(latestSession),
+      runId: finalizedRun?.id || undefined,
+      durationMs: (finalizedRun?.endedAt && finalizedRun?.startedAt)
+        ? Math.max(0, Date.parse(finalizedRun.endedAt) - Date.parse(finalizedRun.startedAt))
+        : undefined,
+    });
+  }
   const completionNoticeKey = finalizedRun?.id ? `completion:run:${finalizedRun.id}` : '';
   const hookContext = {
     sessionId,

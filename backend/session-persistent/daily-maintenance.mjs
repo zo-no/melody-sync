@@ -2,6 +2,7 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 
 import { CONFIG_DIR, MEMORY_DIR } from '../../lib/config.mjs';
+import { appendTaskWorklogEvent } from '../session/task-worklog.mjs';
 import { ensureDir, readJson, writeJsonAtomic, writeTextAtomic } from '../fs-utils.mjs';
 import { loadSessionsMeta } from '../session/meta-store.mjs';
 import { getSession, setSessionArchived, updateSessionWorkflowState } from '../session/manager.mjs';
@@ -474,6 +475,15 @@ export async function scanDailySessionMaintenance(nowValue = new Date()) {
       for (const sessionId of staleInboxIds) {
         try {
           await updateSessionWorkflowState(sessionId, 'done');
+          const staleMeta = allSessionsRaw.find((m) => m?.id === sessionId);
+          appendTaskWorklogEvent('timeout', {
+            sessionId,
+            name: trimText(staleMeta?.name || '未命名任务'),
+            kind: 'inbox',
+            bucket: 'inbox',
+            reason: 'stale_inbox',
+            createdAt: normalizeIsoTimestamp(staleMeta?.created || ''),
+          });
         } catch (error) {
           console.error(`[daily-maintenance] Failed to mark done ${sessionId}: ${error.message}`);
         }
