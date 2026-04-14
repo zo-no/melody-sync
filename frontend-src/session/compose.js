@@ -1748,9 +1748,12 @@ tabLongTerm?.addEventListener("click", () => switchTab("long-term"));
 
 // Global control panel button — always visible, opens system project panel
 globalControlPanelBtn?.addEventListener("click", () => {
-  const systemProjectId = typeof globalThis.getSystemProjectId === "function"
-    ? globalThis.getSystemProjectId()
-    : (typeof getSessionsTabProjectId === "function" ? getSessionsTabProjectId() : "");
+  // Find the system project (日常任务) directly from the sessions array
+  const systemProject = Array.isArray(sessions)
+    ? sessions.find((s) => String(s?.taskListOrigin || "").trim().toLowerCase() === "system")
+    : null;
+  const systemProjectId = systemProject?.id
+    || (typeof getSessionsTabProjectId === "function" ? getSessionsTabProjectId() : "");
   if (systemProjectId && typeof window.showLongTermProjectPanel === "function") {
     window.showLongTermProjectPanel(systemProjectId);
   }

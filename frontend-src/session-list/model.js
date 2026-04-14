@@ -556,23 +556,30 @@
       });
     }
     // Project membership badge — show project name for sessions in the tasks tab
+    // Skip badge for the system/daily project (日常任务) — it's the default and adds no information
     const membership = getLongTermTaskPoolMembership(session);
     const hasProjectMembership = Boolean(membership?.projectSessionId);
     if (hasProjectMembership && membership.role === "member") {
-      // Try getKnownSessionById first, then fall back to global getVisibleActiveSessions
-      let projectSession = getKnownSessionById(membership.projectSessionId);
-      if (!projectSession && typeof root?.window?.getVisibleActiveSessions === "function") {
-        const allSessions = root.window.getVisibleActiveSessions();
-        projectSession = allSessions.find((s) => trimText(s?.id) === membership.projectSessionId) || null;
-      }
-      const projectName = trimText(projectSession?.name || "");
-      if (projectName) {
-        badges.push({
-          key: "project",
-          label: projectName,
-          className: "session-list-badge session-list-badge-project",
-          title: "归属项目：" + projectName,
-        });
+      const systemProjectId = typeof root?.getSessionsTabProjectId === "function"
+        ? trimText(root.getSessionsTabProjectId())
+        : "";
+      const isSystemProject = systemProjectId && membership.projectSessionId === systemProjectId;
+      if (!isSystemProject) {
+        // Try getKnownSessionById first, then fall back to global getVisibleActiveSessions
+        let projectSession = getKnownSessionById(membership.projectSessionId);
+        if (!projectSession && typeof root?.window?.getVisibleActiveSessions === "function") {
+          const allSessions = root.window.getVisibleActiveSessions();
+          projectSession = allSessions.find((s) => trimText(s?.id) === membership.projectSessionId) || null;
+        }
+        const projectName = trimText(projectSession?.name || "");
+        if (projectName) {
+          badges.push({
+            key: "project",
+            label: projectName,
+            className: "session-list-badge session-list-badge-project",
+            title: "归属项目：" + projectName,
+          });
+        }
       }
     }
     // Skip branch badge for project members — they have explicit project membership
