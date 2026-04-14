@@ -1,10 +1,12 @@
 import { spawn } from 'child_process';
-import { readFile } from 'fs/promises';
+import { appendFile, mkdir, readFile } from 'fs/promises';
 import { dirname, join } from 'path';
-import { MELODYSYNC_APP_ROOT } from '../../lib/config.mjs';
+import { MELODYSYNC_APP_ROOT, MEMORY_DIR } from '../../lib/config.mjs';
 import { pathExists, writeTextAtomic } from '../fs-utils.mjs';
 import { stripGraphOpsFromAssistantContent } from './graph-ops.mjs';
 import { normalizeSessionTaskCard, stripTaskCardFromAssistantContent } from './task-card.mjs';
+
+const WORKLOG_DIR = join(MEMORY_DIR, 'worklog');
 
 const JOURNAL_DIR_SEGMENTS = ['02-📓journal', '04-📂日记'];
 const AGENT_NOTES_HEADING = '## Agent Notes';
@@ -400,7 +402,67 @@ export async function resolveSessionDeletionJournalPath(now = new Date()) {
   };
 }
 
+// Write a JSONL record to the worklog — pure backend, no Obsidian, no AI.
+// The daily cleanup recurring_task reads this file and writes to Obsidian.
 export async function writeSessionDeletionJournalEntry(payload = {}, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date();
+  const rootSession = payload?.rootSession || null;
+  const sessionId = trimText(rootSession?.id);
+  if (!sessionId) return;
+
+  const taskCard = normalizeSessionTaskCard(rootSession?.taskCard || {});
+  const conclusions = Array.isArray(taskCard?.knownConclusions)
+    ? taskCard.knownConclusions.filter((c) => trimText(c)).slice(0, 4)
+    : [];
+  const title = clipText(trimText(rootSession?.name) || '未命名任务', 120);
+  const projectName = trimText(
+    rootSession?.sessionState?.longTerm?.rootTitle
+    || rootSession?.group
+    || '',
+  );
+
+  // Find earliest history timestamp as createdAt
+  let createdAtMs = 0;
+  const historiesBySessionId = payload?.historiesBySessionId || {};
+  const sessionIds = Array.isArray(payload?.deletedSessionIds) ? payload.deletedSessionIds : [sessionId];
+  for (const sid of sessionIds) {
+    const events = Array.isArray(historiesBySessionId[sid]) ? historiesBySessionId[sid] : [];
+    for (const ev of events) {
+      const ts = Number.isFinite(ev?.timestamp) ? ev.timestamp : 0;
+      if (ts > 0 && (createdAtMs === 0 || ts < createdAtMs)) createdAtMs = ts;
+    }
+  }
+
+  const record = {
+    sessionId,
+    date: formatLocalDateParts(now).fileName.replace('.md', '').replace(/_/g, '-'),
+    ts: now.toISOString(),
+    name: title,
+    kind: trimText(rootSession?.persistent?.kind || 'inbox'),
+    bucket: trimText(rootSession?.taskPoolMembership?.longTerm?.bucket || 'inbox'),
+    result: 'deleted',
+    createdAt: createdAtMs > 0 ? new Date(createdAtMs).toISOString() : null,
+    completedAt: now.toISOString(),
+    projectName: projectName || null,
+    conclusions: conclusions.length > 0 ? conclusions : null,
+  };
+
+  try {
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const worklogPath = join(WORKLOG_DIR, year, month, `${year}-${month}-${day}.jsonl`);
+    await mkdir(dirname(worklogPath), { recursive: true });
+    await appendFile(worklogPath, `${JSON.stringify(record)}\n`, 'utf8');
+  } catch (err) {
+    // Non-fatal — deletion proceeds regardless of worklog write failure
+    console.warn('[deletion-journal] Failed to write worklog entry:', err?.message || err);
+  }
+}
+
+// Obsidian diary write — used by the AI daily cleanup task, not on user delete.
+// Kept here so the daily cleanup recurring_task can import and call it.
+export async function writeObsidianJournalEntry(payload = {}, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date();
   const { vaultRoot, notePath } = await resolveSessionDeletionJournalPath(now);
   const openVault = typeof options.openVault === 'function' ? options.openVault : openObsidianVault;
@@ -414,13 +476,10 @@ export async function writeSessionDeletionJournalEntry(payload = {}, options = {
   const rootSession = payload?.rootSession || null;
   const sessionId = trimText(rootSession?.id);
   if (!sessionId) {
-    throw createDeleteError('无法写入删除日记：缺少 session id。', 500);
+    throw createDeleteError('无法写入日记：缺少 session id。', 500);
   }
 
-  const entryLines = buildSessionDeletionJournalEntry({
-    ...payload,
-    now,
-  });
+  const entryLines = buildSessionDeletionJournalEntry({ ...payload, now });
   const nextText = upsertEntryIntoNote(noteText, sessionId, entryLines);
   if (nextText !== noteText.replace(/\r\n/g, '\n')) {
     await writeTextAtomic(notePath, nextText);
