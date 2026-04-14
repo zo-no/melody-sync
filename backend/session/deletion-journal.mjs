@@ -122,6 +122,43 @@ function mergeTaskCardSignals(rootSession, relatedSessions = []) {
   };
 }
 
+function extractSessionCreatedAt(historiesBySessionId = {}, sessionIds = []) {
+  let earliest = 0;
+  for (const sessionId of sessionIds) {
+    const events = Array.isArray(historiesBySessionId[sessionId]) ? historiesBySessionId[sessionId] : [];
+    for (const event of events) {
+      const ts = Number.isFinite(event?.timestamp) ? event.timestamp : 0;
+      if (ts > 0 && (earliest === 0 || ts < earliest)) {
+        earliest = ts;
+      }
+    }
+  }
+  return earliest > 0 ? new Date(earliest) : null;
+}
+
+function formatDuration(createdAt, now = new Date()) {
+  if (!(createdAt instanceof Date)) return '';
+  const totalMinutes = Math.round((now - createdAt) / 60000);
+  if (totalMinutes <= 0) return '';
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`;
+}
+
+function formatCreatedAtLabel(createdAt, now = new Date()) {
+  if (!(createdAt instanceof Date)) return '';
+  const sameDay =
+    createdAt.getFullYear() === now.getFullYear() &&
+    createdAt.getMonth() === now.getMonth() &&
+    createdAt.getDate() === now.getDate();
+  const month = String(createdAt.getMonth() + 1).padStart(2, '0');
+  const day = String(createdAt.getDate()).padStart(2, '0');
+  const hour = String(createdAt.getHours()).padStart(2, '0');
+  const minute = String(createdAt.getMinutes()).padStart(2, '0');
+  return sameDay ? `${hour}:${minute}` : `${month}-${day} ${hour}:${minute}`;
+}
+
 function extractFirstUserMessage(historiesBySessionId = {}, sessionIds = []) {
   for (const sessionId of sessionIds) {
     const events = Array.isArray(historiesBySessionId[sessionId]) ? historiesBySessionId[sessionId] : [];
@@ -163,30 +200,54 @@ function extractAssistantSummaryLines(historiesBySessionId = {}, sessionIds = []
   return summaries;
 }
 
-function collectTouchedPaths(rootSession, historiesBySessionId = {}, sessionIds = []) {
-  const paths = [];
-  if (trimText(rootSession?.folder)) {
-    pushUnique(paths, `目录 ${trimText(rootSession.folder)}`, 6);
+
+const ACTIVITY_EMOJI_RULES = [
+  { pattern: /排查|报错|错误|bug|debug|修复|fix|crash|异常|失败/, emoji: '🔍' },
+  { pattern: /设计|ui|ux|界面|样式|布局|视觉|原型/, emoji: '🎨' },
+  { pattern: /讨论|分享|会议|头脑风暴|brainstorm|review|评审/, emoji: '💬' },
+  { pattern: /重构|优化|清理|整理|迁移|refactor/, emoji: '🔧' },
+  { pattern: /部署|发布|上线|deploy|release|ci|cd/, emoji: '🚀' },
+  { pattern: /测试|test|spec|单测|集成/, emoji: '🧪' },
+  { pattern: /文档|doc|readme|注释/, emoji: '📄' },
+  { pattern: /新增|添加|实现|开发|feature|功能/, emoji: '✨' },
+];
+
+function inferActivityEmoji(texts = []) {
+  const combined = texts.filter(Boolean).join(' ').toLowerCase();
+  for (const rule of ACTIVITY_EMOJI_RULES) {
+    if (rule.pattern.test(combined)) return rule.emoji;
   }
-  for (const sessionId of sessionIds) {
-    const events = Array.isArray(historiesBySessionId[sessionId]) ? historiesBySessionId[sessionId] : [];
-    for (const event of events) {
-      if (event?.type !== 'file_change') continue;
-      const filePath = trimText(event?.filePath);
-      if (!filePath) continue;
-      if (!pushUnique(paths, filePath, 6)) break;
-    }
-    if (paths.length >= 4) break;
-  }
-  return paths.slice(0, 4);
+  return '💻';
 }
 
-function formatPathList(paths = []) {
-  return paths
-    .map((entry) => trimText(entry).replace(/`/g, ''))
-    .filter(Boolean)
-    .map((entry) => `\`${entry}\``)
-    .join('、');
+function resolveProjectName(rootSession) {
+  return trimText(rootSession?.sessionState?.longTerm?.rootTitle || '');
+}
+
+function buildJournalBodyText(title, objective, workSummaryLines, taskCard) {
+  const seen = new Set();
+  const addUnique = (entry) => {
+    if (!entry) return false;
+    if (textEquivalent(entry, title)) return false;
+    const key = trimText(entry).toLowerCase().replace(/\s+/g, ' ');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  };
+
+  // 优先用结构化结论，有结论时不再追加 assistant 摘要和 objective
+  const conclusions = taskCard.knownConclusions.filter(addUnique);
+  if (conclusions.length > 0) {
+    return `${title}，${conclusions.join('，')}`;
+  }
+
+  // 没有结论时降级到 assistant 摘要，再降级到 objective
+  const fallbacks = [...workSummaryLines, objective].filter(addUnique);
+  if (fallbacks.length > 0) {
+    return `${title}，${fallbacks[0]}`;
+  }
+
+  return title;
 }
 
 function buildSessionDeletionJournalEntry({
@@ -212,26 +273,25 @@ function buildSessionDeletionJournalEntry({
     160,
   );
   const workSummaryLines = extractAssistantSummaryLines(historiesBySessionId, orderedSessionIds);
-  if (workSummaryLines.length === 0 && objective) {
-    workSummaryLines.push(`围绕「${objective}」推进并完成本次工作收束。`);
-  }
 
-  const touchedPaths = collectTouchedPaths(rootSession, historiesBySessionId, orderedSessionIds);
   const { timeLabel } = formatLocalDateParts(now);
+  const projectName = resolveProjectName(rootSession);
+  const emoji = inferActivityEmoji([title, objective, taskCard.knownConclusions[0]]);
+  const bodyText = buildJournalBodyText(title, objective, workSummaryLines, taskCard);
+  const createdAt = extractSessionCreatedAt(historiesBySessionId, orderedSessionIds);
+  const createdAtLabel = formatCreatedAtLabel(createdAt, now);
+  const durationLabel = createdAt ? formatDuration(createdAt, now) : '';
+  const timeRange = createdAtLabel ? `${createdAtLabel}-${timeLabel}` : timeLabel;
+  const timePart = durationLabel ? `${timeRange} (${durationLabel})` : timeRange;
+  const tag = projectName ? `${emoji} ${projectName}` : emoji;
   const startMarker = `<!-- melodysync:session:${rootId}:start -->`;
   const endMarker = `<!-- melodysync:session:${rootId}:end -->`;
+
   const lines = [
     startMarker,
-    `#### ${timeLabel} ${title}`,
-    objective && !textEquivalent(objective, title) ? `- 任务目标：${objective}` : '',
-    workSummaryLines.length > 0 ? '- 工作总结：' : '',
-    ...(workSummaryLines.length > 0 ? workSummaryLines.map((entry) => `  - ${entry}`) : []),
-    taskCard.knownConclusions.length > 0 ? '- 关键结论：' : '',
-    ...(taskCard.knownConclusions.length > 0 ? taskCard.knownConclusions.map((entry) => `  - ${entry}`) : []),
-    touchedPaths.length > 0 ? `- 涉及路径：${formatPathList(touchedPaths)}` : '',
-    deletedSessionIds.length > 1 ? `- 关联会话：${deletedSessionIds.length} 条（含 ${deletedSessionIds.length - 1} 条分支）` : '',
+    `- ${timePart} [${tag}] ${clipText(bodyText, 200)}`,
     endMarker,
-  ].filter(Boolean);
+  ];
 
   return lines;
 }
