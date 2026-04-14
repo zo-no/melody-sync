@@ -7485,6 +7485,30 @@ body.long-term-workspace-active .task-manager-main-column {
 .ltcp-output-stat.is-completed { background: color-mix(in srgb, var(--success) 10%, transparent); color: color-mix(in srgb, var(--success) 70%, var(--text-muted)); }
 .ltcp-output-stat.is-open { background: color-mix(in srgb, var(--accent) 10%, transparent); color: color-mix(in srgb, var(--accent) 70%, var(--text-muted)); }
 .ltcp-output-stat.is-active { background: color-mix(in srgb, var(--notice) 10%, transparent); color: color-mix(in srgb, var(--notice) 70%, var(--text-muted)); }
+
+/* Run log in control panel */
+.ltcp-run-log { display: flex; flex-direction: column; gap: 0; }
+.ltcp-run-empty { font-size: 12px; color: var(--text-muted); padding: 4px 0; }
+.ltcp-run-row {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+}
+.ltcp-run-row:last-child { border-bottom: none; }
+.ltcp-run-state {
+  font-size: 10px; font-weight: 600; padding: 1px 4px; border-radius: 3px;
+  white-space: nowrap; align-self: start; text-align: center;
+}
+.ltcp-run-state.is-completed { color: var(--success, #22c55e); background: color-mix(in srgb, var(--success, #22c55e) 12%, transparent); }
+.ltcp-run-state.is-failed { color: var(--danger, #ef4444); background: color-mix(in srgb, var(--danger, #ef4444) 12%, transparent); }
+.ltcp-run-state.is-cancelled { color: var(--text-muted); background: color-mix(in srgb, var(--border) 60%, transparent); }
+.ltcp-run-state.is-running { color: var(--accent, #4f7ef8); background: color-mix(in srgb, var(--accent, #4f7ef8) 12%, transparent); }
+.ltcp-run-session { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center; }
+.ltcp-run-meta { grid-column: 2; font-size: 10px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ltcp-run-error { grid-column: 1 / -1; font-size: 10px; color: var(--danger, #ef4444); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-top: 2px; }
 .ltcp-daily-count strong {
   color: color-mix(in srgb, var(--success) 80%, var(--text));
   font-size: 15px;

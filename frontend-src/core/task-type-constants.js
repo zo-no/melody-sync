@@ -47,6 +47,17 @@ const KIND_TO_BUCKET = Object.freeze({
 });
 
 /**
+ * Kind → group label mapping (used by session-list/model.js getSessionGroupInfoWithOptions).
+ * Maps persistent.kind to the storageValue/alias used by resolveTemplateTaskListGroup.
+ */
+const KIND_GROUP_LABELS = Object.freeze({
+  recurring_task: "长期任务",
+  scheduled_task: "短期任务",
+  waiting_task:   "等待任务",
+  skill:          "快捷按钮",
+});
+
+/**
  * Kind picker definitions — used in the task type chooser UI.
  */
 const KIND_PICKER_DEFS = Object.freeze([
@@ -125,6 +136,7 @@ if (typeof globalThis !== "undefined") {
     BUCKET_KEYS,
     KIND_LABELS,
     KIND_TO_BUCKET,
+    KIND_GROUP_LABELS,
     KIND_PICKER_DEFS,
     BUCKET_DEFS,
     normalizeBucket,

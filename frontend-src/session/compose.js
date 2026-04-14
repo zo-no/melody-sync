@@ -1713,21 +1713,22 @@ globalThis.showLongTermProjectPanel = (projectId) => {
         </div>`;
     }).catch((err) => console.warn("[ltcp] worklog fetch failed:", err?.message));
   }
-  // Load output panel stats and inject into control panel
+  // Load output panel stats + run log and inject into control panel
   if (selectedLongTermProjectId && typeof fetchJsonOrRedirect === "function") {
     void fetchJsonOrRedirect(`/api/output-panel?sessionId=${encodeURIComponent(selectedLongTermProjectId)}&scope=project`)
       .then((data) => {
         if (!data || !longTermWorkspaceDetail) return;
-        let statsEl = longTermWorkspaceDetail.querySelector(".ltcp-output-stats");
+        const shell = longTermWorkspaceDetail.querySelector(".ltcp-shell");
+        if (!shell) return;
+
+        // ── Stats row ──────────────────────────────────────────────
+        let statsEl = shell.querySelector(".ltcp-output-stats");
         if (!statsEl) {
           statsEl = document.createElement("div");
           statsEl.className = "ltcp-section ltcp-output-stats";
-          const shell = longTermWorkspaceDetail.querySelector(".ltcp-shell");
-          if (shell) {
-            const header = shell.querySelector(".ltcp-header");
-            if (header) header.after(statsEl);
-            else shell.insertBefore(statsEl, shell.firstChild);
-          }
+          const header = shell.querySelector(".ltcp-header");
+          if (header) header.after(statsEl);
+          else shell.insertBefore(statsEl, shell.firstChild);
         }
         const week = data?.week || {};
         const overview = data?.overview || {};
@@ -1742,6 +1743,65 @@ globalThis.showLongTermProjectPanel = (projectId) => {
               ${active > 0 ? `<span class="ltcp-output-stat is-active">活跃支线 ${active}</span>` : ""}
             </div>`;
         }
+
+        // ── Run log ────────────────────────────────────────────────
+        const groups = Array.isArray(data?.recentRunsByProject) ? data.recentRunsByProject : [];
+        if (groups.length === 0) return;
+
+        let runLogEl = shell.querySelector(".ltcp-run-log-section");
+        if (!runLogEl) {
+          runLogEl = document.createElement("div");
+          runLogEl.className = "ltcp-section ltcp-run-log-section";
+          shell.appendChild(runLogEl);
+        }
+
+        function escHtml(s) {
+          return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+        }
+        function runStateInfo(state) {
+          if (state === "completed") return { label: "完成", cls: "is-completed" };
+          if (state === "failed") return { label: "失败", cls: "is-failed" };
+          if (state === "cancelled") return { label: "取消", cls: "is-cancelled" };
+          if (state === "running") return { label: "运行中", cls: "is-running" };
+          return { label: state || "未知", cls: "" };
+        }
+        function fmtStamp(iso) {
+          const t = Date.parse(String(iso || "").trim());
+          if (!t) return "";
+          const d = new Date(t);
+          return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+        }
+        function fmtDur(a, b) {
+          if (!a || !b) return "";
+          const ms = new Date(b) - new Date(a);
+          if (isNaN(ms) || ms < 0) return "";
+          const mins = Math.round(ms / 60000);
+          if (mins < 60) return `${mins}m`;
+          return `${Math.round(ms/3600000)}h`;
+        }
+
+        const rowsHtml = groups.flatMap((g) =>
+          (Array.isArray(g.runs) ? g.runs : []).map((run) => {
+            const si = runStateInfo(run.state);
+            const name = escHtml(String(run.sessionName || "").slice(0, 30));
+            const tool = escHtml(String(run.tool || "").toLowerCase());
+            const stamp = fmtStamp(run.createdAt);
+            const dur = fmtDur(run.createdAt, run.completedAt);
+            const meta = [tool, stamp, dur].filter(Boolean).join(" · ");
+            const err = run.state === "failed" && run.failureReason
+              ? `<div class="ltcp-run-error">${escHtml(String(run.failureReason).slice(0, 80))}</div>` : "";
+            return `<div class="ltcp-run-row">
+              <span class="ltcp-run-state ${escHtml(si.cls)}">${escHtml(si.label)}</span>
+              <span class="ltcp-run-session">${name}</span>
+              ${meta ? `<span class="ltcp-run-meta">${escHtml(meta)}</span>` : ""}
+              ${err}
+            </div>`;
+          })
+        ).join("");
+
+        runLogEl.innerHTML = `
+          <div class="ltcp-section-title">运行日志</div>
+          <div class="ltcp-run-log">${rowsHtml || '<div class="ltcp-run-empty">暂无运行记录</div>'}</div>`;
       }).catch(() => {});
   }
   window.MelodySyncWorkbench?.refreshTaskMapForProject?.(selectedLongTermProjectId);

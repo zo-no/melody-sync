@@ -11,11 +11,12 @@ This document lists the current shipped MelodySync feature surface and explicitl
 | Runs | Detached execution runs | Run state persists on disk and survives browser disconnects |
 | Messaging | Send messages, queue follow-ups while busy, cancel active runs | HTTP is canonical, WebSocket is invalidation only |
 | Inputs | Text, file uploads, pasted images | Assets can be saved and reused in a session |
-| Task flow | Fork session, delegate subtask, task-map / branch tracking | Keeps the session-first workflow model |
+| Task flow | Fork session, delegate subtask, task-map / branch tracking, merge branch back, task handoff | Keeps the session-first workflow model |
 | Persistent GTD tasks | Long-term recurring tasks, short-term scheduled tasks, waiting-for-human tasks, knowledge-base file paths | Each persistent task can run manually, by one-time schedule, by recurring loop, or in a spawned task branch |
 | Runtime preferences | Tool, model, effort, thinking | Stored per session |
-| Session organization | Auto title, user folders, sidebar sorting helpers, flat task list | Sidebar stays a foldered work list; task structure lives in the map/tracker |
-| UI | Phone + desktop web UI, reconnect refresh, build update prompt | No frontend build step required |
+| Session organization | Auto title, user folders, sidebar sorting helpers, flat task list, long-term project tab | Sidebar stays a foldered work list; task structure lives in the map/tracker |
+| Workbench | Task tracker bar, task map graph, branch suggestion cards, operation record panel | Layered on top of the core session/run model |
+| UI | Phone + desktop web UI, reconnect refresh, build update prompt | `task-map-react-ui.jsx` requires `npm run build:task-map-react` after changes |
 | Integrations | External message protocol, email/GitHub style connectors, remote capability monitor | These create or enrich sessions through the core session API |
 | Deployment | Local self-hosting and guest instances | External access is operator-managed and documented separately |
 

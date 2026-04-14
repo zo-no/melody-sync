@@ -597,7 +597,7 @@
     }, 700) || null;
   }
 
-  // Panel lives in sidebar — shown only in long-term tab
+  // Panel lives in control panel — shown when a project panel is open
   function show() {
     inlineEl.hidden = false;
     startLiveRefresh();
@@ -622,24 +622,8 @@
     scheduleRefresh(120);
   });
 
-  // Show/hide based on active sidebar tab
-  function syncVisibility() {
-    const activeTab = typeof global.getActiveSidebarTab === 'function'
-      ? global.getActiveSidebarTab()
-      : '';
-    if (activeTab === 'long-term') {
-      show();
-    } else {
-      hide();
-    }
-  }
-
-  // Listen for tab switches via MutationObserver on body class
-  const bodyObserver = new MutationObserver(() => syncVisibility());
-  bodyObserver.observe(global.document.body, { attributes: true, attributeFilter: ['class'] });
-
-  // Initial sync
-  syncVisibility();
+  // Panel is shown/hidden by showLongTermProjectPanel / hideLongTermProjectPanel
+  // Initial state: hidden (shown when a project panel opens)
 
   global.MelodySyncOutputPanel = Object.freeze({
     open,
