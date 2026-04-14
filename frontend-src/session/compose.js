@@ -1760,21 +1760,6 @@ globalThis.hideLongTermProjectPanel = () => {
 tabSessions?.addEventListener("click", () => switchTab("sessions"));
 tabLongTerm?.addEventListener("click", () => switchTab("long-term"));
 
-// Static fallback button may be absent in tests or replaced by the React-rendered entry.
-const staticGlobalControlPanelBtn = typeof globalControlPanelBtn !== "undefined"
-  ? globalControlPanelBtn
-  : document.getElementById("globalControlPanelBtn");
-staticGlobalControlPanelBtn?.addEventListener("click", () => {
-  // Find the system project (日常任务) directly from the sessions array
-  const systemProject = Array.isArray(sessions)
-    ? sessions.find((s) => String(s?.taskListOrigin || "").trim().toLowerCase() === "system")
-    : null;
-  const systemProjectId = systemProject?.id
-    || (typeof getSessionsTabProjectId === "function" ? getSessionsTabProjectId() : "");
-  if (systemProjectId && typeof window.showLongTermProjectPanel === "function") {
-    window.showLongTermProjectPanel(systemProjectId);
-  }
-});
 
 longTermWorkspaceNewBtn?.addEventListener("click", () => {
   void createNewLongTermProjectShortcut?.({ closeSidebar: false });

@@ -54,32 +54,6 @@
   </div>
 </div>
 
-<div class="completion-attention-banner" id="completionAttentionBanner" hidden role="status" aria-live="assertive">
-  <div class="completion-attention-copy">
-    <span class="completion-attention-kicker">MelodySync 任务完成</span>
-    <span class="completion-attention-text" id="completionAttentionText">当前任务已完成</span>
-  </div>
-  <div class="completion-attention-actions">
-    <button class="completion-attention-btn" id="completionAttentionOpenBtn" type="button">打开</button>
-    <button class="completion-attention-btn secondary" id="completionAttentionCloseBtn" type="button">关闭</button>
-  </div>
-</div>
-
-<div class="modal-backdrop" id="completionAttentionModalBackdrop" hidden>
-  <div class="modal completion-attention-modal" role="dialog" aria-modal="true" aria-labelledby="completionAttentionModalTitle">
-    <div class="modal-header">
-      <div class="modal-title" id="completionAttentionModalTitle">MelodySync 任务完成</div>
-      <button class="modal-close" id="completionAttentionModalCloseBtn" type="button" aria-label="关闭">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-lead" id="completionAttentionModalLead">当前任务已完成</div>
-    </div>
-    <div class="modal-footer">
-      <button class="modal-btn primary" id="completionAttentionModalOpenBtn" type="button">打开任务</button>
-      <button class="modal-btn" id="completionAttentionModalAckBtn" type="button">知道了</button>
-    </div>
-  </div>
-</div>
 
 <div class="app-container">
   <!-- Sidebar overlay -->
@@ -94,12 +68,7 @@
         <button class="sidebar-tab" id="tabLongTerm" data-i18n="sidebar.tab.longTerm">长期项目</button>
         <button class="sidebar-tab" id="tabSkill" hidden style="display:none" data-i18n="sidebar.tab.skill">技能</button>
       </div>
-      <!-- Global control panel — rendered by React (SessionsTabDailyHeader); this static fallback is hidden -->
-      <button class="global-control-panel-btn" id="globalControlPanelBtn" type="button" hidden style="display:none">
-        <span class="global-control-panel-label">全局任务控制面板</span>
-        <span class="global-control-panel-default-badge">默认</span>
-        <span class="global-control-panel-panel-icon" aria-hidden="true">›</span>
-      </button>
+
       <div class="sidebar-list" id="sessionList"></div>
       <div class="session-list-footer" id="sessionListFooter" title="Build {{BUILD_TITLE}}" data-i18n-build-label="{{BUILD_LABEL}}">Build {{BUILD_LABEL}}</div>
       <div class="session-list-actions" id="sidebarGroupingToolbar">

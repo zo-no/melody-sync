@@ -842,68 +842,6 @@ body::before {
     text-align: center;
   }
 
-  body.frontend-update-banner-active .completion-attention-banner {
-    top: calc(var(--safe-top) + var(--mobile-header-stack) + 94px);
-  }
-
-  .completion-attention-banner {
-    top: calc(var(--safe-top) + var(--mobile-header-stack));
-    width: calc(100vw - 16px);
-    padding: 12px 14px;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .completion-attention-actions {
-    width: 100%;
-  }
-
-  .completion-attention-btn {
-    flex: 1;
-    text-align: center;
-  }
-
-  .completion-attention-modal {
-    width: 100%;
-    max-width: none;
-    min-height: calc(100dvh - 24px);
-    border-radius: 24px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .completion-attention-modal .modal-header,
-  .completion-attention-modal .modal-footer {
-    padding-left: 18px;
-    padding-right: 18px;
-  }
-
-  .completion-attention-modal .modal-body {
-    flex: 1;
-    justify-content: center;
-    padding: 26px 18px 22px;
-  }
-
-  .completion-attention-modal .modal-title {
-    font-size: 20px;
-  }
-
-  .completion-attention-modal .modal-lead {
-    font-size: 26px;
-    line-height: 1.22;
-  }
-
-  .completion-attention-modal .modal-footer {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .completion-attention-modal .modal-btn {
-    width: 100%;
-    min-height: 52px;
-    font-size: 16px;
-    font-weight: 700;
-  }
 
   .modal {
     width: 100%;
