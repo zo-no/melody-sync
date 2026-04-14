@@ -1,4 +1,6 @@
-export const SESSION_WORKFLOW_STATE_PARKED = 'parked';
+export const SESSION_WORKFLOW_STATE_PAUSED = 'paused';
+// Legacy alias — kept for read-side compat; new code should use PAUSED
+export const SESSION_WORKFLOW_STATE_PARKED = SESSION_WORKFLOW_STATE_PAUSED;
 export const SESSION_WORKFLOW_STATE_WAITING_USER = 'waiting_user';
 export const SESSION_WORKFLOW_STATE_DONE = 'done';
 
@@ -6,10 +8,12 @@ export const SESSION_WORKFLOW_PRIORITY_HIGH = 'high';
 export const SESSION_WORKFLOW_PRIORITY_MEDIUM = 'medium';
 export const SESSION_WORKFLOW_PRIORITY_LOW = 'low';
 
+// Canonical set: active (empty string) / waiting_user / done / paused
 export const SESSION_WORKFLOW_STATES = Object.freeze([
-  SESSION_WORKFLOW_STATE_PARKED,
+  '',
   SESSION_WORKFLOW_STATE_WAITING_USER,
   SESSION_WORKFLOW_STATE_DONE,
+  SESSION_WORKFLOW_STATE_PAUSED,
 ]);
 
 export const SESSION_WORKFLOW_PRIORITIES = Object.freeze([
@@ -25,12 +29,12 @@ export function normalizeSessionWorkflowState(value) {
   if (!normalized) return '';
 
   switch (normalized) {
-    case 'parked':
     case 'paused':
+    case 'parked':
     case 'pause':
     case 'backlog':
     case 'todo':
-      return SESSION_WORKFLOW_STATE_PARKED;
+      return SESSION_WORKFLOW_STATE_PAUSED;
 
     case 'waiting':
     case 'waiting_user':
@@ -110,8 +114,8 @@ export function inferSessionWorkflowStateFromText(value) {
     return SESSION_WORKFLOW_STATE_DONE;
   }
 
-  if (/(parked|paused|backlog|deferred|resume later|pick up later)/.test(text)) {
-    return SESSION_WORKFLOW_STATE_PARKED;
+  if (/(paused|parked|backlog|deferred|resume later|pick up later)/.test(text)) {
+    return SESSION_WORKFLOW_STATE_PAUSED;
   }
 
   return '';
@@ -141,7 +145,7 @@ export function inferSessionWorkflowPriorityFromText(value, workflowState = '') 
       return SESSION_WORKFLOW_PRIORITY_HIGH;
     case SESSION_WORKFLOW_STATE_DONE:
       return SESSION_WORKFLOW_PRIORITY_LOW;
-    case SESSION_WORKFLOW_STATE_PARKED:
+    case SESSION_WORKFLOW_STATE_PAUSED:
       return SESSION_WORKFLOW_PRIORITY_MEDIUM;
     default:
       return '';

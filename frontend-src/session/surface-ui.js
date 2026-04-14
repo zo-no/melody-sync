@@ -751,9 +751,10 @@ function buildSessionActionConfigs(session, options = {}) {
     "运行完成",
   ].includes(rawWorkflowState);
   const isDoneSession = !isBusySession && (normalizedWorkflowState === "done" || fallbackDoneWorkflowState);
-  // AI-driven tasks (recurring or scheduled) — no human completion circle
+  // recurring_task loops forever — no "done" concept, hide completion circle
+  // scheduled_task and waiting_task are one-shot — keep completion circle
   const persistentKind = String(session?.persistent?.kind || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-  const isAiDrivenTask = persistentKind === "recurring_task" || persistentKind === "scheduled_task";
+  const isAiDrivenTask = persistentKind === "recurring_task";
   // Skill/quick-action tasks are buttons, not human tasks — no completion circle
   const rawBucket = String(session?.taskPoolMembership?.longTerm?.bucket || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   const isSkillTask = ["skill", "quick_action", "quick-action", "快捷按钮", "快捷动作"].includes(rawBucket)

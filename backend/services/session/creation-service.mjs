@@ -13,6 +13,8 @@ import {
 import {
   normalizeSessionWorkflowPriority,
   normalizeSessionWorkflowState,
+  SESSION_WORKFLOW_STATE_DONE,
+  SESSION_WORKFLOW_STATE_WAITING_USER,
 } from '../../session/workflow-state.mjs';
 import {
   normalizeSessionTaskListOrigin,
@@ -321,6 +323,11 @@ export async function createSessionWithDeps({
     }
     if (normalizedPersistent) {
       session.persistent = normalizedPersistent;
+    }
+    // waiting_task is always in waiting_user state — enforce regardless of caller input
+    if (normalizePersistentKind(normalizedPersistent?.kind || '') === 'waiting_task'
+      && session.workflowState !== SESSION_WORKFLOW_STATE_DONE) {
+      session.workflowState = SESSION_WORKFLOW_STATE_WAITING_USER;
     }
     // Determine taskPoolMembership:
     // 1. Explicit request wins
