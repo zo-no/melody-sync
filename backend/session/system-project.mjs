@@ -253,16 +253,6 @@ const BUILTIN_TASKS = [
     bucket: 'long_term',
   },
   {
-    builtinName: 'melodysync-product-iteration',
-    name: '产品自迭代',
-    description: '定期收集使用数据，分析产品状态，提出下一轮迭代需求。',
-    runPrompt: '分析 MelodySync 近期使用情况，收集问题和改进点，整理成下一轮迭代需求列表。',
-    cadence: 'weekly',
-    timeOfDay: '10:00',
-    weekdays: [1],
-    bucket: 'long_term',
-  },
-  {
     builtinName: 'melodysync-daily-cleanup',
     name: '每日清理',
     description: '读取今日 worklog，将已完成任务以紧凑格式写入 Obsidian 日记。',
