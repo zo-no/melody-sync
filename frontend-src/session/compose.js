@@ -958,6 +958,10 @@ function getLongTermWorkspacePreview(session) {
 }
 
 function getLongTermWorkspaceProjectTitle(session) {
+  // System project (日常任务) always displays as "全局任务" in the UI
+  if (String(session?.taskListOrigin || "").trim().toLowerCase() === "system") {
+    return "全局任务";
+  }
   return clipLongTermWorkspaceText(
     (typeof getPreferredSessionDisplayName === "function"
       ? getPreferredSessionDisplayName(session)
@@ -1127,9 +1131,10 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
 
   const { branchSessions } = getLongTermWorkspaceBranchSessions(selectedProject);
   const title = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectTitle(selectedProject));
-  const schedule = escapeLongTermWorkspaceHtml(getLongTermWorkspaceScheduleLabel(selectedProject));
-  const status = escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectStatusLabel(selectedProject));
   const isSystemProject = String(selectedProject?.taskListOrigin || "").toLowerCase() === "system";
+  // System project: no schedule/status chips — it's always active
+  const schedule = isSystemProject ? "" : escapeLongTermWorkspaceHtml(getLongTermWorkspaceScheduleLabel(selectedProject));
+  const status = isSystemProject ? "" : escapeLongTermWorkspaceHtml(getLongTermWorkspaceProjectStatusLabel(selectedProject));
 
   // ── 1. Task counts ──────────────────────────────────────────────
   const model = window.MelodySyncSessionListModel || null;
@@ -1341,6 +1346,11 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
         </div>
       </div>
 
+      ${isSystemProject ? `
+        <div class="ltcp-section ltcp-system-desc-section">
+          <div class="ltcp-system-desc">所有未分配到具体项目的任务都在这里。这是你的全局收集箱和日常任务中心。</div>
+        </div>
+      ` : `
       <div class="ltcp-section ltcp-workspace-section">
         <div class="ltcp-section-header">
           <span class="ltcp-section-title">${t("longTerm.sectionWorkspace")}</span>
@@ -1357,6 +1367,7 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
           <div class="ltcp-workspace-empty">${t("longTerm.workspaceUnbound")}</div>
         `}
       </div>
+      `}
 
       <div class="ltcp-stats-row">
         <div class="ltcp-stat">

@@ -7323,6 +7323,13 @@ body.long-term-workspace-active .task-manager-main-column {
 .ltcp-section-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ltcp-section-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
 
+/* System project description */
+.ltcp-system-desc-section { gap: 0; }
+.ltcp-system-desc {
+  font-size: 12px; color: var(--text-muted); line-height: 1.6;
+  padding: 2px 0;
+}
+
 /* Workspace section */
 .ltcp-workspace-section { gap: 6px; }
 .ltcp-workspace-edit-btn {
