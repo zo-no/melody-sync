@@ -256,45 +256,83 @@ const BUILTIN_TASKS = [
 async function ensureBuiltinTasks(melodySyncProjectId) {
   if (!melodySyncProjectId) return;
   try {
-    const metas = await loadSessionsMeta();
-    const existingBuiltinNames = new Set(
-      metas.filter((m) => m?.builtinName).map((m) => m.builtinName),
-    );
-
-    const { createSession } = await import('./manager.mjs');
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
 
-    for (const task of BUILTIN_TASKS) {
-      if (existingBuiltinNames.has(task.builtinName)) continue;
-      await createSession('~', 'claude', task.name, {
-        builtinName: task.builtinName,
-        description: task.description,
-        taskListOrigin: 'user',
-        taskListVisibility: 'primary',
-        taskPoolMembership: buildLongTermTaskPoolMembership(melodySyncProjectId, {
-          role: 'member',
-          bucket: task.bucket,
-        }),
-        persistent: {
-          kind: 'recurring_task',
-          state: 'active',
-          digest: {
-            title: task.name,
-            summary: task.description,
+    await withSessionsMetaMutation(async (metas, saveSessionsMeta) => {
+      // Idempotency: check by builtinName OR by name (in case builtinName wasn't persisted before)
+      const existingBuiltinNames = new Set(metas.filter((m) => m?.builtinName).map((m) => m.builtinName));
+      const existingNames = new Set(
+        metas
+          .filter((m) => {
+            const mem = m?.taskPoolMembership?.longTerm;
+            return mem?.projectSessionId === melodySyncProjectId && mem?.role === 'member';
+          })
+          .map((m) => String(m.name || '').trim()),
+      );
+
+      let changed = false;
+      for (const task of BUILTIN_TASKS) {
+        if (existingBuiltinNames.has(task.builtinName)) continue;
+        if (existingNames.has(task.name)) continue;
+
+        const id = generateId();
+        const now = nowIso();
+        // nextRunAt will be computed by the scheduler on first tick
+        const nextRunAt = '';
+
+        metas.push({
+          id,
+          name: task.name,
+          builtinName: task.builtinName,
+          description: task.description,
+          folder: '~',
+          tool: 'claude',
+          taskListOrigin: 'user',
+          taskListVisibility: 'primary',
+          taskPoolMembership: buildLongTermTaskPoolMembership(melodySyncProjectId, {
+            role: 'member',
+            bucket: task.bucket,
+          }),
+          persistent: {
+            version: 1,
+            kind: 'recurring_task',
+            state: 'active',
+            promotedAt: now,
+            updatedAt: now,
+            digest: {
+              title: task.name,
+              summary: task.description,
+              goal: task.name,
+              keyPoints: [],
+              recipe: [],
+            },
+            execution: {
+              mode: 'spawn_session',
+              runPrompt: task.runPrompt,
+              lastTriggerAt: '',
+              lastTriggerKind: '',
+            },
+            recurring: {
+              cadence: task.cadence,
+              timeOfDay: task.timeOfDay,
+              weekdays: task.weekdays || [],
+              timezone: tz,
+              nextRunAt: nextRunAt || '',
+              lastRunAt: '',
+            },
+            loop: { collect: { sources: [], instruction: '' }, organize: { instruction: '' }, use: { instruction: '' }, prune: { instruction: '' } },
+            runtimePolicy: { manual: { mode: 'follow_current' }, schedule: { mode: 'session_default' } },
           },
-          execution: {
-            mode: 'spawn_session',
-            runPrompt: task.runPrompt,
-          },
-          recurring: {
-            cadence: task.cadence,
-            timeOfDay: task.timeOfDay,
-            weekdays: task.weekdays || [],
-            timezone: tz,
-          },
-        },
-      });
-    }
+          createdAt: now,
+          updatedAt: now,
+        });
+        changed = true;
+      }
+
+      if (!changed) return { changed: false };
+      await saveSessionsMeta(metas);
+      return { changed: true };
+    });
   } catch (err) {
     console.warn('[system-project] Failed to create builtin tasks:', err?.message || err);
   }
