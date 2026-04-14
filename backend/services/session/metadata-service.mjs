@@ -7,6 +7,7 @@ import {
 import { shouldExposeSession } from '../../session/visibility.mjs';
 import { resolveSessionStateFromSession } from '../../session-runtime/session-state.mjs';
 import { normalizeTaskPoolMembership } from '../../session/task-pool-membership.mjs';
+import { appendTaskOp } from '../../session/task-ops-log.mjs';
 
 function normalizeSessionSidebarOrder(value) {
   const parsed = typeof value === 'number'
@@ -136,6 +137,8 @@ export function createSessionMetadataMutationService({
       return enrichSessionMeta(result.meta);
     }
 
+    void appendTaskOp(id, 'archive', !shouldArchive, shouldArchive);
+
     if (shouldExposeSession(current)) {
       broadcastSessionsInvalidation();
     }
@@ -160,10 +163,11 @@ export function createSessionMetadataMutationService({
     });
 
     if (!result.meta) return null;
-    if (result.changed && shouldExposeSession(result.meta)) {
-      broadcastSessionsInvalidation();
-    }
     if (result.changed) {
+      void appendTaskOp(id, 'pin', !shouldPin, shouldPin);
+      if (shouldExposeSession(result.meta)) {
+        broadcastSessionsInvalidation();
+      }
       broadcastSessionInvalidation(id);
     }
     return enrichSessionMeta(result.meta);
@@ -173,8 +177,9 @@ export function createSessionMetadataMutationService({
     const nextName = typeof name === 'string' ? name.trim() : '';
     if (!nextName) return null;
 
+    let previousName = '';
     const result = await mutateSessionMeta(id, (session) => {
-      const previousName = typeof session.name === 'string' ? session.name.trim() : '';
+      previousName = typeof session.name === 'string' ? session.name.trim() : '';
       const preserveAutoRename = options.preserveAutoRename === true;
       const nextPending = preserveAutoRename;
       const titleAnchorsChanged = syncMainlineTitleAnchorsOnRename(session, previousName, nextName);
@@ -187,6 +192,9 @@ export function createSessionMetadataMutationService({
     });
 
     if (!result.meta) return null;
+    if (result.changed && previousName !== nextName) {
+      void appendTaskOp(id, 'rename', previousName || null, nextName);
+    }
     clearRenameState(id);
     broadcastSessionInvalidation(id);
     return enrichSessionMeta(result.meta);
@@ -289,7 +297,14 @@ export function createSessionMetadataMutationService({
   }
 
   async function updateSessionTaskCard(id, taskCard, options = {}) {
+    let prevCheckpoint = null;
+    let prevGoal = null;
+    let prevConclusionsLen = 0;
     const result = await mutateSessionMeta(id, (session) => {
+      prevCheckpoint = session?.taskCard?.checkpoint || null;
+      prevGoal = session?.taskCard?.goal || null;
+      prevConclusionsLen = Array.isArray(session?.taskCard?.knownConclusions)
+        ? session.taskCard.knownConclusions.length : 0;
       const nextManagedBindings = normalizeSessionTaskCardManagedBindings(options?.managedBindingKeys);
       const currentManagedBindings = normalizeSessionTaskCardManagedBindings(session.taskCardManagedBindings);
       const currentTaskCard = stabilizeSessionTaskCard(session, session.taskCard, {
@@ -346,6 +361,22 @@ export function createSessionMetadataMutationService({
 
     if (!result.meta) return null;
     if (result.changed) {
+      const nextCard = result.meta?.taskCard || {};
+      // Log checkpoint changes
+      const nextCheckpoint = nextCard.checkpoint || null;
+      if (prevCheckpoint !== nextCheckpoint) {
+        void appendTaskOp(id, 'task_card', { field: 'checkpoint', value: prevCheckpoint }, { field: 'checkpoint', value: nextCheckpoint });
+      }
+      // Log goal changes
+      const nextGoal = nextCard.goal || null;
+      if (prevGoal !== nextGoal) {
+        void appendTaskOp(id, 'task_card', { field: 'goal', value: prevGoal }, { field: 'goal', value: nextGoal });
+      }
+      // Log conclusions growth
+      const nextConclusionsLen = Array.isArray(nextCard.knownConclusions) ? nextCard.knownConclusions.length : 0;
+      if (nextConclusionsLen !== prevConclusionsLen) {
+        void appendTaskOp(id, 'task_card', { field: 'knownConclusions', count: prevConclusionsLen }, { field: 'knownConclusions', count: nextConclusionsLen });
+      }
       broadcastSessionInvalidation(id);
     }
     return enrichSessionMeta(result.meta);
@@ -440,6 +471,7 @@ export function createSessionMetadataMutationService({
   }
 
   async function updateSessionTaskPoolMembership(id, taskPoolMembership = null) {
+    let prevMembership = null;
     const result = await mutateSessionMeta(id, (session) => {
       const nextTaskPoolMembership = normalizeTaskPoolMembership(taskPoolMembership, {
         sessionId: session?.id || id,
@@ -447,6 +479,7 @@ export function createSessionMetadataMutationService({
       const currentTaskPoolMembership = normalizeTaskPoolMembership(session.taskPoolMembership, {
         sessionId: session?.id || id,
       });
+      prevMembership = currentTaskPoolMembership;
       if (JSON.stringify(currentTaskPoolMembership) === JSON.stringify(nextTaskPoolMembership)) {
         return false;
       }
@@ -461,6 +494,22 @@ export function createSessionMetadataMutationService({
 
     if (!result.meta) return null;
     if (result.changed) {
+      const nextLt = result.meta?.taskPoolMembership?.longTerm || null;
+      const prevLt = prevMembership?.longTerm || null;
+      // bucket change
+      const prevBucket = prevLt?.bucket || null;
+      const nextBucket = nextLt?.bucket || null;
+      if (prevBucket !== nextBucket) {
+        void appendTaskOp(id, 'bucket', prevBucket, nextBucket, {
+          projectId: nextLt?.projectSessionId || null,
+        });
+      }
+      // project assignment change
+      const prevProject = prevLt?.projectSessionId || null;
+      const nextProject = nextLt?.projectSessionId || null;
+      if (prevProject !== nextProject) {
+        void appendTaskOp(id, 'project', prevProject, nextProject);
+      }
       broadcastSessionInvalidation(id);
       broadcastSessionsInvalidation();
     }

@@ -1,3 +1,5 @@
+import { appendTaskOp } from '../../session/task-ops-log.mjs';
+
 export function createSessionWorkflowRuntimeService({
   appendEvent,
   broadcastSessionInvalidation,
@@ -26,9 +28,13 @@ export function createSessionWorkflowRuntimeService({
     const nextWorkflowPriority = normalizeSessionWorkflowPriority(workflowPriority || '');
     const hasWorkflowPriority = Object.prototype.hasOwnProperty.call(payload, 'workflowPriority');
     let shouldSendCompletionPush = false;
+    let prevWorkflowState = '';
+    let prevWorkflowPriority = '';
     const result = await mutateSessionMeta(id, (session) => {
       const currentWorkflowState = normalizeSessionWorkflowState(session.workflowState || '');
       const currentWorkflowPriority = normalizeSessionWorkflowPriority(session.workflowPriority || '');
+      prevWorkflowState = currentWorkflowState;
+      prevWorkflowPriority = currentWorkflowPriority;
       let changed = false;
 
       if (hasWorkflowState) {
@@ -68,6 +74,13 @@ export function createSessionWorkflowRuntimeService({
     if (!result.meta) return null;
     const enriched = await enrichSessionMeta(result.meta);
     if (result.changed) {
+      // Log workflow state change
+      if (hasWorkflowState && nextWorkflowState && prevWorkflowState !== nextWorkflowState) {
+        void appendTaskOp(id, 'workflow_state', prevWorkflowState || null, nextWorkflowState);
+      }
+      if (hasWorkflowPriority && nextWorkflowPriority && prevWorkflowPriority !== nextWorkflowPriority) {
+        void appendTaskOp(id, 'workflow_priority', prevWorkflowPriority || null, nextWorkflowPriority);
+      }
       broadcastSessionInvalidation(id);
       let completionNoticeKey = '';
       let completionNoticeRunId = '';
