@@ -183,15 +183,29 @@ export async function ensureMelodySyncProject(systemProjectId = '') {
  * Idempotent: only creates if no user-facing sessions exist.
  * Lazy import of createSession to avoid circular deps at module load time.
  */
+const WELCOME_MESSAGE = `你好！我是 MelodySync 的 AI 助手。
+
+**MelodySync 是你的个人 AI 任务管理系统。** 你可以：
+
+- 直接和我对话，把想法、任务、问题告诉我
+- 在「全局任务」里管理所有日常任务
+- 在「长期项目」里跟踪持续进行的项目
+
+**快速开始：** 直接告诉我你想做什么，我来帮你拆解和推进。`;
+
 async function ensureDefaultWelcomeSession(dailyTasksId) {
   try {
     const metas = await loadSessionsMeta();
     const isProjectRoot = (m) => m?.taskPoolMembership?.longTerm?.role === 'project';
-    const hasUserSession = Array.isArray(metas) && metas.some((m) => shouldExposeSession(m) && !isProjectRoot(m));
+    // Builtin system tasks (recurring, scheduled) are auto-created — don't count as "user has sessions"
+    const isBuiltinTask = (m) => typeof m?.builtinName === 'string' && m.builtinName.length > 0;
+    const hasUserSession = Array.isArray(metas) && metas.some(
+      (m) => shouldExposeSession(m) && !isProjectRoot(m) && !isBuiltinTask(m),
+    );
     if (hasUserSession) return;
 
     const { createSession } = await import('./manager.mjs');
-    await createSession(
+    const result = await createSession(
       '~',
       'claude',
       '开始使用 MelodySync',
@@ -202,6 +216,22 @@ async function ensureDefaultWelcomeSession(dailyTasksId) {
         } : {}),
       },
     );
+
+    // Pre-populate with a welcome message so the session isn't blank
+    const sessionId = result?.session?.id || result?.id;
+    if (sessionId) {
+      try {
+        const { appendEvent } = await import('../history.mjs');
+        await appendEvent(sessionId, {
+          type: 'message',
+          role: 'assistant',
+          body: WELCOME_MESSAGE,
+          timestamp: Date.now(),
+        });
+      } catch (msgErr) {
+        console.warn('[system-project] Failed to add welcome message:', msgErr?.message || msgErr);
+      }
+    }
   } catch (err) {
     // Non-fatal: a missing welcome session is better than a crashed server
     console.warn('[system-project] Failed to create default welcome session:', err?.message || err);
