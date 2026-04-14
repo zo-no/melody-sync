@@ -371,6 +371,9 @@
       );
     }
     if (kind === "scheduled_task") {
+      // One-shot tasks: once done, defer to workflowState so is-user-done-session class is applied
+      const wf = typeof session?.workflowState === "string" ? session.workflowState.trim().toLowerCase() : "";
+      if (wf === "done" || wf === "complete" || wf === "completed") return null;
       if (state === "paused") {
         return createStatus(
           "persistent-scheduled-paused",
@@ -391,6 +394,9 @@
       );
     }
     if (kind === "waiting_task") {
+      // One-shot tasks: once done, defer to workflowState so is-user-done-session class is applied
+      const wf = typeof session?.workflowState === "string" ? session.workflowState.trim().toLowerCase() : "";
+      if (wf === "done" || wf === "complete" || wf === "completed") return null;
       if (state === "paused") {
         return createStatus(
           "persistent-waiting-paused",

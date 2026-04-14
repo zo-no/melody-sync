@@ -206,10 +206,22 @@ function getTaskBranchStatusLabel(session) {
   const status = typeof model?.getBranchTaskStatus === "function"
     ? model.getBranchTaskStatus(session)
     : "";
-  if (status === "parked") return t("status.parked");
-  if (status === "merged") return t("status.merged");
-  if (["resolved", "done", "closed"].includes(status)) return t("status.closed");
-  if (status === "active") return t("status.active");
+  if (status === "parked") {
+    const label = t("status.parked");
+    return label && label !== "status.parked" ? label : "挂起";
+  }
+  if (status === "merged") {
+    const label = t("status.merged");
+    return label && label !== "status.merged" ? label : "已合并";
+  }
+  if (["resolved", "done", "closed"].includes(status)) {
+    const label = t("status.closed");
+    return label && label !== "status.closed" ? label : "已关闭";
+  }
+  if (status === "active") {
+    const label = t("status.active");
+    return label && label !== "status.active" ? label : "进行中";
+  }
   return "";
 }
 
@@ -233,6 +245,8 @@ function getTaskClusterBranchCountEntries(cluster, currentSessionId = "") {
   if (mainPersistentKind === "recurring_task") {
     const tc = window.MelodySyncTaskTypeConstants || null;
     const inferBucket = tc?.inferSessionBucket || function inferBucket(session) {
+      const explicitBucket = String(session?.taskPoolMembership?.longTerm?.bucket || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+      if (["long_term", "short_term", "waiting", "inbox", "skill"].includes(explicitBucket)) return explicitBucket;
       const kind = String(session?.persistent?.kind || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
       if (kind === "recurring_task") return "long_term";
       if (kind === "scheduled_task") return "short_term";
@@ -241,11 +255,15 @@ function getTaskClusterBranchCountEntries(cluster, currentSessionId = "") {
       if (String(session?.workflowState || "").trim().toLowerCase() === "waiting_user") return "waiting";
       return "inbox";
     };
+    function bucketLabel(key, fallback) {
+      const label = t(key);
+      return label && label !== key ? label : fallback;
+    }
     const bucketDefs = tc?.BUCKET_DEFS || [
-      { key: "long_term", label: t("bucket.longTerm") },
-      { key: "short_term", label: t("bucket.shortTerm") },
-      { key: "waiting", label: t("bucket.waiting") },
-      { key: "inbox", label: t("bucket.inbox") },
+      { key: "long_term", label: bucketLabel("bucket.longTerm", "长期任务") },
+      { key: "short_term", label: bucketLabel("bucket.shortTerm", "短期任务") },
+      { key: "waiting", label: bucketLabel("bucket.waiting", "等待任务") },
+      { key: "inbox", label: bucketLabel("bucket.inbox", "收集箱") },
     ];
     const counters = new Map();
     for (const entry of branchSessions) {
@@ -280,18 +298,22 @@ function getTaskClusterBranchCountEntries(cluster, currentSessionId = "") {
   if (currentBranch?.id && currentBranch.id !== String(cluster?.mainSessionId || "").trim()) {
     return [];
   }
+  function branchStatusLabel(key, fallback) {
+    const label = t(key);
+    return label && label !== key ? label : fallback;
+  }
   const entries = [];
   if (counters.active > 0) {
-    entries.push({ key: "active", label: t("status.active"), count: counters.active, className: "status-running" });
+    entries.push({ key: "active", label: branchStatusLabel("status.active", "进行中"), count: counters.active, className: "status-running" });
   }
   if (counters.parked > 0) {
-    entries.push({ key: "parked", label: t("status.parked"), count: counters.parked, className: "status-parked" });
+    entries.push({ key: "parked", label: branchStatusLabel("status.parked", "挂起"), count: counters.parked, className: "status-parked" });
   }
   if (counters.merged > 0) {
-    entries.push({ key: "merged", label: t("status.merged"), count: counters.merged, className: "status-done" });
+    entries.push({ key: "merged", label: branchStatusLabel("status.merged", "已合并"), count: counters.merged, className: "status-done" });
   }
   if (counters.closed > 0) {
-    entries.push({ key: "closed", label: t("status.closed"), count: counters.closed, className: "status-done" });
+    entries.push({ key: "closed", label: branchStatusLabel("status.closed", "已关闭"), count: counters.closed, className: "status-done" });
   }
   return entries;
 }
@@ -301,12 +323,16 @@ function summarizeTaskClusterBranchCounts(cluster, currentSessionId = "") {
   if (branchSessions.length === 0) return "";
   const currentBranch = getTaskClusterCurrentBranchSession(cluster, currentSessionId);
   if (currentBranch?.id && currentBranch.id !== String(cluster?.mainSessionId || "").trim()) {
-    return `${t("branch.currentTask") || "当前子任务："}${toSingleGoalLabel(getPreferredSessionDisplayName(currentBranch), 28)}`;
+    const label = t("branch.currentTask");
+    const prefix = label && label !== "branch.currentTask" ? label : "当前子任务：";
+    return `${prefix}${toSingleGoalLabel(getPreferredSessionDisplayName(currentBranch), 28)}`;
   }
   const parts = getTaskClusterBranchCountEntries(cluster, currentSessionId)
     .map((entry) => `${entry.label} ${entry.count}`);
   if (parts.length > 0) return parts.join(" · ");
-  return (t("branch.subTaskCount") || "包含 {n} 条子任务").replace("{n}", branchSessions.length);
+  const label = t("branch.subTaskCount");
+  const template = label && label !== "branch.subTaskCount" ? label : "包含 {n} 条子任务";
+  return template.replace("{n}", branchSessions.length);
 }
 
 function looksLikeVisibleTaskTitle(session, text) {
@@ -359,7 +385,9 @@ function getSessionTaskPreview(session) {
       || String(taskCard?.mainGoal || "").trim(),
       30,
     );
-    hintLine = [branchStatusLabel, branchFrom ? `${t("branch.fromMain") || "来自主线："}${branchFrom}` : ""].filter(Boolean).join(" · ");
+    const fromMainLabel = t("branch.fromMain");
+    const fromMainPrefix = fromMainLabel && fromMainLabel !== "branch.fromMain" ? fromMainLabel : "来自主线：";
+    hintLine = [branchStatusLabel, branchFrom ? `${fromMainPrefix}${branchFrom}` : ""].filter(Boolean).join(" · ");
     if (branchStatusLabel) {
       hintSegments.push({
         variant: "status",
@@ -370,7 +398,7 @@ function getSessionTaskPreview(session) {
     if (branchFrom) {
       hintSegments.push({
         variant: "text",
-        text: `${t("branch.fromMain") || "来自主线："}${branchFrom}`,
+        text: `${fromMainPrefix}${branchFrom}`,
       });
     }
   } else if (taskCluster) {
@@ -436,10 +464,12 @@ function renderSessionTaskPreviewLineHtml(lineClassName, lineText, segments = []
   return `<div class="${classNames}" title="${esc(lineText)}">${body.join("")}</div>`;
 }
 
-function renderSessionTaskPreviewHtml(_session) {
-  // Task preview lines (checkpoint, sub-task hints) are not shown in the sidebar.
-  // Users read this information in the workbench task card.
-  return "";
+function renderSessionTaskPreviewHtml(session) {
+  const preview = getSessionTaskPreview(session);
+  return [
+    renderSessionTaskPreviewLineHtml("session-item-summary", preview?.summaryLine || "", preview?.summarySegments || []),
+    renderSessionTaskPreviewLineHtml("session-item-hint", preview?.hintLine || "", preview?.hintSegments || []),
+  ].filter(Boolean).join("");
 }
 
 function getSessionDisplayRenderKey(session) {
@@ -677,17 +707,6 @@ function buildSessionMetaParts(session, { touchStatusInfo = null } = {}) {
   const parts = [];
   const touchStatusHtml = renderSessionStatusHtml(touchStatusInfo || getSessionListTouchStatusInfo(session));
   if (touchStatusHtml) parts.push(touchStatusHtml);
-  return parts;
-}
-
-function renderSessionScopeContext(session) {
-  const parts = [];
-  const sourceName = typeof getEffectiveSessionSourceName === "function"
-    ? getEffectiveSessionSourceName(session)
-    : "";
-  if (sourceName) {
-    parts.push(`<span title="${esc(t("session.scope.source"))}">${esc(sourceName)}</span>`);
-  }
   return parts;
 }
 

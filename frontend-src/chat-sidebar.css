@@ -480,50 +480,114 @@
   background: transparent;
 }
 
-.lt-project-card.is-system .lt-project-card-top:hover,
-.lt-project-card.is-default .lt-project-card-top:hover {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-}
-
-.lt-project-card.is-system .lt-project-card-count,
-.lt-project-card.is-default .lt-project-card-count {
-  background: color-mix(in srgb, var(--border) 30%, transparent);
-  color: var(--text-muted);
-}
-
 /* "默认" badge */
 .lt-project-card-default-badge {
   flex: 0 0 auto;
-  font-size: 9.5px;
+  align-self: flex-start;
+  margin-top: 1px;
+  font-size: 9px;
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--border-strong) 25%, transparent);
   color: var(--text-muted);
-  letter-spacing: 0.02em;
-  margin-right: 2px;
+  letter-spacing: 0;
+  margin-left: 4px;
 }
 
-/* Title row: matches .global-control-panel-btn style */
 .lt-project-card-top {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 10px 14px;
-  cursor: pointer;
-  user-select: none;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
   background: transparent;
-  transition: background 0.12s;
   width: 100%;
   box-sizing: border-box;
 }
 
-.lt-project-card-top:hover {
-  background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+.lt-project-card-chevron-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 28px;
+  min-height: 40px;
+  padding: 10px 0 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.12s, color 0.12s;
+  border-radius: 0;
+}
+.lt-project-card-chevron-btn:hover {
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+  color: var(--text-secondary);
+}
+
+.lt-project-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 42px;
+  padding: 7px 8px 7px 0;
+}
+
+.lt-project-card-title-entry,
+.lt-project-card-panel-entry {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  user-select: none;
+  border-radius: 4px;
+}
+
+.lt-project-card-title-entry {
+  min-height: 19px;
+  align-items: center;
+}
+
+.lt-project-card-panel-entry {
+  min-height: 18px;
+  align-items: center;
+  color: var(--text-muted);
+  transition: color 0.1s;
+}
+
+.lt-project-card-title-entry:hover .lt-project-card-title {
+  color: var(--text);
+}
+
+.lt-project-card-panel-entry:hover {
+  color: var(--text-secondary);
+}
+
+.lt-project-card-panel-entry:hover .lt-project-card-panel-arrow {
+  transform: translateX(2px);
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
 }
 
 .lt-project-card-chevron {
-  display: none;
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+  line-height: 1;
+}
+.lt-project-card.collapsed .lt-project-card-chevron {
+  transform: rotate(-90deg);
 }
 
 .lt-project-card-title-group {
@@ -535,25 +599,28 @@
 }
 
 .lt-project-card-title {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text-secondary);
-  line-height: 1.3;
-  letter-spacing: 0.01em;
+  line-height: 1.35;
+  letter-spacing: 0;
 }
 
 .lt-project-card-subtitle {
-  font-size: 10px;
+  flex: 1;
+  min-width: 0;
+  font-size: 10.5px;
   color: var(--text-muted);
   font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1.3;
+  line-height: 1.35;
   opacity: 0.8;
 }
 
@@ -569,98 +636,32 @@
   font-style: normal;
 }
 
-.lt-project-card-count {
+.lt-project-card-panel-arrow {
   flex: 0 0 auto;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: color-mix(in srgb, var(--accent) 70%, var(--text-muted));
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  padding: 1px 7px;
-  border-radius: 10px;
-}
-
-/* Collapsible content: panel entry + buckets */
-.lt-project-card-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 5px 6px 6px;
-  background: color-mix(in srgb, var(--bg) 65%, transparent);
-  border-top: 1px solid color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.lt-project-card-content[hidden] {
-  display: none !important;
-}
-
-/* Panel entry — always visible, sits between top bar and collapsible content */
-.lt-project-card-body {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px 7px 12px;
-  margin: 5px 6px 5px;
-  cursor: pointer;
-  user-select: none;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-secondary) 55%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
-  transition: background 0.1s, border-color 0.1s;
-}
-
-.lt-project-card-body:hover {
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-secondary) 60%);
-  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.lt-project-card-body-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.lt-project-card-desc {
-  font-size: 11.5px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.lt-project-card-panel-icon {
-  flex: 0 0 auto;
+  justify-content: center;
+  width: 16px;
+  min-height: 16px;
   font-size: 14px;
   color: color-mix(in srgb, var(--accent) 40%, var(--text-muted));
   line-height: 1;
   transition: transform 0.1s, color 0.1s;
 }
 
-.lt-project-card-body:hover .lt-project-card-panel-icon {
-  transform: translateX(2px);
-  color: color-mix(in srgb, var(--accent) 75%, var(--text));
+/* Collapsible content: buckets */
+.lt-project-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 28px;
+  padding: 2px 6px 7px 0;
+  background: transparent;
+  border-top: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
 }
 
-.lt-project-card-panel-btn {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: color-mix(in srgb, var(--accent) 40%, var(--text-muted));
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s, transform 0.1s;
-}
-.lt-project-card-panel-btn:hover {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: color-mix(in srgb, var(--accent) 75%, var(--text));
-  transform: translateX(1px);
+.lt-project-card-content[hidden] {
+  display: none !important;
 }
 
 /* Empty project state */
@@ -668,7 +669,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: 6px 8px 6px 0;
   gap: 8px;
 }
 .lt-project-card-empty-text {
@@ -701,23 +702,22 @@
   font-weight: 500;
 }
 
-/* Bucket cards — each independent, same style as panel entry */
 .lt-project-card-content .folder-group-bucket {
   margin: 0;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-secondary) 55%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
-  overflow: hidden;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  overflow: visible;
 }
 
 .lt-project-card-content .folder-group-bucket-header {
-  padding: 7px 10px 7px 12px;
+  padding: 4px 6px 4px 0;
   font-size: 10.5px;
-  background: color-mix(in srgb, var(--bg-secondary) 40%, transparent);
+  background: transparent;
 }
 
 .lt-project-card-content .folder-group-bucket-items {
-  padding: 2px 0 4px;
+  padding: 0 0 4px;
 }
 
 /* Tasks inbox group (sessions tab) — same bucket card style */
@@ -858,8 +858,19 @@
 }
 
 .is-long-term-project-group .folder-group-bucket-header {
-  padding-left: 20px;
+  padding-left: 0;
   font-size: 10.5px;
+}
+
+.is-long-term-project-group .folder-group-bucket-header .folder-name {
+  font-size: 10.5px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.is-long-term-project-group .folder-group-bucket-header .folder-count {
+  font-size: 10px;
+  padding-right: 2px;
 }
 
 /* Skill bucket — quick action shortcut */
@@ -880,25 +891,23 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 0 0 4px;
+  padding: 0 0 5px;
   margin-bottom: 0;
 }
 .sessions-tab-daily-panel-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  /* 与 .folder-group-header 对齐：padding 4px 8px，宽度撑满 */
-  padding: 4px 8px;
+  gap: 6px;
+  padding: 7px 10px;
   width: 100%;
   border-radius: 6px;
   border: none;
-  /* 微妙底色：比透明深一点，但比 bg-secondary 浅，让用户感知它不是普通分组 */
-  background: color-mix(in srgb, var(--bg-secondary) 35%, transparent);
-  color: var(--text-muted);
-  font-size: 10.5px;
+  background: color-mix(in srgb, var(--bg-secondary) 28%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   cursor: pointer;
   white-space: nowrap;
   text-align: left;
@@ -909,8 +918,8 @@
   color: var(--text-secondary);
 }
 .sessions-tab-daily-panel-arrow {
-  font-size: 11px;
-  opacity: 0.5;
+  font-size: 14px;
+  opacity: 0.65;
   margin-left: auto;
 }
 

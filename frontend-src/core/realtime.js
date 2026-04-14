@@ -362,12 +362,6 @@ async function dispatchAction(msg) {
         }
         return true;
       }
-      case "organize": {
-        await organizeSessionById(msg.sessionId || currentSessionId, {
-          viewportIntent: msg.viewportIntent || "preserve",
-        });
-        return true;
-      }
       case "persistent_promote": {
         const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}/promote-persistent`, {
           method: "POST",

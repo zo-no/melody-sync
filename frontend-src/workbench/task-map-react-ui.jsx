@@ -2962,10 +2962,6 @@ function SessionListPinnedSection({
 }
 
 function SessionsTabDailyHeader({ groupEntry = null }) {
-  const buckets = groupEntry?.buckets || {};
-  const bucketsArr = Array.isArray(buckets) ? buckets : Object.values(buckets);
-  const total = bucketsArr.reduce((sum, b) => sum + (Array.isArray(b?.sessions) ? b.sessions.length : 0), 0);
-
   const openPanel = () => {
     const projectId = groupEntry?.projectId
       || (typeof window.getSessionsTabProjectId === 'function' ? window.getSessionsTabProjectId() : '');
@@ -2980,9 +2976,9 @@ function SessionsTabDailyHeader({ groupEntry = null }) {
         type="button"
         className="sessions-tab-daily-panel-btn"
         onClick={openPanel}
-        title="打开控制面板"
+        title={String(groupEntry?.controlPanel?.label || '全局任务控制台')}
       >
-        控制面板
+        {String(groupEntry?.controlPanel?.label || '全局任务控制台')}
         <span className="sessions-tab-daily-panel-arrow" aria-hidden="true">›</span>
       </button>
     </div>
@@ -3193,23 +3189,14 @@ function SessionListGroupSection({
 
   // For long-term projects, extract summary and schedule from projectSession
   let projectSummary = '';
-  let projectSchedule = '';
+  let projectPanelLine = '';
   if (isLongTermProject && groupEntry?.projectSession) {
     const ps = groupEntry.projectSession;
-    const persistent = ps?.persistent || null;
-    projectSummary = String(persistent?.digest?.summary || ps?.description || '').trim();
-    const kind = String(persistent?.kind || '').trim().toLowerCase();
-    const cadence = persistent?.recurring?.cadence || '';
-    const timeOfDay = persistent?.recurring?.timeOfDay || '';
-    if (kind === 'recurring_task' && cadence) {
-      const cadenceMap = { daily: '每天', weekly: '每周', hourly: '每小时' };
-      projectSchedule = cadenceMap[cadence] || cadence;
-      if (timeOfDay) projectSchedule += ` ${timeOfDay}`;
-    } else if (kind === 'scheduled_task') {
-      projectSchedule = '一次性定时';
-    } else if (kind === 'waiting_task') {
-      projectSchedule = '等待触发';
-    }
+    projectSummary = String(ps?.description || '').trim();
+    projectPanelLine = projectSummary || '展示面板';
+  }
+  if (isLongTermProject && !projectPanelLine) {
+    projectPanelLine = '展示面板';
   }
 
   return (
@@ -3218,7 +3205,7 @@ function SessionListGroupSection({
         (isTasksInbox || isSessionsProject || isDailyInbox) ? (
           // Flat layout — no wrapping card, buckets render directly
           <>
-            {/* Global control panel is now a persistent HTML button above the tab content — not rendered here */}
+            <SessionsTabDailyHeader groupEntry={groupEntry} />
             {/* Pinned sessions shown right after the control panel button */}
             {isDailyInbox && Array.isArray(pinnedSessions) && pinnedSessions.length > 0 ? (
               <SessionListPinnedSection
@@ -3276,38 +3263,50 @@ function SessionListGroupSection({
             </div>
           </>)
         ) : isLongTermProject ? (
-          // Long-term project: title row collapses/expands tasks; panel icon opens control panel
+          // Long-term project: left chevron toggles collapse; right panel-entry opens control panel
           <div className={`lt-project-card${isCollapsed ? ' collapsed' : ''}${groupEntry?.isSystem ? ' is-system' : ''}`}>
-            <div
-              className="lt-project-card-top"
-              role="button"
-              tabIndex={0}
-              aria-expanded={isCollapsed ? 'false' : 'true'}
-              onClick={toggleGroup}
-              onKeyDown={(event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return;
-                event.preventDefault();
-                toggleGroup();
-              }}
-            >
-              <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
-              <div className="lt-project-card-title-group">
-                <span className="lt-project-card-title" title={String(groupEntry?.title || '')}>{String(groupEntry?.label || '')}</span>
-                {projectSummary ? (
-                  <span className="lt-project-card-subtitle" title={projectSummary}>{projectSummary}</span>
-                ) : null}
-              </div>
-              {(groupEntry?.isSystem || groupEntry?.projectSession?.builtinName === 'melodysync-iteration') ? (
-                <span className="lt-project-card-default-badge">默认</span>
-              ) : null}
-              <span className="lt-project-card-count">{memberCount}</span>
-              {/* Panel icon — click opens control panel without collapsing */}
+            <div className="lt-project-card-top">
+              {/* Left: collapse toggle */}
               <button
                 type="button"
-                className="lt-project-card-panel-btn"
-                title="打开控制面板"
-                onClick={(e) => { e.stopPropagation(); openProjectPanel(e); }}
-              >›</button>
+                className="lt-project-card-chevron-btn"
+                aria-expanded={isCollapsed ? 'false' : 'true'}
+                aria-label={isCollapsed ? '展开' : '折叠'}
+                onClick={toggleGroup}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  toggleGroup();
+                }}
+              >
+                <SessionListChevron className="lt-project-card-chevron" iconHtml={chevronIconHtml} />
+              </button>
+              <div className="lt-project-card-main">
+                {/* Top: project title toggles collapse, same as left chevron */}
+                <button
+                  type="button"
+                  className="lt-project-card-title-entry"
+                  aria-expanded={isCollapsed ? 'false' : 'true'}
+                  title={String(groupEntry?.label || '')}
+                  onClick={toggleGroup}
+                >
+                  <span className="lt-project-card-title">{String(groupEntry?.label || '')}</span>
+                  {(groupEntry?.isSystem || groupEntry?.projectSession?.builtinName === 'melodysync-iteration') ? (
+                    <span className="lt-project-card-default-badge">默认</span>
+                  ) : null}
+                </button>
+                {/* Bottom: project description opens the control panel */}
+                <button
+                  type="button"
+                  className="lt-project-card-panel-entry"
+                  title={projectPanelLine}
+                  aria-label={`打开项目控制面板：${String(groupEntry?.label || '')}`}
+                  onClick={openProjectPanel}
+                >
+                  <span className="lt-project-card-subtitle" title={projectPanelLine}>{projectPanelLine}</span>
+                  <span className="lt-project-card-panel-arrow" aria-hidden="true">›</span>
+                </button>
+              </div>
             </div>
             <div className="lt-project-card-content" hidden={isCollapsed}>
               {memberCount === 0 ? (
@@ -3812,7 +3811,7 @@ function createSessionListRenderer({
               archivedSessionsLoading: archived?.loading === true,
               archivedSessionsLoaded: archived?.loaded === true,
               archivedTotal: Number.isFinite(archived?.total) ? archived.total : 0,
-              archivedLabel: String(translate('sidebar.archive') || ''),
+              archivedLabel: String(archived?.label || translate('sidebar.archive') || ''),
               loadingLabel: String(translate('sidebar.loadingArchived') || ''),
               emptyText: String(archived?.emptyText || ''),
               onToggleArchived(nextCollapsed) {
@@ -5340,7 +5339,7 @@ function MelodyNode({ data }) {
   }
 
   return (
-    <div className="quest-task-flow-react-node-shell nopan">
+    <div className={`quest-task-flow-react-node-shell nopan${collapsed ? ' is-subtree-collapsed' : ''}`}>
       <Handle
         type="target"
         position={Position.Left}
@@ -5407,7 +5406,7 @@ function MelodyNode({ data }) {
           {collapsed ? `+${(node.childNodeIds || []).length}` : '−'}
         </button>
       ) : null}
-      <div className={`${className} nopan${collapsed ? ' is-subtree-collapsed' : ''}`} onClick={handleBodyClick}>
+      <div className={`${className} nopan`} onClick={handleBodyClick}>
         {badgeLabel ? <div className={badgeClassName}>{badgeLabel}</div> : null}
         <div className="quest-task-flow-node-title" title={rawTitle}>{title}</div>
         {summary ? <div className="quest-task-flow-node-summary" title={summary}>{summary}</div> : null}

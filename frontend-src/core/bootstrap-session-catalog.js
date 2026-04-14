@@ -174,15 +174,12 @@ function getArchivedSessionSortTime(session) {
   return Number.isFinite(time) ? time : 0;
 }
 
-function isSessionPersistent(session) {
-  const kind = String(session?.persistent?.kind || '').trim().toLowerCase();
-  return kind === 'skill' || kind === 'recurring_task' || kind === 'scheduled_task' || kind === 'waiting_task';
-}
-
 function getActiveSessions() {
   return sessions.filter((session) => {
-    // Persistent sessions (skills, recurring tasks) always stay active regardless of workflowState
-    if (isSessionPersistent(session)) return true;
+    // Recurring tasks and skills stay active regardless of workflowState.
+    // Scheduled and waiting tasks are one-shot and move to completed when done.
+    const rawKind = String(session?.persistent?.kind || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    if (rawKind === 'recurring_task' || rawKind === 'skill') return true;
     const wf = String(session?.workflowState || '').trim().toLowerCase();
     const isDone = wf === 'done' || wf === 'complete' || wf === 'completed';
     return !isDone;

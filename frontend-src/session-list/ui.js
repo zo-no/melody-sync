@@ -586,13 +586,11 @@ function isSkillSessionForList(session) {
 
 function shouldIncludeSessionInSidebarTab(session, tab = getActiveSidebarTabForList()) {
   if (tab === "sessions") {
-    // Sessions tab = 今日聚合视图：所有活跃任务，按项目分组
-    // 排除：project roots、自动化任务（recurring/scheduled/waiting persistent tasks）
-    // Skill 快捷按钮：保留，放入 daily-inbox 的 skill bucket
+    // Sessions tab = global task view. Project roots and recurring loops stay in
+    // long-term projects; one-shot scheduled/waiting tasks remain visible here.
     if (isLongTermProjectSessionForList(session)) return false;
-    // 自动化任务（recurring/scheduled/waiting）是后台执行的，不在日常任务列表显示
     const kind = getSidebarPersistentKind(session);
-    if (kind === "recurring_task" || kind === "scheduled_task" || kind === "waiting_task") return false;
+    if (kind === "recurring_task") return false;
     return true;
   }
   if (tab === "long-term") {
@@ -645,6 +643,10 @@ function renderSessionList() {
       order: 0,
       type: "daily-inbox",
       projectId: "",
+      controlPanel: {
+        type: "global",
+        label: payloadSafeTranslate("sidebar.tasks.controlPanel", "全局任务控制台"),
+      },
       sessions: [],
       buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
     });
@@ -701,6 +703,12 @@ function renderSessionList() {
         projectId,
         isSystem: false,
         projectSession: projectSession || null,
+        controlPanel: {
+          type: projectId ? "project" : "unaffiliated",
+          label: projectId
+            ? payloadSafeTranslate("sidebar.project.controlPanel", "项目控制面板")
+            : payloadSafeTranslate("sidebar.project.unaffiliatedControlPanel", "控制面板"),
+        },
         sessions: [],
         buckets: Object.fromEntries(bucketsWithDone.map((b) => [b.key, { ...b, sessions: [] }])),
       });
@@ -870,6 +878,7 @@ function renderSessionList() {
           projectId: groupEntry.projectId,
           isSystem: groupEntry.isSystem === true,
           projectSession: groupEntry.projectSession || null,
+          controlPanel: groupEntry.controlPanel || null,
           buckets: Object.values(groupEntry.buckets).map((b) => ({
             key: b.key,
             label: b.label,
@@ -904,6 +913,9 @@ function renderSessionList() {
         loading: isArchivedSessionsLoading,
         loaded: hasArchivedSessionsLoaded,
         total: archivedSessionTotal,
+        label: isSessionsTab
+          ? payloadSafeTranslate("sidebar.tasks.allCompleted", "全部已完成")
+          : payloadSafeTranslate("sidebar.archive", "已完成"),
         emptyText: getFilteredSessionEmptyText({ archived: true }),
         storageKey: ARCHIVED_FOLDER_KEY,
       },
@@ -1011,7 +1023,11 @@ function renderSessionList() {
     const groupSessions = groupEntry.sessions;
     const group = document.createElement("div");
     const isLongTermProject = groupEntry.type === "long-term-project";
-    group.className = "folder-group" + (showGroupHeaders ? "" : " is-ungrouped") + (isLongTermProject ? " is-long-term-project-group" : "");
+    const isDailyInbox = groupEntry.type === "daily-inbox";
+    group.className = "folder-group"
+      + (showGroupHeaders ? "" : " is-ungrouped")
+      + (isLongTermProject ? " is-long-term-project-group" : "")
+      + (isDailyInbox ? " is-tasks-inbox-group" : "");
 
     if (showGroupHeaders) {
       const header = document.createElement("div");
@@ -1051,12 +1067,40 @@ function renderSessionList() {
     items.className = "folder-group-items";
     items.hidden = showGroupHeaders && collapsedFolders[groupKey] === true;
 
-    if (isLongTermProject) {
+    if (isDailyInbox) {
+      // Control panel button is rendered by React (SessionsTabDailyHeader); skip in vanilla JS path
+      for (const bucketDef of Object.values(groupEntry.buckets || {}).sort((a, b) => (a.order ?? 99) - (b.order ?? 99))) {
+        const bucketEntry = groupEntry.buckets[bucketDef.key];
+        if (!bucketEntry || bucketEntry.sessions.length === 0) continue;
+        const bucketKey = `${groupKey}:${bucketDef.key}`;
+        const bucketGroup = document.createElement("div");
+        bucketGroup.className = "folder-group folder-group-bucket";
+        const bucketHeader = document.createElement("div");
+        const isBucketCollapsed = collapsedFolders[bucketKey] === true;
+        bucketHeader.className = "folder-group-header folder-group-bucket-header" + (isBucketCollapsed ? " collapsed" : "");
+        bucketHeader.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
+          <span class="folder-name">${esc(bucketDef.label)}</span>
+          <span class="folder-count">${bucketEntry.sessions.length}</span>`;
+        const bucketItems = document.createElement("div");
+        bucketItems.className = "folder-group-items folder-group-bucket-items";
+        bucketItems.hidden = isBucketCollapsed;
+        bucketHeader.addEventListener("click", () => {
+          bucketHeader.classList.toggle("collapsed");
+          persistCollapsedGroupState(bucketKey, bucketHeader.classList.contains("collapsed"));
+          bucketItems.hidden = collapsedFolders[bucketKey] === true;
+        });
+        appendSessionItems(bucketItems, bucketEntry.sessions);
+        bucketGroup.appendChild(bucketHeader);
+        bucketGroup.appendChild(bucketItems);
+        items.appendChild(bucketGroup);
+      }
+    } else if (isLongTermProject) {
+      // Control panel entry is rendered by React (SessionListProjectControlPanelEntry); skip in vanilla JS path
       // Render project root session first (the recurring_task itself)
       const projectRootSessions = groupSessions.filter((s) => isLongTermProjectSessionForList(s));
       appendSessionItems(items, projectRootSessions);
       // Then render bucket sub-folders
-      for (const bucketDef of LONG_TERM_BUCKET_DEFS) {
+      for (const bucketDef of Object.values(groupEntry.buckets || {}).sort((a, b) => (a.order ?? 99) - (b.order ?? 99))) {
         const bucketEntry = groupEntry.buckets[bucketDef.key];
         if (!bucketEntry || bucketEntry.sessions.length === 0) continue;
         const bucketKey = `${groupKey}:${bucketDef.key}`;
@@ -1197,8 +1241,11 @@ function renderArchivedSection() {
 
   const header = document.createElement("div");
   header.className = "archived-section-header" + (isCollapsed ? " collapsed" : "");
+  const archivedLabel = isSessionsTab
+    ? payloadSafeTranslate("sidebar.tasks.allCompleted", "全部已完成")
+    : payloadSafeTranslate("sidebar.archive", "已完成");
   header.innerHTML = `<span class="folder-chevron">${renderUiIcon("chevron-down")}</span>
-    <span class="archived-label">${esc(t("sidebar.archive"))}</span>
+    <span class="archived-label">${esc(archivedLabel)}</span>
     <span class="folder-count">${count}</span>
     <button class="archived-clear-btn" type="button" title="${esc(t("sidebar.clearArchived"))}" data-action="clear-archived">${esc(t("sidebar.clearArchived"))}</button>`;
   header.addEventListener("click", (e) => {

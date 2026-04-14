@@ -94,8 +94,8 @@
         <button class="sidebar-tab" id="tabLongTerm" data-i18n="sidebar.tab.longTerm">长期项目</button>
         <button class="sidebar-tab" id="tabSkill" hidden style="display:none" data-i18n="sidebar.tab.skill">技能</button>
       </div>
-      <!-- Global control panel — always visible below tab bar -->
-      <button class="global-control-panel-btn" id="globalControlPanelBtn" type="button">
+      <!-- Global control panel — rendered by React (SessionsTabDailyHeader); this static fallback is hidden -->
+      <button class="global-control-panel-btn" id="globalControlPanelBtn" type="button" hidden style="display:none">
         <span class="global-control-panel-label">全局任务控制面板</span>
         <span class="global-control-panel-default-badge">默认</span>
         <span class="global-control-panel-panel-icon" aria-hidden="true">›</span>

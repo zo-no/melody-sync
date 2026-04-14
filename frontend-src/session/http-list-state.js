@@ -32,11 +32,6 @@ function applySessionListState(nextSessions, {
     assignSessionListOrderHints(sessions, previousMap);
   }
   sortSessionsInPlace();
-  if (typeof handleCompletionAlerts === "function") {
-    for (const session of activeSessions) {
-      handleCompletionAlerts(session, previousMap.get(session.id) || null);
-    }
-  }
   hasLoadedSessions = true;
   if (Number.isInteger(nextArchivedCount) && nextArchivedCount >= 0) {
     archivedSessionCount = nextArchivedCount;
