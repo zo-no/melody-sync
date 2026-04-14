@@ -1,69 +1,49 @@
 # Documentation Map
 
-This repo keeps documentation in four layers:
+Documentation lives in three places:
 
-- `README.md` / `README.zh.md` — top-level product overview, setup path, and daily operations
-- `docs/` — current, shareable documentation for humans and contributors
-- `notes/` — internal design notes, grouped by status so current truth does not get mixed with future direction or historical rationale
-- `AGENTS.md` — repo-local operating rules and high-signal context for coding agents
+- `docs/` — current operational truth: architecture, features, contracts, integrations
+- `notes/current/` — internal design notes: domain model, prompt/memory architecture, governance
+- `AGENTS.md` — repo-local rules and high-signal context for coding agents
 
-## Canonical Spine
+## Read First
 
-Read these first when you need the current truth:
+When you need the current truth, start here:
 
 1. `../AGENTS.md` — repo rules, constraints, active priorities
-2. `../README.md` / `../README.zh.md` — product framing, setup path, operator-facing expectations
-3. `project-architecture.md` — current shipped architecture and code map
-4. `application-storage-architecture.md` — target app-data storage contract
-5. `current-features.md` — current shipped feature table
-6. `agent-filesystem-architecture.md` — current repo/config/memory filesystem split for agent-facing storage
-7. `../notes/current/core-domain-contract.md` — current domain/refactor baseline
-8. `../notes/current/session-first-workflow-surfaces.md` — current workflow-organization contract
-9. `../notes/current/product-surface-lifecycle.md` — current keep/iterate/retire rule for shipped product surfaces
+2. `project-architecture.md` — shipped architecture and code map
+3. `current-features.md` — shipped feature table
+4. `../notes/current/core-domain-contract.md` — core domain objects and boundaries
 
-## Keep These In Sync
+## `docs/` Index
 
-When the system changes, update the matching surface instead of letting discussion notes carry the only truth:
+### Architecture & Storage
+- `project-architecture.md` — runtime topology, core modules, main flows, persistence layout
+- `application-storage-architecture.md` — storage contract: canonical truth, operational state, projections, caches
+- `session-history-storage-layout.md` — physical layout target for `sessions/history/<sessionId>/`
+- `agent-filesystem-architecture.md` — repo/config/memory filesystem split for agent-facing storage
 
-- product positioning, setup flow, or user-visible workflow changes → `../README.md` and `../README.zh.md`
-- runtime topology, persistence model, code map, or request flow changes → `project-architecture.md`
-- repo rules, self-hosting workflow, or protected surfaces change → `../AGENTS.md`
-- domain/refactor baseline changes → `../notes/current/core-domain-contract.md`
-- outdated or conflicting notes → trim them or rewrite them to point at the canonical doc
+### Product
+- `current-features.md` — shipped feature table and retired surfaces
+- `product-vision.md` — product goals and design direction
+- `task-system-design.md` — 5 task types, data structures, lifecycle
+- `task-type-to-bucket-mapping.md` — task type to sidebar bucket mapping rules
+- `output-panel-data-contract.md` — output panel data contract: event taxonomy, blocker capture, recommendations
 
-## What Lives In `docs/`
-
-### Current Core
-
-- `project-architecture.md` — top-down map of the shipped system
-- `application-storage-architecture.md` — value-based storage contract for app data, runtime capture, caches, and diagnostics
-- `session-history-storage-layout.md` — dense physical layout target for transcript storage
-- `agent-filesystem-architecture.md` — current repo/config/memory split for agents and runtime durability
-- `current-features.md` — current shipped feature table after product-surface cleanup
-- `output-panel-data-contract.md` — decision-first output-panel data contract
-- `hooks-node-architecture.md` — target hooks + node architecture
-- `local-maintenance.md` — upstream-first fork workflow and local runtime isolation rules
+### Setup & Integrations
 - `setup.md` — model-first setup contract
+- `external-message-protocol.md` — integration contract for external channels (email, GitHub, chat connectors)
+- `voice-connector.md` — wake-word voice connector contract
 
-### Focused Integrations
+### Extension Architecture
+- `hooks-node-architecture.md` — target hooks + node architecture for lifecycle orchestration
 
-- `external-message-protocol.md` — canonical integration contract for external channels
-- `github-auto-triage.md` — model-first GitHub intake and auto-reply rollout contract
-- `remote-capability-monitor.md` — remote-agent capability monitoring
-- `voice-connector.md` — wake-word speaker/microphone connector contract
+## Keep In Sync
 
-### Product Direction
-
-- `product-vision.md` — product vision and design direction
-- `task-system-design.md` — task system design: 5 task types and data structures
-- `task-type-to-bucket-mapping.md` — task type to bucket mapping rules
-
-## Authoring Rule
-
-Before adding a new doc, ask:
-
-1. Is this current truth or a discussion artifact?
-2. Does a shorter update to an existing canonical doc solve it better?
-3. Will it still be true after the next refactor, or is it historical rationale?
-
-If the answer is unclear, prefer updating an existing canonical doc over creating a new one.
+| What changed | Update this |
+|---|---|
+| Product positioning, user-visible workflow | `../README.md` + `../README.zh.md` |
+| Runtime topology, code map, persistence | `project-architecture.md` |
+| Shipped features | `current-features.md` |
+| Repo rules, protected surfaces | `../AGENTS.md` |
+| Domain objects, boundaries | `../notes/current/core-domain-contract.md` |
