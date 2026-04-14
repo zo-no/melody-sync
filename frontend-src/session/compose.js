@@ -1149,21 +1149,41 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
     if (kind === "waiting_task") return "waiting";
     return "inbox";
   }
-  const memberSessions = branchSessions.filter((s) => {
-    const mem = s?.taskPoolMembership?.longTerm;
-    return mem?.projectSessionId && mem?.role !== "project";
-  });
+  // For system project (全局任务): count ALL active sessions across all projects.
+  // For user projects: count only direct members of this project.
+  let memberSessions;
+  if (isSystemProject) {
+    // All active, non-archived, non-done sessions that are task members (role !== project)
+    memberSessions = Array.isArray(sessions)
+      ? sessions.filter((s) => {
+          if (s?.archived) return false;
+          const wf = String(s?.workflowState || "").trim().toLowerCase();
+          if (wf === "done") return false;
+          const mem = s?.taskPoolMembership?.longTerm;
+          const role = String(mem?.role || "").trim().toLowerCase();
+          if (role === "project") return false; // exclude project roots
+          return true;
+        })
+      : [];
+  } else {
+    memberSessions = branchSessions.filter((s) => {
+      const mem = s?.taskPoolMembership?.longTerm;
+      return mem?.projectSessionId && mem?.role !== "project";
+    });
+  }
   const longTermCount = memberSessions.filter((s) => getBucket(s) === "long_term").length;
   const shortTermCount = memberSessions.filter((s) => getBucket(s) === "short_term").length;
 
-  // Find archived members of this project from all sessions
+  // Find archived members — for system project: all archived tasks; for user project: only project members
   const projectSessionId = String(selectedProject?.id || "").trim();
   const archivedMemberSessions = Array.isArray(sessions)
     ? sessions.filter((s) => {
         if (!s?.archived) return false;
         const mem = s?.taskPoolMembership?.longTerm;
-        return String(mem?.projectSessionId || "").trim() === projectSessionId
-          && String(mem?.role || "").trim().toLowerCase() !== "project";
+        const role = String(mem?.role || "").trim().toLowerCase();
+        if (role === "project") return false;
+        if (isSystemProject) return true; // all archived non-project sessions
+        return String(mem?.projectSessionId || "").trim() === projectSessionId;
       }).sort((a, b) => {
         const ta = new Date(a?.workflowCompletedAt || a?.updatedAt || 0).getTime();
         const tb = new Date(b?.workflowCompletedAt || b?.updatedAt || 0).getTime();
@@ -1780,28 +1800,97 @@ globalThis.showLongTermProjectPanel = (projectId) => {
           return `${Math.round(ms/3600000)}h`;
         }
 
-        const rowsHtml = groups.flatMap((g) =>
-          (Array.isArray(g.runs) ? g.runs : []).map((run) => {
-            const si = runStateInfo(run.state);
-            const name = escHtml(String(run.sessionName || "").slice(0, 30));
-            const tool = escHtml(String(run.tool || "").toLowerCase());
-            const stamp = fmtStamp(run.createdAt);
-            const dur = fmtDur(run.createdAt, run.completedAt);
-            const meta = [tool, stamp, dur].filter(Boolean).join(" · ");
-            const err = run.state === "failed" && run.failureReason
-              ? `<div class="ltcp-run-error">${escHtml(String(run.failureReason).slice(0, 80))}</div>` : "";
-            return `<div class="ltcp-run-row">
+        const INITIAL_SHOW = 20;
+        const allRuns = groups.flatMap((g) => Array.isArray(g.runs) ? g.runs : []);
+        const totalRuns = allRuns.length;
+
+        function triggerLabel(type) {
+          const map = { branch: "支线", recurring: "循环", schedule: "定时", persistent: "持久", voice: "语音", batch: "批量", compat: "", manual: "" };
+          return map[type] || "";
+        }
+        function modelShort(model) {
+          if (!model) return "";
+          if (model.includes("opus")) return "Opus";
+          if (model.includes("sonnet")) return "Sonnet";
+          if (model.includes("haiku")) return "Haiku";
+          if (model.includes("gpt-5.4")) return "GPT-5.4";
+          if (model.includes("gpt-5.3-codex-spark")) return "Spark";
+          if (model.includes("gpt-5.3-codex")) return "Codex";
+          if (model.includes("gpt-5.3")) return "GPT-5.3";
+          if (model.includes("gpt-5.2")) return "GPT-5.2";
+          return model.split(/[-_]/)[0];
+        }
+        function fmtTokens(n) {
+          if (!n) return "";
+          if (n >= 1000000) return `${(n/1000000).toFixed(1)}M`;
+          if (n >= 1000) return `${Math.round(n/1000)}K`;
+          return String(n);
+        }
+
+        function renderRunRow(run) {
+          const si = runStateInfo(run.state);
+          const name = escHtml(String(run.sessionName || "").slice(0, 28));
+          const stamp = fmtStamp(run.createdAt);
+          const dur = fmtDur(run.startedAt || run.createdAt, run.completedAt);
+          const tool = escHtml(String(run.tool || "").toLowerCase());
+          const model = modelShort(run.model);
+          const effort = run.effort ? escHtml(run.effort) : "";
+          const trigger = triggerLabel(run.triggerType);
+          const tokens = fmtTokens(run.contextInputTokens);
+          const events = run.normalizedEventCount > 0 ? `${run.normalizedEventCount}步` : "";
+          // Build tag chips
+          const chips = [];
+          if (tool) chips.push(`<span class="ltcp-run-chip is-tool">${tool}</span>`);
+          if (model) chips.push(`<span class="ltcp-run-chip is-model">${escHtml(model)}</span>`);
+          if (effort) chips.push(`<span class="ltcp-run-chip is-effort">${effort}</span>`);
+          if (trigger) chips.push(`<span class="ltcp-run-chip is-trigger">${escHtml(trigger)}</span>`);
+          if (tokens) chips.push(`<span class="ltcp-run-chip is-tokens">${escHtml(tokens)}</span>`);
+          if (events) chips.push(`<span class="ltcp-run-chip is-events">${escHtml(events)}</span>`);
+          const err = run.state === "failed" && run.failureReason
+            ? `<div class="ltcp-run-error">${escHtml(String(run.failureReason).slice(0, 100))}</div>` : "";
+          return `<div class="ltcp-run-row">
+            <div class="ltcp-run-top">
+              <span class="ltcp-run-time">${escHtml(stamp)}</span>
               <span class="ltcp-run-state ${escHtml(si.cls)}">${escHtml(si.label)}</span>
+              ${dur ? `<span class="ltcp-run-dur">${escHtml(dur)}</span>` : ""}
+            </div>
+            <div class="ltcp-run-bottom">
               <span class="ltcp-run-session">${name}</span>
-              ${meta ? `<span class="ltcp-run-meta">${escHtml(meta)}</span>` : ""}
-              ${err}
-            </div>`;
-          })
-        ).join("");
+              ${chips.length ? `<span class="ltcp-run-chips">${chips.join("")}</span>` : ""}
+            </div>
+            ${err}
+          </div>`;
+        }
+
+        const visibleRuns = allRuns.slice(0, INITIAL_SHOW);
+        const rowsHtml = visibleRuns.map(renderRunRow).join("");
+        const hiddenCount = totalRuns - visibleRuns.length;
+        const moreHtml = hiddenCount > 0
+          ? `<button class="ltcp-run-more-btn" type="button" data-total="${totalRuns}" data-shown="${INITIAL_SHOW}">显示更多 (${hiddenCount} 条)</button>`
+          : "";
 
         runLogEl.innerHTML = `
-          <div class="ltcp-section-title">运行日志</div>
-          <div class="ltcp-run-log">${rowsHtml || '<div class="ltcp-run-empty">暂无运行记录</div>'}</div>`;
+          <div class="ltcp-section-title">运行日志 <span class="ltcp-run-count">${totalRuns} 条</span></div>
+          <div class="ltcp-run-log" data-all-runs='${JSON.stringify(allRuns).replace(/'/g, "&#39;")}'>${rowsHtml || '<div class="ltcp-run-empty">暂无运行记录</div>'}${moreHtml}</div>`;
+
+        // "显示更多" handler
+        const moreBtn = runLogEl.querySelector(".ltcp-run-more-btn");
+        if (moreBtn) {
+          moreBtn.addEventListener("click", () => {
+            const logEl = runLogEl.querySelector(".ltcp-run-log");
+            try {
+              const allRunsData = JSON.parse(logEl.dataset.allRuns || "[]");
+              const shown = parseInt(moreBtn.dataset.shown, 10) || INITIAL_SHOW;
+              const nextShown = Math.min(shown + 20, allRunsData.length);
+              const newRows = allRunsData.slice(shown, nextShown).map(renderRunRow).join("");
+              moreBtn.insertAdjacentHTML("beforebegin", newRows);
+              moreBtn.dataset.shown = nextShown;
+              const remaining = allRunsData.length - nextShown;
+              if (remaining <= 0) moreBtn.remove();
+              else moreBtn.textContent = `显示更多 (${remaining} 条)`;
+            } catch (e) { /* ignore */ }
+          });
+        }
       }).catch(() => {});
   }
   window.MelodySyncWorkbench?.refreshTaskMapForProject?.(selectedLongTermProjectId);

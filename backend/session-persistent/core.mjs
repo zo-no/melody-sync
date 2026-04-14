@@ -384,7 +384,7 @@ function normalizePersistentExecution(value, { kind, digest } = {}) {
   const maxTurns = Number.isFinite(rawMaxTurns) && rawMaxTurns > 0 ? rawMaxTurns : 0;
   const result = {
     mode,
-    runPrompt: clipText(execution.runPrompt || defaultRunPrompt(kind, digest), 240),
+    runPrompt: clipText(execution.runPrompt || defaultRunPrompt(kind, digest), 4000),
     lastTriggerAt: normalizeIsoTimestamp(execution.lastTriggerAt),
     lastTriggerKind: (() => {
       const normalized = trimText(execution.lastTriggerKind).toLowerCase();
@@ -621,7 +621,7 @@ export function buildPersistentRunMessage(session = {}, persistent = {}, options
     options.runPrompt
       || persistent?.execution?.runPrompt
       || defaultRunPrompt(persistent?.kind, digest),
-    240,
+    4000,
   );
   const normalizedTriggerKind = trimText(options.triggerKind).toLowerCase();
   const isRecurring = normalizedTriggerKind === 'recurring';

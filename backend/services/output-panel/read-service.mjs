@@ -53,22 +53,21 @@ function buildOutputPanelCurrentSession(state, sessions, sessionId = '') {
   };
 }
 
-const RECENT_RUNS_LIMIT = 30;
+// Global view: 30 total runs, 5 per project
+const RECENT_RUNS_GLOBAL_LIMIT = 30;
 const RUNS_PER_PROJECT_LIMIT = 5;
+// Project view: show all runs for the project (up to 100)
+const RUNS_PER_PROJECT_DETAIL_LIMIT = 100;
 
-async function buildRecentRunsByProject(state, sessions) {
+async function buildRecentRunsByProject(state, sessions, options = {}) {
+  const filterProjectSessionId = options?.filterProjectSessionId || null;
+
   const allRunIds = await listRunIds();
-  // Read recent runs in reverse order (newest first), limit scan
-  const scanLimit = Math.min(allRunIds.length, 200);
+  // For project view scan more; for global view scan fewer
+  const scanLimit = filterProjectSessionId
+    ? Math.min(allRunIds.length, 500)
+    : Math.min(allRunIds.length, 200);
   const recentRunIds = allRunIds.slice(-scanLimit).reverse();
-
-  const runs = [];
-  for (const runId of recentRunIds) {
-    if (runs.length >= RECENT_RUNS_LIMIT) break;
-    const run = await getRun(runId);
-    if (!run) continue;
-    runs.push(run);
-  }
 
   // Build sessionId -> session name map
   const sessionMap = new Map();
@@ -92,13 +91,56 @@ async function buildRecentRunsByProject(state, sessions) {
     if (p?.id) projectMap.set(p.id, p.title || p.id);
   }
 
+  // Build the set of sessionIds belonging to the target project (for project view)
+  // Members are stored in session.taskPoolMembership.longTerm.projectSessionId
+  let targetProjectSessionIds = null;
+  if (filterProjectSessionId) {
+    targetProjectSessionIds = new Set();
+    // The project session itself
+    targetProjectSessionIds.add(filterProjectSessionId);
+    // All member sessions: check taskPoolMembership.longTerm.projectSessionId in sessions
+    for (const s of (Array.isArray(sessions) ? sessions : [])) {
+      const lt = s?.taskPoolMembership?.longTerm;
+      if (lt?.projectSessionId === filterProjectSessionId && s?.id) {
+        targetProjectSessionIds.add(s.id);
+      }
+    }
+    // Also check branchContexts (some projects use this path)
+    for (const ctx of branchContexts) {
+      if (ctx?.projectId === filterProjectSessionId && ctx?.sessionId) {
+        targetProjectSessionIds.add(ctx.sessionId);
+      }
+    }
+    // Also include sessions whose projectId maps to this project via sessionToProject
+    for (const [sid, pid] of sessionToProject) {
+      if (pid === filterProjectSessionId) targetProjectSessionIds.add(sid);
+    }
+  }
+
   // Group runs by project
   const projectGroups = new Map(); // projectId -> { title, runs[] }
   const ungroupedRuns = [];
+  let globalCount = 0;
 
-  for (const run of runs) {
+  for (const runId of recentRunIds) {
+    // Stop scanning for global view when we have enough
+    if (!filterProjectSessionId && globalCount >= RECENT_RUNS_GLOBAL_LIMIT) break;
+
+    const run = await getRun(runId);
+    if (!run) continue;
+
     const projectId = sessionToProject.get(run.sessionId);
     const sessionName = sessionMap.get(run.sessionId) || '';
+    // Classify trigger type from requestId
+    const reqId = run.requestId || '';
+    let triggerType = 'manual';
+    if (reqId.startsWith('persistent_run_branch_')) triggerType = 'branch';
+    else if (reqId.startsWith('persistent_recurring_')) triggerType = 'recurring';
+    else if (reqId.startsWith('persistent_schedule_')) triggerType = 'schedule';
+    else if (reqId.startsWith('persistent_run_')) triggerType = 'persistent';
+    else if (reqId.startsWith('voice:')) triggerType = 'voice';
+    else if (reqId.startsWith('compat_')) triggerType = 'compat';
+    else if (reqId.startsWith('queued_batch_')) triggerType = 'batch';
     const entry = {
       id: run.id,
       sessionId: run.sessionId,
@@ -106,29 +148,54 @@ async function buildRecentRunsByProject(state, sessions) {
       state: run.state,
       tool: run.tool || '',
       model: run.model || '',
+      effort: run.effort || '',
+      thinking: run.thinking === true,
+      triggerType,
       createdAt: run.createdAt || '',
+      startedAt: run.startedAt || '',
       completedAt: run.completedAt || '',
       failureReason: run.failureReason || '',
+      contextInputTokens: run.contextInputTokens || null,
+      normalizedEventCount: run.normalizedEventCount || 0,
     };
-    if (projectId) {
-      if (!projectGroups.has(projectId)) {
-        projectGroups.set(projectId, {
-          projectId,
-          title: projectMap.get(projectId) || projectId,
+
+    if (filterProjectSessionId) {
+      // Project view: only include runs from this project's sessions
+      if (!targetProjectSessionIds.has(run.sessionId)) continue;
+      if (!projectGroups.has(filterProjectSessionId)) {
+        projectGroups.set(filterProjectSessionId, {
+          projectId: filterProjectSessionId,
+          title: projectMap.get(filterProjectSessionId) || filterProjectSessionId,
           runs: [],
         });
       }
-      const group = projectGroups.get(projectId);
-      if (group.runs.length < RUNS_PER_PROJECT_LIMIT) {
+      const group = projectGroups.get(filterProjectSessionId);
+      if (group.runs.length < RUNS_PER_PROJECT_DETAIL_LIMIT) {
         group.runs.push(entry);
       }
     } else {
-      ungroupedRuns.push(entry);
+      // Global view: group by project, limit per project
+      globalCount++;
+      if (projectId) {
+        if (!projectGroups.has(projectId)) {
+          projectGroups.set(projectId, {
+            projectId,
+            title: projectMap.get(projectId) || projectId,
+            runs: [],
+          });
+        }
+        const group = projectGroups.get(projectId);
+        if (group.runs.length < RUNS_PER_PROJECT_LIMIT) {
+          group.runs.push(entry);
+        }
+      } else {
+        ungroupedRuns.push(entry);
+      }
     }
   }
 
   const groups = [...projectGroups.values()];
-  if (ungroupedRuns.length > 0) {
+  if (!filterProjectSessionId && ungroupedRuns.length > 0) {
     groups.push({
       projectId: null,
       title: '其他',
@@ -156,9 +223,11 @@ export async function getOutputPanelPayload(options = {}) {
     loadWorkbenchState(),
     listWorkbenchSessions({ includeArchived: true }),
   ]);
+  // When a specific project sessionId is provided, filter runs to that project only
+  const filterProjectSessionId = normalizeNullableText(options?.sessionId) || null;
   const [payload, recentRunsByProject] = await Promise.all([
     Promise.resolve(buildOutputPanelPayload(state, sessions, options)),
-    buildRecentRunsByProject(state, sessions),
+    buildRecentRunsByProject(state, sessions, { filterProjectSessionId }),
   ]);
   return { ...payload, recentRunsByProject };
 }

@@ -254,7 +254,13 @@
     const explicitGroupValue = trimText(session?.group);
     const fallbackGroupValue = (globalThis.MelodySyncTaskTypeConstants?.KIND_GROUP_LABELS?.[persistentKind]) || "";
     const effectiveGroupValue = explicitGroupValue || fallbackGroupValue;
-    const group = resolveTemplateTaskListGroup(effectiveGroupValue, templateGroups);
+    // Try template groups first; if unresolved (lands on uncategorized), fall back to TASK_LIST_GROUPS
+    // so that persistent kinds like "skill" always map to their canonical group (e.g. group:quick-actions).
+    const templateGroup = resolveTemplateTaskListGroup(effectiveGroupValue, templateGroups);
+    const isUncategorized = templateGroup?.id === "uncategorized" || String(templateGroup?.key || "").startsWith("group:uncategorized");
+    const group = (isUncategorized && effectiveGroupValue)
+      ? (resolveTaskListGroup(effectiveGroupValue) || templateGroup)
+      : templateGroup;
     const label = trimText(group?.label)
       || (trimText(group?.labelKey) ? translate(group.labelKey) : "")
       || trimText(group?.storageValue)
