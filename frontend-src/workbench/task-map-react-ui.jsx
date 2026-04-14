@@ -1995,6 +1995,20 @@ function MergeNoteCardChildren({
   );
 }
 
+function HandoffNoteCardChildren({
+  sourceTitle = '',
+  content = '',
+  clipText: clipTextImpl = clipText,
+}) {
+  return (
+    <>
+      <div className="quest-merge-note-label">信息已传递过来</div>
+      <div className="quest-merge-note-title">{sourceTitle || '来源任务'}</div>
+      <div className="quest-merge-note-summary">{clipTextImpl(content, 180)}</div>
+    </>
+  );
+}
+
 function BranchEnteredCardChildren({
   branchTitle = '',
   branchFrom = '',
@@ -2088,11 +2102,217 @@ function createStatusCardRenderer({
     );
   }
 
+  function createHandoffNoteCard(evt) {
+    if (!evt) return null;
+    const card = documentRef.createElement('div');
+    card.className = 'quest-merge-note quest-handoff-note';
+    return mountIntoHost(
+      card,
+      <HandoffNoteCardChildren
+        sourceTitle={evt.sourceTitle || ''}
+        content={evt.content || ''}
+        clipText={clipTextImpl}
+      />,
+    );
+  }
+
   return Object.freeze({
     createBranchSuggestionItem,
     createMergeNoteCard,
     createBranchEnteredCard,
+    createHandoffNoteCard,
   });
+}
+
+// ── CalendarDateTimePicker ────────────────────────────────────────────
+// Props:
+//   value        — ISO string "YYYY-MM-DDTHH:MM" (single-run) or "HH:MM" (recurring)
+//   mode         — "datetime" | "time"
+//   repeat       — "none" | "hourly" | "daily" | "weekly"
+//   weekdays     — number[] (0=Sun…6=Sat), used when repeat="weekly"
+//   onChange     — ({ date, time, repeat, weekdays }) => void
+function CalendarDateTimePicker({
+  value = '',
+  mode = 'datetime',
+  repeat = 'none',
+  weekdays = [],
+  onChange = null,
+}) {
+  // Parse initial date from value
+  function parseInitialYearMonth() {
+    if (mode === 'datetime' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      const [y, m] = value.split('-');
+      return { year: Number(y), month: Number(m) - 1 };
+    }
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  }
+  function parseInitialDate() {
+    if (mode === 'datetime' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+      const parts = value.split('T')[0].split('-');
+      return `${parts[0]}-${parts[1]}-${parts[2]}`;
+    }
+    return null;
+  }
+  function parseInitialTime() {
+    if (mode === 'datetime' && /T\d{2}:\d{2}$/.test(value)) {
+      return value.split('T')[1];
+    }
+    if (mode === 'time' && /^\d{2}:\d{2}$/.test(value)) {
+      return value;
+    }
+    return '09:00';
+  }
+
+  const init = parseInitialYearMonth();
+  const [viewYear, setViewYear] = useState(init.year);
+  const [viewMonth, setViewMonth] = useState(init.month);
+  const [selectedDate, setSelectedDate] = useState(parseInitialDate);
+  const [selectedTime, setSelectedTime] = useState(parseInitialTime);
+
+  function emitChange({ date = selectedDate, time = selectedTime, rep = repeat, wd = weekdays } = {}) {
+    if (!onChange) return;
+    onChange({ date, time, repeat: rep, weekdays: wd });
+  }
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
+    else setViewMonth(m => m - 1);
+  }
+  function nextMonth() {
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
+    else setViewMonth(m => m + 1);
+  }
+
+  function buildCalendarDays(year, month) {
+    const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    return cells;
+  }
+
+  const cells = buildCalendarDays(viewYear, viewMonth);
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const monthLabel = `${viewYear}年${viewMonth + 1}月`;
+  const weekHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+
+  function handleDayClick(d) {
+    const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    setSelectedDate(dateStr);
+    emitChange({ date: dateStr });
+  }
+
+  function handleTimeChange(event) {
+    const t = event.currentTarget.value;
+    setSelectedTime(t);
+    emitChange({ time: t });
+  }
+
+  function handleRepeatChange(rep) {
+    emitChange({ rep });
+  }
+
+  function handleWeekdayToggle(day) {
+    const next = weekdays.includes(day)
+      ? weekdays.filter(d => d !== day)
+      : [...weekdays, day].sort((a, b) => a - b);
+    emitChange({ wd: next });
+  }
+
+  const repeatOptions = [
+    { value: 'none',   label: '无' },
+    { value: 'daily',  label: '每天' },
+    { value: 'weekly', label: '每周' },
+    { value: 'hourly', label: '每小时' },
+  ];
+
+  return (
+    <div className="cal-picker">
+      {mode === 'datetime' ? (
+        <div className="cal-picker-month-nav">
+          <span className="cal-picker-month-label">{monthLabel}</span>
+          <button type="button" className="cal-picker-nav-btn" onClick={prevMonth} aria-label="上月">‹</button>
+          <button type="button" className="cal-picker-nav-btn" onClick={nextMonth} aria-label="下月">›</button>
+        </div>
+      ) : null}
+
+      {mode === 'datetime' ? (
+        <div className="cal-picker-grid">
+          {weekHeaders.map(h => (
+            <div key={h} className="cal-picker-week-header">{h}</div>
+          ))}
+          {cells.map((d, i) => {
+            if (!d) return <div key={`empty-${i}`} />;
+            const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const isToday = dateStr === todayStr;
+            const isSelected = dateStr === selectedDate;
+            return (
+              <button
+                key={dateStr}
+                type="button"
+                className={`cal-picker-day${isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}`}
+                onClick={() => handleDayClick(d)}
+              >
+                {d}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <div className="cal-picker-options-card">
+        <label className="cal-picker-option-row">
+          <span className="cal-picker-option-icon">⏰</span>
+          <span className="cal-picker-option-label">时间</span>
+          <input
+            type="time"
+            className="cal-picker-time-input"
+            value={selectedTime}
+            onChange={handleTimeChange}
+          />
+        </label>
+
+        <label className="cal-picker-option-row">
+          <span className="cal-picker-option-icon">↺</span>
+          <span className="cal-picker-option-label">重复</span>
+          <div className="cal-picker-repeat-btns">
+            {repeatOptions.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`cal-picker-repeat-btn${repeat === opt.value ? ' is-active' : ''}`}
+                onClick={() => handleRepeatChange(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </label>
+
+        {repeat === 'weekly' ? (
+          <div className="cal-picker-option-row cal-picker-weekday-row">
+            <span className="cal-picker-option-icon" />
+            <span className="cal-picker-option-label" />
+            <div className="cal-picker-weekday-btns">
+              {['日', '一', '二', '三', '四', '五', '六'].map((label, day) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={`cal-picker-weekday-btn${weekdays.includes(day) ? ' is-active' : ''}`}
+                  onClick={() => handleWeekdayToggle(day)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function PersistentEditorField({
@@ -2185,6 +2405,7 @@ function PersistentEditorModal({
   },
 }) {
   const [, setVersion] = useState(0);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   function rerender() {
     setVersion((value) => value + 1);
@@ -2228,18 +2449,6 @@ function PersistentEditorModal({
       draft.scheduled.runAtLocal = getDefaultScheduledRunAtLocal();
     }
     draft.recurringEnabled = nextKind === 'recurring_task' ? true : Boolean(draft.recurringEnabled);
-    rerender();
-  }
-
-  function toggleWeekday(day) {
-    if (!draft) return;
-    const current = new Set(normalizeWeekdays(draft.recurring?.weekdays));
-    if (current.has(day)) {
-      current.delete(day);
-    } else {
-      current.add(day);
-    }
-    draft.recurring.weekdays = Array.from(current).sort((a, b) => a - b);
     rerender();
   }
 
@@ -2308,6 +2517,62 @@ function PersistentEditorModal({
                 />
               </PersistentEditorField>
 
+              {/* Advanced settings */}
+              <div className="persistent-editor-advanced">
+                <button
+                  type="button"
+                  className="persistent-editor-advanced-toggle"
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                >
+                  <span className={`persistent-editor-advanced-arrow${advancedOpen ? ' is-open' : ''}`}>▸</span>
+                  高级设置
+                </button>
+                {advancedOpen ? (
+                  <div className="persistent-editor-advanced-body">
+                    <PersistentEditorField label="执行服务">
+                      <select
+                        className="operation-record-persistent-select"
+                        value={draft.manualMode || 'follow_current'}
+                        onChange={(event) => {
+                          draft.manualMode = event.currentTarget.value;
+                          rerender();
+                        }}
+                      >
+                        <option value="follow_current">跟随当前服务</option>
+                        <option value="session_default">使用会话默认服务</option>
+                        <option value="pinned">固定服务</option>
+                      </select>
+                    </PersistentEditorField>
+                    <PersistentEditorField label="会话上下文">
+                      <label className="persistent-editor-checkbox-row">
+                        <input
+                          type="checkbox"
+                          defaultChecked={draft.freshThread !== true}
+                          onChange={(event) => {
+                            draft.freshThread = !event.currentTarget.checked;
+                          }}
+                        />
+                        续接上次会话记录
+                      </label>
+                    </PersistentEditorField>
+                    <PersistentEditorField
+                      label="执行脚本"
+                      note="触发时先执行此脚本，输出结果会附加到消息中"
+                    >
+                      <textarea
+                        className="operation-record-persistent-textarea"
+                        rows={3}
+                        defaultValue={draft.shellCommand || ''}
+                        placeholder="#!/bin/sh&#10;echo hello"
+                        onInput={(event) => {
+                          draft.shellCommand = event.currentTarget.value;
+                        }}
+                      />
+                    </PersistentEditorField>
+                  </div>
+                ) : null}
+              </div>
+
               {draft.kind !== 'skill' ? (
                 <>
                   {/* Repeat toggle: recurring_task = repeats, scheduled_task = once */}
@@ -2343,73 +2608,47 @@ function PersistentEditorModal({
                     </div>
                   </PersistentEditorField>
 
-                  {/* Single-run: pick date+time */}
+                  {/* Single-run: calendar date+time picker */}
                   {draft.kind === 'scheduled_task' ? (
-                    <PersistentEditorField label="执行时间">
-                      <input
-                        type="datetime-local"
-                        className="operation-record-persistent-input"
-                        value={normalizeDateTimeLocal(draft.scheduled?.runAtLocal || '')}
-                        onChange={(event) => {
-                          if (!draft.scheduled || typeof draft.scheduled !== 'object') {
-                            draft.scheduled = { runAtLocal: '', timezone: '' };
-                          }
-                          draft.scheduled.runAtLocal = normalizeDateTimeLocal(event.currentTarget.value);
-                          rerender();
-                        }}
-                      />
-                    </PersistentEditorField>
+                    <CalendarDateTimePicker
+                      mode="datetime"
+                      value={normalizeDateTimeLocal(draft.scheduled?.runAtLocal || '')}
+                      repeat="none"
+                      weekdays={[]}
+                      onChange={({ date, time }) => {
+                        if (!draft.scheduled || typeof draft.scheduled !== 'object') {
+                          draft.scheduled = { runAtLocal: '', timezone: '' };
+                        }
+                        if (date && time) {
+                          draft.scheduled.runAtLocal = normalizeDateTimeLocal(`${date}T${time}`);
+                        } else if (date) {
+                          const prevTime = (draft.scheduled.runAtLocal || '').split('T')[1] || '09:00';
+                          draft.scheduled.runAtLocal = normalizeDateTimeLocal(`${date}T${prevTime}`);
+                        } else if (time) {
+                          const prevDate = (draft.scheduled.runAtLocal || '').split('T')[0] || '';
+                          if (prevDate) draft.scheduled.runAtLocal = normalizeDateTimeLocal(`${prevDate}T${time}`);
+                        }
+                        rerender();
+                      }}
+                    />
                   ) : null}
 
-                  {/* Recurring: pick cadence + time */}
+                  {/* Recurring: calendar time+repeat picker */}
                   {draft.kind === 'recurring_task' ? (
-                    <>
-                      <PersistentEditorField label="重复周期">
-                        <select
-                          className="operation-record-persistent-select"
-                          value={cadence}
-                          onChange={(event) => {
-                            draft.recurring.cadence = event.target.value;
-                            rerender();
-                          }}
-                        >
-                          <option value="hourly">每小时</option>
-                          <option value="daily">每天</option>
-                          <option value="weekly">每周</option>
-                        </select>
-                      </PersistentEditorField>
-
-                      <PersistentEditorField label={cadence === 'hourly' ? '触发分钟' : '触发时间'}>
-                        <input
-                          type="time"
-                          className="operation-record-persistent-input"
-                          defaultValue={normalizeTimeOfDay(draft.recurring?.timeOfDay)}
-                          onInput={(event) => {
-                            draft.recurring.timeOfDay = normalizeTimeOfDay(event.currentTarget.value);
-                          }}
-                        />
-                      </PersistentEditorField>
-
-                      {cadence === 'weekly' ? (
-                        <PersistentEditorField label="每周日期">
-                          <div className="operation-record-weekday-row">
-                            {['日', '一', '二', '三', '四', '五', '六'].map((label, day) => {
-                              const active = normalizeWeekdays(draft.recurring?.weekdays).includes(day);
-                              return (
-                                <button
-                                  key={label}
-                                  type="button"
-                                  className={`operation-record-weekday-btn${active ? ' is-active' : ''}`}
-                                  onClick={() => toggleWeekday(day)}
-                                >
-                                  {label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </PersistentEditorField>
-                      ) : null}
-                    </>
+                    <CalendarDateTimePicker
+                      mode="time"
+                      value={normalizeTimeOfDay(draft.recurring?.timeOfDay)}
+                      repeat={cadence}
+                      weekdays={normalizeWeekdays(draft.recurring?.weekdays)}
+                      onChange={({ time, repeat: rep, weekdays: wd }) => {
+                        if (time) draft.recurring.timeOfDay = normalizeTimeOfDay(time);
+                        if (rep && rep !== cadence) {
+                          draft.recurring.cadence = rep === 'none' ? 'daily' : rep;
+                        }
+                        if (wd) draft.recurring.weekdays = wd;
+                        rerender();
+                      }}
+                    />
                   ) : null}
                 </>
               ) : null}

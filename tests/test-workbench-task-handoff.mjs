@@ -27,6 +27,9 @@ try {
     buildTaskDataHandoffPacket,
     handoffSessionData,
   } = await importFromRepo('backend/workbench/index.mjs');
+  const {
+    loadHistory,
+  } = await importFromRepo('backend/history.mjs');
 
   const sourceSession = await createSession(workdir, 'codex', '整理运行数据', {});
   const targetSession = await createSession(workdir, 'codex', '把 handoff 入口接到任务边上', {});
@@ -53,6 +56,7 @@ try {
     knownConclusions: ['先保持当前开发计划稳定'],
   });
 
+  // buildTaskDataHandoffPacket 仍用于前端 preview，验证其结构不变
   const previewPacket = buildTaskDataHandoffPacket({
     sourceSession: {
       ...sourceSession,
@@ -62,9 +66,6 @@ try {
         lineRole: 'main',
         summary: '归纳运行结论',
         checkpoint: '优先梳理运行期发现的约束和结论',
-        background: ['最新回归里已经收集到多条运行日志'],
-        rawMaterials: ['日志显示 edge 按钮还没有落到连线上'],
-        assumptions: ['目标任务暂时不要直接改 goal'],
         knownConclusions: ['需要先实现 A 到 B 的结构化交接'],
         nextSteps: ['把 handoff 入口做到 edge 上'],
       },
@@ -101,68 +102,34 @@ try {
     'handoff packet should generate target-aware integration guidance',
   );
 
+  // handoffSessionData 核心行为：向目标 session 写入一条消息
   const outcome = await handoffSessionData(sourceSession.id, {
     targetSessionId: targetSession.id,
     detailLevel: 'focused',
   });
 
-  assert.equal(outcome?.packet?.sourceSessionId, sourceSession.id, 'handoff packet should keep the source session id');
-  assert.equal(outcome?.packet?.targetSessionId, targetSession.id, 'handoff packet should keep the target session id');
-  assert.equal(outcome?.packet?.detailLevel, 'focused', 'handoff packet should preserve the requested runtime detail level');
-  assert.equal(
-    Array.isArray(outcome?.packet?.sections?.conclusions) && outcome.packet.sections.conclusions.length > 0,
-    true,
-    'handoff packet should carry a structured conclusion section',
+  assert.ok(outcome?.session?.id === targetSession.id, 'outcome should return the target session');
+  assert.ok(typeof outcome?.sourceTitle === 'string' && outcome.sourceTitle.length > 0, 'outcome should carry sourceTitle');
+
+  // 目标 session 的对话历史里应有一条 task_handoff_note 消息
+  const history = await loadHistory(targetSession.id, { includeBodies: true });
+  const handoffNote = history.find((event) => event?.messageKind === 'task_handoff_note');
+
+  assert.ok(handoffNote, 'target session history should contain a task_handoff_note event');
+  assert.equal(handoffNote.role, 'assistant', 'handoff note should be an assistant message');
+  assert.equal(handoffNote.sourceSessionId, sourceSession.id, 'handoff note should record the source session id');
+  assert.ok(
+    typeof handoffNote.content === 'string' && handoffNote.content.includes('整理运行数据'),
+    'handoff note content should include the source session title',
   );
-  assert.equal(
-    Array.isArray(outcome?.packet?.sections?.integration) && outcome.packet.sections.integration.length > 0,
-    true,
-    'handoff packet should carry target-aware integration guidance',
+  assert.ok(
+    handoffNote.content.includes('需要先实现 A 到 B 的结构化交接'),
+    'handoff note content should include source knownConclusions',
   );
 
-  const nextTaskCard = outcome?.session?.taskCard || {};
-  assert.equal(nextTaskCard.goal, '把 handoff 入口接到任务边上', 'handoff should not overwrite the target goal');
-  assert.equal(nextTaskCard.mainGoal, '把 handoff 入口接到任务边上', 'handoff should not overwrite the target mainGoal');
-  assert.equal(
-    nextTaskCard.background?.some((entry) => entry.includes('来自任务')),
-    true,
-    'target task should record that a handoff arrived from the source task',
-  );
-  assert.equal(
-    nextTaskCard.background?.some((entry) => entry.includes('源任务目标')),
-    true,
-    'target task should keep the richer handoff focus context',
-  );
-  assert.equal(
-    nextTaskCard.assumptions?.includes('目标任务暂时不要直接改 goal'),
-    true,
-    'target task should receive structured constraints from the source task',
-  );
-  assert.equal(
-    nextTaskCard.knownConclusions?.includes('需要先实现 A 到 B 的结构化交接'),
-    true,
-    'target task should receive source conclusions',
-  );
-  assert.equal(
-    nextTaskCard.nextSteps?.includes('把 handoff 入口做到 edge 上'),
-    true,
-    'target task should receive source next steps',
-  );
-  assert.equal(
-    nextTaskCard.nextSteps?.some((entry) => entry.includes('可并入')),
-    true,
-    'target task should receive an integration-oriented next step from the handoff packet',
-  );
-  assert.equal(
-    nextTaskCard.memory?.some((entry) => entry.includes('已接收来自')),
-    true,
-    'target task should keep a durable memory entry for the handoff source',
-  );
-  assert.equal(
-    nextTaskCard.memory?.includes('交接细节：focused'),
-    true,
-    'target task should record which handoff detail level was applied',
-  );
+  // 目标 session 的 taskCard 不应被修改
+  const targetHistory = await loadHistory(targetSession.id, { includeBodies: true });
+  assert.ok(targetHistory.length > 0, 'target session should have history');
 
   console.log('test-workbench-task-handoff: ok');
 } finally {

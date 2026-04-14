@@ -117,10 +117,34 @@
       return card;
     }
 
+    function createHandoffNoteCard(evt) {
+      if (!evt) return null;
+      const card = documentRef.createElement("div");
+      card.className = "quest-merge-note quest-handoff-note";
+
+      const label = documentRef.createElement("div");
+      label.className = "quest-merge-note-label";
+      label.textContent = "信息已传递过来";
+      card.appendChild(label);
+
+      const title = documentRef.createElement("div");
+      title.className = "quest-merge-note-title";
+      title.textContent = evt.sourceTitle || "来源任务";
+      card.appendChild(title);
+
+      const summary = documentRef.createElement("div");
+      summary.className = "quest-merge-note-summary";
+      summary.textContent = clipTextImpl(evt.content || "", 180);
+      card.appendChild(summary);
+
+      return card;
+    }
+
     return Object.freeze({
       createBranchSuggestionItem,
       createMergeNoteCard,
       createBranchEnteredCard,
+      createHandoffNoteCard,
     });
   }
 

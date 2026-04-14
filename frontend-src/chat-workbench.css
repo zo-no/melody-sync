@@ -4493,6 +4493,59 @@ button.quest-task-flow-node {
   justify-content: flex-end;
 }
 
+.persistent-editor-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.persistent-editor-advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 6px 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  user-select: none;
+}
+
+.persistent-editor-advanced-toggle:hover {
+  color: var(--text-primary);
+}
+
+.persistent-editor-advanced-arrow {
+  font-size: 10px;
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+
+.persistent-editor-advanced-arrow.is-open {
+  transform: rotate(90deg);
+}
+
+.persistent-editor-advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.persistent-editor-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
 .operation-record-persistent-editor {
   margin: 0;
   width: 100%;
@@ -4593,6 +4646,189 @@ button.quest-task-flow-node {
   font-size: 11px;
   line-height: 1.45;
   color: var(--text-secondary);
+}
+
+/* ── CalendarDateTimePicker ─────────────────────────────────────────── */
+.cal-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.cal-picker-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-picker-month-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+
+.cal-picker-nav-btn {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.cal-picker-nav-btn:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.cal-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cal-picker-week-header {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 4px 0;
+}
+
+.cal-picker-day {
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  width: 100%;
+  padding: 0;
+}
+.cal-picker-day:hover {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+.cal-picker-day.is-today {
+  font-weight: 700;
+  color: var(--accent);
+}
+.cal-picker-day.is-selected {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.cal-picker-day.is-selected.is-today {
+  color: #fff;
+}
+
+.cal-picker-options-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 96%, var(--bg-secondary));
+  overflow: hidden;
+}
+
+.cal-picker-option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: default;
+}
+.cal-picker-option-row:last-child {
+  border-bottom: none;
+}
+
+.cal-picker-option-icon {
+  font-size: 15px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.cal-picker-option-label {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+}
+
+.cal-picker-time-input {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  text-align: right;
+  cursor: pointer;
+  padding: 0;
+  width: auto;
+}
+.cal-picker-time-input:focus {
+  outline: none;
+  color: var(--text);
+}
+
+.cal-picker-repeat-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cal-picker-repeat-btn {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+}
+.cal-picker-repeat-btn.is-active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--border));
+  color: var(--text);
+}
+
+.cal-picker-weekday-btns {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cal-picker-weekday-btn {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+}
+.cal-picker-weekday-btn.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 @media (max-width: 767px) {

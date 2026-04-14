@@ -723,8 +723,23 @@ function renderSessionList() {
         : null;
       const projectId = membership?.projectSessionId || (isProject ? session.id : "");
 
-      // Exclude system project and its members entirely from long-term tab
-      if (isSystemProjectId(projectId)) continue;
+      // Exclude system project root itself from long-term tab (it lives in sessions tab only).
+      // But its MEMBERS (user-created tasks) belong in 其他任务 — they have no user project home.
+      if (isSystemProjectId(projectId)) {
+        // The project root itself: skip entirely
+        if (isProject) continue;
+        // Members of the system project → treat as unaffiliated (其他任务)
+        ensureLtGroup(UNAFFILIATED_KEY, {
+          projectId: "",
+          projectSession: null,
+          label: t("sidebar.longTerm.unaffiliated") || "其他任务",
+        });
+        const g = groups.get(UNAFFILIATED_KEY);
+        g.sessions.push(session);
+        const bucket = inferLongTermSessionBucket(session);
+        (g.buckets[bucket] || g.buckets.inbox).sessions.push(session);
+        continue;
+      }
 
       if (!projectId) {
         // No project affiliation → 其他任务
@@ -769,7 +784,20 @@ function renderSessionList() {
         ? model.getLongTermTaskPoolMembership(session)
         : null;
       const projectId = membership?.projectSessionId || "";
-      if (isSystemProjectId(projectId)) continue;
+      // System project root: skip. System project members → 其他任务 done bucket.
+      if (isSystemProjectId(projectId)) {
+        const isProjectRoot = isLongTermProjectSessionForList(session);
+        if (isProjectRoot) continue;
+        // Member of system project → unaffiliated done bucket
+        ensureLtGroup(UNAFFILIATED_KEY, {
+          projectId: "",
+          projectSession: null,
+          label: t("sidebar.longTerm.unaffiliated") || "其他任务",
+        });
+        const g = groups.get(UNAFFILIATED_KEY);
+        if (g?.buckets?.done) g.buckets.done.sessions.push(session);
+        continue;
+      }
 
       let groupKey;
       if (!projectId) {

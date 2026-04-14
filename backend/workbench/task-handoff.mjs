@@ -1,3 +1,6 @@
+import { appendEvent } from '../history.mjs';
+import { messageEvent } from '../normalizer.mjs';
+import { broadcastSessionInvalidation } from '../session/invalidation.mjs';
 import { normalizeSessionTaskCard } from '../session/task-card.mjs';
 import { syncSessionContinuityFromSession } from './branch-lifecycle.mjs';
 import {
@@ -8,7 +11,6 @@ import {
 } from './shared.mjs';
 import {
   getWorkbenchSession,
-  updateWorkbenchSessionTaskCard,
 } from './session-ports.mjs';
 
 const HANDOFF_DETAIL_LIMITS = Object.freeze({
@@ -309,29 +311,28 @@ export function buildTaskDataHandoffPacket({
   };
 }
 
-function applyTaskDataHandoffToTaskCard(targetTaskCard = null, packet = null) {
-  const current = normalizeSessionTaskCard(targetTaskCard || {}) || {};
-  const sections = packet?.sections && typeof packet.sections === 'object' ? packet.sections : {};
-  const sourceTitle = normalizeNullableText(packet?.sourceTitle) || '源任务';
-  const handoffLine = `来自任务「${sourceTitle}」的数据交接`;
-  const focus = Array.isArray(sections.focus) ? sections.focus : [];
-  const integration = Array.isArray(sections.integration) ? sections.integration : [];
+function buildHandoffNoteContent(sourceSession) {
+  const sourceTitle = getSessionDisplayName(sourceSession, '源任务');
+  const taskCard = normalizeSessionTaskCard(sourceSession?.taskCard || {}) || {};
+  const conclusions = dedupeTexts(takeTaskCardList(taskCard, 'knownConclusions', 3));
+  const checkpoint = normalizeNullableText(taskCard.checkpoint);
+  const fallback = buildFallbackConclusion(taskCard, sourceTitle);
 
-  return normalizeSessionTaskCard({
-    ...current,
-    checkpoint: normalizeNullableText(
-      current.checkpoint
-      || integration[0]
-      || (Array.isArray(sections.conclusions) ? sections.conclusions[0] : '')
-      || focus[0]
-      || handoffLine,
-    ),
-    knownConclusions: dedupeTexts([
-      ...(Array.isArray(sections.conclusions) ? sections.conclusions : []),
-      ...integration,
-      ...(current.knownConclusions || []),
-    ]),
-  });
+  const lines = [`来自任务「${sourceTitle}」的信息传递`];
+
+  if (conclusions.length > 0) {
+    for (const conclusion of conclusions) {
+      lines.push(conclusion);
+    }
+  } else if (fallback) {
+    lines.push(fallback);
+  }
+
+  if (checkpoint && !conclusions.includes(checkpoint)) {
+    lines.push(`当前进展：${checkpoint}`);
+  }
+
+  return lines.join('\n');
 }
 
 export async function handoffSessionData(sourceSessionId, payload = {}) {
@@ -360,20 +361,23 @@ export async function handoffSessionData(sourceSessionId, payload = {}) {
     throw new Error('Target session not found');
   }
 
-  const packet = buildTaskDataHandoffPacket({
-    sourceSession,
-    targetSession,
-    detailLevel: payload?.detailLevel,
-  });
+  const sourceTitle = getSessionDisplayName(sourceSession, '源任务');
+  const noteContent = buildHandoffNoteContent(sourceSession);
 
-  const nextTaskCard = applyTaskDataHandoffToTaskCard(targetSession.taskCard, packet);
-  const updatedSession = await updateWorkbenchSessionTaskCard(targetSession.id, nextTaskCard);
-  await syncSessionContinuityFromSession(updatedSession, {
-    taskCard: updatedSession?.taskCard,
+  await appendEvent(targetSessionId, messageEvent('assistant', noteContent, undefined, {
+    messageKind: 'task_handoff_note',
+    sourceSessionId: normalizedSourceSessionId,
+    sourceTitle,
+  }));
+
+  broadcastSessionInvalidation(targetSessionId);
+
+  await syncSessionContinuityFromSession(targetSession, {
+    taskCard: targetSession?.taskCard,
   });
 
   return {
-    session: updatedSession,
-    packet,
+    session: targetSession,
+    sourceTitle,
   };
 }

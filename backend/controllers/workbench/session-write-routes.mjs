@@ -83,9 +83,7 @@ export async function handleWorkbenchSessionWriteRoutes({
     }
     if (!requireSessionAccess(res, authSession, targetSessionId)) return true;
     const outcome = await handoffWorkbenchSessionForWrite(sessionId, payload);
-    writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.session, {
-      handoffPacket: outcome.packet,
-    }));
+    writeJson(res, 200, await buildWorkbenchSessionMutationResponse(outcome.session));
     return true;
   }
 

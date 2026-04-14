@@ -396,6 +396,8 @@ function normalizePersistentExecution(value, { kind, digest } = {}) {
   };
   if (shellCommand) result.shellCommand = shellCommand;
   if (maxTurns > 0) result.maxTurns = maxTurns;
+  // freshThread: if true, do not resume the previous provider session (start a clean context)
+  if (execution.freshThread === true) result.freshThread = true;
   return result;
 }
 
@@ -622,9 +624,8 @@ export function buildPersistentRunMessage(session = {}, persistent = {}, options
     240,
   );
   const normalizedTriggerKind = trimText(options.triggerKind).toLowerCase();
-  const triggerKind = normalizedTriggerKind === 'recurring'
-    ? '循环触发'
-    : (normalizedTriggerKind === 'schedule' ? '定时触发' : '一键触发');
+  const isRecurring = normalizedTriggerKind === 'recurring';
+  const isSchedule = normalizedTriggerKind === 'schedule';
   const loopSections = [];
   if ((loop.collect?.sources || []).length > 0 || loop.collect?.instruction) {
     const collectLines = [];
@@ -654,21 +655,23 @@ export function buildPersistentRunMessage(session = {}, persistent = {}, options
       : persistent.workspace.path;
     loopSections.push(`工作区目录：\n- ${workspaceLabel}\n- 执行任务时以此目录为工作根，可读写其中文件。`);
   }
+  const taskName = digest.title || session?.name || '未命名任务';
   const titleByKind = (
-    persistent?.kind === 'recurring_task' ? '[长期任务执行]'
-      : persistent?.kind === 'scheduled_task' ? '[短期任务执行]'
-        : persistent?.kind === 'waiting_task' ? '[等待任务触发]'
-          : '[快捷按钮触发]'
+    persistent?.kind === 'recurring_task'
+      ? (isRecurring ? `[定时执行] ${taskName}` : `[触发执行] ${taskName}`)
+      : persistent?.kind === 'scheduled_task'
+        ? `[单次执行] ${taskName}`
+        : persistent?.kind === 'waiting_task'
+          ? `[触发执行] ${taskName}`
+          : `[触发执行] ${taskName}`
   );
   const lines = [
     titleByKind,
-    `名称：${digest.title || session?.name || '未命名长期项'}`,
     digest.summary ? `摘要：${digest.summary}` : '',
     digest.goal ? `目标：${digest.goal}` : '',
     digest.keyPoints.length > 0 ? `核心记录：\n- ${digest.keyPoints.join('\n- ')}` : '',
     digest.recipe.length > 0 ? `执行提示：\n- ${digest.recipe.join('\n- ')}` : '',
     ...loopSections,
-    `触发方式：${triggerKind}`,
     runPrompt,
   ].filter(Boolean);
   return lines.join('\n\n');

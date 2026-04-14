@@ -209,6 +209,7 @@
             || "",
         ).trim(),
         shellCommand: String(persistent?.execution?.shellCommand || "").trim(),
+        freshThread: persistent?.execution?.freshThread === true,
         executionMode: String(persistent?.execution?.mode || "").trim().toLowerCase() === "spawn_session"
           ? "spawn_session"
           : "in_place",
@@ -345,9 +346,10 @@
         execution: {
           mode: draft.executionMode === "spawn_session" ? "spawn_session" : "in_place",
           runPrompt: String(draft.runPrompt || "").trim(),
-          ...(draft.kind === "skill" && String(draft.shellCommand || "").trim()
+          ...(String(draft.shellCommand || "").trim()
             ? { shellCommand: String(draft.shellCommand).trim() }
             : {}),
+          ...(draft.freshThread === true ? { freshThread: true } : {}),
         },
         runtimePolicy: buildRuntimePolicyPayload(draft),
       };

@@ -1768,6 +1768,10 @@
       }
       rememberRecentHandoffTarget(targetSessionId);
       await refreshTaskMapGraph(getFocusedSessionId() || getCurrentSessionIdSafe(), { force: true });
+      if (response?.session && typeof attachSession === "function") {
+        collapseTaskMapAfterAction({ render: false });
+        attachSession(response.session.id, response.session);
+      }
       renderTracker();
       renderPathPanel();
       return response;
@@ -3221,6 +3225,25 @@
     return renderer.createBranchEnteredCard?.(evt) || null;
   }
 
+  function createHandoffNoteCard(evt) {
+    const statusCardRendererFactory = globalThis?.MelodySyncWorkbenchStatusCardUi?.createRenderer
+      || globalThis?.window?.MelodySyncWorkbenchStatusCardUi?.createRenderer
+      || null;
+    if (typeof statusCardRendererFactory !== "function") return null;
+    const renderer = createHandoffNoteCard.__melodysyncReactRenderer
+      || statusCardRendererFactory({
+        documentRef: document,
+        windowRef: window,
+        getCurrentSessionSafe,
+        isSuppressed,
+        enterBranchFromCurrentSession,
+        clipText: typeof clipText === "function" ? clipText : undefined,
+      });
+    if (!renderer) return null;
+    createHandoffNoteCard.__melodysyncReactRenderer = renderer;
+    return renderer.createHandoffNoteCard?.(evt) || null;
+  }
+
   trackerDetailToggleBtn?.addEventListener("click", () => {
     trackerDetailExpanded = !trackerDetailExpanded;
     renderTracker();
@@ -3426,6 +3449,7 @@
     createBranchSuggestionItem,
     createBranchEnteredCard,
     createMergeNoteCard,
+    createHandoffNoteCard,
     enterBranchFromSession,
     enterBranchFromCurrentSession,
     openManualBranchFromText,

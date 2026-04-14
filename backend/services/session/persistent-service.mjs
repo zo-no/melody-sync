@@ -618,6 +618,7 @@ export function createSessionPersistentService({
       ...(runtime?.effort ? { effort: runtime.effort } : {}),
       thinking: runtime?.thinking === true,
       ...(resolvedMaxTurns > 0 ? { maxTurns: resolvedMaxTurns } : {}),
+      ...(persistent?.execution?.freshThread === true ? { freshThread: true } : {}),
     };
     // ── Shell command execution (skill only) ────────────────────────────────
     const shellCommand = String(persistent?.execution?.shellCommand || '').trim();

@@ -156,6 +156,8 @@ The `ctx` object contains everything a handler needs — no manual parameter thr
 - [`frontend-src/session-list/ui.js`](frontend-src/session-list/ui.js): session list rendering
 - [`frontend-src/session-list/sidebar-ui.js`](frontend-src/session-list/sidebar-ui.js): sidebar interactions
 - [`frontend-src/workbench/controller.js`](frontend-src/workbench/controller.js): workbench coordinator
+- [`frontend-src/workbench/persistent-editor-ui.js`](frontend-src/workbench/persistent-editor-ui.js): fallback (non-React) renderer for the "设置执行方式" modal; used when React is unavailable
+- [`frontend-src/workbench/task-map-react-ui.jsx`](frontend-src/workbench/task-map-react-ui.jsx): React task-map UI; includes `PersistentEditorModal` with `CalendarDateTimePicker` for date/time/repeat selection (scheduled_task uses month-grid + time row; recurring_task uses time + repeat row only)
 
 ### Shared
 

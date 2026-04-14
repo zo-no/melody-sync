@@ -1630,6 +1630,17 @@ function switchTab(tab, { syncState = true } = {}) {
     // would show a blank chat which confuses users.
     if (targetSession?.id) {
       window.showLongTermProjectPanel?.(targetSession.id);
+    } else {
+      // No project selected yet — show the right column with only the output panel (run log)
+      document.body.classList.add("long-term-workspace-active");
+      if (longTermWorkspace) longTermWorkspace.hidden = false;
+      if (longTermWorkspaceDetail) {
+        longTermWorkspaceDetail.hidden = true;
+        longTermWorkspaceDetail.innerHTML = "";
+      }
+      if (typeof window.MelodySyncOutputPanel?.show === "function") {
+        window.MelodySyncOutputPanel.show();
+      }
     }
     if (typeof renderSessionList === "function") renderSessionList();
     if (syncState) syncBrowserState();

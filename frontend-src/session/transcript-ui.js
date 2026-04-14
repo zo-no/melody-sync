@@ -760,6 +760,13 @@ function renderMessageInto(container, evt, { finalizeActiveThinkingBlock = false
         return mergeNode;
       }
     }
+    if (evt.messageKind === "task_handoff_note" && window.MelodySyncWorkbench?.createHandoffNoteCard) {
+      const handoffNode = window.MelodySyncWorkbench.createHandoffNoteCard(evt);
+      if (handoffNode) {
+        container.appendChild(handoffNode);
+        return handoffNode;
+      }
+    }
 
     const div = document.createElement("div");
     div.className = "msg-assistant md-content";
