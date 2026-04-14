@@ -674,8 +674,39 @@ function renderSessionList() {
       groupEntry.buckets[bucketKey].sessions.push(session);
     }
   } else if (isLongTermTab) {
-    // Build per-project groups with bucket sub-folders
+    // Long-term tab: one group per user project + 其他任务 for unaffiliated tasks.
+    // System project (全局任务) is fully excluded — it lives in the sessions tab only.
+    // Each group has bucket sub-folders including a done bucket for completed tasks.
     const model = getSessionListModel();
+    const sysProjectId = getSystemProjectId();
+    const UNAFFILIATED_KEY = "group:long-term-unaffiliated";
+    const DONE_BUCKET = { key: "done", label: t("sidebar.archive") || "已完成", order: 99 };
+    const bucketsWithDone = [...LONG_TERM_BUCKET_DEFS, DONE_BUCKET];
+
+    function isSystemProjectId(id) {
+      if (!id) return false;
+      if (sysProjectId && id === sysProjectId) return true;
+      const rec = typeof getSessionCatalogRecordById === "function" ? getSessionCatalogRecordById(id) : null;
+      return String(rec?.taskListOrigin || "").trim().toLowerCase() === "system";
+    }
+
+    function ensureLtGroup(groupKey, { projectId, projectSession, label }) {
+      if (groups.has(groupKey)) return;
+      groups.set(groupKey, {
+        key: groupKey,
+        label,
+        title: label,
+        order: groupKey === UNAFFILIATED_KEY ? 999999 : groups.size,
+        type: "long-term-project",
+        projectId,
+        isSystem: false,
+        projectSession: projectSession || null,
+        sessions: [],
+        buckets: Object.fromEntries(bucketsWithDone.map((b) => [b.key, { ...b, sessions: [] }])),
+      });
+    }
+
+    // Pass 1: active sessions
     for (const session of visibleSessions) {
       if (!session?.id) continue;
       const isProject = isLongTermProjectSessionForList(session);
@@ -683,7 +714,24 @@ function renderSessionList() {
         ? model.getLongTermTaskPoolMembership(session)
         : null;
       const projectId = membership?.projectSessionId || (isProject ? session.id : "");
-      if (!projectId) continue;
+
+      // Exclude system project and its members entirely from long-term tab
+      if (isSystemProjectId(projectId)) continue;
+
+      if (!projectId) {
+        // No project affiliation → 其他任务
+        ensureLtGroup(UNAFFILIATED_KEY, {
+          projectId: "",
+          projectSession: null,
+          label: t("sidebar.longTerm.unaffiliated") || "其他任务",
+        });
+        const g = groups.get(UNAFFILIATED_KEY);
+        g.sessions.push(session);
+        const bucket = inferLongTermSessionBucket(session);
+        (g.buckets[bucket] || g.buckets.inbox).sessions.push(session);
+        continue;
+      }
+
       const groupKey = `group:long-term-project:${projectId}`;
       if (!groups.has(groupKey)) {
         const projectSession = isProject
@@ -691,36 +739,53 @@ function renderSessionList() {
           : (typeof getSessionCatalogRecordById === "function"
               ? getSessionCatalogRecordById(projectId)
               : getVisibleActiveSessions().find((s) => s?.id === projectId) || null);
-        const isSystemProject = String(projectSession?.taskListOrigin || "").trim().toLowerCase() === "system";
-        // Skip orphaned groups where the project session can't be found
         if (!projectSession) continue;
-        // System project (全局任务) is shown in the tasks tab — skip it in the projects tab
-        if (isSystemProject) continue;
         const projectTitle = String(projectSession?.name || projectSession?.description || "").trim() || "未命名项目";
-        groups.set(groupKey, {
-          key: groupKey,
-          label: projectTitle,
-          title: projectTitle,
-          // System projects sort before user projects (negative order)
-          order: isSystemProject ? -(groups.size + 1) : groups.size,
-          type: "long-term-project",
-          projectId,
-          isSystem: isSystemProject,
-          projectSession: projectSession || null,
-          sessions: [],
-          buckets: Object.fromEntries(LONG_TERM_BUCKET_DEFS.map((b) => [b.key, { ...b, sessions: [] }])),
-        });
+        ensureLtGroup(groupKey, { projectId, projectSession, label: projectTitle });
       }
-      const groupEntry = groups.get(groupKey);
-      groupEntry.sessions.push(session);
+      const g = groups.get(groupKey);
+      g.sessions.push(session);
       if (!isProject) {
         const bucket = inferLongTermSessionBucket(session);
-        if (groupEntry.buckets[bucket]) {
-          groupEntry.buckets[bucket].sessions.push(session);
-        } else {
-          // fallback: unknown bucket key → put in inbox
-          groupEntry.buckets.inbox.sessions.push(session);
+        (g.buckets[bucket] || g.buckets.inbox).sessions.push(session);
+      }
+    }
+
+    // Pass 2: done sessions → each project's own done bucket
+    const doneSessions = typeof getVisibleArchivedSessions === "function"
+      ? getVisibleArchivedSessions().filter((s) => shouldShowSessionInSidebarForList(s, { archived: true }))
+      : [];
+    for (const session of doneSessions) {
+      if (!session?.id) continue;
+      const membership = typeof model?.getLongTermTaskPoolMembership === "function"
+        ? model.getLongTermTaskPoolMembership(session)
+        : null;
+      const projectId = membership?.projectSessionId || "";
+      if (isSystemProjectId(projectId)) continue;
+
+      let groupKey;
+      if (!projectId) {
+        groupKey = UNAFFILIATED_KEY;
+        ensureLtGroup(UNAFFILIATED_KEY, {
+          projectId: "",
+          projectSession: null,
+          label: t("sidebar.longTerm.unaffiliated") || "其他任务",
+        });
+      } else {
+        groupKey = `group:long-term-project:${projectId}`;
+        if (!groups.has(groupKey)) {
+          const projectSession = typeof getSessionCatalogRecordById === "function"
+            ? getSessionCatalogRecordById(projectId)
+            : getVisibleActiveSessions().find((s) => s?.id === projectId) || null;
+          if (!projectSession) continue;
+          const projectTitle = String(projectSession?.name || projectSession?.description || "").trim() || "未命名项目";
+          ensureLtGroup(groupKey, { projectId, projectSession, label: projectTitle });
         }
+      }
+      const g = groups.get(groupKey);
+      if (g?.buckets?.done) {
+        g.sessions.push(session);
+        g.buckets.done.sessions.push(session);
       }
     }
   } else {
@@ -755,15 +820,19 @@ function renderSessionList() {
   const archivedSessionTotal = Number(typeof archivedSessionCount === "undefined" ? 0 : archivedSessionCount) || 0;
   const ARCHIVED_FOLDER_KEY = "folder:archived";
   const archivedCollapsed = collapsedFolders[ARCHIVED_FOLDER_KEY] === true;
-  // Archived folder always visible on Tasks/Projects tabs (even when empty)
-  const shouldRenderArchivedSection = (isLongTermTab || isSessionsTab)
+  // Global archived section: only shown in sessions tab (long-term tab has per-project done buckets)
+  const shouldRenderArchivedSection = isSessionsTab
     ? true
-    : (isArchivedSessionsLoading || archivedSessionTotal > 0 || archivedSessions.length > 0);
-  const archivedCount = (isLongTermTab || isSessionsTab)
+    : (isLongTermTab
+      ? false
+      : (isArchivedSessionsLoading || archivedSessionTotal > 0 || archivedSessions.length > 0));
+  const archivedCount = isSessionsTab
     ? archivedSessions.length
-    : (hasArchivedSessionsLoaded
-      ? archivedSessions.length
-      : Math.max(archivedSessionTotal, archivedSessions.length));
+    : (isLongTermTab
+      ? 0
+      : (hasArchivedSessionsLoaded
+        ? archivedSessions.length
+        : Math.max(archivedSessionTotal, archivedSessions.length)));
   const sessionsLoaded = typeof hasLoadedSessions !== "undefined" && hasLoadedSessions === true;
   const shouldShowSessionListEmptyState =
     pinnedSessions.length === 0
