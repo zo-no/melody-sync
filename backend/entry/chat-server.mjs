@@ -77,6 +77,14 @@ const sourceProjectRoot = fileURLToPath(new URL('../../', import.meta.url));
     persistentScheduler.stopPersistentSessionScheduler();
     await apiRequestLog.closeApiRequestLog();
     sessionManager.killAll();
+    const { getSessionDb } = await import('../session/session-db.mjs');
+    try {
+      const db = getSessionDb();
+      if (db) {
+        db.pragma('wal_checkpoint(TRUNCATE)');
+        db.close();
+      }
+    } catch {}
     process.exit(0);
   }
   process.on('SIGTERM', shutdown);

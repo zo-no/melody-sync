@@ -172,7 +172,8 @@ function normalizeSessionName(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function shouldSuppressCompletionVoice({ session, manifest } = {}) {
+function shouldSuppressCompletionVoice({ session, manifest, userInitiated } = {}) {
+  if (userInitiated === true) return true;
   if (normalizeInternalRole(session?.internalRole)) return true;
   if (typeof manifest?.internalOperation === 'string' && manifest.internalOperation.trim()) return true;
   return normalizeSessionName(session?.name) === SESSION_LIST_ORGANIZER_SESSION_NAME
@@ -186,6 +187,7 @@ export async function hostCompletionVoiceHook(
     run,
     manifest,
     completionNoticeKey,
+    userInitiated,
   },
   options = {},
 ) {
@@ -193,7 +195,7 @@ export async function hostCompletionVoiceHook(
     enqueueHostCompletionSpeechImpl = enqueueHostCompletionSpeech,
     logError = console.error,
   } = options;
-  if (shouldSuppressCompletionVoice({ session, manifest })) {
+  if (shouldSuppressCompletionVoice({ session, manifest, userInitiated })) {
     const effectiveRunId = run?.id || session?.activeRunId || '';
     await appendHostCompletionHookLog(`[skip] sessionId="${sessionId}" runId="${effectiveRunId}" internalRole="${normalizeInternalRole(session?.internalRole)}" internalOperation="${String(manifest?.internalOperation || '').trim()}" name="${String(session?.name || '').trim()}"`);
     return;

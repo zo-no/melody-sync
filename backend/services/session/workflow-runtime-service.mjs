@@ -100,6 +100,7 @@ export function createSessionWorkflowRuntimeService({
         manifest: null,
         run: completionNoticeRunId ? { id: completionNoticeRunId } : undefined,
         completionNoticeKey,
+        userInitiated: true,
         appendEvent,
         statusEvent,
       };
