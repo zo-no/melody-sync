@@ -139,10 +139,15 @@ async function dispatchAction(msg) {
         return true;
       }
       case "rename": {
+        const renamePatch = { name: msg.name };
+        // 如果是长期项目重命名，同步更新 persistent.digest.title
+        if (typeof msg.digestTitle === "string" && msg.digestTitle.trim()) {
+          renamePatch.persistent = { digest: { title: msg.digestTitle.trim() } };
+        }
         const data = await fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(msg.sessionId)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: msg.name }),
+          body: JSON.stringify(renamePatch),
         });
         if (data.session) {
           const session = upsertSession(data.session) || data.session;

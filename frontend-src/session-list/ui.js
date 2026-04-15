@@ -1350,7 +1350,15 @@ function renderArchivedSection() {
 
 function startRename(itemEl, session) {
   const nameEl = itemEl.querySelector(".session-item-name");
-  const current = session.name || session.tool || "";
+  // 对长期项目，用用户实际看到的名字作为初始值（可能来自 taskCard.goal 或 digest.title）
+  const hasPersistent = session?.persistent && typeof session.persistent === "object";
+  const current = hasPersistent
+    ? (typeof getPreferredSessionDisplayName === "function"
+        ? getPreferredSessionDisplayName(session)
+        : "")
+      || String(session?.persistent?.digest?.title || "").trim()
+      || session.name || session.tool || ""
+    : session.name || session.tool || "";
   const input = document.createElement("input");
   input.className = "session-rename-input";
   input.value = current;
@@ -1361,7 +1369,12 @@ function startRename(itemEl, session) {
   function commit() {
     const newName = input.value.trim();
     if (newName && newName !== current) {
-      dispatchAction({ action: "rename", sessionId: session.id, name: newName });
+      const action = { action: "rename", sessionId: session.id, name: newName };
+      // 长期项目同步更新 digest.title
+      if (hasPersistent) {
+        action.digestTitle = newName;
+      }
+      dispatchAction(action);
     } else {
       renderSessionList(); // revert
     }
