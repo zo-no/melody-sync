@@ -1618,10 +1618,6 @@ function syncSidebarTabUi() {
     sessionListFooter.hidden = false;
     sessionListFooter.classList.remove("hidden");
   }
-  if (sortSessionListBtn) {
-    sortSessionListBtn.hidden = true;
-    sortSessionListBtn.classList.add("hidden");
-  }
   if (newSessionBtn) {
     newSessionBtn.hidden = false;
     newSessionBtn.classList.remove("hidden");
@@ -2141,7 +2137,10 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
-      }).then(() => {
+      }).then((data) => {
+        if (data?.session && typeof upsertSession === "function") {
+          upsertSession(data.session);
+        }
         window.showLongTermProjectPanel?.(projectSession.id);
         if (typeof renderSessionList === "function") renderSessionList();
       }).catch(() => { revert(); });
