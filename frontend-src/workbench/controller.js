@@ -1441,15 +1441,6 @@
     return focusedSessionId;
   }
 
-  function getTaskMapMockPreset() {
-    try {
-      const url = new URL(String(window?.location?.href || ""));
-      return String(url.searchParams.get("taskMapMock") || "").trim();
-    } catch {
-      return "";
-    }
-  }
-
   function getTaskMapProjection() {
     const graphClient = getGraphClientApi();
     // When a long-term project is selected in the sidebar, use it as the map root
@@ -1488,9 +1479,6 @@
         currentSessionId: getCurrentSessionIdSafe(),
         focusedSessionId: getFocusedSessionId(),
       });
-    }
-    if (typeof window?.MelodySyncTaskMapModel?.applyTaskMapMockPreset === "function") {
-      return window.MelodySyncTaskMapModel.applyTaskMapMockPreset(projection, getTaskMapMockPreset());
     }
     return projection;
   }

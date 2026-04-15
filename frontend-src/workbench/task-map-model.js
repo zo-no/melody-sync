@@ -73,12 +73,6 @@
       || null;
   }
 
-  function getTaskMapMockPresetsApi() {
-    return globalThis?.MelodySyncTaskMapMockPresets
-      || globalThis?.window?.MelodySyncTaskMapMockPresets
-      || null;
-  }
-
   function getFallbackNodeKindEffect(kind) {
     switch (trimText(kind)) {
       case "main":
@@ -628,14 +622,9 @@
     };
   }
 
-  function applyTaskMapMockPreset(projection, preset) {
-    return getTaskMapMockPresetsApi()?.applyTaskMapMockPreset?.(projection, preset) || projection;
-  }
-
   window.MelodySyncTaskMapModel = {
     NODE_KIND_DEFINITIONS,
     NODE_KINDS,
     buildTaskMapProjection,
-    applyTaskMapMockPreset,
   };
 })();

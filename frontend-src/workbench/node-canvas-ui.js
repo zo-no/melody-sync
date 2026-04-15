@@ -12,11 +12,6 @@
     windowRef = window,
     onClose = null,
   } = {}) {
-    const richViewRenderer = windowRef?.MelodySyncWorkbenchNodeRichViewUi?.createRenderer?.({
-      documentRef,
-      windowRef,
-    }) || null;
-
     function trimText(value) {
       return typeof value === "string" ? value.trim() : "";
     }
@@ -193,7 +188,7 @@
     }
 
     function renderNode(node = null) {
-      if (!node || !hasCanvasView(node) || !richViewRenderer) {
+      if (!node || !hasCanvasView(node)) {
         clear();
         return false;
       }
@@ -205,10 +200,6 @@
       if (summaryEl) {
         summaryEl.hidden = !summary;
         summaryEl.textContent = summary;
-      }
-      if (bodyEl) {
-        clearBody();
-        bodyEl.appendChild(richViewRenderer.createRichViewSurface(node, resolveNodeView(node)));
       }
       setOpen(true);
       return true;
