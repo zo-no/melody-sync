@@ -2085,32 +2085,58 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
 
   if (action === "rename-title") {
     const shell = longTermWorkspaceDetail?.querySelector(".ltcp-shell");
-    const titleEl = shell?.querySelector(".ltcp-title");
-    if (!titleEl) return;
+    const titleRow = shell?.querySelector(".ltcp-title-row");
+    const titleEl = titleRow?.querySelector(".ltcp-title");
+    if (!titleEl || titleRow?.querySelector(".ltcp-title-input")) return; // already editing
     const currentName = String(projectSession?.persistent?.digest?.title || "").trim()
       || (typeof getPreferredSessionDisplayName === "function" ? getPreferredSessionDisplayName(projectSession) : "")
       || String(projectSession?.name || "").trim();
+
+    // Build inline edit row: [input] [确认] [取消]
+    const editRow = document.createElement("div");
+    editRow.className = "ltcp-title-edit-row";
+
     const input = document.createElement("input");
     input.className = "ltcp-title-input";
     input.value = currentName;
     input.setAttribute("aria-label", "项目名称");
-    titleEl.replaceWith(input);
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.className = "ltcp-title-confirm-btn";
+    confirmBtn.textContent = "确认";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "ltcp-title-cancel-btn";
+    cancelBtn.textContent = "取消";
+
+    editRow.appendChild(input);
+    editRow.appendChild(confirmBtn);
+    editRow.appendChild(cancelBtn);
+
+    // Replace the title-row content (keep edit btn hidden while editing)
+    titleRow.innerHTML = "";
+    titleRow.appendChild(editRow);
     input.focus();
     input.select();
-    function commitTitleRename() {
+
+    function revert() {
+      titleRow.innerHTML = `<h2 class="ltcp-title">${currentName}</h2>
+        <button class="ltcp-title-edit-btn" type="button"
+          data-project-action="rename-title" data-project-id="${projectId}"
+          title="重命名" aria-label="重命名">✎</button>`;
+    }
+
+    function commit() {
       const newName = input.value.trim();
-      if (!newName || newName === currentName) {
-        // revert
-        const h2 = document.createElement("h2");
-        h2.className = "ltcp-title";
-        h2.textContent = currentName;
-        input.replaceWith(h2);
-        return;
-      }
+      if (!newName || newName === currentName) { revert(); return; }
       const patch = { name: newName };
       if (projectSession?.persistent?.kind) {
         patch.persistent = { digest: { title: newName } };
       }
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = "保存中…";
       void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -2118,23 +2144,14 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
       }).then(() => {
         window.showLongTermProjectPanel?.(projectSession.id);
         if (typeof renderSessionList === "function") renderSessionList();
-      }).catch(() => {
-        const h2 = document.createElement("h2");
-        h2.className = "ltcp-title";
-        h2.textContent = currentName;
-        input.replaceWith(h2);
-      });
+      }).catch(() => { revert(); });
     }
-    input.addEventListener("blur", commitTitleRename);
+
+    confirmBtn.addEventListener("click", commit);
+    cancelBtn.addEventListener("click", revert);
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
-      if (e.key === "Escape") {
-        input.removeEventListener("blur", commitTitleRename);
-        const h2 = document.createElement("h2");
-        h2.className = "ltcp-title";
-        h2.textContent = currentName;
-        input.replaceWith(h2);
-      }
+      if (e.key === "Enter") { e.preventDefault(); commit(); }
+      if (e.key === "Escape") { revert(); }
     });
     return;
   }

@@ -7612,6 +7612,12 @@ body.long-term-workspace-active .task-manager-main-column {
   color: var(--text);
   background: var(--bg-tertiary);
 }
+.ltcp-title-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
 .ltcp-title-input {
   font-size: 22px;
   font-weight: 700;
@@ -7623,8 +7629,42 @@ body.long-term-workspace-active .task-manager-main-column {
   border-bottom: 2px solid var(--accent);
   background: transparent;
   outline: none;
-  width: 100%;
+  flex: 1 1 0;
+  min-width: 0;
   font-family: inherit;
+}
+.ltcp-title-confirm-btn,
+.ltcp-title-cancel-btn {
+  appearance: none;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.ltcp-title-confirm-btn {
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-secondary));
+  color: color-mix(in srgb, var(--accent) 90%, var(--text));
+}
+.ltcp-title-confirm-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-secondary));
+}
+.ltcp-title-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.ltcp-title-cancel-btn {
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+.ltcp-title-cancel-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text);
 }
 .ltcp-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 .ltcp-chip {
