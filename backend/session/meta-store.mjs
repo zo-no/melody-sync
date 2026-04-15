@@ -128,7 +128,7 @@ function normalizeStoredSessionMeta(meta) {
   const normalized = { ...meta };
   let changed = false;
 
-  for (const legacyField of ['activeRun', 'status', 'queuedMessageCount', 'pendingCompact', 'renameState', 'renameError', 'recoverable', 'appId', 'appName', 'userId', 'userName', 'forkedAt', 'resumeState', 'manualGroup', '_restoredFromHistory', 'title', 'state', 'createdAt']) {
+  for (const legacyField of ['activeRun', 'status', 'queuedMessageCount', 'pendingCompact', 'renameState', 'renameError', 'recoverable', 'appId', 'appName', 'userId', 'userName', 'forkedAt', 'resumeState', 'manualGroup', '_restoredFromHistory', 'title', 'state', 'createdAt', 'messageCount']) {
     if (Object.prototype.hasOwnProperty.call(normalized, legacyField)) {
       delete normalized[legacyField];
       changed = true;
