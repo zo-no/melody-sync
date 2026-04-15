@@ -1349,7 +1349,12 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
     <div class="ltcp-shell">
       <div class="ltcp-header">
         <div class="ltcp-header-main">
-          <h2 class="ltcp-title">${title}</h2>
+          <div class="ltcp-title-row">
+            <h2 class="ltcp-title">${title}</h2>
+            ${!isSystemProject ? `<button class="ltcp-title-edit-btn" type="button"
+              data-project-action="rename-title" data-project-id="${projectId}"
+              title="重命名" aria-label="重命名">✎</button>` : ""}
+          </div>
           <div class="ltcp-meta">
             ${schedule ? `<span class="ltcp-chip">${schedule}</span>` : ""}
             <span class="ltcp-chip ltcp-chip-status">${status}</span>
@@ -2074,6 +2079,62 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
       const projects = getLongTermWorkspaceProjects();
       renderLongTermWorkspaceDetail(projects, selectedLongTermProjectId);
       if (typeof renderSessionList === "function") renderSessionList();
+    });
+    return;
+  }
+
+  if (action === "rename-title") {
+    const shell = longTermWorkspaceDetail?.querySelector(".ltcp-shell");
+    const titleEl = shell?.querySelector(".ltcp-title");
+    if (!titleEl) return;
+    const currentName = String(projectSession?.persistent?.digest?.title || "").trim()
+      || (typeof getPreferredSessionDisplayName === "function" ? getPreferredSessionDisplayName(projectSession) : "")
+      || String(projectSession?.name || "").trim();
+    const input = document.createElement("input");
+    input.className = "ltcp-title-input";
+    input.value = currentName;
+    input.setAttribute("aria-label", "项目名称");
+    titleEl.replaceWith(input);
+    input.focus();
+    input.select();
+    function commitTitleRename() {
+      const newName = input.value.trim();
+      if (!newName || newName === currentName) {
+        // revert
+        const h2 = document.createElement("h2");
+        h2.className = "ltcp-title";
+        h2.textContent = currentName;
+        input.replaceWith(h2);
+        return;
+      }
+      const patch = { name: newName };
+      if (projectSession?.persistent?.kind) {
+        patch.persistent = { digest: { title: newName } };
+      }
+      void fetchJsonOrRedirect(`/api/sessions/${encodeURIComponent(projectSession.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      }).then(() => {
+        window.showLongTermProjectPanel?.(projectSession.id);
+        if (typeof renderSessionList === "function") renderSessionList();
+      }).catch(() => {
+        const h2 = document.createElement("h2");
+        h2.className = "ltcp-title";
+        h2.textContent = currentName;
+        input.replaceWith(h2);
+      });
+    }
+    input.addEventListener("blur", commitTitleRename);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      if (e.key === "Escape") {
+        input.removeEventListener("blur", commitTitleRename);
+        const h2 = document.createElement("h2");
+        h2.className = "ltcp-title";
+        h2.textContent = currentName;
+        input.replaceWith(h2);
+      }
     });
     return;
   }
