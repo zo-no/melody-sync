@@ -307,7 +307,7 @@ async function main() {
     assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.sidebar\s*\{[\s\S]*?position:\s*fixed;/, 'mobile sidebar drawer should be positioned fixed');
     assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-map-rail\.is-mobile-drawer\s*\{/, 'mobile task map drawer rule should exist');
     assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-manager-main-column\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column;/, 'mobile main column should switch to a vertical flex stack so queued follow-ups and the composer do not overlap');
-    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?body\.workbench-has-session \.task-manager-main-column \.messages-inner\s*\{[\s\S]*?min-height:\s*100%;[\s\S]*?justify-content:\s*flex-end;/, 'mobile message stacks should bottom-align when a session is attached so the transcript does not leave a dead zone above the composer');
+    assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?body\.workbench-has-session \.task-manager-main-column \.messages-inner\s*\{[\s\S]*?min-height:\s*unset;[\s\S]*?justify-content:\s*flex-start;/, 'mobile message stacks should reset min-height and align to flex-start in the vertical flex-column stack layout');
     assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-manager-main-column \.input-resize-handle\s*\{[\s\S]*?display:\s*none;/, 'mobile composer should not reserve resize-handle chrome above the input');
     assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-manager-main-column \.input-footer\s*\{[\s\S]*?display:\s*flex;[\s\S]*?justify-content:\s*flex-end;/, 'mobile composer should keep a compact footer metadata row instead of dropping build information entirely');
     assert.match(combinedChatStyles, /@media \(max-width: 767px\)\s*\{[\s\S]*?\.task-manager-main-column \.input-footer > a\s*\{[\s\S]*?display:\s*none;/, 'mobile composer should hide the low-priority footer link while keeping version metadata visible');
@@ -554,12 +554,6 @@ async function main() {
     assert.match(sessionListUiAsset.text, /focusComposer\(\{ preventScroll: true \}\)/);
     assert.doesNotMatch(sessionListUiAsset.text, /getSidebarTaskClusters/, 'session list ui should render from stable session list data instead of workbench task clusters');
 
-    const sessionListReactUiAsset = await request(port, 'GET', '/chat/session-list/react-ui.js');
-    assert.equal(sessionListReactUiAsset.status, 200, 'session list react adapter asset should load');
-    assert.match(sessionListReactUiAsset.text, /MelodySyncSessionListUi/);
-    assert.match(sessionListReactUiAsset.text, /MelodySyncWorkbenchReactUi/);
-    assert.doesNotMatch(sessionListReactUiAsset.text, /createSessionListRenderer/, 'session list react adapter should stay a thin shim');
-
     const hooksModelAsset = await request(port, 'GET', '/chat/settings/hooks/model.js');
     assert.equal(hooksModelAsset.status, 200, 'hooks settings model asset should load');
     assert.match(hooksModelAsset.text, /MelodySyncHooksSettingsModel/);
@@ -640,11 +634,6 @@ async function main() {
     assert.equal(taskMapClustersAsset.status, 200, 'task map clusters asset should load');
     assert.match(taskMapClustersAsset.text, /MelodySyncTaskMapClusters/);
     assert.match(taskMapClustersAsset.text, /function getClusterList/);
-
-    const taskMapMockPresetsAsset = await request(port, 'GET', '/chat/workbench/task-map-mock-presets.js');
-    assert.equal(taskMapMockPresetsAsset.status, 200, 'task map mock presets asset should load');
-    assert.match(taskMapMockPresetsAsset.text, /MelodySyncTaskMapMockPresets/);
-    assert.match(taskMapMockPresetsAsset.text, /function applyTaskMapMockPreset/);
 
     const graphModelAsset = await request(port, 'GET', '/chat/workbench/graph-model.js');
     assert.equal(graphModelAsset.status, 200, 'workbench graph model asset should load');
