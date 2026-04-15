@@ -8,6 +8,21 @@ const home = mkdtempSync(join(tmpdir(), 'melodysync-runtime-policy-'));
 const personalCodexHome = join(home, '.codex');
 mkdirSync(personalCodexHome, { recursive: true });
 writeFileSync(join(personalCodexHome, 'auth.json'), '{"token":"test"}\n', 'utf8');
+writeFileSync(join(personalCodexHome, 'config.toml'), [
+  'model = "gpt-5.4"',
+  'model_provider = "custom"',
+  'approval_policy = "never"',
+  '',
+  '[model_providers.custom]',
+  'name = "custom"',
+  'base_url = "https://custom.example/api/v1"',
+  'wire_api = "responses"',
+  'requires_openai_auth = true',
+  '',
+  '[mcp_servers.private]',
+  'command = "private-mcp"',
+  '',
+].join('\n'), 'utf8');
 
 process.env.HOME = home;
 
@@ -25,10 +40,31 @@ try {
     authSource: join(personalCodexHome, 'auth.json'),
   });
   assert.equal(resolvedManagedHome, managedHome, 'managed Codex home should resolve to the requested directory');
+  const managedConfig = readFileSync(join(managedHome, 'config.toml'), 'utf8');
   assert.match(
-    readFileSync(join(managedHome, 'config.toml'), 'utf8'),
+    managedConfig,
     /MelodySync-managed Codex runtime home/,
     'managed Codex home should carry a minimal manager-owned config',
+  );
+  assert.match(
+    managedConfig,
+    /model_provider = "custom"/,
+    'managed Codex home should inherit the selected model provider',
+  );
+  assert.match(
+    managedConfig,
+    /\[model_providers\.custom\]/,
+    'managed Codex home should inherit model provider routing details',
+  );
+  assert.match(
+    managedConfig,
+    /base_url = "https:\/\/custom\.example\/api\/v1"/,
+    'managed Codex home should inherit custom provider base_url',
+  );
+  assert.doesNotMatch(
+    managedConfig,
+    /\[mcp_servers\.private\]/,
+    'managed Codex home should not copy personal MCP server config',
   );
   const authStat = lstatSync(join(managedHome, 'auth.json'));
   assert.ok(authStat.isSymbolicLink() || authStat.isFile(), 'managed Codex home should expose auth.json');
