@@ -113,8 +113,6 @@ export function createSessionBranchingService({
       sourceName: source.sourceName || '',
       systemPrompt: source.systemPrompt || '',
       activeAgreements: source.activeAgreements || [],
-      userId: source.userId || '',
-      userName: source.userName || '',
       forkedFromSessionId: source.id,
       forkedFromSeq: source.latestSeq || 0,
       rootSessionId: source.rootSessionId || source.id,
@@ -179,8 +177,6 @@ export function createSessionBranchingService({
       model: inheritRuntimePreferences ? source.model || '' : '',
       effort: inheritRuntimePreferences ? source.effort || '' : '',
       thinking: inheritRuntimePreferences && source.thinking === true,
-      userId: source.userId || '',
-      userName: source.userName || '',
       sourceContext: {
         kind: 'delegate_session',
         parentSessionId: source.id,

@@ -160,10 +160,6 @@ import { createSessionFollowUpQueueService } from '../services/session/follow-up
 import { createResultAssetPublicationService } from '../services/session/result-asset-publication-service.mjs';
 import { createSessionTaskCardService } from '../services/session/task-card-service.mjs';
 import { createSessionWorkflowRuntimeService } from '../services/session/workflow-runtime-service.mjs';
-import {
-  normalizeSessionSourceName,
-  normalizeSessionUserName,
-} from '../session-source/meta-fields.mjs';
 import { publishLocalFileAssetFromPath } from '../file-assets.mjs';
 import { statOrNull } from '../fs-utils.mjs';
 import {

@@ -319,8 +319,6 @@ export function createSessionPersistentService({
       description: checkpointSummary || session.description || '',
       sourceId: session.sourceId || '',
       sourceName: session.sourceName || '',
-      userId: session.userId || '',
-      userName: session.userName || '',
       systemPrompt: session.systemPrompt || '',
       activeAgreements: session.activeAgreements || [],
       model: session.model || '',

@@ -86,8 +86,6 @@ export async function createSessionForHttp(payload = {}) {
     folder,
     tool,
     name,
-    userId,
-    userName,
     sourceId,
     sourceName,
     group,
@@ -113,8 +111,6 @@ export async function createSessionForHttp(payload = {}) {
     throw error;
   }
   const createOptions = {
-    userId: typeof userId === 'string' ? userId : '',
-    userName: typeof userName === 'string' ? userName : '',
     sourceId: typeof sourceId === 'string' ? sourceId : '',
     sourceName: typeof sourceName === 'string' ? sourceName : '',
     group: (typeof group === 'string' && group.trim()) ? group : '',

@@ -578,8 +578,6 @@ function normalizeSessionRecord(session, previous = null) {
     ? session.activity.queue.count
     : 0;
   const normalized = { ...session };
-  delete normalized.appId;
-  delete normalized.appName;
   if (!Object.prototype.hasOwnProperty.call(session || {}, "queuedMessages")) {
     if (queueCount > 0 && Array.isArray(previous?.queuedMessages)) {
       normalized.queuedMessages = previous.queuedMessages;

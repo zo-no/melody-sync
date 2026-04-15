@@ -49,12 +49,8 @@ export async function createSessionWithDeps({
   const normalizedFolder = folder;
   const externalTriggerId = typeof extra.externalTriggerId === 'string' ? extra.externalTriggerId.trim() : '';
   const {
-    requestedAppId,
-    requestedAppName,
     requestedSourceId,
     requestedSourceName,
-    requestedUserId,
-    requestedUserName,
   } = normalizeSessionCompatInput(extra);
   const requestedGroup = normalizeSessionGroup(extra.group || '');
   const requestedDescription = normalizeSessionDescription(extra.description || '');
@@ -177,16 +173,6 @@ export async function createSessionWithDeps({
           changed = true;
         }
 
-        if (requestedUserId && updated.userId !== requestedUserId) {
-          updated.userId = requestedUserId;
-          changed = true;
-        }
-
-        if (requestedUserName && updated.userName !== requestedUserName) {
-          updated.userName = requestedUserName;
-          changed = true;
-        }
-
         if (hasRequestedSystemPrompt && (updated.systemPrompt || '') !== requestedSystemPrompt) {
           if (requestedSystemPrompt) updated.systemPrompt = requestedSystemPrompt;
           else delete updated.systemPrompt;
@@ -235,28 +221,16 @@ export async function createSessionWithDeps({
         }
 
         const beforeCompat = JSON.stringify({
-          appId: updated.appId || '',
-          appName: updated.appName || '',
           sourceId: updated.sourceId || '',
           sourceName: updated.sourceName || '',
-          userId: updated.userId || '',
-          userName: updated.userName || '',
         });
         applySessionCompatFields(updated, {
-          requestedAppId,
-          requestedAppName,
           requestedSourceId,
           requestedSourceName,
-          requestedUserId,
-          requestedUserName,
         });
         if (JSON.stringify({
-          appId: updated.appId || '',
-          appName: updated.appName || '',
           sourceId: updated.sourceId || '',
           sourceName: updated.sourceName || '',
-          userId: updated.userId || '',
-          userName: updated.userName || '',
         }) !== beforeCompat) {
           changed = true;
         }
@@ -290,12 +264,8 @@ export async function createSessionWithDeps({
       updatedAt: now,
     };
     applySessionCompatFields(session, {
-      requestedAppId,
-      requestedAppName,
       requestedSourceId,
       requestedSourceName,
-      requestedUserId,
-      requestedUserName,
     });
 
     const inferredPersistentGroup = getPersistentSessionGroup(normalizedPersistent?.kind || '');
