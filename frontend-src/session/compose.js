@@ -1357,6 +1357,9 @@ function renderLongTermWorkspaceDetail(projects = [], selectedProjectId = "") {
         </div>
         <div class="ltcp-header-actions">
           ${isSystemProject ? `<span class="ltcp-badge-builtin">${t("longTerm.builtinBadge")}</span>` : ""}
+          ${!isSystemProject && persistent?.kind ? `<button class="ltcp-action-btn ltcp-action-btn-secondary" type="button"
+            data-project-action="configure" data-project-id="${projectId}"
+            title="${t('action.configure') || '编辑配置'}">${t("action.configure") || "编辑配置"}</button>` : ""}
           <button class="ltcp-action-btn ltcp-action-btn-secondary" type="button"
             data-project-action="cleanup" data-project-id="${projectId}"
             title="${t('action.cleanup')}">${t("action.cleanup")}</button>
@@ -2079,7 +2082,7 @@ longTermWorkspaceDetail?.addEventListener("click", async (event) => {
     attachSession(projectSession.id, projectSession);
     window.MelodySyncWorkbench?.openPersistentEditor?.({
       mode: "configure",
-      kind: "recurring_task",
+      kind: String(projectSession?.persistent?.kind || "recurring_task"),
     });
     return;
   }
