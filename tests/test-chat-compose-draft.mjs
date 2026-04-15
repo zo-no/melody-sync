@@ -260,7 +260,6 @@ function createContext({
     tabLongTerm: makeEventTarget(),
     tabSettings: makeEventTarget(),
     sessionListFooter: makeEventTarget(),
-    sortSessionListBtn: makeEventTarget(),
     newSessionBtn: makeEventTarget(),
     sidebarGroupingToolbar: makeEventTarget(),
     settingsPanel: {

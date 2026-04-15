@@ -260,7 +260,6 @@ function createContext() {
     tabSessions: createDomElement('button'),
     tabLongTerm: createDomElement('button'),
     sessionListFooter: createDomElement('div'),
-    sortSessionListBtn: createDomElement('button'),
     newSessionBtn: createDomElement('button'),
     sessionList: createDomElement('div'),
     sidebarOverlay: createDomElement('div'),

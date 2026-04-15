@@ -2527,9 +2527,6 @@ button.quest-task-flow-node {
     font-size: 11px;
   }
 
-  .quest-task-flow-node-rich-frame {
-    min-height: 160px;
-  }
 }
 
 /* ---- MelodySync flat task bar + infinite canvas ---- */
@@ -2674,14 +2671,6 @@ button.quest-task-flow-node {
 .quest-task-flow-node-rich-markdown > :last-child,
 .quest-task-flow-node-rich-html > :last-child {
   margin-bottom: 0;
-}
-
-.quest-task-flow-node-rich-frame {
-  display: block;
-  width: 100%;
-  min-height: 144px;
-  border: 0;
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
 }
 
 .quest-tracker {
