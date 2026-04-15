@@ -49,63 +49,86 @@
 
 **持久化位置：** `sessions/sessions.db`（SQLite，`data` 列存完整 JSON）
 
+> 字段按**维护层**分组，每个字段标注写入来源。
+> `[U]` = 用户操作触发  `[R]` = Run 生命周期触发  `[S]` = 调度器/系统触发  `[C]` = 创建时写入
+
 ### 完整字段
 
 ```
 Session {
-  ── 身份 ─────────────────────────────────────────────────────
-  id              string          'sess_' + 24位 hex，不可变
-  name            string          用户可见标题
-  builtinName?    string          内置任务专用，如 'daily-tasks'
-  ordinal         number          侧边栏排序序号，正整数，全局唯一
 
-  ── 生命周期 ──────────────────────────────────────────────────
-  created         ISO8601         创建时间
-  updatedAt       ISO8601         最后更新时间
-  workflowState   WorkflowState   见下方枚举
-  archived?       true            存在且为 true = 已归档
+  ── 身份（创建时写入，之后不变） ─────────────────────────────
+  id              string    [C]  'sess_' + 24位 hex，不可变
+  created         ISO8601   [C]  创建时间
+  ordinal         number    [C]  侧边栏全局排序序号，正整数，唯一
+  builtinName?    string    [C]  内置任务专用（'daily-tasks' 等）
 
-  ── 组织 ──────────────────────────────────────────────────────
-  folder          string          侧边栏文件夹路径，默认 '~'
-  group?          string          分组标签，≤32 字符
-  description?    string          一句话描述，≤160 字符
-  sidebarOrder?   number          组内手动排序（正整数）
-  pinned?         true            置顶
-  manualGroup?    string          用户手动指定分组，≤32 字符
+  ── 用户可编辑的展示字段 ──────────────────────────────────────
+  name            string    [U]  用户可见标题
+  autoRenamePending? true   [U]  存在且为 true = 等待 AI 自动生成标题
+  folder          string    [U]  侧边栏文件夹路径，默认 '~'
+  group?          string    [U]  分组标签，≤32 字符
+  description?    string    [U]  一句话描述，≤160 字符
+  sidebarOrder?   number    [U]  组内手动排序（正整数）
+  pinned?         true      [U]  置顶（archived 时不可设）
+  archived?       true      [U]  存在且为 true = 已归档
+  archivedAt?     ISO8601   [U]  归档时间（与 archived 联动）
+  lastReviewedAt? ISO8601   [U]  用户最后标记为已读的时间
+  activeAgreements? string[] [U] 工作协议，≤6 条，每条 ≤240 字符
 
-  ── 运行时偏好 ────────────────────────────────────────────────
-  tool?           string          'claude' | 'codex' 等
-  model?          string          模型 ID
-  effort?         string          'low' | 'medium' | 'high'
-  thinking?       boolean         是否启用扩展思考
+  ── 运行时偏好（用户可配置） ──────────────────────────────────
+  tool?           string    [U]  'claude' | 'codex' 等
+  model?          string    [U]  模型 ID
+  effort?         string    [U]  'low' | 'medium' | 'high'
+  thinking?       boolean   [U]  是否启用扩展思考
+  systemPrompt?   string    [U]  自定义系统提示
 
-  ── 运行状态（瞬态，不写磁盘） ────────────────────────────────
-  activeRunId?    string          当前活跃 run 的 ID
-  followUpQueue?  FollowUpEntry[] 排队中的跟进消息
+  ── 工作流状态 ────────────────────────────────────────────────
+  workflowState?  WorkflowState  [U/S]  见下方枚举
+  workflowPriority? WorkflowPriority [U] 见下方枚举
+  workflowCompletedAt? ISO8601  [U/S]  workflowState→done 时写入，清除时删除
+  suppressedBranchTitles? string[] [U]  用户手动压制的分支候选标题列表
 
-  ── 子对象 ────────────────────────────────────────────────────
-  taskCard?           TaskCard              见 L1b
-  persistent?         PersistentConfig      见 L1c
-  taskPoolMembership? TaskPoolMembership    见 L1d
-  activeAgreements?   string[]             工作协议，≤6 条，每条 ≤240 字符
+  ── Run 生命周期状态（跨重启恢复用） ─────────────────────────
+  activeRunId?      string    [R]  当前活跃 run 的 ID
+  followUpQueue?    FollowUpEntry[]  [R]  排队中的跟进消息
+  recentFollowUpRequestIds? string[] [R]  最近跟进请求 ID（去重用）
+  claudeSessionId?  string    [R]  Claude provider 的会话 ID（resume 用）
+  codexThreadId?    string    [R]  Codex provider 的 thread ID（resume 用）
+  compactionSessionId? string [R]  正在压缩此 session 的 compactor session ID
 
-  ── 可见性（派生，不直接存储） ───────────────────────────────
-  taskListOrigin?     'user'|'assistant'|'system'
-  taskListVisibility? 'primary'|'secondary'|'hidden'
+  ── 工作流监控信号（workbench 指标用） ───────────────────────
+  workflowSignals?  WorkflowSignals  [R]  见下方结构
 
-  ── Fork 血缘 ─────────────────────────────────────────────────
-  forkedFromSessionId? string
-  forkedFromSeq?       number
-  rootSessionId?       string
+  ── 任务结构子对象 ────────────────────────────────────────────
+  taskCard?             TaskCard          [R/U]  见 L1b
+  taskCardManagedBindings? string[]       [R]    taskCard 中由系统管理的字段名列表
+  sessionState?         SessionState      [R]    见 L1e
+  persistent?           PersistentConfig  [S/U]  见 L1c
+  taskPoolMembership?   TaskPoolMembership [C/U] 见 L1d
 
-  ── 来源元数据（连接器用） ────────────────────────────────────
-  sourceId?           string
-  sourceName?         string
-  externalTriggerId?  string
+  ── 可见性分类（创建时写入，偶尔更新） ───────────────────────
+  taskListOrigin?     'user'|'assistant'|'system'  [C]
+  taskListVisibility? 'primary'|'secondary'|'hidden' [C]
 
-  ── 兼容性字段（历史遗留，非产品表面） ───────────────────────
-  appId?    string
-  appName?  string
+  ── Fork 血缘（创建时写入，不变） ────────────────────────────
+  forkedFromSessionId? string    [C]  fork 来源 session ID
+  forkedFromSeq?       number    [C]  fork 时来源 session 的最新 seq
+  rootSessionId?       string    [C]  整个 fork 树的根 session ID
+
+  ── 来源元数据（连接器写入，创建时） ─────────────────────────
+  sourceId?           string    [C]  连接器标识（'email'|'voice'|'github' 等）
+  sourceName?         string    [C]  连接器显示名称
+  externalTriggerId?  string    [C]  外部触发 ID（email thread ID 等，用于去重）
+  sourceContext?      object    [C/S]  来源上下文（parentSessionId、nodeId 等）
+  completionTargets?  CompletionTarget[]  [C]  任务完成后的邮件通知目标
+
+  ── 系统内部字段（创建时写入，不对外） ───────────────────────
+  internalRole?       string    [C]  内部 session 标记，见下方枚举
+  compactsSessionId?  string    [C]  此 session 是哪个 session 的 compactor
+
+  ── 时间戳（各层更新） ───────────────────────────────────────
+  updatedAt           ISO8601   [*]  最后任意字段更新时间
 }
 ```
 
@@ -121,6 +144,9 @@ Session {
   pause / parked / backlog / todo    → 'paused'
   waiting / waiting_for_user / ...   → 'waiting_user'
   complete / completed / finished    → 'done'
+
+注意：persistent 任务的 done 是临时态，调度器下次触发前会清除。
+      普通 session 的 done 是终态。
 ```
 
 ### WorkflowPriority 枚举
@@ -130,6 +156,77 @@ Session {
 'medium' → normal / default / soon / p2
 'low'    → later / backlog / deferred / p3
 ''       → 未设置
+```
+
+### InternalRole 枚举
+
+```
+'agent_delegate'      → AI 委托的子 session（由 branching-service 写入）
+'context_compactor'   → 上下文压缩专用 session（由 compaction-service 写入）
+'session_list_organizer' → session 列表整理 session（由 organizer 写入）
+
+internalRole 存在 → taskListOrigin='system', taskListVisibility='hidden'
+```
+
+### WorkflowSignals 结构
+
+```
+WorkflowSignals {
+  repeatedClarificationCount?  number   AI 反复要求澄清的次数
+  lastRepeatedClarificationAt? ISO8601  最后一次反复澄清的时间
+  lastRepeatedClarificationSignal? string  触发信号内容
+  lastFailureReason?           string   最后一次失败原因
+  branchDispatch?: {
+    attempts:        number   总尝试次数
+    successes:       number   成功次数
+    failures:        number   失败次数
+    dayStart:        ISO8601  当天统计起始时间
+    dayAttempts:     number   当天尝试次数
+    daySuccesses:    number   当天成功次数
+    dayFailures:     number   当天失败次数
+    lastAttemptAt:   ISO8601 | ''
+    lastSuccessAt:   ISO8601 | ''
+    lastFailureAt:   ISO8601 | ''
+    lastOutcomeAt:   ISO8601 | ''
+    lastFailureReason: string
+    lastOutcome:     'success' | 'failure' | ''
+    lastBranchTitle: string
+    lastAttemptSource: string
+  }
+}
+
+写入来源：
+  repeatedClarification* → finalization.mjs（run 完成后检测反复澄清模式）
+  branchDispatch         → branch-dispatch-signals.mjs（分支派发时记录）
+读取方：output-metrics-service（workbench 指标）、read-routes（output panel API）
+```
+
+### CompletionTarget 结构
+
+```
+CompletionTarget {
+  id:        string   目标 ID
+  type:      'email'  目标类型（当前只有 email）
+  requestId: string   关联的请求 ID
+  to:        string   收件人地址
+}
+
+写入来源：creation-service（创建 session 时传入）
+读取方：email-completion-hook（run 完成后触发邮件通知）
+```
+
+### FollowUpEntry 结构
+
+```
+FollowUpEntry {
+  requestId:  string   跟进请求 ID（去重用）
+  text:       string   跟进消息文本
+  attachments?: any[]  附件
+  queuedAt:   ISO8601  入队时间
+}
+
+写入来源：message-submission-service（session 忙时入队）
+读取方：follow-up-queue-service（run 完成后自动重放）
 ```
 
 ### 可见性规则（派生，不存储）

@@ -168,71 +168,82 @@ CREATE TABLE sessions (
 - `idx_sessions_pinned`：`(pinned DESC, updated_at DESC)` — 置顶排序
 - `idx_sessions_external_trigger`：`(external_trigger_id)` — 连接器路由
 
-**Session 对象完整字段：**
+**Session 对象完整字段（见 `docs/data-structures.md` L1 章节获取完整定义和维护层标注）：**
 
 ```js
 {
-  // ── 身份 ──────────────────────────────────────────
-  id: string,                      // 'sess_' + hex，不可变
-  name: string,                    // 用户可见标题
-  builtinName?: string,            // 内置任务专用（'daily-tasks' 等）
-  ordinal: number,                 // 侧边栏排序序号（正整数，唯一）
+  // ── 身份（创建时写入，不变） ───────────────────────
+  id: string,          // 'sess_' + hex，不可变
+  created: ISO,        // 创建时间
+  ordinal: number,     // 侧边栏全局排序序号
+  builtinName?: string,
 
-  // ── 生命周期 ───────────────────────────────────────
-  created: ISO,                    // 创建时间
-  updatedAt: ISO,                  // 最后更新时间
-  workflowState: '' | 'parked' | 'waiting_user' | 'done',
-  archived?: true,                 // 存在且为 true = 已归档
-
-  // ── 组织 ───────────────────────────────────────────
-  folder: string,                  // 侧边栏文件夹路径，默认 '~'
-  group?: string,                  // 分组标签
-  description?: string,            // 一句话描述
-  sidebarOrder?: number,           // 组内手动排序
-  pinned?: true,                   // 置顶
-  manualGroup?: string,            // 用户手动指定的分组
+  // ── 用户可编辑展示字段 ─────────────────────────────
+  name: string,
+  autoRenamePending?: true,
+  folder: string,      // 默认 '~'
+  group?: string,
+  description?: string,
+  sidebarOrder?: number,
+  pinned?: true,
+  archived?: true,
+  archivedAt?: ISO,
+  lastReviewedAt?: ISO,
+  activeAgreements?: string[],
 
   // ── 运行时偏好 ─────────────────────────────────────
-  tool?: string,                   // 'claude' | 'codex' 等
-  model?: string,                  // 模型 ID
-  effort?: string,                 // 'low' | 'medium' | 'high'
-  thinking?: boolean,              // 是否启用扩展思考
+  tool?: string,
+  model?: string,
+  effort?: string,
+  thinking?: boolean,
+  systemPrompt?: string,
 
-  // ── 运行状态 ───────────────────────────────────────
-  activeRunId?: string,            // 当前活跃 run 的 ID
-  followUpQueue?: FollowUpEntry[], // 排队中的跟进消息
+  // ── 工作流状态 ─────────────────────────────────────
+  workflowState?: '' | 'waiting_user' | 'done' | 'paused',
+  workflowPriority?: 'high' | 'medium' | 'low',
+  workflowCompletedAt?: ISO,
+  suppressedBranchTitles?: string[],
 
-  // ── 任务结构 ───────────────────────────────────────
-  taskCard?: TaskCard,             // AI 维护的任务卡（目标/检查点/结论）
-  taskListOrigin?: 'system',       // 系统内置项目标识
-  taskListVisibility?: 'primary',  // 始终显示在项目 Tab
-  taskPoolMembership?: {
-    longTerm: {
-      role: 'project' | 'member',
-      projectSessionId: string,
-      fixedNode: boolean,
-      bucket: 'long_term' | 'short_term' | 'waiting' | 'inbox' | 'skill'
-    }
-  },
+  // ── Run 生命周期状态 ───────────────────────────────
+  activeRunId?: string,
+  followUpQueue?: FollowUpEntry[],
+  recentFollowUpRequestIds?: string[],
+  claudeSessionId?: string,
+  codexThreadId?: string,
+  compactionSessionId?: string,
 
-  // ── 持久任务配置（仅 persistent 类型有） ───────────
-  persistent?: PersistentConfig,   // 见 task-system-design.md
+  // ── 工作流监控信号 ─────────────────────────────────
+  workflowSignals?: WorkflowSignals,
 
-  // ── Fork/分支血缘 ──────────────────────────────────
+  // ── 任务结构子对象 ─────────────────────────────────
+  taskCard?: TaskCard,
+  taskCardManagedBindings?: string[],
+  sessionState?: SessionState,
+  persistent?: PersistentConfig,
+  taskPoolMembership?: TaskPoolMembership,
+
+  // ── 可见性分类 ─────────────────────────────────────
+  taskListOrigin?: 'user' | 'assistant' | 'system',
+  taskListVisibility?: 'primary' | 'secondary' | 'hidden',
+
+  // ── Fork 血缘 ──────────────────────────────────────
   forkedFromSessionId?: string,
   forkedFromSeq?: number,
   rootSessionId?: string,
 
-  // ── 来源元数据（连接器用，不是产品表面） ───────────
+  // ── 来源元数据（连接器） ───────────────────────────
   sourceId?: string,
   sourceName?: string,
   externalTriggerId?: string,
+  sourceContext?: object,
+  completionTargets?: CompletionTarget[],
 
-  // ── 兼容性元数据（历史遗留，不是产品表面） ─────────
-  appId?: string,
-  appName?: string,
-  userId?: string,
-  userName?: string,
+  // ── 系统内部字段 ───────────────────────────────────
+  internalRole?: string,
+  compactsSessionId?: string,
+
+  // ── 时间戳 ─────────────────────────────────────────
+  updatedAt: ISO,
 }
 ```
 
