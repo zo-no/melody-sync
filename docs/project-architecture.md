@@ -238,7 +238,7 @@ MelodySync is now an owner-operated AI task workspace.
 Use the smallest entrypoint set that matches the change you want to make.
 
 - session/run behavior: `AGENTS.md`, `backend/session/README.md`, `backend/run/README.md`, `backend/session/manager.mjs`
-- persistence or storage layout: `docs/application-storage-architecture.md`, `lib/config.mjs`, `backend/session/meta-store.mjs`, `backend/run/store.mjs`
+- persistence or storage layout: `docs/data-storage-design.md` (authoritative per-domain design), `docs/application-storage-architecture.md` (value-model principles), `lib/config.mjs`, `backend/session/meta-store.mjs`, `backend/run/store.mjs`
 - routing and HTTP surfaces: `backend/router.mjs`, `backend/routes/`
 - hooks and settings: `backend/hooks/README.md`, `backend/settings/README.md`
 - workbench/task-map flows: `backend/workbench/index.mjs`, `frontend-src/workbench/`

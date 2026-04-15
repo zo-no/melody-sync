@@ -22,7 +22,7 @@ Treat the live context stack as a small working tree, not one flat prompt:
 - Stay in the current session by default when one clear goal still owns the work.
 - Use forked or delegated child sessions only when they materially improve context hygiene, parallel progress, or task tracking.
 - Do not look for or invent App templates, base sessions, public share flows, or scheduled triggers. Those product surfaces are removed from MelodySync.
-- Legacy `appId`, `appName`, or template-flavored metadata may still appear in stored data. Treat them as compatibility residue, not as active routing instructions.
+- Template-flavored metadata may still appear in stored data. Treat it as compatibility residue, not as active routing instructions.
 - When work splits into separate goals, keep each child session tightly scoped to one focused objective.
 - Do not force delegation for small, tightly coupled, or obviously sequential work.
 

@@ -193,7 +193,7 @@ Important files under the active instance root:
 ## Fast Path By Change Type
 
 - session or run semantics: start with [`backend/session/README.md`](backend/session/README.md), [`backend/run/README.md`](backend/run/README.md), then open [`backend/session/manager.mjs`](backend/session/manager.mjs)
-- storage and retention: read [`docs/application-storage-architecture.md`](docs/application-storage-architecture.md), then inspect [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs) and [`backend/run/store.mjs`](backend/run/store.mjs)
+- storage and retention: read [`docs/data-storage-design.md`](docs/data-storage-design.md) first (authoritative per-domain design), then [`docs/application-storage-architecture.md`](docs/application-storage-architecture.md) for value-model principles, then inspect [`backend/session/meta-store.mjs`](backend/session/meta-store.mjs) and [`backend/run/store.mjs`](backend/run/store.mjs)
 - HTTP or route changes: start at [`backend/controllers/http/authenticated-routes.mjs`](backend/controllers/http/authenticated-routes.mjs) — the route table is there; each `.use()` entry links to the handler file
 - hooks or settings: start at [`backend/hooks/README.md`](backend/hooks/README.md) or [`backend/settings/README.md`](backend/settings/README.md)
 - workbench changes: start at [`backend/workbench/index.mjs`](backend/workbench/index.mjs) and then the matching `frontend-src/workbench/` module
@@ -205,5 +205,6 @@ This keeps AI-assisted edits close to the real domain entrypoints and reduces dr
 1. [`README.md`](README.md) / [`README.zh.md`](README.zh.md)
 2. [`docs/current-features.md`](docs/current-features.md)
 3. [`docs/project-architecture.md`](docs/project-architecture.md)
-4. [`notes/current/core-domain-contract.md`](notes/current/core-domain-contract.md)
-5. [`notes/current/core-domain-implementation-mapping.md`](notes/current/core-domain-implementation-mapping.md)
+4. [`docs/data-storage-design.md`](docs/data-storage-design.md)
+5. [`notes/current/core-domain-contract.md`](notes/current/core-domain-contract.md)
+6. [`notes/current/core-domain-implementation-mapping.md`](notes/current/core-domain-implementation-mapping.md)

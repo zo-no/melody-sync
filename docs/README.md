@@ -19,8 +19,9 @@ When you need the current truth, start here:
 
 ### Architecture & Storage
 - `project-architecture.md` — runtime topology, core modules, main flows, persistence layout
-- `application-storage-architecture.md` — storage contract: canonical truth, operational state, projections, caches
-- `session-history-storage-layout.md` — physical layout target for `sessions/history/<sessionId>/`
+- `data-storage-design.md` — **authoritative per-domain storage design**: what each object stores, how, where, and for how long
+- `application-storage-architecture.md` — storage value-model principles: canonical/operational/projection/cache/diagnostic classification
+- `session-history-storage-layout.md` — physical layout target for `sessions/history/<sessionId>/` (segment migration plan)
 - `agent-filesystem-architecture.md` — repo/config/memory filesystem split for agent-facing storage
 
 ### Product
@@ -44,6 +45,7 @@ When you need the current truth, start here:
 |---|---|
 | Product positioning, user-visible workflow | `../README.md` + `../README.zh.md` |
 | Runtime topology, code map, persistence | `project-architecture.md` |
+| Storage schema, fields, retention policy | `data-storage-design.md` |
 | Shipped features | `current-features.md` |
 | Repo rules, protected surfaces | `../AGENTS.md` |
 | Domain objects, boundaries | `../notes/current/core-domain-contract.md` |
