@@ -23,7 +23,6 @@ export async function readSessionPatchRequest(req) {
   const hasEffortPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'effort');
   const hasThinkingPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'thinking');
   const hasGroupPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'group');
-  const hasManualGroupPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'manualGroup');
   const hasDescriptionPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'description');
   const hasSidebarOrderPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'sidebarOrder');
   const hasActiveAgreementsPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'activeAgreements');
@@ -39,7 +38,6 @@ export async function readSessionPatchRequest(req) {
   if (hasEffortPatch && typeof patch.effort !== 'string') throw badRequest('effort must be a string');
   if (hasThinkingPatch && typeof patch.thinking !== 'boolean') throw badRequest('thinking must be a boolean');
   if (hasGroupPatch && patch.group !== null && typeof patch.group !== 'string') throw badRequest('group must be a string or null');
-  if (hasManualGroupPatch && patch.manualGroup !== null && typeof patch.manualGroup !== 'string') throw badRequest('manualGroup must be a string or null');
   if (hasDescriptionPatch && patch.description !== null && typeof patch.description !== 'string') throw badRequest('description must be a string or null');
   if (hasSidebarOrderPatch && patch.sidebarOrder !== null && (!Number.isInteger(patch.sidebarOrder) || patch.sidebarOrder < 1)) {
     throw badRequest('sidebarOrder must be a positive integer or null');

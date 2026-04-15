@@ -230,18 +230,6 @@ export function createSessionMetadataMutationService({
           changed = true;
         }
       }
-      if (Object.prototype.hasOwnProperty.call(patch, 'manualGroup')) {
-        const nextManualGroup = normalizeSessionGroup(patch.manualGroup || '');
-        if (nextManualGroup) {
-          if (session.manualGroup !== nextManualGroup) {
-            session.manualGroup = nextManualGroup;
-            changed = true;
-          }
-        } else if (session.manualGroup) {
-          delete session.manualGroup;
-          changed = true;
-        }
-      }
       if (Object.prototype.hasOwnProperty.call(patch, 'sidebarOrder')) {
         const nextSidebarOrder = normalizeSessionSidebarOrder(patch.sidebarOrder);
         if (nextSidebarOrder) {

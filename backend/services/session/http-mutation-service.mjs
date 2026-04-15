@@ -24,7 +24,6 @@ export async function applySessionHttpPatch(sessionId, patch = {}) {
   const hasEffortPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'effort');
   const hasThinkingPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'thinking');
   const hasGroupPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'group');
-  const hasManualGroupPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'manualGroup');
   const hasDescriptionPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'description');
   const hasSidebarOrderPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'sidebarOrder');
   const hasActiveAgreementsPatch = Object.prototype.hasOwnProperty.call(patch || {}, 'activeAgreements');
@@ -44,10 +43,9 @@ export async function applySessionHttpPatch(sessionId, patch = {}) {
   if (hasPinnedPatch) {
     session = await setSessionPinned(sessionId, patch.pinned) || session;
   }
-  if (hasGroupPatch || hasManualGroupPatch || hasDescriptionPatch || hasSidebarOrderPatch) {
+  if (hasGroupPatch || hasDescriptionPatch || hasSidebarOrderPatch) {
     session = await updateSessionGrouping(sessionId, {
       ...(hasGroupPatch ? { group: patch.group ?? '' } : {}),
-      ...(hasManualGroupPatch ? { manualGroup: patch.manualGroup ?? '' } : {}),
       ...(hasDescriptionPatch ? { description: patch.description ?? '' } : {}),
       ...(hasSidebarOrderPatch ? { sidebarOrder: patch.sidebarOrder ?? null } : {}),
     }) || session;

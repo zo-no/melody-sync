@@ -538,7 +538,6 @@ export function createSessionPersistentService({
       }
       delete draft.forkedFromSessionId;
       delete draft.forkedFromSeq;
-      delete draft.forkedAt;
       draft.updatedAt = nowIso();
       return true;
     });

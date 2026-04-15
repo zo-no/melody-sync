@@ -116,7 +116,6 @@ export function createSessionBranchingService({
       forkedFromSessionId: source.id,
       forkedFromSeq: source.latestSeq || 0,
       rootSessionId: source.rootSessionId || source.id,
-      forkedAt: nowIso(),
       taskListOrigin: 'user',
       taskListVisibility: 'secondary',
     });

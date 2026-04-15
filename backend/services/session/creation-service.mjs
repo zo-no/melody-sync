@@ -287,7 +287,6 @@ export async function createSessionWithDeps({
     if (extra.forkedFromSessionId) session.forkedFromSessionId = extra.forkedFromSessionId;
     if (Number.isInteger(extra.forkedFromSeq)) session.forkedFromSeq = extra.forkedFromSeq;
     if (extra.rootSessionId) session.rootSessionId = extra.rootSessionId;
-    if (extra.forkedAt) session.forkedAt = extra.forkedAt;
     if (completionTargets.length > 0) session.completionTargets = completionTargets;
     if (hasRequestedActiveAgreements && requestedActiveAgreements.length > 0) {
       session.activeAgreements = requestedActiveAgreements;

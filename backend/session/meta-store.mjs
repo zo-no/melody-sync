@@ -128,7 +128,7 @@ function normalizeStoredSessionMeta(meta) {
   const normalized = { ...meta };
   let changed = false;
 
-  for (const legacyField of ['activeRun', 'status', 'queuedMessageCount', 'pendingCompact', 'renameState', 'renameError', 'recoverable', 'appId', 'appName']) {
+  for (const legacyField of ['activeRun', 'status', 'queuedMessageCount', 'pendingCompact', 'renameState', 'renameError', 'recoverable', 'appId', 'appName', 'userId', 'userName', 'forkedAt', 'resumeState', 'manualGroup']) {
     if (Object.prototype.hasOwnProperty.call(normalized, legacyField)) {
       delete normalized[legacyField];
       changed = true;
@@ -183,19 +183,6 @@ function normalizeStoredSessionMeta(meta) {
       }
     } else {
       delete normalized.sidebarOrder;
-      changed = true;
-    }
-  }
-
-  if (Object.prototype.hasOwnProperty.call(normalized, 'manualGroup')) {
-    const nextManualGroup = normalizeSessionGroup(normalized.manualGroup || '');
-    if (nextManualGroup) {
-      if (normalized.manualGroup !== nextManualGroup) {
-        normalized.manualGroup = nextManualGroup;
-        changed = true;
-      }
-    } else {
-      delete normalized.manualGroup;
       changed = true;
     }
   }
