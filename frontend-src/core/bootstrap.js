@@ -167,7 +167,6 @@ const sidebarLongTermVisibilityToggleBtn = document.getElementById("sidebarLongT
 const sidebarGroupingConfigBtn = document.getElementById("sidebarGroupingConfigBtn");
 const sessionList = document.getElementById("sessionList");
 const sessionListFooter = document.getElementById("sessionListFooter");
-const sortSessionListBtn = document.getElementById("sortSessionListBtn");
 const newSessionBtn = document.getElementById("newSessionBtn");
 const headerOverflow = document.getElementById("headerOverflow");
 const headerOverflowToggle = document.getElementById("headerOverflowToggle");

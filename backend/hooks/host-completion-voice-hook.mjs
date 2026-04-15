@@ -9,9 +9,6 @@ const HOST_COMPLETION_HOOK_LOG = join(
   VOICE_LOGS_DIR,
   'host-completion-hook.log',
 );
-const SESSION_LIST_ORGANIZER_INTERNAL_ROLE = 'session_list_organizer';
-const SESSION_LIST_ORGANIZER_SESSION_NAME = 'sort session list';
-
 async function appendHostCompletionHookLog(message) {
   try {
     await mkdir(dirname(HOST_COMPLETION_HOOK_LOG), { recursive: true });
@@ -168,16 +165,10 @@ function normalizeInternalRole(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function normalizeSessionName(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
 function shouldSuppressCompletionVoice({ session, manifest, userInitiated } = {}) {
   if (userInitiated === true) return true;
   if (normalizeInternalRole(session?.internalRole)) return true;
-  if (typeof manifest?.internalOperation === 'string' && manifest.internalOperation.trim()) return true;
-  return normalizeSessionName(session?.name) === SESSION_LIST_ORGANIZER_SESSION_NAME
-    || normalizeInternalRole(session?.internalRole) === SESSION_LIST_ORGANIZER_INTERNAL_ROLE;
+  return typeof manifest?.internalOperation === 'string' && manifest.internalOperation.trim();
 }
 
 export async function hostCompletionVoiceHook(

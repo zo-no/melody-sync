@@ -312,13 +312,13 @@ history/<sessionId>/
   type: 'message' | 'reasoning' | 'tool_use' | 'tool_result' | 'template_context' | 'status',
   role?: 'user' | 'assistant',
 
-  // body 存储模式
-  bodyMode: 'inline' | 'external' | 'preview_only' | 'none',
+  // body 存储元数据
+  bodyPersistence?: 'externalized' | 'preview_only',  // 磁盘存储模式
   bodyBytes?: number,    // 原始 body 字节数
   bodyRef?: string,      // 外部化时的 ref（指向 bodies/ 下的文件）
   bodyAvailable?: boolean,
   bodyLoaded?: boolean,
-  bodyPreview?: string,  // preview_only 时的截断预览
+  bodyTruncated?: boolean,
 
   // 按 type 不同有不同的 body 字段
   content?: string,      // message / reasoning / template_context

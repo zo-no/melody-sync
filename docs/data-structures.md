@@ -106,8 +106,6 @@ Session {
   ── 兼容性字段（历史遗留，非产品表面） ───────────────────────
   appId?    string
   appName?  string
-  userId?   string
-  userName? string
 }
 ```
 
@@ -555,14 +553,12 @@ HistoryEvent {
   role?:      'user' | 'assistant'   type = message 时有
 
   ── Body 存储元数据 ───────────────────────────────────────────
-  bodyMode:       'inline' | 'external' | 'preview_only' | 'none'
+  bodyPersistence?: 'externalized' | 'preview_only'   磁盘存储模式
   bodyField?:     string    body 字段名（'content' / 'toolInput' / 'output'）
   bodyAvailable?: boolean   是否有 body 可加载
   bodyLoaded?:    boolean   当前是否已加载
   bodyBytes?:     number    原始 body 字节数
   bodyRef?:       string    外部化时的 ref（'evt_NNNNNNNNN_<field>'）
-  bodyPreview?:   string    preview_only 时的截断预览
-  bodyPersistence?: 'externalized' | 'preview_only'
   bodyTruncated?: boolean
 }
 ```

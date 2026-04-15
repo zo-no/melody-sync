@@ -26,13 +26,6 @@ export function isContextCompactorSession(meta, contextCompactorRole = 'context_
   return getInternalSessionRole(meta) === contextCompactorRole;
 }
 
-function isOrganizerSkillSession(meta) {
-  const normalizedName = trimText(meta?.name).toLowerCase();
-  const systemPrompt = trimText(meta?.systemPrompt);
-  return normalizedName === 'sort session list'
-    || systemPrompt.includes("You are MelodySync's hidden session-list organizer.");
-}
-
 function isAssistantChildSession(meta) {
   return !!trimText(meta?.forkedFromSessionId)
     || !!trimText(meta?.sourceContext?.parentSessionId)
@@ -43,7 +36,6 @@ export function getSessionTaskListOrigin(meta) {
   const explicit = normalizeSessionTaskListOrigin(meta?.taskListOrigin);
   if (explicit) return explicit;
   if (isInternalSession(meta)) return 'system';
-  if (isOrganizerSkillSession(meta)) return 'system';
   if (isAssistantChildSession(meta)) return 'assistant';
   return 'user';
 }
@@ -52,7 +44,6 @@ export function getSessionTaskListVisibility(meta) {
   const explicit = normalizeSessionTaskListVisibility(meta?.taskListVisibility);
   if (explicit) return explicit;
   if (isInternalSession(meta)) return 'hidden';
-  if (isOrganizerSkillSession(meta)) return 'hidden';
   if (isAssistantChildSession(meta)) return 'secondary';
   return 'primary';
 }

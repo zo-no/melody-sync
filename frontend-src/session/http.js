@@ -230,33 +230,8 @@ function hasSessionListGroupingTemplateGroups() {
   return getSessionListGroupingTemplateGroups().length > 0;
 }
 
-function getDefaultSortSessionListButtonLabel() {
-  if (!hasSessionListGroupingTemplateGroups()) {
-    return translateSessionListUiText("sidebar.sortList.createFolderFirst", "先新建文件夹");
-  }
-  return translateSessionListUiText("sidebar.sortList.runTemplate", "整理到文件夹");
-}
-
-function getRunningSortSessionListButtonLabel() {
-  return translateSessionListUiText("sidebar.sortList.runningTemplate", "整理中…");
-}
-
-function getDoneSortSessionListButtonLabel() {
-  return translateSessionListUiText("sidebar.sortList.doneTemplate", "已整理到文件夹");
-}
-
-function getFailedSortSessionListButtonLabel() {
-  return translateSessionListUiText("sidebar.sortList.failedTemplate", "整理失败");
-}
-
 function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function setSortSessionListButtonState(label = getDefaultSortSessionListButtonLabel(), { busy = false } = {}) {
-  if (!sortSessionListBtn) return;
-  sortSessionListBtn.textContent = label || getDefaultSortSessionListButtonLabel();
-  sortSessionListBtn.disabled = busy;
 }
 
 async function saveTaskListTemplateGroups(groups = []) {

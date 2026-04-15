@@ -297,11 +297,6 @@ async function createNewLongTermProjectShortcut({ closeSidebar = true } = {}) {
   return true;
 }
 
-function createSortSessionListShortcut() {
-  if (typeof organizeSessionListWithAgent !== "function") return false;
-  return organizeSessionListWithAgent({ closeSidebar: false });
-}
-
 function getSessionGroupingTemplateGroupsForSidebar() {
   const model = window.MelodySyncSessionListModel || null;
   return typeof model?.getSessionGroupingTemplateGroups === "function"
@@ -398,9 +393,6 @@ async function saveSessionGroupingTemplatePopover(label = "") {
     const runAfterSave = sidebarGroupingInlineCreateState.runAfterSave === true;
     syncSessionGroupingControls();
     closeSessionGroupingTemplatePopover();
-    if (runAfterSave && savedGroups.length > 0 && typeof organizeSessionListWithAgent === "function") {
-      void organizeSessionListWithAgent({ closeSidebar: false, skipModeSwitch: true });
-    }
     return {
       ok: true,
       label: nextLabel,
@@ -435,9 +427,6 @@ async function removeSessionGroupingTemplateGroup(groupLabel = "", { runAfterSav
     const savedGroups = Array.isArray(payload?.taskListTemplateGroups) ? payload.taskListTemplateGroups : nextGroups;
     syncSessionGroupingControls();
     closeSessionGroupingTemplatePopover();
-    if (runAfterSave && savedGroups.length > 0 && typeof organizeSessionListWithAgent === "function") {
-      void organizeSessionListWithAgent({ closeSidebar: false, skipModeSwitch: true });
-    }
     return true;
   } catch (error) {
     console.warn("[sessions] Failed to remove task list template group:", error?.message || error);
@@ -468,13 +457,9 @@ function syncSessionGroupingControls() {
     summaryEl.hidden = true;
     summaryEl.textContent = "";
   }
-  if (typeof setSortSessionListButtonState === "function") {
-    setSortSessionListButtonState();
-  }
 }
 
 globalThis.createNewSessionShortcut = createNewSessionShortcut;
-globalThis.createSortSessionListShortcut = createSortSessionListShortcut;
 globalThis.syncSidebarCollapseState = syncSidebarCollapseState;
 globalThis.setSidebarCollapsed = setSidebarCollapsed;
 globalThis.syncSessionGroupingControls = syncSessionGroupingControls;
@@ -553,14 +538,6 @@ sidebarGroupingConfigBtn?.addEventListener("click", () => {
     return;
   }
   void promptForSessionGroupingTemplateConfig({ runAfterSave: false });
-});
-
-sortSessionListBtn?.addEventListener("click", () => {
-  if (!hasSessionGroupingTemplateGroupsForSidebar()) {
-    void openSessionGroupingTemplatePopover({ runAfterSave: false });
-    return;
-  }
-  createSortSessionListShortcut();
 });
 
 document.addEventListener("keydown", (event) => {
