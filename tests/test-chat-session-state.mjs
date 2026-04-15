@@ -88,7 +88,7 @@ function createBaseContext() {
     archivedSessionCount: 0,
     sessions: [],
     getEffectiveSessionAppId(session) {
-      return session?.appId || 'chat';
+      return session?.sourceId || 'chat';
     },
     normalizeSessionReviewStamp(value) {
       if (typeof value === 'number' && Number.isFinite(value)) {

@@ -47,7 +47,6 @@ try {
   const parent = await createSession(workspace, 'codex', 'Source session', {
     group: 'Painting',
     description: 'Original discussion to branch from',
-    appId: 'app-owner-console',
     sourceId: 'chat',
     sourceName: 'Chat',
     systemPrompt: 'Stay focused on the user topic.',
@@ -139,7 +138,6 @@ try {
   assert.equal(child.description, parent.description, 'fork should copy the session description');
   assert.equal(child.folder, parent.folder, 'fork should keep the same folder');
   assert.equal(child.tool, parent.tool, 'fork should keep the same tool');
-  assert.equal(child.appId || '', '', 'fork should not propagate passive app metadata');
   assert.equal(child.systemPrompt, parent.systemPrompt, 'fork should keep the same prompt');
   assert.equal(child.forkedFromSessionId, parent.id, 'fork should record the parent id');
   assert.equal(child.rootSessionId, parent.id, 'first fork should use parent as root');

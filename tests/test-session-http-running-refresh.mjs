@@ -103,7 +103,7 @@ function createContext() {
         name: 'Current session',
         status: 'running',
         updatedAt: '2026-03-12T09:30:00.000Z',
-        appId: 'chat',
+        sourceId: 'chat',
       },
     ],
     jsonResponseCache: new Map(),
@@ -145,7 +145,7 @@ function createContext() {
       return session?.name || '';
     },
     getEffectiveSessionAppId(session) {
-      return session?.appId || 'chat';
+      return session?.sourceId || 'chat';
     },
     normalizeSessionStatus(status) {
       return status || 'idle';
