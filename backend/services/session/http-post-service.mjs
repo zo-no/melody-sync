@@ -7,7 +7,6 @@ import {
   delegateSession,
   forkSession,
   getSession,
-  organizeSession,
   promoteSessionToPersistent,
   runSessionPersistent,
 } from '../../session/manager.mjs';
@@ -17,15 +16,6 @@ import { statOrNull } from '../../fs-utils.mjs';
 
 async function isDirectoryPath(path) {
   return (await statOrNull(path))?.isDirectory() === true;
-}
-
-export async function organizeSessionForHttp(sessionId, payload = {}) {
-  return organizeSession(sessionId, {
-    tool: typeof payload?.tool === 'string' ? payload.tool.trim() : '',
-    model: typeof payload?.model === 'string' ? payload.model.trim() : '',
-    effort: typeof payload?.effort === 'string' ? payload.effort.trim() : '',
-    thinking: payload?.thinking === true,
-  });
 }
 
 export async function promoteSessionPersistentForHttp(sessionId, payload = {}) {

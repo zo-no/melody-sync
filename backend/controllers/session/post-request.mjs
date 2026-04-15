@@ -5,28 +5,6 @@ function requestError(message, statusCode = 400) {
   return Object.assign(new Error(message), { statusCode });
 }
 
-export async function readSessionOrganizeRequest(req) {
-  let payload = {};
-  try {
-    payload = await readJsonRequestBody(req, 8192);
-  } catch {
-    throw requestError('Invalid request body');
-  }
-  if (Object.prototype.hasOwnProperty.call(payload, 'tool') && payload.tool !== null && typeof payload.tool !== 'string') {
-    throw requestError('tool must be a string when provided');
-  }
-  if (Object.prototype.hasOwnProperty.call(payload, 'model') && payload.model !== null && typeof payload.model !== 'string') {
-    throw requestError('model must be a string when provided');
-  }
-  if (Object.prototype.hasOwnProperty.call(payload, 'effort') && payload.effort !== null && typeof payload.effort !== 'string') {
-    throw requestError('effort must be a string when provided');
-  }
-  if (Object.prototype.hasOwnProperty.call(payload, 'thinking') && typeof payload.thinking !== 'boolean') {
-    throw requestError('thinking must be a boolean when provided');
-  }
-  return payload;
-}
-
 export async function readSessionPersistentRequest(req) {
   try {
     return await readJsonRequestBody(req, 16384);

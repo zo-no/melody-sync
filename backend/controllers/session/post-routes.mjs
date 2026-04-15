@@ -2,7 +2,6 @@ import { readSessionMessagePayload } from './message-request.mjs';
 import {
   readCreateSessionRequest,
   readSessionDelegateRequest,
-  readSessionOrganizeRequest,
   readSessionPersistentRequest,
 } from './post-request.mjs';
 import {
@@ -10,7 +9,6 @@ import {
   createSessionForHttp,
   delegateSessionForHttp,
   forkSessionForHttp,
-  organizeSessionForHttp,
   promoteSessionPersistentForHttp,
   runSessionPersistentForHttp,
 } from '../../services/session/http-post-service.mjs';
@@ -22,22 +20,6 @@ export async function handleSessionPostRoutes(ctx) {
   if (pathname.startsWith('/api/sessions/') && req?.method === 'POST') {
     const sessionId = parts[2];
     const action = parts[3] || null;
-
-    if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'organize') {
-      if (!requireSessionAccess(res, authSession, sessionId)) return true;
-      try {
-        const payload = await readSessionOrganizeRequest(req);
-        const outcome = await organizeSessionForHttp(sessionId, payload);
-        writeJson(res, outcome.duplicate ? 200 : 202, {
-          duplicate: outcome.duplicate,
-          run: outcome.run || null,
-          session: createClientSessionDetail(outcome.session),
-        });
-      } catch (error) {
-        writeJson(res, error?.statusCode || 409, { error: error.message || 'Failed to organize session' });
-      }
-      return true;
-    }
 
     if (parts.length === 4 && parts[0] === 'api' && parts[1] === 'sessions' && sessionId && action === 'promote-persistent') {
       if (!requireSessionAccess(res, authSession, sessionId)) return true;

@@ -65,8 +65,6 @@ The `ctx` object contains everything a handler needs — no manual parameter thr
 | handleSessionDeleteRoutes | DELETE /api/sessions/:id |
 | handleRunReadRoutes | GET /api/runs/:id |
 | handleRunWriteRoutes | POST /api/runs/:id/cancel |
-| handleHookReadRoutes | GET /api/hooks |
-| handleHookWriteRoutes | PATCH /api/hooks/:id |
 | handleSystemReadRoutes | GET /api/tools, /api/models, /api/auth/me, ... |
 | handleSystemWriteRoutes | POST /api/runtime-selection, push subscriptions, ... |
 | handleChatPageRequest | GET / (chat shell HTML) |
@@ -80,8 +78,6 @@ The `ctx` object contains everything a handler needs — no manual parameter thr
 - [`backend/controllers/http/authenticated-routes.mjs`](backend/controllers/http/authenticated-routes.mjs): **route table** — all authenticated API routes registered here via `createRouter().use()`
 - [`backend/controllers/assets/read-routes.mjs`](backend/controllers/assets/read-routes.mjs): file asset HTTP read controller
 - [`backend/controllers/assets/write-routes.mjs`](backend/controllers/assets/write-routes.mjs): file asset HTTP mutation controller
-- [`backend/controllers/hooks/read-routes.mjs`](backend/controllers/hooks/read-routes.mjs): legacy hook alias HTTP read controller
-- [`backend/controllers/hooks/write-routes.mjs`](backend/controllers/hooks/write-routes.mjs): legacy hook alias HTTP mutation controller
 - [`backend/controllers/public/auth-routes.mjs`](backend/controllers/public/auth-routes.mjs): public auth/login/logout HTTP controller
 - [`backend/controllers/public/page-routes.mjs`](backend/controllers/public/page-routes.mjs): public page/build-info HTTP controller
 - [`backend/controllers/run/read-routes.mjs`](backend/controllers/run/read-routes.mjs): run HTTP read controller
@@ -114,7 +110,7 @@ The `ctx` object contains everything a handler needs — no manual parameter thr
 - [`backend/services/session/catalog-read-service.mjs`](backend/services/session/catalog-read-service.mjs): session list/detail catalog HTTP read orchestration
 - [`backend/services/session/event-read-service.mjs`](backend/services/session/event-read-service.mjs): session event/source-context HTTP read orchestration
 - [`backend/services/session/http-mutation-service.mjs`](backend/services/session/http-mutation-service.mjs): session PATCH/DELETE HTTP mutation orchestration
-- [`backend/services/session/http-post-service.mjs`](backend/services/session/http-post-service.mjs): session POST action orchestration for create/fork/delegate/organize/persistent flows
+- [`backend/services/session/http-post-service.mjs`](backend/services/session/http-post-service.mjs): session POST action orchestration for create/fork/delegate/persistent flows
 - [`backend/session/visibility.mjs`](backend/session/visibility.mjs): session visibility/internal-role predicates
 - [`backend/session/invalidation.mjs`](backend/session/invalidation.mjs): owner-facing session invalidation broadcasts
 - [`backend/run/store.mjs`](backend/run/store.mjs): durable run manifests, spool, status, result

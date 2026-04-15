@@ -36,8 +36,6 @@ import { createSessionAccessGuard } from '../session/access.mjs';
 import { handleChatPageRequest } from '../system/chat-page.mjs';
 import { handleAssetReadRoutes } from '../assets/read-routes.mjs';
 import { handleAssetWriteRoutes } from '../assets/write-routes.mjs';
-import { handleHookReadRoutes } from '../hooks/read-routes.mjs';
-import { handleHookWriteRoutes } from '../hooks/write-routes.mjs';
 import { handleOutputPanelReadRoutes } from '../output-panel/read-routes.mjs';
 import { handleRunReadRoutes } from '../run/read-routes.mjs';
 import { handleRunWriteRoutes } from '../run/write-routes.mjs';
@@ -71,8 +69,6 @@ const router = createRouter()
   .use(handleSessionDeleteRoutes)
   .use(handleRunReadRoutes)
   .use(handleRunWriteRoutes)
-  .use(handleHookReadRoutes)
-  .use(handleHookWriteRoutes)
   .use(handleSystemReadRoutes)
   .use(handleSystemWriteRoutes)
   .use(handleChatPageRequest);

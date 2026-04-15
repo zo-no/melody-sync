@@ -126,7 +126,7 @@ MelodySync is now an owner-operated AI task workspace.
 
 `backend/controllers/http/authenticated-routes.mjs`
 
-- coordinates authenticated request dispatch across sessions, runs, workbench, settings, hooks, system routes, and the chat page shell
+- coordinates authenticated request dispatch across sessions, runs, workbench, settings, system routes, and the chat page shell
 
 `backend/controllers/assets/read-routes.mjs`
 
@@ -135,14 +135,6 @@ MelodySync is now an owner-operated AI task workspace.
 `backend/controllers/assets/write-routes.mjs`
 
 - handles file-asset HTTP mutations including upload-intent creation and finalize writes
-
-`backend/controllers/hooks/read-routes.mjs`
-
-- handles legacy hook alias reads that mirror the canonical settings/hooks surface
-
-`backend/controllers/hooks/write-routes.mjs`
-
-- handles legacy hook alias writes while keeping request validation and alias branching out of the route shim
 
 `backend/controllers/public/auth-routes.mjs`
 
